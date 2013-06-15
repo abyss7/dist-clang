@@ -12,7 +12,6 @@ import tempfile
 
 class Handler(SocketServer.BaseRequestHandler):
   def handle(self):
-    # Assume - there are no problems with first 4 bytes
     size, = struct.unpack('i', self.request.recv(4))
     message_str = ''
     while len(message_str) < size:
@@ -26,7 +25,7 @@ class Handler(SocketServer.BaseRequestHandler):
     fd.write(message.content)
     fd.close()
 
-    compiler = os.environ['DIST_CLANG_REAL']
+    compiler = os.environ['DIST_CLANG_CXX']
     llvm_bc_file = os.path.splitext(preprocessed_file)[0] + '.bc'
     args = message.command_line.split()
 
@@ -35,6 +34,15 @@ class Handler(SocketServer.BaseRequestHandler):
 
     # Filter plugin path
     args = [x if not x.count('libFindBadConstructs') else os.environ['CLANG_PLUGIN'] for x in args[:]]
+
+    # Filter 'arch' flag
+    if args.count('-arch'):
+      arch_index = args.index('-arch')
+      if args[arch_index+1] == 'i386':
+        args[arch_index+1] = '-m32'
+      else:
+        del args[arch_index+1]
+      del args[arch_index]
 
     args[0:0] = [compiler, '-c', '-emit-llvm', preprocessed_file, '-o', llvm_bc_file]
     subprocess.call(args)

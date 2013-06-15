@@ -2,7 +2,6 @@
 # -*- coding: utf-8 *-*
 
 import os
-import pprint
 import remote_pb2
 import socket
 import struct
@@ -17,20 +16,20 @@ def split_flags(argv):
   flags['mode'] = 'linker'
   flags['output'] = ''
   flags['preprocessor'] = list()
-  flags['unused'] = list()
 
-  eat_next = ''
+  eat_next = list()
   eat_until = ''
   for arg in argv[1:]:
     if eat_next:
-      if type(flags[eat_next]) is str:
-        flags[eat_next] = arg
-      elif type(flags[eat_next]) is list:
-        flags[eat_next].append(arg)
+      for eat in eat_next:
+        if type(flags[eat]) is str:
+          flags[eat] = arg
+        elif type(flags[eat]) is list:
+          flags[eat].append(arg)
       if not eat_until:
-        eat_next = ''
+        eat_next = list()
       if arg == eat_until:
-        eat_next = ''
+        eat_next = list()
         eat_until = ''
       continue
 
@@ -42,12 +41,10 @@ def split_flags(argv):
 
       elif arg[1] == 'a':
         if arg == '-arch':
-          flags['unused'].append(arg)
-          #TODO: it's a hack for Mac, since we don't really know the arch right now
-          flags['compiler'].append('-m32')
-          flags['preprocessor'].append('-m32')
-          flags['linker'].append('-m32')
-          eat_next = 'unused'
+          flags['compiler'].append(arg)
+          flags['linker'].append(arg)
+          flags['preprocessor'].append(arg)
+          eat_next = ['compiler', 'linker', 'preprocessor']
       elif arg[1] == 'B':
         flags['linker'].append(arg)
       elif arg[1] == 'c':
@@ -65,20 +62,20 @@ def split_flags(argv):
         flags['preprocessor'].append(arg)
       elif arg[1] == 'i':
         flags['preprocessor'].append(arg)
-        eat_next = 'preprocessor'
+        eat_next = ['preprocessor']
       elif arg[1] == 'l':
         flags['linker'].append(arg)
       elif arg[1] == 'M':
         flags['preprocessor'].append(arg)
         if arg == '-MF':
-          eat_next = 'preprocessor'
+          eat_next = ['preprocessor']
       elif arg[1] == 'm':
         flags['compiler'].append(arg)
         flags['preprocessor'].append(arg)
       elif arg[1] == 'O':
         flags['compiler'].append(arg)
       elif arg[1] == 'o':
-        eat_next = 'output'
+        eat_next = ['output']
       elif arg[1] == 'p':
         flags['compiler'].append(arg)
         if arg == '-pthread':
@@ -89,20 +86,19 @@ def split_flags(argv):
         if len(arg) >= 3 and arg[2] == 'l' and arg[3] == ',':
           flags['linker'].append(arg)
           if arg == '-Wl,--start-group':
-            eat_next = 'linker'
+            eat_next = ['linker']
             eat_until = '-Wl,--end-group'
         else:
           flags['compiler'].append(arg)
       elif arg[1] == 'X':
         flags['compiler'].append(arg)
-        eat_next = 'compiler'
+        eat_next = ['compiler']
 
     else:
+      assert not flags['input']
       flags['input'] = arg
 
-  if eat_next or eat_until:
-    pprint.pprint(flags)
-    raise
+  assert not (eat_next or eat_until)
 
   return flags
 
@@ -114,14 +110,21 @@ def Main(argv):
   if flags['mode'] == 'compiler':
     preprocessed_file = flags['output'] + os.path.splitext(flags['input'])[1]
     preprocess = flags['preprocessor'][:]
-    preprocess[0:0] = [argv[0], '-MT', flags['output'], '-E', flags['input'], '-o', preprocessed_file]
+
+    # Append '-MT' flag in case there is '-MMD' flag.
+    preprocess[0:0] = ['-MT', flags['output']]
+
+    preprocess[0:0] = [argv[0], '-E', flags['input'], '-o', preprocessed_file]
     try:
       subprocess.check_call(preprocess)
     except:
+      print 'Preprocessing failed!'
       print preprocess
       sys.exit(1)
 
     llvm_bc_file = os.path.splitext(flags['output'])[0] + '.bc'
+
+    # LLVM doesn't support 'blocks' by default.
     flags['compiler'].append('-fblocks')
 
     fd = open(preprocessed_file)
@@ -133,7 +136,7 @@ def Main(argv):
     os.remove(preprocessed_file)
 
     request = socket.socket()
-    request.connect(("127.0.0.1", 60000))
+    request.connect((os.environ['DIST_CLANG_HOST'], os.environ['DIST_CLANG_PORT']))
     send_size = struct.pack('i', message.ByteSize())
     request.sendall(send_size)
     request.sendall(message.SerializeToString())
@@ -156,6 +159,7 @@ def Main(argv):
     try:
       subprocess.check_call(compile_to_native)
     except:
+      print 'Local compilation failed!'
       print compile_to_native
       sys.exit(1)
     finally:
