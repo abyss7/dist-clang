@@ -1,7 +1,0 @@
-package dist_clang;
-
-message Top {
-  required string file_name = 1;
-  optional string command_line = 2;
-  optional bytes content = 3;
-}

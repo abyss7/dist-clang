@@ -1,0 +1,6 @@
+package clangd;
+
+message LocalExecution {
+  optional string current_dir = 1;
+  repeated string args = 2;
+}
