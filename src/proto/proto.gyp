@@ -12,6 +12,7 @@
         ],
       },
       'sources': [
+        'protobuf_utils.h',
         'remote.pb.cc',
         'remote.pb.h',
         'remote.proto',

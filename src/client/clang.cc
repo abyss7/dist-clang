@@ -1,4 +1,5 @@
 #include "base/c_utils.h"
+#include "base/constants.h"
 #include "base/process.h"
 #include "base/string_utils.h"
 #include "client/client_unix.h"
@@ -18,7 +19,6 @@ typedef list<string> string_list;
 const char* kEnvClangdSocket = "CLANGD_SOCKET_PATH";
 const char* kEnvClangdCxx = "CLANGD_CXX";
 const char* kEnvTempDir = "TMPDIR";
-const char* kDefaultClangdSocket = "/tmp/clangd.socket";
 const char* kDefaultTempDir = "/tmp";
 
 int ExecuteLocally(char* argv[]) {
@@ -113,7 +113,8 @@ bool DoMain(int argc, char* argv[]) {
   if (action == ClangFlagSet::UNKNOWN)
     return true;
 
-  clangd::LocalExecution message;
+  dist_clang::Execute message;
+  message.set_origin(dist_clang::Execute::LOCAL);
   message.set_current_dir(current_dir);
   for (auto it = args.begin(); it != args.end(); ++it)
     message.add_args()->assign(*it);

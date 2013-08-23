@@ -1,4 +1,6 @@
-#include "server.h"
+#include "daemon/server.h"
+
+#include "base/constants.h"
 #include "tclap/CmdLine.h"
 
 #include <iostream>
@@ -18,12 +20,11 @@ int main(int argc, char* argv[]) {
   try {
     // TODO: use normal versioning.
     CmdLine cmd("Daemon from Clang distributed system - Clangd.", ' ', "0.1");
-
-    // TODO: share the default value string with 'clang'.
     ValueArg<string> socket_arg("s", "socket",
         "Path to UNIX socket to listen for local connections.",
-        false, "/tmp/clangd.socket", "path", cmd);
+        false, kDefaultClangdSocket, "path", cmd);
     cmd.parse(argc, argv);
+
     socket_path = socket_arg.getValue();
   } catch (ArgException &e) {
     std::cerr << "error: " << e.error()
@@ -33,15 +34,19 @@ int main(int argc, char* argv[]) {
   }
 
   string error;
-  Server local_listener;
-  if (!local_listener.Listen(socket_path, &error)) {
-    std::cerr << "Local server: " << error << std::endl;
+  Server message_handler;
+  if (!message_handler.Listen(socket_path, &error)) {
+    std::cerr << "Server: " << error << std::endl;
     return 1;
   }
 
-#ifndef NDEBUG
+  if (!message_handler.Run()) {
+    std::cerr << "Server: failed to start." << std::endl;
+    return 1;
+  }
+
+  // TODO: setup signals' handler.
   pause();
-#endif
 
   return 0;
 }

@@ -1,6 +1,12 @@
-package clangd;
+package dist_clang;
 
-message LocalExecution {
-  optional string current_dir = 1;
-  repeated string args = 2;
+message Execute {
+  enum Origin {
+    LOCAL = 1;
+    REMOTE = 2;
+  }
+
+  required Origin origin      = 1;
+  optional string current_dir = 2;
+  repeated string args        = 3;
 }

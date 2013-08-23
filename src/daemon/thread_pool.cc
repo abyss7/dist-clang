@@ -57,8 +57,10 @@ void ThreadPool::DoWork() {
       break;
 
     TaskQueue::Node* node = busy_nodes_.dequeue();
-    if (!node)
+    if (!node) {
       is_empty_ = true;
+      continue;
+    }
 
     node->task();
     free_nodes_.enqueue(node);

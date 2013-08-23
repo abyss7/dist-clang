@@ -16,13 +16,14 @@
 #include <google/protobuf/wire_format.h>
 // @@protoc_insertion_point(includes)
 
-namespace clangd {
+namespace dist_clang {
 
 namespace {
 
-const ::google::protobuf::Descriptor* LocalExecution_descriptor_ = NULL;
+const ::google::protobuf::Descriptor* Execute_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
-  LocalExecution_reflection_ = NULL;
+  Execute_reflection_ = NULL;
+const ::google::protobuf::EnumDescriptor* Execute_Origin_descriptor_ = NULL;
 
 }  // namespace
 
@@ -33,22 +34,24 @@ void protobuf_AssignDesc_remote_2eproto() {
     ::google::protobuf::DescriptorPool::generated_pool()->FindFileByName(
       "remote.proto");
   GOOGLE_CHECK(file != NULL);
-  LocalExecution_descriptor_ = file->message_type(0);
-  static const int LocalExecution_offsets_[2] = {
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(LocalExecution, current_dir_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(LocalExecution, args_),
+  Execute_descriptor_ = file->message_type(0);
+  static const int Execute_offsets_[3] = {
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Execute, origin_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Execute, current_dir_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Execute, args_),
   };
-  LocalExecution_reflection_ =
+  Execute_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
-      LocalExecution_descriptor_,
-      LocalExecution::default_instance_,
-      LocalExecution_offsets_,
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(LocalExecution, _has_bits_[0]),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(LocalExecution, _unknown_fields_),
+      Execute_descriptor_,
+      Execute::default_instance_,
+      Execute_offsets_,
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Execute, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Execute, _unknown_fields_),
       -1,
       ::google::protobuf::DescriptorPool::generated_pool(),
       ::google::protobuf::MessageFactory::generated_factory(),
-      sizeof(LocalExecution));
+      sizeof(Execute));
+  Execute_Origin_descriptor_ = Execute_descriptor_->enum_type(0);
 }
 
 namespace {
@@ -62,14 +65,14 @@ inline void protobuf_AssignDescriptorsOnce() {
 void protobuf_RegisterTypes(const ::std::string&) {
   protobuf_AssignDescriptorsOnce();
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-    LocalExecution_descriptor_, &LocalExecution::default_instance());
+    Execute_descriptor_, &Execute::default_instance());
 }
 
 }  // namespace
 
 void protobuf_ShutdownFile_remote_2eproto() {
-  delete LocalExecution::default_instance_;
-  delete LocalExecution_reflection_;
+  delete Execute::default_instance_;
+  delete Execute_reflection_;
 }
 
 void protobuf_AddDesc_remote_2eproto() {
@@ -79,12 +82,14 @@ void protobuf_AddDesc_remote_2eproto() {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-    "\n\014remote.proto\022\006clangd\"3\n\016LocalExecution"
-    "\022\023\n\013current_dir\030\001 \001(\t\022\014\n\004args\030\002 \003(\t", 75);
+    "\n\014remote.proto\022\ndist_clang\"y\n\007Execute\022*\n"
+    "\006origin\030\001 \002(\0162\032.dist_clang.Execute.Origi"
+    "n\022\023\n\013current_dir\030\002 \001(\t\022\014\n\004args\030\003 \003(\t\"\037\n\006"
+    "Origin\022\t\n\005LOCAL\020\001\022\n\n\006REMOTE\020\002", 149);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "remote.proto", &protobuf_RegisterTypes);
-  LocalExecution::default_instance_ = new LocalExecution();
-  LocalExecution::default_instance_->InitAsDefaultInstance();
+  Execute::default_instance_ = new Execute();
+  Execute::default_instance_->InitAsDefaultInstance();
   ::google::protobuf::internal::OnShutdown(&protobuf_ShutdownFile_remote_2eproto);
 }
 
@@ -97,36 +102,59 @@ struct StaticDescriptorInitializer_remote_2eproto {
 
 // ===================================================================
 
+const ::google::protobuf::EnumDescriptor* Execute_Origin_descriptor() {
+  protobuf_AssignDescriptorsOnce();
+  return Execute_Origin_descriptor_;
+}
+bool Execute_Origin_IsValid(int value) {
+  switch(value) {
+    case 1:
+    case 2:
+      return true;
+    default:
+      return false;
+  }
+}
+
 #ifndef _MSC_VER
-const int LocalExecution::kCurrentDirFieldNumber;
-const int LocalExecution::kArgsFieldNumber;
+const Execute_Origin Execute::LOCAL;
+const Execute_Origin Execute::REMOTE;
+const Execute_Origin Execute::Origin_MIN;
+const Execute_Origin Execute::Origin_MAX;
+const int Execute::Origin_ARRAYSIZE;
+#endif  // _MSC_VER
+#ifndef _MSC_VER
+const int Execute::kOriginFieldNumber;
+const int Execute::kCurrentDirFieldNumber;
+const int Execute::kArgsFieldNumber;
 #endif  // !_MSC_VER
 
-LocalExecution::LocalExecution()
+Execute::Execute()
   : ::google::protobuf::Message() {
   SharedCtor();
 }
 
-void LocalExecution::InitAsDefaultInstance() {
+void Execute::InitAsDefaultInstance() {
 }
 
-LocalExecution::LocalExecution(const LocalExecution& from)
+Execute::Execute(const Execute& from)
   : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
 }
 
-void LocalExecution::SharedCtor() {
+void Execute::SharedCtor() {
   _cached_size_ = 0;
+  origin_ = 1;
   current_dir_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
-LocalExecution::~LocalExecution() {
+Execute::~Execute() {
   SharedDtor();
 }
 
-void LocalExecution::SharedDtor() {
+void Execute::SharedDtor() {
   if (current_dir_ != &::google::protobuf::internal::kEmptyString) {
     delete current_dir_;
   }
@@ -134,29 +162,30 @@ void LocalExecution::SharedDtor() {
   }
 }
 
-void LocalExecution::SetCachedSize(int size) const {
+void Execute::SetCachedSize(int size) const {
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
   _cached_size_ = size;
   GOOGLE_SAFE_CONCURRENT_WRITES_END();
 }
-const ::google::protobuf::Descriptor* LocalExecution::descriptor() {
+const ::google::protobuf::Descriptor* Execute::descriptor() {
   protobuf_AssignDescriptorsOnce();
-  return LocalExecution_descriptor_;
+  return Execute_descriptor_;
 }
 
-const LocalExecution& LocalExecution::default_instance() {
+const Execute& Execute::default_instance() {
   if (default_instance_ == NULL) protobuf_AddDesc_remote_2eproto();
   return *default_instance_;
 }
 
-LocalExecution* LocalExecution::default_instance_ = NULL;
+Execute* Execute::default_instance_ = NULL;
 
-LocalExecution* LocalExecution::New() const {
-  return new LocalExecution;
+Execute* Execute::New() const {
+  return new Execute;
 }
 
-void LocalExecution::Clear() {
+void Execute::Clear() {
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    origin_ = 1;
     if (has_current_dir()) {
       if (current_dir_ != &::google::protobuf::internal::kEmptyString) {
         current_dir_->clear();
@@ -168,16 +197,37 @@ void LocalExecution::Clear() {
   mutable_unknown_fields()->Clear();
 }
 
-bool LocalExecution::MergePartialFromCodedStream(
+bool Execute::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
 #define DO_(EXPRESSION) if (!(EXPRESSION)) return false
   ::google::protobuf::uint32 tag;
   while ((tag = input->ReadTag()) != 0) {
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // optional string current_dir = 1;
+      // required .dist_clang.Execute.Origin origin = 1;
       case 1: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
+          int value;
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   int, ::google::protobuf::internal::WireFormatLite::TYPE_ENUM>(
+                 input, &value)));
+          if (::dist_clang::Execute_Origin_IsValid(value)) {
+            set_origin(static_cast< ::dist_clang::Execute_Origin >(value));
+          } else {
+            mutable_unknown_fields()->AddVarint(1, value);
+          }
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(18)) goto parse_current_dir;
+        break;
+      }
+
+      // optional string current_dir = 2;
+      case 2: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
+         parse_current_dir:
           DO_(::google::protobuf::internal::WireFormatLite::ReadString(
                 input, this->mutable_current_dir()));
           ::google::protobuf::internal::WireFormat::VerifyUTF8String(
@@ -186,12 +236,12 @@ bool LocalExecution::MergePartialFromCodedStream(
         } else {
           goto handle_uninterpreted;
         }
-        if (input->ExpectTag(18)) goto parse_args;
+        if (input->ExpectTag(26)) goto parse_args;
         break;
       }
 
-      // repeated string args = 2;
-      case 2: {
+      // repeated string args = 3;
+      case 3: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
          parse_args:
@@ -204,7 +254,7 @@ bool LocalExecution::MergePartialFromCodedStream(
         } else {
           goto handle_uninterpreted;
         }
-        if (input->ExpectTag(18)) goto parse_args;
+        if (input->ExpectTag(26)) goto parse_args;
         if (input->ExpectAtEnd()) return true;
         break;
       }
@@ -225,24 +275,30 @@ bool LocalExecution::MergePartialFromCodedStream(
 #undef DO_
 }
 
-void LocalExecution::SerializeWithCachedSizes(
+void Execute::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // optional string current_dir = 1;
+  // required .dist_clang.Execute.Origin origin = 1;
+  if (has_origin()) {
+    ::google::protobuf::internal::WireFormatLite::WriteEnum(
+      1, this->origin(), output);
+  }
+
+  // optional string current_dir = 2;
   if (has_current_dir()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->current_dir().data(), this->current_dir().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE);
     ::google::protobuf::internal::WireFormatLite::WriteString(
-      1, this->current_dir(), output);
+      2, this->current_dir(), output);
   }
 
-  // repeated string args = 2;
+  // repeated string args = 3;
   for (int i = 0; i < this->args_size(); i++) {
   ::google::protobuf::internal::WireFormat::VerifyUTF8String(
     this->args(i).data(), this->args(i).length(),
     ::google::protobuf::internal::WireFormat::SERIALIZE);
     ::google::protobuf::internal::WireFormatLite::WriteString(
-      2, this->args(i), output);
+      3, this->args(i), output);
   }
 
   if (!unknown_fields().empty()) {
@@ -251,25 +307,31 @@ void LocalExecution::SerializeWithCachedSizes(
   }
 }
 
-::google::protobuf::uint8* LocalExecution::SerializeWithCachedSizesToArray(
+::google::protobuf::uint8* Execute::SerializeWithCachedSizesToArray(
     ::google::protobuf::uint8* target) const {
-  // optional string current_dir = 1;
+  // required .dist_clang.Execute.Origin origin = 1;
+  if (has_origin()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteEnumToArray(
+      1, this->origin(), target);
+  }
+
+  // optional string current_dir = 2;
   if (has_current_dir()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->current_dir().data(), this->current_dir().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE);
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
-        1, this->current_dir(), target);
+        2, this->current_dir(), target);
   }
 
-  // repeated string args = 2;
+  // repeated string args = 3;
   for (int i = 0; i < this->args_size(); i++) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->args(i).data(), this->args(i).length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE);
     target = ::google::protobuf::internal::WireFormatLite::
-      WriteStringToArray(2, this->args(i), target);
+      WriteStringToArray(3, this->args(i), target);
   }
 
   if (!unknown_fields().empty()) {
@@ -279,11 +341,17 @@ void LocalExecution::SerializeWithCachedSizes(
   return target;
 }
 
-int LocalExecution::ByteSize() const {
+int Execute::ByteSize() const {
   int total_size = 0;
 
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    // optional string current_dir = 1;
+    // required .dist_clang.Execute.Origin origin = 1;
+    if (has_origin()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::EnumSize(this->origin());
+    }
+
+    // optional string current_dir = 2;
     if (has_current_dir()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::StringSize(
@@ -291,7 +359,7 @@ int LocalExecution::ByteSize() const {
     }
 
   }
-  // repeated string args = 2;
+  // repeated string args = 3;
   total_size += 1 * this->args_size();
   for (int i = 0; i < this->args_size(); i++) {
     total_size += ::google::protobuf::internal::WireFormatLite::StringSize(
@@ -309,10 +377,10 @@ int LocalExecution::ByteSize() const {
   return total_size;
 }
 
-void LocalExecution::MergeFrom(const ::google::protobuf::Message& from) {
+void Execute::MergeFrom(const ::google::protobuf::Message& from) {
   GOOGLE_CHECK_NE(&from, this);
-  const LocalExecution* source =
-    ::google::protobuf::internal::dynamic_cast_if_available<const LocalExecution*>(
+  const Execute* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const Execute*>(
       &from);
   if (source == NULL) {
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
@@ -321,10 +389,13 @@ void LocalExecution::MergeFrom(const ::google::protobuf::Message& from) {
   }
 }
 
-void LocalExecution::MergeFrom(const LocalExecution& from) {
+void Execute::MergeFrom(const Execute& from) {
   GOOGLE_CHECK_NE(&from, this);
   args_.MergeFrom(from.args_);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    if (from.has_origin()) {
+      set_origin(from.origin());
+    }
     if (from.has_current_dir()) {
       set_current_dir(from.current_dir());
     }
@@ -332,25 +403,27 @@ void LocalExecution::MergeFrom(const LocalExecution& from) {
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
-void LocalExecution::CopyFrom(const ::google::protobuf::Message& from) {
+void Execute::CopyFrom(const ::google::protobuf::Message& from) {
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
-void LocalExecution::CopyFrom(const LocalExecution& from) {
+void Execute::CopyFrom(const Execute& from) {
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
-bool LocalExecution::IsInitialized() const {
+bool Execute::IsInitialized() const {
+  if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
 
   return true;
 }
 
-void LocalExecution::Swap(LocalExecution* other) {
+void Execute::Swap(Execute* other) {
   if (other != this) {
+    std::swap(origin_, other->origin_);
     std::swap(current_dir_, other->current_dir_);
     args_.Swap(&other->args_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
@@ -359,17 +432,17 @@ void LocalExecution::Swap(LocalExecution* other) {
   }
 }
 
-::google::protobuf::Metadata LocalExecution::GetMetadata() const {
+::google::protobuf::Metadata Execute::GetMetadata() const {
   protobuf_AssignDescriptorsOnce();
   ::google::protobuf::Metadata metadata;
-  metadata.descriptor = LocalExecution_descriptor_;
-  metadata.reflection = LocalExecution_reflection_;
+  metadata.descriptor = Execute_descriptor_;
+  metadata.reflection = Execute_reflection_;
   return metadata;
 }
 
 
 // @@protoc_insertion_point(namespace_scope)
 
-}  // namespace clangd
+}  // namespace dist_clang
 
 // @@protoc_insertion_point(global_scope)

@@ -6,8 +6,13 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <memory>
+
 using google::protobuf::Message;
 using std::string;
+using namespace google::protobuf::io;
 
 UnixClient::UnixClient()
   : fd_(-1) {}
@@ -42,5 +47,10 @@ bool UnixClient::Receive(Message* message, string* error) {
 }
 
 bool UnixClient::Send(const Message& message, string* /* error */) {
-  return message.SerializeToFileDescriptor(fd_);
+  std::unique_ptr<ZeroCopyOutputStream> file_stream;
+  std::unique_ptr<CodedOutputStream> coded_stream;
+  file_stream.reset(new FileOutputStream(fd_));
+  coded_stream.reset(new CodedOutputStream(file_stream.get()));
+
+  return message.SerializeToCodedStream(coded_stream.get());
 }

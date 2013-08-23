@@ -8,10 +8,13 @@
       'type': 'executable',
       'dependencies': [
         'base/base.gyp:base',
+        'proto/proto.gyp:proto',
         'tclap/tclap.gyp:tclap',
       ],
       'sources': [
         'daemon/clangd.cc',
+        'daemon/epoll_set.cc',
+        'daemon/epoll_set.h',
         'daemon/server.cc',
         'daemon/server.h',
         'daemon/task_queue.cc',

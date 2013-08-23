@@ -1,6 +1,9 @@
-#include "server.h"
+#include "daemon/server.h"
 
 #include "base/c_utils.h"
+#include "daemon/epoll_set.h"
+#include "proto/protobuf_utils.h"
+#include "proto/remote.pb.h"
 
 #include <fcntl.h>
 #include <netdb.h>
@@ -12,31 +15,17 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/text_format.h>
+#include <memory>
 
 using std::string;
+using namespace google::protobuf::io;
 
-namespace {
-
-bool make_non_blocking (int fd) {
-  int flags, s;
-
-  flags = fcntl(fd, F_GETFL, 0);
-  if (flags == -1)
-    return false;
-
-  flags |= O_NONBLOCK;
-  s = fcntl(fd, F_SETFL, flags);
-  if (s == -1)
-    return false;
-
-  return true;
-}
-
-}  // namespace
-
-Server::Server(size_t concurrency)
-  : concurrency_(concurrency), thread_pool_(1024, concurrency),
-    network_threads_(concurrency) {}
+Server::Server(size_t concurrency, size_t pool_size)
+  : thread_pool_(pool_size, concurrency), network_threads_(concurrency),
+    is_running_(false) {}
 
 bool Server::Listen(const string& path, string* error) {
   sockaddr_un address;
@@ -56,15 +45,15 @@ bool Server::Listen(const string& path, string* error) {
     return false;
   }
 
-  make_non_blocking(fd);
-
-  // FIXME: what number to use here?
-  if (listen(fd, concurrency_) == -1) {
+  if (listen(fd, network_threads_.size()) == -1) {
     GetLastError(error);
     return false;
   }
 
-  listen_fds_.insert(fd);
+  if (!epoll_set_.HandleSocket(fd)) {
+    GetLastError(error);
+    return false;
+  }
 
   return true;
 }
@@ -92,69 +81,72 @@ bool Server::Listen(const string& host, short int port, string* error) {
     return false;
   }
 
-  make_non_blocking(fd);
-
   if (bind(fd, reinterpret_cast<sockaddr*>(&address),
            sizeof(address)) == -1) {
     GetLastError(error);
     return false;
   }
 
-  // FIXME: what number to use here?
-  if (listen(fd, concurrency_) == -1) {
+  if (listen(fd, network_threads_.size()) == -1) {
     GetLastError(error);
     return false;
   }
 
-  listen_fds_.insert(fd);
+  if (!epoll_set_.HandleSocket(fd)) {
+    GetLastError(error);
+    return false;
+  }
 
   return true;
 }
 
 bool Server::Run() {
-  int fd = epoll_create1(0);
-  if (fd == -1)
+  if (is_running_)
+    // FIXME: consider, what should we return in this situation.
     return false;
 
-  struct epoll_event ev;
-  ev.events = EPOLLIN;
+  thread_pool_.Run();
 
-  for (auto it = listen_fds_.begin(); it != listen_fds_.end(); ++it) {
-    if (epoll_ctl(fd, EPOLL_CTL_ADD, *it, &ev) == -1)
-      return false;
-  }
-
-  auto lambda = [this, &fd](std::thread& thread) {
-    std::thread tmp(&Server::DoWork, this, fd);
+  auto lambda = [this](std::thread& thread) {
+    std::thread tmp(&Server::DoWork, this);
     thread.swap(tmp);
   };
   std::for_each(network_threads_.begin(), network_threads_.end(), lambda);
 
+  is_running_ = true;
   return true;
 }
 
-void Server::DoWork(int fd) {
-  const size_t max_events = 10;
-  struct epoll_event events[max_events], event;
-
+void Server::DoWork() {
   while (true) {
-    auto number_of_events = epoll_wait(fd, events, max_events, -1);
+    std::vector<EpollSet::Event> events;
+
+    auto number_of_events = epoll_set_.Wait(events);
     if (number_of_events == -1)
       return;
 
-    for (int i = 0; i < number_of_events; ++i) {
-      if (listen_fds_.count(events[i].data.fd)) {
-        auto new_connection = accept(events[i].data.fd, nullptr, nullptr);
-        if (new_connection == -1)
-          continue;
-        make_non_blocking(new_connection);
-        event.events = EPOLLIN | EPOLLET;
-        event.data.fd = new_connection;
-        if (epoll_ctl(fd, EPOLL_CTL_ADD, new_connection, &event) == -1) {
-          close(new_connection);
-          continue;
-        }
-      }
-    }
+    for (int i = 0; i < number_of_events; ++i)
+      thread_pool_.Push(std::bind(&Server::HandleMessage, this,
+                                  events[i].fd, events[i].close_after_use));
   }
+}
+
+void Server::HandleMessage(int fd, bool close_after_use) {
+  std::unique_ptr<ZeroCopyInputStream> file_stream;
+  std::unique_ptr<CodedInputStream> coded_stream;
+  file_stream.reset(new FileInputStream(fd));
+  coded_stream.reset(new CodedInputStream(file_stream.get()));
+
+  dist_clang::Execute message;
+  if (!message.ParsePartialFromCodedStream(coded_stream.get()))
+    std::cout << "Failed to read message" << std::endl;
+  else
+    PrintMessage(message);
+
+  // TODO: make local clang execution or delegate message to a remote daemon.
+
+  if (!close_after_use)
+    epoll_set_.RearmSocket(fd);
+  else
+    close(fd);
 }

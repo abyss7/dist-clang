@@ -1,15 +1,15 @@
 #pragma once
 
-#include "thread_pool.h"
+#include "daemon/epoll_set.h"
+#include "daemon/thread_pool.h"
 
-#include <set>
 #include <string>
 #include <thread>
-#include <vector>
 
 class Server {
   public:
-    explicit Server(size_t concurrency = std::thread::hardware_concurrency());
+    explicit Server(size_t concurrency = std::thread::hardware_concurrency(),
+                    size_t pool_size = 1024);
 
     // Listen on a Unix Domain Socket.
     bool Listen(const std::string& path, std::string* error);
@@ -20,10 +20,11 @@ class Server {
     bool Run();
 
   private:
-    void DoWork(int fd);
+    void DoWork();
+    void HandleMessage(int fd, bool close_after_use);
 
-    std::set<int> listen_fds_;
-    size_t concurrency_;
+    EpollSet epoll_set_;
     ThreadPool thread_pool_;
     std::vector<std::thread> network_threads_;
+    bool is_running_;
 };

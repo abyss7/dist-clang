@@ -23,28 +23,48 @@
 #include <google/protobuf/message.h>
 #include <google/protobuf/repeated_field.h>
 #include <google/protobuf/extension_set.h>
+#include <google/protobuf/generated_enum_reflection.h>
 #include <google/protobuf/unknown_field_set.h>
 // @@protoc_insertion_point(includes)
 
-namespace clangd {
+namespace dist_clang {
 
 // Internal implementation detail -- do not call these.
 void  protobuf_AddDesc_remote_2eproto();
 void protobuf_AssignDesc_remote_2eproto();
 void protobuf_ShutdownFile_remote_2eproto();
 
-class LocalExecution;
+class Execute;
 
+enum Execute_Origin {
+  Execute_Origin_LOCAL = 1,
+  Execute_Origin_REMOTE = 2
+};
+bool Execute_Origin_IsValid(int value);
+const Execute_Origin Execute_Origin_Origin_MIN = Execute_Origin_LOCAL;
+const Execute_Origin Execute_Origin_Origin_MAX = Execute_Origin_REMOTE;
+const int Execute_Origin_Origin_ARRAYSIZE = Execute_Origin_Origin_MAX + 1;
+
+const ::google::protobuf::EnumDescriptor* Execute_Origin_descriptor();
+inline const ::std::string& Execute_Origin_Name(Execute_Origin value) {
+  return ::google::protobuf::internal::NameOfEnum(
+    Execute_Origin_descriptor(), value);
+}
+inline bool Execute_Origin_Parse(
+    const ::std::string& name, Execute_Origin* value) {
+  return ::google::protobuf::internal::ParseNamedEnum<Execute_Origin>(
+    Execute_Origin_descriptor(), name, value);
+}
 // ===================================================================
 
-class LocalExecution : public ::google::protobuf::Message {
+class Execute : public ::google::protobuf::Message {
  public:
-  LocalExecution();
-  virtual ~LocalExecution();
+  Execute();
+  virtual ~Execute();
 
-  LocalExecution(const LocalExecution& from);
+  Execute(const Execute& from);
 
-  inline LocalExecution& operator=(const LocalExecution& from) {
+  inline Execute& operator=(const Execute& from) {
     CopyFrom(from);
     return *this;
   }
@@ -58,17 +78,17 @@ class LocalExecution : public ::google::protobuf::Message {
   }
 
   static const ::google::protobuf::Descriptor* descriptor();
-  static const LocalExecution& default_instance();
+  static const Execute& default_instance();
 
-  void Swap(LocalExecution* other);
+  void Swap(Execute* other);
 
   // implements Message ----------------------------------------------
 
-  LocalExecution* New() const;
+  Execute* New() const;
   void CopyFrom(const ::google::protobuf::Message& from);
   void MergeFrom(const ::google::protobuf::Message& from);
-  void CopyFrom(const LocalExecution& from);
-  void MergeFrom(const LocalExecution& from);
+  void CopyFrom(const Execute& from);
+  void MergeFrom(const Execute& from);
   void Clear();
   bool IsInitialized() const;
 
@@ -89,12 +109,43 @@ class LocalExecution : public ::google::protobuf::Message {
 
   // nested types ----------------------------------------------------
 
+  typedef Execute_Origin Origin;
+  static const Origin LOCAL = Execute_Origin_LOCAL;
+  static const Origin REMOTE = Execute_Origin_REMOTE;
+  static inline bool Origin_IsValid(int value) {
+    return Execute_Origin_IsValid(value);
+  }
+  static const Origin Origin_MIN =
+    Execute_Origin_Origin_MIN;
+  static const Origin Origin_MAX =
+    Execute_Origin_Origin_MAX;
+  static const int Origin_ARRAYSIZE =
+    Execute_Origin_Origin_ARRAYSIZE;
+  static inline const ::google::protobuf::EnumDescriptor*
+  Origin_descriptor() {
+    return Execute_Origin_descriptor();
+  }
+  static inline const ::std::string& Origin_Name(Origin value) {
+    return Execute_Origin_Name(value);
+  }
+  static inline bool Origin_Parse(const ::std::string& name,
+      Origin* value) {
+    return Execute_Origin_Parse(name, value);
+  }
+
   // accessors -------------------------------------------------------
 
-  // optional string current_dir = 1;
+  // required .dist_clang.Execute.Origin origin = 1;
+  inline bool has_origin() const;
+  inline void clear_origin();
+  static const int kOriginFieldNumber = 1;
+  inline ::dist_clang::Execute_Origin origin() const;
+  inline void set_origin(::dist_clang::Execute_Origin value);
+
+  // optional string current_dir = 2;
   inline bool has_current_dir() const;
   inline void clear_current_dir();
-  static const int kCurrentDirFieldNumber = 1;
+  static const int kCurrentDirFieldNumber = 2;
   inline const ::std::string& current_dir() const;
   inline void set_current_dir(const ::std::string& value);
   inline void set_current_dir(const char* value);
@@ -103,10 +154,10 @@ class LocalExecution : public ::google::protobuf::Message {
   inline ::std::string* release_current_dir();
   inline void set_allocated_current_dir(::std::string* current_dir);
 
-  // repeated string args = 2;
+  // repeated string args = 3;
   inline int args_size() const;
   inline void clear_args();
-  static const int kArgsFieldNumber = 2;
+  static const int kArgsFieldNumber = 3;
   inline const ::std::string& args(int index) const;
   inline ::std::string* mutable_args(int index);
   inline void set_args(int index, const ::std::string& value);
@@ -119,8 +170,10 @@ class LocalExecution : public ::google::protobuf::Message {
   inline const ::google::protobuf::RepeatedPtrField< ::std::string>& args() const;
   inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_args();
 
-  // @@protoc_insertion_point(class_scope:clangd.LocalExecution)
+  // @@protoc_insertion_point(class_scope:dist_clang.Execute)
  private:
+  inline void set_has_origin();
+  inline void clear_has_origin();
   inline void set_has_current_dir();
   inline void clear_has_current_dir();
 
@@ -128,72 +181,96 @@ class LocalExecution : public ::google::protobuf::Message {
 
   ::std::string* current_dir_;
   ::google::protobuf::RepeatedPtrField< ::std::string> args_;
+  int origin_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(2 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(3 + 31) / 32];
 
   friend void  protobuf_AddDesc_remote_2eproto();
   friend void protobuf_AssignDesc_remote_2eproto();
   friend void protobuf_ShutdownFile_remote_2eproto();
 
   void InitAsDefaultInstance();
-  static LocalExecution* default_instance_;
+  static Execute* default_instance_;
 };
 // ===================================================================
 
 
 // ===================================================================
 
-// LocalExecution
+// Execute
 
-// optional string current_dir = 1;
-inline bool LocalExecution::has_current_dir() const {
+// required .dist_clang.Execute.Origin origin = 1;
+inline bool Execute::has_origin() const {
   return (_has_bits_[0] & 0x00000001u) != 0;
 }
-inline void LocalExecution::set_has_current_dir() {
+inline void Execute::set_has_origin() {
   _has_bits_[0] |= 0x00000001u;
 }
-inline void LocalExecution::clear_has_current_dir() {
+inline void Execute::clear_has_origin() {
   _has_bits_[0] &= ~0x00000001u;
 }
-inline void LocalExecution::clear_current_dir() {
+inline void Execute::clear_origin() {
+  origin_ = 1;
+  clear_has_origin();
+}
+inline ::dist_clang::Execute_Origin Execute::origin() const {
+  return static_cast< ::dist_clang::Execute_Origin >(origin_);
+}
+inline void Execute::set_origin(::dist_clang::Execute_Origin value) {
+  assert(::dist_clang::Execute_Origin_IsValid(value));
+  set_has_origin();
+  origin_ = value;
+}
+
+// optional string current_dir = 2;
+inline bool Execute::has_current_dir() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+inline void Execute::set_has_current_dir() {
+  _has_bits_[0] |= 0x00000002u;
+}
+inline void Execute::clear_has_current_dir() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+inline void Execute::clear_current_dir() {
   if (current_dir_ != &::google::protobuf::internal::kEmptyString) {
     current_dir_->clear();
   }
   clear_has_current_dir();
 }
-inline const ::std::string& LocalExecution::current_dir() const {
+inline const ::std::string& Execute::current_dir() const {
   return *current_dir_;
 }
-inline void LocalExecution::set_current_dir(const ::std::string& value) {
+inline void Execute::set_current_dir(const ::std::string& value) {
   set_has_current_dir();
   if (current_dir_ == &::google::protobuf::internal::kEmptyString) {
     current_dir_ = new ::std::string;
   }
   current_dir_->assign(value);
 }
-inline void LocalExecution::set_current_dir(const char* value) {
+inline void Execute::set_current_dir(const char* value) {
   set_has_current_dir();
   if (current_dir_ == &::google::protobuf::internal::kEmptyString) {
     current_dir_ = new ::std::string;
   }
   current_dir_->assign(value);
 }
-inline void LocalExecution::set_current_dir(const char* value, size_t size) {
+inline void Execute::set_current_dir(const char* value, size_t size) {
   set_has_current_dir();
   if (current_dir_ == &::google::protobuf::internal::kEmptyString) {
     current_dir_ = new ::std::string;
   }
   current_dir_->assign(reinterpret_cast<const char*>(value), size);
 }
-inline ::std::string* LocalExecution::mutable_current_dir() {
+inline ::std::string* Execute::mutable_current_dir() {
   set_has_current_dir();
   if (current_dir_ == &::google::protobuf::internal::kEmptyString) {
     current_dir_ = new ::std::string;
   }
   return current_dir_;
 }
-inline ::std::string* LocalExecution::release_current_dir() {
+inline ::std::string* Execute::release_current_dir() {
   clear_has_current_dir();
   if (current_dir_ == &::google::protobuf::internal::kEmptyString) {
     return NULL;
@@ -203,7 +280,7 @@ inline ::std::string* LocalExecution::release_current_dir() {
     return temp;
   }
 }
-inline void LocalExecution::set_allocated_current_dir(::std::string* current_dir) {
+inline void Execute::set_allocated_current_dir(::std::string* current_dir) {
   if (current_dir_ != &::google::protobuf::internal::kEmptyString) {
     delete current_dir_;
   }
@@ -216,59 +293,63 @@ inline void LocalExecution::set_allocated_current_dir(::std::string* current_dir
   }
 }
 
-// repeated string args = 2;
-inline int LocalExecution::args_size() const {
+// repeated string args = 3;
+inline int Execute::args_size() const {
   return args_.size();
 }
-inline void LocalExecution::clear_args() {
+inline void Execute::clear_args() {
   args_.Clear();
 }
-inline const ::std::string& LocalExecution::args(int index) const {
+inline const ::std::string& Execute::args(int index) const {
   return args_.Get(index);
 }
-inline ::std::string* LocalExecution::mutable_args(int index) {
+inline ::std::string* Execute::mutable_args(int index) {
   return args_.Mutable(index);
 }
-inline void LocalExecution::set_args(int index, const ::std::string& value) {
+inline void Execute::set_args(int index, const ::std::string& value) {
   args_.Mutable(index)->assign(value);
 }
-inline void LocalExecution::set_args(int index, const char* value) {
+inline void Execute::set_args(int index, const char* value) {
   args_.Mutable(index)->assign(value);
 }
-inline void LocalExecution::set_args(int index, const char* value, size_t size) {
+inline void Execute::set_args(int index, const char* value, size_t size) {
   args_.Mutable(index)->assign(
     reinterpret_cast<const char*>(value), size);
 }
-inline ::std::string* LocalExecution::add_args() {
+inline ::std::string* Execute::add_args() {
   return args_.Add();
 }
-inline void LocalExecution::add_args(const ::std::string& value) {
+inline void Execute::add_args(const ::std::string& value) {
   args_.Add()->assign(value);
 }
-inline void LocalExecution::add_args(const char* value) {
+inline void Execute::add_args(const char* value) {
   args_.Add()->assign(value);
 }
-inline void LocalExecution::add_args(const char* value, size_t size) {
+inline void Execute::add_args(const char* value, size_t size) {
   args_.Add()->assign(reinterpret_cast<const char*>(value), size);
 }
 inline const ::google::protobuf::RepeatedPtrField< ::std::string>&
-LocalExecution::args() const {
+Execute::args() const {
   return args_;
 }
 inline ::google::protobuf::RepeatedPtrField< ::std::string>*
-LocalExecution::mutable_args() {
+Execute::mutable_args() {
   return &args_;
 }
 
 
 // @@protoc_insertion_point(namespace_scope)
 
-}  // namespace clangd
+}  // namespace dist_clang
 
 #ifndef SWIG
 namespace google {
 namespace protobuf {
 
+template <>
+inline const EnumDescriptor* GetEnumDescriptor< ::dist_clang::Execute_Origin>() {
+  return ::dist_clang::Execute_Origin_descriptor();
+}
 
 }  // namespace google
 }  // namespace protobuf
