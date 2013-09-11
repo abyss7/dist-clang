@@ -1,4 +1,17 @@
-package dist_clang;
+package dist_clang.proto;
+
+message Error {
+  enum Code {
+    OK = 0;
+    INCONSEQUENT = 1;  // Call to read/send method of |Connection| is inconsequent.
+    NETWORK = 2;       // Failed to read/send something from network connection.
+    BAD_MESSAGE = 3;   // Incoming/outgoing message is malformed.
+    EMPTY_MESSAGE = 4; // Provided |message| pointer for |Read()| is null.
+  }
+
+  required Code code = 1 [default=OK];
+  optional string description = 2;
+}
 
 message Execute {
   enum Origin {
@@ -9,4 +22,9 @@ message Execute {
   required Origin origin      = 1;
   optional string current_dir = 2;
   repeated string args        = 3;
+}
+
+message Universal {
+  optional Error error        = 1;
+  optional Execute execute    = 2;
 }

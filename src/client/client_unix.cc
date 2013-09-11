@@ -40,10 +40,13 @@ bool UnixClient::Connect(const string& path, string* error) {
   return true;
 }
 
-bool UnixClient::Receive(Message* message, string* error) {
-  // TODO: implement this.
-  error->assign("TODO: UnixSocket::Receive not implemented.");
-  return false;
+bool UnixClient::Receive(Message* message, string* /* error */) {
+  std::unique_ptr<ZeroCopyInputStream> file_stream;
+  std::unique_ptr<CodedInputStream> coded_stream;
+  file_stream.reset(new FileInputStream(fd_));
+  coded_stream.reset(new CodedInputStream(file_stream.get()));
+
+  return message->ParseFromCodedStream(coded_stream.get());
 }
 
 bool UnixClient::Send(const Message& message, string* /* error */) {

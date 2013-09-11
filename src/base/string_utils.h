@@ -4,7 +4,8 @@
 #include <sstream>
 #include <string>
 
-namespace {
+namespace dist_clang {
+namespace base {
 
 template<char delimiter>
 inline void SplitString(const std::string& input,
@@ -38,4 +39,5 @@ inline void SplitString(const std::string &input, const std::string& delimiter,
   }
 }
 
-}  // namespace
+}  // namespace base
+}  // namespace dist_clang

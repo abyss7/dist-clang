@@ -7,6 +7,7 @@
       '-fno-exceptions',
       '-Wall',
       '-Wno-unused-function',
+      '-Werror',
     ],
     'configurations': {
       'Debug': {

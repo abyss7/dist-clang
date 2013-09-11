@@ -28,14 +28,39 @@
 // @@protoc_insertion_point(includes)
 
 namespace dist_clang {
+namespace proto {
 
 // Internal implementation detail -- do not call these.
 void  protobuf_AddDesc_remote_2eproto();
 void protobuf_AssignDesc_remote_2eproto();
 void protobuf_ShutdownFile_remote_2eproto();
 
+class Error;
 class Execute;
+class Universal;
 
+enum Error_Code {
+  Error_Code_OK = 0,
+  Error_Code_INCONSEQUENT = 1,
+  Error_Code_NETWORK = 2,
+  Error_Code_BAD_MESSAGE = 3,
+  Error_Code_EMPTY_MESSAGE = 4
+};
+bool Error_Code_IsValid(int value);
+const Error_Code Error_Code_Code_MIN = Error_Code_OK;
+const Error_Code Error_Code_Code_MAX = Error_Code_EMPTY_MESSAGE;
+const int Error_Code_Code_ARRAYSIZE = Error_Code_Code_MAX + 1;
+
+const ::google::protobuf::EnumDescriptor* Error_Code_descriptor();
+inline const ::std::string& Error_Code_Name(Error_Code value) {
+  return ::google::protobuf::internal::NameOfEnum(
+    Error_Code_descriptor(), value);
+}
+inline bool Error_Code_Parse(
+    const ::std::string& name, Error_Code* value) {
+  return ::google::protobuf::internal::ParseNamedEnum<Error_Code>(
+    Error_Code_descriptor(), name, value);
+}
 enum Execute_Origin {
   Execute_Origin_LOCAL = 1,
   Execute_Origin_REMOTE = 2
@@ -56,6 +81,130 @@ inline bool Execute_Origin_Parse(
     Execute_Origin_descriptor(), name, value);
 }
 // ===================================================================
+
+class Error : public ::google::protobuf::Message {
+ public:
+  Error();
+  virtual ~Error();
+
+  Error(const Error& from);
+
+  inline Error& operator=(const Error& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
+    return _unknown_fields_;
+  }
+
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
+    return &_unknown_fields_;
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const Error& default_instance();
+
+  void Swap(Error* other);
+
+  // implements Message ----------------------------------------------
+
+  Error* New() const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const Error& from);
+  void MergeFrom(const Error& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+  typedef Error_Code Code;
+  static const Code OK = Error_Code_OK;
+  static const Code INCONSEQUENT = Error_Code_INCONSEQUENT;
+  static const Code NETWORK = Error_Code_NETWORK;
+  static const Code BAD_MESSAGE = Error_Code_BAD_MESSAGE;
+  static const Code EMPTY_MESSAGE = Error_Code_EMPTY_MESSAGE;
+  static inline bool Code_IsValid(int value) {
+    return Error_Code_IsValid(value);
+  }
+  static const Code Code_MIN =
+    Error_Code_Code_MIN;
+  static const Code Code_MAX =
+    Error_Code_Code_MAX;
+  static const int Code_ARRAYSIZE =
+    Error_Code_Code_ARRAYSIZE;
+  static inline const ::google::protobuf::EnumDescriptor*
+  Code_descriptor() {
+    return Error_Code_descriptor();
+  }
+  static inline const ::std::string& Code_Name(Code value) {
+    return Error_Code_Name(value);
+  }
+  static inline bool Code_Parse(const ::std::string& name,
+      Code* value) {
+    return Error_Code_Parse(name, value);
+  }
+
+  // accessors -------------------------------------------------------
+
+  // required .dist_clang.proto.Error.Code code = 1 [default = OK];
+  inline bool has_code() const;
+  inline void clear_code();
+  static const int kCodeFieldNumber = 1;
+  inline ::dist_clang::proto::Error_Code code() const;
+  inline void set_code(::dist_clang::proto::Error_Code value);
+
+  // optional string description = 2;
+  inline bool has_description() const;
+  inline void clear_description();
+  static const int kDescriptionFieldNumber = 2;
+  inline const ::std::string& description() const;
+  inline void set_description(const ::std::string& value);
+  inline void set_description(const char* value);
+  inline void set_description(const char* value, size_t size);
+  inline ::std::string* mutable_description();
+  inline ::std::string* release_description();
+  inline void set_allocated_description(::std::string* description);
+
+  // @@protoc_insertion_point(class_scope:dist_clang.proto.Error)
+ private:
+  inline void set_has_code();
+  inline void clear_has_code();
+  inline void set_has_description();
+  inline void clear_has_description();
+
+  ::google::protobuf::UnknownFieldSet _unknown_fields_;
+
+  ::std::string* description_;
+  int code_;
+
+  mutable int _cached_size_;
+  ::google::protobuf::uint32 _has_bits_[(2 + 31) / 32];
+
+  friend void  protobuf_AddDesc_remote_2eproto();
+  friend void protobuf_AssignDesc_remote_2eproto();
+  friend void protobuf_ShutdownFile_remote_2eproto();
+
+  void InitAsDefaultInstance();
+  static Error* default_instance_;
+};
+// -------------------------------------------------------------------
 
 class Execute : public ::google::protobuf::Message {
  public:
@@ -135,12 +284,12 @@ class Execute : public ::google::protobuf::Message {
 
   // accessors -------------------------------------------------------
 
-  // required .dist_clang.Execute.Origin origin = 1;
+  // required .dist_clang.proto.Execute.Origin origin = 1;
   inline bool has_origin() const;
   inline void clear_origin();
   static const int kOriginFieldNumber = 1;
-  inline ::dist_clang::Execute_Origin origin() const;
-  inline void set_origin(::dist_clang::Execute_Origin value);
+  inline ::dist_clang::proto::Execute_Origin origin() const;
+  inline void set_origin(::dist_clang::proto::Execute_Origin value);
 
   // optional string current_dir = 2;
   inline bool has_current_dir() const;
@@ -170,7 +319,7 @@ class Execute : public ::google::protobuf::Message {
   inline const ::google::protobuf::RepeatedPtrField< ::std::string>& args() const;
   inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_args();
 
-  // @@protoc_insertion_point(class_scope:dist_clang.Execute)
+  // @@protoc_insertion_point(class_scope:dist_clang.proto.Execute)
  private:
   inline void set_has_origin();
   inline void clear_has_origin();
@@ -193,14 +342,207 @@ class Execute : public ::google::protobuf::Message {
   void InitAsDefaultInstance();
   static Execute* default_instance_;
 };
+// -------------------------------------------------------------------
+
+class Universal : public ::google::protobuf::Message {
+ public:
+  Universal();
+  virtual ~Universal();
+
+  Universal(const Universal& from);
+
+  inline Universal& operator=(const Universal& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
+    return _unknown_fields_;
+  }
+
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
+    return &_unknown_fields_;
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const Universal& default_instance();
+
+  void Swap(Universal* other);
+
+  // implements Message ----------------------------------------------
+
+  Universal* New() const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const Universal& from);
+  void MergeFrom(const Universal& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // optional .dist_clang.proto.Error error = 1;
+  inline bool has_error() const;
+  inline void clear_error();
+  static const int kErrorFieldNumber = 1;
+  inline const ::dist_clang::proto::Error& error() const;
+  inline ::dist_clang::proto::Error* mutable_error();
+  inline ::dist_clang::proto::Error* release_error();
+  inline void set_allocated_error(::dist_clang::proto::Error* error);
+
+  // optional .dist_clang.proto.Execute execute = 2;
+  inline bool has_execute() const;
+  inline void clear_execute();
+  static const int kExecuteFieldNumber = 2;
+  inline const ::dist_clang::proto::Execute& execute() const;
+  inline ::dist_clang::proto::Execute* mutable_execute();
+  inline ::dist_clang::proto::Execute* release_execute();
+  inline void set_allocated_execute(::dist_clang::proto::Execute* execute);
+
+  // @@protoc_insertion_point(class_scope:dist_clang.proto.Universal)
+ private:
+  inline void set_has_error();
+  inline void clear_has_error();
+  inline void set_has_execute();
+  inline void clear_has_execute();
+
+  ::google::protobuf::UnknownFieldSet _unknown_fields_;
+
+  ::dist_clang::proto::Error* error_;
+  ::dist_clang::proto::Execute* execute_;
+
+  mutable int _cached_size_;
+  ::google::protobuf::uint32 _has_bits_[(2 + 31) / 32];
+
+  friend void  protobuf_AddDesc_remote_2eproto();
+  friend void protobuf_AssignDesc_remote_2eproto();
+  friend void protobuf_ShutdownFile_remote_2eproto();
+
+  void InitAsDefaultInstance();
+  static Universal* default_instance_;
+};
 // ===================================================================
 
 
 // ===================================================================
+
+// Error
+
+// required .dist_clang.proto.Error.Code code = 1 [default = OK];
+inline bool Error::has_code() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+inline void Error::set_has_code() {
+  _has_bits_[0] |= 0x00000001u;
+}
+inline void Error::clear_has_code() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+inline void Error::clear_code() {
+  code_ = 0;
+  clear_has_code();
+}
+inline ::dist_clang::proto::Error_Code Error::code() const {
+  return static_cast< ::dist_clang::proto::Error_Code >(code_);
+}
+inline void Error::set_code(::dist_clang::proto::Error_Code value) {
+  assert(::dist_clang::proto::Error_Code_IsValid(value));
+  set_has_code();
+  code_ = value;
+}
+
+// optional string description = 2;
+inline bool Error::has_description() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+inline void Error::set_has_description() {
+  _has_bits_[0] |= 0x00000002u;
+}
+inline void Error::clear_has_description() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+inline void Error::clear_description() {
+  if (description_ != &::google::protobuf::internal::kEmptyString) {
+    description_->clear();
+  }
+  clear_has_description();
+}
+inline const ::std::string& Error::description() const {
+  return *description_;
+}
+inline void Error::set_description(const ::std::string& value) {
+  set_has_description();
+  if (description_ == &::google::protobuf::internal::kEmptyString) {
+    description_ = new ::std::string;
+  }
+  description_->assign(value);
+}
+inline void Error::set_description(const char* value) {
+  set_has_description();
+  if (description_ == &::google::protobuf::internal::kEmptyString) {
+    description_ = new ::std::string;
+  }
+  description_->assign(value);
+}
+inline void Error::set_description(const char* value, size_t size) {
+  set_has_description();
+  if (description_ == &::google::protobuf::internal::kEmptyString) {
+    description_ = new ::std::string;
+  }
+  description_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* Error::mutable_description() {
+  set_has_description();
+  if (description_ == &::google::protobuf::internal::kEmptyString) {
+    description_ = new ::std::string;
+  }
+  return description_;
+}
+inline ::std::string* Error::release_description() {
+  clear_has_description();
+  if (description_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = description_;
+    description_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
+}
+inline void Error::set_allocated_description(::std::string* description) {
+  if (description_ != &::google::protobuf::internal::kEmptyString) {
+    delete description_;
+  }
+  if (description) {
+    set_has_description();
+    description_ = description;
+  } else {
+    clear_has_description();
+    description_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
+}
+
+// -------------------------------------------------------------------
 
 // Execute
 
-// required .dist_clang.Execute.Origin origin = 1;
+// required .dist_clang.proto.Execute.Origin origin = 1;
 inline bool Execute::has_origin() const {
   return (_has_bits_[0] & 0x00000001u) != 0;
 }
@@ -214,11 +556,11 @@ inline void Execute::clear_origin() {
   origin_ = 1;
   clear_has_origin();
 }
-inline ::dist_clang::Execute_Origin Execute::origin() const {
-  return static_cast< ::dist_clang::Execute_Origin >(origin_);
+inline ::dist_clang::proto::Execute_Origin Execute::origin() const {
+  return static_cast< ::dist_clang::proto::Execute_Origin >(origin_);
 }
-inline void Execute::set_origin(::dist_clang::Execute_Origin value) {
-  assert(::dist_clang::Execute_Origin_IsValid(value));
+inline void Execute::set_origin(::dist_clang::proto::Execute_Origin value) {
+  assert(::dist_clang::proto::Execute_Origin_IsValid(value));
   set_has_origin();
   origin_ = value;
 }
@@ -337,9 +679,90 @@ Execute::mutable_args() {
   return &args_;
 }
 
+// -------------------------------------------------------------------
+
+// Universal
+
+// optional .dist_clang.proto.Error error = 1;
+inline bool Universal::has_error() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+inline void Universal::set_has_error() {
+  _has_bits_[0] |= 0x00000001u;
+}
+inline void Universal::clear_has_error() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+inline void Universal::clear_error() {
+  if (error_ != NULL) error_->::dist_clang::proto::Error::Clear();
+  clear_has_error();
+}
+inline const ::dist_clang::proto::Error& Universal::error() const {
+  return error_ != NULL ? *error_ : *default_instance_->error_;
+}
+inline ::dist_clang::proto::Error* Universal::mutable_error() {
+  set_has_error();
+  if (error_ == NULL) error_ = new ::dist_clang::proto::Error;
+  return error_;
+}
+inline ::dist_clang::proto::Error* Universal::release_error() {
+  clear_has_error();
+  ::dist_clang::proto::Error* temp = error_;
+  error_ = NULL;
+  return temp;
+}
+inline void Universal::set_allocated_error(::dist_clang::proto::Error* error) {
+  delete error_;
+  error_ = error;
+  if (error) {
+    set_has_error();
+  } else {
+    clear_has_error();
+  }
+}
+
+// optional .dist_clang.proto.Execute execute = 2;
+inline bool Universal::has_execute() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+inline void Universal::set_has_execute() {
+  _has_bits_[0] |= 0x00000002u;
+}
+inline void Universal::clear_has_execute() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+inline void Universal::clear_execute() {
+  if (execute_ != NULL) execute_->::dist_clang::proto::Execute::Clear();
+  clear_has_execute();
+}
+inline const ::dist_clang::proto::Execute& Universal::execute() const {
+  return execute_ != NULL ? *execute_ : *default_instance_->execute_;
+}
+inline ::dist_clang::proto::Execute* Universal::mutable_execute() {
+  set_has_execute();
+  if (execute_ == NULL) execute_ = new ::dist_clang::proto::Execute;
+  return execute_;
+}
+inline ::dist_clang::proto::Execute* Universal::release_execute() {
+  clear_has_execute();
+  ::dist_clang::proto::Execute* temp = execute_;
+  execute_ = NULL;
+  return temp;
+}
+inline void Universal::set_allocated_execute(::dist_clang::proto::Execute* execute) {
+  delete execute_;
+  execute_ = execute;
+  if (execute) {
+    set_has_execute();
+  } else {
+    clear_has_execute();
+  }
+}
+
 
 // @@protoc_insertion_point(namespace_scope)
 
+}  // namespace proto
 }  // namespace dist_clang
 
 #ifndef SWIG
@@ -347,8 +770,12 @@ namespace google {
 namespace protobuf {
 
 template <>
-inline const EnumDescriptor* GetEnumDescriptor< ::dist_clang::Execute_Origin>() {
-  return ::dist_clang::Execute_Origin_descriptor();
+inline const EnumDescriptor* GetEnumDescriptor< ::dist_clang::proto::Error_Code>() {
+  return ::dist_clang::proto::Error_Code_descriptor();
+}
+template <>
+inline const EnumDescriptor* GetEnumDescriptor< ::dist_clang::proto::Execute_Origin>() {
+  return ::dist_clang::proto::Execute_Origin_descriptor();
 }
 
 }  // namespace google

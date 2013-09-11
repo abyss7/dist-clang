@@ -10,6 +10,9 @@
 
 using std::string;
 
+namespace dist_clang {
+namespace base {
+
 Process::Process(const string& exec_path)
   : exec_path_(exec_path) {
 }
@@ -121,3 +124,6 @@ const string& Process::stderr() const {
 void Process::kill() {
   // TODO: implement this.
 }
+
+}  // namespace base
+}  // namespace dist_clang

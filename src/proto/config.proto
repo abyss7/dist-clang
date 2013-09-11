@@ -1,0 +1,5 @@
+package dist_clang.proto;
+
+message Configuration {
+  required string socket_path = 1;
+}

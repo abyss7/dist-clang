@@ -8,7 +8,8 @@
 
 #include <unistd.h>
 
-namespace {
+namespace dist_clang {
+namespace base {
 
 inline std::string GetEnv(const char* env_name,
                           const char* default_env = nullptr) {
@@ -28,9 +29,17 @@ inline void GetLastError(std::string* error) {
 
 inline std::string GetCurrentDir() {
   char buf[PATH_MAX];
-  if (!::getcwd(buf, sizeof(buf)))
+  if (!getcwd(buf, sizeof(buf)))
     return std::string();
   return std::string(buf);
 }
 
-}  // namespace
+inline std::string CreateTempDir() {
+  char buf[] = "/tmp/socket-XXXXXX";
+  if (!mkdtemp(buf))
+    return std::string();
+  return std::string(buf);
+}
+
+}  // namespace base
+}  // namespace dist_clang

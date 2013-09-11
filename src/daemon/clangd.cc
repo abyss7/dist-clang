@@ -1,51 +1,29 @@
-#include "daemon/server.h"
+#include "daemon/configuration.h"
+#include "daemon/daemon.h"
+#include "net/network_service.h"
 
-#include "base/constants.h"
-#include "tclap/CmdLine.h"
+#include <iostream>  // FIXME: remove when logging will be implemented.
 
-#include <iostream>
-#include <string>
+#include <unistd.h>  // for pause()
 
-#ifndef NDEBUG
-#include <unistd.h>  // for |pause()|
-#endif
-
-using namespace TCLAP;
-
-using std::string;
+using namespace dist_clang;
 
 int main(int argc, char* argv[]) {
-  string socket_path;
+  daemon::Configuration configuration(argc, argv);
+  net::NetworkService network_service;
+  daemon::Daemon daemon;
 
-  try {
-    // TODO: use normal versioning.
-    CmdLine cmd("Daemon from Clang distributed system - Clangd.", ' ', "0.1");
-    ValueArg<string> socket_arg("s", "socket",
-        "Path to UNIX socket to listen for local connections.",
-        false, kDefaultClangdSocket, "path", cmd);
-    cmd.parse(argc, argv);
-
-    socket_path = socket_arg.getValue();
-  } catch (ArgException &e) {
-    std::cerr << "error: " << e.error()
-              << " for arg " << e.argId()
-              << std::endl;
+  if (!daemon.Initialize(configuration, network_service)) {
+    std::cerr << "Daemon failed to initialize." << std::endl;
     return 1;
   }
 
-  string error;
-  Server message_handler;
-  if (!message_handler.Listen(socket_path, &error)) {
-    std::cerr << "Server: " << error << std::endl;
+  if (!network_service.Run()) {
+    std::cerr << "Network service failed to start." << std::endl;
     return 1;
   }
 
-  if (!message_handler.Run()) {
-    std::cerr << "Server: failed to start." << std::endl;
-    return 1;
-  }
-
-  // TODO: setup signals' handler.
+  // TODO: implement signal handling.
   pause();
 
   return 0;

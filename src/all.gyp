@@ -2,48 +2,29 @@
   'includes': [
     'build/defaults.gypi',
   ],
+
   'targets': [
     {
-      'target_name': 'clangd',
+      'target_name': 'unit_tests',
       'type': 'executable',
       'dependencies': [
-        'base/base.gyp:base',
-        'proto/proto.gyp:proto',
-        'tclap/tclap.gyp:tclap',
+        'net/net.gyp:net',
+      ],
+      'ldflags': [
+        '-lgtest',
+        '-lprotobuf',
       ],
       'sources': [
-        'daemon/clangd.cc',
-        'daemon/epoll_set.cc',
-        'daemon/epoll_set.h',
-        'daemon/server.cc',
-        'daemon/server.h',
-        'daemon/task_queue.cc',
-        'daemon/task_queue.h',
-        'daemon/thread_pool.cc',
-        'daemon/thread_pool.h',
-      ],
-    },
-    {
-      'target_name': 'clang',
-      'type': 'executable',
-      'dependencies': [
-        'base/base.gyp:base',
-        'proto/proto.gyp:proto',
-      ],
-      'sources': [
-        'client/clang.cc',
-        'client/client_tcp.cc',
-        'client/client_tcp.h',
-        'client/client_unix.cc',
-        'client/client_unix.h',
+        'net/connection_test.cc',
+        'test/run_all_tests.cc',
       ],
     },
     {
       'target_name': 'All',
       'type': 'none',
       'dependencies': [
-        'clang',
-        'clangd',
+        'client/clang.gyp:clang',
+        'daemon/clangd.gyp:clangd',
       ],
     },
   ],

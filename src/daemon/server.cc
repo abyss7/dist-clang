@@ -138,7 +138,8 @@ void Server::HandleMessage(int fd, bool close_after_use) {
   coded_stream.reset(new CodedInputStream(file_stream.get()));
 
   dist_clang::Execute message;
-  if (!message.ParsePartialFromCodedStream(coded_stream.get()))
+  if ((!message.ParsePartialFromCodedStream(coded_stream.get()) ||
+      !message.IsInitialized()) && !close_after_use)
     std::cout << "Failed to read message" << std::endl;
   else
     PrintMessage(message);

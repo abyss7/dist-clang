@@ -4,6 +4,9 @@
 #include <list>
 #include <string>
 
+namespace dist_clang {
+namespace base {
+
 class Process {
   public:
     enum { MAX_ARGS = 256 };
@@ -35,3 +38,6 @@ Process& Process::AppendArg(ConstIterator begin, ConstIterator end) {
   args_.insert(args_.end(), begin, end);
   return *this;
 }
+
+}  // namespace base
+}  // namespace dist_clang
