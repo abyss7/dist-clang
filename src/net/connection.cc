@@ -1,6 +1,6 @@
 #include "net/connection.h"
 
-#include "base/net_utils.h"
+#include "net/base/utils.h"
 #include "net/event_loop.h"
 
 #include <cstdint>
@@ -9,13 +9,13 @@ namespace dist_clang {
 namespace net {
 
 // static
-ConnectionPtr Connection::Create(EventLoop &event_loop, int fd) {
-  if (!base::MakeNonBlocking(fd))
+ConnectionPtr Connection::Create(EventLoop &event_loop, fd_t fd) {
+  if (!MakeNonBlocking(fd))
     return ConnectionPtr();
   return ConnectionPtr(new Connection(event_loop, fd));
 }
 
-Connection::Connection(EventLoop& event_loop, int fd)
+Connection::Connection(EventLoop& event_loop, fd_t fd)
   : fd_(fd), event_loop_(event_loop), is_closed_(false), state_(IDLE),
     file_input_stream_(fd_), input_limit_(0), file_output_stream_(fd_) {}
 
@@ -64,7 +64,7 @@ bool Connection::Read(Message *message, Error *error) {
   }
 
   message->Clear();
-  if (!base::MakeNonBlocking(fd_, true)) {
+  if (!MakeNonBlocking(fd_, true)) {
     if (error) {
       error->set_code(Error::NETWORK);
       error->set_description("Can't make socket a blocking one");
@@ -104,7 +104,7 @@ bool Connection::Read(Message *message, Error *error) {
   coded_input_stream_->PopLimit(input_limit_);
   coded_input_stream_.reset();
 
-  if (!base::MakeNonBlocking(fd_, false)) {
+  if (!MakeNonBlocking(fd_, false)) {
     if (error) {
       error->set_code(Error::NETWORK);
       error->set_description("Can't make socket a non-blocking one");
@@ -127,7 +127,7 @@ bool Connection::Send(const Message &message, Error *error) {
     return false;
   }
 
-  if (!base::MakeNonBlocking(fd_, true)) {
+  if (!MakeNonBlocking(fd_, true)) {
     if (error) {
       error->set_code(Error::NETWORK);
       error->set_description("Can't make socket a blocking one");
@@ -138,7 +138,7 @@ bool Connection::Send(const Message &message, Error *error) {
   coded_output_stream_.reset(new CodedOutputStream(&file_output_stream_));
 
   coded_output_stream_->WriteVarint32(message.ByteSize());
-  int sent_bytes = coded_output_stream_->ByteCount();
+  auto sent_bytes = coded_output_stream_->ByteCount();
   if (!message.SerializeToCodedStream(coded_output_stream_.get()) ||
       coded_output_stream_->ByteCount() != sent_bytes + message.ByteSize()) {
     if (error) {
@@ -152,7 +152,7 @@ bool Connection::Send(const Message &message, Error *error) {
   coded_output_stream_.reset();
   file_output_stream_.Flush();
 
-  if (!base::MakeNonBlocking(fd_, false)) {
+  if (!MakeNonBlocking(fd_, false)) {
     if (error) {
       error->set_code(Error::NETWORK);
       error->set_description("Can't make socket a non-blocking one");

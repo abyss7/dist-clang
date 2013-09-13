@@ -1,12 +1,15 @@
 #pragma once
 
+#include "net/base/types.h"
+
 #include <fcntl.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
 namespace dist_clang {
-namespace base {
+namespace net {
 
-inline bool MakeNonBlocking(int fd, bool blocking = false) {
+inline bool MakeNonBlocking(fd_t fd, bool blocking = false) {
   int flags, s;
 
   flags = fcntl(fd, F_GETFL, 0);
@@ -24,5 +27,11 @@ inline bool MakeNonBlocking(int fd, bool blocking = false) {
   return true;
 }
 
-}  // namespace base
+inline bool IsListening(fd_t fd) {
+  int res;
+  socklen_t size = sizeof(res);
+  return getsockopt(fd, SOL_SOCKET, SO_ACCEPTCONN, &res, &size) != -1 && res;
+}
+
+}  // namespace net
 }  // namespace dist_clang

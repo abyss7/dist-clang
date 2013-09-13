@@ -1,20 +1,10 @@
 #include "net/epoll_event_loop.h"
 
+#include "net/base/utils.h"
 #include "net/connection.h"
 
 #include <sys/epoll.h>
-#include <sys/socket.h>
 #include <unistd.h>
-
-namespace {
-
-bool IsListening(int fd) {
-  int res;
-  socklen_t size = sizeof(res);
-  return getsockopt(fd, SOL_SOCKET, SO_ACCEPTCONN, &res, &size) != -1 && res;
-}
-
-}  // namespace
 
 namespace dist_clang {
 namespace net {
@@ -23,8 +13,10 @@ EpollEventLoop::EpollEventLoop(ConnectionCallback callback)
   : listen_fd_(epoll_create1(0)), incoming_fd_(epoll_create1(0)),
     outgoing_fd_(epoll_create1(0)), callback_(callback) {}
 
-bool EpollEventLoop::Handle(int fd) {
+bool EpollEventLoop::Handle(fd_t fd) {
   if (IsListening(fd)) {
+    if (!MakeNonBlocking(fd))
+      return false;
     std::unique_lock<std::mutex> lock(listening_fds_mutex_);
     listening_fds_.insert(fd);
     return ReadyForListen(fd);
@@ -38,7 +30,7 @@ bool EpollEventLoop::ReadyForRead(ConnectionPtr connection) {
   assert(connection->IsOnEventLoop(this));
 
   struct epoll_event event;
-  event.events = EPOLLIN | EPOLLRDHUP | EPOLLONESHOT;
+  event.events = EPOLLIN | EPOLLONESHOT;
   event.data.ptr = connection.get();
   auto fd = GetConnectionDescriptor(connection);
   if (epoll_ctl(incoming_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
@@ -53,7 +45,7 @@ bool EpollEventLoop::ReadyForSend(ConnectionPtr connection) {
   assert(connection->IsOnEventLoop(this));
 
   struct epoll_event event;
-  event.events = EPOLLOUT | EPOLLRDHUP | EPOLLONESHOT;
+  event.events = EPOLLOUT | EPOLLONESHOT;
   event.data.ptr = connection.get();
   auto fd = GetConnectionDescriptor(connection);
   if (epoll_ctl(outgoing_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
@@ -78,24 +70,19 @@ void EpollEventLoop::DoListenWork(const volatile bool &is_shutting_down) {
       auto fd = events[i].data.fd;
 
       if (events[i].events & EPOLLHUP) {
-        epoll_ctl(listen_fd_, EPOLL_CTL_DEL, fd, nullptr);
+        std::unique_lock<std::mutex> lock(listening_fds_mutex_);
         listening_fds_.erase(fd);
         close(fd);
-      } else if (events[i].events & EPOLLIN) {
-        auto new_fd = accept(fd, nullptr, nullptr);
-        auto new_connection = AddConnection(new_fd);
-        ReadyForListen(fd);
-        callback_(fd, new_connection);
       }
-    }
-
-    std::unique_lock<std::mutex> lock(connections_mutex_);
-    for (auto connection: connections_) {  // FIXME: is it safe to delete?
-      if (connection->IsClosed()) {
-        auto fd = GetConnectionDescriptor(connection);
-        epoll_ctl(incoming_fd_, EPOLL_CTL_DEL, fd, nullptr);
-        epoll_ctl(outgoing_fd_, EPOLL_CTL_DEL, fd, nullptr);
-        connections_.erase(connection);
+      else if (events[i].events & EPOLLIN) {
+        while(true) {
+          auto new_fd = accept(fd, nullptr, nullptr);
+          if (new_fd == -1)
+            break;
+          auto new_connection = AddConnection(new_fd);
+          callback_(fd, new_connection);
+        }
+        ReadyForListen(fd);
       }
     }
   }
@@ -119,8 +106,10 @@ void EpollEventLoop::DoIncomingWork(const volatile bool& is_shutting_down) {
       auto connection =
           reinterpret_cast<Connection*>(events[i].data.ptr)->shared_from_this();
 
-      if (events[i].events & EPOLLRDHUP)
-        connection->Close();
+      if (events[i].events & EPOLLHUP) {
+        std::unique_lock<std::mutex> lock(connections_mutex_);
+        connections_.erase(connection);
+      }
       else if (events[i].events & EPOLLIN)
         ConnectionCanRead(connection);
     }
@@ -141,17 +130,17 @@ void EpollEventLoop::DoOutgoingWork(const volatile bool &is_shutting_down) {
       auto connection =
           reinterpret_cast<Connection*>(events[i].data.ptr)->shared_from_this();
 
-      if (events[i].events & EPOLLRDHUP)
-        connection->Close();
+      if (events[i].events & EPOLLHUP) {
+        std::unique_lock<std::mutex> lock(connections_mutex_);
+        connections_.erase(connection);
+      }
       else if (events[i].events & EPOLLOUT)
         ConnectionCanSend(connection);
     }
   }
 }
 
-bool EpollEventLoop::ReadyForListen(int fd) {
-  assert(listening_fds_.count(fd));
-
+bool EpollEventLoop::ReadyForListen(fd_t fd) {
   struct epoll_event event;
   event.events = EPOLLIN | EPOLLONESHOT;
   event.data.fd = fd;
@@ -163,10 +152,9 @@ bool EpollEventLoop::ReadyForListen(int fd) {
   return true;
 }
 
-ConnectionPtr EpollEventLoop::AddConnection(int fd) {
-  std::unique_lock<std::mutex> lock(connections_mutex_);
-
+ConnectionPtr EpollEventLoop::AddConnection(fd_t fd) {
   ConnectionPtr new_connection = Connection::Create(*this, fd);
+  std::unique_lock<std::mutex> lock(connections_mutex_);
   connections_.insert(new_connection);
   return new_connection;
 }

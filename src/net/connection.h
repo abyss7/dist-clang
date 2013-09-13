@@ -1,5 +1,6 @@
 #pragma once
 
+#include "net/base/types.h"
 #include "net/connection_forward.h"
 #include "proto/remote.pb.h"
 
@@ -28,7 +29,7 @@ class Connection: public std::enable_shared_from_this<Connection> {
 
     // Create connection only on an active socket -
     // i.e. after connect() or accept().
-    static ConnectionPtr Create(EventLoop& event_loop, int fd);
+    static ConnectionPtr Create(EventLoop& event_loop, fd_t fd);
     ~Connection();
 
     // Asynchronous functions return |false| in case of inconsequent call.
@@ -42,14 +43,14 @@ class Connection: public std::enable_shared_from_this<Connection> {
     bool IsClosed() const;
     bool IsOnEventLoop(const EventLoop* event_loop) const;
 
-    const int fd_;
+    const fd_t fd_;
 
   private:
     friend class EventLoop;
 
     enum State { IDLE, WAITING_SEND, WAITING_READ, SENDING, READING };
 
-    Connection(EventLoop& event_loop, int fd);
+    Connection(EventLoop& event_loop, fd_t fd);
 
     void CanRead();
     void CanSend();
