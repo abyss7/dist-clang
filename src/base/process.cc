@@ -2,8 +2,6 @@
 
 #include "base/c_utils.h"
 
-#include <iostream>
-
 #include <poll.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -13,8 +11,8 @@ using std::string;
 namespace dist_clang {
 namespace base {
 
-Process::Process(const string& exec_path)
-  : exec_path_(exec_path) {
+Process::Process(const string& exec_path, const string& cwd_path)
+  : exec_path_(exec_path), cwd_path_(cwd_path) {
 }
 
 Process& Process::AppendArg(const string& arg) {
@@ -42,6 +40,9 @@ bool Process::Run(unsigned short sec_timeout, string* error) {
     dup2(err_pipe_fd[1], 2);
     close(out_pipe_fd[1]);
     close(err_pipe_fd[1]);
+
+    if (!cwd_path_.empty() && !ChangeCurrentDir(cwd_path_))
+      exit(1);
 
     const char* argv[MAX_ARGS];
     argv[0] = exec_path_.c_str();

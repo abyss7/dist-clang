@@ -56,6 +56,15 @@ bool DoMain(int argc, char* argv[]) {
   if (current_dir.empty())
     return true;
 
+  // The clang output has following format:
+  //
+  // clang version 3.4 (http://llvm.org/git/clang.git <commit-hash1>) (http://llvm.org/git/llvm.git <commit-hash2>)
+  // Target: x86_64-unknown-linux-gnu
+  // Thread model: posix
+  //  "/home/ilezhankin/llvm/bin/clang" "-cc1" "-triple" ...
+  //
+  // Pay attention to the leading space in the fourth line.
+
   client::ClangFlagSet::string_list lines;
   base::SplitString<'\n'>(split_process.stderr(), lines);
   if (lines.size() != 4)
@@ -68,13 +77,12 @@ bool DoMain(int argc, char* argv[]) {
     // Something went wrong.
     return true;
 
-  auto action = client::ClangFlagSet::ProcessFlags(args);
+  net::Connection::Message top_message;
+  auto message = top_message.mutable_execute();
+  auto action =
+      client::ClangFlagSet::ProcessFlags(args, message->mutable_executable());
   if (action == client::ClangFlagSet::UNKNOWN)
     return true;
-
-  proto::Universal top_message;
-  auto message = top_message.mutable_execute();
-  message->set_origin(proto::Execute::LOCAL);
   message->set_current_dir(current_dir);
   for (auto it = args.begin(); it != args.end(); ++it)
     message->add_args()->assign(*it);
@@ -84,6 +92,8 @@ bool DoMain(int argc, char* argv[]) {
 
   if (!connection->Read(&top_message, nullptr))
     return true;
+
+  // TODO: interpret message result.
 
   return false;
 }

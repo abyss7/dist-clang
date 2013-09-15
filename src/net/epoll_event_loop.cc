@@ -10,20 +10,24 @@ namespace dist_clang {
 namespace net {
 
 EpollEventLoop::EpollEventLoop(ConnectionCallback callback)
-  : listen_fd_(epoll_create1(0)), incoming_fd_(epoll_create1(0)),
-    outgoing_fd_(epoll_create1(0)), callback_(callback) {}
+  : listen_fd_(epoll_create1(EPOLL_CLOEXEC)),
+    incoming_fd_(epoll_create1(EPOLL_CLOEXEC)),
+    outgoing_fd_(epoll_create1(EPOLL_CLOEXEC)), callback_(callback) {}
 
-bool EpollEventLoop::Handle(fd_t fd) {
-  if (IsListening(fd)) {
-    if (!MakeNonBlocking(fd))
-      return false;
-    std::unique_lock<std::mutex> lock(listening_fds_mutex_);
-    listening_fds_.insert(fd);
-    return ReadyForListen(fd);
-  } else {
-    AddConnection(fd);
-    return true;
-  }
+bool EpollEventLoop::HandlePassive(fd_t fd) {
+  assert(IsListening(fd));
+  assert(IsNonBlocking(fd));
+  std::unique_lock<std::mutex> lock(listening_fds_mutex_);
+  listening_fds_.insert(fd);
+  return ReadyForListen(fd);
+}
+
+ConnectionPtr EpollEventLoop::HandleActive(fd_t fd) {
+  assert(!IsListening(fd));
+  ConnectionPtr new_connection = Connection::Create(*this, fd);
+  std::unique_lock<std::mutex> lock(connections_mutex_);
+  connections_.insert(new_connection);
+  return new_connection;
 }
 
 bool EpollEventLoop::ReadyForRead(ConnectionPtr connection) {
@@ -76,10 +80,11 @@ void EpollEventLoop::DoListenWork(const volatile bool &is_shutting_down) {
       }
       else if (events[i].events & EPOLLIN) {
         while(true) {
-          auto new_fd = accept(fd, nullptr, nullptr);
+          auto new_fd = accept4(fd, nullptr, nullptr,
+                                SOCK_NONBLOCK|SOCK_CLOEXEC);
           if (new_fd == -1)
             break;
-          auto new_connection = AddConnection(new_fd);
+          auto new_connection = HandleActive(new_fd);
           callback_(fd, new_connection);
         }
         ReadyForListen(fd);
@@ -150,13 +155,6 @@ bool EpollEventLoop::ReadyForListen(fd_t fd) {
     return false;
   }
   return true;
-}
-
-ConnectionPtr EpollEventLoop::AddConnection(fd_t fd) {
-  ConnectionPtr new_connection = Connection::Create(*this, fd);
-  std::unique_lock<std::mutex> lock(connections_mutex_);
-  connections_.insert(new_connection);
-  return new_connection;
 }
 
 }  // namespace net

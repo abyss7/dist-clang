@@ -16,14 +16,5 @@
         'string_utils.h',
       ],
     },
-    {
-      'target_name': 'futex',
-      'type': 'static_library',
-      'sources': [
-        'futex/futex_helpers.h',
-        'futex/scoped_lock.cc',
-        'futex/scoped_lock.h',
-      ],
-    },
   ],
 }

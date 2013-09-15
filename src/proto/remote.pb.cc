@@ -28,7 +28,6 @@ const ::google::protobuf::EnumDescriptor* Error_Code_descriptor_ = NULL;
 const ::google::protobuf::Descriptor* Execute_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   Execute_reflection_ = NULL;
-const ::google::protobuf::EnumDescriptor* Execute_Origin_descriptor_ = NULL;
 const ::google::protobuf::Descriptor* Universal_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   Universal_reflection_ = NULL;
@@ -61,8 +60,8 @@ void protobuf_AssignDesc_remote_2eproto() {
   Error_Code_descriptor_ = Error_descriptor_->enum_type(0);
   Execute_descriptor_ = file->message_type(1);
   static const int Execute_offsets_[3] = {
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Execute, origin_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Execute, current_dir_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Execute, executable_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Execute, args_),
   };
   Execute_reflection_ =
@@ -76,7 +75,6 @@ void protobuf_AssignDesc_remote_2eproto() {
       ::google::protobuf::DescriptorPool::generated_pool(),
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(Execute));
-  Execute_Origin_descriptor_ = Execute_descriptor_->enum_type(0);
   Universal_descriptor_ = file->message_type(2);
   static const int Universal_offsets_[2] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Universal, error_),
@@ -135,13 +133,11 @@ void protobuf_AddDesc_remote_2eproto() {
     "or\022.\n\004code\030\001 \002(\0162\034.dist_clang.proto.Erro"
     "r.Code:\002OK\022\023\n\013description\030\002 \001(\t\"Q\n\004Code\022"
     "\006\n\002OK\020\000\022\020\n\014INCONSEQUENT\020\001\022\013\n\007NETWORK\020\002\022\017"
-    "\n\013BAD_MESSAGE\020\003\022\021\n\rEMPTY_MESSAGE\020\004\"\177\n\007Ex"
-    "ecute\0220\n\006origin\030\001 \002(\0162 .dist_clang.proto"
-    ".Execute.Origin\022\023\n\013current_dir\030\002 \001(\t\022\014\n\004"
-    "args\030\003 \003(\t\"\037\n\006Origin\022\t\n\005LOCAL\020\001\022\n\n\006REMOT"
-    "E\020\002\"_\n\tUniversal\022&\n\005error\030\001 \001(\0132\027.dist_c"
-    "lang.proto.Error\022*\n\007execute\030\002 \001(\0132\031.dist"
-    "_clang.proto.Execute", 420);
+    "\n\013BAD_MESSAGE\020\003\022\021\n\rEMPTY_MESSAGE\020\004\"@\n\007Ex"
+    "ecute\022\023\n\013current_dir\030\001 \002(\t\022\022\n\nexecutable"
+    "\030\002 \001(\t\022\014\n\004args\030\003 \003(\t\"_\n\tUniversal\022&\n\005err"
+    "or\030\001 \001(\0132\027.dist_clang.proto.Error\022*\n\007exe"
+    "cute\030\002 \001(\0132\031.dist_clang.proto.Execute", 357);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "remote.proto", &protobuf_RegisterTypes);
   Error::default_instance_ = new Error();
@@ -461,30 +457,9 @@ void Error::Swap(Error* other) {
 
 // ===================================================================
 
-const ::google::protobuf::EnumDescriptor* Execute_Origin_descriptor() {
-  protobuf_AssignDescriptorsOnce();
-  return Execute_Origin_descriptor_;
-}
-bool Execute_Origin_IsValid(int value) {
-  switch(value) {
-    case 1:
-    case 2:
-      return true;
-    default:
-      return false;
-  }
-}
-
 #ifndef _MSC_VER
-const Execute_Origin Execute::LOCAL;
-const Execute_Origin Execute::REMOTE;
-const Execute_Origin Execute::Origin_MIN;
-const Execute_Origin Execute::Origin_MAX;
-const int Execute::Origin_ARRAYSIZE;
-#endif  // _MSC_VER
-#ifndef _MSC_VER
-const int Execute::kOriginFieldNumber;
 const int Execute::kCurrentDirFieldNumber;
+const int Execute::kExecutableFieldNumber;
 const int Execute::kArgsFieldNumber;
 #endif  // !_MSC_VER
 
@@ -504,8 +479,8 @@ Execute::Execute(const Execute& from)
 
 void Execute::SharedCtor() {
   _cached_size_ = 0;
-  origin_ = 1;
   current_dir_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  executable_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -516,6 +491,9 @@ Execute::~Execute() {
 void Execute::SharedDtor() {
   if (current_dir_ != &::google::protobuf::internal::kEmptyString) {
     delete current_dir_;
+  }
+  if (executable_ != &::google::protobuf::internal::kEmptyString) {
+    delete executable_;
   }
   if (this != default_instance_) {
   }
@@ -544,10 +522,14 @@ Execute* Execute::New() const {
 
 void Execute::Clear() {
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    origin_ = 1;
     if (has_current_dir()) {
       if (current_dir_ != &::google::protobuf::internal::kEmptyString) {
         current_dir_->clear();
+      }
+    }
+    if (has_executable()) {
+      if (executable_ != &::google::protobuf::internal::kEmptyString) {
+        executable_->clear();
       }
     }
   }
@@ -562,35 +544,31 @@ bool Execute::MergePartialFromCodedStream(
   ::google::protobuf::uint32 tag;
   while ((tag = input->ReadTag()) != 0) {
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // required .dist_clang.proto.Execute.Origin origin = 1;
+      // required string current_dir = 1;
       case 1: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
-          int value;
-          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   int, ::google::protobuf::internal::WireFormatLite::TYPE_ENUM>(
-                 input, &value)));
-          if (::dist_clang::proto::Execute_Origin_IsValid(value)) {
-            set_origin(static_cast< ::dist_clang::proto::Execute_Origin >(value));
-          } else {
-            mutable_unknown_fields()->AddVarint(1, value);
-          }
-        } else {
-          goto handle_uninterpreted;
-        }
-        if (input->ExpectTag(18)) goto parse_current_dir;
-        break;
-      }
-
-      // optional string current_dir = 2;
-      case 2: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
-         parse_current_dir:
           DO_(::google::protobuf::internal::WireFormatLite::ReadString(
                 input, this->mutable_current_dir()));
           ::google::protobuf::internal::WireFormat::VerifyUTF8String(
             this->current_dir().data(), this->current_dir().length(),
+            ::google::protobuf::internal::WireFormat::PARSE);
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(18)) goto parse_executable;
+        break;
+      }
+
+      // optional string executable = 2;
+      case 2: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
+         parse_executable:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->mutable_executable()));
+          ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+            this->executable().data(), this->executable().length(),
             ::google::protobuf::internal::WireFormat::PARSE);
         } else {
           goto handle_uninterpreted;
@@ -636,19 +614,22 @@ bool Execute::MergePartialFromCodedStream(
 
 void Execute::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // required .dist_clang.proto.Execute.Origin origin = 1;
-  if (has_origin()) {
-    ::google::protobuf::internal::WireFormatLite::WriteEnum(
-      1, this->origin(), output);
-  }
-
-  // optional string current_dir = 2;
+  // required string current_dir = 1;
   if (has_current_dir()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->current_dir().data(), this->current_dir().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE);
     ::google::protobuf::internal::WireFormatLite::WriteString(
-      2, this->current_dir(), output);
+      1, this->current_dir(), output);
+  }
+
+  // optional string executable = 2;
+  if (has_executable()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->executable().data(), this->executable().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    ::google::protobuf::internal::WireFormatLite::WriteString(
+      2, this->executable(), output);
   }
 
   // repeated string args = 3;
@@ -668,20 +649,24 @@ void Execute::SerializeWithCachedSizes(
 
 ::google::protobuf::uint8* Execute::SerializeWithCachedSizesToArray(
     ::google::protobuf::uint8* target) const {
-  // required .dist_clang.proto.Execute.Origin origin = 1;
-  if (has_origin()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteEnumToArray(
-      1, this->origin(), target);
-  }
-
-  // optional string current_dir = 2;
+  // required string current_dir = 1;
   if (has_current_dir()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->current_dir().data(), this->current_dir().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE);
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
-        2, this->current_dir(), target);
+        1, this->current_dir(), target);
+  }
+
+  // optional string executable = 2;
+  if (has_executable()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->executable().data(), this->executable().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    target =
+      ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
+        2, this->executable(), target);
   }
 
   // repeated string args = 3;
@@ -704,17 +689,18 @@ int Execute::ByteSize() const {
   int total_size = 0;
 
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    // required .dist_clang.proto.Execute.Origin origin = 1;
-    if (has_origin()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::EnumSize(this->origin());
-    }
-
-    // optional string current_dir = 2;
+    // required string current_dir = 1;
     if (has_current_dir()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::StringSize(
           this->current_dir());
+    }
+
+    // optional string executable = 2;
+    if (has_executable()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->executable());
     }
 
   }
@@ -752,11 +738,11 @@ void Execute::MergeFrom(const Execute& from) {
   GOOGLE_CHECK_NE(&from, this);
   args_.MergeFrom(from.args_);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (from.has_origin()) {
-      set_origin(from.origin());
-    }
     if (from.has_current_dir()) {
       set_current_dir(from.current_dir());
+    }
+    if (from.has_executable()) {
+      set_executable(from.executable());
     }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
@@ -782,8 +768,8 @@ bool Execute::IsInitialized() const {
 
 void Execute::Swap(Execute* other) {
   if (other != this) {
-    std::swap(origin_, other->origin_);
     std::swap(current_dir_, other->current_dir_);
+    std::swap(executable_, other->executable_);
     args_.Swap(&other->args_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);

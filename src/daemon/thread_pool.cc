@@ -1,68 +1,51 @@
-#include "thread_pool.h"
-
-#include "base/futex.h"
+#include "daemon/thread_pool.h"
 
 #include <algorithm>
 
 ThreadPool::ThreadPool(size_t capacity, size_t concurrency)
-  : workers_(concurrency), is_empty_(true), is_shutting_down_(false) {
-  for (auto i = capacity; i > 0; --i) {
-    TaskQueue::Node* new_node = new TaskQueue::Node;
-    free_nodes_.enqueue(new_node);
-  }
+  : capacity_(capacity), workers_(concurrency), is_shutting_down_(false) {
 }
 
 ThreadPool::~ThreadPool() {
-  is_shutting_down_ = true;
+  {
+    std::lock_guard<std::mutex> lock(tasks_mutex_);
+    is_shutting_down_ = true;
+  }
+  tasks_condition_.notify_all();
 
-  for (auto it = workers_.begin(); it != workers_.end(); ++it)
-    it->join();
-
-  TaskQueue::Node* node;
-  do {
-    node = free_nodes_.dequeue();
-    delete node;
-  } while (node);
+  for (std::thread& worker: workers_)
+    worker.join();
 }
 
 void ThreadPool::Run() {
-  auto lambda = [this](std::thread& thread) {
-    std::thread tmp(&ThreadPool::DoWork, this);
-    thread.swap(tmp);
-  };
-  std::for_each(workers_.begin(), workers_.end(), lambda);
+  for (std::thread& worker: workers_)
+    worker = std::thread(&ThreadPool::DoWork, this);
 }
 
 bool ThreadPool::Push(const Closure& task) {
-  if (is_shutting_down_)
-    return false;
-
-  TaskQueue::Node* node = free_nodes_.dequeue();
-  if (!node)
-    return false;
-
-  node->task = task;
-  busy_nodes_.enqueue(node);
-
-  is_empty_ = false;
-  wake_up(is_empty_, 1);
-
+  {
+    std::lock_guard<std::mutex> lock(tasks_mutex_);
+    if (tasks_.size() >= capacity_ || is_shutting_down_)
+      return false;
+    tasks_.push(task);
+  }
+  tasks_condition_.notify_one();
   return true;
 }
 
 void ThreadPool::DoWork() {
+  Closure task;
+
   do {
-    if (try_to_wait(is_empty_, true) == ERROR ||
-        (is_empty_ && is_shutting_down_))
-      break;
-
-    TaskQueue::Node* node = busy_nodes_.dequeue();
-    if (!node) {
-      is_empty_ = true;
-      continue;
+    {
+      std::unique_lock<std::mutex> lock(tasks_mutex_);
+      while(tasks_.empty() && !is_shutting_down_)
+        tasks_condition_.wait(lock);
+      if (is_shutting_down_ && tasks_.empty())
+        break;
+      task = tasks_.front();
+      tasks_.pop();
     }
-
-    node->task();
-    free_nodes_.enqueue(node);
+    task();
   } while (true);
 }

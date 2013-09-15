@@ -4,12 +4,14 @@
 #include <iostream>
 #include <string>
 
-namespace {
+namespace dist_clang {
+namespace proto {
 
-void PrintMessage(const google::protobuf::Message& message) {
+inline void PrintMessage(const google::protobuf::Message& message) {
   std::string message_str;
   if (google::protobuf::TextFormat::PrintToString(message, &message_str))
     std::cout << message_str;
 }
 
-}  // namespace
+}  // namespace proto
+}  // namespace dist_clang

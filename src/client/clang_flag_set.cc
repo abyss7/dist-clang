@@ -9,13 +9,14 @@ namespace {
 const char* kEnvTempDir = "TMPDIR";
 const char* kDefaultTempDir = "/tmp";
 
-}
+}  // namespace
 
 namespace dist_clang {
 namespace client {
 
 // static
-ClangFlagSet::Action ClangFlagSet::ProcessFlags(string_list& args) {
+ClangFlagSet::Action ClangFlagSet::ProcessFlags(string_list& args,
+                                                string* executable) {
   Action action(UNKNOWN);
   string temp_dir = base::GetEnv(kEnvTempDir, kDefaultTempDir);
 
@@ -26,6 +27,11 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(string_list& args) {
     if (flag[0] == '"')
       flag = it->substr(1, flag.size() - 2);
   }
+
+  // First non-empty argument is a path to executable - discard it.
+  if (executable)
+    executable->assign(*args.begin());
+  args.erase(args.begin());
 
   for (auto it = args.begin(); it != args.end(); ++it) {
     string& flag = *it;

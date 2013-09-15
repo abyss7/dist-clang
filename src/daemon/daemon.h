@@ -1,5 +1,6 @@
 #pragma once
 
+#include "daemon/thread_pool.h"
 #include "net/connection_forward.h"
 
 namespace dist_clang {
@@ -10,6 +11,7 @@ class Connection;
 }
 
 namespace proto {
+class Error;
 class Universal;
 }
 
@@ -23,10 +25,10 @@ class Daemon {
                     net::NetworkService& network_service);
 
   private:
-    void AddConnectionToBalancer(net::ConnectionPtr connection);
     void HandleNewConnection(bool remote, net::ConnectionPtr connection);
-    void HandleIncomingMessage(net::ConnectionPtr connection,
-                               const proto::Universal& message);
+    bool HandleLocalMessage(net::ConnectionPtr connection,
+                            const proto::Universal& message,
+                            const proto::Error& error);
 };
 
 }  // namespace daemon

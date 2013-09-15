@@ -58,7 +58,7 @@ class TestServer: public net::EventLoop {
       }
 
       net::ConnectionPtr connection = net::Connection::Create(*this, fd);
-      if (!connection.get()) {
+      if (!connection) {
         std::cerr << "Failed to create connection" << std::endl;
         close(fd);
         return net::ConnectionPtr();
@@ -163,7 +163,7 @@ class ConnectionTest: public ::testing::Test {
     void SetUp() override {
       ASSERT_TRUE(server.Init());
       connection = server.GetConnection();
-      ASSERT_TRUE(connection.get());
+      ASSERT_TRUE(static_cast<bool>(connection));
     }
     void TearDown() override {
       connection.reset();
@@ -176,14 +176,12 @@ class ConnectionTest: public ::testing::Test {
 
 TEST_F(ConnectionTest, Sync_ReadOneMessage) {
   const std::string expected_current_dir = "dir1";
-  const proto::Execute::Origin expected_origin = proto::Execute::LOCAL;
   const std::string expected_arg = "arg1";
 
   net::Connection::Message expected_message;
   {
     auto message = expected_message.mutable_execute();
     message->set_current_dir(expected_current_dir);
-    message->set_origin(expected_origin);
     message->add_args()->assign(expected_arg);
   }
   ASSERT_TRUE(server.WriteAtOnce(expected_message.SerializeAsString()));
@@ -200,31 +198,25 @@ TEST_F(ConnectionTest, Sync_ReadOneMessage) {
   // Check incoming message.
   ASSERT_TRUE(message.has_execute());
   ASSERT_TRUE(message.execute().has_current_dir());
-  ASSERT_TRUE(message.execute().has_origin());
   ASSERT_EQ(1, message.execute().args_size());
   EXPECT_EQ(expected_current_dir, message.execute().current_dir());
-  EXPECT_EQ(expected_origin, message.execute().origin());
   EXPECT_EQ(expected_arg, message.execute().args(0));
 }
 
 TEST_F(ConnectionTest, Sync_ReadTwoMessages) {
   const std::string expected_current_dir1 = "dir1";
-  const proto::Execute::Origin expected_origin1 = proto::Execute::LOCAL;
   const std::string expected_arg1 = "arg1";
   const std::string expected_current_dir2 = "dir2";
-  const proto::Execute::Origin expected_origin2 = proto::Execute::REMOTE;
   const std::string expected_arg2 = "arg2";
 
   net::Connection::Message expected_message1, expected_message2;
   {
     auto message = expected_message1.mutable_execute();
     message->set_current_dir(expected_current_dir1);
-    message->set_origin(expected_origin1);
     message->add_args()->assign(expected_arg1);
 
     message = expected_message2.mutable_execute();
     message->set_current_dir(expected_current_dir2);
-    message->set_origin(expected_origin2);
     message->add_args()->assign(expected_arg2);
   }
   ASSERT_TRUE(server.WriteAtOnce(expected_message1.SerializeAsString()));
@@ -242,10 +234,8 @@ TEST_F(ConnectionTest, Sync_ReadTwoMessages) {
   // Check incoming message.
   ASSERT_TRUE(message.has_execute());
   ASSERT_TRUE(message.execute().has_current_dir());
-  ASSERT_TRUE(message.execute().has_origin());
   ASSERT_EQ(1, message.execute().args_size());
   EXPECT_EQ(expected_current_dir1, message.execute().current_dir());
-  EXPECT_EQ(expected_origin1, message.execute().origin());
   EXPECT_EQ(expected_arg1, message.execute().args(0));
 
   ASSERT_TRUE(connection->Read(&message, &error)) << error.description();
@@ -257,23 +247,19 @@ TEST_F(ConnectionTest, Sync_ReadTwoMessages) {
   // Check incoming message.
   ASSERT_TRUE(message.has_execute());
   ASSERT_TRUE(message.execute().has_current_dir());
-  ASSERT_TRUE(message.execute().has_origin());
   ASSERT_EQ(1, message.execute().args_size());
   EXPECT_EQ(expected_current_dir2, message.execute().current_dir());
-  EXPECT_EQ(expected_origin2, message.execute().origin());
   EXPECT_EQ(expected_arg2, message.execute().args(0));
 }
 
 TEST_F(ConnectionTest, Sync_ReadSplitMessage) {
   const std::string expected_current_dir = "dir1";
-  const proto::Execute::Origin expected_origin = proto::Execute::LOCAL;
   const std::string expected_arg = "arg1";
 
   net::Connection::Message expected_message;
   {
     auto message = expected_message.mutable_execute();
     message->set_current_dir(expected_current_dir);
-    message->set_origin(expected_origin);
     message->add_args()->assign(expected_arg);
   }
 
@@ -290,10 +276,8 @@ TEST_F(ConnectionTest, Sync_ReadSplitMessage) {
     // Check incoming message.
     ASSERT_TRUE(message.has_execute());
     ASSERT_TRUE(message.execute().has_current_dir());
-    ASSERT_TRUE(message.execute().has_origin());
     ASSERT_EQ(1, message.execute().args_size());
     EXPECT_EQ(expected_current_dir, message.execute().current_dir());
-    EXPECT_EQ(expected_origin, message.execute().origin());
     EXPECT_EQ(expected_arg, message.execute().args(0));
   };
 
@@ -304,13 +288,11 @@ TEST_F(ConnectionTest, Sync_ReadSplitMessage) {
 }
 
 TEST_F(ConnectionTest, Sync_ReadIncompleteMessage) {
-  const std::string expected_current_dir = "dir1";
   const std::string expected_arg = "arg1";
 
   net::Connection::Message expected_message;
   {
     auto message = expected_message.mutable_execute();
-    message->set_current_dir(expected_current_dir);
     message->add_args()->assign(expected_arg);
   }
   ASSERT_TRUE(server.WriteAtOnce(expected_message.SerializePartialAsString()));
@@ -324,14 +306,12 @@ TEST_F(ConnectionTest, Sync_ReadIncompleteMessage) {
 
 TEST_F(ConnectionTest, Sync_ReadWhileReading) {
   const std::string expected_current_dir = "dir1";
-  const proto::Execute::Origin expected_origin = proto::Execute::LOCAL;
   const std::string expected_arg = "arg1";
 
   net::Connection::Message expected_message;
   {
     auto message = expected_message.mutable_execute();
     message->set_current_dir(expected_current_dir);
-    message->set_origin(expected_origin);
     message->add_args()->assign(expected_arg);
   }
 
@@ -348,10 +328,8 @@ TEST_F(ConnectionTest, Sync_ReadWhileReading) {
     // Check incoming message.
     ASSERT_TRUE(message.has_execute());
     ASSERT_TRUE(message.execute().has_current_dir());
-    ASSERT_TRUE(message.execute().has_origin());
     ASSERT_EQ(1, message.execute().args_size());
     EXPECT_EQ(expected_current_dir, message.execute().current_dir());
-    EXPECT_EQ(expected_origin, message.execute().origin());
     EXPECT_EQ(expected_arg, message.execute().args(0));
   };
 
@@ -368,14 +346,12 @@ TEST_F(ConnectionTest, Sync_ReadWhileReading) {
 
 TEST_F(ConnectionTest, Sync_SendMessage) {
   const std::string expected_current_dir = "dir1";
-  const proto::Execute::Origin expected_origin = proto::Execute::LOCAL;
   const std::string expected_arg = "arg1";
 
   net::Connection::Message expected_message;
   {
     auto message = expected_message.mutable_execute();
     message->set_current_dir(expected_current_dir);
-    message->set_origin(expected_origin);
     message->add_args()->assign(expected_arg);
   }
   proto::Error error;
@@ -388,24 +364,19 @@ TEST_F(ConnectionTest, Sync_SendMessage) {
   message.ParseFromString(data);
   ASSERT_TRUE(message.has_execute());
   ASSERT_TRUE(message.execute().has_current_dir());
-  ASSERT_TRUE(message.execute().has_origin());
   ASSERT_EQ(1, message.execute().args_size());
   EXPECT_EQ(expected_current_dir, message.execute().current_dir());
-  EXPECT_EQ(expected_origin, message.execute().origin());
   EXPECT_EQ(expected_arg, message.execute().args(0));
 }
 
 TEST_F(ConnectionTest, Sync_SendWhileReading) {
-  // TODO: implement this.
   const std::string expected_current_dir = "dir1";
-  const proto::Execute::Origin expected_origin = proto::Execute::LOCAL;
   const std::string expected_arg = "arg1";
 
   net::Connection::Message expected_message;
   {
     auto message = expected_message.mutable_execute();
     message->set_current_dir(expected_current_dir);
-    message->set_origin(expected_origin);
     message->add_args()->assign(expected_arg);
   }
 
@@ -422,10 +393,8 @@ TEST_F(ConnectionTest, Sync_SendWhileReading) {
     // Check incoming message.
     ASSERT_TRUE(message.has_execute());
     ASSERT_TRUE(message.execute().has_current_dir());
-    ASSERT_TRUE(message.execute().has_origin());
     ASSERT_EQ(1, message.execute().args_size());
     EXPECT_EQ(expected_current_dir, message.execute().current_dir());
-    EXPECT_EQ(expected_origin, message.execute().origin());
     EXPECT_EQ(expected_arg, message.execute().args(0));
   };
 

@@ -10,8 +10,7 @@ namespace net {
 
 // static
 ConnectionPtr Connection::Create(EventLoop &event_loop, fd_t fd) {
-  if (!MakeNonBlocking(fd))
-    return ConnectionPtr();
+  assert(IsNonBlocking(fd));
   return ConnectionPtr(new Connection(event_loop, fd));
 }
 
@@ -200,7 +199,8 @@ void Connection::CanRead() {
   coded_input_stream_->PopLimit(input_limit_);
   coded_input_stream_.reset();
   state_.store(IDLE);
-  read_callback_(shared_from_this(), input_message_, Error());
+  if (!read_callback_(shared_from_this(), input_message_, Error()))
+    Close();
 }
 
 void Connection::CanSend() {
@@ -219,7 +219,8 @@ void Connection::CanSend() {
   }
   coded_output_stream_.reset();
   state_.store(IDLE);
-  send_callback_(shared_from_this(), Error());
+  if (!send_callback_(shared_from_this(), Error()))
+    Close();
 }
 
 void Connection::Close() {

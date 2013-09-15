@@ -11,7 +11,8 @@ class ClangFlagSet {
     enum Action { COMPILE, LINK, UNKNOWN };
     typedef std::list<std::string> string_list;
 
-    static Action ProcessFlags(string_list& args);
+    static Action ProcessFlags(string_list& args,
+                               std::string* executable = nullptr);
 };
 
 }  // namespace client

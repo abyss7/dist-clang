@@ -1,11 +1,14 @@
 #pragma once
 
-#include "net/connection_forward.h"
-#include "net/epoll_event_loop.h"
+#include "base/attributes.h"
+#include "net/base/types.h"
+#include "net/event_loop.h"
+#include "proto/remote.pb.h"
 
 #include <functional>
 #include <memory>
 #include <string>
+#include <unordered_map>
 
 namespace dist_clang {
 namespace net {
@@ -18,16 +21,18 @@ class NetworkService {
 
     bool Listen(const std::string& path,
                 ConnectionCallback callback,
-                std::string* error);
-    ConnectionPtr Connect(const std::string& path, std::string* error);
+                proto::Error* error) THREAD_UNSAFE;
+    ConnectionPtr Connect(const std::string& path,
+                          proto::Error* error) THREAD_SAFE;
 
     bool Run();
 
   private:
-    // |fd| is a descriptor of listening socket, which accepted new connection.
-    void HandleNewConnection(int fd, ConnectionPtr connection);
+    // |fd| is a descriptor of a listening socket, which accepts new connection.
+    void HandleNewConnection(fd_t fd, ConnectionPtr connection);
 
-    std::unique_ptr<EpollEventLoop> event_loop_;
+    std::unique_ptr<EventLoop> event_loop_;
+    std::unordered_map<fd_t, ConnectionCallback> callbacks_;
 };
 
 }  // namespace net

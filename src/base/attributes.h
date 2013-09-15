@@ -1,4 +1,5 @@
 #pragma once
 
-// This attribute indicates, that a function or method is thread-safe.
+// This attributes indicate the function's or method's thread-safety.
 #define THREAD_SAFE
+#define THREAD_UNSAFE

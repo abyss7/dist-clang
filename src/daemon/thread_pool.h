@@ -2,7 +2,9 @@
 
 #include "task_queue.h"
 
-#include <cstddef>  // for |size_t|
+#include <condition_variable>
+#include <mutex>
+#include <queue>
 #include <thread>
 #include <vector>
 
@@ -19,7 +21,11 @@ class ThreadPool {
   private:
     void DoWork();
 
+    const size_t capacity_;
     std::vector<std::thread> workers_;
-    TaskQueue free_nodes_, busy_nodes_;
-    bool is_empty_, is_shutting_down_;
+
+    std::mutex tasks_mutex_;
+    std::condition_variable tasks_condition_;
+    bool is_shutting_down_;
+    std::queue<Closure> tasks_;
 };

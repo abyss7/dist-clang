@@ -41,5 +41,11 @@ inline std::string CreateTempDir() {
   return std::string(buf);
 }
 
+inline bool ChangeCurrentDir(const std::string& path) {
+  if (chdir(path.c_str()) == -1)
+    return false;
+  return true;
+}
+
 }  // namespace base
 }  // namespace dist_clang

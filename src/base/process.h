@@ -11,7 +11,8 @@ class Process {
   public:
     enum { MAX_ARGS = 256 };
 
-    explicit Process(const std::string& exec_path);
+    explicit Process(const std::string& exec_path,
+                     const std::string& cwd_path = std::string());
 
     Process& AppendArg(const std::string& arg);
     template <typename ConstIterator>
@@ -26,7 +27,7 @@ class Process {
     const std::string& stderr() const;
 
   private:
-    const std::string exec_path_;
+    const std::string exec_path_, cwd_path_;
     std::list<std::string> args_;
     std::string stdout_, stderr_;
 

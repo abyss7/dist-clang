@@ -19,6 +19,8 @@
         'configuration.h',
         'daemon.cc',
         'daemon.h',
+        'thread_pool.cc',
+        'thread_pool.h',
       ],
     },
   ],

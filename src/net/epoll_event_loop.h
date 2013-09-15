@@ -17,7 +17,8 @@ class EpollEventLoop: public EventLoop {
 
     EpollEventLoop(ConnectionCallback callback);
 
-    bool Handle(fd_t fd) THREAD_SAFE;
+    bool HandlePassive(fd_t fd) THREAD_SAFE;
+    ConnectionPtr HandleActive(fd_t fd) THREAD_SAFE;
 
     virtual bool ReadyForRead(ConnectionPtr connection) THREAD_SAFE override;
     virtual bool ReadyForSend(ConnectionPtr connection) THREAD_SAFE override;
@@ -28,7 +29,6 @@ class EpollEventLoop: public EventLoop {
     virtual void DoOutgoingWork(const volatile bool& is_shutting_down) override;
 
     bool ReadyForListen(fd_t fd);
-    ConnectionPtr AddConnection(fd_t fd);
 
     fd_t listen_fd_, incoming_fd_, outgoing_fd_;
     ConnectionCallback callback_;

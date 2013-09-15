@@ -23,9 +23,9 @@ class Connection: public std::enable_shared_from_this<Connection> {
     typedef google::protobuf::io::CodedInputStream CodedInputStream;
     typedef google::protobuf::io::CodedOutputStream CodedOutputStream;
     typedef google::protobuf::io::CodedInputStream::Limit Limit;
-    typedef std::function<void(ConnectionPtr, const Message&, const Error&)>
+    typedef std::function<bool(ConnectionPtr, const Message&, const Error&)>
         ReadCallback;
-    typedef std::function<void(ConnectionPtr, const Error&)> SendCallback;
+    typedef std::function<bool(ConnectionPtr, const Error&)> SendCallback;
 
     // Create connection only on an active socket -
     // i.e. after connect() or accept().
@@ -43,8 +43,6 @@ class Connection: public std::enable_shared_from_this<Connection> {
     bool IsClosed() const;
     bool IsOnEventLoop(const EventLoop* event_loop) const;
 
-    const fd_t fd_;
-
   private:
     friend class EventLoop;
 
@@ -55,6 +53,7 @@ class Connection: public std::enable_shared_from_this<Connection> {
     void CanRead();
     void CanSend();
 
+    const fd_t fd_;
     EventLoop& event_loop_;
     volatile bool is_closed_;
     std::atomic<State> state_;
