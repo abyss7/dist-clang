@@ -24,6 +24,9 @@ bool Daemon::Initialize(const Configuration &configuration,
     return false;
   }
 
+  pool_.reset(new ThreadPool(config.pool_capacity()));
+  pool_->Run();
+
   if (!network_service.Listen(config.socket_path(),
            std::bind(&Daemon::HandleNewConnection, this, false, _1), &error)) {
     std::cerr << error.description() << std::endl;
@@ -40,25 +43,50 @@ void Daemon::HandleNewConnection(bool remote, net::ConnectionPtr connection) {
 bool Daemon::HandleLocalMessage(net::ConnectionPtr connection,
                                 const net::Connection::Message& message,
                                 const proto::Error& error) {
-  proto::PrintMessage(message);
-
-  if (!connection && error.code() != proto::Error::OK) {
-    // TODO: send back error.
+  if (!connection) {
+    assert(error.code() != proto::Error::OK);
+    std::cerr << error.description() << std::endl;
     return false;
+  }
+
+  if (error.code() != proto::Error::OK) {
+    net::Connection::Message outgoing_message;
+    outgoing_message.mutable_error()->CopyFrom(error);
+    connection->Send(outgoing_message, net::Connection::Idle());
+    return true;
   }
 
   if (!message.has_execute()) {
-    // TODO: send back error.
-    return false;
+    net::Connection::Message outgoing_message;
+    auto error_message = outgoing_message.mutable_error();
+    error_message->set_code(proto::Error::BAD_MESSAGE);
+    error_message->set_description("Incoming local message doesn't have "
+                                   "the execution instructions!");
+    connection->Send(outgoing_message, net::Connection::Idle());
+    return true;
   }
 
-  const proto::Execute& execute = message.execute();
-  base::Process process(execute.executable(), execute.current_dir());
-  process.AppendArg(execute.args().begin(), execute.args().end());
-  if (!process.Run(30, nullptr))
-    return false;
+  if (!pool_->Push(std::bind(&Daemon::HandleLocalExecution, this, connection,
+                             message.execute()))) {
+    // TODO: organize remote compilation.
+  }
 
   return true;
+}
+
+void Daemon::HandleLocalExecution(net::ConnectionPtr connection,
+                                  const proto::Execute &execute) {
+  net::Connection::Message message;
+  auto error = message.mutable_error();
+  base::Process process(execute.executable(), execute.current_dir());
+  process.AppendArg(execute.args().begin(), execute.args().end());
+  if (!process.Run(30, nullptr)) {
+    error->set_code(proto::Error::EXECUTION);
+    error->set_description(process.stderr());
+  } else {
+    error->set_code(proto::Error::OK);
+  }
+  connection->Send(message, net::Connection::Idle());
 }
 
 }  // namespace daemon

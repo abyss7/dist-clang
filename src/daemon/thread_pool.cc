@@ -1,6 +1,7 @@
 #include "daemon/thread_pool.h"
 
-#include <algorithm>
+namespace dist_clang {
+namespace daemon {
 
 ThreadPool::ThreadPool(size_t capacity, size_t concurrency)
   : capacity_(capacity), workers_(concurrency), is_shutting_down_(false) {
@@ -49,3 +50,6 @@ void ThreadPool::DoWork() {
     task();
   } while (true);
 }
+
+}  // namespace daemon
+}  // namespace dist_clang

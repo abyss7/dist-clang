@@ -17,6 +17,7 @@ inline void SplitString(const std::string& input,
     prev = i + sizeof(delimiter);
     i = input.find(delimiter, prev);
   }
+  tokens.push_back(input.substr(prev));
 }
 
 template<>

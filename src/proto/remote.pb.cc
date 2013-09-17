@@ -129,15 +129,16 @@ void protobuf_AddDesc_remote_2eproto() {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-    "\n\014remote.proto\022\020dist_clang.proto\"\237\001\n\005Err"
+    "\n\014remote.proto\022\020dist_clang.proto\"\256\001\n\005Err"
     "or\022.\n\004code\030\001 \002(\0162\034.dist_clang.proto.Erro"
-    "r.Code:\002OK\022\023\n\013description\030\002 \001(\t\"Q\n\004Code\022"
+    "r.Code:\002OK\022\023\n\013description\030\002 \001(\t\"`\n\004Code\022"
     "\006\n\002OK\020\000\022\020\n\014INCONSEQUENT\020\001\022\013\n\007NETWORK\020\002\022\017"
-    "\n\013BAD_MESSAGE\020\003\022\021\n\rEMPTY_MESSAGE\020\004\"@\n\007Ex"
-    "ecute\022\023\n\013current_dir\030\001 \002(\t\022\022\n\nexecutable"
-    "\030\002 \001(\t\022\014\n\004args\030\003 \003(\t\"_\n\tUniversal\022&\n\005err"
-    "or\030\001 \001(\0132\027.dist_clang.proto.Error\022*\n\007exe"
-    "cute\030\002 \001(\0132\031.dist_clang.proto.Execute", 357);
+    "\n\013BAD_MESSAGE\020\003\022\021\n\rEMPTY_MESSAGE\020\004\022\r\n\tEX"
+    "ECUTION\020\005\"@\n\007Execute\022\023\n\013current_dir\030\001 \002("
+    "\t\022\022\n\nexecutable\030\002 \001(\t\022\014\n\004args\030\003 \003(\t\"_\n\tU"
+    "niversal\022&\n\005error\030\001 \001(\0132\027.dist_clang.pro"
+    "to.Error\022*\n\007execute\030\002 \001(\0132\031.dist_clang.p"
+    "roto.Execute", 372);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "remote.proto", &protobuf_RegisterTypes);
   Error::default_instance_ = new Error();
@@ -169,6 +170,7 @@ bool Error_Code_IsValid(int value) {
     case 2:
     case 3:
     case 4:
+    case 5:
       return true;
     default:
       return false;
@@ -181,6 +183,7 @@ const Error_Code Error::INCONSEQUENT;
 const Error_Code Error::NETWORK;
 const Error_Code Error::BAD_MESSAGE;
 const Error_Code Error::EMPTY_MESSAGE;
+const Error_Code Error::EXECUTION;
 const Error_Code Error::Code_MIN;
 const Error_Code Error::Code_MAX;
 const int Error::Code_ARRAYSIZE;

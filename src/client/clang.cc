@@ -6,6 +6,7 @@
 #include "net/connection.h"
 #include "net/network_service.h"
 #include "proto/remote.pb.h"
+#include "proto/utils.h"
 
 #include <iostream>
 #include <list>
@@ -93,7 +94,13 @@ bool DoMain(int argc, char* argv[]) {
   if (!connection->Read(&top_message, nullptr))
     return true;
 
-  // TODO: interpret message result.
+  if (!top_message.has_error() ||
+      (top_message.error().code() != proto::Error::EXECUTION &&
+       top_message.error().code() != proto::Error::OK))
+    return true;
+
+  if (top_message.error().code() == proto::Error::EXECUTION)
+    std::cerr << top_message.error().description();
 
   return false;
 }

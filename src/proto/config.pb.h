@@ -104,17 +104,27 @@ class Configuration : public ::google::protobuf::Message {
   inline ::std::string* release_socket_path();
   inline void set_allocated_socket_path(::std::string* socket_path);
 
+  // optional uint32 pool_capacity = 2 [default = 128];
+  inline bool has_pool_capacity() const;
+  inline void clear_pool_capacity();
+  static const int kPoolCapacityFieldNumber = 2;
+  inline ::google::protobuf::uint32 pool_capacity() const;
+  inline void set_pool_capacity(::google::protobuf::uint32 value);
+
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Configuration)
  private:
   inline void set_has_socket_path();
   inline void clear_has_socket_path();
+  inline void set_has_pool_capacity();
+  inline void clear_has_pool_capacity();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
   ::std::string* socket_path_;
+  ::google::protobuf::uint32 pool_capacity_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(1 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(2 + 31) / 32];
 
   friend void  protobuf_AddDesc_config_2eproto();
   friend void protobuf_AssignDesc_config_2eproto();
@@ -198,6 +208,28 @@ inline void Configuration::set_allocated_socket_path(::std::string* socket_path)
     clear_has_socket_path();
     socket_path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   }
+}
+
+// optional uint32 pool_capacity = 2 [default = 128];
+inline bool Configuration::has_pool_capacity() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+inline void Configuration::set_has_pool_capacity() {
+  _has_bits_[0] |= 0x00000002u;
+}
+inline void Configuration::clear_has_pool_capacity() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+inline void Configuration::clear_pool_capacity() {
+  pool_capacity_ = 128u;
+  clear_has_pool_capacity();
+}
+inline ::google::protobuf::uint32 Configuration::pool_capacity() const {
+  return pool_capacity_;
+}
+inline void Configuration::set_pool_capacity(::google::protobuf::uint32 value) {
+  set_has_pool_capacity();
+  pool_capacity_ = value;
 }
 
 

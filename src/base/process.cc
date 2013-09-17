@@ -109,7 +109,7 @@ bool Process::Run(unsigned short sec_timeout, string* error) {
     close(out_pipe_fd[0]);
     close(err_pipe_fd[0]);
 
-    return WIFEXITED(status);
+    return !WEXITSTATUS(status);
   }
 }
 

@@ -7,6 +7,7 @@ message Error {
     NETWORK = 2;       // Failed to read/send something from network connection.
     BAD_MESSAGE = 3;   // Incoming/outgoing message is malformed.
     EMPTY_MESSAGE = 4; // Provided |message| pointer for |Read()| is null.
+    EXECUTION = 5;     // Execution failed.
   }
 
   required Code code = 1 [default=OK];

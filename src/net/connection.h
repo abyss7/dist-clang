@@ -36,6 +36,7 @@ class Connection: public std::enable_shared_from_this<Connection> {
     // The connection is not closed in this case.
     bool Read(ReadCallback callback);
     bool Send(const Message& message, SendCallback callback);
+    static SendCallback Idle();
 
     bool Read(Message* message, Error* error);
     bool Send(const Message& message, Error* error);

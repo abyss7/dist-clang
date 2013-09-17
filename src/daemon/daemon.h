@@ -12,6 +12,7 @@ class Connection;
 
 namespace proto {
 class Error;
+class Execute;
 class Universal;
 }
 
@@ -29,6 +30,10 @@ class Daemon {
     bool HandleLocalMessage(net::ConnectionPtr connection,
                             const proto::Universal& message,
                             const proto::Error& error);
+    void HandleLocalExecution(net::ConnectionPtr connection,
+                              const proto::Execute& execute);
+
+    std::unique_ptr<ThreadPool> pool_;
 };
 
 }  // namespace daemon

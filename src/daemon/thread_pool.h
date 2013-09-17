@@ -1,15 +1,18 @@
 #pragma once
 
-#include "task_queue.h"
-
 #include <condition_variable>
 #include <mutex>
 #include <queue>
 #include <thread>
 #include <vector>
 
+namespace dist_clang {
+namespace daemon {
+
 class ThreadPool {
   public:
+    typedef std::function<void(void)> Closure;
+
     explicit ThreadPool(
         size_t capacity,
         size_t concurrency = std::thread::hardware_concurrency());
@@ -29,3 +32,6 @@ class ThreadPool {
     bool is_shutting_down_;
     std::queue<Closure> tasks_;
 };
+
+}  // namespace daemon
+}  // namespace dist_clang

@@ -35,8 +35,9 @@ void protobuf_AssignDesc_config_2eproto() {
       "config.proto");
   GOOGLE_CHECK(file != NULL);
   Configuration_descriptor_ = file->message_type(0);
-  static const int Configuration_offsets_[1] = {
+  static const int Configuration_offsets_[2] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, socket_path_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, pool_capacity_),
   };
   Configuration_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
@@ -79,8 +80,9 @@ void protobuf_AddDesc_config_2eproto() {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-    "\n\014config.proto\022\020dist_clang.proto\"$\n\rConf"
-    "iguration\022\023\n\013socket_path\030\001 \002(\t", 70);
+    "\n\014config.proto\022\020dist_clang.proto\"@\n\rConf"
+    "iguration\022\023\n\013socket_path\030\001 \002(\t\022\032\n\rpool_c"
+    "apacity\030\002 \001(\r:\003128", 98);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "config.proto", &protobuf_RegisterTypes);
   Configuration::default_instance_ = new Configuration();
@@ -99,6 +101,7 @@ struct StaticDescriptorInitializer_config_2eproto {
 
 #ifndef _MSC_VER
 const int Configuration::kSocketPathFieldNumber;
+const int Configuration::kPoolCapacityFieldNumber;
 #endif  // !_MSC_VER
 
 Configuration::Configuration()
@@ -118,6 +121,7 @@ Configuration::Configuration(const Configuration& from)
 void Configuration::SharedCtor() {
   _cached_size_ = 0;
   socket_path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  pool_capacity_ = 128u;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -161,6 +165,7 @@ void Configuration::Clear() {
         socket_path_->clear();
       }
     }
+    pool_capacity_ = 128u;
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   mutable_unknown_fields()->Clear();
@@ -181,6 +186,22 @@ bool Configuration::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8String(
             this->socket_path().data(), this->socket_path().length(),
             ::google::protobuf::internal::WireFormat::PARSE);
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(16)) goto parse_pool_capacity;
+        break;
+      }
+
+      // optional uint32 pool_capacity = 2 [default = 128];
+      case 2: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
+         parse_pool_capacity:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
+                 input, &pool_capacity_)));
+          set_has_pool_capacity();
         } else {
           goto handle_uninterpreted;
         }
@@ -215,6 +236,11 @@ void Configuration::SerializeWithCachedSizes(
       1, this->socket_path(), output);
   }
 
+  // optional uint32 pool_capacity = 2 [default = 128];
+  if (has_pool_capacity()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(2, this->pool_capacity(), output);
+  }
+
   if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
@@ -233,6 +259,11 @@ void Configuration::SerializeWithCachedSizes(
         1, this->socket_path(), target);
   }
 
+  // optional uint32 pool_capacity = 2 [default = 128];
+  if (has_pool_capacity()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(2, this->pool_capacity(), target);
+  }
+
   if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
@@ -249,6 +280,13 @@ int Configuration::ByteSize() const {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::StringSize(
           this->socket_path());
+    }
+
+    // optional uint32 pool_capacity = 2 [default = 128];
+    if (has_pool_capacity()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt32Size(
+          this->pool_capacity());
     }
 
   }
@@ -281,6 +319,9 @@ void Configuration::MergeFrom(const Configuration& from) {
     if (from.has_socket_path()) {
       set_socket_path(from.socket_path());
     }
+    if (from.has_pool_capacity()) {
+      set_pool_capacity(from.pool_capacity());
+    }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
@@ -306,6 +347,7 @@ bool Configuration::IsInitialized() const {
 void Configuration::Swap(Configuration* other) {
   if (other != this) {
     std::swap(socket_path_, other->socket_path_);
+    std::swap(pool_capacity_, other->pool_capacity_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);

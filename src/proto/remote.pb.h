@@ -44,11 +44,12 @@ enum Error_Code {
   Error_Code_INCONSEQUENT = 1,
   Error_Code_NETWORK = 2,
   Error_Code_BAD_MESSAGE = 3,
-  Error_Code_EMPTY_MESSAGE = 4
+  Error_Code_EMPTY_MESSAGE = 4,
+  Error_Code_EXECUTION = 5
 };
 bool Error_Code_IsValid(int value);
 const Error_Code Error_Code_Code_MIN = Error_Code_OK;
-const Error_Code Error_Code_Code_MAX = Error_Code_EMPTY_MESSAGE;
+const Error_Code Error_Code_Code_MAX = Error_Code_EXECUTION;
 const int Error_Code_Code_ARRAYSIZE = Error_Code_Code_MAX + 1;
 
 const ::google::protobuf::EnumDescriptor* Error_Code_descriptor();
@@ -121,6 +122,7 @@ class Error : public ::google::protobuf::Message {
   static const Code NETWORK = Error_Code_NETWORK;
   static const Code BAD_MESSAGE = Error_Code_BAD_MESSAGE;
   static const Code EMPTY_MESSAGE = Error_Code_EMPTY_MESSAGE;
+  static const Code EXECUTION = Error_Code_EXECUTION;
   static inline bool Code_IsValid(int value) {
     return Error_Code_IsValid(value);
   }

@@ -43,6 +43,13 @@ bool Connection::Send(const Message &message, SendCallback callback) {
   return true;
 }
 
+// static
+Connection::SendCallback Connection::Idle() {
+  using namespace std::placeholders;
+  auto callback = [](ConnectionPtr, const Error&) -> bool { return true; };
+  return std::bind(callback, _1, _2);
+}
+
 bool Connection::Read(Message *message, Error *error) {
   if (!message) {
     if (error) {
@@ -218,6 +225,7 @@ void Connection::CanSend() {
     return;
   }
   coded_output_stream_.reset();
+  file_output_stream_.Flush();
   state_.store(IDLE);
   if (!send_callback_(shared_from_this(), Error()))
     Close();
