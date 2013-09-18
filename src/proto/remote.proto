@@ -1,5 +1,9 @@
 package dist_clang.proto;
 
+message Universal {
+  extensions 1 to 200;
+}
+
 message Error {
   enum Code {
     OK = 0;
@@ -12,15 +16,32 @@ message Error {
 
   required Code code = 1 [default=OK];
   optional string description = 2;
+
+  extend Universal {
+    optional Error error = 1;
+  }
 }
 
 message Execute {
   required string current_dir = 1;
   optional string executable  = 2;
   repeated string args        = 3;
+
+  extend Universal {
+    optional Execute execute = 2;
+  }
 }
 
-message Universal {
-  optional Error error        = 1;
-  optional Execute execute    = 2;
+message TestTop {
+  extensions 1 to 200;
 }
+
+message Test {
+  optional string field1 = 1;
+
+  extend TestTop {
+    optional Test test = 3;
+  }
+}
+
+// Last unused extension index: 3

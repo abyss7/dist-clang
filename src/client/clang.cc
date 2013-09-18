@@ -78,29 +78,32 @@ bool DoMain(int argc, char* argv[]) {
     // Something went wrong.
     return true;
 
-  net::Connection::Message top_message;
-  auto message = top_message.mutable_execute();
+  proto::Execute message;
   auto action =
-      client::ClangFlagSet::ProcessFlags(args, message->mutable_executable());
+      client::ClangFlagSet::ProcessFlags(args, message.mutable_executable());
   if (action == client::ClangFlagSet::UNKNOWN)
     return true;
-  message->set_current_dir(current_dir);
+  message.set_current_dir(current_dir);
   for (auto it = args.begin(); it != args.end(); ++it)
-    message->add_args()->assign(*it);
+    message.add_args()->assign(*it);
 
-  if (!connection->Send(top_message, nullptr))
+  if (!connection->SendSync(message, nullptr))
     return true;
 
-  if (!connection->Read(&top_message, nullptr))
+  net::Connection::Message top_message;
+  if (!connection->ReadSync(&top_message, nullptr))
     return true;
 
-  if (!top_message.has_error() ||
-      (top_message.error().code() != proto::Error::EXECUTION &&
-       top_message.error().code() != proto::Error::OK))
+  if (!top_message.HasExtension(proto::Error::error))
     return true;
 
-  if (top_message.error().code() == proto::Error::EXECUTION)
-    std::cerr << top_message.error().description();
+  const proto::Error& error = top_message.GetExtension(proto::Error::error);
+  if (error.code() != proto::Error::EXECUTION &&
+      error.code() != proto::Error::OK)
+    return true;
+
+  if (error.code() == proto::Error::EXECUTION)
+    std::cerr << error.description();
 
   return false;
 }

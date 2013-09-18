@@ -35,9 +35,11 @@ void  protobuf_AddDesc_remote_2eproto();
 void protobuf_AssignDesc_remote_2eproto();
 void protobuf_ShutdownFile_remote_2eproto();
 
+class Universal;
 class Error;
 class Execute;
-class Universal;
+class TestTop;
+class Test;
 
 enum Error_Code {
   Error_Code_OK = 0,
@@ -63,6 +65,81 @@ inline bool Error_Code_Parse(
     Error_Code_descriptor(), name, value);
 }
 // ===================================================================
+
+class Universal : public ::google::protobuf::Message {
+ public:
+  Universal();
+  virtual ~Universal();
+
+  Universal(const Universal& from);
+
+  inline Universal& operator=(const Universal& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
+    return _unknown_fields_;
+  }
+
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
+    return &_unknown_fields_;
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const Universal& default_instance();
+
+  void Swap(Universal* other);
+
+  // implements Message ----------------------------------------------
+
+  Universal* New() const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const Universal& from);
+  void MergeFrom(const Universal& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  GOOGLE_PROTOBUF_EXTENSION_ACCESSORS(Universal)
+  // @@protoc_insertion_point(class_scope:dist_clang.proto.Universal)
+ private:
+
+  ::google::protobuf::internal::ExtensionSet _extensions_;
+
+  ::google::protobuf::UnknownFieldSet _unknown_fields_;
+
+
+  mutable int _cached_size_;
+  ::google::protobuf::uint32 _has_bits_[1];
+
+  friend void  protobuf_AddDesc_remote_2eproto();
+  friend void protobuf_AssignDesc_remote_2eproto();
+  friend void protobuf_ShutdownFile_remote_2eproto();
+
+  void InitAsDefaultInstance();
+  static Universal* default_instance_;
+};
+// -------------------------------------------------------------------
 
 class Error : public ::google::protobuf::Message {
  public:
@@ -165,6 +242,10 @@ class Error : public ::google::protobuf::Message {
   inline ::std::string* release_description();
   inline void set_allocated_description(::std::string* description);
 
+  static const int kErrorFieldNumber = 1;
+  static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
+      ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::Error >, 11, false >
+    error;
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Error)
  private:
   inline void set_has_code();
@@ -283,6 +364,10 @@ class Execute : public ::google::protobuf::Message {
   inline const ::google::protobuf::RepeatedPtrField< ::std::string>& args() const;
   inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_args();
 
+  static const int kExecuteFieldNumber = 2;
+  static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
+      ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::Execute >, 11, false >
+    execute;
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Execute)
  private:
   inline void set_has_current_dir();
@@ -308,14 +393,14 @@ class Execute : public ::google::protobuf::Message {
 };
 // -------------------------------------------------------------------
 
-class Universal : public ::google::protobuf::Message {
+class TestTop : public ::google::protobuf::Message {
  public:
-  Universal();
-  virtual ~Universal();
+  TestTop();
+  virtual ~TestTop();
 
-  Universal(const Universal& from);
+  TestTop(const TestTop& from);
 
-  inline Universal& operator=(const Universal& from) {
+  inline TestTop& operator=(const TestTop& from) {
     CopyFrom(from);
     return *this;
   }
@@ -329,17 +414,17 @@ class Universal : public ::google::protobuf::Message {
   }
 
   static const ::google::protobuf::Descriptor* descriptor();
-  static const Universal& default_instance();
+  static const TestTop& default_instance();
 
-  void Swap(Universal* other);
+  void Swap(TestTop* other);
 
   // implements Message ----------------------------------------------
 
-  Universal* New() const;
+  TestTop* New() const;
   void CopyFrom(const ::google::protobuf::Message& from);
   void MergeFrom(const ::google::protobuf::Message& from);
-  void CopyFrom(const Universal& from);
-  void MergeFrom(const Universal& from);
+  void CopyFrom(const TestTop& from);
+  void MergeFrom(const TestTop& from);
   void Clear();
   bool IsInitialized() const;
 
@@ -362,50 +447,124 @@ class Universal : public ::google::protobuf::Message {
 
   // accessors -------------------------------------------------------
 
-  // optional .dist_clang.proto.Error error = 1;
-  inline bool has_error() const;
-  inline void clear_error();
-  static const int kErrorFieldNumber = 1;
-  inline const ::dist_clang::proto::Error& error() const;
-  inline ::dist_clang::proto::Error* mutable_error();
-  inline ::dist_clang::proto::Error* release_error();
-  inline void set_allocated_error(::dist_clang::proto::Error* error);
-
-  // optional .dist_clang.proto.Execute execute = 2;
-  inline bool has_execute() const;
-  inline void clear_execute();
-  static const int kExecuteFieldNumber = 2;
-  inline const ::dist_clang::proto::Execute& execute() const;
-  inline ::dist_clang::proto::Execute* mutable_execute();
-  inline ::dist_clang::proto::Execute* release_execute();
-  inline void set_allocated_execute(::dist_clang::proto::Execute* execute);
-
-  // @@protoc_insertion_point(class_scope:dist_clang.proto.Universal)
+  GOOGLE_PROTOBUF_EXTENSION_ACCESSORS(TestTop)
+  // @@protoc_insertion_point(class_scope:dist_clang.proto.TestTop)
  private:
-  inline void set_has_error();
-  inline void clear_has_error();
-  inline void set_has_execute();
-  inline void clear_has_execute();
+
+  ::google::protobuf::internal::ExtensionSet _extensions_;
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
-  ::dist_clang::proto::Error* error_;
-  ::dist_clang::proto::Execute* execute_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(2 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[1];
 
   friend void  protobuf_AddDesc_remote_2eproto();
   friend void protobuf_AssignDesc_remote_2eproto();
   friend void protobuf_ShutdownFile_remote_2eproto();
 
   void InitAsDefaultInstance();
-  static Universal* default_instance_;
+  static TestTop* default_instance_;
+};
+// -------------------------------------------------------------------
+
+class Test : public ::google::protobuf::Message {
+ public:
+  Test();
+  virtual ~Test();
+
+  Test(const Test& from);
+
+  inline Test& operator=(const Test& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
+    return _unknown_fields_;
+  }
+
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
+    return &_unknown_fields_;
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const Test& default_instance();
+
+  void Swap(Test* other);
+
+  // implements Message ----------------------------------------------
+
+  Test* New() const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const Test& from);
+  void MergeFrom(const Test& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // optional string field1 = 1;
+  inline bool has_field1() const;
+  inline void clear_field1();
+  static const int kField1FieldNumber = 1;
+  inline const ::std::string& field1() const;
+  inline void set_field1(const ::std::string& value);
+  inline void set_field1(const char* value);
+  inline void set_field1(const char* value, size_t size);
+  inline ::std::string* mutable_field1();
+  inline ::std::string* release_field1();
+  inline void set_allocated_field1(::std::string* field1);
+
+  static const int kTestFieldNumber = 3;
+  static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::TestTop,
+      ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::Test >, 11, false >
+    test;
+  // @@protoc_insertion_point(class_scope:dist_clang.proto.Test)
+ private:
+  inline void set_has_field1();
+  inline void clear_has_field1();
+
+  ::google::protobuf::UnknownFieldSet _unknown_fields_;
+
+  ::std::string* field1_;
+
+  mutable int _cached_size_;
+  ::google::protobuf::uint32 _has_bits_[(1 + 31) / 32];
+
+  friend void  protobuf_AddDesc_remote_2eproto();
+  friend void protobuf_AssignDesc_remote_2eproto();
+  friend void protobuf_ShutdownFile_remote_2eproto();
+
+  void InitAsDefaultInstance();
+  static Test* default_instance_;
 };
 // ===================================================================
 
 
 // ===================================================================
+
+// Universal
+
+// -------------------------------------------------------------------
 
 // Error
 
@@ -692,81 +851,79 @@ Execute::mutable_args() {
 
 // -------------------------------------------------------------------
 
-// Universal
+// TestTop
 
-// optional .dist_clang.proto.Error error = 1;
-inline bool Universal::has_error() const {
+// -------------------------------------------------------------------
+
+// Test
+
+// optional string field1 = 1;
+inline bool Test::has_field1() const {
   return (_has_bits_[0] & 0x00000001u) != 0;
 }
-inline void Universal::set_has_error() {
+inline void Test::set_has_field1() {
   _has_bits_[0] |= 0x00000001u;
 }
-inline void Universal::clear_has_error() {
+inline void Test::clear_has_field1() {
   _has_bits_[0] &= ~0x00000001u;
 }
-inline void Universal::clear_error() {
-  if (error_ != NULL) error_->::dist_clang::proto::Error::Clear();
-  clear_has_error();
+inline void Test::clear_field1() {
+  if (field1_ != &::google::protobuf::internal::kEmptyString) {
+    field1_->clear();
+  }
+  clear_has_field1();
 }
-inline const ::dist_clang::proto::Error& Universal::error() const {
-  return error_ != NULL ? *error_ : *default_instance_->error_;
+inline const ::std::string& Test::field1() const {
+  return *field1_;
 }
-inline ::dist_clang::proto::Error* Universal::mutable_error() {
-  set_has_error();
-  if (error_ == NULL) error_ = new ::dist_clang::proto::Error;
-  return error_;
+inline void Test::set_field1(const ::std::string& value) {
+  set_has_field1();
+  if (field1_ == &::google::protobuf::internal::kEmptyString) {
+    field1_ = new ::std::string;
+  }
+  field1_->assign(value);
 }
-inline ::dist_clang::proto::Error* Universal::release_error() {
-  clear_has_error();
-  ::dist_clang::proto::Error* temp = error_;
-  error_ = NULL;
-  return temp;
+inline void Test::set_field1(const char* value) {
+  set_has_field1();
+  if (field1_ == &::google::protobuf::internal::kEmptyString) {
+    field1_ = new ::std::string;
+  }
+  field1_->assign(value);
 }
-inline void Universal::set_allocated_error(::dist_clang::proto::Error* error) {
-  delete error_;
-  error_ = error;
-  if (error) {
-    set_has_error();
+inline void Test::set_field1(const char* value, size_t size) {
+  set_has_field1();
+  if (field1_ == &::google::protobuf::internal::kEmptyString) {
+    field1_ = new ::std::string;
+  }
+  field1_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* Test::mutable_field1() {
+  set_has_field1();
+  if (field1_ == &::google::protobuf::internal::kEmptyString) {
+    field1_ = new ::std::string;
+  }
+  return field1_;
+}
+inline ::std::string* Test::release_field1() {
+  clear_has_field1();
+  if (field1_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
   } else {
-    clear_has_error();
+    ::std::string* temp = field1_;
+    field1_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
   }
 }
-
-// optional .dist_clang.proto.Execute execute = 2;
-inline bool Universal::has_execute() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-inline void Universal::set_has_execute() {
-  _has_bits_[0] |= 0x00000002u;
-}
-inline void Universal::clear_has_execute() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-inline void Universal::clear_execute() {
-  if (execute_ != NULL) execute_->::dist_clang::proto::Execute::Clear();
-  clear_has_execute();
-}
-inline const ::dist_clang::proto::Execute& Universal::execute() const {
-  return execute_ != NULL ? *execute_ : *default_instance_->execute_;
-}
-inline ::dist_clang::proto::Execute* Universal::mutable_execute() {
-  set_has_execute();
-  if (execute_ == NULL) execute_ = new ::dist_clang::proto::Execute;
-  return execute_;
-}
-inline ::dist_clang::proto::Execute* Universal::release_execute() {
-  clear_has_execute();
-  ::dist_clang::proto::Execute* temp = execute_;
-  execute_ = NULL;
-  return temp;
-}
-inline void Universal::set_allocated_execute(::dist_clang::proto::Execute* execute) {
-  delete execute_;
-  execute_ = execute;
-  if (execute) {
-    set_has_execute();
+inline void Test::set_allocated_field1(::std::string* field1) {
+  if (field1_ != &::google::protobuf::internal::kEmptyString) {
+    delete field1_;
+  }
+  if (field1) {
+    set_has_field1();
+    field1_ = field1;
   } else {
-    clear_has_execute();
+    clear_has_field1();
+    field1_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   }
 }
 

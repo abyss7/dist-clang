@@ -17,6 +17,7 @@ class EventLoop;
 class Connection: public std::enable_shared_from_this<Connection> {
   public:
     typedef proto::Universal Message;
+    typedef google::protobuf::Message CustomMessage;
     typedef proto::Error Error;
     typedef google::protobuf::io::FileInputStream FileInputStream;
     typedef google::protobuf::io::FileOutputStream FileOutputStream;
@@ -32,14 +33,14 @@ class Connection: public std::enable_shared_from_this<Connection> {
     static ConnectionPtr Create(EventLoop& event_loop, fd_t fd);
     ~Connection();
 
-    // Asynchronous functions return |false| in case of inconsequent call.
-    // The connection is not closed in this case.
-    bool Read(ReadCallback callback);
-    bool Send(const Message& message, SendCallback callback);
+    bool ReadAsync(ReadCallback callback, Error* error = nullptr);
+    bool SendAsync(const CustomMessage& message,
+                   Error* error = nullptr,
+                   SendCallback callback = Idle());
     static SendCallback Idle();
 
-    bool Read(Message* message, Error* error);
-    bool Send(const Message& message, Error* error);
+    bool ReadSync(Message* message, Error* error = nullptr);
+    bool SendSync(const CustomMessage& message, Error* error = nullptr);
     void Close();
     bool IsClosed() const;
     bool IsOnEventLoop(const EventLoop* event_loop) const;

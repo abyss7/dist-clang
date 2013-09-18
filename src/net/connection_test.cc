@@ -22,7 +22,8 @@ class TestServer: public net::EventLoop {
       address.sun_family = AF_UNIX;
       strcpy(address.sun_path, socket_path_.c_str());
 
-      listen_fd_ = socket(AF_UNIX, SOCK_STREAM, 0);
+      listen_fd_ =
+          socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
       if (-1 == listen_fd_)
         return false;
       if (-1 == bind(listen_fd_, reinterpret_cast<sockaddr*>(&address),
@@ -51,7 +52,7 @@ class TestServer: public net::EventLoop {
       address.sun_family = AF_UNIX;
       strcpy(address.sun_path, socket_path_.c_str());
 
-      int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+      int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
       if (-1 == fd) {
         std::cerr << strerror(errno) << std::endl;
         return net::ConnectionPtr();
@@ -180,7 +181,7 @@ TEST_F(ConnectionTest, Sync_ReadOneMessage) {
 
   net::Connection::Message expected_message;
   {
-    auto message = expected_message.mutable_execute();
+    auto message = expected_message.MutableExtension(proto::Execute::execute);
     message->set_current_dir(expected_current_dir);
     message->add_args()->assign(expected_arg);
   }
@@ -189,18 +190,19 @@ TEST_F(ConnectionTest, Sync_ReadOneMessage) {
   net::Connection::Message message;
   proto::Error error;
 
-  ASSERT_TRUE(connection->Read(&message, &error)) << error.description();
+  ASSERT_TRUE(connection->ReadSync(&message, &error)) << error.description();
 
   // Check error.
   EXPECT_EQ(proto::Error::OK, error.code());
   EXPECT_FALSE(error.has_description());
 
   // Check incoming message.
-  ASSERT_TRUE(message.has_execute());
-  ASSERT_TRUE(message.execute().has_current_dir());
-  ASSERT_EQ(1, message.execute().args_size());
-  EXPECT_EQ(expected_current_dir, message.execute().current_dir());
-  EXPECT_EQ(expected_arg, message.execute().args(0));
+  ASSERT_TRUE(message.HasExtension(proto::Execute::execute));
+  auto execute = message.GetExtension(proto::Execute::execute);
+  ASSERT_TRUE(execute.has_current_dir());
+  ASSERT_EQ(1, execute.args_size());
+  EXPECT_EQ(expected_current_dir, execute.current_dir());
+  EXPECT_EQ(expected_arg, execute.args(0));
 }
 
 TEST_F(ConnectionTest, Sync_ReadTwoMessages) {
@@ -211,11 +213,11 @@ TEST_F(ConnectionTest, Sync_ReadTwoMessages) {
 
   net::Connection::Message expected_message1, expected_message2;
   {
-    auto message = expected_message1.mutable_execute();
+    auto message = expected_message1.MutableExtension(proto::Execute::execute);
     message->set_current_dir(expected_current_dir1);
     message->add_args()->assign(expected_arg1);
 
-    message = expected_message2.mutable_execute();
+    message = expected_message2.MutableExtension(proto::Execute::execute);
     message->set_current_dir(expected_current_dir2);
     message->add_args()->assign(expected_arg2);
   }
@@ -225,31 +227,33 @@ TEST_F(ConnectionTest, Sync_ReadTwoMessages) {
   net::Connection::Message message;
   proto::Error error;
 
-  ASSERT_TRUE(connection->Read(&message, &error)) << error.description();
+  ASSERT_TRUE(connection->ReadSync(&message, &error)) << error.description();
 
   // Check error.
   EXPECT_EQ(proto::Error::OK, error.code());
   EXPECT_FALSE(error.has_description());
 
   // Check incoming message.
-  ASSERT_TRUE(message.has_execute());
-  ASSERT_TRUE(message.execute().has_current_dir());
-  ASSERT_EQ(1, message.execute().args_size());
-  EXPECT_EQ(expected_current_dir1, message.execute().current_dir());
-  EXPECT_EQ(expected_arg1, message.execute().args(0));
+  ASSERT_TRUE(message.HasExtension(proto::Execute::execute));
+  auto execute = message.GetExtension(proto::Execute::execute);
+  ASSERT_TRUE(execute.has_current_dir());
+  ASSERT_EQ(1, execute.args_size());
+  EXPECT_EQ(expected_current_dir1, execute.current_dir());
+  EXPECT_EQ(expected_arg1, execute.args(0));
 
-  ASSERT_TRUE(connection->Read(&message, &error)) << error.description();
+  ASSERT_TRUE(connection->ReadSync(&message, &error)) << error.description();
 
   // Check error.
   EXPECT_EQ(proto::Error::OK, error.code());
   EXPECT_FALSE(error.has_description());
 
   // Check incoming message.
-  ASSERT_TRUE(message.has_execute());
-  ASSERT_TRUE(message.execute().has_current_dir());
-  ASSERT_EQ(1, message.execute().args_size());
-  EXPECT_EQ(expected_current_dir2, message.execute().current_dir());
-  EXPECT_EQ(expected_arg2, message.execute().args(0));
+  ASSERT_TRUE(message.HasExtension(proto::Execute::execute));
+  execute = message.GetExtension(proto::Execute::execute);
+  ASSERT_TRUE(execute.has_current_dir());
+  ASSERT_EQ(1, execute.args_size());
+  EXPECT_EQ(expected_current_dir2, execute.current_dir());
+  EXPECT_EQ(expected_arg2, execute.args(0));
 }
 
 TEST_F(ConnectionTest, Sync_ReadSplitMessage) {
@@ -258,7 +262,7 @@ TEST_F(ConnectionTest, Sync_ReadSplitMessage) {
 
   net::Connection::Message expected_message;
   {
-    auto message = expected_message.mutable_execute();
+    auto message = expected_message.MutableExtension(proto::Execute::execute);
     message->set_current_dir(expected_current_dir);
     message->add_args()->assign(expected_arg);
   }
@@ -267,18 +271,19 @@ TEST_F(ConnectionTest, Sync_ReadSplitMessage) {
     net::Connection::Message message;
     proto::Error error;
 
-    ASSERT_TRUE(connection->Read(&message, &error)) << error.description();
+    ASSERT_TRUE(connection->ReadSync(&message, &error)) << error.description();
 
     // Check error.
     EXPECT_EQ(proto::Error::OK, error.code());
     EXPECT_FALSE(error.has_description());
 
     // Check incoming message.
-    ASSERT_TRUE(message.has_execute());
-    ASSERT_TRUE(message.execute().has_current_dir());
-    ASSERT_EQ(1, message.execute().args_size());
-    EXPECT_EQ(expected_current_dir, message.execute().current_dir());
-    EXPECT_EQ(expected_arg, message.execute().args(0));
+    ASSERT_TRUE(message.HasExtension(proto::Execute::execute));
+    auto execute = message.GetExtension(proto::Execute::execute);
+    ASSERT_TRUE(execute.has_current_dir());
+    ASSERT_EQ(1, execute.args_size());
+    EXPECT_EQ(expected_current_dir, execute.current_dir());
+    EXPECT_EQ(expected_arg, execute.args(0));
   };
 
   std::thread read_thread(read_func);
@@ -292,7 +297,7 @@ TEST_F(ConnectionTest, Sync_ReadIncompleteMessage) {
 
   net::Connection::Message expected_message;
   {
-    auto message = expected_message.mutable_execute();
+    auto message = expected_message.MutableExtension(proto::Execute::execute);
     message->add_args()->assign(expected_arg);
   }
   ASSERT_TRUE(server.WriteAtOnce(expected_message.SerializePartialAsString()));
@@ -300,7 +305,7 @@ TEST_F(ConnectionTest, Sync_ReadIncompleteMessage) {
   net::Connection::Message message;
   proto::Error error;
 
-  ASSERT_FALSE(connection->Read(&message, &error));
+  ASSERT_FALSE(connection->ReadSync(&message, &error));
   EXPECT_EQ(proto::Error::BAD_MESSAGE, error.code());
 }
 
@@ -310,7 +315,7 @@ TEST_F(ConnectionTest, Sync_ReadWhileReading) {
 
   net::Connection::Message expected_message;
   {
-    auto message = expected_message.mutable_execute();
+    auto message = expected_message.MutableExtension(proto::Execute::execute);
     message->set_current_dir(expected_current_dir);
     message->add_args()->assign(expected_arg);
   }
@@ -319,18 +324,19 @@ TEST_F(ConnectionTest, Sync_ReadWhileReading) {
     net::Connection::Message message;
     proto::Error error;
 
-    ASSERT_TRUE(connection->Read(&message, &error)) << error.description();
+    ASSERT_TRUE(connection->ReadSync(&message, &error)) << error.description();
 
     // Check error.
     EXPECT_EQ(proto::Error::OK, error.code());
     EXPECT_FALSE(error.has_description());
 
     // Check incoming message.
-    ASSERT_TRUE(message.has_execute());
-    ASSERT_TRUE(message.execute().has_current_dir());
-    ASSERT_EQ(1, message.execute().args_size());
-    EXPECT_EQ(expected_current_dir, message.execute().current_dir());
-    EXPECT_EQ(expected_arg, message.execute().args(0));
+    ASSERT_TRUE(message.HasExtension(proto::Execute::execute));
+    auto execute = message.GetExtension(proto::Execute::execute);
+    ASSERT_TRUE(execute.has_current_dir());
+    ASSERT_EQ(1, execute.args_size());
+    EXPECT_EQ(expected_current_dir, execute.current_dir());
+    EXPECT_EQ(expected_arg, execute.args(0));
   };
 
   std::thread read_thread(read_func);
@@ -338,7 +344,7 @@ TEST_F(ConnectionTest, Sync_ReadWhileReading) {
 
   net::Connection::Message message;
   proto::Error error;
-  ASSERT_FALSE(connection->Read(&message, &error));
+  ASSERT_FALSE(connection->ReadSync(&message, &error));
   EXPECT_EQ(proto::Error::INCONSEQUENT, error.code());
   ASSERT_TRUE(server.WriteAtOnce(expected_message.SerializeAsString()));
   read_thread.join();
@@ -350,23 +356,24 @@ TEST_F(ConnectionTest, Sync_SendMessage) {
 
   net::Connection::Message expected_message;
   {
-    auto message = expected_message.mutable_execute();
+    auto message = expected_message.MutableExtension(proto::Execute::execute);
     message->set_current_dir(expected_current_dir);
     message->add_args()->assign(expected_arg);
   }
   proto::Error error;
-  ASSERT_TRUE(connection->Send(expected_message, &error))
+  ASSERT_TRUE(connection->SendSync(expected_message, &error))
       << error.description();
   std::string data;
   ASSERT_TRUE(server.ReadAtOnce(data));
 
   net::Connection::Message message;
   message.ParseFromString(data);
-  ASSERT_TRUE(message.has_execute());
-  ASSERT_TRUE(message.execute().has_current_dir());
-  ASSERT_EQ(1, message.execute().args_size());
-  EXPECT_EQ(expected_current_dir, message.execute().current_dir());
-  EXPECT_EQ(expected_arg, message.execute().args(0));
+  ASSERT_TRUE(message.HasExtension(proto::Execute::execute));
+  auto execute = message.GetExtension(proto::Execute::execute);
+  ASSERT_TRUE(execute.has_current_dir());
+  ASSERT_EQ(1, execute.args_size());
+  EXPECT_EQ(expected_current_dir, execute.current_dir());
+  EXPECT_EQ(expected_arg, execute.args(0));
 }
 
 TEST_F(ConnectionTest, Sync_SendWhileReading) {
@@ -375,7 +382,7 @@ TEST_F(ConnectionTest, Sync_SendWhileReading) {
 
   net::Connection::Message expected_message;
   {
-    auto message = expected_message.mutable_execute();
+    auto message = expected_message.MutableExtension(proto::Execute::execute);
     message->set_current_dir(expected_current_dir);
     message->add_args()->assign(expected_arg);
   }
@@ -384,25 +391,26 @@ TEST_F(ConnectionTest, Sync_SendWhileReading) {
     net::Connection::Message message;
     proto::Error error;
 
-    ASSERT_TRUE(connection->Read(&message, &error)) << error.description();
+    ASSERT_TRUE(connection->ReadSync(&message, &error)) << error.description();
 
     // Check error.
     EXPECT_EQ(proto::Error::OK, error.code());
     EXPECT_FALSE(error.has_description());
 
     // Check incoming message.
-    ASSERT_TRUE(message.has_execute());
-    ASSERT_TRUE(message.execute().has_current_dir());
-    ASSERT_EQ(1, message.execute().args_size());
-    EXPECT_EQ(expected_current_dir, message.execute().current_dir());
-    EXPECT_EQ(expected_arg, message.execute().args(0));
+    ASSERT_TRUE(message.HasExtension(proto::Execute::execute));
+    auto execute = message.GetExtension(proto::Execute::execute);
+    ASSERT_TRUE(execute.has_current_dir());
+    ASSERT_EQ(1, execute.args_size());
+    EXPECT_EQ(expected_current_dir, execute.current_dir());
+    EXPECT_EQ(expected_arg, execute.args(0));
   };
 
   std::thread read_thread(read_func);
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
   proto::Error error;
-  ASSERT_FALSE(connection->Send(expected_message, &error));
+  ASSERT_FALSE(connection->SendSync(expected_message, &error));
   EXPECT_EQ(proto::Error::INCONSEQUENT, error.code());
   ASSERT_TRUE(server.WriteAtOnce(expected_message.SerializeAsString()));
   read_thread.join();
@@ -414,6 +422,12 @@ TEST_F(ConnectionTest, DISABLED_Sync_ReadFromClosedConnection) {
 
 TEST_F(ConnectionTest, DISABLED_Sync_SendToClosedConnection) {
   // TODO: implement this.
+}
+
+TEST_F(ConnectionTest, DISABLED_Sync_SendSubMessages) {
+  // TODO: implement this.
+  // Here should be tested the ability of SendSync() to send different
+  // sub-messages, like Execute and Error.
 }
 
 }  // namespace testing
