@@ -14,6 +14,7 @@
 
 using std::string;
 using namespace dist_clang;
+using client::ClangFlagSet;
 
 namespace {
 
@@ -37,6 +38,23 @@ int ExecuteLocally(char* argv[]) {
   return 0;
 }
 
+bool ParseClangOutput(const string& output,
+                      ClangFlagSet::string_list& args) {
+  ClangFlagSet::string_list lines;
+  base::SplitString<'\n'>(output, lines);
+  if (lines.size() != 4)
+    // FIXME: we don't support composite tasks yet.
+    return false;
+
+  args.clear();
+  base::SplitString<' '>(lines.back(), args);
+  if (!args.front().empty())
+    // Something went wrong.
+    return false;
+
+  return true;
+}
+
 bool DoMain(int argc, char* argv[]) {
   string clangd_socket_path = base::GetEnv(kEnvClangdSocket,
                                            base::kDefaultClangdSocket);
@@ -46,16 +64,13 @@ bool DoMain(int argc, char* argv[]) {
   if (!connection)
     return true;
 
-  base::Process split_process(base::GetEnv(kEnvClangdCxx));
-  split_process
-      .AppendArg("-###")
-      .AppendArg(argv + 1, argv + argc);
-  if (!split_process.Run(30, nullptr))
-    return true;
+  proto::LocalExecute message;
+  ClangFlagSet::string_list args;
 
   string current_dir = base::GetCurrentDir();
   if (current_dir.empty())
     return true;
+  message.set_current_dir(current_dir);
 
   // The clang output has following format:
   //
@@ -66,32 +81,27 @@ bool DoMain(int argc, char* argv[]) {
   //
   // Pay attention to the leading space in the fourth line.
 
-  client::ClangFlagSet::string_list lines;
-  base::SplitString<'\n'>(split_process.stderr(), lines);
-  if (lines.size() != 4)
-    // FIXME: we don't support composite tasks yet.
+  base::Process cc_process(base::GetEnv(kEnvClangdCxx));
+  cc_process.AppendArg("-###").AppendArg(argv + 1, argv + argc);
+  if (!cc_process.Run(10, nullptr) ||
+      !ParseClangOutput(cc_process.stderr(), args) ||
+      ClangFlagSet::ProcessFlags(args, message.mutable_cc_flags()) !=
+          ClangFlagSet::COMPILE)
     return true;
 
-  client::ClangFlagSet::string_list args;
-  base::SplitString<' '>(lines.back(), args);
-  if (!args.front().empty())
-    // Something went wrong.
+  base::Process pp_process(base::GetEnv(kEnvClangdCxx));
+  pp_process.AppendArg("-###").AppendArg("-E").AppendArg(argv + 1, argv + argc);
+  if (!pp_process.Run(10, nullptr) ||
+      !ParseClangOutput(pp_process.stderr(), args) ||
+      ClangFlagSet::ProcessFlags(args, message.mutable_pp_flags()) !=
+          ClangFlagSet::PREPROCESS)
     return true;
 
-  proto::Execute message;
-  auto action =
-      client::ClangFlagSet::ProcessFlags(args, message.mutable_executable());
-  if (action == client::ClangFlagSet::UNKNOWN)
-    return true;
-  message.set_current_dir(current_dir);
-  for (auto it = args.begin(); it != args.end(); ++it)
-    message.add_args()->assign(*it);
-
-  if (!connection->SendSync(message, nullptr))
+  if (!connection->SendSync(message))
     return true;
 
   net::Connection::Message top_message;
-  if (!connection->ReadSync(&top_message, nullptr))
+  if (!connection->ReadSync(&top_message))
     return true;
 
   if (!top_message.HasExtension(proto::Error::error))

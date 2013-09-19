@@ -17,7 +17,7 @@ namespace daemon {
 bool Daemon::Initialize(const Configuration &configuration,
                         net::NetworkService &network_service) {
   const proto::Configuration& config = configuration.config();
-  proto::Error error;
+  Error error;
 
   if (!config.IsInitialized()) {
     std::cerr << config.InitializationErrorString() << std::endl;
@@ -28,7 +28,7 @@ bool Daemon::Initialize(const Configuration &configuration,
   pool_->Run();
 
   if (!network_service.Listen(config.socket_path(),
-           std::bind(&Daemon::HandleNewConnection, this, false, _1), &error)) {
+           std::bind(&Daemon::HandleNewConnection, this, _1), &error)) {
     std::cerr << error.description() << std::endl;
     return false;
   }
@@ -36,60 +36,75 @@ bool Daemon::Initialize(const Configuration &configuration,
   return true;
 }
 
-void Daemon::HandleNewConnection(bool remote, net::ConnectionPtr connection) {
-  if (!remote) {
-    connection->ReadAsync(
-        std::bind(&Daemon::HandleLocalMessage, this, _1, _2, _3));
-  }
-  else {
-    // TODO: handle remote messages.
-  }
+void Daemon::HandleNewConnection(net::ConnectionPtr connection) {
+  connection->ReadAsync(std::bind(&Daemon::HandleNewMessage, this, _1, _2, _3));
 }
 
-bool Daemon::HandleLocalMessage(net::ConnectionPtr connection,
-                                const net::Connection::Message& message,
-                                const proto::Error& error) {
+bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
+                              const net::Connection::Message& message,
+                              const Error& error) {
   if (!connection) {
-    assert(error.code() != proto::Error::OK);
+    assert(error.code() != Error::OK);
     std::cerr << error.description() << std::endl;
     return false;
   }
 
-  if (error.code() != proto::Error::OK) {
-    proto::Error outgoing_message;
-    outgoing_message.CopyFrom(error);
-    connection->SendAsync(outgoing_message);
+  if (error.code() != Error::OK) {
+    connection->SendAsync(error);
     return true;
   }
 
-  if (!message.HasExtension(proto::Execute::execute)) {
-    proto::Error outgoing_message;
-    outgoing_message.set_code(proto::Error::BAD_MESSAGE);
-    outgoing_message.set_description("Incoming local message doesn't have "
-                                     "the execution instructions!");
-    connection->SendAsync(outgoing_message);
-    return true;
-  }
-
-  if (!pool_->Push(std::bind(&Daemon::HandleLocalExecution, this, connection,
-                             message.GetExtension(proto::Execute::execute)))) {
-    // TODO: organize remote compilation.
+  if (message.HasExtension(Local::local)) {
+    pool_->PushInternal(std::bind(&Daemon::DoLocalExecution, this,
+                                  connection,
+                                  message.GetExtension(Local::local)));
   }
 
   return true;
 }
 
-void Daemon::HandleLocalExecution(net::ConnectionPtr connection,
-                                  const proto::Execute &execute) {
-  proto::Error error;
-  base::Process process(execute.executable(), execute.current_dir());
-  process.AppendArg(execute.args().begin(), execute.args().end());
-  if (!process.Run(30, nullptr)) {
-    error.set_code(proto::Error::EXECUTION);
+void Daemon::DoLocalExecution(net::ConnectionPtr connection,
+                              const Local &execute) {
+  const proto::Flags& flags = execute.pp_flags();
+  base::Process process(flags.executable(), execute.current_dir());
+  process.AppendArg(flags.other().begin(), flags.other().end())
+         .AppendArg("-o").AppendArg("-")
+         .AppendArg(flags.input());
+
+  if (!process.Run(10, nullptr)) {
+    // It usually means, that there is an error in the source code.
+    // We should skip a cache check and head to local compilation.
+    DoLocalCompilation(connection, execute, true);
+    return;
+  }
+
+  // TODO: check the cache.
+
+  // TODO: at this point the balancer should decide, if we compile locally,
+  // or remotely.
+
+  DoLocalCompilation(connection, execute, true);
+}
+
+void Daemon::DoLocalCompilation(net::ConnectionPtr connection,
+                                const Local &execute, bool update_cache) {
+  Error error;
+  const proto::Flags& flags = execute.cc_flags();
+  base::Process process(flags.executable(), execute.current_dir());
+  process.AppendArg(flags.other().begin(), flags.other().end())
+         .AppendArg("-o").AppendArg(flags.output())
+         .AppendArg(flags.input());
+
+  if (!process.Run(10, nullptr)) {
+    error.set_code(Error::EXECUTION);
     error.set_description(process.stderr());
   } else {
-    error.set_code(proto::Error::OK);
+    error.set_code(Error::OK);
+    if (update_cache) {
+      // TODO: update cache async.
+    }
   }
+
   connection->SendAsync(error);
 }
 

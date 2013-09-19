@@ -12,7 +12,7 @@ class Connection;
 
 namespace proto {
 class Error;
-class Execute;
+class LocalExecute;
 class Universal;
 }
 
@@ -22,16 +22,20 @@ class Configuration;
 
 class Daemon {
   public:
+    typedef proto::Error Error;
+    typedef proto::LocalExecute Local;
+
     bool Initialize(const Configuration& configuration,
                     net::NetworkService& network_service);
 
   private:
-    void HandleNewConnection(bool remote, net::ConnectionPtr connection);
-    bool HandleLocalMessage(net::ConnectionPtr connection,
-                            const proto::Universal& message,
-                            const proto::Error& error);
-    void HandleLocalExecution(net::ConnectionPtr connection,
-                              const proto::Execute& execute);
+    void HandleNewConnection(net::ConnectionPtr connection);
+    bool HandleNewMessage(net::ConnectionPtr connection,
+                          const proto::Universal& message,
+                          const Error& error);
+    void DoLocalExecution(net::ConnectionPtr connection, const Local &execute);
+    void DoLocalCompilation(net::ConnectionPtr connection, const Local& execute,
+                            bool update_cache);
 
     std::unique_ptr<ThreadPool> pool_;
 };
