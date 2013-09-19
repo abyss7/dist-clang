@@ -36,10 +36,12 @@ void protobuf_AssignDesc_remote_2eproto();
 void protobuf_ShutdownFile_remote_2eproto();
 
 class Universal;
-class Error;
-class Execute;
-class TestTop;
 class Test;
+class Error;
+class Flags;
+class LocalExecute;
+class RemoteExecute;
+class RemoteResult;
 
 enum Error_Code {
   Error_Code_OK = 0,
@@ -138,6 +140,129 @@ class Universal : public ::google::protobuf::Message {
 
   void InitAsDefaultInstance();
   static Universal* default_instance_;
+};
+// -------------------------------------------------------------------
+
+class Test : public ::google::protobuf::Message {
+ public:
+  Test();
+  virtual ~Test();
+
+  Test(const Test& from);
+
+  inline Test& operator=(const Test& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
+    return _unknown_fields_;
+  }
+
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
+    return &_unknown_fields_;
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const Test& default_instance();
+
+  void Swap(Test* other);
+
+  // implements Message ----------------------------------------------
+
+  Test* New() const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const Test& from);
+  void MergeFrom(const Test& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // required string field1 = 1;
+  inline bool has_field1() const;
+  inline void clear_field1();
+  static const int kField1FieldNumber = 1;
+  inline const ::std::string& field1() const;
+  inline void set_field1(const ::std::string& value);
+  inline void set_field1(const char* value);
+  inline void set_field1(const char* value, size_t size);
+  inline ::std::string* mutable_field1();
+  inline ::std::string* release_field1();
+  inline void set_allocated_field1(::std::string* field1);
+
+  // optional string field2 = 2;
+  inline bool has_field2() const;
+  inline void clear_field2();
+  static const int kField2FieldNumber = 2;
+  inline const ::std::string& field2() const;
+  inline void set_field2(const ::std::string& value);
+  inline void set_field2(const char* value);
+  inline void set_field2(const char* value, size_t size);
+  inline ::std::string* mutable_field2();
+  inline ::std::string* release_field2();
+  inline void set_allocated_field2(::std::string* field2);
+
+  // repeated string field3 = 3;
+  inline int field3_size() const;
+  inline void clear_field3();
+  static const int kField3FieldNumber = 3;
+  inline const ::std::string& field3(int index) const;
+  inline ::std::string* mutable_field3(int index);
+  inline void set_field3(int index, const ::std::string& value);
+  inline void set_field3(int index, const char* value);
+  inline void set_field3(int index, const char* value, size_t size);
+  inline ::std::string* add_field3();
+  inline void add_field3(const ::std::string& value);
+  inline void add_field3(const char* value);
+  inline void add_field3(const char* value, size_t size);
+  inline const ::google::protobuf::RepeatedPtrField< ::std::string>& field3() const;
+  inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_field3();
+
+  static const int kTestFieldNumber = 1;
+  static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
+      ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::Test >, 11, false >
+    test;
+  // @@protoc_insertion_point(class_scope:dist_clang.proto.Test)
+ private:
+  inline void set_has_field1();
+  inline void clear_has_field1();
+  inline void set_has_field2();
+  inline void clear_has_field2();
+
+  ::google::protobuf::UnknownFieldSet _unknown_fields_;
+
+  ::std::string* field1_;
+  ::std::string* field2_;
+  ::google::protobuf::RepeatedPtrField< ::std::string> field3_;
+
+  mutable int _cached_size_;
+  ::google::protobuf::uint32 _has_bits_[(3 + 31) / 32];
+
+  friend void  protobuf_AddDesc_remote_2eproto();
+  friend void protobuf_AssignDesc_remote_2eproto();
+  friend void protobuf_ShutdownFile_remote_2eproto();
+
+  void InitAsDefaultInstance();
+  static Test* default_instance_;
 };
 // -------------------------------------------------------------------
 
@@ -242,7 +367,7 @@ class Error : public ::google::protobuf::Message {
   inline ::std::string* release_description();
   inline void set_allocated_description(::std::string* description);
 
-  static const int kErrorFieldNumber = 1;
+  static const int kErrorFieldNumber = 2;
   static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
       ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::Error >, 11, false >
     error;
@@ -270,14 +395,14 @@ class Error : public ::google::protobuf::Message {
 };
 // -------------------------------------------------------------------
 
-class Execute : public ::google::protobuf::Message {
+class Flags : public ::google::protobuf::Message {
  public:
-  Execute();
-  virtual ~Execute();
+  Flags();
+  virtual ~Flags();
 
-  Execute(const Execute& from);
+  Flags(const Flags& from);
 
-  inline Execute& operator=(const Execute& from) {
+  inline Flags& operator=(const Flags& from) {
     CopyFrom(from);
     return *this;
   }
@@ -291,17 +416,151 @@ class Execute : public ::google::protobuf::Message {
   }
 
   static const ::google::protobuf::Descriptor* descriptor();
-  static const Execute& default_instance();
+  static const Flags& default_instance();
 
-  void Swap(Execute* other);
+  void Swap(Flags* other);
 
   // implements Message ----------------------------------------------
 
-  Execute* New() const;
+  Flags* New() const;
   void CopyFrom(const ::google::protobuf::Message& from);
   void MergeFrom(const ::google::protobuf::Message& from);
-  void CopyFrom(const Execute& from);
-  void MergeFrom(const Execute& from);
+  void CopyFrom(const Flags& from);
+  void MergeFrom(const Flags& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // optional string executable = 1;
+  inline bool has_executable() const;
+  inline void clear_executable();
+  static const int kExecutableFieldNumber = 1;
+  inline const ::std::string& executable() const;
+  inline void set_executable(const ::std::string& value);
+  inline void set_executable(const char* value);
+  inline void set_executable(const char* value, size_t size);
+  inline ::std::string* mutable_executable();
+  inline ::std::string* release_executable();
+  inline void set_allocated_executable(::std::string* executable);
+
+  // optional string output = 2;
+  inline bool has_output() const;
+  inline void clear_output();
+  static const int kOutputFieldNumber = 2;
+  inline const ::std::string& output() const;
+  inline void set_output(const ::std::string& value);
+  inline void set_output(const char* value);
+  inline void set_output(const char* value, size_t size);
+  inline ::std::string* mutable_output();
+  inline ::std::string* release_output();
+  inline void set_allocated_output(::std::string* output);
+
+  // optional string input = 3;
+  inline bool has_input() const;
+  inline void clear_input();
+  static const int kInputFieldNumber = 3;
+  inline const ::std::string& input() const;
+  inline void set_input(const ::std::string& value);
+  inline void set_input(const char* value);
+  inline void set_input(const char* value, size_t size);
+  inline ::std::string* mutable_input();
+  inline ::std::string* release_input();
+  inline void set_allocated_input(::std::string* input);
+
+  // repeated string other = 4;
+  inline int other_size() const;
+  inline void clear_other();
+  static const int kOtherFieldNumber = 4;
+  inline const ::std::string& other(int index) const;
+  inline ::std::string* mutable_other(int index);
+  inline void set_other(int index, const ::std::string& value);
+  inline void set_other(int index, const char* value);
+  inline void set_other(int index, const char* value, size_t size);
+  inline ::std::string* add_other();
+  inline void add_other(const ::std::string& value);
+  inline void add_other(const char* value);
+  inline void add_other(const char* value, size_t size);
+  inline const ::google::protobuf::RepeatedPtrField< ::std::string>& other() const;
+  inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_other();
+
+  // @@protoc_insertion_point(class_scope:dist_clang.proto.Flags)
+ private:
+  inline void set_has_executable();
+  inline void clear_has_executable();
+  inline void set_has_output();
+  inline void clear_has_output();
+  inline void set_has_input();
+  inline void clear_has_input();
+
+  ::google::protobuf::UnknownFieldSet _unknown_fields_;
+
+  ::std::string* executable_;
+  ::std::string* output_;
+  ::std::string* input_;
+  ::google::protobuf::RepeatedPtrField< ::std::string> other_;
+
+  mutable int _cached_size_;
+  ::google::protobuf::uint32 _has_bits_[(4 + 31) / 32];
+
+  friend void  protobuf_AddDesc_remote_2eproto();
+  friend void protobuf_AssignDesc_remote_2eproto();
+  friend void protobuf_ShutdownFile_remote_2eproto();
+
+  void InitAsDefaultInstance();
+  static Flags* default_instance_;
+};
+// -------------------------------------------------------------------
+
+class LocalExecute : public ::google::protobuf::Message {
+ public:
+  LocalExecute();
+  virtual ~LocalExecute();
+
+  LocalExecute(const LocalExecute& from);
+
+  inline LocalExecute& operator=(const LocalExecute& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
+    return _unknown_fields_;
+  }
+
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
+    return &_unknown_fields_;
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const LocalExecute& default_instance();
+
+  void Swap(LocalExecute* other);
+
+  // implements Message ----------------------------------------------
+
+  LocalExecute* New() const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const LocalExecute& from);
+  void MergeFrom(const LocalExecute& from);
   void Clear();
   bool IsInitialized() const;
 
@@ -336,50 +595,42 @@ class Execute : public ::google::protobuf::Message {
   inline ::std::string* release_current_dir();
   inline void set_allocated_current_dir(::std::string* current_dir);
 
-  // optional string executable = 2;
-  inline bool has_executable() const;
-  inline void clear_executable();
-  static const int kExecutableFieldNumber = 2;
-  inline const ::std::string& executable() const;
-  inline void set_executable(const ::std::string& value);
-  inline void set_executable(const char* value);
-  inline void set_executable(const char* value, size_t size);
-  inline ::std::string* mutable_executable();
-  inline ::std::string* release_executable();
-  inline void set_allocated_executable(::std::string* executable);
+  // required .dist_clang.proto.Flags cc_flags = 2;
+  inline bool has_cc_flags() const;
+  inline void clear_cc_flags();
+  static const int kCcFlagsFieldNumber = 2;
+  inline const ::dist_clang::proto::Flags& cc_flags() const;
+  inline ::dist_clang::proto::Flags* mutable_cc_flags();
+  inline ::dist_clang::proto::Flags* release_cc_flags();
+  inline void set_allocated_cc_flags(::dist_clang::proto::Flags* cc_flags);
 
-  // repeated string args = 3;
-  inline int args_size() const;
-  inline void clear_args();
-  static const int kArgsFieldNumber = 3;
-  inline const ::std::string& args(int index) const;
-  inline ::std::string* mutable_args(int index);
-  inline void set_args(int index, const ::std::string& value);
-  inline void set_args(int index, const char* value);
-  inline void set_args(int index, const char* value, size_t size);
-  inline ::std::string* add_args();
-  inline void add_args(const ::std::string& value);
-  inline void add_args(const char* value);
-  inline void add_args(const char* value, size_t size);
-  inline const ::google::protobuf::RepeatedPtrField< ::std::string>& args() const;
-  inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_args();
+  // required .dist_clang.proto.Flags pp_flags = 3;
+  inline bool has_pp_flags() const;
+  inline void clear_pp_flags();
+  static const int kPpFlagsFieldNumber = 3;
+  inline const ::dist_clang::proto::Flags& pp_flags() const;
+  inline ::dist_clang::proto::Flags* mutable_pp_flags();
+  inline ::dist_clang::proto::Flags* release_pp_flags();
+  inline void set_allocated_pp_flags(::dist_clang::proto::Flags* pp_flags);
 
-  static const int kExecuteFieldNumber = 2;
+  static const int kLocalFieldNumber = 3;
   static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
-      ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::Execute >, 11, false >
-    execute;
-  // @@protoc_insertion_point(class_scope:dist_clang.proto.Execute)
+      ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::LocalExecute >, 11, false >
+    local;
+  // @@protoc_insertion_point(class_scope:dist_clang.proto.LocalExecute)
  private:
   inline void set_has_current_dir();
   inline void clear_has_current_dir();
-  inline void set_has_executable();
-  inline void clear_has_executable();
+  inline void set_has_cc_flags();
+  inline void clear_has_cc_flags();
+  inline void set_has_pp_flags();
+  inline void clear_has_pp_flags();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
   ::std::string* current_dir_;
-  ::std::string* executable_;
-  ::google::protobuf::RepeatedPtrField< ::std::string> args_;
+  ::dist_clang::proto::Flags* cc_flags_;
+  ::dist_clang::proto::Flags* pp_flags_;
 
   mutable int _cached_size_;
   ::google::protobuf::uint32 _has_bits_[(3 + 31) / 32];
@@ -389,18 +640,18 @@ class Execute : public ::google::protobuf::Message {
   friend void protobuf_ShutdownFile_remote_2eproto();
 
   void InitAsDefaultInstance();
-  static Execute* default_instance_;
+  static LocalExecute* default_instance_;
 };
 // -------------------------------------------------------------------
 
-class TestTop : public ::google::protobuf::Message {
+class RemoteExecute : public ::google::protobuf::Message {
  public:
-  TestTop();
-  virtual ~TestTop();
+  RemoteExecute();
+  virtual ~RemoteExecute();
 
-  TestTop(const TestTop& from);
+  RemoteExecute(const RemoteExecute& from);
 
-  inline TestTop& operator=(const TestTop& from) {
+  inline RemoteExecute& operator=(const RemoteExecute& from) {
     CopyFrom(from);
     return *this;
   }
@@ -414,17 +665,17 @@ class TestTop : public ::google::protobuf::Message {
   }
 
   static const ::google::protobuf::Descriptor* descriptor();
-  static const TestTop& default_instance();
+  static const RemoteExecute& default_instance();
 
-  void Swap(TestTop* other);
+  void Swap(RemoteExecute* other);
 
   // implements Message ----------------------------------------------
 
-  TestTop* New() const;
+  RemoteExecute* New() const;
   void CopyFrom(const ::google::protobuf::Message& from);
   void MergeFrom(const ::google::protobuf::Message& from);
-  void CopyFrom(const TestTop& from);
-  void MergeFrom(const TestTop& from);
+  void CopyFrom(const RemoteExecute& from);
+  void MergeFrom(const RemoteExecute& from);
   void Clear();
   bool IsInitialized() const;
 
@@ -447,35 +698,78 @@ class TestTop : public ::google::protobuf::Message {
 
   // accessors -------------------------------------------------------
 
-  GOOGLE_PROTOBUF_EXTENSION_ACCESSORS(TestTop)
-  // @@protoc_insertion_point(class_scope:dist_clang.proto.TestTop)
- private:
+  // required string code = 1;
+  inline bool has_code() const;
+  inline void clear_code();
+  static const int kCodeFieldNumber = 1;
+  inline const ::std::string& code() const;
+  inline void set_code(const ::std::string& value);
+  inline void set_code(const char* value);
+  inline void set_code(const char* value, size_t size);
+  inline ::std::string* mutable_code();
+  inline ::std::string* release_code();
+  inline void set_allocated_code(::std::string* code);
 
-  ::google::protobuf::internal::ExtensionSet _extensions_;
+  // required string version = 2;
+  inline bool has_version() const;
+  inline void clear_version();
+  static const int kVersionFieldNumber = 2;
+  inline const ::std::string& version() const;
+  inline void set_version(const ::std::string& value);
+  inline void set_version(const char* value);
+  inline void set_version(const char* value, size_t size);
+  inline ::std::string* mutable_version();
+  inline ::std::string* release_version();
+  inline void set_allocated_version(::std::string* version);
+
+  // required .dist_clang.proto.Flags flags = 3;
+  inline bool has_flags() const;
+  inline void clear_flags();
+  static const int kFlagsFieldNumber = 3;
+  inline const ::dist_clang::proto::Flags& flags() const;
+  inline ::dist_clang::proto::Flags* mutable_flags();
+  inline ::dist_clang::proto::Flags* release_flags();
+  inline void set_allocated_flags(::dist_clang::proto::Flags* flags);
+
+  static const int kRemoteFieldNumber = 4;
+  static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
+      ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::RemoteExecute >, 11, false >
+    remote;
+  // @@protoc_insertion_point(class_scope:dist_clang.proto.RemoteExecute)
+ private:
+  inline void set_has_code();
+  inline void clear_has_code();
+  inline void set_has_version();
+  inline void clear_has_version();
+  inline void set_has_flags();
+  inline void clear_has_flags();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
+  ::std::string* code_;
+  ::std::string* version_;
+  ::dist_clang::proto::Flags* flags_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[1];
+  ::google::protobuf::uint32 _has_bits_[(3 + 31) / 32];
 
   friend void  protobuf_AddDesc_remote_2eproto();
   friend void protobuf_AssignDesc_remote_2eproto();
   friend void protobuf_ShutdownFile_remote_2eproto();
 
   void InitAsDefaultInstance();
-  static TestTop* default_instance_;
+  static RemoteExecute* default_instance_;
 };
 // -------------------------------------------------------------------
 
-class Test : public ::google::protobuf::Message {
+class RemoteResult : public ::google::protobuf::Message {
  public:
-  Test();
-  virtual ~Test();
+  RemoteResult();
+  virtual ~RemoteResult();
 
-  Test(const Test& from);
+  RemoteResult(const RemoteResult& from);
 
-  inline Test& operator=(const Test& from) {
+  inline RemoteResult& operator=(const RemoteResult& from) {
     CopyFrom(from);
     return *this;
   }
@@ -489,17 +783,17 @@ class Test : public ::google::protobuf::Message {
   }
 
   static const ::google::protobuf::Descriptor* descriptor();
-  static const Test& default_instance();
+  static const RemoteResult& default_instance();
 
-  void Swap(Test* other);
+  void Swap(RemoteResult* other);
 
   // implements Message ----------------------------------------------
 
-  Test* New() const;
+  RemoteResult* New() const;
   void CopyFrom(const ::google::protobuf::Message& from);
   void MergeFrom(const ::google::protobuf::Message& from);
-  void CopyFrom(const Test& from);
-  void MergeFrom(const Test& from);
+  void CopyFrom(const RemoteResult& from);
+  void MergeFrom(const RemoteResult& from);
   void Clear();
   bool IsInitialized() const;
 
@@ -522,30 +816,30 @@ class Test : public ::google::protobuf::Message {
 
   // accessors -------------------------------------------------------
 
-  // optional string field1 = 1;
-  inline bool has_field1() const;
-  inline void clear_field1();
-  static const int kField1FieldNumber = 1;
-  inline const ::std::string& field1() const;
-  inline void set_field1(const ::std::string& value);
-  inline void set_field1(const char* value);
-  inline void set_field1(const char* value, size_t size);
-  inline ::std::string* mutable_field1();
-  inline ::std::string* release_field1();
-  inline void set_allocated_field1(::std::string* field1);
+  // required string obj = 1;
+  inline bool has_obj() const;
+  inline void clear_obj();
+  static const int kObjFieldNumber = 1;
+  inline const ::std::string& obj() const;
+  inline void set_obj(const ::std::string& value);
+  inline void set_obj(const char* value);
+  inline void set_obj(const char* value, size_t size);
+  inline ::std::string* mutable_obj();
+  inline ::std::string* release_obj();
+  inline void set_allocated_obj(::std::string* obj);
 
-  static const int kTestFieldNumber = 3;
-  static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::TestTop,
-      ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::Test >, 11, false >
-    test;
-  // @@protoc_insertion_point(class_scope:dist_clang.proto.Test)
+  static const int kResultFieldNumber = 5;
+  static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
+      ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::RemoteResult >, 11, false >
+    result;
+  // @@protoc_insertion_point(class_scope:dist_clang.proto.RemoteResult)
  private:
-  inline void set_has_field1();
-  inline void clear_has_field1();
+  inline void set_has_obj();
+  inline void clear_has_obj();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
-  ::std::string* field1_;
+  ::std::string* obj_;
 
   mutable int _cached_size_;
   ::google::protobuf::uint32 _has_bits_[(1 + 31) / 32];
@@ -555,7 +849,7 @@ class Test : public ::google::protobuf::Message {
   friend void protobuf_ShutdownFile_remote_2eproto();
 
   void InitAsDefaultInstance();
-  static Test* default_instance_;
+  static RemoteResult* default_instance_;
 };
 // ===================================================================
 
@@ -563,6 +857,194 @@ class Test : public ::google::protobuf::Message {
 // ===================================================================
 
 // Universal
+
+// -------------------------------------------------------------------
+
+// Test
+
+// required string field1 = 1;
+inline bool Test::has_field1() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+inline void Test::set_has_field1() {
+  _has_bits_[0] |= 0x00000001u;
+}
+inline void Test::clear_has_field1() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+inline void Test::clear_field1() {
+  if (field1_ != &::google::protobuf::internal::kEmptyString) {
+    field1_->clear();
+  }
+  clear_has_field1();
+}
+inline const ::std::string& Test::field1() const {
+  return *field1_;
+}
+inline void Test::set_field1(const ::std::string& value) {
+  set_has_field1();
+  if (field1_ == &::google::protobuf::internal::kEmptyString) {
+    field1_ = new ::std::string;
+  }
+  field1_->assign(value);
+}
+inline void Test::set_field1(const char* value) {
+  set_has_field1();
+  if (field1_ == &::google::protobuf::internal::kEmptyString) {
+    field1_ = new ::std::string;
+  }
+  field1_->assign(value);
+}
+inline void Test::set_field1(const char* value, size_t size) {
+  set_has_field1();
+  if (field1_ == &::google::protobuf::internal::kEmptyString) {
+    field1_ = new ::std::string;
+  }
+  field1_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* Test::mutable_field1() {
+  set_has_field1();
+  if (field1_ == &::google::protobuf::internal::kEmptyString) {
+    field1_ = new ::std::string;
+  }
+  return field1_;
+}
+inline ::std::string* Test::release_field1() {
+  clear_has_field1();
+  if (field1_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = field1_;
+    field1_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
+}
+inline void Test::set_allocated_field1(::std::string* field1) {
+  if (field1_ != &::google::protobuf::internal::kEmptyString) {
+    delete field1_;
+  }
+  if (field1) {
+    set_has_field1();
+    field1_ = field1;
+  } else {
+    clear_has_field1();
+    field1_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
+}
+
+// optional string field2 = 2;
+inline bool Test::has_field2() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+inline void Test::set_has_field2() {
+  _has_bits_[0] |= 0x00000002u;
+}
+inline void Test::clear_has_field2() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+inline void Test::clear_field2() {
+  if (field2_ != &::google::protobuf::internal::kEmptyString) {
+    field2_->clear();
+  }
+  clear_has_field2();
+}
+inline const ::std::string& Test::field2() const {
+  return *field2_;
+}
+inline void Test::set_field2(const ::std::string& value) {
+  set_has_field2();
+  if (field2_ == &::google::protobuf::internal::kEmptyString) {
+    field2_ = new ::std::string;
+  }
+  field2_->assign(value);
+}
+inline void Test::set_field2(const char* value) {
+  set_has_field2();
+  if (field2_ == &::google::protobuf::internal::kEmptyString) {
+    field2_ = new ::std::string;
+  }
+  field2_->assign(value);
+}
+inline void Test::set_field2(const char* value, size_t size) {
+  set_has_field2();
+  if (field2_ == &::google::protobuf::internal::kEmptyString) {
+    field2_ = new ::std::string;
+  }
+  field2_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* Test::mutable_field2() {
+  set_has_field2();
+  if (field2_ == &::google::protobuf::internal::kEmptyString) {
+    field2_ = new ::std::string;
+  }
+  return field2_;
+}
+inline ::std::string* Test::release_field2() {
+  clear_has_field2();
+  if (field2_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = field2_;
+    field2_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
+}
+inline void Test::set_allocated_field2(::std::string* field2) {
+  if (field2_ != &::google::protobuf::internal::kEmptyString) {
+    delete field2_;
+  }
+  if (field2) {
+    set_has_field2();
+    field2_ = field2;
+  } else {
+    clear_has_field2();
+    field2_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
+}
+
+// repeated string field3 = 3;
+inline int Test::field3_size() const {
+  return field3_.size();
+}
+inline void Test::clear_field3() {
+  field3_.Clear();
+}
+inline const ::std::string& Test::field3(int index) const {
+  return field3_.Get(index);
+}
+inline ::std::string* Test::mutable_field3(int index) {
+  return field3_.Mutable(index);
+}
+inline void Test::set_field3(int index, const ::std::string& value) {
+  field3_.Mutable(index)->assign(value);
+}
+inline void Test::set_field3(int index, const char* value) {
+  field3_.Mutable(index)->assign(value);
+}
+inline void Test::set_field3(int index, const char* value, size_t size) {
+  field3_.Mutable(index)->assign(
+    reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* Test::add_field3() {
+  return field3_.Add();
+}
+inline void Test::add_field3(const ::std::string& value) {
+  field3_.Add()->assign(value);
+}
+inline void Test::add_field3(const char* value) {
+  field3_.Add()->assign(value);
+}
+inline void Test::add_field3(const char* value, size_t size) {
+  field3_.Add()->assign(reinterpret_cast<const char*>(value), size);
+}
+inline const ::google::protobuf::RepeatedPtrField< ::std::string>&
+Test::field3() const {
+  return field3_;
+}
+inline ::google::protobuf::RepeatedPtrField< ::std::string>*
+Test::mutable_field3() {
+  return &field3_;
+}
 
 // -------------------------------------------------------------------
 
@@ -663,126 +1145,56 @@ inline void Error::set_allocated_description(::std::string* description) {
 
 // -------------------------------------------------------------------
 
-// Execute
+// Flags
 
-// required string current_dir = 1;
-inline bool Execute::has_current_dir() const {
+// optional string executable = 1;
+inline bool Flags::has_executable() const {
   return (_has_bits_[0] & 0x00000001u) != 0;
 }
-inline void Execute::set_has_current_dir() {
+inline void Flags::set_has_executable() {
   _has_bits_[0] |= 0x00000001u;
 }
-inline void Execute::clear_has_current_dir() {
+inline void Flags::clear_has_executable() {
   _has_bits_[0] &= ~0x00000001u;
 }
-inline void Execute::clear_current_dir() {
-  if (current_dir_ != &::google::protobuf::internal::kEmptyString) {
-    current_dir_->clear();
-  }
-  clear_has_current_dir();
-}
-inline const ::std::string& Execute::current_dir() const {
-  return *current_dir_;
-}
-inline void Execute::set_current_dir(const ::std::string& value) {
-  set_has_current_dir();
-  if (current_dir_ == &::google::protobuf::internal::kEmptyString) {
-    current_dir_ = new ::std::string;
-  }
-  current_dir_->assign(value);
-}
-inline void Execute::set_current_dir(const char* value) {
-  set_has_current_dir();
-  if (current_dir_ == &::google::protobuf::internal::kEmptyString) {
-    current_dir_ = new ::std::string;
-  }
-  current_dir_->assign(value);
-}
-inline void Execute::set_current_dir(const char* value, size_t size) {
-  set_has_current_dir();
-  if (current_dir_ == &::google::protobuf::internal::kEmptyString) {
-    current_dir_ = new ::std::string;
-  }
-  current_dir_->assign(reinterpret_cast<const char*>(value), size);
-}
-inline ::std::string* Execute::mutable_current_dir() {
-  set_has_current_dir();
-  if (current_dir_ == &::google::protobuf::internal::kEmptyString) {
-    current_dir_ = new ::std::string;
-  }
-  return current_dir_;
-}
-inline ::std::string* Execute::release_current_dir() {
-  clear_has_current_dir();
-  if (current_dir_ == &::google::protobuf::internal::kEmptyString) {
-    return NULL;
-  } else {
-    ::std::string* temp = current_dir_;
-    current_dir_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-    return temp;
-  }
-}
-inline void Execute::set_allocated_current_dir(::std::string* current_dir) {
-  if (current_dir_ != &::google::protobuf::internal::kEmptyString) {
-    delete current_dir_;
-  }
-  if (current_dir) {
-    set_has_current_dir();
-    current_dir_ = current_dir;
-  } else {
-    clear_has_current_dir();
-    current_dir_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-  }
-}
-
-// optional string executable = 2;
-inline bool Execute::has_executable() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-inline void Execute::set_has_executable() {
-  _has_bits_[0] |= 0x00000002u;
-}
-inline void Execute::clear_has_executable() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-inline void Execute::clear_executable() {
+inline void Flags::clear_executable() {
   if (executable_ != &::google::protobuf::internal::kEmptyString) {
     executable_->clear();
   }
   clear_has_executable();
 }
-inline const ::std::string& Execute::executable() const {
+inline const ::std::string& Flags::executable() const {
   return *executable_;
 }
-inline void Execute::set_executable(const ::std::string& value) {
+inline void Flags::set_executable(const ::std::string& value) {
   set_has_executable();
   if (executable_ == &::google::protobuf::internal::kEmptyString) {
     executable_ = new ::std::string;
   }
   executable_->assign(value);
 }
-inline void Execute::set_executable(const char* value) {
+inline void Flags::set_executable(const char* value) {
   set_has_executable();
   if (executable_ == &::google::protobuf::internal::kEmptyString) {
     executable_ = new ::std::string;
   }
   executable_->assign(value);
 }
-inline void Execute::set_executable(const char* value, size_t size) {
+inline void Flags::set_executable(const char* value, size_t size) {
   set_has_executable();
   if (executable_ == &::google::protobuf::internal::kEmptyString) {
     executable_ = new ::std::string;
   }
   executable_->assign(reinterpret_cast<const char*>(value), size);
 }
-inline ::std::string* Execute::mutable_executable() {
+inline ::std::string* Flags::mutable_executable() {
   set_has_executable();
   if (executable_ == &::google::protobuf::internal::kEmptyString) {
     executable_ = new ::std::string;
   }
   return executable_;
 }
-inline ::std::string* Execute::release_executable() {
+inline ::std::string* Flags::release_executable() {
   clear_has_executable();
   if (executable_ == &::google::protobuf::internal::kEmptyString) {
     return NULL;
@@ -792,7 +1204,7 @@ inline ::std::string* Execute::release_executable() {
     return temp;
   }
 }
-inline void Execute::set_allocated_executable(::std::string* executable) {
+inline void Flags::set_allocated_executable(::std::string* executable) {
   if (executable_ != &::google::protobuf::internal::kEmptyString) {
     delete executable_;
   }
@@ -805,125 +1217,593 @@ inline void Execute::set_allocated_executable(::std::string* executable) {
   }
 }
 
-// repeated string args = 3;
-inline int Execute::args_size() const {
-  return args_.size();
+// optional string output = 2;
+inline bool Flags::has_output() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
 }
-inline void Execute::clear_args() {
-  args_.Clear();
+inline void Flags::set_has_output() {
+  _has_bits_[0] |= 0x00000002u;
 }
-inline const ::std::string& Execute::args(int index) const {
-  return args_.Get(index);
+inline void Flags::clear_has_output() {
+  _has_bits_[0] &= ~0x00000002u;
 }
-inline ::std::string* Execute::mutable_args(int index) {
-  return args_.Mutable(index);
-}
-inline void Execute::set_args(int index, const ::std::string& value) {
-  args_.Mutable(index)->assign(value);
-}
-inline void Execute::set_args(int index, const char* value) {
-  args_.Mutable(index)->assign(value);
-}
-inline void Execute::set_args(int index, const char* value, size_t size) {
-  args_.Mutable(index)->assign(
-    reinterpret_cast<const char*>(value), size);
-}
-inline ::std::string* Execute::add_args() {
-  return args_.Add();
-}
-inline void Execute::add_args(const ::std::string& value) {
-  args_.Add()->assign(value);
-}
-inline void Execute::add_args(const char* value) {
-  args_.Add()->assign(value);
-}
-inline void Execute::add_args(const char* value, size_t size) {
-  args_.Add()->assign(reinterpret_cast<const char*>(value), size);
-}
-inline const ::google::protobuf::RepeatedPtrField< ::std::string>&
-Execute::args() const {
-  return args_;
-}
-inline ::google::protobuf::RepeatedPtrField< ::std::string>*
-Execute::mutable_args() {
-  return &args_;
-}
-
-// -------------------------------------------------------------------
-
-// TestTop
-
-// -------------------------------------------------------------------
-
-// Test
-
-// optional string field1 = 1;
-inline bool Test::has_field1() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-inline void Test::set_has_field1() {
-  _has_bits_[0] |= 0x00000001u;
-}
-inline void Test::clear_has_field1() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-inline void Test::clear_field1() {
-  if (field1_ != &::google::protobuf::internal::kEmptyString) {
-    field1_->clear();
+inline void Flags::clear_output() {
+  if (output_ != &::google::protobuf::internal::kEmptyString) {
+    output_->clear();
   }
-  clear_has_field1();
+  clear_has_output();
 }
-inline const ::std::string& Test::field1() const {
-  return *field1_;
+inline const ::std::string& Flags::output() const {
+  return *output_;
 }
-inline void Test::set_field1(const ::std::string& value) {
-  set_has_field1();
-  if (field1_ == &::google::protobuf::internal::kEmptyString) {
-    field1_ = new ::std::string;
+inline void Flags::set_output(const ::std::string& value) {
+  set_has_output();
+  if (output_ == &::google::protobuf::internal::kEmptyString) {
+    output_ = new ::std::string;
   }
-  field1_->assign(value);
+  output_->assign(value);
 }
-inline void Test::set_field1(const char* value) {
-  set_has_field1();
-  if (field1_ == &::google::protobuf::internal::kEmptyString) {
-    field1_ = new ::std::string;
+inline void Flags::set_output(const char* value) {
+  set_has_output();
+  if (output_ == &::google::protobuf::internal::kEmptyString) {
+    output_ = new ::std::string;
   }
-  field1_->assign(value);
+  output_->assign(value);
 }
-inline void Test::set_field1(const char* value, size_t size) {
-  set_has_field1();
-  if (field1_ == &::google::protobuf::internal::kEmptyString) {
-    field1_ = new ::std::string;
+inline void Flags::set_output(const char* value, size_t size) {
+  set_has_output();
+  if (output_ == &::google::protobuf::internal::kEmptyString) {
+    output_ = new ::std::string;
   }
-  field1_->assign(reinterpret_cast<const char*>(value), size);
+  output_->assign(reinterpret_cast<const char*>(value), size);
 }
-inline ::std::string* Test::mutable_field1() {
-  set_has_field1();
-  if (field1_ == &::google::protobuf::internal::kEmptyString) {
-    field1_ = new ::std::string;
+inline ::std::string* Flags::mutable_output() {
+  set_has_output();
+  if (output_ == &::google::protobuf::internal::kEmptyString) {
+    output_ = new ::std::string;
   }
-  return field1_;
+  return output_;
 }
-inline ::std::string* Test::release_field1() {
-  clear_has_field1();
-  if (field1_ == &::google::protobuf::internal::kEmptyString) {
+inline ::std::string* Flags::release_output() {
+  clear_has_output();
+  if (output_ == &::google::protobuf::internal::kEmptyString) {
     return NULL;
   } else {
-    ::std::string* temp = field1_;
-    field1_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    ::std::string* temp = output_;
+    output_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
     return temp;
   }
 }
-inline void Test::set_allocated_field1(::std::string* field1) {
-  if (field1_ != &::google::protobuf::internal::kEmptyString) {
-    delete field1_;
+inline void Flags::set_allocated_output(::std::string* output) {
+  if (output_ != &::google::protobuf::internal::kEmptyString) {
+    delete output_;
   }
-  if (field1) {
-    set_has_field1();
-    field1_ = field1;
+  if (output) {
+    set_has_output();
+    output_ = output;
   } else {
-    clear_has_field1();
-    field1_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    clear_has_output();
+    output_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
+}
+
+// optional string input = 3;
+inline bool Flags::has_input() const {
+  return (_has_bits_[0] & 0x00000004u) != 0;
+}
+inline void Flags::set_has_input() {
+  _has_bits_[0] |= 0x00000004u;
+}
+inline void Flags::clear_has_input() {
+  _has_bits_[0] &= ~0x00000004u;
+}
+inline void Flags::clear_input() {
+  if (input_ != &::google::protobuf::internal::kEmptyString) {
+    input_->clear();
+  }
+  clear_has_input();
+}
+inline const ::std::string& Flags::input() const {
+  return *input_;
+}
+inline void Flags::set_input(const ::std::string& value) {
+  set_has_input();
+  if (input_ == &::google::protobuf::internal::kEmptyString) {
+    input_ = new ::std::string;
+  }
+  input_->assign(value);
+}
+inline void Flags::set_input(const char* value) {
+  set_has_input();
+  if (input_ == &::google::protobuf::internal::kEmptyString) {
+    input_ = new ::std::string;
+  }
+  input_->assign(value);
+}
+inline void Flags::set_input(const char* value, size_t size) {
+  set_has_input();
+  if (input_ == &::google::protobuf::internal::kEmptyString) {
+    input_ = new ::std::string;
+  }
+  input_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* Flags::mutable_input() {
+  set_has_input();
+  if (input_ == &::google::protobuf::internal::kEmptyString) {
+    input_ = new ::std::string;
+  }
+  return input_;
+}
+inline ::std::string* Flags::release_input() {
+  clear_has_input();
+  if (input_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = input_;
+    input_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
+}
+inline void Flags::set_allocated_input(::std::string* input) {
+  if (input_ != &::google::protobuf::internal::kEmptyString) {
+    delete input_;
+  }
+  if (input) {
+    set_has_input();
+    input_ = input;
+  } else {
+    clear_has_input();
+    input_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
+}
+
+// repeated string other = 4;
+inline int Flags::other_size() const {
+  return other_.size();
+}
+inline void Flags::clear_other() {
+  other_.Clear();
+}
+inline const ::std::string& Flags::other(int index) const {
+  return other_.Get(index);
+}
+inline ::std::string* Flags::mutable_other(int index) {
+  return other_.Mutable(index);
+}
+inline void Flags::set_other(int index, const ::std::string& value) {
+  other_.Mutable(index)->assign(value);
+}
+inline void Flags::set_other(int index, const char* value) {
+  other_.Mutable(index)->assign(value);
+}
+inline void Flags::set_other(int index, const char* value, size_t size) {
+  other_.Mutable(index)->assign(
+    reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* Flags::add_other() {
+  return other_.Add();
+}
+inline void Flags::add_other(const ::std::string& value) {
+  other_.Add()->assign(value);
+}
+inline void Flags::add_other(const char* value) {
+  other_.Add()->assign(value);
+}
+inline void Flags::add_other(const char* value, size_t size) {
+  other_.Add()->assign(reinterpret_cast<const char*>(value), size);
+}
+inline const ::google::protobuf::RepeatedPtrField< ::std::string>&
+Flags::other() const {
+  return other_;
+}
+inline ::google::protobuf::RepeatedPtrField< ::std::string>*
+Flags::mutable_other() {
+  return &other_;
+}
+
+// -------------------------------------------------------------------
+
+// LocalExecute
+
+// required string current_dir = 1;
+inline bool LocalExecute::has_current_dir() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+inline void LocalExecute::set_has_current_dir() {
+  _has_bits_[0] |= 0x00000001u;
+}
+inline void LocalExecute::clear_has_current_dir() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+inline void LocalExecute::clear_current_dir() {
+  if (current_dir_ != &::google::protobuf::internal::kEmptyString) {
+    current_dir_->clear();
+  }
+  clear_has_current_dir();
+}
+inline const ::std::string& LocalExecute::current_dir() const {
+  return *current_dir_;
+}
+inline void LocalExecute::set_current_dir(const ::std::string& value) {
+  set_has_current_dir();
+  if (current_dir_ == &::google::protobuf::internal::kEmptyString) {
+    current_dir_ = new ::std::string;
+  }
+  current_dir_->assign(value);
+}
+inline void LocalExecute::set_current_dir(const char* value) {
+  set_has_current_dir();
+  if (current_dir_ == &::google::protobuf::internal::kEmptyString) {
+    current_dir_ = new ::std::string;
+  }
+  current_dir_->assign(value);
+}
+inline void LocalExecute::set_current_dir(const char* value, size_t size) {
+  set_has_current_dir();
+  if (current_dir_ == &::google::protobuf::internal::kEmptyString) {
+    current_dir_ = new ::std::string;
+  }
+  current_dir_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* LocalExecute::mutable_current_dir() {
+  set_has_current_dir();
+  if (current_dir_ == &::google::protobuf::internal::kEmptyString) {
+    current_dir_ = new ::std::string;
+  }
+  return current_dir_;
+}
+inline ::std::string* LocalExecute::release_current_dir() {
+  clear_has_current_dir();
+  if (current_dir_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = current_dir_;
+    current_dir_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
+}
+inline void LocalExecute::set_allocated_current_dir(::std::string* current_dir) {
+  if (current_dir_ != &::google::protobuf::internal::kEmptyString) {
+    delete current_dir_;
+  }
+  if (current_dir) {
+    set_has_current_dir();
+    current_dir_ = current_dir;
+  } else {
+    clear_has_current_dir();
+    current_dir_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
+}
+
+// required .dist_clang.proto.Flags cc_flags = 2;
+inline bool LocalExecute::has_cc_flags() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+inline void LocalExecute::set_has_cc_flags() {
+  _has_bits_[0] |= 0x00000002u;
+}
+inline void LocalExecute::clear_has_cc_flags() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+inline void LocalExecute::clear_cc_flags() {
+  if (cc_flags_ != NULL) cc_flags_->::dist_clang::proto::Flags::Clear();
+  clear_has_cc_flags();
+}
+inline const ::dist_clang::proto::Flags& LocalExecute::cc_flags() const {
+  return cc_flags_ != NULL ? *cc_flags_ : *default_instance_->cc_flags_;
+}
+inline ::dist_clang::proto::Flags* LocalExecute::mutable_cc_flags() {
+  set_has_cc_flags();
+  if (cc_flags_ == NULL) cc_flags_ = new ::dist_clang::proto::Flags;
+  return cc_flags_;
+}
+inline ::dist_clang::proto::Flags* LocalExecute::release_cc_flags() {
+  clear_has_cc_flags();
+  ::dist_clang::proto::Flags* temp = cc_flags_;
+  cc_flags_ = NULL;
+  return temp;
+}
+inline void LocalExecute::set_allocated_cc_flags(::dist_clang::proto::Flags* cc_flags) {
+  delete cc_flags_;
+  cc_flags_ = cc_flags;
+  if (cc_flags) {
+    set_has_cc_flags();
+  } else {
+    clear_has_cc_flags();
+  }
+}
+
+// required .dist_clang.proto.Flags pp_flags = 3;
+inline bool LocalExecute::has_pp_flags() const {
+  return (_has_bits_[0] & 0x00000004u) != 0;
+}
+inline void LocalExecute::set_has_pp_flags() {
+  _has_bits_[0] |= 0x00000004u;
+}
+inline void LocalExecute::clear_has_pp_flags() {
+  _has_bits_[0] &= ~0x00000004u;
+}
+inline void LocalExecute::clear_pp_flags() {
+  if (pp_flags_ != NULL) pp_flags_->::dist_clang::proto::Flags::Clear();
+  clear_has_pp_flags();
+}
+inline const ::dist_clang::proto::Flags& LocalExecute::pp_flags() const {
+  return pp_flags_ != NULL ? *pp_flags_ : *default_instance_->pp_flags_;
+}
+inline ::dist_clang::proto::Flags* LocalExecute::mutable_pp_flags() {
+  set_has_pp_flags();
+  if (pp_flags_ == NULL) pp_flags_ = new ::dist_clang::proto::Flags;
+  return pp_flags_;
+}
+inline ::dist_clang::proto::Flags* LocalExecute::release_pp_flags() {
+  clear_has_pp_flags();
+  ::dist_clang::proto::Flags* temp = pp_flags_;
+  pp_flags_ = NULL;
+  return temp;
+}
+inline void LocalExecute::set_allocated_pp_flags(::dist_clang::proto::Flags* pp_flags) {
+  delete pp_flags_;
+  pp_flags_ = pp_flags;
+  if (pp_flags) {
+    set_has_pp_flags();
+  } else {
+    clear_has_pp_flags();
+  }
+}
+
+// -------------------------------------------------------------------
+
+// RemoteExecute
+
+// required string code = 1;
+inline bool RemoteExecute::has_code() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+inline void RemoteExecute::set_has_code() {
+  _has_bits_[0] |= 0x00000001u;
+}
+inline void RemoteExecute::clear_has_code() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+inline void RemoteExecute::clear_code() {
+  if (code_ != &::google::protobuf::internal::kEmptyString) {
+    code_->clear();
+  }
+  clear_has_code();
+}
+inline const ::std::string& RemoteExecute::code() const {
+  return *code_;
+}
+inline void RemoteExecute::set_code(const ::std::string& value) {
+  set_has_code();
+  if (code_ == &::google::protobuf::internal::kEmptyString) {
+    code_ = new ::std::string;
+  }
+  code_->assign(value);
+}
+inline void RemoteExecute::set_code(const char* value) {
+  set_has_code();
+  if (code_ == &::google::protobuf::internal::kEmptyString) {
+    code_ = new ::std::string;
+  }
+  code_->assign(value);
+}
+inline void RemoteExecute::set_code(const char* value, size_t size) {
+  set_has_code();
+  if (code_ == &::google::protobuf::internal::kEmptyString) {
+    code_ = new ::std::string;
+  }
+  code_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* RemoteExecute::mutable_code() {
+  set_has_code();
+  if (code_ == &::google::protobuf::internal::kEmptyString) {
+    code_ = new ::std::string;
+  }
+  return code_;
+}
+inline ::std::string* RemoteExecute::release_code() {
+  clear_has_code();
+  if (code_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = code_;
+    code_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
+}
+inline void RemoteExecute::set_allocated_code(::std::string* code) {
+  if (code_ != &::google::protobuf::internal::kEmptyString) {
+    delete code_;
+  }
+  if (code) {
+    set_has_code();
+    code_ = code;
+  } else {
+    clear_has_code();
+    code_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
+}
+
+// required string version = 2;
+inline bool RemoteExecute::has_version() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+inline void RemoteExecute::set_has_version() {
+  _has_bits_[0] |= 0x00000002u;
+}
+inline void RemoteExecute::clear_has_version() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+inline void RemoteExecute::clear_version() {
+  if (version_ != &::google::protobuf::internal::kEmptyString) {
+    version_->clear();
+  }
+  clear_has_version();
+}
+inline const ::std::string& RemoteExecute::version() const {
+  return *version_;
+}
+inline void RemoteExecute::set_version(const ::std::string& value) {
+  set_has_version();
+  if (version_ == &::google::protobuf::internal::kEmptyString) {
+    version_ = new ::std::string;
+  }
+  version_->assign(value);
+}
+inline void RemoteExecute::set_version(const char* value) {
+  set_has_version();
+  if (version_ == &::google::protobuf::internal::kEmptyString) {
+    version_ = new ::std::string;
+  }
+  version_->assign(value);
+}
+inline void RemoteExecute::set_version(const char* value, size_t size) {
+  set_has_version();
+  if (version_ == &::google::protobuf::internal::kEmptyString) {
+    version_ = new ::std::string;
+  }
+  version_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* RemoteExecute::mutable_version() {
+  set_has_version();
+  if (version_ == &::google::protobuf::internal::kEmptyString) {
+    version_ = new ::std::string;
+  }
+  return version_;
+}
+inline ::std::string* RemoteExecute::release_version() {
+  clear_has_version();
+  if (version_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = version_;
+    version_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
+}
+inline void RemoteExecute::set_allocated_version(::std::string* version) {
+  if (version_ != &::google::protobuf::internal::kEmptyString) {
+    delete version_;
+  }
+  if (version) {
+    set_has_version();
+    version_ = version;
+  } else {
+    clear_has_version();
+    version_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
+}
+
+// required .dist_clang.proto.Flags flags = 3;
+inline bool RemoteExecute::has_flags() const {
+  return (_has_bits_[0] & 0x00000004u) != 0;
+}
+inline void RemoteExecute::set_has_flags() {
+  _has_bits_[0] |= 0x00000004u;
+}
+inline void RemoteExecute::clear_has_flags() {
+  _has_bits_[0] &= ~0x00000004u;
+}
+inline void RemoteExecute::clear_flags() {
+  if (flags_ != NULL) flags_->::dist_clang::proto::Flags::Clear();
+  clear_has_flags();
+}
+inline const ::dist_clang::proto::Flags& RemoteExecute::flags() const {
+  return flags_ != NULL ? *flags_ : *default_instance_->flags_;
+}
+inline ::dist_clang::proto::Flags* RemoteExecute::mutable_flags() {
+  set_has_flags();
+  if (flags_ == NULL) flags_ = new ::dist_clang::proto::Flags;
+  return flags_;
+}
+inline ::dist_clang::proto::Flags* RemoteExecute::release_flags() {
+  clear_has_flags();
+  ::dist_clang::proto::Flags* temp = flags_;
+  flags_ = NULL;
+  return temp;
+}
+inline void RemoteExecute::set_allocated_flags(::dist_clang::proto::Flags* flags) {
+  delete flags_;
+  flags_ = flags;
+  if (flags) {
+    set_has_flags();
+  } else {
+    clear_has_flags();
+  }
+}
+
+// -------------------------------------------------------------------
+
+// RemoteResult
+
+// required string obj = 1;
+inline bool RemoteResult::has_obj() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+inline void RemoteResult::set_has_obj() {
+  _has_bits_[0] |= 0x00000001u;
+}
+inline void RemoteResult::clear_has_obj() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+inline void RemoteResult::clear_obj() {
+  if (obj_ != &::google::protobuf::internal::kEmptyString) {
+    obj_->clear();
+  }
+  clear_has_obj();
+}
+inline const ::std::string& RemoteResult::obj() const {
+  return *obj_;
+}
+inline void RemoteResult::set_obj(const ::std::string& value) {
+  set_has_obj();
+  if (obj_ == &::google::protobuf::internal::kEmptyString) {
+    obj_ = new ::std::string;
+  }
+  obj_->assign(value);
+}
+inline void RemoteResult::set_obj(const char* value) {
+  set_has_obj();
+  if (obj_ == &::google::protobuf::internal::kEmptyString) {
+    obj_ = new ::std::string;
+  }
+  obj_->assign(value);
+}
+inline void RemoteResult::set_obj(const char* value, size_t size) {
+  set_has_obj();
+  if (obj_ == &::google::protobuf::internal::kEmptyString) {
+    obj_ = new ::std::string;
+  }
+  obj_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* RemoteResult::mutable_obj() {
+  set_has_obj();
+  if (obj_ == &::google::protobuf::internal::kEmptyString) {
+    obj_ = new ::std::string;
+  }
+  return obj_;
+}
+inline ::std::string* RemoteResult::release_obj() {
+  clear_has_obj();
+  if (obj_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = obj_;
+    obj_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
+}
+inline void RemoteResult::set_allocated_obj(::std::string* obj) {
+  if (obj_ != &::google::protobuf::internal::kEmptyString) {
+    delete obj_;
+  }
+  if (obj) {
+    set_has_obj();
+    obj_ = obj;
+  } else {
+    clear_has_obj();
+    obj_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   }
 }
 

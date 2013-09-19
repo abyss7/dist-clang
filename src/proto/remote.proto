@@ -4,6 +4,16 @@ message Universal {
   extensions 1 to 200;
 }
 
+message Test {
+  required string field1 = 1;
+  optional string field2 = 2;
+  repeated string field3 = 3;
+
+  extend Universal {
+    optional Test test = 1;
+  }
+}
+
 message Error {
   enum Code {
     OK = 0;
@@ -18,30 +28,43 @@ message Error {
   optional string description = 2;
 
   extend Universal {
-    optional Error error = 1;
+    optional Error error = 2;
   }
 }
 
-message Execute {
+message Flags {
+  optional string executable  = 1;  // original compiler executable.
+  optional string output      = 2;  // "-o" flag and it's param.
+  optional string input       = 3;  // relative path in the last argument.
+  repeated string other       = 4;
+}
+
+message LocalExecute {
   required string current_dir = 1;
-  optional string executable  = 2;
-  repeated string args        = 3;
+  required Flags cc_flags     = 2;  // Flags to run compilation.
+  required Flags pp_flags     = 3;  // Flags to run preprocessor.
 
   extend Universal {
-    optional Execute execute = 2;
+    optional LocalExecute local = 3;
   }
 }
 
-message TestTop {
-  extensions 1 to 200;
-}
+message RemoteExecute {
+  required string code        = 1;
+  required string version     = 2;
+  required Flags flags        = 3;
 
-message Test {
-  optional string field1 = 1;
-
-  extend TestTop {
-    optional Test test = 3;
+  extend Universal {
+    optional RemoteExecute remote = 4;
   }
 }
 
-// Last unused extension index: 3
+message RemoteResult {
+  required string obj         = 1;
+
+  extend Universal {
+    optional RemoteResult result = 5;
+  }
+}
+
+// Last unused extension index: 6.

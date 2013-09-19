@@ -1,6 +1,6 @@
 package dist_clang.proto;
 
 message Configuration {
-  required string socket_path = 1;
-  optional uint32 pool_capacity = 2 [default=128];
+  required string socket_path   = 1;
+  optional uint32 pool_capacity = 2 [default=16];
 }

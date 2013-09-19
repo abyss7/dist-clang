@@ -176,14 +176,16 @@ class ConnectionTest: public ::testing::Test {
 };
 
 TEST_F(ConnectionTest, Sync_ReadOneMessage) {
-  const std::string expected_current_dir = "dir1";
-  const std::string expected_arg = "arg1";
+  const std::string expected_field1 = "arg1";
+  const std::string expected_field2 = "arg2";
+  const std::string expected_field3 = "arg3";
 
   net::Connection::Message expected_message;
   {
-    auto message = expected_message.MutableExtension(proto::Execute::execute);
-    message->set_current_dir(expected_current_dir);
-    message->add_args()->assign(expected_arg);
+    auto message = expected_message.MutableExtension(proto::Test::test);
+    message->set_field1(expected_field1);
+    message->set_field2(expected_field2);
+    message->add_field3()->assign(expected_field3);
   }
   ASSERT_TRUE(server.WriteAtOnce(expected_message.SerializeAsString()));
 
@@ -197,29 +199,35 @@ TEST_F(ConnectionTest, Sync_ReadOneMessage) {
   EXPECT_FALSE(error.has_description());
 
   // Check incoming message.
-  ASSERT_TRUE(message.HasExtension(proto::Execute::execute));
-  auto execute = message.GetExtension(proto::Execute::execute);
-  ASSERT_TRUE(execute.has_current_dir());
-  ASSERT_EQ(1, execute.args_size());
-  EXPECT_EQ(expected_current_dir, execute.current_dir());
-  EXPECT_EQ(expected_arg, execute.args(0));
+  ASSERT_TRUE(message.HasExtension(proto::Test::test));
+  auto test = message.GetExtension(proto::Test::test);
+  ASSERT_TRUE(test.has_field1());
+  ASSERT_TRUE(test.has_field2());
+  ASSERT_EQ(1, test.field3_size());
+  EXPECT_EQ(expected_field1, test.field1());
+  EXPECT_EQ(expected_field2, test.field2());
+  EXPECT_EQ(expected_field3, test.field3(0));
 }
 
 TEST_F(ConnectionTest, Sync_ReadTwoMessages) {
-  const std::string expected_current_dir1 = "dir1";
-  const std::string expected_arg1 = "arg1";
-  const std::string expected_current_dir2 = "dir2";
-  const std::string expected_arg2 = "arg2";
+  const std::string expected_field1_1 = "arg1";
+  const std::string expected_field2_1 = "arg2";
+  const std::string expected_field3_1 = "arg3";
+  const std::string expected_field1_2 = "arg4";
+  const std::string expected_field2_2 = "arg5";
+  const std::string expected_field3_2 = "arg6";
 
   net::Connection::Message expected_message1, expected_message2;
   {
-    auto message = expected_message1.MutableExtension(proto::Execute::execute);
-    message->set_current_dir(expected_current_dir1);
-    message->add_args()->assign(expected_arg1);
+    auto message = expected_message1.MutableExtension(proto::Test::test);
+    message->set_field1(expected_field1_1);
+    message->set_field2(expected_field2_1);
+    message->add_field3()->assign(expected_field3_1);
 
-    message = expected_message2.MutableExtension(proto::Execute::execute);
-    message->set_current_dir(expected_current_dir2);
-    message->add_args()->assign(expected_arg2);
+    message = expected_message2.MutableExtension(proto::Test::test);
+    message->set_field1(expected_field1_2);
+    message->set_field2(expected_field2_2);
+    message->add_field3()->assign(expected_field3_2);
   }
   ASSERT_TRUE(server.WriteAtOnce(expected_message1.SerializeAsString()));
   ASSERT_TRUE(server.WriteAtOnce(expected_message2.SerializeAsString()));
@@ -234,12 +242,14 @@ TEST_F(ConnectionTest, Sync_ReadTwoMessages) {
   EXPECT_FALSE(error.has_description());
 
   // Check incoming message.
-  ASSERT_TRUE(message.HasExtension(proto::Execute::execute));
-  auto execute = message.GetExtension(proto::Execute::execute);
-  ASSERT_TRUE(execute.has_current_dir());
-  ASSERT_EQ(1, execute.args_size());
-  EXPECT_EQ(expected_current_dir1, execute.current_dir());
-  EXPECT_EQ(expected_arg1, execute.args(0));
+  ASSERT_TRUE(message.HasExtension(proto::Test::test));
+  auto test = message.GetExtension(proto::Test::test);
+  ASSERT_TRUE(test.has_field1());
+  ASSERT_TRUE(test.has_field2());
+  ASSERT_EQ(1, test.field3_size());
+  EXPECT_EQ(expected_field1_1, test.field1());
+  EXPECT_EQ(expected_field2_1, test.field2());
+  EXPECT_EQ(expected_field3_1, test.field3(0));
 
   ASSERT_TRUE(connection->ReadSync(&message, &error)) << error.description();
 
@@ -248,23 +258,27 @@ TEST_F(ConnectionTest, Sync_ReadTwoMessages) {
   EXPECT_FALSE(error.has_description());
 
   // Check incoming message.
-  ASSERT_TRUE(message.HasExtension(proto::Execute::execute));
-  execute = message.GetExtension(proto::Execute::execute);
-  ASSERT_TRUE(execute.has_current_dir());
-  ASSERT_EQ(1, execute.args_size());
-  EXPECT_EQ(expected_current_dir2, execute.current_dir());
-  EXPECT_EQ(expected_arg2, execute.args(0));
+  ASSERT_TRUE(message.HasExtension(proto::Test::test));
+  test = message.GetExtension(proto::Test::test);
+  ASSERT_TRUE(test.has_field1());
+  ASSERT_TRUE(test.has_field2());
+  ASSERT_EQ(1, test.field3_size());
+  EXPECT_EQ(expected_field1_2, test.field1());
+  EXPECT_EQ(expected_field2_2, test.field2());
+  EXPECT_EQ(expected_field3_2, test.field3(0));
 }
 
 TEST_F(ConnectionTest, Sync_ReadSplitMessage) {
-  const std::string expected_current_dir = "dir1";
-  const std::string expected_arg = "arg1";
+  const std::string expected_field1 = "arg1";
+  const std::string expected_field2 = "arg2";
+  const std::string expected_field3 = "arg3";
 
   net::Connection::Message expected_message;
   {
-    auto message = expected_message.MutableExtension(proto::Execute::execute);
-    message->set_current_dir(expected_current_dir);
-    message->add_args()->assign(expected_arg);
+    auto message = expected_message.MutableExtension(proto::Test::test);
+    message->set_field1(expected_field1);
+    message->set_field2(expected_field2);
+    message->add_field3()->assign(expected_field3);
   }
 
   auto read_func = [&] () {
@@ -278,12 +292,14 @@ TEST_F(ConnectionTest, Sync_ReadSplitMessage) {
     EXPECT_FALSE(error.has_description());
 
     // Check incoming message.
-    ASSERT_TRUE(message.HasExtension(proto::Execute::execute));
-    auto execute = message.GetExtension(proto::Execute::execute);
-    ASSERT_TRUE(execute.has_current_dir());
-    ASSERT_EQ(1, execute.args_size());
-    EXPECT_EQ(expected_current_dir, execute.current_dir());
-    EXPECT_EQ(expected_arg, execute.args(0));
+    ASSERT_TRUE(message.HasExtension(proto::Test::test));
+    auto test = message.GetExtension(proto::Test::test);
+    ASSERT_TRUE(test.has_field1());
+    ASSERT_TRUE(test.has_field2());
+    ASSERT_EQ(1, test.field3_size());
+    EXPECT_EQ(expected_field1, test.field1());
+    EXPECT_EQ(expected_field2, test.field2());
+    EXPECT_EQ(expected_field3, test.field3(0));
   };
 
   std::thread read_thread(read_func);
@@ -293,12 +309,14 @@ TEST_F(ConnectionTest, Sync_ReadSplitMessage) {
 }
 
 TEST_F(ConnectionTest, Sync_ReadIncompleteMessage) {
-  const std::string expected_arg = "arg1";
+  const std::string expected_field2 = "arg2";
+  const std::string expected_field3 = "arg3";
 
   net::Connection::Message expected_message;
   {
-    auto message = expected_message.MutableExtension(proto::Execute::execute);
-    message->add_args()->assign(expected_arg);
+    auto message = expected_message.MutableExtension(proto::Test::test);
+    message->set_field2(expected_field2);
+    message->add_field3()->assign(expected_field3);
   }
   ASSERT_TRUE(server.WriteAtOnce(expected_message.SerializePartialAsString()));
 
@@ -310,14 +328,16 @@ TEST_F(ConnectionTest, Sync_ReadIncompleteMessage) {
 }
 
 TEST_F(ConnectionTest, Sync_ReadWhileReading) {
-  const std::string expected_current_dir = "dir1";
-  const std::string expected_arg = "arg1";
+  const std::string expected_field1 = "arg1";
+  const std::string expected_field2 = "arg2";
+  const std::string expected_field3 = "arg3";
 
   net::Connection::Message expected_message;
   {
-    auto message = expected_message.MutableExtension(proto::Execute::execute);
-    message->set_current_dir(expected_current_dir);
-    message->add_args()->assign(expected_arg);
+    auto message = expected_message.MutableExtension(proto::Test::test);
+    message->set_field1(expected_field1);
+    message->set_field2(expected_field2);
+    message->add_field3()->assign(expected_field3);
   }
 
   auto read_func = [&] () {
@@ -331,12 +351,14 @@ TEST_F(ConnectionTest, Sync_ReadWhileReading) {
     EXPECT_FALSE(error.has_description());
 
     // Check incoming message.
-    ASSERT_TRUE(message.HasExtension(proto::Execute::execute));
-    auto execute = message.GetExtension(proto::Execute::execute);
-    ASSERT_TRUE(execute.has_current_dir());
-    ASSERT_EQ(1, execute.args_size());
-    EXPECT_EQ(expected_current_dir, execute.current_dir());
-    EXPECT_EQ(expected_arg, execute.args(0));
+    ASSERT_TRUE(message.HasExtension(proto::Test::test));
+    auto test = message.GetExtension(proto::Test::test);
+    ASSERT_TRUE(test.has_field1());
+    ASSERT_TRUE(test.has_field2());
+    ASSERT_EQ(1, test.field3_size());
+    EXPECT_EQ(expected_field1, test.field1());
+    EXPECT_EQ(expected_field2, test.field2());
+    EXPECT_EQ(expected_field3, test.field3(0));
   };
 
   std::thread read_thread(read_func);
@@ -351,14 +373,16 @@ TEST_F(ConnectionTest, Sync_ReadWhileReading) {
 }
 
 TEST_F(ConnectionTest, Sync_SendMessage) {
-  const std::string expected_current_dir = "dir1";
-  const std::string expected_arg = "arg1";
+  const std::string expected_field1 = "arg1";
+  const std::string expected_field2 = "arg2";
+  const std::string expected_field3 = "arg3";
 
   net::Connection::Message expected_message;
   {
-    auto message = expected_message.MutableExtension(proto::Execute::execute);
-    message->set_current_dir(expected_current_dir);
-    message->add_args()->assign(expected_arg);
+    auto message = expected_message.MutableExtension(proto::Test::test);
+    message->set_field1(expected_field1);
+    message->set_field2(expected_field2);
+    message->add_field3()->assign(expected_field3);
   }
   proto::Error error;
   ASSERT_TRUE(connection->SendSync(expected_message, &error))
@@ -368,23 +392,27 @@ TEST_F(ConnectionTest, Sync_SendMessage) {
 
   net::Connection::Message message;
   message.ParseFromString(data);
-  ASSERT_TRUE(message.HasExtension(proto::Execute::execute));
-  auto execute = message.GetExtension(proto::Execute::execute);
-  ASSERT_TRUE(execute.has_current_dir());
-  ASSERT_EQ(1, execute.args_size());
-  EXPECT_EQ(expected_current_dir, execute.current_dir());
-  EXPECT_EQ(expected_arg, execute.args(0));
+  ASSERT_TRUE(message.HasExtension(proto::Test::test));
+  auto test = message.GetExtension(proto::Test::test);
+  ASSERT_TRUE(test.has_field1());
+  ASSERT_TRUE(test.has_field2());
+  ASSERT_EQ(1, test.field3_size());
+  EXPECT_EQ(expected_field1, test.field1());
+  EXPECT_EQ(expected_field2, test.field2());
+  EXPECT_EQ(expected_field3, test.field3(0));
 }
 
 TEST_F(ConnectionTest, Sync_SendWhileReading) {
-  const std::string expected_current_dir = "dir1";
-  const std::string expected_arg = "arg1";
+  const std::string expected_field1 = "arg1";
+  const std::string expected_field2 = "arg2";
+  const std::string expected_field3 = "arg3";
 
   net::Connection::Message expected_message;
   {
-    auto message = expected_message.MutableExtension(proto::Execute::execute);
-    message->set_current_dir(expected_current_dir);
-    message->add_args()->assign(expected_arg);
+    auto message = expected_message.MutableExtension(proto::Test::test);
+    message->set_field1(expected_field1);
+    message->set_field2(expected_field2);
+    message->add_field3()->assign(expected_field3);
   }
 
   auto read_func = [&] () {
@@ -398,12 +426,14 @@ TEST_F(ConnectionTest, Sync_SendWhileReading) {
     EXPECT_FALSE(error.has_description());
 
     // Check incoming message.
-    ASSERT_TRUE(message.HasExtension(proto::Execute::execute));
-    auto execute = message.GetExtension(proto::Execute::execute);
-    ASSERT_TRUE(execute.has_current_dir());
-    ASSERT_EQ(1, execute.args_size());
-    EXPECT_EQ(expected_current_dir, execute.current_dir());
-    EXPECT_EQ(expected_arg, execute.args(0));
+    ASSERT_TRUE(message.HasExtension(proto::Test::test));
+    auto test = message.GetExtension(proto::Test::test);
+    ASSERT_TRUE(test.has_field1());
+    ASSERT_TRUE(test.has_field2());
+    ASSERT_EQ(1, test.field3_size());
+    EXPECT_EQ(expected_field1, test.field1());
+    EXPECT_EQ(expected_field2, test.field2());
+    EXPECT_EQ(expected_field3, test.field3(0));
   };
 
   std::thread read_thread(read_func);
