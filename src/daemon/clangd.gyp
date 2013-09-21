@@ -14,6 +14,8 @@
         '../tclap/tclap.gyp:tclap',
       ],
       'sources': [
+        'balancer.cc',
+        'balancer.h',
         'clangd.cc',
         'configuration.cc',
         'configuration.h',

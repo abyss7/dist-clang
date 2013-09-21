@@ -1,6 +1,7 @@
 #include "base/process.h"
 
 #include "base/c_utils.h"
+#include "net/base/utils.h"
 
 #include <poll.h>
 #include <sys/wait.h>
@@ -70,6 +71,11 @@ bool Process::Run(unsigned short sec_timeout, string* error) {
     poll_fd[1].fd = err_pipe_fd[0];
     poll_fd[1].events = POLLIN;
 
+    net::MakeNonBlocking(poll_fd[0].fd);
+    net::MakeNonBlocking(poll_fd[1].fd);
+
+    const size_t buffer_size = 1024;
+    char buffer[buffer_size];
     do {
       if (waitpid(child_pid, &status, WNOHANG) == child_pid)
         break;
@@ -81,30 +87,60 @@ bool Process::Run(unsigned short sec_timeout, string* error) {
         kill();
       }
 
-      const size_t buffer_size = 1024;
-      char buffer[buffer_size];
-
       if (poll_fd[0].revents == POLLIN) {
-        int bytes_read = read(poll_fd[0].fd, buffer, buffer_size);
+        while(true) {
+          int bytes_read = read(poll_fd[0].fd, buffer, buffer_size);
 
-        if (bytes_read <= 0) {
-          GetLastError(error);
-          kill();
-        } else {
-          stdout_.append(buffer, bytes_read);
+          if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK))
+            break;
+          else if (bytes_read == -1) {
+            GetLastError(error);
+            kill();
+          } else {
+            stdout_.append(buffer, bytes_read);
+          }
         }
       }
       if (poll_fd[1].revents == POLLIN) {
-        int bytes_read = read(poll_fd[1].fd, buffer, buffer_size);
+        while(true) {
+          int bytes_read = read(poll_fd[1].fd, buffer, buffer_size);
 
-        if (bytes_read <= 0) {
-          GetLastError(error);
-          kill();
-        } else {
-          stderr_.append(buffer, bytes_read);
+          if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK))
+            break;
+          else if (bytes_read <= 0) {
+            GetLastError(error);
+            kill();
+          } else {
+            stderr_.append(buffer, bytes_read);
+          }
         }
       }
     } while(true);
+
+    while(true) {
+      int bytes_read = read(poll_fd[0].fd, buffer, buffer_size);
+
+      if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK))
+        break;
+      else if (bytes_read == -1) {
+        GetLastError(error);
+        kill();
+      } else {
+        stdout_.append(buffer, bytes_read);
+      }
+    }
+    while(true) {
+      int bytes_read = read(poll_fd[1].fd, buffer, buffer_size);
+
+      if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK))
+        break;
+      else if (bytes_read <= 0) {
+        GetLastError(error);
+        kill();
+      } else {
+        stderr_.append(buffer, bytes_read);
+      }
+    }
 
     close(out_pipe_fd[0]);
     close(err_pipe_fd[0]);

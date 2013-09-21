@@ -23,6 +23,7 @@ class ThreadPool {
     void Run();
     bool Push(const Closure& task);
     void PushInternal(const Closure& task);
+    inline size_t InternalCount() const;
 
   private:
     void DoWork();
@@ -37,6 +38,10 @@ class ThreadPool {
     bool is_shutting_down_;
     std::queue<Closure> public_tasks_, internal_tasks_;
 };
+
+size_t ThreadPool::InternalCount() const {
+  return internal_tasks_.size();
+}
 
 }  // namespace daemon
 }  // namespace dist_clang

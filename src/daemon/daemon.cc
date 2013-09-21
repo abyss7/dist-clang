@@ -24,6 +24,7 @@ bool Daemon::Initialize(const Configuration &configuration,
     return false;
   }
 
+  balancer_.reset(new Balancer(network_service));
   pool_.reset(new ThreadPool(config.pool_capacity()));
   pool_->Run();
 
@@ -65,8 +66,15 @@ bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
 
 void Daemon::DoLocalExecution(net::ConnectionPtr connection,
                               const Local &execute) {
+  if (!execute.has_pp_flags()) {
+    // Without preprocessing flags we can't neither check the cache, nor do
+    // a remote compilation, nor put the result back in cache.
+    DoLocalCompilation(connection, execute, false);
+    return;
+  }
+
   const proto::Flags& flags = execute.pp_flags();
-  base::Process process(flags.executable(), execute.current_dir());
+  base::Process process(flags.compiler().path(), execute.current_dir());
   process.AppendArg(flags.other().begin(), flags.other().end())
          .AppendArg("-o").AppendArg("-")
          .AppendArg(flags.input());
@@ -80,17 +88,31 @@ void Daemon::DoLocalExecution(net::ConnectionPtr connection,
 
   // TODO: check the cache.
 
-  // TODO: at this point the balancer should decide, if we compile locally,
-  // or remotely.
+  if (!pool_->InternalCount() || !execute.cc_flags().compiler().has_version()) {
+    // We can't do a remote compilation, if don't know the compiler version.
+    DoLocalCompilation(connection, execute, true);
+    return;
+  }
 
-  DoLocalCompilation(connection, execute, true);
+  auto remote_connection = balancer_->Decide();
+  if (!remote_connection) {
+    DoLocalCompilation(connection, execute, true);
+    return;
+  }
+
+  Remote remote;
+  remote.set_code(process.stdout());
+  remote.mutable_cc_flags()->CopyFrom(execute.cc_flags());
+  remote_connection->SendAsync(remote, std::bind(&Daemon::DoRemoteCompilation,
+                                                 this, _1, _2));
 }
 
 void Daemon::DoLocalCompilation(net::ConnectionPtr connection,
                                 const Local &execute, bool update_cache) {
   Error error;
   const proto::Flags& flags = execute.cc_flags();
-  base::Process process(flags.executable(), execute.current_dir());
+
+  base::Process process(flags.compiler().path(), execute.current_dir());
   process.AppendArg(flags.other().begin(), flags.other().end())
          .AppendArg("-o").AppendArg(flags.output())
          .AppendArg(flags.input());
@@ -106,6 +128,12 @@ void Daemon::DoLocalCompilation(net::ConnectionPtr connection,
   }
 
   connection->SendAsync(error);
+}
+
+bool Daemon::DoRemoteCompilation(net::ConnectionPtr connection,
+                                 const Error &error) {
+  // TODO: implement this.
+  return false;
 }
 
 }  // namespace daemon

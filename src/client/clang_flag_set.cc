@@ -30,7 +30,7 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(string_list& flags,
   }
 
   // First non-empty argument is a path to executable.
-  message->mutable_executable()->assign(flags.front());
+  message->mutable_compiler()->set_path(flags.front());
   flags.pop_front();
 
   // Last argument is an input path.

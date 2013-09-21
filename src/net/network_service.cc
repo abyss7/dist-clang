@@ -88,12 +88,14 @@ ConnectionPtr NetworkService::Connect(const std::string &path,
   }
   if (connect(fd, reinterpret_cast<sockaddr*>(&address),
               sizeof(address)) == -1) {
-    if (error) {
-      error->set_code(proto::Error::NETWORK);
-      base::GetLastError(error->mutable_description());
+    if (errno != EINPROGRESS) {
+      if (error) {
+        error->set_code(proto::Error::NETWORK);
+        base::GetLastError(error->mutable_description());
+      }
+      close(fd);
+      return ConnectionPtr();
     }
-    close(fd);
-    return ConnectionPtr();
   }
 
   auto connection =

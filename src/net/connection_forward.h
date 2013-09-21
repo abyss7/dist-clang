@@ -9,5 +9,5 @@ class Connection;
 typedef std::shared_ptr<Connection> ConnectionPtr;
 typedef std::weak_ptr<Connection> ConnectionWeakPtr;
 
-}
-}
+}  // namespace net
+}  // namespace dist_clang

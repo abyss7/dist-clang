@@ -38,6 +38,7 @@ void protobuf_ShutdownFile_remote_2eproto();
 class Universal;
 class Test;
 class Error;
+class Compiler;
 class Flags;
 class LocalExecute;
 class RemoteExecute;
@@ -395,6 +396,108 @@ class Error : public ::google::protobuf::Message {
 };
 // -------------------------------------------------------------------
 
+class Compiler : public ::google::protobuf::Message {
+ public:
+  Compiler();
+  virtual ~Compiler();
+
+  Compiler(const Compiler& from);
+
+  inline Compiler& operator=(const Compiler& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
+    return _unknown_fields_;
+  }
+
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
+    return &_unknown_fields_;
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const Compiler& default_instance();
+
+  void Swap(Compiler* other);
+
+  // implements Message ----------------------------------------------
+
+  Compiler* New() const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const Compiler& from);
+  void MergeFrom(const Compiler& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // required string path = 1;
+  inline bool has_path() const;
+  inline void clear_path();
+  static const int kPathFieldNumber = 1;
+  inline const ::std::string& path() const;
+  inline void set_path(const ::std::string& value);
+  inline void set_path(const char* value);
+  inline void set_path(const char* value, size_t size);
+  inline ::std::string* mutable_path();
+  inline ::std::string* release_path();
+  inline void set_allocated_path(::std::string* path);
+
+  // optional string version = 2;
+  inline bool has_version() const;
+  inline void clear_version();
+  static const int kVersionFieldNumber = 2;
+  inline const ::std::string& version() const;
+  inline void set_version(const ::std::string& value);
+  inline void set_version(const char* value);
+  inline void set_version(const char* value, size_t size);
+  inline ::std::string* mutable_version();
+  inline ::std::string* release_version();
+  inline void set_allocated_version(::std::string* version);
+
+  // @@protoc_insertion_point(class_scope:dist_clang.proto.Compiler)
+ private:
+  inline void set_has_path();
+  inline void clear_has_path();
+  inline void set_has_version();
+  inline void clear_has_version();
+
+  ::google::protobuf::UnknownFieldSet _unknown_fields_;
+
+  ::std::string* path_;
+  ::std::string* version_;
+
+  mutable int _cached_size_;
+  ::google::protobuf::uint32 _has_bits_[(2 + 31) / 32];
+
+  friend void  protobuf_AddDesc_remote_2eproto();
+  friend void protobuf_AssignDesc_remote_2eproto();
+  friend void protobuf_ShutdownFile_remote_2eproto();
+
+  void InitAsDefaultInstance();
+  static Compiler* default_instance_;
+};
+// -------------------------------------------------------------------
+
 class Flags : public ::google::protobuf::Message {
  public:
   Flags();
@@ -449,17 +552,14 @@ class Flags : public ::google::protobuf::Message {
 
   // accessors -------------------------------------------------------
 
-  // optional string executable = 1;
-  inline bool has_executable() const;
-  inline void clear_executable();
-  static const int kExecutableFieldNumber = 1;
-  inline const ::std::string& executable() const;
-  inline void set_executable(const ::std::string& value);
-  inline void set_executable(const char* value);
-  inline void set_executable(const char* value, size_t size);
-  inline ::std::string* mutable_executable();
-  inline ::std::string* release_executable();
-  inline void set_allocated_executable(::std::string* executable);
+  // required .dist_clang.proto.Compiler compiler = 1;
+  inline bool has_compiler() const;
+  inline void clear_compiler();
+  static const int kCompilerFieldNumber = 1;
+  inline const ::dist_clang::proto::Compiler& compiler() const;
+  inline ::dist_clang::proto::Compiler* mutable_compiler();
+  inline ::dist_clang::proto::Compiler* release_compiler();
+  inline void set_allocated_compiler(::dist_clang::proto::Compiler* compiler);
 
   // optional string output = 2;
   inline bool has_output() const;
@@ -503,8 +603,8 @@ class Flags : public ::google::protobuf::Message {
 
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Flags)
  private:
-  inline void set_has_executable();
-  inline void clear_has_executable();
+  inline void set_has_compiler();
+  inline void clear_has_compiler();
   inline void set_has_output();
   inline void clear_has_output();
   inline void set_has_input();
@@ -512,7 +612,7 @@ class Flags : public ::google::protobuf::Message {
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
-  ::std::string* executable_;
+  ::dist_clang::proto::Compiler* compiler_;
   ::std::string* output_;
   ::std::string* input_;
   ::google::protobuf::RepeatedPtrField< ::std::string> other_;
@@ -604,7 +704,7 @@ class LocalExecute : public ::google::protobuf::Message {
   inline ::dist_clang::proto::Flags* release_cc_flags();
   inline void set_allocated_cc_flags(::dist_clang::proto::Flags* cc_flags);
 
-  // required .dist_clang.proto.Flags pp_flags = 3;
+  // optional .dist_clang.proto.Flags pp_flags = 3;
   inline bool has_pp_flags() const;
   inline void clear_pp_flags();
   static const int kPpFlagsFieldNumber = 3;
@@ -710,26 +810,14 @@ class RemoteExecute : public ::google::protobuf::Message {
   inline ::std::string* release_code();
   inline void set_allocated_code(::std::string* code);
 
-  // required string version = 2;
-  inline bool has_version() const;
-  inline void clear_version();
-  static const int kVersionFieldNumber = 2;
-  inline const ::std::string& version() const;
-  inline void set_version(const ::std::string& value);
-  inline void set_version(const char* value);
-  inline void set_version(const char* value, size_t size);
-  inline ::std::string* mutable_version();
-  inline ::std::string* release_version();
-  inline void set_allocated_version(::std::string* version);
-
-  // required .dist_clang.proto.Flags flags = 3;
-  inline bool has_flags() const;
-  inline void clear_flags();
-  static const int kFlagsFieldNumber = 3;
-  inline const ::dist_clang::proto::Flags& flags() const;
-  inline ::dist_clang::proto::Flags* mutable_flags();
-  inline ::dist_clang::proto::Flags* release_flags();
-  inline void set_allocated_flags(::dist_clang::proto::Flags* flags);
+  // required .dist_clang.proto.Flags cc_flags = 2;
+  inline bool has_cc_flags() const;
+  inline void clear_cc_flags();
+  static const int kCcFlagsFieldNumber = 2;
+  inline const ::dist_clang::proto::Flags& cc_flags() const;
+  inline ::dist_clang::proto::Flags* mutable_cc_flags();
+  inline ::dist_clang::proto::Flags* release_cc_flags();
+  inline void set_allocated_cc_flags(::dist_clang::proto::Flags* cc_flags);
 
   static const int kRemoteFieldNumber = 4;
   static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
@@ -739,19 +827,16 @@ class RemoteExecute : public ::google::protobuf::Message {
  private:
   inline void set_has_code();
   inline void clear_has_code();
-  inline void set_has_version();
-  inline void clear_has_version();
-  inline void set_has_flags();
-  inline void clear_has_flags();
+  inline void set_has_cc_flags();
+  inline void clear_has_cc_flags();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
   ::std::string* code_;
-  ::std::string* version_;
-  ::dist_clang::proto::Flags* flags_;
+  ::dist_clang::proto::Flags* cc_flags_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(3 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(2 + 31) / 32];
 
   friend void  protobuf_AddDesc_remote_2eproto();
   friend void protobuf_AssignDesc_remote_2eproto();
@@ -1145,75 +1230,187 @@ inline void Error::set_allocated_description(::std::string* description) {
 
 // -------------------------------------------------------------------
 
-// Flags
+// Compiler
 
-// optional string executable = 1;
-inline bool Flags::has_executable() const {
+// required string path = 1;
+inline bool Compiler::has_path() const {
   return (_has_bits_[0] & 0x00000001u) != 0;
 }
-inline void Flags::set_has_executable() {
+inline void Compiler::set_has_path() {
   _has_bits_[0] |= 0x00000001u;
 }
-inline void Flags::clear_has_executable() {
+inline void Compiler::clear_has_path() {
   _has_bits_[0] &= ~0x00000001u;
 }
-inline void Flags::clear_executable() {
-  if (executable_ != &::google::protobuf::internal::kEmptyString) {
-    executable_->clear();
+inline void Compiler::clear_path() {
+  if (path_ != &::google::protobuf::internal::kEmptyString) {
+    path_->clear();
   }
-  clear_has_executable();
+  clear_has_path();
 }
-inline const ::std::string& Flags::executable() const {
-  return *executable_;
+inline const ::std::string& Compiler::path() const {
+  return *path_;
 }
-inline void Flags::set_executable(const ::std::string& value) {
-  set_has_executable();
-  if (executable_ == &::google::protobuf::internal::kEmptyString) {
-    executable_ = new ::std::string;
+inline void Compiler::set_path(const ::std::string& value) {
+  set_has_path();
+  if (path_ == &::google::protobuf::internal::kEmptyString) {
+    path_ = new ::std::string;
   }
-  executable_->assign(value);
+  path_->assign(value);
 }
-inline void Flags::set_executable(const char* value) {
-  set_has_executable();
-  if (executable_ == &::google::protobuf::internal::kEmptyString) {
-    executable_ = new ::std::string;
+inline void Compiler::set_path(const char* value) {
+  set_has_path();
+  if (path_ == &::google::protobuf::internal::kEmptyString) {
+    path_ = new ::std::string;
   }
-  executable_->assign(value);
+  path_->assign(value);
 }
-inline void Flags::set_executable(const char* value, size_t size) {
-  set_has_executable();
-  if (executable_ == &::google::protobuf::internal::kEmptyString) {
-    executable_ = new ::std::string;
+inline void Compiler::set_path(const char* value, size_t size) {
+  set_has_path();
+  if (path_ == &::google::protobuf::internal::kEmptyString) {
+    path_ = new ::std::string;
   }
-  executable_->assign(reinterpret_cast<const char*>(value), size);
+  path_->assign(reinterpret_cast<const char*>(value), size);
 }
-inline ::std::string* Flags::mutable_executable() {
-  set_has_executable();
-  if (executable_ == &::google::protobuf::internal::kEmptyString) {
-    executable_ = new ::std::string;
+inline ::std::string* Compiler::mutable_path() {
+  set_has_path();
+  if (path_ == &::google::protobuf::internal::kEmptyString) {
+    path_ = new ::std::string;
   }
-  return executable_;
+  return path_;
 }
-inline ::std::string* Flags::release_executable() {
-  clear_has_executable();
-  if (executable_ == &::google::protobuf::internal::kEmptyString) {
+inline ::std::string* Compiler::release_path() {
+  clear_has_path();
+  if (path_ == &::google::protobuf::internal::kEmptyString) {
     return NULL;
   } else {
-    ::std::string* temp = executable_;
-    executable_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    ::std::string* temp = path_;
+    path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
     return temp;
   }
 }
-inline void Flags::set_allocated_executable(::std::string* executable) {
-  if (executable_ != &::google::protobuf::internal::kEmptyString) {
-    delete executable_;
+inline void Compiler::set_allocated_path(::std::string* path) {
+  if (path_ != &::google::protobuf::internal::kEmptyString) {
+    delete path_;
   }
-  if (executable) {
-    set_has_executable();
-    executable_ = executable;
+  if (path) {
+    set_has_path();
+    path_ = path;
   } else {
-    clear_has_executable();
-    executable_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    clear_has_path();
+    path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
+}
+
+// optional string version = 2;
+inline bool Compiler::has_version() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+inline void Compiler::set_has_version() {
+  _has_bits_[0] |= 0x00000002u;
+}
+inline void Compiler::clear_has_version() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+inline void Compiler::clear_version() {
+  if (version_ != &::google::protobuf::internal::kEmptyString) {
+    version_->clear();
+  }
+  clear_has_version();
+}
+inline const ::std::string& Compiler::version() const {
+  return *version_;
+}
+inline void Compiler::set_version(const ::std::string& value) {
+  set_has_version();
+  if (version_ == &::google::protobuf::internal::kEmptyString) {
+    version_ = new ::std::string;
+  }
+  version_->assign(value);
+}
+inline void Compiler::set_version(const char* value) {
+  set_has_version();
+  if (version_ == &::google::protobuf::internal::kEmptyString) {
+    version_ = new ::std::string;
+  }
+  version_->assign(value);
+}
+inline void Compiler::set_version(const char* value, size_t size) {
+  set_has_version();
+  if (version_ == &::google::protobuf::internal::kEmptyString) {
+    version_ = new ::std::string;
+  }
+  version_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* Compiler::mutable_version() {
+  set_has_version();
+  if (version_ == &::google::protobuf::internal::kEmptyString) {
+    version_ = new ::std::string;
+  }
+  return version_;
+}
+inline ::std::string* Compiler::release_version() {
+  clear_has_version();
+  if (version_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = version_;
+    version_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
+}
+inline void Compiler::set_allocated_version(::std::string* version) {
+  if (version_ != &::google::protobuf::internal::kEmptyString) {
+    delete version_;
+  }
+  if (version) {
+    set_has_version();
+    version_ = version;
+  } else {
+    clear_has_version();
+    version_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
+}
+
+// -------------------------------------------------------------------
+
+// Flags
+
+// required .dist_clang.proto.Compiler compiler = 1;
+inline bool Flags::has_compiler() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+inline void Flags::set_has_compiler() {
+  _has_bits_[0] |= 0x00000001u;
+}
+inline void Flags::clear_has_compiler() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+inline void Flags::clear_compiler() {
+  if (compiler_ != NULL) compiler_->::dist_clang::proto::Compiler::Clear();
+  clear_has_compiler();
+}
+inline const ::dist_clang::proto::Compiler& Flags::compiler() const {
+  return compiler_ != NULL ? *compiler_ : *default_instance_->compiler_;
+}
+inline ::dist_clang::proto::Compiler* Flags::mutable_compiler() {
+  set_has_compiler();
+  if (compiler_ == NULL) compiler_ = new ::dist_clang::proto::Compiler;
+  return compiler_;
+}
+inline ::dist_clang::proto::Compiler* Flags::release_compiler() {
+  clear_has_compiler();
+  ::dist_clang::proto::Compiler* temp = compiler_;
+  compiler_ = NULL;
+  return temp;
+}
+inline void Flags::set_allocated_compiler(::dist_clang::proto::Compiler* compiler) {
+  delete compiler_;
+  compiler_ = compiler;
+  if (compiler) {
+    set_has_compiler();
+  } else {
+    clear_has_compiler();
   }
 }
 
@@ -1513,7 +1710,7 @@ inline void LocalExecute::set_allocated_cc_flags(::dist_clang::proto::Flags* cc_
   }
 }
 
-// required .dist_clang.proto.Flags pp_flags = 3;
+// optional .dist_clang.proto.Flags pp_flags = 3;
 inline bool LocalExecute::has_pp_flags() const {
   return (_has_bits_[0] & 0x00000004u) != 0;
 }
@@ -1625,111 +1822,41 @@ inline void RemoteExecute::set_allocated_code(::std::string* code) {
   }
 }
 
-// required string version = 2;
-inline bool RemoteExecute::has_version() const {
+// required .dist_clang.proto.Flags cc_flags = 2;
+inline bool RemoteExecute::has_cc_flags() const {
   return (_has_bits_[0] & 0x00000002u) != 0;
 }
-inline void RemoteExecute::set_has_version() {
+inline void RemoteExecute::set_has_cc_flags() {
   _has_bits_[0] |= 0x00000002u;
 }
-inline void RemoteExecute::clear_has_version() {
+inline void RemoteExecute::clear_has_cc_flags() {
   _has_bits_[0] &= ~0x00000002u;
 }
-inline void RemoteExecute::clear_version() {
-  if (version_ != &::google::protobuf::internal::kEmptyString) {
-    version_->clear();
-  }
-  clear_has_version();
+inline void RemoteExecute::clear_cc_flags() {
+  if (cc_flags_ != NULL) cc_flags_->::dist_clang::proto::Flags::Clear();
+  clear_has_cc_flags();
 }
-inline const ::std::string& RemoteExecute::version() const {
-  return *version_;
+inline const ::dist_clang::proto::Flags& RemoteExecute::cc_flags() const {
+  return cc_flags_ != NULL ? *cc_flags_ : *default_instance_->cc_flags_;
 }
-inline void RemoteExecute::set_version(const ::std::string& value) {
-  set_has_version();
-  if (version_ == &::google::protobuf::internal::kEmptyString) {
-    version_ = new ::std::string;
-  }
-  version_->assign(value);
+inline ::dist_clang::proto::Flags* RemoteExecute::mutable_cc_flags() {
+  set_has_cc_flags();
+  if (cc_flags_ == NULL) cc_flags_ = new ::dist_clang::proto::Flags;
+  return cc_flags_;
 }
-inline void RemoteExecute::set_version(const char* value) {
-  set_has_version();
-  if (version_ == &::google::protobuf::internal::kEmptyString) {
-    version_ = new ::std::string;
-  }
-  version_->assign(value);
-}
-inline void RemoteExecute::set_version(const char* value, size_t size) {
-  set_has_version();
-  if (version_ == &::google::protobuf::internal::kEmptyString) {
-    version_ = new ::std::string;
-  }
-  version_->assign(reinterpret_cast<const char*>(value), size);
-}
-inline ::std::string* RemoteExecute::mutable_version() {
-  set_has_version();
-  if (version_ == &::google::protobuf::internal::kEmptyString) {
-    version_ = new ::std::string;
-  }
-  return version_;
-}
-inline ::std::string* RemoteExecute::release_version() {
-  clear_has_version();
-  if (version_ == &::google::protobuf::internal::kEmptyString) {
-    return NULL;
-  } else {
-    ::std::string* temp = version_;
-    version_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-    return temp;
-  }
-}
-inline void RemoteExecute::set_allocated_version(::std::string* version) {
-  if (version_ != &::google::protobuf::internal::kEmptyString) {
-    delete version_;
-  }
-  if (version) {
-    set_has_version();
-    version_ = version;
-  } else {
-    clear_has_version();
-    version_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-  }
-}
-
-// required .dist_clang.proto.Flags flags = 3;
-inline bool RemoteExecute::has_flags() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
-}
-inline void RemoteExecute::set_has_flags() {
-  _has_bits_[0] |= 0x00000004u;
-}
-inline void RemoteExecute::clear_has_flags() {
-  _has_bits_[0] &= ~0x00000004u;
-}
-inline void RemoteExecute::clear_flags() {
-  if (flags_ != NULL) flags_->::dist_clang::proto::Flags::Clear();
-  clear_has_flags();
-}
-inline const ::dist_clang::proto::Flags& RemoteExecute::flags() const {
-  return flags_ != NULL ? *flags_ : *default_instance_->flags_;
-}
-inline ::dist_clang::proto::Flags* RemoteExecute::mutable_flags() {
-  set_has_flags();
-  if (flags_ == NULL) flags_ = new ::dist_clang::proto::Flags;
-  return flags_;
-}
-inline ::dist_clang::proto::Flags* RemoteExecute::release_flags() {
-  clear_has_flags();
-  ::dist_clang::proto::Flags* temp = flags_;
-  flags_ = NULL;
+inline ::dist_clang::proto::Flags* RemoteExecute::release_cc_flags() {
+  clear_has_cc_flags();
+  ::dist_clang::proto::Flags* temp = cc_flags_;
+  cc_flags_ = NULL;
   return temp;
 }
-inline void RemoteExecute::set_allocated_flags(::dist_clang::proto::Flags* flags) {
-  delete flags_;
-  flags_ = flags;
-  if (flags) {
-    set_has_flags();
+inline void RemoteExecute::set_allocated_cc_flags(::dist_clang::proto::Flags* cc_flags) {
+  delete cc_flags_;
+  cc_flags_ = cc_flags;
+  if (cc_flags) {
+    set_has_cc_flags();
   } else {
-    clear_has_flags();
+    clear_has_cc_flags();
   }
 }
 

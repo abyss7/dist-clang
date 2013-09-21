@@ -35,8 +35,8 @@ class Connection: public std::enable_shared_from_this<Connection> {
 
     bool ReadAsync(ReadCallback callback, Error* error = nullptr);
     bool SendAsync(const CustomMessage& message,
-                   Error* error = nullptr,
-                   SendCallback callback = Idle());
+                   SendCallback callback = Idle(),
+                   Error* error = nullptr);
     static SendCallback Idle();
 
     bool ReadSync(Message* message, Error* error = nullptr);

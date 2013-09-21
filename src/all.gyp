@@ -8,6 +8,7 @@
       'target_name': 'unit_tests',
       'type': 'executable',
       'dependencies': [
+        'base/base.gyp:base',
         'net/net.gyp:net',
       ],
       'ldflags': [
@@ -15,6 +16,7 @@
         '-lprotobuf',
       ],
       'sources': [
+        'base/process_test.cc',
         'net/connection_test.cc',
         'test/run_all_tests.cc',
       ],

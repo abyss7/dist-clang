@@ -38,13 +38,25 @@ int ExecuteLocally(char* argv[]) {
   return 0;
 }
 
+// The clang output has following format:
+//
+// clang version 3.4 (...)
+// Target: x86_64-unknown-linux-gnu
+// Thread model: posix
+//  "/path/to/clang" "-cc1" "-triple" ...
+//
+// Pay attention to the leading space in the fourth line.
 bool ParseClangOutput(const string& output,
+                      string* version,
                       ClangFlagSet::string_list& args) {
   ClangFlagSet::string_list lines;
   base::SplitString<'\n'>(output, lines);
   if (lines.size() != 4)
     // FIXME: we don't support composite tasks yet.
     return false;
+
+  if (version)
+    version->assign(lines.front());
 
   args.clear();
   base::SplitString<' '>(lines.back(), args);
@@ -66,35 +78,29 @@ bool DoMain(int argc, char* argv[]) {
 
   proto::LocalExecute message;
   ClangFlagSet::string_list args;
+  string* version;
 
   string current_dir = base::GetCurrentDir();
   if (current_dir.empty())
     return true;
   message.set_current_dir(current_dir);
 
-  // The clang output has following format:
-  //
-  // clang version 3.4 (http://llvm.org/git/clang.git <commit-hash1>) (http://llvm.org/git/llvm.git <commit-hash2>)
-  // Target: x86_64-unknown-linux-gnu
-  // Thread model: posix
-  //  "/home/ilezhankin/llvm/bin/clang" "-cc1" "-triple" ...
-  //
-  // Pay attention to the leading space in the fourth line.
-
+  version = message.mutable_cc_flags()->mutable_compiler()->mutable_version();
   base::Process cc_process(base::GetEnv(kEnvClangdCxx));
   cc_process.AppendArg("-###").AppendArg(argv + 1, argv + argc);
   if (!cc_process.Run(10, nullptr) ||
-      !ParseClangOutput(cc_process.stderr(), args) ||
-      ClangFlagSet::ProcessFlags(args, message.mutable_cc_flags()) !=
-          ClangFlagSet::COMPILE)
+      !ParseClangOutput(cc_process.stderr(), version, args) ||
+      ClangFlagSet::ProcessFlags(args, message.mutable_cc_flags())
+          != ClangFlagSet::COMPILE)
     return true;
 
+  version = message.mutable_pp_flags()->mutable_compiler()->mutable_version();
   base::Process pp_process(base::GetEnv(kEnvClangdCxx));
   pp_process.AppendArg("-###").AppendArg("-E").AppendArg(argv + 1, argv + argc);
   if (!pp_process.Run(10, nullptr) ||
-      !ParseClangOutput(pp_process.stderr(), args) ||
-      ClangFlagSet::ProcessFlags(args, message.mutable_pp_flags()) !=
-          ClangFlagSet::PREPROCESS)
+      !ParseClangOutput(pp_process.stderr(), version, args) ||
+      ClangFlagSet::ProcessFlags(args, message.mutable_pp_flags())
+          != ClangFlagSet::PREPROCESS)
     return true;
 
   if (!connection->SendSync(message))

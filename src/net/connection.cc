@@ -37,8 +37,8 @@ bool Connection::ReadAsync(ReadCallback callback, Error* error) {
   return true;
 }
 
-bool Connection::SendAsync(const CustomMessage &message, Error* error,
-                           SendCallback callback) {
+bool Connection::SendAsync(const CustomMessage &message, SendCallback callback,
+                           Error* error) {
   State old_state = IDLE;
   if (!state_.compare_exchange_strong(old_state, WAITING_SEND)) {
     if (error) {
