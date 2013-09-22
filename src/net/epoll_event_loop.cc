@@ -112,11 +112,14 @@ void EpollEventLoop::DoIncomingWork(const volatile bool& is_shutting_down) {
           reinterpret_cast<Connection*>(events[i].data.ptr)->shared_from_this();
 
       if (events[i].events & EPOLLHUP) {
+        connection->Close();
         std::unique_lock<std::mutex> lock(connections_mutex_);
         connections_.erase(connection);
       }
-      else if (events[i].events & EPOLLIN)
-        ConnectionCanRead(connection);
+      else if (events[i].events & EPOLLIN) {
+        if (!connection->IsClosed())
+          ConnectionCanRead(connection);
+      }
     }
   }
 }
@@ -136,11 +139,14 @@ void EpollEventLoop::DoOutgoingWork(const volatile bool &is_shutting_down) {
           reinterpret_cast<Connection*>(events[i].data.ptr)->shared_from_this();
 
       if (events[i].events & EPOLLHUP) {
+        connection->Close();
         std::unique_lock<std::mutex> lock(connections_mutex_);
         connections_.erase(connection);
       }
-      else if (events[i].events & EPOLLOUT)
-        ConnectionCanSend(connection);
+      else if (events[i].events & EPOLLOUT) {
+        if (!connection->IsClosed())
+          ConnectionCanSend(connection);
+      }
     }
   }
 }

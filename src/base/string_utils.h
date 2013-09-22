@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iomanip>
 #include <list>
 #include <sstream>
 #include <string>
@@ -38,6 +39,29 @@ inline void SplitString(const std::string &input, const std::string& delimiter,
     prev = i + sizeof(delimiter);
     i = input.find(delimiter, prev);
   }
+}
+
+template<char delimiter, class T>
+inline std::string JoinString(const T& begin, const T& end) {
+  std::string output;
+
+  for (auto it = begin; it != end; ++it) {
+    if (it != begin)
+      output += delimiter;
+    output += *it;
+  }
+
+  return output;
+}
+
+inline std::string Hexify(const std::string& binary) {
+  std::stringstream ss;
+  ss << std::hex << std::setfill('0');
+  for (size_t i = 0, s = binary.size(); i < s; ++i) {
+    ss << std::setw(2)
+       << static_cast<unsigned>(static_cast<unsigned char>(binary[i]));
+  }
+  return ss.str();
 }
 
 }  // namespace base

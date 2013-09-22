@@ -9,6 +9,7 @@
       'type': 'executable',
       'dependencies': [
         '../base/base.gyp:base',
+        '../base/base.gyp:hash',
         '../net/net.gyp:net',
         '../proto/proto.gyp:proto',
         '../tclap/tclap.gyp:tclap',
@@ -21,6 +22,8 @@
         'configuration.h',
         'daemon.cc',
         'daemon.h',
+        'file_cache.cc',
+        'file_cache.h',
         'thread_pool.cc',
         'thread_pool.h',
       ],

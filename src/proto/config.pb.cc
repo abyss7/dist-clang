@@ -35,9 +35,10 @@ void protobuf_AssignDesc_config_2eproto() {
       "config.proto");
   GOOGLE_CHECK(file != NULL);
   Configuration_descriptor_ = file->message_type(0);
-  static const int Configuration_offsets_[2] = {
+  static const int Configuration_offsets_[3] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, socket_path_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, pool_capacity_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, cache_path_),
   };
   Configuration_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
@@ -80,9 +81,9 @@ void protobuf_AddDesc_config_2eproto() {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-    "\n\014config.proto\022\020dist_clang.proto\"@\n\rConf"
-    "iguration\022\023\n\013socket_path\030\001 \002(\t\022\032\n\rpool_c"
-    "apacity\030\002 \001(\r:\003128", 98);
+    "\n\014config.proto\022\020dist_clang.proto\"S\n\rConf"
+    "iguration\022\023\n\013socket_path\030\001 \002(\t\022\031\n\rpool_c"
+    "apacity\030\002 \001(\r:\00216\022\022\n\ncache_path\030\003 \001(\t", 117);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "config.proto", &protobuf_RegisterTypes);
   Configuration::default_instance_ = new Configuration();
@@ -102,6 +103,7 @@ struct StaticDescriptorInitializer_config_2eproto {
 #ifndef _MSC_VER
 const int Configuration::kSocketPathFieldNumber;
 const int Configuration::kPoolCapacityFieldNumber;
+const int Configuration::kCachePathFieldNumber;
 #endif  // !_MSC_VER
 
 Configuration::Configuration()
@@ -121,7 +123,8 @@ Configuration::Configuration(const Configuration& from)
 void Configuration::SharedCtor() {
   _cached_size_ = 0;
   socket_path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-  pool_capacity_ = 128u;
+  pool_capacity_ = 16u;
+  cache_path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -132,6 +135,9 @@ Configuration::~Configuration() {
 void Configuration::SharedDtor() {
   if (socket_path_ != &::google::protobuf::internal::kEmptyString) {
     delete socket_path_;
+  }
+  if (cache_path_ != &::google::protobuf::internal::kEmptyString) {
+    delete cache_path_;
   }
   if (this != default_instance_) {
   }
@@ -165,7 +171,12 @@ void Configuration::Clear() {
         socket_path_->clear();
       }
     }
-    pool_capacity_ = 128u;
+    pool_capacity_ = 16u;
+    if (has_cache_path()) {
+      if (cache_path_ != &::google::protobuf::internal::kEmptyString) {
+        cache_path_->clear();
+      }
+    }
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   mutable_unknown_fields()->Clear();
@@ -193,7 +204,7 @@ bool Configuration::MergePartialFromCodedStream(
         break;
       }
 
-      // optional uint32 pool_capacity = 2 [default = 128];
+      // optional uint32 pool_capacity = 2 [default = 16];
       case 2: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
@@ -202,6 +213,23 @@ bool Configuration::MergePartialFromCodedStream(
                    ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
                  input, &pool_capacity_)));
           set_has_pool_capacity();
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(26)) goto parse_cache_path;
+        break;
+      }
+
+      // optional string cache_path = 3;
+      case 3: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
+         parse_cache_path:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->mutable_cache_path()));
+          ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+            this->cache_path().data(), this->cache_path().length(),
+            ::google::protobuf::internal::WireFormat::PARSE);
         } else {
           goto handle_uninterpreted;
         }
@@ -236,9 +264,18 @@ void Configuration::SerializeWithCachedSizes(
       1, this->socket_path(), output);
   }
 
-  // optional uint32 pool_capacity = 2 [default = 128];
+  // optional uint32 pool_capacity = 2 [default = 16];
   if (has_pool_capacity()) {
     ::google::protobuf::internal::WireFormatLite::WriteUInt32(2, this->pool_capacity(), output);
+  }
+
+  // optional string cache_path = 3;
+  if (has_cache_path()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->cache_path().data(), this->cache_path().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    ::google::protobuf::internal::WireFormatLite::WriteString(
+      3, this->cache_path(), output);
   }
 
   if (!unknown_fields().empty()) {
@@ -259,9 +296,19 @@ void Configuration::SerializeWithCachedSizes(
         1, this->socket_path(), target);
   }
 
-  // optional uint32 pool_capacity = 2 [default = 128];
+  // optional uint32 pool_capacity = 2 [default = 16];
   if (has_pool_capacity()) {
     target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(2, this->pool_capacity(), target);
+  }
+
+  // optional string cache_path = 3;
+  if (has_cache_path()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->cache_path().data(), this->cache_path().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    target =
+      ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
+        3, this->cache_path(), target);
   }
 
   if (!unknown_fields().empty()) {
@@ -282,11 +329,18 @@ int Configuration::ByteSize() const {
           this->socket_path());
     }
 
-    // optional uint32 pool_capacity = 2 [default = 128];
+    // optional uint32 pool_capacity = 2 [default = 16];
     if (has_pool_capacity()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::UInt32Size(
           this->pool_capacity());
+    }
+
+    // optional string cache_path = 3;
+    if (has_cache_path()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->cache_path());
     }
 
   }
@@ -322,6 +376,9 @@ void Configuration::MergeFrom(const Configuration& from) {
     if (from.has_pool_capacity()) {
       set_pool_capacity(from.pool_capacity());
     }
+    if (from.has_cache_path()) {
+      set_cache_path(from.cache_path());
+    }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
@@ -348,6 +405,7 @@ void Configuration::Swap(Configuration* other) {
   if (other != this) {
     std::swap(socket_path_, other->socket_path_);
     std::swap(pool_capacity_, other->pool_capacity_);
+    std::swap(cache_path_, other->cache_path_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);

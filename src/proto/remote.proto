@@ -34,14 +34,14 @@ message Error {
 
 message Compiler {
   required string path        = 1;
-  optional string version     = 2;
+  optional string version     = 2;  // a version is used in a cache.
 }
 
 message Flags {
   required Compiler compiler  = 1;  // original compiler executable.
   optional string output      = 2;  // "-o" flag and it's param.
   optional string input       = 3;  // relative path in the last argument.
-  repeated string other       = 4;
+  repeated string other       = 4;  // these flags form hash for a cache.
 }
 
 message LocalExecute {

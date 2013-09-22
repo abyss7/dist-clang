@@ -26,7 +26,8 @@ void ThreadPool::Run() {
 bool ThreadPool::Push(const Closure& task) {
   {
     std::lock_guard<std::mutex> lock(tasks_mutex_);
-    if (public_tasks_.size() >= capacity_ || is_shutting_down_)
+    if ((public_tasks_.size() >= capacity_ && capacity_ != UNLIMITED) ||
+        is_shutting_down_)
       return false;
     public_tasks_.push(task);
   }

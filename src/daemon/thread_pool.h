@@ -14,9 +14,10 @@ namespace daemon {
 class ThreadPool {
   public:
     typedef std::function<void(void)> Closure;
+    enum { UNLIMITED = 0 };
 
     explicit ThreadPool(
-        size_t capacity,
+        size_t capacity = UNLIMITED,
         size_t concurrency = std::thread::hardware_concurrency());
     ~ThreadPool();
 

@@ -104,12 +104,24 @@ class Configuration : public ::google::protobuf::Message {
   inline ::std::string* release_socket_path();
   inline void set_allocated_socket_path(::std::string* socket_path);
 
-  // optional uint32 pool_capacity = 2 [default = 128];
+  // optional uint32 pool_capacity = 2 [default = 16];
   inline bool has_pool_capacity() const;
   inline void clear_pool_capacity();
   static const int kPoolCapacityFieldNumber = 2;
   inline ::google::protobuf::uint32 pool_capacity() const;
   inline void set_pool_capacity(::google::protobuf::uint32 value);
+
+  // optional string cache_path = 3;
+  inline bool has_cache_path() const;
+  inline void clear_cache_path();
+  static const int kCachePathFieldNumber = 3;
+  inline const ::std::string& cache_path() const;
+  inline void set_cache_path(const ::std::string& value);
+  inline void set_cache_path(const char* value);
+  inline void set_cache_path(const char* value, size_t size);
+  inline ::std::string* mutable_cache_path();
+  inline ::std::string* release_cache_path();
+  inline void set_allocated_cache_path(::std::string* cache_path);
 
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Configuration)
  private:
@@ -117,14 +129,17 @@ class Configuration : public ::google::protobuf::Message {
   inline void clear_has_socket_path();
   inline void set_has_pool_capacity();
   inline void clear_has_pool_capacity();
+  inline void set_has_cache_path();
+  inline void clear_has_cache_path();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
   ::std::string* socket_path_;
+  ::std::string* cache_path_;
   ::google::protobuf::uint32 pool_capacity_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(2 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(3 + 31) / 32];
 
   friend void  protobuf_AddDesc_config_2eproto();
   friend void protobuf_AssignDesc_config_2eproto();
@@ -210,7 +225,7 @@ inline void Configuration::set_allocated_socket_path(::std::string* socket_path)
   }
 }
 
-// optional uint32 pool_capacity = 2 [default = 128];
+// optional uint32 pool_capacity = 2 [default = 16];
 inline bool Configuration::has_pool_capacity() const {
   return (_has_bits_[0] & 0x00000002u) != 0;
 }
@@ -221,7 +236,7 @@ inline void Configuration::clear_has_pool_capacity() {
   _has_bits_[0] &= ~0x00000002u;
 }
 inline void Configuration::clear_pool_capacity() {
-  pool_capacity_ = 128u;
+  pool_capacity_ = 16u;
   clear_has_pool_capacity();
 }
 inline ::google::protobuf::uint32 Configuration::pool_capacity() const {
@@ -230,6 +245,76 @@ inline ::google::protobuf::uint32 Configuration::pool_capacity() const {
 inline void Configuration::set_pool_capacity(::google::protobuf::uint32 value) {
   set_has_pool_capacity();
   pool_capacity_ = value;
+}
+
+// optional string cache_path = 3;
+inline bool Configuration::has_cache_path() const {
+  return (_has_bits_[0] & 0x00000004u) != 0;
+}
+inline void Configuration::set_has_cache_path() {
+  _has_bits_[0] |= 0x00000004u;
+}
+inline void Configuration::clear_has_cache_path() {
+  _has_bits_[0] &= ~0x00000004u;
+}
+inline void Configuration::clear_cache_path() {
+  if (cache_path_ != &::google::protobuf::internal::kEmptyString) {
+    cache_path_->clear();
+  }
+  clear_has_cache_path();
+}
+inline const ::std::string& Configuration::cache_path() const {
+  return *cache_path_;
+}
+inline void Configuration::set_cache_path(const ::std::string& value) {
+  set_has_cache_path();
+  if (cache_path_ == &::google::protobuf::internal::kEmptyString) {
+    cache_path_ = new ::std::string;
+  }
+  cache_path_->assign(value);
+}
+inline void Configuration::set_cache_path(const char* value) {
+  set_has_cache_path();
+  if (cache_path_ == &::google::protobuf::internal::kEmptyString) {
+    cache_path_ = new ::std::string;
+  }
+  cache_path_->assign(value);
+}
+inline void Configuration::set_cache_path(const char* value, size_t size) {
+  set_has_cache_path();
+  if (cache_path_ == &::google::protobuf::internal::kEmptyString) {
+    cache_path_ = new ::std::string;
+  }
+  cache_path_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* Configuration::mutable_cache_path() {
+  set_has_cache_path();
+  if (cache_path_ == &::google::protobuf::internal::kEmptyString) {
+    cache_path_ = new ::std::string;
+  }
+  return cache_path_;
+}
+inline ::std::string* Configuration::release_cache_path() {
+  clear_has_cache_path();
+  if (cache_path_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = cache_path_;
+    cache_path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
+}
+inline void Configuration::set_allocated_cache_path(::std::string* cache_path) {
+  if (cache_path_ != &::google::protobuf::internal::kEmptyString) {
+    delete cache_path_;
+  }
+  if (cache_path) {
+    set_has_cache_path();
+    cache_path_ = cache_path;
+  } else {
+    clear_has_cache_path();
+    cache_path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
 }
 
 

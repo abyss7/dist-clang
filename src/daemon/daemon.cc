@@ -1,6 +1,8 @@
 #include "daemon/daemon.h"
 
+#include "base/file_utils.h"
 #include "base/process.h"
+#include "base/string_utils.h"
 #include "daemon/configuration.h"
 #include "net/connection.h"
 #include "net/network_service.h"
@@ -24,8 +26,14 @@ bool Daemon::Initialize(const Configuration &configuration,
     return false;
   }
 
-  balancer_.reset(new Balancer(network_service));
+
   pool_.reset(new ThreadPool(config.pool_capacity()));
+  balancer_.reset(new Balancer(network_service));
+  if (config.has_cache_path()) {
+    cache_.reset(new FileCache(config.cache_path()));
+    std::cout << "Using cache on " << config.cache_path() << std::endl;
+  }
+
   pool_->Run();
 
   if (!network_service.Listen(config.socket_path(),
@@ -69,7 +77,7 @@ void Daemon::DoLocalExecution(net::ConnectionPtr connection,
   if (!execute.has_pp_flags()) {
     // Without preprocessing flags we can't neither check the cache, nor do
     // a remote compilation, nor put the result back in cache.
-    DoLocalCompilation(connection, execute, false);
+    DoLocalCompilation(connection, execute);
     return;
   }
 
@@ -82,21 +90,38 @@ void Daemon::DoLocalExecution(net::ConnectionPtr connection,
   if (!process.Run(10, nullptr)) {
     // It usually means, that there is an error in the source code.
     // We should skip a cache check and head to local compilation.
-    DoLocalCompilation(connection, execute, true);
+    DoLocalCompilation(connection, execute);
     return;
   }
 
-  // TODO: check the cache.
+  if (!execute.cc_flags().compiler().has_version()) {
+    // We can't do a remote compilation or a cache lookup, if don't know
+    // the compiler version.
+    DoLocalCompilation(connection, execute);
+    return;
+  }
 
-  if (!pool_->InternalCount() || !execute.cc_flags().compiler().has_version()) {
-    // We can't do a remote compilation, if don't know the compiler version.
-    DoLocalCompilation(connection, execute, true);
+  FileCache::Entry cache_entry;
+  if(DoCacheLookup(process.stdout(), execute.cc_flags(), &cache_entry)) {
+    string output_path =
+        execute.current_dir() + "/" + execute.cc_flags().output();
+    if (base::CopyFile(cache_entry.first, output_path, true)) {
+      Error error;
+      error.set_code(Error::OK);
+      error.set_description(cache_entry.second);
+      connection->SendAsync(error);
+      return;
+    }
+  }
+
+  if (!pool_->InternalCount()) {
+    DoLocalCompilation(connection, execute, process.stdout());
     return;
   }
 
   auto remote_connection = balancer_->Decide();
   if (!remote_connection) {
-    DoLocalCompilation(connection, execute, true);
+    DoLocalCompilation(connection, execute, process.stdout());
     return;
   }
 
@@ -108,7 +133,7 @@ void Daemon::DoLocalExecution(net::ConnectionPtr connection,
 }
 
 void Daemon::DoLocalCompilation(net::ConnectionPtr connection,
-                                const Local &execute, bool update_cache) {
+                                const Local &execute, const string& pp_code) {
   Error error;
   const proto::Flags& flags = execute.cc_flags();
 
@@ -122,9 +147,8 @@ void Daemon::DoLocalCompilation(net::ConnectionPtr connection,
     error.set_description(process.stderr());
   } else {
     error.set_code(Error::OK);
-    if (update_cache) {
-      // TODO: update cache async.
-    }
+    error.set_description(process.stderr());
+    DoUpdateCache(pp_code, execute, error);
   }
 
   connection->SendAsync(error);
@@ -134,6 +158,33 @@ bool Daemon::DoRemoteCompilation(net::ConnectionPtr connection,
                                  const Error &error) {
   // TODO: implement this.
   return false;
+}
+
+bool Daemon::DoCacheLookup(const string &pp_code, const proto::Flags &flags,
+                           FileCache::Entry* entry) {
+  if (!cache_)
+    return false;
+
+  assert(flags.compiler().has_version());
+  string command_line = base::JoinString<' '>(flags.other().begin(),
+                                              flags.other().end());
+  return cache_->Find(pp_code, command_line, flags.compiler().version(), entry);
+}
+
+void Daemon::DoUpdateCache(const string& pp_code, const Local& execute,
+                           const Error& error) {
+  if (!cache_ || pp_code.empty() ||
+      !execute.cc_flags().compiler().has_version())
+    return;
+  assert(error.code() == Error::OK);
+
+  const proto::Flags& flags = execute.cc_flags();
+  FileCache::Entry entry;
+  entry.first = execute.current_dir() + "/" + flags.output();
+  entry.second = error.description();
+  string command_line = base::JoinString<' '>(flags.other().begin(),
+                                              flags.other().end());
+  cache_->Store(pp_code, command_line, flags.compiler().version(), entry);
 }
 
 }  // namespace daemon

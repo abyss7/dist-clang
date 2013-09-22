@@ -1,6 +1,7 @@
 #pragma once
 
 #include "daemon/balancer.h"
+#include "daemon/file_cache.h"
 #include "daemon/thread_pool.h"
 #include "net/connection_forward.h"
 
@@ -13,6 +14,7 @@ class Connection;
 
 namespace proto {
 class Error;
+class Flags;
 class LocalExecute;
 class RemoteExecute;
 class Universal;
@@ -38,11 +40,16 @@ class Daemon {
                           const Error& error);
     void DoLocalExecution(net::ConnectionPtr connection, const Local &execute);
     void DoLocalCompilation(net::ConnectionPtr connection, const Local& execute,
-                            bool update_cache);
+                            const std::string &pp_code = std::string());
     bool DoRemoteCompilation(net::ConnectionPtr connection, const Error& error);
+    bool DoCacheLookup(const std::string& pp_code, const proto::Flags& cc_flags,
+                       FileCache::Entry* entry);
+    void DoUpdateCache(const std::string& pp_code, const Local &execute,
+                       const Error& error);
 
     std::unique_ptr<ThreadPool> pool_;
     std::unique_ptr<Balancer> balancer_;
+    std::unique_ptr<FileCache> cache_;
 };
 
 }  // namespace daemon
