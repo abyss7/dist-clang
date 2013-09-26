@@ -2,11 +2,11 @@
 
 #include "base/attributes.h"
 #include "daemon/command.h"
-#include "daemon/file_cache.h"
+#include "daemon/file_cache.h"       // for |FileCache::Entry|
 #include "net/connection_forward.h"
-#include "proto/remote.pb.h"
+#include "proto/remote.pb.h"         // for |message_|
 
-#include <string>
+#include <string>                    // for |pp_source_|
 
 namespace dist_clang {
 namespace daemon {
@@ -16,37 +16,34 @@ class Balancer;
 namespace command {
 
 class LocalExecution: public Command {
-    using Error = proto::Error;
-    using Local = proto::LocalExecute;
-    using Message = proto::Universal;
-    using Remote = proto::RemoteExecute;
-    using Result = proto::RemoteResult;
-    using This = LocalExecution;
   public:
-    static CommandPtr Create(net::ConnectionPtr connection,
-                             const Local& message,
-                             Balancer* balancer,
-                             FileCache* cache);
+    static CommandPtr Create(
+        net::ConnectionPtr connection,
+        const proto::LocalExecute& message,
+        Balancer* balancer,
+        FileCache* cache);
     virtual void Run() override;
 
   private:
-    LocalExecution(net::ConnectionPtr connection,
-                   const Local& message,
-                   Balancer* balancer,
-                   FileCache* cache);
+    LocalExecution(
+        net::ConnectionPtr connection,
+        const proto::LocalExecute& message,
+        Balancer* balancer,
+        FileCache* cache);
 
-    void DoLocalCompilation();
     bool DoRemoteCompilation(
         net::ConnectionPtr connection,
-        const Error& error);
+        const proto::Error& error);
     bool DoneRemoteCompilation(
         net::ConnectionPtr connection,
-        const Message& message,
-        const Error& error);
+        const proto::Universal& message,
+        const proto::Error& error);
+
+    void DoLocalCompilation();
     bool SearchCache(
         FileCache::Entry* entry);
     void UpdateCache(
-        const Error& error);
+        const proto::Error& error);
 
     net::ConnectionPtr connection_;
     proto::LocalExecute message_;

@@ -23,12 +23,10 @@ namespace daemon {
 class Configuration;
 
 class Daemon {
-    using Error = proto::Error;
-    using Message = proto::Universal;
-
   public:
-    bool Initialize(const Configuration& configuration,
-                    net::NetworkService& network_service);
+    bool Initialize(
+        const Configuration& configuration,
+        net::NetworkService& network_service);
 
   private:
     // Invoked on a new connection.
@@ -38,8 +36,8 @@ class Daemon {
     // Invoked on a first message from a new connection.
     bool HandleNewMessage(
         net::ConnectionPtr connection,
-        const Message& message,
-        const Error& error);
+        const proto::Universal& message,
+        const proto::Error& error);
 
     std::unique_ptr<ThreadPool> pool_;
     std::unique_ptr<Balancer> balancer_;
