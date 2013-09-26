@@ -1,7 +1,18 @@
+import "base.proto";
+
 package dist_clang.proto;
+
+message Host {
+  required string host          = 1;
+  optional uint32 port          = 2 [default=6000];
+  optional uint32 threads       = 3 [default=2];
+}
 
 message Configuration {
   required string socket_path   = 1;
   optional uint32 pool_capacity = 2 [default=16];
   optional string cache_path    = 3;
+  repeated Host remotes         = 4;
+  optional Host local           = 5;
+  repeated Compiler versions    = 6;
 }

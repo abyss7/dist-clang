@@ -21,7 +21,9 @@ class Process {
     // |sec_timeout| specifies timeout in seconds - how long should we wait for
     // another portion of output from child process, and how long to wait
     // between SIG_KILL and SIG_TERM signals sent to process on error.
-    bool Run(unsigned short sec_timeout, std::string* error);
+    bool Run(unsigned short sec_timeout, std::string* error = nullptr);
+    bool Run(unsigned short sec_timeout, const std::string& input,
+             std::string* error = nullptr);
 
     const std::string& stdout() const;
     const std::string& stderr() const;

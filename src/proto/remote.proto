@@ -1,3 +1,5 @@
+import "base.proto";
+
 package dist_clang.proto;
 
 message Universal {
@@ -17,11 +19,13 @@ message Test {
 message Error {
   enum Code {
     OK = 0;
-    INCONSEQUENT = 1;  // Call to read/send method of |Connection| is inconsequent.
-    NETWORK = 2;       // Failed to read/send something from network connection.
-    BAD_MESSAGE = 3;   // Incoming/outgoing message is malformed.
-    EMPTY_MESSAGE = 4; // Provided |message| pointer for |Read()| is null.
-    EXECUTION = 5;     // Execution failed.
+    INCONSEQUENT  = 1;  // Call to read/send method of |Connection| is inconsequent.
+    NETWORK       = 2;  // Failed to read/send something from network connection.
+    BAD_MESSAGE   = 3;  // Incoming/outgoing message is malformed.
+    EMPTY_MESSAGE = 4;  // Provided |message| pointer for |Read()| is null.
+    EXECUTION     = 5;  // Execution failed.
+    OVERLOAD      = 6;  // Pool's queue is full.
+    NO_VERSION    = 7;  // Compiler of a requested version is missing.
   }
 
   required Code code = 1 [default=OK];
@@ -30,11 +34,6 @@ message Error {
   extend Universal {
     optional Error error = 2;
   }
-}
-
-message Compiler {
-  required string path        = 1;
-  optional string version     = 2;  // a version is used in a cache.
 }
 
 message Flags {
@@ -55,7 +54,7 @@ message LocalExecute {
 }
 
 message RemoteExecute {
-  required string code        = 1;
+  required string pp_source   = 1;
   required Flags cc_flags     = 2;
 
   extend Universal {

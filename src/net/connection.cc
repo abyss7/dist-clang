@@ -81,6 +81,13 @@ bool Connection::SendAsync(const CustomMessage &message, SendCallback callback,
 }
 
 // static
+Connection::SendCallback Connection::CloseAfterSend() {
+  using namespace std::placeholders;
+  auto callback = [](ConnectionPtr, const Error&) -> bool { return false; };
+  return std::bind(callback, _1, _2);
+}
+
+// static
 Connection::SendCallback Connection::Idle() {
   using namespace std::placeholders;
   auto callback = [](ConnectionPtr, const Error&) -> bool { return true; };
@@ -236,6 +243,7 @@ bool Connection::SendSync(const CustomMessage &message, Error *error) {
 }
 
 void Connection::CanRead() {
+  Error error;
   assert(state_.load() == WAITING_READ || state_.load() == READING);
 
   if (state_.load() == WAITING_READ) {
@@ -245,11 +253,10 @@ void Connection::CanRead() {
     coded_input_stream_.reset(new CodedInputStream(&file_input_stream_));
 
     if (!coded_input_stream_->ReadVarint32(&message_size)) {
-      Close();
-      Error error;
       error.set_code(Error::NETWORK);
       error.set_description("Can't read incoming message size");
-      read_callback_(ConnectionPtr(), input_message_, error);
+      if (!read_callback_(shared_from_this(), input_message_, error))
+        Close();
       return;
     }
     input_limit_ = coded_input_stream_->PushLimit(message_size);
@@ -261,38 +268,37 @@ void Connection::CanRead() {
     event_loop_.ReadyForRead(shared_from_this());
   else if (!input_message_.IsInitialized() ||
            !coded_input_stream_->ConsumedEntireMessage()) {
-    Close();
-    Error error;
     error.set_code(Error::BAD_MESSAGE);
     error.set_description("Incoming message is malformed");
-    read_callback_(ConnectionPtr(), input_message_, error);
+    if (!read_callback_(shared_from_this(), input_message_, error))
+      Close();
     return;
   }
   coded_input_stream_->PopLimit(input_limit_);
   coded_input_stream_.reset();
   state_.store(IDLE);
-  if (!read_callback_(shared_from_this(), input_message_, Error()))
+  if (!read_callback_(shared_from_this(), input_message_, error))
     Close();
 }
 
 void Connection::CanSend() {
+  Error error;
   assert(state_.load() == WAITING_SEND);
 
   coded_output_stream_.reset(new CodedOutputStream(&file_output_stream_));
 
   coded_output_stream_->WriteVarint32(output_message_.ByteSize());
   if (!output_message_.SerializeToCodedStream(coded_output_stream_.get())) {
-    Close();
-    Error error;
     error.set_code(Error::NETWORK);
     error.set_description("Can't send whole message at once");
-    send_callback_(ConnectionPtr(), error);
+    if (!send_callback_(shared_from_this(), error))
+      Close();
     return;
   }
   coded_output_stream_.reset();
   file_output_stream_.Flush();
   state_.store(IDLE);
-  if (!send_callback_(shared_from_this(), Error()))
+  if (!send_callback_(shared_from_this(), error))
     Close();
 }
 

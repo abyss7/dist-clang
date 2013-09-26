@@ -12,6 +12,9 @@
         ],
       },
       'sources': [
+        'base.pb.cc',
+        'base.pb.h',
+        'base.proto',
         'config.pb.cc',
         'config.pb.h',
         'config.proto',

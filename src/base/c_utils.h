@@ -27,23 +27,30 @@ inline void GetLastError(std::string* error) {
     error->assign(strerror(errno));
 }
 
-inline std::string GetCurrentDir() {
+inline std::string GetCurrentDir(std::string* error = nullptr) {
   char buf[PATH_MAX];
-  if (!getcwd(buf, sizeof(buf)))
+  if (!getcwd(buf, sizeof(buf))) {
+    GetLastError(error);
     return std::string();
+  }
   return std::string(buf);
 }
 
-inline std::string CreateTempDir() {
+inline std::string CreateTempDir(std::string* error = nullptr) {
   char buf[] = "/tmp/socket-XXXXXX";
-  if (!mkdtemp(buf))
+  if (!mkdtemp(buf)) {
+    GetLastError(error);
     return std::string();
+  }
   return std::string(buf);
 }
 
-inline bool ChangeCurrentDir(const std::string& path) {
-  if (chdir(path.c_str()) == -1)
+inline bool ChangeCurrentDir(const std::string& path,
+                             std::string* error = nullptr) {
+  if (chdir(path.c_str()) == -1) {
+    GetLastError(error);
     return false;
+  }
   return true;
 }
 

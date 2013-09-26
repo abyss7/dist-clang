@@ -9,8 +9,6 @@
 namespace dist_clang {
 namespace daemon {
 
-// Thit thread pool has two queues. The one is unlimited and has high priority,
-// the other one has limited size and has low priority.
 class ThreadPool {
   public:
     typedef std::function<void(void)> Closure;
@@ -23,8 +21,7 @@ class ThreadPool {
 
     void Run();
     bool Push(const Closure& task);
-    void PushInternal(const Closure& task);
-    inline size_t InternalCount() const;
+    inline size_t QueueSize() const;
 
   private:
     void DoWork();
@@ -37,11 +34,11 @@ class ThreadPool {
     std::mutex tasks_mutex_;
     std::condition_variable tasks_condition_;
     bool is_shutting_down_;
-    std::queue<Closure> public_tasks_, internal_tasks_;
+    std::queue<Closure> tasks_;
 };
 
-size_t ThreadPool::InternalCount() const {
-  return internal_tasks_.size();
+size_t ThreadPool::QueueSize() const {
+  return tasks_.size();
 }
 
 }  // namespace daemon

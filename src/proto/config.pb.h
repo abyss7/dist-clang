@@ -24,6 +24,7 @@
 #include <google/protobuf/repeated_field.h>
 #include <google/protobuf/extension_set.h>
 #include <google/protobuf/unknown_field_set.h>
+#include "base.pb.h"
 // @@protoc_insertion_point(includes)
 
 namespace dist_clang {
@@ -34,9 +35,117 @@ void  protobuf_AddDesc_config_2eproto();
 void protobuf_AssignDesc_config_2eproto();
 void protobuf_ShutdownFile_config_2eproto();
 
+class Host;
 class Configuration;
 
 // ===================================================================
+
+class Host : public ::google::protobuf::Message {
+ public:
+  Host();
+  virtual ~Host();
+
+  Host(const Host& from);
+
+  inline Host& operator=(const Host& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
+    return _unknown_fields_;
+  }
+
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
+    return &_unknown_fields_;
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const Host& default_instance();
+
+  void Swap(Host* other);
+
+  // implements Message ----------------------------------------------
+
+  Host* New() const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const Host& from);
+  void MergeFrom(const Host& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // required string host = 1;
+  inline bool has_host() const;
+  inline void clear_host();
+  static const int kHostFieldNumber = 1;
+  inline const ::std::string& host() const;
+  inline void set_host(const ::std::string& value);
+  inline void set_host(const char* value);
+  inline void set_host(const char* value, size_t size);
+  inline ::std::string* mutable_host();
+  inline ::std::string* release_host();
+  inline void set_allocated_host(::std::string* host);
+
+  // optional uint32 port = 2 [default = 6000];
+  inline bool has_port() const;
+  inline void clear_port();
+  static const int kPortFieldNumber = 2;
+  inline ::google::protobuf::uint32 port() const;
+  inline void set_port(::google::protobuf::uint32 value);
+
+  // optional uint32 threads = 3 [default = 2];
+  inline bool has_threads() const;
+  inline void clear_threads();
+  static const int kThreadsFieldNumber = 3;
+  inline ::google::protobuf::uint32 threads() const;
+  inline void set_threads(::google::protobuf::uint32 value);
+
+  // @@protoc_insertion_point(class_scope:dist_clang.proto.Host)
+ private:
+  inline void set_has_host();
+  inline void clear_has_host();
+  inline void set_has_port();
+  inline void clear_has_port();
+  inline void set_has_threads();
+  inline void clear_has_threads();
+
+  ::google::protobuf::UnknownFieldSet _unknown_fields_;
+
+  ::std::string* host_;
+  ::google::protobuf::uint32 port_;
+  ::google::protobuf::uint32 threads_;
+
+  mutable int _cached_size_;
+  ::google::protobuf::uint32 _has_bits_[(3 + 31) / 32];
+
+  friend void  protobuf_AddDesc_config_2eproto();
+  friend void protobuf_AssignDesc_config_2eproto();
+  friend void protobuf_ShutdownFile_config_2eproto();
+
+  void InitAsDefaultInstance();
+  static Host* default_instance_;
+};
+// -------------------------------------------------------------------
 
 class Configuration : public ::google::protobuf::Message {
  public:
@@ -123,6 +232,39 @@ class Configuration : public ::google::protobuf::Message {
   inline ::std::string* release_cache_path();
   inline void set_allocated_cache_path(::std::string* cache_path);
 
+  // repeated .dist_clang.proto.Host remotes = 4;
+  inline int remotes_size() const;
+  inline void clear_remotes();
+  static const int kRemotesFieldNumber = 4;
+  inline const ::dist_clang::proto::Host& remotes(int index) const;
+  inline ::dist_clang::proto::Host* mutable_remotes(int index);
+  inline ::dist_clang::proto::Host* add_remotes();
+  inline const ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Host >&
+      remotes() const;
+  inline ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Host >*
+      mutable_remotes();
+
+  // optional .dist_clang.proto.Host local = 5;
+  inline bool has_local() const;
+  inline void clear_local();
+  static const int kLocalFieldNumber = 5;
+  inline const ::dist_clang::proto::Host& local() const;
+  inline ::dist_clang::proto::Host* mutable_local();
+  inline ::dist_clang::proto::Host* release_local();
+  inline void set_allocated_local(::dist_clang::proto::Host* local);
+
+  // repeated .dist_clang.proto.Compiler versions = 6;
+  inline int versions_size() const;
+  inline void clear_versions();
+  static const int kVersionsFieldNumber = 6;
+  inline const ::dist_clang::proto::Compiler& versions(int index) const;
+  inline ::dist_clang::proto::Compiler* mutable_versions(int index);
+  inline ::dist_clang::proto::Compiler* add_versions();
+  inline const ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Compiler >&
+      versions() const;
+  inline ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Compiler >*
+      mutable_versions();
+
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Configuration)
  private:
   inline void set_has_socket_path();
@@ -131,15 +273,20 @@ class Configuration : public ::google::protobuf::Message {
   inline void clear_has_pool_capacity();
   inline void set_has_cache_path();
   inline void clear_has_cache_path();
+  inline void set_has_local();
+  inline void clear_has_local();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
   ::std::string* socket_path_;
   ::std::string* cache_path_;
+  ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Host > remotes_;
+  ::dist_clang::proto::Host* local_;
+  ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Compiler > versions_;
   ::google::protobuf::uint32 pool_capacity_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(3 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(6 + 31) / 32];
 
   friend void  protobuf_AddDesc_config_2eproto();
   friend void protobuf_AssignDesc_config_2eproto();
@@ -152,6 +299,124 @@ class Configuration : public ::google::protobuf::Message {
 
 
 // ===================================================================
+
+// Host
+
+// required string host = 1;
+inline bool Host::has_host() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+inline void Host::set_has_host() {
+  _has_bits_[0] |= 0x00000001u;
+}
+inline void Host::clear_has_host() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+inline void Host::clear_host() {
+  if (host_ != &::google::protobuf::internal::kEmptyString) {
+    host_->clear();
+  }
+  clear_has_host();
+}
+inline const ::std::string& Host::host() const {
+  return *host_;
+}
+inline void Host::set_host(const ::std::string& value) {
+  set_has_host();
+  if (host_ == &::google::protobuf::internal::kEmptyString) {
+    host_ = new ::std::string;
+  }
+  host_->assign(value);
+}
+inline void Host::set_host(const char* value) {
+  set_has_host();
+  if (host_ == &::google::protobuf::internal::kEmptyString) {
+    host_ = new ::std::string;
+  }
+  host_->assign(value);
+}
+inline void Host::set_host(const char* value, size_t size) {
+  set_has_host();
+  if (host_ == &::google::protobuf::internal::kEmptyString) {
+    host_ = new ::std::string;
+  }
+  host_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* Host::mutable_host() {
+  set_has_host();
+  if (host_ == &::google::protobuf::internal::kEmptyString) {
+    host_ = new ::std::string;
+  }
+  return host_;
+}
+inline ::std::string* Host::release_host() {
+  clear_has_host();
+  if (host_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = host_;
+    host_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
+}
+inline void Host::set_allocated_host(::std::string* host) {
+  if (host_ != &::google::protobuf::internal::kEmptyString) {
+    delete host_;
+  }
+  if (host) {
+    set_has_host();
+    host_ = host;
+  } else {
+    clear_has_host();
+    host_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
+}
+
+// optional uint32 port = 2 [default = 6000];
+inline bool Host::has_port() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+inline void Host::set_has_port() {
+  _has_bits_[0] |= 0x00000002u;
+}
+inline void Host::clear_has_port() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+inline void Host::clear_port() {
+  port_ = 6000u;
+  clear_has_port();
+}
+inline ::google::protobuf::uint32 Host::port() const {
+  return port_;
+}
+inline void Host::set_port(::google::protobuf::uint32 value) {
+  set_has_port();
+  port_ = value;
+}
+
+// optional uint32 threads = 3 [default = 2];
+inline bool Host::has_threads() const {
+  return (_has_bits_[0] & 0x00000004u) != 0;
+}
+inline void Host::set_has_threads() {
+  _has_bits_[0] |= 0x00000004u;
+}
+inline void Host::clear_has_threads() {
+  _has_bits_[0] &= ~0x00000004u;
+}
+inline void Host::clear_threads() {
+  threads_ = 2u;
+  clear_has_threads();
+}
+inline ::google::protobuf::uint32 Host::threads() const {
+  return threads_;
+}
+inline void Host::set_threads(::google::protobuf::uint32 value) {
+  set_has_threads();
+  threads_ = value;
+}
+
+// -------------------------------------------------------------------
 
 // Configuration
 
@@ -315,6 +580,94 @@ inline void Configuration::set_allocated_cache_path(::std::string* cache_path) {
     clear_has_cache_path();
     cache_path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   }
+}
+
+// repeated .dist_clang.proto.Host remotes = 4;
+inline int Configuration::remotes_size() const {
+  return remotes_.size();
+}
+inline void Configuration::clear_remotes() {
+  remotes_.Clear();
+}
+inline const ::dist_clang::proto::Host& Configuration::remotes(int index) const {
+  return remotes_.Get(index);
+}
+inline ::dist_clang::proto::Host* Configuration::mutable_remotes(int index) {
+  return remotes_.Mutable(index);
+}
+inline ::dist_clang::proto::Host* Configuration::add_remotes() {
+  return remotes_.Add();
+}
+inline const ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Host >&
+Configuration::remotes() const {
+  return remotes_;
+}
+inline ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Host >*
+Configuration::mutable_remotes() {
+  return &remotes_;
+}
+
+// optional .dist_clang.proto.Host local = 5;
+inline bool Configuration::has_local() const {
+  return (_has_bits_[0] & 0x00000010u) != 0;
+}
+inline void Configuration::set_has_local() {
+  _has_bits_[0] |= 0x00000010u;
+}
+inline void Configuration::clear_has_local() {
+  _has_bits_[0] &= ~0x00000010u;
+}
+inline void Configuration::clear_local() {
+  if (local_ != NULL) local_->::dist_clang::proto::Host::Clear();
+  clear_has_local();
+}
+inline const ::dist_clang::proto::Host& Configuration::local() const {
+  return local_ != NULL ? *local_ : *default_instance_->local_;
+}
+inline ::dist_clang::proto::Host* Configuration::mutable_local() {
+  set_has_local();
+  if (local_ == NULL) local_ = new ::dist_clang::proto::Host;
+  return local_;
+}
+inline ::dist_clang::proto::Host* Configuration::release_local() {
+  clear_has_local();
+  ::dist_clang::proto::Host* temp = local_;
+  local_ = NULL;
+  return temp;
+}
+inline void Configuration::set_allocated_local(::dist_clang::proto::Host* local) {
+  delete local_;
+  local_ = local;
+  if (local) {
+    set_has_local();
+  } else {
+    clear_has_local();
+  }
+}
+
+// repeated .dist_clang.proto.Compiler versions = 6;
+inline int Configuration::versions_size() const {
+  return versions_.size();
+}
+inline void Configuration::clear_versions() {
+  versions_.Clear();
+}
+inline const ::dist_clang::proto::Compiler& Configuration::versions(int index) const {
+  return versions_.Get(index);
+}
+inline ::dist_clang::proto::Compiler* Configuration::mutable_versions(int index) {
+  return versions_.Mutable(index);
+}
+inline ::dist_clang::proto::Compiler* Configuration::add_versions() {
+  return versions_.Add();
+}
+inline const ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Compiler >&
+Configuration::versions() const {
+  return versions_;
+}
+inline ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Compiler >*
+Configuration::mutable_versions() {
+  return &versions_;
 }
 
 

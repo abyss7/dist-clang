@@ -72,6 +72,67 @@ bool NetworkService::Listen(const string& path,
   return true;
 }
 
+bool NetworkService::Listen(const std::string &host, unsigned short port,
+                            ConnectionCallback callback,
+                            proto::Error *error) {
+  struct hostent* host_entry;
+  struct in_addr** address_list;
+
+  if ((host_entry = gethostbyname(host.c_str())) == NULL) {
+    if (error) {
+      error->set_code(proto::Error::NETWORK);
+      base::GetLastError(error->mutable_description());
+    }
+    return false;
+  }
+
+  address_list =
+      reinterpret_cast<struct in_addr**>(host_entry->h_addr_list);
+
+  sockaddr_in address;
+  address.sin_family = AF_INET;
+  address.sin_addr.s_addr = address_list[0]->s_addr;
+  address.sin_port = htons(port);
+
+  int fd = socket(AF_INET, SOCK_STREAM, 0);
+  if (fd == -1) {
+    if (error) {
+      error->set_code(proto::Error::NETWORK);
+      base::GetLastError(error->mutable_description());
+    }
+    return false;
+  }
+
+  if (bind(fd, reinterpret_cast<sockaddr*>(&address),
+           sizeof(address)) == -1) {
+    if (error) {
+      error->set_code(proto::Error::NETWORK);
+      base::GetLastError(error->mutable_description());
+    }
+    return false;
+  }
+
+  if (listen(fd, 100) == -1) {  // FIXME: hardcode.
+    if (error) {
+      error->set_code(proto::Error::NETWORK);
+      base::GetLastError(error->mutable_description());
+    }
+    return false;
+  }
+
+  if (!callbacks_.insert(std::make_pair(fd, callback)).second) {
+    close(fd);
+    return false;
+  }
+
+  if (!static_cast<EpollEventLoop*>(event_loop_.get())->HandlePassive(fd)) {
+    close(fd);
+    return false;
+  }
+
+  return true;
+}
+
 ConnectionPtr NetworkService::Connect(const std::string &path,
                                       proto::Error *error) {
   sockaddr_un address;

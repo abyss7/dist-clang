@@ -64,5 +64,13 @@ inline std::string Hexify(const std::string& binary) {
   return ss.str();
 }
 
+template <typename Int>
+inline Int StringToInt(const std::string& str) {
+  Int result;
+  std::stringstream ss(str);
+  ss >> result;
+  return result;
+}
+
 }  // namespace base
 }  // namespace dist_clang

@@ -50,7 +50,7 @@ void FileCache::Store(const std::string &code, const std::string &command_line,
   string version_hash = base::Hexify(base::MakeHash(version));
   string path = path_ + "/" + code_hash + "/" + args_hash + "/" + version_hash;
 
-  pool_.PushInternal(std::bind(&FileCache::DoStore, this, path, entry));
+  pool_.Push(std::bind(&FileCache::DoStore, this, path, entry));
 }
 
 void FileCache::DoStore(const std::string &path, const Entry &entry) {

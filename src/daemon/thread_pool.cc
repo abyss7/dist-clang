@@ -26,23 +26,13 @@ void ThreadPool::Run() {
 bool ThreadPool::Push(const Closure& task) {
   {
     std::lock_guard<std::mutex> lock(tasks_mutex_);
-    if ((public_tasks_.size() >= capacity_ && capacity_ != UNLIMITED) ||
+    if ((tasks_.size() >= capacity_ && capacity_ != UNLIMITED) ||
         is_shutting_down_)
       return false;
-    public_tasks_.push(task);
+    tasks_.push(task);
   }
   tasks_condition_.notify_one();
   return true;
-}
-
-void ThreadPool::PushInternal(const Closure &task) {
-  {
-    std::lock_guard<std::mutex> lock(tasks_mutex_);
-    if (is_shutting_down_)
-      return;
-    internal_tasks_.push(task);
-  }
-  tasks_condition_.notify_one();
 }
 
 void ThreadPool::DoWork() {
@@ -51,20 +41,12 @@ void ThreadPool::DoWork() {
   do {
     {
       std::unique_lock<std::mutex> lock(tasks_mutex_);
-      while(internal_tasks_.empty() &&
-            public_tasks_.empty() &&
-            !is_shutting_down_)
+      while(tasks_.empty() && !is_shutting_down_)
         tasks_condition_.wait(lock);
-      if (is_shutting_down_ && internal_tasks_.empty() && public_tasks_.empty())
+      if (is_shutting_down_ && tasks_.empty())
         break;
-      if (!internal_tasks_.empty()) {
-        task = internal_tasks_.front();
-        internal_tasks_.pop();
-      }
-      else {
-        task = public_tasks_.front();
-        public_tasks_.pop();
-      }
+      task = tasks_.front();
+      tasks_.pop();
     }
     task();
   } while (true);
