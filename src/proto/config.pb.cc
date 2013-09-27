@@ -112,7 +112,7 @@ void protobuf_AddDesc_config_2eproto() {
     "\n\014config.proto\022\020dist_clang.proto\032\nbase.p"
     "roto\"<\n\004Host\022\014\n\004host\030\001 \002(\t\022\022\n\004port\030\002 \001(\r"
     ":\0046000\022\022\n\007threads\030\003 \001(\r:\0012\"\321\001\n\rConfigura"
-    "tion\022\023\n\013socket_path\030\001 \002(\t\022\031\n\rpool_capaci"
+    "tion\022\023\n\013socket_path\030\001 \001(\t\022\031\n\rpool_capaci"
     "ty\030\002 \001(\r:\00216\022\022\n\ncache_path\030\003 \001(\t\022\'\n\007remo"
     "tes\030\004 \003(\0132\026.dist_clang.proto.Host\022%\n\005loc"
     "al\030\005 \001(\0132\026.dist_clang.proto.Host\022,\n\010vers"
@@ -540,7 +540,7 @@ bool Configuration::MergePartialFromCodedStream(
   ::google::protobuf::uint32 tag;
   while ((tag = input->ReadTag()) != 0) {
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // required string socket_path = 1;
+      // optional string socket_path = 1;
       case 1: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
@@ -651,7 +651,7 @@ bool Configuration::MergePartialFromCodedStream(
 
 void Configuration::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // required string socket_path = 1;
+  // optional string socket_path = 1;
   if (has_socket_path()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->socket_path().data(), this->socket_path().length(),
@@ -700,7 +700,7 @@ void Configuration::SerializeWithCachedSizes(
 
 ::google::protobuf::uint8* Configuration::SerializeWithCachedSizesToArray(
     ::google::protobuf::uint8* target) const {
-  // required string socket_path = 1;
+  // optional string socket_path = 1;
   if (has_socket_path()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->socket_path().data(), this->socket_path().length(),
@@ -757,7 +757,7 @@ int Configuration::ByteSize() const {
   int total_size = 0;
 
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    // required string socket_path = 1;
+    // optional string socket_path = 1;
     if (has_socket_path()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::StringSize(
@@ -859,7 +859,6 @@ void Configuration::CopyFrom(const Configuration& from) {
 }
 
 bool Configuration::IsInitialized() const {
-  if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
 
   for (int i = 0; i < remotes_size(); i++) {
     if (!this->remotes(i).IsInitialized()) return false;

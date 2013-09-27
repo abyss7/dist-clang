@@ -26,8 +26,6 @@ class ThreadPool {
   private:
     void DoWork();
 
-    // |capacity_| limits size of a public queue.
-    // An internal queue is unlimited.
     const size_t capacity_;
     std::vector<std::thread> workers_;
 

@@ -305,7 +305,6 @@ void Connection::CanSend() {
 void Connection::Close() {
   if (!is_closed_) {
     is_closed_ = true;
-    state_.store(IDLE);
     close(fd_);
   }
 }

@@ -201,7 +201,7 @@ class Configuration : public ::google::protobuf::Message {
 
   // accessors -------------------------------------------------------
 
-  // required string socket_path = 1;
+  // optional string socket_path = 1;
   inline bool has_socket_path() const;
   inline void clear_socket_path();
   static const int kSocketPathFieldNumber = 1;
@@ -420,7 +420,7 @@ inline void Host::set_threads(::google::protobuf::uint32 value) {
 
 // Configuration
 
-// required string socket_path = 1;
+// optional string socket_path = 1;
 inline bool Configuration::has_socket_path() const {
   return (_has_bits_[0] & 0x00000001u) != 0;
 }

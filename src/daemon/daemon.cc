@@ -1,6 +1,7 @@
 #include "daemon/daemon.h"
 
 #include "daemon/commands/local_execution.h"
+#include "daemon/commands/remote_execution.h"
 #include "daemon/configuration.h"
 #include "net/connection.h"
 #include "net/network_service.h"
@@ -76,6 +77,12 @@ bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
         message.GetExtension(proto::LocalExecute::local);
     command = command::LocalExecution::Create(connection, local,
                                               balancer_.get(), cache_.get());
+  }
+  else if (message.HasExtension(proto::RemoteExecute::remote)) {
+    const proto::RemoteExecute& remote =
+        message.GetExtension(proto::RemoteExecute::remote);
+    command = command::RemoteExecution::Create(connection, remote,
+                                               cache_.get(), &compilers_);
   }
 
   return pool_->Push(std::bind(&command::Command::Run, command));

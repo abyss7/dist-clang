@@ -22,6 +22,7 @@ class LocalExecution: public Command {
         const proto::LocalExecute& message,
         Balancer* balancer,
         FileCache* cache);
+
     virtual void Run() override;
 
   private:

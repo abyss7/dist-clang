@@ -21,6 +21,8 @@
         'command.h',
         'commands/local_execution.cc',
         'commands/local_execution.h',
+        'commands/remote_execution.cc',
+        'commands/remote_execution.h',
         'configuration.cc',
         'configuration.h',
         'daemon.cc',

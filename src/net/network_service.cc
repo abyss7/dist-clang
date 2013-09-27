@@ -94,7 +94,7 @@ bool NetworkService::Listen(const std::string &host, unsigned short port,
   address.sin_addr.s_addr = address_list[0]->s_addr;
   address.sin_port = htons(port);
 
-  int fd = socket(AF_INET, SOCK_STREAM, 0);
+  int fd = socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
   if (fd == -1) {
     if (error) {
       error->set_code(proto::Error::NETWORK);

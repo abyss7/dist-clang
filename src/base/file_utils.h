@@ -48,7 +48,7 @@ inline bool CopyFile(const std::string& src, const std::string& dst,
         break;
       total += bytes_written;
     }
-    if (bytes_written <= 0)
+    if (total < size)
       break;
   }
   close(src_fd);

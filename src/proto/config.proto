@@ -9,7 +9,7 @@ message Host {
 }
 
 message Configuration {
-  required string socket_path   = 1;
+  optional string socket_path   = 1;
   optional uint32 pool_capacity = 2 [default=16];
   optional string cache_path    = 3;
   repeated Host remotes         = 4;
