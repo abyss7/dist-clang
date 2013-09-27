@@ -30,8 +30,9 @@ class EventLoop {
     virtual void DoListenWork(const volatile bool& is_shutting_down_) = 0;
     virtual void DoIncomingWork(const volatile bool& is_shutting_down) = 0;
     virtual void DoOutgoingWork(const volatile bool& is_shutting_down) = 0;
+    virtual void DoClosingWork(const volatile bool& is_shutting_down) = 0;
 
-    std::thread listening_thread_;
+    std::thread listening_thread_, closing_thread_;
     std::vector<std::thread> incoming_threads_, outgoing_threads_;
     volatile bool is_shutting_down_;
 };

@@ -34,6 +34,7 @@ EventLoop::~EventLoop() {
 
   if (is_running_) {
     listening_thread_.join();
+    closing_thread_.join();
     for (std::thread& thread: incoming_threads_) {
       assert(thread.joinable());
       thread.join();
@@ -53,6 +54,9 @@ bool EventLoop::Run() {
 
   listening_thread_ = std::thread(&EventLoop::DoListenWork, this,
                                   std::cref(is_shutting_down_));
+
+  closing_thread_ = std::thread(&EventLoop::DoClosingWork, this,
+                                std::cref(is_shutting_down_));
 
   for (std::thread& thread: incoming_threads_)
     thread = std::thread(&EventLoop::DoIncomingWork, this,

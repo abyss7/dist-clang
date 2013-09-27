@@ -154,6 +154,10 @@ class TestServer: public net::EventLoop {
     DoOutgoingWork(const volatile bool &is_shutting_down) override {
       // TODO: implement this.
     }
+    virtual void
+    DoClosingWork(const volatile bool &is_shutting_down) override {
+      // TODO: implement this.
+    }
 
     int listen_fd_, server_fd_;
     std::string tmp_path_, socket_path_;

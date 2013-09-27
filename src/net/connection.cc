@@ -16,7 +16,7 @@ ConnectionPtr Connection::Create(EventLoop &event_loop, fd_t fd) {
 
 Connection::Connection(EventLoop& event_loop, fd_t fd)
   : fd_(fd), event_loop_(event_loop), is_closed_(false), state_(IDLE),
-    file_input_stream_(fd_), input_limit_(0), file_output_stream_(fd_) {}
+    file_input_stream_(fd_, 1024), input_limit_(0), file_output_stream_(fd_) {}
 
 Connection::~Connection() {
   Close();
@@ -264,8 +264,10 @@ void Connection::CanRead() {
   }
 
   input_message_.MergePartialFromCodedStream(coded_input_stream_.get());
-  if (coded_input_stream_->BytesUntilLimit() > 0)
+  if (coded_input_stream_->BytesUntilLimit() > 0) {
     event_loop_.ReadyForRead(shared_from_this());
+    return;
+  }
   else if (!input_message_.IsInitialized() ||
            !coded_input_stream_->ConsumedEntireMessage()) {
     error.set_code(Error::BAD_MESSAGE);

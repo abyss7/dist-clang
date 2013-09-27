@@ -27,10 +27,12 @@ class EpollEventLoop: public EventLoop {
     virtual void DoListenWork(const volatile bool& is_shutting_down) override;
     virtual void DoIncomingWork(const volatile bool& is_shutting_down) override;
     virtual void DoOutgoingWork(const volatile bool& is_shutting_down) override;
+    virtual void DoClosingWork(const volatile bool& is_shutting_down) override;
 
     bool ReadyForListen(fd_t fd);
+    bool ReadyForClose(ConnectionPtr connection);
 
-    fd_t listen_fd_, incoming_fd_, outgoing_fd_;
+    fd_t listen_fd_, incoming_fd_, outgoing_fd_, closing_fd_;
     ConnectionCallback callback_;
 
     // We need to store listening fds - to be able to close them at shutdown.

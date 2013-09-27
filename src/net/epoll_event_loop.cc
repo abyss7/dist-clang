@@ -12,7 +12,8 @@ namespace net {
 EpollEventLoop::EpollEventLoop(ConnectionCallback callback)
   : listen_fd_(epoll_create1(EPOLL_CLOEXEC)),
     incoming_fd_(epoll_create1(EPOLL_CLOEXEC)),
-    outgoing_fd_(epoll_create1(EPOLL_CLOEXEC)), callback_(callback) {}
+    outgoing_fd_(epoll_create1(EPOLL_CLOEXEC)),
+    closing_fd_(epoll_create1(EPOLL_CLOEXEC)), callback_(callback) {}
 
 bool EpollEventLoop::HandlePassive(fd_t fd) {
   assert(IsListening(fd));
@@ -27,6 +28,8 @@ ConnectionPtr EpollEventLoop::HandleActive(fd_t fd) {
   ConnectionPtr new_connection = Connection::Create(*this, fd);
   std::unique_lock<std::mutex> lock(connections_mutex_);
   connections_.insert(new_connection);
+  if (!ReadyForClose(new_connection))
+    return ConnectionPtr();
   return new_connection;
 }
 
@@ -71,24 +74,19 @@ void EpollEventLoop::DoListenWork(const volatile bool &is_shutting_down) {
       break;
 
     for (int i = 0; i < events_count; ++i) {
+      assert(events[i].events & EPOLLIN);
       auto fd = events[i].data.fd;
-
-      if (events[i].events & EPOLLHUP) {
-        std::unique_lock<std::mutex> lock(listening_fds_mutex_);
-        listening_fds_.erase(fd);
-        close(fd);
-      }
-      else if (events[i].events & EPOLLIN) {
-        while(true) {
-          auto new_fd = accept4(fd, nullptr, nullptr,
-                                SOCK_NONBLOCK|SOCK_CLOEXEC);
-          if (new_fd == -1)
-            break;
-          auto new_connection = HandleActive(new_fd);
-          callback_(fd, new_connection);
+      while(true) {
+        auto new_fd = accept4(fd, nullptr, nullptr,
+                              SOCK_NONBLOCK|SOCK_CLOEXEC);
+        if (new_fd == -1) {
+          assert(errno == EAGAIN || errno == EWOULDBLOCK);
+          break;
         }
-        ReadyForListen(fd);
+        auto new_connection = HandleActive(new_fd);
+        callback_(fd, new_connection);
       }
+      ReadyForListen(fd);
     }
   }
 
@@ -108,17 +106,10 @@ void EpollEventLoop::DoIncomingWork(const volatile bool& is_shutting_down) {
       return;
 
     for (int i = 0; i < events_count; ++i) {
+      assert(events[i].events & EPOLLIN);
       auto connection =
           reinterpret_cast<Connection*>(events[i].data.ptr)->shared_from_this();
-
-      if (events[i].events & (EPOLLHUP|EPOLLRDHUP)) {
-        connection->Close();
-        std::unique_lock<std::mutex> lock(connections_mutex_);
-        connections_.erase(connection);
-      }
-      else if (events[i].events & EPOLLIN) {
-        ConnectionCanRead(connection);
-      }
+      ConnectionCanRead(connection);
     }
   }
 }
@@ -134,17 +125,31 @@ void EpollEventLoop::DoOutgoingWork(const volatile bool &is_shutting_down) {
       return;
 
     for (int i = 0; i < events_count; ++i) {
+      assert(events[i].events & EPOLLOUT);
       auto connection =
           reinterpret_cast<Connection*>(events[i].data.ptr)->shared_from_this();
+      ConnectionCanSend(connection);
+    }
+  }
+}
 
-      if (events[i].events & (EPOLLHUP|EPOLLRDHUP)) {
-        connection->Close();
-        std::unique_lock<std::mutex> lock(connections_mutex_);
-        connections_.erase(connection);
-      }
-      else if (events[i].events & EPOLLOUT) {
-        ConnectionCanSend(connection);
-      }
+void EpollEventLoop::DoClosingWork(const volatile bool &is_shutting_down) {
+  const int MAX_EVENTS = 10;  // This should be enought in most cases.
+  const int TIMEOUT = 3 * 1000;  // In milliseconds.
+  struct epoll_event events[MAX_EVENTS];
+
+  while(!is_shutting_down) {
+    auto events_count = epoll_wait(closing_fd_, events, MAX_EVENTS, TIMEOUT);
+    if (events_count == -1)
+      return;
+
+    for (int i = 0; i < events_count; ++i) {
+      assert(events[i].events & (EPOLLHUP|EPOLLRDHUP|EPOLLERR));
+      auto connection =
+          reinterpret_cast<Connection*>(events[i].data.ptr)->shared_from_this();
+      connection->Close();
+      std::unique_lock<std::mutex> lock(connections_mutex_);
+      connections_.erase(connection);
     }
   }
 }
@@ -156,6 +161,19 @@ bool EpollEventLoop::ReadyForListen(fd_t fd) {
   if (epoll_ctl(listen_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
     if (errno == ENOENT)
       return epoll_ctl(listen_fd_, EPOLL_CTL_ADD, fd, &event) != -1;
+    return false;
+  }
+  return true;
+}
+
+bool EpollEventLoop::ReadyForClose(ConnectionPtr connection) {
+  assert(connection->IsOnEventLoop(this));
+
+  struct epoll_event event;
+  event.events = EPOLLONESHOT | EPOLLRDHUP;
+  event.data.ptr = connection.get();
+  auto fd = GetConnectionDescriptor(connection);
+  if (epoll_ctl(closing_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
     return false;
   }
   return true;
