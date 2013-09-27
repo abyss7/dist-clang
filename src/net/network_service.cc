@@ -24,7 +24,7 @@ bool NetworkService::Run() {
 
 bool NetworkService::Listen(const std::string& path,
                             ConnectionCallback callback,
-                            proto::Status *status) {
+                            std::string* error) {
   sockaddr_un address;
   address.sun_family = AF_UNIX;
   strcpy(address.sun_path, path.c_str());
@@ -32,28 +32,19 @@ bool NetworkService::Listen(const std::string& path,
 
   auto fd = socket(AF_UNIX, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
   if (fd == -1) {
-    if (status) {
-      status->set_code(proto::Status::NETWORK);
-      base::GetLastError(status->mutable_description());
-    }
+    base::GetLastError(error);
     return false;
   }
 
-  if (bind(fd, reinterpret_cast<sockaddr*>(&address),
-           sizeof(address)) == -1) {
-    if (status) {
-      status->set_code(proto::Status::NETWORK);
-      base::GetLastError(status->mutable_description());
-    }
+  auto socket_address = reinterpret_cast<sockaddr*>(&address);
+  if (bind(fd, socket_address, sizeof(address)) == -1) {
+    base::GetLastError(error);
     close(fd);
     return false;
   }
 
   if (listen(fd, 100) == -1) {  // FIXME: hardcode.
-    if (status) {
-      status->set_code(proto::Status::NETWORK);
-      base::GetLastError(status->mutable_description());
-    }
+    base::GetLastError(error);
     close(fd);
     return false;
   }
@@ -73,15 +64,12 @@ bool NetworkService::Listen(const std::string& path,
 
 bool NetworkService::Listen(const std::string &host, unsigned short port,
                             ConnectionCallback callback,
-                            proto::Status *status) {
+                            std::string* error) {
   struct hostent* host_entry;
   struct in_addr** address_list;
 
   if ((host_entry = gethostbyname(host.c_str())) == NULL) {
-    if (status) {
-      status->set_code(proto::Status::NETWORK);
-      base::GetLastError(status->mutable_description());
-    }
+    base::GetLastError(error);
     return false;
   }
 
@@ -95,27 +83,18 @@ bool NetworkService::Listen(const std::string &host, unsigned short port,
 
   int fd = socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
   if (fd == -1) {
-    if (status) {
-      status->set_code(proto::Status::NETWORK);
-      base::GetLastError(status->mutable_description());
-    }
+    base::GetLastError(error);
     return false;
   }
 
-  if (bind(fd, reinterpret_cast<sockaddr*>(&address),
-           sizeof(address)) == -1) {
-    if (status) {
-      status->set_code(proto::Status::NETWORK);
-      base::GetLastError(status->mutable_description());
-    }
+  auto socket_address = reinterpret_cast<sockaddr*>(&address);
+  if (bind(fd, socket_address, sizeof(address)) == -1) {
+    base::GetLastError(error);
     return false;
   }
 
   if (listen(fd, 100) == -1) {  // FIXME: hardcode.
-    if (status) {
-      status->set_code(proto::Status::NETWORK);
-      base::GetLastError(status->mutable_description());
-    }
+    base::GetLastError(error);
     return false;
   }
 
@@ -133,26 +112,20 @@ bool NetworkService::Listen(const std::string &host, unsigned short port,
 }
 
 ConnectionPtr NetworkService::Connect(const std::string &path,
-                                      proto::Status *status) {
+                                      std::string *error) {
   sockaddr_un address;
   address.sun_family = AF_UNIX;
   strcpy(address.sun_path, path.c_str());
 
   auto fd = socket(AF_UNIX, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
   if (fd == -1) {
-    if (status) {
-      status->set_code(proto::Status::NETWORK);
-      base::GetLastError(status->mutable_description());
-    }
+    base::GetLastError(error);
     return ConnectionPtr();
   }
   if (connect(fd, reinterpret_cast<sockaddr*>(&address),
               sizeof(address)) == -1) {
     if (errno != EINPROGRESS) {
-      if (status) {
-        status->set_code(proto::Status::NETWORK);
-        base::GetLastError(status->mutable_description());
-      }
+      base::GetLastError(error);
       close(fd);
       return ConnectionPtr();
     }

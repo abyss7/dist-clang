@@ -21,12 +21,12 @@ class NetworkService {
 
     bool Listen(const std::string& path,
                 ConnectionCallback callback,
-                proto::Status* status) THREAD_UNSAFE;
+                std::string* error = nullptr) THREAD_UNSAFE;
     bool Listen(const std::string& host, unsigned short port,
                 ConnectionCallback callback,
-                proto::Status* status = nullptr) THREAD_UNSAFE;
+                std::string* error = nullptr) THREAD_UNSAFE;
     ConnectionPtr Connect(const std::string& path,
-                          proto::Status* status) THREAD_SAFE;
+                          std::string* error = nullptr) THREAD_SAFE;
 
     bool Run();
 

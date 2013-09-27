@@ -18,7 +18,6 @@ namespace daemon {
 bool Daemon::Initialize(const Configuration &configuration,
                         net::NetworkService &network_service) {
   const proto::Configuration& config = configuration.config();
-  proto::Status status;
 
   if (!config.IsInitialized()) {
     std::cerr << config.InitializationErrorString() << std::endl;
@@ -36,18 +35,16 @@ bool Daemon::Initialize(const Configuration &configuration,
 
   if (config.has_cache_path()) {
     cache_.reset(new FileCache(config.cache_path()));
-    std::cout << "Using cache on " << config.cache_path() << std::endl;
   }
 
-  if (!network_service.Listen(config.socket_path(),
-           std::bind(&Daemon::HandleNewConnection, this, _1), &status)) {
-    std::cerr << status.description() << std::endl;
+  auto handle_new_conn = std::bind(&Daemon::HandleNewConnection, this, _1);
+  if (!network_service.Listen(config.socket_path(), handle_new_conn)) {
     return false;
   }
 
   if (config.has_local()) {
     network_service.Listen(config.local().host(), config.local().port(),
-                           std::bind(&Daemon::HandleNewConnection, this, _1));
+                           handle_new_conn);
   }
 
   // TODO: handle config.remotes
