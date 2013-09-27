@@ -18,7 +18,7 @@ namespace daemon {
 bool Daemon::Initialize(const Configuration &configuration,
                         net::NetworkService &network_service) {
   const proto::Configuration& config = configuration.config();
-  proto::Error error;
+  proto::Status status;
 
   if (!config.IsInitialized()) {
     std::cerr << config.InitializationErrorString() << std::endl;
@@ -40,8 +40,8 @@ bool Daemon::Initialize(const Configuration &configuration,
   }
 
   if (!network_service.Listen(config.socket_path(),
-           std::bind(&Daemon::HandleNewConnection, this, _1), &error)) {
-    std::cerr << error.description() << std::endl;
+           std::bind(&Daemon::HandleNewConnection, this, _1), &status)) {
+    std::cerr << status.description() << std::endl;
     return false;
   }
 
@@ -65,10 +65,10 @@ void Daemon::HandleNewConnection(net::ConnectionPtr connection) {
 
 bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
                               const proto::Universal& message,
-                              const proto::Error& error) {
-  if (error.code() != proto::Error::OK) {
-    std::cerr << error.description() << std::endl;
-    return connection->SendAsync(error, net::Connection::CloseAfterSend());
+                              const proto::Status& status) {
+  if (status.code() != proto::Status::OK) {
+    std::cerr << status.description() << std::endl;
+    return connection->SendAsync(status, net::Connection::CloseAfterSend());
   }
 
   command::CommandPtr command;

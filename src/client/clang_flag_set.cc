@@ -3,8 +3,6 @@
 #include "base/c_utils.h"
 #include "proto/remote.pb.h"
 
-using std::string;
-
 namespace {
 
 const char* kEnvTempDir = "TMPDIR";
@@ -16,15 +14,15 @@ namespace dist_clang {
 namespace client {
 
 // static
-ClangFlagSet::Action ClangFlagSet::ProcessFlags(string_list& flags,
+ClangFlagSet::Action ClangFlagSet::ProcessFlags(StringList& flags,
                                                 proto::Flags* message) {
   Action action(UNKNOWN);
-  string temp_dir = base::GetEnv(kEnvTempDir, kDefaultTempDir);
+  std::string temp_dir = base::GetEnv(kEnvTempDir, kDefaultTempDir);
 
   // Escape from double-quotes.
   for(auto it = flags.begin(); it != flags.end();
       it->empty() ? it = flags.erase(it) : ++it) {
-    string& flag = *it;
+    std::string& flag = *it;
     if (flag[0] == '"')
       flag = it->substr(1, flag.size() - 2);
   }
@@ -38,7 +36,7 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(string_list& flags,
   flags.pop_back();
 
   for (auto it = flags.begin(); it != flags.end(); ++it) {
-    string& flag = *it;
+    std::string& flag = *it;
 
     if (flag == "-dynamic-linker") {
       action = LINK;
@@ -54,7 +52,7 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(string_list& flags,
     }
     else if (flag == "-o") {
       ++it;
-      if (it->find(temp_dir) != string::npos) {
+      if (it->find(temp_dir) != std::string::npos) {
         action = UNKNOWN;
         break;
       }

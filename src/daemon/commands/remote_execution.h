@@ -19,27 +19,28 @@ namespace command {
 
 class RemoteExecution: public Command {
   public:
-    static CommandPtr Create(
-        net::ConnectionPtr connection,
-        const proto::RemoteExecute& remote,
-        FileCache* cache,
-        const std::unordered_map<std::string, std::string>* compilers);
+    // The version is a key, and the compiler's path is a value.
+    using CompilerMap = std::unordered_map<std::string, std::string>;
+
+    static CommandPtr Create(net::ConnectionPtr connection,
+                             const proto::RemoteExecute& remote,
+                             FileCache* cache,
+                             const CompilerMap* compilers);
 
     virtual void Run() override;
 
   private:
-    RemoteExecution(
-        net::ConnectionPtr connection,
-        const proto::RemoteExecute& remote,
-        FileCache* cache,
-        const std::unordered_map<std::string, std::string>* compilers);
+    RemoteExecution(net::ConnectionPtr connection,
+                    const proto::RemoteExecute& remote,
+                    FileCache* cache,
+                    const CompilerMap* compilers);
 
     bool SearchCache(FileCache::Entry* entry);
 
     net::ConnectionPtr connection_;
     proto::RemoteExecute message_;
     FileCache* cache_ WEAK_PTR;
-    const std::unordered_map<std::string, std::string>* compilers_ WEAK_PTR;
+    const CompilerMap* compilers_ WEAK_PTR;
 };
 
 }  // namespace command

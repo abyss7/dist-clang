@@ -11,7 +11,7 @@ class Command: public std::enable_shared_from_this<Command> {
     virtual void Run() = 0;
 };
 
-typedef std::shared_ptr<Command> CommandPtr;
+using CommandPtr = std::shared_ptr<Command>;
 
 }  // namespace command
 }  // namespace daemon

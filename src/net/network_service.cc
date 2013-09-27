@@ -9,7 +9,6 @@
 #include <sys/types.h>
 #include <sys/un.h>
 
-using std::string;
 using namespace std::placeholders;
 
 namespace dist_clang {
@@ -23,9 +22,9 @@ bool NetworkService::Run() {
   return event_loop_->Run();
 }
 
-bool NetworkService::Listen(const string& path,
+bool NetworkService::Listen(const std::string& path,
                             ConnectionCallback callback,
-                            proto::Error *error) {
+                            proto::Status *status) {
   sockaddr_un address;
   address.sun_family = AF_UNIX;
   strcpy(address.sun_path, path.c_str());
@@ -33,27 +32,27 @@ bool NetworkService::Listen(const string& path,
 
   auto fd = socket(AF_UNIX, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
   if (fd == -1) {
-    if (error) {
-      error->set_code(proto::Error::NETWORK);
-      base::GetLastError(error->mutable_description());
+    if (status) {
+      status->set_code(proto::Status::NETWORK);
+      base::GetLastError(status->mutable_description());
     }
     return false;
   }
 
   if (bind(fd, reinterpret_cast<sockaddr*>(&address),
            sizeof(address)) == -1) {
-    if (error) {
-      error->set_code(proto::Error::NETWORK);
-      base::GetLastError(error->mutable_description());
+    if (status) {
+      status->set_code(proto::Status::NETWORK);
+      base::GetLastError(status->mutable_description());
     }
     close(fd);
     return false;
   }
 
   if (listen(fd, 100) == -1) {  // FIXME: hardcode.
-    if (error) {
-      error->set_code(proto::Error::NETWORK);
-      base::GetLastError(error->mutable_description());
+    if (status) {
+      status->set_code(proto::Status::NETWORK);
+      base::GetLastError(status->mutable_description());
     }
     close(fd);
     return false;
@@ -74,14 +73,14 @@ bool NetworkService::Listen(const string& path,
 
 bool NetworkService::Listen(const std::string &host, unsigned short port,
                             ConnectionCallback callback,
-                            proto::Error *error) {
+                            proto::Status *status) {
   struct hostent* host_entry;
   struct in_addr** address_list;
 
   if ((host_entry = gethostbyname(host.c_str())) == NULL) {
-    if (error) {
-      error->set_code(proto::Error::NETWORK);
-      base::GetLastError(error->mutable_description());
+    if (status) {
+      status->set_code(proto::Status::NETWORK);
+      base::GetLastError(status->mutable_description());
     }
     return false;
   }
@@ -96,26 +95,26 @@ bool NetworkService::Listen(const std::string &host, unsigned short port,
 
   int fd = socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
   if (fd == -1) {
-    if (error) {
-      error->set_code(proto::Error::NETWORK);
-      base::GetLastError(error->mutable_description());
+    if (status) {
+      status->set_code(proto::Status::NETWORK);
+      base::GetLastError(status->mutable_description());
     }
     return false;
   }
 
   if (bind(fd, reinterpret_cast<sockaddr*>(&address),
            sizeof(address)) == -1) {
-    if (error) {
-      error->set_code(proto::Error::NETWORK);
-      base::GetLastError(error->mutable_description());
+    if (status) {
+      status->set_code(proto::Status::NETWORK);
+      base::GetLastError(status->mutable_description());
     }
     return false;
   }
 
   if (listen(fd, 100) == -1) {  // FIXME: hardcode.
-    if (error) {
-      error->set_code(proto::Error::NETWORK);
-      base::GetLastError(error->mutable_description());
+    if (status) {
+      status->set_code(proto::Status::NETWORK);
+      base::GetLastError(status->mutable_description());
     }
     return false;
   }
@@ -134,25 +133,25 @@ bool NetworkService::Listen(const std::string &host, unsigned short port,
 }
 
 ConnectionPtr NetworkService::Connect(const std::string &path,
-                                      proto::Error *error) {
+                                      proto::Status *status) {
   sockaddr_un address;
   address.sun_family = AF_UNIX;
   strcpy(address.sun_path, path.c_str());
 
   auto fd = socket(AF_UNIX, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
   if (fd == -1) {
-    if (error) {
-      error->set_code(proto::Error::NETWORK);
-      base::GetLastError(error->mutable_description());
+    if (status) {
+      status->set_code(proto::Status::NETWORK);
+      base::GetLastError(status->mutable_description());
     }
     return ConnectionPtr();
   }
   if (connect(fd, reinterpret_cast<sockaddr*>(&address),
               sizeof(address)) == -1) {
     if (errno != EINPROGRESS) {
-      if (error) {
-        error->set_code(proto::Error::NETWORK);
-        base::GetLastError(error->mutable_description());
+      if (status) {
+        status->set_code(proto::Status::NETWORK);
+        base::GetLastError(status->mutable_description());
       }
       close(fd);
       return ConnectionPtr();

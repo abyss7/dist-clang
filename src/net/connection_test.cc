@@ -194,13 +194,13 @@ TEST_F(ConnectionTest, Sync_ReadOneMessage) {
   ASSERT_TRUE(server.WriteAtOnce(expected_message.SerializeAsString()));
 
   net::Connection::Message message;
-  proto::Error error;
+  proto::Status status;
 
-  ASSERT_TRUE(connection->ReadSync(&message, &error)) << error.description();
+  ASSERT_TRUE(connection->ReadSync(&message, &status)) << status.description();
 
-  // Check error.
-  EXPECT_EQ(proto::Error::OK, error.code());
-  EXPECT_FALSE(error.has_description());
+  // Check status.
+  EXPECT_EQ(proto::Status::OK, status.code());
+  EXPECT_FALSE(status.has_description());
 
   // Check incoming message.
   ASSERT_TRUE(message.HasExtension(proto::Test::test));
@@ -237,13 +237,13 @@ TEST_F(ConnectionTest, Sync_ReadTwoMessages) {
   ASSERT_TRUE(server.WriteAtOnce(expected_message2.SerializeAsString()));
 
   net::Connection::Message message;
-  proto::Error error;
+  proto::Status status;
 
-  ASSERT_TRUE(connection->ReadSync(&message, &error)) << error.description();
+  ASSERT_TRUE(connection->ReadSync(&message, &status)) << status.description();
 
-  // Check error.
-  EXPECT_EQ(proto::Error::OK, error.code());
-  EXPECT_FALSE(error.has_description());
+  // Check status.
+  EXPECT_EQ(proto::Status::OK, status.code());
+  EXPECT_FALSE(status.has_description());
 
   // Check incoming message.
   ASSERT_TRUE(message.HasExtension(proto::Test::test));
@@ -255,11 +255,11 @@ TEST_F(ConnectionTest, Sync_ReadTwoMessages) {
   EXPECT_EQ(expected_field2_1, test.field2());
   EXPECT_EQ(expected_field3_1, test.field3(0));
 
-  ASSERT_TRUE(connection->ReadSync(&message, &error)) << error.description();
+  ASSERT_TRUE(connection->ReadSync(&message, &status)) << status.description();
 
-  // Check error.
-  EXPECT_EQ(proto::Error::OK, error.code());
-  EXPECT_FALSE(error.has_description());
+  // Check status.
+  EXPECT_EQ(proto::Status::OK, status.code());
+  EXPECT_FALSE(status.has_description());
 
   // Check incoming message.
   ASSERT_TRUE(message.HasExtension(proto::Test::test));
@@ -287,13 +287,13 @@ TEST_F(ConnectionTest, Sync_ReadSplitMessage) {
 
   auto read_func = [&] () {
     net::Connection::Message message;
-    proto::Error error;
+    proto::Status status;
 
-    ASSERT_TRUE(connection->ReadSync(&message, &error)) << error.description();
+    ASSERT_TRUE(connection->ReadSync(&message, &status)) << status.description();
 
-    // Check error.
-    EXPECT_EQ(proto::Error::OK, error.code());
-    EXPECT_FALSE(error.has_description());
+    // Check status.
+    EXPECT_EQ(proto::Status::OK, status.code());
+    EXPECT_FALSE(status.has_description());
 
     // Check incoming message.
     ASSERT_TRUE(message.HasExtension(proto::Test::test));
@@ -325,10 +325,10 @@ TEST_F(ConnectionTest, Sync_ReadIncompleteMessage) {
   ASSERT_TRUE(server.WriteAtOnce(expected_message.SerializePartialAsString()));
 
   net::Connection::Message message;
-  proto::Error error;
+  proto::Status status;
 
-  ASSERT_FALSE(connection->ReadSync(&message, &error));
-  EXPECT_EQ(proto::Error::BAD_MESSAGE, error.code());
+  ASSERT_FALSE(connection->ReadSync(&message, &status));
+  EXPECT_EQ(proto::Status::BAD_MESSAGE, status.code());
 }
 
 TEST_F(ConnectionTest, Sync_ReadWhileReading) {
@@ -346,13 +346,13 @@ TEST_F(ConnectionTest, Sync_ReadWhileReading) {
 
   auto read_func = [&] () {
     net::Connection::Message message;
-    proto::Error error;
+    proto::Status status;
 
-    ASSERT_TRUE(connection->ReadSync(&message, &error)) << error.description();
+    ASSERT_TRUE(connection->ReadSync(&message, &status)) << status.description();
 
-    // Check error.
-    EXPECT_EQ(proto::Error::OK, error.code());
-    EXPECT_FALSE(error.has_description());
+    // Check status.
+    EXPECT_EQ(proto::Status::OK, status.code());
+    EXPECT_FALSE(status.has_description());
 
     // Check incoming message.
     ASSERT_TRUE(message.HasExtension(proto::Test::test));
@@ -369,9 +369,9 @@ TEST_F(ConnectionTest, Sync_ReadWhileReading) {
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
   net::Connection::Message message;
-  proto::Error error;
-  ASSERT_FALSE(connection->ReadSync(&message, &error));
-  EXPECT_EQ(proto::Error::INCONSEQUENT, error.code());
+  proto::Status status;
+  ASSERT_FALSE(connection->ReadSync(&message, &status));
+  EXPECT_EQ(proto::Status::INCONSEQUENT, status.code());
   ASSERT_TRUE(server.WriteAtOnce(expected_message.SerializeAsString()));
   read_thread.join();
 }
@@ -388,9 +388,8 @@ TEST_F(ConnectionTest, Sync_SendMessage) {
     message->set_field2(expected_field2);
     message->add_field3()->assign(expected_field3);
   }
-  proto::Error error;
-  ASSERT_TRUE(connection->SendSync(expected_message, &error))
-      << error.description();
+  proto::Status status;
+  ASSERT_TRUE(connection->SendSync(expected_message, &status)) << status.description();
   std::string data;
   ASSERT_TRUE(server.ReadAtOnce(data));
 
@@ -421,13 +420,13 @@ TEST_F(ConnectionTest, Sync_SendWhileReading) {
 
   auto read_func = [&] () {
     net::Connection::Message message;
-    proto::Error error;
+    proto::Status status;
 
-    ASSERT_TRUE(connection->ReadSync(&message, &error)) << error.description();
+    ASSERT_TRUE(connection->ReadSync(&message, &status)) << status.description();
 
-    // Check error.
-    EXPECT_EQ(proto::Error::OK, error.code());
-    EXPECT_FALSE(error.has_description());
+    // Check status.
+    EXPECT_EQ(proto::Status::OK, status.code());
+    EXPECT_FALSE(status.has_description());
 
     // Check incoming message.
     ASSERT_TRUE(message.HasExtension(proto::Test::test));
@@ -443,9 +442,9 @@ TEST_F(ConnectionTest, Sync_SendWhileReading) {
   std::thread read_thread(read_func);
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
-  proto::Error error;
-  ASSERT_FALSE(connection->SendSync(expected_message, &error));
-  EXPECT_EQ(proto::Error::INCONSEQUENT, error.code());
+  proto::Status status;
+  ASSERT_FALSE(connection->SendSync(expected_message, &status));
+  EXPECT_EQ(proto::Status::INCONSEQUENT, status.code());
   ASSERT_TRUE(server.WriteAtOnce(expected_message.SerializeAsString()));
   read_thread.join();
 }
@@ -461,7 +460,7 @@ TEST_F(ConnectionTest, DISABLED_Sync_SendToClosedConnection) {
 TEST_F(ConnectionTest, DISABLED_Sync_SendSubMessages) {
   // TODO: implement this.
   // Here should be tested the ability of SendSync() to send different
-  // sub-messages, like Execute and Error.
+  // sub-messages, like Execute and Status.
 }
 
 }  // namespace testing

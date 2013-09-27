@@ -56,10 +56,10 @@ void LocalExecution::Run() {
       message_.current_dir() + "/" + message_.cc_flags().output();
   if(SearchCache(&cache_entry)) {
     if (base::CopyFile(cache_entry.first, output_path, true)) {
-      proto::Error error;
-      error.set_code(proto::Error::OK);
-      error.set_description(cache_entry.second);
-      connection_->SendAsync(error);
+      proto::Status status;
+      status.set_code(proto::Status::OK);
+      status.set_description(cache_entry.second);
+      connection_->SendAsync(status);
       return;
     }
   }
@@ -88,7 +88,7 @@ LocalExecution::LocalExecution(net::ConnectionPtr connection,
     cache_(cache) {}
 
 void LocalExecution::DoLocalCompilation() {
-  proto::Error error;
+  proto::Status status;
   const proto::Flags& flags = message_.cc_flags();
 
   base::Process process(flags.compiler().path(), message_.current_dir());
@@ -97,21 +97,21 @@ void LocalExecution::DoLocalCompilation() {
          .AppendArg(flags.input());
 
   if (!process.Run(10)) {
-    error.set_code(proto::Error::EXECUTION);
-    error.set_description(process.stderr());
+    status.set_code(proto::Status::EXECUTION);
+    status.set_description(process.stderr());
   } else {
-    error.set_code(proto::Error::OK);
-    error.set_description(process.stderr());
-    UpdateCache(error);
+    status.set_code(proto::Status::OK);
+    status.set_description(process.stderr());
+    UpdateCache(status);
   }
 
-  connection_->SendAsync(error);
+  connection_->SendAsync(status);
 }
 
 bool LocalExecution::DoRemoteCompilation(net::ConnectionPtr connection,
-                                         const proto::Error& error) {
-  if (error.code() != proto::Error::OK) {
-    std::cerr << error.description() << std::endl;
+                                         const proto::Status& status) {
+  if (status.code() != proto::Status::OK) {
+    std::cerr << status.description() << std::endl;
     return false;
   }
 
@@ -127,15 +127,15 @@ bool LocalExecution::DoRemoteCompilation(net::ConnectionPtr connection,
 
 bool LocalExecution::DoneRemoteCompilation(net::ConnectionPtr /* connection */,
                                            const proto::Universal& message,
-                                           const proto::Error& error) {
-  if (error.code() != proto::Error::OK) {
-    std::cerr << error.description() << std::endl;
+                                           const proto::Status& status) {
+  if (status.code() != proto::Status::OK) {
+    std::cerr << status.description() << std::endl;
     DoLocalCompilation();
   }
-  else if (message.HasExtension(proto::Error::error)) {
-    const proto::Error& error = message.GetExtension(proto::Error::error);
-    if (error.code() != proto::Error::OK) {
-      std::cerr << error.description() << std::endl;
+  else if (message.HasExtension(proto::Status::status)) {
+    const proto::Status& status = message.GetExtension(proto::Status::status);
+    if (status.code() != proto::Status::OK) {
+      std::cerr << status.description() << std::endl;
       DoLocalCompilation();
     }
   }
@@ -147,10 +147,10 @@ bool LocalExecution::DoneRemoteCompilation(net::ConnectionPtr /* connection */,
     if (!base::WriteFile(output_path, result.obj()))
       DoLocalCompilation();
     else {
-      proto::Error error;
-      error.set_code(proto::Error::OK);
-      connection_->SendAsync(error);
-      UpdateCache(error);
+      proto::Status status;
+      status.set_code(proto::Status::OK);
+      connection_->SendAsync(status);
+      UpdateCache(status);
     }
   }
   else
@@ -171,16 +171,16 @@ bool LocalExecution::SearchCache(FileCache::Entry* entry) {
   return cache_->Find(pp_source_, command_line, version, entry);
 }
 
-void LocalExecution::UpdateCache(const proto::Error& error) {
+void LocalExecution::UpdateCache(const proto::Status& status) {
   if (!cache_ || pp_source_.empty() ||
       !message_.cc_flags().compiler().has_version())
     return;
-  assert(error.code() == proto::Error::OK);
+  assert(status.code() == proto::Status::OK);
 
   const proto::Flags& flags = message_.cc_flags();
   FileCache::Entry entry;
   entry.first = message_.current_dir() + "/" + flags.output();
-  entry.second = error.description();
+  entry.second = status.description();
   const std::string& version = flags.compiler().version();
   std::string command_line = base::JoinString<' '>(flags.other().begin(),
                                                    flags.other().end());

@@ -3,7 +3,7 @@
 namespace dist_clang {
 namespace net {
 
-typedef int fd_t;
+using fd_t = int;
 
 }  // namespace net
 }  // namespace dist_clang

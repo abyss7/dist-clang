@@ -12,9 +12,7 @@
 #include <list>
 #include <string>
 
-using std::string;
 using namespace dist_clang;
-using client::ClangFlagSet;
 
 namespace {
 
@@ -22,7 +20,7 @@ const char* kEnvClangdSocket = "CLANGD_SOCKET_PATH";
 const char* kEnvClangdCxx = "CLANGD_CXX";
 
 int ExecuteLocally(char* argv[]) {
-  string clangd_cxx_path = base::GetEnv(kEnvClangdCxx);
+  std::string clangd_cxx_path = base::GetEnv(kEnvClangdCxx);
   if (clangd_cxx_path.empty()) {
     std::cerr << "Provide real clang++ compiler path via "
               << kEnvClangdCxx << std::endl;
@@ -46,10 +44,10 @@ int ExecuteLocally(char* argv[]) {
 //  "/path/to/clang" "-cc1" "-triple" ...
 //
 // Pay attention to the leading space in the fourth line.
-bool ParseClangOutput(const string& output,
-                      string* version,
-                      ClangFlagSet::string_list& args) {
-  ClangFlagSet::string_list lines;
+bool ParseClangOutput(const std::string& output,
+                      std::string* version,
+                      client::ClangFlagSet::StringList& args) {
+  client::ClangFlagSet::StringList lines;
   base::SplitString<'\n'>(output, lines);
   if (lines.size() != 4)
     // FIXME: we don't support composite tasks yet.
@@ -68,8 +66,8 @@ bool ParseClangOutput(const string& output,
 }
 
 bool DoMain(int argc, char* argv[]) {
-  string clangd_socket_path = base::GetEnv(kEnvClangdSocket,
-                                           base::kDefaultClangdSocket);
+  std::string clangd_socket_path = base::GetEnv(kEnvClangdSocket,
+                                                base::kDefaultClangdSocket);
 
   net::NetworkService service;
   auto connection = service.Connect(clangd_socket_path, nullptr);
@@ -77,10 +75,10 @@ bool DoMain(int argc, char* argv[]) {
     return true;
 
   proto::LocalExecute message;
-  ClangFlagSet::string_list args;
-  string* version;
+  client::ClangFlagSet::StringList args;
+  std::string* version;
 
-  string current_dir = base::GetCurrentDir();
+  std::string current_dir = base::GetCurrentDir();
   if (current_dir.empty())
     return true;
   message.set_current_dir(current_dir);
@@ -90,8 +88,8 @@ bool DoMain(int argc, char* argv[]) {
   cc_process.AppendArg("-###").AppendArg(argv + 1, argv + argc);
   if (!cc_process.Run(10, nullptr) ||
       !ParseClangOutput(cc_process.stderr(), version, args) ||
-      ClangFlagSet::ProcessFlags(args, message.mutable_cc_flags())
-          != ClangFlagSet::COMPILE)
+      client::ClangFlagSet::ProcessFlags(args, message.mutable_cc_flags())
+          != client::ClangFlagSet::COMPILE)
     return true;
 
   version = message.mutable_pp_flags()->mutable_compiler()->mutable_version();
@@ -99,8 +97,8 @@ bool DoMain(int argc, char* argv[]) {
   pp_process.AppendArg("-###").AppendArg("-E").AppendArg(argv + 1, argv + argc);
   if (!pp_process.Run(10, nullptr) ||
       !ParseClangOutput(pp_process.stderr(), version, args) ||
-      ClangFlagSet::ProcessFlags(args, message.mutable_pp_flags())
-          != ClangFlagSet::PREPROCESS)
+      client::ClangFlagSet::ProcessFlags(args, message.mutable_pp_flags())
+          != client::ClangFlagSet::PREPROCESS)
     return true;
 
   if (!connection->SendSync(message))
@@ -110,16 +108,16 @@ bool DoMain(int argc, char* argv[]) {
   if (!connection->ReadSync(&top_message))
     return true;
 
-  if (!top_message.HasExtension(proto::Error::error))
+  if (!top_message.HasExtension(proto::Status::status))
     return true;
 
-  const proto::Error& error = top_message.GetExtension(proto::Error::error);
-  if (error.code() != proto::Error::EXECUTION &&
-      error.code() != proto::Error::OK)
+  const proto::Status& status = top_message.GetExtension(proto::Status::status);
+  if (status.code() != proto::Status::EXECUTION &&
+      status.code() != proto::Status::OK)
     return true;
 
-  if (error.code() == proto::Error::EXECUTION)
-    std::cerr << error.description();
+  if (status.code() == proto::Status::EXECUTION)
+    std::cerr << status.description();
 
   return false;
 }

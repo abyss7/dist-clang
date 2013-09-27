@@ -14,7 +14,7 @@ class NetworkService;
 }
 
 namespace proto {
-class Error;
+class Status;
 class Universal;
 }
 
@@ -24,6 +24,9 @@ class Configuration;
 
 class Daemon {
   public:
+    // The version is a key, and the compiler's path is a value.
+    using CompilerMap = std::unordered_map<std::string, std::string>;
+
     bool Initialize(
         const Configuration& configuration,
         net::NetworkService& network_service);
@@ -37,12 +40,12 @@ class Daemon {
     bool HandleNewMessage(
         net::ConnectionPtr connection,
         const proto::Universal& message,
-        const proto::Error& error);
+        const proto::Status& status);
 
     std::unique_ptr<ThreadPool> pool_;
     std::unique_ptr<Balancer> balancer_;
     std::unique_ptr<FileCache> cache_;
-    std::unordered_map<std::string, std::string> compilers_;
+    CompilerMap compilers_;
 };
 
 }  // namespace daemon

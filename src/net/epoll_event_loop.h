@@ -13,7 +13,7 @@ namespace net {
 
 class EpollEventLoop: public EventLoop {
   public:
-    typedef std::function<void(fd_t, ConnectionPtr)> ConnectionCallback;
+    using ConnectionCallback = std::function<void(fd_t, ConnectionPtr)>;
 
     EpollEventLoop(ConnectionCallback callback);
 

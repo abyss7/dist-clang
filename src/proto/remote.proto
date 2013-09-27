@@ -16,7 +16,7 @@ message Test {
   }
 }
 
-message Error {
+message Status {
   enum Code {
     OK = 0;
     INCONSEQUENT  = 1;  // Call to read/send method of |Connection| is inconsequent.
@@ -32,7 +32,7 @@ message Error {
   optional string description = 2;
 
   extend Universal {
-    optional Error error = 2;
+    optional Status status = 2;
   }
 }
 

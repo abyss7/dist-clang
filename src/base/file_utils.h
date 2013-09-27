@@ -15,12 +15,15 @@ namespace base {
 void DeleteFile(const std::string& path);
 
 inline bool CopyFile(const std::string& src, const std::string& dst,
-                     bool overwrite = false) {
+                     bool overwrite = false, std::string* error = nullptr) {
   auto src_fd = open(src.c_str(), O_RDONLY);
-  if (src_fd == -1)
+  if (src_fd == -1) {
+    GetLastError(error);
     return false;
+  }
   struct stat src_stats;
   if (fstat(src_fd, &src_stats) == -1) {
+    GetLastError(error);
     close(src_fd);
     return false;
   }
@@ -32,6 +35,7 @@ inline bool CopyFile(const std::string& src, const std::string& dst,
     flags |= O_TRUNC;
   auto dst_fd = open(dst.c_str(), flags, src_stats.st_mode & 0777);
   if (dst_fd == -1) {
+    GetLastError(error);
     close(src_fd);
     return false;
   }
@@ -65,14 +69,17 @@ inline bool MoveFile(const std::string& src, const std::string& dst) {
   return rename(src.c_str(), dst.c_str()) != -1;
 }
 
-inline bool ReadFile(const std::string& path, std::string* output) {
+inline bool ReadFile(const std::string& path, std::string* output,
+                     std::string* error = nullptr) {
   if (!output)
     return false;
   output->clear();
 
   auto src_fd = open(path.c_str(), O_RDONLY);
-  if (src_fd == -1)
+  if (src_fd == -1) {
+    GetLastError(error);
     return false;
+  }
 
   const size_t buffer_size = 1024;
   char buffer[buffer_size];
@@ -84,10 +91,13 @@ inline bool ReadFile(const std::string& path, std::string* output) {
   return !size;
 }
 
-inline bool WriteFile(const std::string& path, const std::string& input) {
+inline bool WriteFile(const std::string& path, const std::string& input,
+                      std::string* error = nullptr) {
   auto src_fd = open(path.c_str(), O_WRONLY|O_TRUNC|O_CREAT);
-  if (src_fd == -1)
+  if (src_fd == -1) {
+    GetLastError(error);
     return false;
+  }
 
   int total_bytes = 0;
   int size = 0;

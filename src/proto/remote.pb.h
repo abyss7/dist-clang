@@ -38,36 +38,36 @@ void protobuf_ShutdownFile_remote_2eproto();
 
 class Universal;
 class Test;
-class Error;
+class Status;
 class Flags;
 class LocalExecute;
 class RemoteExecute;
 class RemoteResult;
 
-enum Error_Code {
-  Error_Code_OK = 0,
-  Error_Code_INCONSEQUENT = 1,
-  Error_Code_NETWORK = 2,
-  Error_Code_BAD_MESSAGE = 3,
-  Error_Code_EMPTY_MESSAGE = 4,
-  Error_Code_EXECUTION = 5,
-  Error_Code_OVERLOAD = 6,
-  Error_Code_NO_VERSION = 7
+enum Status_Code {
+  Status_Code_OK = 0,
+  Status_Code_INCONSEQUENT = 1,
+  Status_Code_NETWORK = 2,
+  Status_Code_BAD_MESSAGE = 3,
+  Status_Code_EMPTY_MESSAGE = 4,
+  Status_Code_EXECUTION = 5,
+  Status_Code_OVERLOAD = 6,
+  Status_Code_NO_VERSION = 7
 };
-bool Error_Code_IsValid(int value);
-const Error_Code Error_Code_Code_MIN = Error_Code_OK;
-const Error_Code Error_Code_Code_MAX = Error_Code_NO_VERSION;
-const int Error_Code_Code_ARRAYSIZE = Error_Code_Code_MAX + 1;
+bool Status_Code_IsValid(int value);
+const Status_Code Status_Code_Code_MIN = Status_Code_OK;
+const Status_Code Status_Code_Code_MAX = Status_Code_NO_VERSION;
+const int Status_Code_Code_ARRAYSIZE = Status_Code_Code_MAX + 1;
 
-const ::google::protobuf::EnumDescriptor* Error_Code_descriptor();
-inline const ::std::string& Error_Code_Name(Error_Code value) {
+const ::google::protobuf::EnumDescriptor* Status_Code_descriptor();
+inline const ::std::string& Status_Code_Name(Status_Code value) {
   return ::google::protobuf::internal::NameOfEnum(
-    Error_Code_descriptor(), value);
+    Status_Code_descriptor(), value);
 }
-inline bool Error_Code_Parse(
-    const ::std::string& name, Error_Code* value) {
-  return ::google::protobuf::internal::ParseNamedEnum<Error_Code>(
-    Error_Code_descriptor(), name, value);
+inline bool Status_Code_Parse(
+    const ::std::string& name, Status_Code* value) {
+  return ::google::protobuf::internal::ParseNamedEnum<Status_Code>(
+    Status_Code_descriptor(), name, value);
 }
 // ===================================================================
 
@@ -269,14 +269,14 @@ class Test : public ::google::protobuf::Message {
 };
 // -------------------------------------------------------------------
 
-class Error : public ::google::protobuf::Message {
+class Status : public ::google::protobuf::Message {
  public:
-  Error();
-  virtual ~Error();
+  Status();
+  virtual ~Status();
 
-  Error(const Error& from);
+  Status(const Status& from);
 
-  inline Error& operator=(const Error& from) {
+  inline Status& operator=(const Status& from) {
     CopyFrom(from);
     return *this;
   }
@@ -290,17 +290,17 @@ class Error : public ::google::protobuf::Message {
   }
 
   static const ::google::protobuf::Descriptor* descriptor();
-  static const Error& default_instance();
+  static const Status& default_instance();
 
-  void Swap(Error* other);
+  void Swap(Status* other);
 
   // implements Message ----------------------------------------------
 
-  Error* New() const;
+  Status* New() const;
   void CopyFrom(const ::google::protobuf::Message& from);
   void MergeFrom(const ::google::protobuf::Message& from);
-  void CopyFrom(const Error& from);
-  void MergeFrom(const Error& from);
+  void CopyFrom(const Status& from);
+  void MergeFrom(const Status& from);
   void Clear();
   bool IsInitialized() const;
 
@@ -321,44 +321,44 @@ class Error : public ::google::protobuf::Message {
 
   // nested types ----------------------------------------------------
 
-  typedef Error_Code Code;
-  static const Code OK = Error_Code_OK;
-  static const Code INCONSEQUENT = Error_Code_INCONSEQUENT;
-  static const Code NETWORK = Error_Code_NETWORK;
-  static const Code BAD_MESSAGE = Error_Code_BAD_MESSAGE;
-  static const Code EMPTY_MESSAGE = Error_Code_EMPTY_MESSAGE;
-  static const Code EXECUTION = Error_Code_EXECUTION;
-  static const Code OVERLOAD = Error_Code_OVERLOAD;
-  static const Code NO_VERSION = Error_Code_NO_VERSION;
+  typedef Status_Code Code;
+  static const Code OK = Status_Code_OK;
+  static const Code INCONSEQUENT = Status_Code_INCONSEQUENT;
+  static const Code NETWORK = Status_Code_NETWORK;
+  static const Code BAD_MESSAGE = Status_Code_BAD_MESSAGE;
+  static const Code EMPTY_MESSAGE = Status_Code_EMPTY_MESSAGE;
+  static const Code EXECUTION = Status_Code_EXECUTION;
+  static const Code OVERLOAD = Status_Code_OVERLOAD;
+  static const Code NO_VERSION = Status_Code_NO_VERSION;
   static inline bool Code_IsValid(int value) {
-    return Error_Code_IsValid(value);
+    return Status_Code_IsValid(value);
   }
   static const Code Code_MIN =
-    Error_Code_Code_MIN;
+    Status_Code_Code_MIN;
   static const Code Code_MAX =
-    Error_Code_Code_MAX;
+    Status_Code_Code_MAX;
   static const int Code_ARRAYSIZE =
-    Error_Code_Code_ARRAYSIZE;
+    Status_Code_Code_ARRAYSIZE;
   static inline const ::google::protobuf::EnumDescriptor*
   Code_descriptor() {
-    return Error_Code_descriptor();
+    return Status_Code_descriptor();
   }
   static inline const ::std::string& Code_Name(Code value) {
-    return Error_Code_Name(value);
+    return Status_Code_Name(value);
   }
   static inline bool Code_Parse(const ::std::string& name,
       Code* value) {
-    return Error_Code_Parse(name, value);
+    return Status_Code_Parse(name, value);
   }
 
   // accessors -------------------------------------------------------
 
-  // required .dist_clang.proto.Error.Code code = 1 [default = OK];
+  // required .dist_clang.proto.Status.Code code = 1 [default = OK];
   inline bool has_code() const;
   inline void clear_code();
   static const int kCodeFieldNumber = 1;
-  inline ::dist_clang::proto::Error_Code code() const;
-  inline void set_code(::dist_clang::proto::Error_Code value);
+  inline ::dist_clang::proto::Status_Code code() const;
+  inline void set_code(::dist_clang::proto::Status_Code value);
 
   // optional string description = 2;
   inline bool has_description() const;
@@ -372,11 +372,11 @@ class Error : public ::google::protobuf::Message {
   inline ::std::string* release_description();
   inline void set_allocated_description(::std::string* description);
 
-  static const int kErrorFieldNumber = 2;
+  static const int kStatusFieldNumber = 2;
   static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
-      ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::Error >, 11, false >
-    error;
-  // @@protoc_insertion_point(class_scope:dist_clang.proto.Error)
+      ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::Status >, 11, false >
+    status;
+  // @@protoc_insertion_point(class_scope:dist_clang.proto.Status)
  private:
   inline void set_has_code();
   inline void clear_has_code();
@@ -396,7 +396,7 @@ class Error : public ::google::protobuf::Message {
   friend void protobuf_ShutdownFile_remote_2eproto();
 
   void InitAsDefaultInstance();
-  static Error* default_instance_;
+  static Status* default_instance_;
 };
 // -------------------------------------------------------------------
 
@@ -1035,79 +1035,79 @@ Test::mutable_field3() {
 
 // -------------------------------------------------------------------
 
-// Error
+// Status
 
-// required .dist_clang.proto.Error.Code code = 1 [default = OK];
-inline bool Error::has_code() const {
+// required .dist_clang.proto.Status.Code code = 1 [default = OK];
+inline bool Status::has_code() const {
   return (_has_bits_[0] & 0x00000001u) != 0;
 }
-inline void Error::set_has_code() {
+inline void Status::set_has_code() {
   _has_bits_[0] |= 0x00000001u;
 }
-inline void Error::clear_has_code() {
+inline void Status::clear_has_code() {
   _has_bits_[0] &= ~0x00000001u;
 }
-inline void Error::clear_code() {
+inline void Status::clear_code() {
   code_ = 0;
   clear_has_code();
 }
-inline ::dist_clang::proto::Error_Code Error::code() const {
-  return static_cast< ::dist_clang::proto::Error_Code >(code_);
+inline ::dist_clang::proto::Status_Code Status::code() const {
+  return static_cast< ::dist_clang::proto::Status_Code >(code_);
 }
-inline void Error::set_code(::dist_clang::proto::Error_Code value) {
-  assert(::dist_clang::proto::Error_Code_IsValid(value));
+inline void Status::set_code(::dist_clang::proto::Status_Code value) {
+  assert(::dist_clang::proto::Status_Code_IsValid(value));
   set_has_code();
   code_ = value;
 }
 
 // optional string description = 2;
-inline bool Error::has_description() const {
+inline bool Status::has_description() const {
   return (_has_bits_[0] & 0x00000002u) != 0;
 }
-inline void Error::set_has_description() {
+inline void Status::set_has_description() {
   _has_bits_[0] |= 0x00000002u;
 }
-inline void Error::clear_has_description() {
+inline void Status::clear_has_description() {
   _has_bits_[0] &= ~0x00000002u;
 }
-inline void Error::clear_description() {
+inline void Status::clear_description() {
   if (description_ != &::google::protobuf::internal::kEmptyString) {
     description_->clear();
   }
   clear_has_description();
 }
-inline const ::std::string& Error::description() const {
+inline const ::std::string& Status::description() const {
   return *description_;
 }
-inline void Error::set_description(const ::std::string& value) {
+inline void Status::set_description(const ::std::string& value) {
   set_has_description();
   if (description_ == &::google::protobuf::internal::kEmptyString) {
     description_ = new ::std::string;
   }
   description_->assign(value);
 }
-inline void Error::set_description(const char* value) {
+inline void Status::set_description(const char* value) {
   set_has_description();
   if (description_ == &::google::protobuf::internal::kEmptyString) {
     description_ = new ::std::string;
   }
   description_->assign(value);
 }
-inline void Error::set_description(const char* value, size_t size) {
+inline void Status::set_description(const char* value, size_t size) {
   set_has_description();
   if (description_ == &::google::protobuf::internal::kEmptyString) {
     description_ = new ::std::string;
   }
   description_->assign(reinterpret_cast<const char*>(value), size);
 }
-inline ::std::string* Error::mutable_description() {
+inline ::std::string* Status::mutable_description() {
   set_has_description();
   if (description_ == &::google::protobuf::internal::kEmptyString) {
     description_ = new ::std::string;
   }
   return description_;
 }
-inline ::std::string* Error::release_description() {
+inline ::std::string* Status::release_description() {
   clear_has_description();
   if (description_ == &::google::protobuf::internal::kEmptyString) {
     return NULL;
@@ -1117,7 +1117,7 @@ inline ::std::string* Error::release_description() {
     return temp;
   }
 }
-inline void Error::set_allocated_description(::std::string* description) {
+inline void Status::set_allocated_description(::std::string* description) {
   if (description_ != &::google::protobuf::internal::kEmptyString) {
     delete description_;
   }
@@ -1703,8 +1703,8 @@ namespace google {
 namespace protobuf {
 
 template <>
-inline const EnumDescriptor* GetEnumDescriptor< ::dist_clang::proto::Error_Code>() {
-  return ::dist_clang::proto::Error_Code_descriptor();
+inline const EnumDescriptor* GetEnumDescriptor< ::dist_clang::proto::Status_Code>() {
+  return ::dist_clang::proto::Status_Code_descriptor();
 }
 
 }  // namespace google

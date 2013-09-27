@@ -14,9 +14,9 @@ namespace client {
 class ClangFlagSet {
   public:
     enum Action { COMPILE, LINK, PREPROCESS, UNKNOWN };
-    typedef std::list<std::string> string_list;
+    using StringList = std::list<std::string>;
 
-    static Action ProcessFlags(string_list &flags, proto::Flags *message);
+    static Action ProcessFlags(StringList &flags, proto::Flags *message);
 };
 
 }  // namespace client

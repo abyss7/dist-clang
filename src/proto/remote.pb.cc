@@ -27,10 +27,10 @@ const ::google::protobuf::internal::GeneratedMessageReflection*
 const ::google::protobuf::Descriptor* Test_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   Test_reflection_ = NULL;
-const ::google::protobuf::Descriptor* Error_descriptor_ = NULL;
+const ::google::protobuf::Descriptor* Status_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
-  Error_reflection_ = NULL;
-const ::google::protobuf::EnumDescriptor* Error_Code_descriptor_ = NULL;
+  Status_reflection_ = NULL;
+const ::google::protobuf::EnumDescriptor* Status_Code_descriptor_ = NULL;
 const ::google::protobuf::Descriptor* Flags_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   Flags_reflection_ = NULL;
@@ -84,23 +84,23 @@ void protobuf_AssignDesc_remote_2eproto() {
       ::google::protobuf::DescriptorPool::generated_pool(),
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(Test));
-  Error_descriptor_ = file->message_type(2);
-  static const int Error_offsets_[2] = {
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Error, code_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Error, description_),
+  Status_descriptor_ = file->message_type(2);
+  static const int Status_offsets_[2] = {
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Status, code_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Status, description_),
   };
-  Error_reflection_ =
+  Status_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
-      Error_descriptor_,
-      Error::default_instance_,
-      Error_offsets_,
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Error, _has_bits_[0]),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Error, _unknown_fields_),
+      Status_descriptor_,
+      Status::default_instance_,
+      Status_offsets_,
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Status, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Status, _unknown_fields_),
       -1,
       ::google::protobuf::DescriptorPool::generated_pool(),
       ::google::protobuf::MessageFactory::generated_factory(),
-      sizeof(Error));
-  Error_Code_descriptor_ = Error_descriptor_->enum_type(0);
+      sizeof(Status));
+  Status_Code_descriptor_ = Status_descriptor_->enum_type(0);
   Flags_descriptor_ = file->message_type(3);
   static const int Flags_offsets_[4] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Flags, compiler_),
@@ -184,7 +184,7 @@ void protobuf_RegisterTypes(const ::std::string&) {
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
     Test_descriptor_, &Test::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-    Error_descriptor_, &Error::default_instance());
+    Status_descriptor_, &Status::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
     Flags_descriptor_, &Flags::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
@@ -202,8 +202,8 @@ void protobuf_ShutdownFile_remote_2eproto() {
   delete Universal_reflection_;
   delete Test::default_instance_;
   delete Test_reflection_;
-  delete Error::default_instance_;
-  delete Error_reflection_;
+  delete Status::default_instance_;
+  delete Status_reflection_;
   delete Flags::default_instance_;
   delete Flags_reflection_;
   delete LocalExecute::default_instance_;
@@ -226,33 +226,33 @@ void protobuf_AddDesc_remote_2eproto() {
     "roto\"\022\n\tUniversal*\005\010\001\020\311\001\"y\n\004Test\022\016\n\006fiel"
     "d1\030\001 \002(\t\022\016\n\006field2\030\002 \001(\t\022\016\n\006field3\030\003 \003(\t"
     "2A\n\004test\022\033.dist_clang.proto.Universal\030\001 "
-    "\001(\0132\026.dist_clang.proto.Test\"\221\002\n\005Error\022.\n"
-    "\004code\030\001 \002(\0162\034.dist_clang.proto.Error.Cod"
-    "e:\002OK\022\023\n\013description\030\002 \001(\t\"~\n\004Code\022\006\n\002OK"
-    "\020\000\022\020\n\014INCONSEQUENT\020\001\022\013\n\007NETWORK\020\002\022\017\n\013BAD"
-    "_MESSAGE\020\003\022\021\n\rEMPTY_MESSAGE\020\004\022\r\n\tEXECUTI"
-    "ON\020\005\022\014\n\010OVERLOAD\020\006\022\016\n\nNO_VERSION\020\0072C\n\005er"
-    "ror\022\033.dist_clang.proto.Universal\030\002 \001(\0132\027"
-    ".dist_clang.proto.Error\"c\n\005Flags\022,\n\010comp"
-    "iler\030\001 \002(\0132\032.dist_clang.proto.Compiler\022\016"
-    "\n\006output\030\002 \001(\t\022\r\n\005input\030\003 \001(\t\022\r\n\005other\030\004"
-    " \003(\t\"\305\001\n\014LocalExecute\022\023\n\013current_dir\030\001 \002"
-    "(\t\022)\n\010cc_flags\030\002 \002(\0132\027.dist_clang.proto."
-    "Flags\022)\n\010pp_flags\030\003 \001(\0132\027.dist_clang.pro"
-    "to.Flags2J\n\005local\022\033.dist_clang.proto.Uni"
-    "versal\030\003 \001(\0132\036.dist_clang.proto.LocalExe"
-    "cute\"\233\001\n\rRemoteExecute\022\021\n\tpp_source\030\001 \002("
-    "\t\022)\n\010cc_flags\030\002 \002(\0132\027.dist_clang.proto.F"
-    "lags2L\n\006remote\022\033.dist_clang.proto.Univer"
-    "sal\030\004 \001(\0132\037.dist_clang.proto.RemoteExecu"
-    "te\"h\n\014RemoteResult\022\013\n\003obj\030\001 \002(\t2K\n\006resul"
-    "t\022\033.dist_clang.proto.Universal\030\005 \001(\0132\036.d"
-    "ist_clang.proto.RemoteResult", 1028);
+    "\001(\0132\026.dist_clang.proto.Test\"\225\002\n\006Status\022/"
+    "\n\004code\030\001 \002(\0162\035.dist_clang.proto.Status.C"
+    "ode:\002OK\022\023\n\013description\030\002 \001(\t\"~\n\004Code\022\006\n\002"
+    "OK\020\000\022\020\n\014INCONSEQUENT\020\001\022\013\n\007NETWORK\020\002\022\017\n\013B"
+    "AD_MESSAGE\020\003\022\021\n\rEMPTY_MESSAGE\020\004\022\r\n\tEXECU"
+    "TION\020\005\022\014\n\010OVERLOAD\020\006\022\016\n\nNO_VERSION\020\0072E\n\006"
+    "status\022\033.dist_clang.proto.Universal\030\002 \001("
+    "\0132\030.dist_clang.proto.Status\"c\n\005Flags\022,\n\010"
+    "compiler\030\001 \002(\0132\032.dist_clang.proto.Compil"
+    "er\022\016\n\006output\030\002 \001(\t\022\r\n\005input\030\003 \001(\t\022\r\n\005oth"
+    "er\030\004 \003(\t\"\305\001\n\014LocalExecute\022\023\n\013current_dir"
+    "\030\001 \002(\t\022)\n\010cc_flags\030\002 \002(\0132\027.dist_clang.pr"
+    "oto.Flags\022)\n\010pp_flags\030\003 \001(\0132\027.dist_clang"
+    ".proto.Flags2J\n\005local\022\033.dist_clang.proto"
+    ".Universal\030\003 \001(\0132\036.dist_clang.proto.Loca"
+    "lExecute\"\233\001\n\rRemoteExecute\022\021\n\tpp_source\030"
+    "\001 \002(\t\022)\n\010cc_flags\030\002 \002(\0132\027.dist_clang.pro"
+    "to.Flags2L\n\006remote\022\033.dist_clang.proto.Un"
+    "iversal\030\004 \001(\0132\037.dist_clang.proto.RemoteE"
+    "xecute\"h\n\014RemoteResult\022\013\n\003obj\030\001 \002(\t2K\n\006r"
+    "esult\022\033.dist_clang.proto.Universal\030\005 \001(\013"
+    "2\036.dist_clang.proto.RemoteResult", 1032);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "remote.proto", &protobuf_RegisterTypes);
   Universal::default_instance_ = new Universal();
   Test::default_instance_ = new Test();
-  Error::default_instance_ = new Error();
+  Status::default_instance_ = new Status();
   Flags::default_instance_ = new Flags();
   LocalExecute::default_instance_ = new LocalExecute();
   RemoteExecute::default_instance_ = new RemoteExecute();
@@ -263,11 +263,11 @@ void protobuf_AddDesc_remote_2eproto() {
     &::dist_clang::proto::Universal::default_instance(),
     1, 11, false, false,
     &::dist_clang::proto::Test::default_instance());
-  Error::default_instance_->InitAsDefaultInstance();
+  Status::default_instance_->InitAsDefaultInstance();
   ::google::protobuf::internal::ExtensionSet::RegisterMessageExtension(
     &::dist_clang::proto::Universal::default_instance(),
     2, 11, false, false,
-    &::dist_clang::proto::Error::default_instance());
+    &::dist_clang::proto::Status::default_instance());
   Flags::default_instance_->InitAsDefaultInstance();
   LocalExecute::default_instance_->InitAsDefaultInstance();
   ::google::protobuf::internal::ExtensionSet::RegisterMessageExtension(
@@ -808,11 +808,11 @@ void Test::Swap(Test* other) {
 
 // ===================================================================
 
-const ::google::protobuf::EnumDescriptor* Error_Code_descriptor() {
+const ::google::protobuf::EnumDescriptor* Status_Code_descriptor() {
   protobuf_AssignDescriptorsOnce();
-  return Error_Code_descriptor_;
+  return Status_Code_descriptor_;
 }
-bool Error_Code_IsValid(int value) {
+bool Status_Code_IsValid(int value) {
   switch(value) {
     case 0:
     case 1:
@@ -829,55 +829,55 @@ bool Error_Code_IsValid(int value) {
 }
 
 #ifndef _MSC_VER
-const Error_Code Error::OK;
-const Error_Code Error::INCONSEQUENT;
-const Error_Code Error::NETWORK;
-const Error_Code Error::BAD_MESSAGE;
-const Error_Code Error::EMPTY_MESSAGE;
-const Error_Code Error::EXECUTION;
-const Error_Code Error::OVERLOAD;
-const Error_Code Error::NO_VERSION;
-const Error_Code Error::Code_MIN;
-const Error_Code Error::Code_MAX;
-const int Error::Code_ARRAYSIZE;
+const Status_Code Status::OK;
+const Status_Code Status::INCONSEQUENT;
+const Status_Code Status::NETWORK;
+const Status_Code Status::BAD_MESSAGE;
+const Status_Code Status::EMPTY_MESSAGE;
+const Status_Code Status::EXECUTION;
+const Status_Code Status::OVERLOAD;
+const Status_Code Status::NO_VERSION;
+const Status_Code Status::Code_MIN;
+const Status_Code Status::Code_MAX;
+const int Status::Code_ARRAYSIZE;
 #endif  // _MSC_VER
 #ifndef _MSC_VER
-const int Error::kCodeFieldNumber;
-const int Error::kDescriptionFieldNumber;
+const int Status::kCodeFieldNumber;
+const int Status::kDescriptionFieldNumber;
 #endif  // !_MSC_VER
 
 #ifndef _MSC_VER
-const int Error::kErrorFieldNumber;
+const int Status::kStatusFieldNumber;
 #endif
 ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
-    ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::Error >, 11, false >
-  Error::error(kErrorFieldNumber, ::dist_clang::proto::Error::default_instance());
-Error::Error()
+    ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::Status >, 11, false >
+  Status::status(kStatusFieldNumber, ::dist_clang::proto::Status::default_instance());
+Status::Status()
   : ::google::protobuf::Message() {
   SharedCtor();
 }
 
-void Error::InitAsDefaultInstance() {
+void Status::InitAsDefaultInstance() {
 }
 
-Error::Error(const Error& from)
+Status::Status(const Status& from)
   : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
 }
 
-void Error::SharedCtor() {
+void Status::SharedCtor() {
   _cached_size_ = 0;
   code_ = 0;
   description_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
-Error::~Error() {
+Status::~Status() {
   SharedDtor();
 }
 
-void Error::SharedDtor() {
+void Status::SharedDtor() {
   if (description_ != &::google::protobuf::internal::kEmptyString) {
     delete description_;
   }
@@ -885,28 +885,28 @@ void Error::SharedDtor() {
   }
 }
 
-void Error::SetCachedSize(int size) const {
+void Status::SetCachedSize(int size) const {
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
   _cached_size_ = size;
   GOOGLE_SAFE_CONCURRENT_WRITES_END();
 }
-const ::google::protobuf::Descriptor* Error::descriptor() {
+const ::google::protobuf::Descriptor* Status::descriptor() {
   protobuf_AssignDescriptorsOnce();
-  return Error_descriptor_;
+  return Status_descriptor_;
 }
 
-const Error& Error::default_instance() {
+const Status& Status::default_instance() {
   if (default_instance_ == NULL) protobuf_AddDesc_remote_2eproto();
   return *default_instance_;
 }
 
-Error* Error::default_instance_ = NULL;
+Status* Status::default_instance_ = NULL;
 
-Error* Error::New() const {
-  return new Error;
+Status* Status::New() const {
+  return new Status;
 }
 
-void Error::Clear() {
+void Status::Clear() {
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     code_ = 0;
     if (has_description()) {
@@ -919,13 +919,13 @@ void Error::Clear() {
   mutable_unknown_fields()->Clear();
 }
 
-bool Error::MergePartialFromCodedStream(
+bool Status::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
 #define DO_(EXPRESSION) if (!(EXPRESSION)) return false
   ::google::protobuf::uint32 tag;
   while ((tag = input->ReadTag()) != 0) {
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // required .dist_clang.proto.Error.Code code = 1 [default = OK];
+      // required .dist_clang.proto.Status.Code code = 1 [default = OK];
       case 1: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
@@ -933,8 +933,8 @@ bool Error::MergePartialFromCodedStream(
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    int, ::google::protobuf::internal::WireFormatLite::TYPE_ENUM>(
                  input, &value)));
-          if (::dist_clang::proto::Error_Code_IsValid(value)) {
-            set_code(static_cast< ::dist_clang::proto::Error_Code >(value));
+          if (::dist_clang::proto::Status_Code_IsValid(value)) {
+            set_code(static_cast< ::dist_clang::proto::Status_Code >(value));
           } else {
             mutable_unknown_fields()->AddVarint(1, value);
           }
@@ -978,9 +978,9 @@ bool Error::MergePartialFromCodedStream(
 #undef DO_
 }
 
-void Error::SerializeWithCachedSizes(
+void Status::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // required .dist_clang.proto.Error.Code code = 1 [default = OK];
+  // required .dist_clang.proto.Status.Code code = 1 [default = OK];
   if (has_code()) {
     ::google::protobuf::internal::WireFormatLite::WriteEnum(
       1, this->code(), output);
@@ -1001,9 +1001,9 @@ void Error::SerializeWithCachedSizes(
   }
 }
 
-::google::protobuf::uint8* Error::SerializeWithCachedSizesToArray(
+::google::protobuf::uint8* Status::SerializeWithCachedSizesToArray(
     ::google::protobuf::uint8* target) const {
-  // required .dist_clang.proto.Error.Code code = 1 [default = OK];
+  // required .dist_clang.proto.Status.Code code = 1 [default = OK];
   if (has_code()) {
     target = ::google::protobuf::internal::WireFormatLite::WriteEnumToArray(
       1, this->code(), target);
@@ -1026,11 +1026,11 @@ void Error::SerializeWithCachedSizes(
   return target;
 }
 
-int Error::ByteSize() const {
+int Status::ByteSize() const {
   int total_size = 0;
 
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    // required .dist_clang.proto.Error.Code code = 1 [default = OK];
+    // required .dist_clang.proto.Status.Code code = 1 [default = OK];
     if (has_code()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::EnumSize(this->code());
@@ -1055,10 +1055,10 @@ int Error::ByteSize() const {
   return total_size;
 }
 
-void Error::MergeFrom(const ::google::protobuf::Message& from) {
+void Status::MergeFrom(const ::google::protobuf::Message& from) {
   GOOGLE_CHECK_NE(&from, this);
-  const Error* source =
-    ::google::protobuf::internal::dynamic_cast_if_available<const Error*>(
+  const Status* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const Status*>(
       &from);
   if (source == NULL) {
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
@@ -1067,7 +1067,7 @@ void Error::MergeFrom(const ::google::protobuf::Message& from) {
   }
 }
 
-void Error::MergeFrom(const Error& from) {
+void Status::MergeFrom(const Status& from) {
   GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_code()) {
@@ -1080,25 +1080,25 @@ void Error::MergeFrom(const Error& from) {
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
-void Error::CopyFrom(const ::google::protobuf::Message& from) {
+void Status::CopyFrom(const ::google::protobuf::Message& from) {
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
-void Error::CopyFrom(const Error& from) {
+void Status::CopyFrom(const Status& from) {
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
-bool Error::IsInitialized() const {
+bool Status::IsInitialized() const {
   if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
 
   return true;
 }
 
-void Error::Swap(Error* other) {
+void Status::Swap(Status* other) {
   if (other != this) {
     std::swap(code_, other->code_);
     std::swap(description_, other->description_);
@@ -1108,11 +1108,11 @@ void Error::Swap(Error* other) {
   }
 }
 
-::google::protobuf::Metadata Error::GetMetadata() const {
+::google::protobuf::Metadata Status::GetMetadata() const {
   protobuf_AssignDescriptorsOnce();
   ::google::protobuf::Metadata metadata;
-  metadata.descriptor = Error_descriptor_;
-  metadata.reflection = Error_reflection_;
+  metadata.descriptor = Status_descriptor_;
+  metadata.reflection = Status_reflection_;
   return metadata;
 }
 

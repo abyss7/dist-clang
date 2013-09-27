@@ -10,7 +10,6 @@
 
 #include <fcntl.h>
 
-using std::string;
 using namespace TCLAP;
 
 namespace dist_clang {
@@ -20,21 +19,21 @@ Configuration::Configuration(int argc, char *argv[]) {
   try {
     // TODO: use normal versioning.
     CmdLine cmd("Daemon from Clang distributed system - Clangd.", ' ', "0.1");
-    ValueArg<string> socket_arg("s", "socket",
+    ValueArg<std::string> socket_arg("s", "socket",
         "Path to UNIX socket to listen for local connections.",
         false, base::kDefaultClangdSocket, "path", cmd);
-    ValueArg<string> cache_arg("c", "cache",
+    ValueArg<std::string> cache_arg("c", "cache",
         "Path, where the daemon will cache compilation results.",
-        false, string(), "path", cmd);
-    MultiArg<string> hosts_arg("", "host",
+        false, std::string(), "path", cmd);
+    MultiArg<std::string> hosts_arg("", "host",
         "Remote host to use for remote compilation.",
         false, "host[:port[:cpus]]", cmd);
-    ValueArg<string> local_arg("l", "listen",
+    ValueArg<std::string> local_arg("l", "listen",
         "Local host to listen for remote connections.",
-        false, string(), "host[:port[:cpus]]", cmd);
-    ValueArg<string> config_arg("", "config",
+        false, std::string(), "host[:port[:cpus]]", cmd);
+    ValueArg<std::string> config_arg("", "config",
         "Path to the configuration file.",
-        false, string(), "path", cmd);
+        false, std::string(), "path", cmd);
     cmd.parse(argc, argv);
 
     // Configuration file, if provided, has lower priority then command-line
@@ -49,7 +48,7 @@ Configuration::Configuration(int argc, char *argv[]) {
       config_.set_cache_path(cache_arg.getValue());
 
     for (auto host: hosts_arg) {
-      std::list<string> strs;
+      std::list<std::string> strs;
       base::SplitString<':'>(host, strs);
       if (strs.size() <= 3) {
         auto remote = config_.add_remotes();
@@ -69,7 +68,7 @@ Configuration::Configuration(int argc, char *argv[]) {
     }
 
     if (local_arg.isSet()) {
-      std::list<string> strs;
+      std::list<std::string> strs;
       base::SplitString<':'>(local_arg.getValue(), strs);
       if (strs.size() <= 3) {
         auto local = config_.mutable_local();

@@ -9,7 +9,7 @@ namespace daemon {
 
 class FileCache {
   public:
-    typedef std::pair<std::string /* path */, std::string /* stderr */> Entry;
+    using Entry = std::pair<std::string /* path */, std::string /* stderr */>;
 
     explicit FileCache(const std::string& path);
 

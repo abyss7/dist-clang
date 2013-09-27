@@ -9,9 +9,6 @@ namespace dist_clang {
 namespace daemon {
 namespace command {
 
-using CompilerMap = std::unordered_map<std::string, std::string>;
-using Remote = proto::RemoteResult;
-
 // static
 CommandPtr RemoteExecution::Create(net::ConnectionPtr connection,
                                    const proto::RemoteExecute& remote,
@@ -21,7 +18,9 @@ CommandPtr RemoteExecution::Create(net::ConnectionPtr connection,
 }
 
 void RemoteExecution::Run() {
-  proto::Error error;
+  using Remote = proto::RemoteResult;
+
+  proto::Status status;
 
   // Look in the local cache first.
   FileCache::Entry cache_entry;
@@ -29,9 +28,9 @@ void RemoteExecution::Run() {
     proto::Universal message;
     auto result = message.MutableExtension(proto::RemoteResult::result);
     if (base::ReadFile(cache_entry.first, result->mutable_obj())) {
-      auto error = message.MutableExtension(proto::Error::error);
-      error->set_code(proto::Error::OK);
-      error->set_description(cache_entry.second);
+      auto status = message.MutableExtension(proto::Status::status);
+      status->set_code(proto::Status::OK);
+      status->set_description(cache_entry.second);
       if (!connection_->SendAsync(message))
         connection_->Close();
       return;
@@ -41,9 +40,9 @@ void RemoteExecution::Run() {
   // Check that remote peer has provided us with a compiler version - otherwise,
   // we won't be able to do local compilation.
   if (!message_.cc_flags().compiler().has_version()) {
-    error.set_code(proto::Error::BAD_MESSAGE);
-    error.set_description("The compiler version is not specified");
-    connection_->SendAsync(error, net::Connection::CloseAfterSend());
+    status.set_code(proto::Status::BAD_MESSAGE);
+    status.set_description("The compiler version is not specified");
+    connection_->SendAsync(status, net::Connection::CloseAfterSend());
     return;
   }
 
@@ -51,9 +50,9 @@ void RemoteExecution::Run() {
   const proto::Flags& flags = message_.cc_flags();
   auto compiler = compilers_->find(flags.compiler().version());
   if (compiler == compilers_->end()) {
-    error.set_code(proto::Error::NO_VERSION);
-    error.set_description("Compiler of a requested version is missing");
-    connection_->SendAsync(error, net::Connection::CloseAfterSend());
+    status.set_code(proto::Status::NO_VERSION);
+    status.set_description("Compiler of a requested version is missing");
+    connection_->SendAsync(status, net::Connection::CloseAfterSend());
     return;
   }
 
@@ -63,15 +62,15 @@ void RemoteExecution::Run() {
   process.AppendArg(flags.other().begin(), flags.other().end())
          .AppendArg("-o").AppendArg("-");
   if (!process.Run(30, message_.pp_source())) {
-    error.set_code(proto::Error::EXECUTION);
-    error.set_description(process.stderr());
+    status.set_code(proto::Status::EXECUTION);
+    status.set_description(process.stderr());
   } else {
-    error.set_code(proto::Error::OK);
-    error.set_description(process.stderr());
+    status.set_code(proto::Status::OK);
+    status.set_description(process.stderr());
   }
 
   proto::Universal message;
-  message.MutableExtension(proto::Error::error)->CopyFrom(error);
+  message.MutableExtension(proto::Status::status)->CopyFrom(status);
   message.MutableExtension(Remote::result)->set_obj(process.stdout());
   connection_->SendAsync(message);
 }

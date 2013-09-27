@@ -15,18 +15,18 @@ namespace net {
 
 class NetworkService {
   public:
-    typedef std::function<void(ConnectionPtr)> ConnectionCallback;
+    using ConnectionCallback = std::function<void(ConnectionPtr)>;
 
     NetworkService();
 
     bool Listen(const std::string& path,
                 ConnectionCallback callback,
-                proto::Error* error) THREAD_UNSAFE;
+                proto::Status* status) THREAD_UNSAFE;
     bool Listen(const std::string& host, unsigned short port,
                 ConnectionCallback callback,
-                proto::Error* error = nullptr) THREAD_UNSAFE;
+                proto::Status* status = nullptr) THREAD_UNSAFE;
     ConnectionPtr Connect(const std::string& path,
-                          proto::Error* error) THREAD_SAFE;
+                          proto::Status* status) THREAD_SAFE;
 
     bool Run();
 

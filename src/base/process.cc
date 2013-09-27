@@ -7,21 +7,19 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-using std::string;
-
 namespace dist_clang {
 namespace base {
 
-Process::Process(const string& exec_path, const string& cwd_path)
+Process::Process(const std::string& exec_path, const std::string& cwd_path)
   : exec_path_(exec_path), cwd_path_(cwd_path) {
 }
 
-Process& Process::AppendArg(const string& arg) {
+Process& Process::AppendArg(const std::string& arg) {
   args_.push_back(arg);
   return *this;
 }
 
-bool Process::Run(unsigned short sec_timeout, string* error) {
+bool Process::Run(unsigned short sec_timeout, std::string* error) {
   int out_pipe_fd[2];
   int err_pipe_fd[2];
   if (pipe(out_pipe_fd) == -1) {
@@ -303,11 +301,11 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
   }
 }
 
-const string& Process::stdout() const {
+const std::string& Process::stdout() const {
   return stdout_;
 }
 
-const string& Process::stderr() const {
+const std::string& Process::stderr() const {
   return stderr_;
 }
 

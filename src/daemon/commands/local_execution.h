@@ -34,17 +34,17 @@ class LocalExecution: public Command {
 
     bool DoRemoteCompilation(
         net::ConnectionPtr connection,
-        const proto::Error& error);
+        const proto::Status& status);
     bool DoneRemoteCompilation(
         net::ConnectionPtr connection,
         const proto::Universal& message,
-        const proto::Error& error);
+        const proto::Status& status);
 
     void DoLocalCompilation();
     bool SearchCache(
         FileCache::Entry* entry);
     void UpdateCache(
-        const proto::Error& error);
+        const proto::Status& status);
 
     net::ConnectionPtr connection_;
     proto::LocalExecute message_;

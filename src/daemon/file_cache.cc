@@ -6,23 +6,22 @@
 
 #include <fstream>
 
-using std::string;
-
 namespace dist_clang {
 namespace daemon {
 
-FileCache::FileCache(const string &path)
+FileCache::FileCache(const std::string &path)
   : path_(path) {
   pool_.Run();
 }
 
-bool FileCache::Find(const string &code, const string &command_line,
-                     const string &version, Entry *entry) const {
+bool FileCache::Find(const std::string &code, const std::string &command_line,
+                     const std::string &version, Entry *entry) const {
   bool result = false;
-  string code_hash = base::Hexify(base::MakeHash(code));
-  string args_hash = base::Hexify(base::MakeHash(command_line));
-  string version_hash = base::Hexify(base::MakeHash(version));
-  string path = path_ + "/" + code_hash + "/" + args_hash + "/" + version_hash;
+  std::string code_hash = base::Hexify(base::MakeHash(code));
+  std::string args_hash = base::Hexify(base::MakeHash(command_line));
+  std::string version_hash = base::Hexify(base::MakeHash(version));
+  std::string path =
+      path_ + "/" + code_hash + "/" + args_hash + "/" + version_hash;
 
   std::ifstream obj(path + "/object");
   if (obj.is_open()) {
@@ -45,16 +44,17 @@ bool FileCache::Find(const string &code, const string &command_line,
 
 void FileCache::Store(const std::string &code, const std::string &command_line,
                       const std::string &version, const Entry &entry) {
-  string code_hash = base::Hexify(base::MakeHash(code));
-  string args_hash = base::Hexify(base::MakeHash(command_line));
-  string version_hash = base::Hexify(base::MakeHash(version));
-  string path = path_ + "/" + code_hash + "/" + args_hash + "/" + version_hash;
+  std::string code_hash = base::Hexify(base::MakeHash(code));
+  std::string args_hash = base::Hexify(base::MakeHash(command_line));
+  std::string version_hash = base::Hexify(base::MakeHash(version));
+  std::string path =
+      path_ + "/" + code_hash + "/" + args_hash + "/" + version_hash;
 
   pool_.Push(std::bind(&FileCache::DoStore, this, path, entry));
 }
 
 void FileCache::DoStore(const std::string &path, const Entry &entry) {
-  if (system((string("mkdir -p ") + path).c_str()) == -1)
+  if (system((std::string("mkdir -p ") + path).c_str()) == -1)
     // "mkdir -p" doesn't fail if the path already exists.
     return;
 

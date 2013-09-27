@@ -11,7 +11,7 @@ namespace daemon {
 
 class ThreadPool {
   public:
-    typedef std::function<void(void)> Closure;
+    using Closure = std::function<void(void)>;
     enum { UNLIMITED = 0 };
 
     explicit ThreadPool(

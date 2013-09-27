@@ -15,33 +15,34 @@ namespace net {
 class EventLoop;
 
 class Connection: public std::enable_shared_from_this<Connection> {
+    using CodedInputStream = google::protobuf::io::CodedInputStream;
+    using CodedOutputStream = google::protobuf::io::CodedOutputStream;
+    using CustomMessage = google::protobuf::Message;
+    using FileInputStream = google::protobuf::io::FileInputStream;
+    using FileOutputStream = google::protobuf::io::FileOutputStream;
+    using Limit = google::protobuf::io::CodedInputStream::Limit;
+    using Status = proto::Status;
+
   public:
-    typedef proto::Universal Message;
-    typedef google::protobuf::Message CustomMessage;
-    typedef proto::Error Error;
-    typedef google::protobuf::io::FileInputStream FileInputStream;
-    typedef google::protobuf::io::FileOutputStream FileOutputStream;
-    typedef google::protobuf::io::CodedInputStream CodedInputStream;
-    typedef google::protobuf::io::CodedOutputStream CodedOutputStream;
-    typedef google::protobuf::io::CodedInputStream::Limit Limit;
-    typedef std::function<bool(ConnectionPtr, const Message&, const Error&)>
-        ReadCallback;
-    typedef std::function<bool(ConnectionPtr, const Error&)> SendCallback;
+    using Message = proto::Universal;
+    using ReadCallback =
+        std::function<bool(ConnectionPtr, const Message&, const Status&)>;
+    using SendCallback = std::function<bool(ConnectionPtr, const Status&)>;
 
     // Create connection only on an active socket -
     // i.e. after connect() or accept().
     static ConnectionPtr Create(EventLoop& event_loop, fd_t fd);
     ~Connection();
 
-    bool ReadAsync(ReadCallback callback, Error* error = nullptr);
+    bool ReadAsync(ReadCallback callback, Status* status = nullptr);
     bool SendAsync(const CustomMessage& message,
                    SendCallback callback = Idle(),
-                   Error* error = nullptr);
+                   Status* status = nullptr);
     static SendCallback CloseAfterSend();
     static SendCallback Idle();
 
-    bool ReadSync(Message* message, Error* error = nullptr);
-    bool SendSync(const CustomMessage& message, Error* error = nullptr);
+    bool ReadSync(Message* message, Status* status = nullptr);
+    bool SendSync(const CustomMessage& message, Status* status = nullptr);
     void Close();
     bool IsClosed() const;
     bool IsOnEventLoop(const EventLoop* event_loop) const;

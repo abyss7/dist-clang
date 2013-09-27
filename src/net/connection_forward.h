@@ -6,8 +6,8 @@ namespace dist_clang {
 namespace net {
 
 class Connection;
-typedef std::shared_ptr<Connection> ConnectionPtr;
-typedef std::weak_ptr<Connection> ConnectionWeakPtr;
+using ConnectionPtr = std::shared_ptr<Connection>;
+using ConnectionWeakPtr = std::weak_ptr<Connection>;
 
 }  // namespace net
 }  // namespace dist_clang
