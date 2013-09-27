@@ -73,7 +73,8 @@ class Connection: public std::enable_shared_from_this<Connection> {
     FileOutputStream file_output_stream_;
     std::unique_ptr<CodedOutputStream> coded_output_stream_;
     SendCallback send_callback_;
-    Message output_message_;
+    size_t total_sent_;
+    std::string output_message_;
 };
 
 }  // namespace net

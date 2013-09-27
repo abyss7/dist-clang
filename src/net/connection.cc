@@ -51,13 +51,14 @@ bool Connection::SendAsync(const CustomMessage &message, SendCallback callback,
   }
 
   // Handle |message|.
-  if (message.GetTypeName() == output_message_.GetTypeName())
-    output_message_.CopyFrom(message);
+  proto::Universal output_message;
+  if (message.GetTypeName() == output_message.GetTypeName())
+    output_message.CopyFrom(message);
   else {
-    output_message_.Clear();
+    output_message.Clear();
     const google::protobuf::FieldDescriptor* extension_field = nullptr;
     auto descriptor = message.GetDescriptor();
-    auto reflection = output_message_.GetReflection();
+    auto reflection = output_message.GetReflection();
     for (int i = 0; i < descriptor->extension_count(); ++i) {
       extension_field = reflection->FindKnownExtensionByName(
           descriptor->extension(i)->full_name());
@@ -69,14 +70,15 @@ bool Connection::SendAsync(const CustomMessage &message, SendCallback callback,
         status->set_code(Status::EMPTY_MESSAGE);
         status->set_description("Message of type " + message.GetTypeName() +
                                " can't be sent, since it doesn't extend " +
-                               output_message_.GetTypeName());
+                               output_message.GetTypeName());
       }
       return false;
     }
-    reflection->MutableMessage(&output_message_, extension_field)->
+    reflection->MutableMessage(&output_message, extension_field)->
         CopyFrom(message);
   }
 
+  output_message.SerializeToString(&output_message_);
   send_callback_ = callback;
   event_loop_.ReadyForSend(shared_from_this());
   return true;
@@ -178,13 +180,14 @@ bool Connection::SendSync(const CustomMessage &message, Status *status) {
   }
 
   // Handle |message|.
-  if (message.GetTypeName() == output_message_.GetTypeName())
-    output_message_.CopyFrom(message);
+  proto::Universal output_message;
+  if (message.GetTypeName() == output_message.GetTypeName())
+    output_message.CopyFrom(message);
   else {
-    output_message_.Clear();
+    output_message.Clear();
     const google::protobuf::FieldDescriptor* extension_field = nullptr;
     auto descriptor = message.GetDescriptor();
-    auto reflection = output_message_.GetReflection();
+    auto reflection = output_message.GetReflection();
     for (int i = 0; i < descriptor->extension_count(); ++i) {
       extension_field = reflection->FindKnownExtensionByName(
           descriptor->extension(i)->full_name());
@@ -196,11 +199,11 @@ bool Connection::SendSync(const CustomMessage &message, Status *status) {
         status->set_code(Status::EMPTY_MESSAGE);
         status->set_description("Message of type " + message.GetTypeName() +
                                " can't be sent, since it doesn't extend " +
-                               output_message_.GetTypeName());
+                               output_message.GetTypeName());
       }
       return false;
     }
-    reflection->MutableMessage(&output_message_, extension_field)->
+    reflection->MutableMessage(&output_message, extension_field)->
         CopyFrom(message);
   }
 
@@ -214,11 +217,11 @@ bool Connection::SendSync(const CustomMessage &message, Status *status) {
 
   coded_output_stream_.reset(new CodedOutputStream(&file_output_stream_));
 
-  coded_output_stream_->WriteVarint32(output_message_.ByteSize());
+  coded_output_stream_->WriteVarint32(output_message.ByteSize());
   auto sent_bytes = coded_output_stream_->ByteCount();
-  if (!output_message_.SerializeToCodedStream(coded_output_stream_.get()) ||
+  if (!output_message.SerializeToCodedStream(coded_output_stream_.get()) ||
       coded_output_stream_->ByteCount() != sent_bytes +
-                                           output_message_.ByteSize()) {
+                                           output_message.ByteSize()) {
     if (status) {
       status->set_code(Status::NETWORK);
       status->set_description("Can't send whole message at once");
@@ -285,20 +288,33 @@ void Connection::CanRead() {
 
 void Connection::CanSend() {
   Status status;
-  assert(state_.load() == WAITING_SEND);
+  assert(state_.load() == WAITING_SEND || state_.load() == SENDING);
 
-  coded_output_stream_.reset(new CodedOutputStream(&file_output_stream_));
+  if (state_.load() == WAITING_SEND) {
+    coded_output_stream_.reset(new CodedOutputStream(&file_output_stream_));
+    coded_output_stream_->WriteVarint32(output_message_.size());
+    coded_output_stream_.reset();
+    file_output_stream_.Flush();
+    total_sent_ = 0;
+    state_.store(SENDING);
+  }
 
-  coded_output_stream_->WriteVarint32(output_message_.ByteSize());
-  if (!output_message_.SerializeToCodedStream(coded_output_stream_.get())) {
+  auto sent = write(fd_, output_message_.data() + total_sent_,
+                    output_message_.size() - total_sent_);
+  if (sent <= 0) {
     status.set_code(Status::NETWORK);
-    status.set_description("Can't send whole message at once");
+    status.set_description("Can't send message");
     if (!send_callback_(shared_from_this(), status))
       Close();
     return;
   }
-  coded_output_stream_.reset();
-  file_output_stream_.Flush();
+  total_sent_ += sent;
+
+  if (total_sent_ < output_message_.size()) {
+    event_loop_.ReadyForSend(shared_from_this());
+    return;
+  }
+
   state_.store(IDLE);
   if (!send_callback_(shared_from_this(), status))
     Close();

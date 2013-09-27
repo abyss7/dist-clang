@@ -167,8 +167,11 @@ ConnectionPtr NetworkService::Connect(const std::string &host,
 
   auto socket_address = reinterpret_cast<sockaddr*>(&address);
   if (connect(fd, socket_address, sizeof(address)) == -1) {
-    base::GetLastError(error);
-    return ConnectionPtr();
+    if (errno != EINPROGRESS) {
+      base::GetLastError(error);
+      close(fd);
+      return ConnectionPtr();
+    }
   }
 
   auto connection =
