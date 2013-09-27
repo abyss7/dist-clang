@@ -31,23 +31,30 @@ bool Daemon::Initialize(const Configuration &configuration,
     pool_.reset(new ThreadPool(config.pool_capacity()));
   pool_->Run();
 
-  balancer_.reset(new Balancer(network_service));
-
   if (config.has_cache_path()) {
     cache_.reset(new FileCache(config.cache_path()));
   }
 
   auto handle_new_conn = std::bind(&Daemon::HandleNewConnection, this, _1);
-  if (!network_service.Listen(config.socket_path(), handle_new_conn)) {
+  bool is_listening = false;
+  if (config.has_local()) {
+    is_listening =
+        network_service.Listen(config.local().host(), config.local().port(),
+                               handle_new_conn);
+  }
+  if (config.has_socket_path()) {
+    is_listening |=
+        network_service.Listen(config.socket_path(), handle_new_conn);
+  }
+  if (!is_listening) {
+    std::cerr << "Daemon is not listening. Quitting..." << std::endl;
     return false;
   }
 
-  if (config.has_local()) {
-    network_service.Listen(config.local().host(), config.local().port(),
-                           handle_new_conn);
+  balancer_.reset(new Balancer(network_service));
+  for (auto remote: config.remotes()) {
+    balancer_->AddRemote(remote);
   }
-
-  // TODO: handle config.remotes
 
   for (auto version: config.versions()) {
     compilers_.insert(std::make_pair(version.version(), version.path()));

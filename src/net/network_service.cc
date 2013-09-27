@@ -81,7 +81,7 @@ bool NetworkService::Listen(const std::string &host, unsigned short port,
   address.sin_addr.s_addr = address_list[0]->s_addr;
   address.sin_port = htons(port);
 
-  int fd = socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
+  auto fd = socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
   if (fd == -1) {
     base::GetLastError(error);
     return false;
@@ -135,7 +135,46 @@ ConnectionPtr NetworkService::Connect(const std::string &path,
       static_cast<EpollEventLoop*>(event_loop_.get())->HandleActive(fd);
   if (!connection) {
     close(fd);
+  }
+
+  return connection;
+}
+
+ConnectionPtr NetworkService::Connect(const std::string &host,
+                                      unsigned short port,
+                                      std::string *error) {
+  struct hostent* host_entry;
+  struct in_addr** address_list;
+
+  if ((host_entry = gethostbyname(host.c_str())) == NULL) {
+    base::GetLastError(error);
     return ConnectionPtr();
+  }
+
+  address_list =
+      reinterpret_cast<struct in_addr**>(host_entry->h_addr_list);
+
+  sockaddr_in address;
+  address.sin_family = AF_INET;
+  address.sin_addr.s_addr = address_list[0]->s_addr;
+  address.sin_port = htons(port);
+
+  auto fd = socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
+  if (fd == -1) {
+    base::GetLastError(error);
+    return ConnectionPtr();
+  }
+
+  auto socket_address = reinterpret_cast<sockaddr*>(&address);
+  if (connect(fd, socket_address, sizeof(address)) == -1) {
+    base::GetLastError(error);
+    return ConnectionPtr();
+  }
+
+  auto connection =
+      static_cast<EpollEventLoop*>(event_loop_.get())->HandleActive(fd);
+  if (!connection) {
+    close(fd);
   }
 
   return connection;

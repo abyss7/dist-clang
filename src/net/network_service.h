@@ -19,14 +19,20 @@ class NetworkService {
 
     NetworkService();
 
-    bool Listen(const std::string& path,
-                ConnectionCallback callback,
-                std::string* error = nullptr) THREAD_UNSAFE;
-    bool Listen(const std::string& host, unsigned short port,
-                ConnectionCallback callback,
-                std::string* error = nullptr) THREAD_UNSAFE;
-    ConnectionPtr Connect(const std::string& path,
-                          std::string* error = nullptr) THREAD_SAFE;
+    bool Listen(
+        const std::string& path,
+        ConnectionCallback callback,
+        std::string* error = nullptr) THREAD_UNSAFE;
+    bool Listen(
+        const std::string& host, unsigned short port,
+        ConnectionCallback callback,
+        std::string* error = nullptr) THREAD_UNSAFE;
+    ConnectionPtr Connect(
+        const std::string& path,
+        std::string* error = nullptr) THREAD_SAFE;
+    ConnectionPtr Connect(
+        const std::string& host, unsigned short port,
+        std::string* error = nullptr) THREAD_SAFE;
 
     bool Run();
 

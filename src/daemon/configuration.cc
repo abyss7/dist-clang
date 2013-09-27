@@ -41,7 +41,7 @@ Configuration::Configuration(int argc, char *argv[]) {
     if (config_arg.isSet())
       LoadFromFile(config_arg.getValue());
 
-    if (!config_.has_socket_path())
+    if (socket_arg.isSet())
       config_.set_socket_path(socket_arg.getValue());
 
     if (cache_arg.isSet())
