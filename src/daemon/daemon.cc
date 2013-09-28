@@ -38,9 +38,15 @@ bool Daemon::Initialize(const Configuration &configuration,
   auto handle_new_conn = std::bind(&Daemon::HandleNewConnection, this, _1);
   bool is_listening = false;
   if (config.has_local()) {
-    is_listening =
-        network_service.Listen(config.local().host(), config.local().port(),
-                               handle_new_conn);
+    std::string error;
+    bool result = network_service.Listen(config.local().host(),
+                                         config.local().port(),
+                                         handle_new_conn, &error);
+    if (!result) {
+      std::cerr << "Failed to listen on " << config.local().host() << ":"
+                << config.local().port() << " : " << error << std::endl;
+    }
+    is_listening |= result;
   }
   if (config.has_socket_path()) {
     is_listening |=

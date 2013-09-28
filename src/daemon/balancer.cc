@@ -23,7 +23,7 @@ net::ConnectionPtr Balancer::Decide() {
   const proto::Host& remote =
       remotes_[base::Random<size_t>() % remotes_.size()];
   std::string error;
-  auto connection = service_.Connect(remote.host(), remote.port(), &error);
+  auto connection = service_.ConnectSync(remote.host(), remote.port(), &error);
   if (!connection)
     std::cerr << "Failed to connect to " << remote.host() << ":"
               << remote.port() << " : " << error << std::endl;

@@ -135,6 +135,7 @@ bool LocalExecution::DoneRemoteCompilation(net::ConnectionPtr /* connection */,
   else if (message.HasExtension(proto::Status::status)) {
     const proto::Status& status = message.GetExtension(proto::Status::status);
     if (status.code() != proto::Status::OK) {
+      std::cerr << "Remote compilation failed with error(s):" << std::endl;
       std::cerr << status.description() << std::endl;
       DoLocalCompilation();
     }
