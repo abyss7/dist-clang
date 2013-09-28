@@ -26,8 +26,8 @@ namespace dist_clang {
 namespace net {
 
 EventLoop::EventLoop(size_t concurrency)
-  : is_running_(false), incoming_threads_(concurrency + 1),
-    outgoing_threads_(concurrency + 1), is_shutting_down_(false) {}
+  : is_running_(false), io_threads_(concurrency + 1),
+    is_shutting_down_(false) {}
 
 EventLoop::~EventLoop() {
   assert(is_shutting_down_);
@@ -45,12 +45,8 @@ bool EventLoop::Run() {
   closing_thread_ = std::thread(&EventLoop::DoClosingWork, this,
                                 std::cref(is_shutting_down_));
 
-  for (std::thread& thread: incoming_threads_)
-    thread = std::thread(&EventLoop::DoIncomingWork, this,
-                         std::cref(is_shutting_down_));
-
-  for (std::thread& thread: outgoing_threads_)
-    thread = std::thread(&EventLoop::DoOutgoingWork, this,
+  for (std::thread& thread: io_threads_)
+    thread = std::thread(&EventLoop::DoIOWork, this,
                          std::cref(is_shutting_down_));
 
   UnblockSignals(old_signals);
@@ -67,11 +63,7 @@ void EventLoop::Stop() {
     listening_thread_.join();
     assert(closing_thread_.joinable());
     closing_thread_.join();
-    for (std::thread& thread: incoming_threads_) {
-      assert(thread.joinable());
-      thread.join();
-    }
-    for (std::thread& thread: outgoing_threads_) {
+    for (std::thread& thread: io_threads_) {
       assert(thread.joinable());
       thread.join();
     }

@@ -147,16 +147,10 @@ class TestServer: public net::EventLoop {
     virtual void DoListenWork(const volatile bool &is_shutting_down) override {
       // TODO: implement this.
     }
-    virtual void
-    DoIncomingWork(const volatile bool &is_shutting_down) override {
+    virtual void DoIOWork(const volatile bool &is_shutting_down) override {
       // TODO: implement this.
     }
-    virtual void
-    DoOutgoingWork(const volatile bool &is_shutting_down) override {
-      // TODO: implement this.
-    }
-    virtual void
-    DoClosingWork(const volatile bool &is_shutting_down) override {
+    virtual void DoClosingWork(const volatile bool &is_shutting_down) override {
       // TODO: implement this.
     }
 

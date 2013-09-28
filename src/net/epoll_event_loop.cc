@@ -11,12 +11,14 @@ namespace net {
 
 EpollEventLoop::EpollEventLoop(ConnectionCallback callback)
   : listen_fd_(epoll_create1(EPOLL_CLOEXEC)),
-    incoming_fd_(epoll_create1(EPOLL_CLOEXEC)),
-    outgoing_fd_(epoll_create1(EPOLL_CLOEXEC)),
+    io_fd_(epoll_create1(EPOLL_CLOEXEC)),
     closing_fd_(epoll_create1(EPOLL_CLOEXEC)), callback_(callback) {}
 
 EpollEventLoop::~EpollEventLoop() {
   Stop();
+  close(listen_fd_);
+  close(io_fd_);
+  close(closing_fd_);
 }
 
 bool EpollEventLoop::HandlePassive(fd_t fd) {
@@ -44,9 +46,9 @@ bool EpollEventLoop::ReadyForRead(ConnectionPtr connection) {
   event.events = EPOLLIN | EPOLLONESHOT;
   event.data.ptr = connection.get();
   auto fd = GetConnectionDescriptor(connection);
-  if (epoll_ctl(incoming_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
+  if (epoll_ctl(io_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
     if (errno == ENOENT)
-      return epoll_ctl(incoming_fd_, EPOLL_CTL_ADD, fd, &event) != 1;
+      return epoll_ctl(io_fd_, EPOLL_CTL_ADD, fd, &event) != 1;
     return false;
   }
   return true;
@@ -59,9 +61,9 @@ bool EpollEventLoop::ReadyForSend(ConnectionPtr connection) {
   event.events = EPOLLOUT | EPOLLONESHOT;
   event.data.ptr = connection.get();
   auto fd = GetConnectionDescriptor(connection);
-  if (epoll_ctl(outgoing_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
+  if (epoll_ctl(io_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
     if (errno == ENOENT)
-      return epoll_ctl(outgoing_fd_, EPOLL_CTL_ADD, fd, &event) != -1;
+      return epoll_ctl(io_fd_, EPOLL_CTL_ADD, fd, &event) != -1;
     return false;
   }
   return true;
@@ -74,8 +76,9 @@ void EpollEventLoop::DoListenWork(const volatile bool &is_shutting_down) {
 
   while(!is_shutting_down) {
     auto events_count = epoll_wait(listen_fd_, events, MAX_EVENTS, TIMEOUT);
-    if (events_count == -1)
+    if (events_count == -1 && errno != EINTR) {
       break;
+    }
 
     for (int i = 0; i < events_count; ++i) {
       assert(events[i].events & EPOLLIN);
@@ -98,40 +101,26 @@ void EpollEventLoop::DoListenWork(const volatile bool &is_shutting_down) {
     close(fd);
 }
 
-void EpollEventLoop::DoIncomingWork(const volatile bool& is_shutting_down) {
+void EpollEventLoop::DoIOWork(const volatile bool& is_shutting_down) {
   const int MAX_EVENTS = 10;  // This should be enought in most cases.
   const int TIMEOUT = 3 * 1000;  // In milliseconds.
   struct epoll_event events[MAX_EVENTS];
 
   while(!is_shutting_down) {
-    auto events_count = epoll_wait(incoming_fd_, events, MAX_EVENTS, TIMEOUT);
-    if (events_count == -1)
-      return;
-
-    for (int i = 0; i < events_count; ++i) {
-      assert(events[i].events & EPOLLIN);
-      auto connection =
-          reinterpret_cast<Connection*>(events[i].data.ptr)->shared_from_this();
-      ConnectionCanRead(connection);
+    auto events_count = epoll_wait(io_fd_, events, MAX_EVENTS, TIMEOUT);
+    if (events_count == -1 && errno != EINTR) {
+      break;
     }
-  }
-}
-
-void EpollEventLoop::DoOutgoingWork(const volatile bool &is_shutting_down) {
-  const int MAX_EVENTS = 10;  // This should be enought in most cases.
-  const int TIMEOUT = 3 * 1000;  // In milliseconds.
-  struct epoll_event events[MAX_EVENTS];
-
-  while(!is_shutting_down) {
-    auto events_count = epoll_wait(outgoing_fd_, events, MAX_EVENTS, TIMEOUT);
-    if (events_count == -1)
-      return;
 
     for (int i = 0; i < events_count; ++i) {
-      assert(events[i].events & EPOLLOUT);
       auto connection =
           reinterpret_cast<Connection*>(events[i].data.ptr)->shared_from_this();
-      ConnectionCanSend(connection);
+      if (events[i].events & EPOLLIN) {
+        ConnectionCanRead(connection);
+      }
+      else if (events[i].events & EPOLLOUT) {
+        ConnectionCanSend(connection);
+      }
     }
   }
 }
@@ -143,8 +132,9 @@ void EpollEventLoop::DoClosingWork(const volatile bool &is_shutting_down) {
 
   while(!is_shutting_down) {
     auto events_count = epoll_wait(closing_fd_, events, MAX_EVENTS, TIMEOUT);
-    if (events_count == -1)
+    if (events_count == -1 && errno != EINTR) {
       return;
+    }
 
     for (int i = 0; i < events_count; ++i) {
       assert(events[i].events & (EPOLLHUP|EPOLLRDHUP|EPOLLERR));

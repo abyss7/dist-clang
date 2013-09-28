@@ -70,7 +70,7 @@ bool DoMain(int argc, char* argv[]) {
                                                 base::kDefaultClangdSocket);
 
   net::NetworkService service;
-  auto connection = service.Connect(clangd_socket_path, nullptr);
+  auto connection = service.Connect(clangd_socket_path);
   if (!connection)
     return true;
 
