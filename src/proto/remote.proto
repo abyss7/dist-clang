@@ -63,7 +63,7 @@ message RemoteExecute {
 }
 
 message RemoteResult {
-  required string obj         = 1;
+  required bytes obj          = 1;
 
   extend Universal {
     optional RemoteResult result = 5;

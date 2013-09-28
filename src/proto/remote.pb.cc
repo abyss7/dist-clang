@@ -245,7 +245,7 @@ void protobuf_AddDesc_remote_2eproto() {
     "\001 \002(\t\022)\n\010cc_flags\030\002 \002(\0132\027.dist_clang.pro"
     "to.Flags2L\n\006remote\022\033.dist_clang.proto.Un"
     "iversal\030\004 \001(\0132\037.dist_clang.proto.RemoteE"
-    "xecute\"h\n\014RemoteResult\022\013\n\003obj\030\001 \002(\t2K\n\006r"
+    "xecute\"h\n\014RemoteResult\022\013\n\003obj\030\001 \002(\0142K\n\006r"
     "esult\022\033.dist_clang.proto.Universal\030\005 \001(\013"
     "2\036.dist_clang.proto.RemoteResult", 1032);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
@@ -2187,15 +2187,12 @@ bool RemoteResult::MergePartialFromCodedStream(
   ::google::protobuf::uint32 tag;
   while ((tag = input->ReadTag()) != 0) {
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // required string obj = 1;
+      // required bytes obj = 1;
       case 1: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
-          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+          DO_(::google::protobuf::internal::WireFormatLite::ReadBytes(
                 input, this->mutable_obj()));
-          ::google::protobuf::internal::WireFormat::VerifyUTF8String(
-            this->obj().data(), this->obj().length(),
-            ::google::protobuf::internal::WireFormat::PARSE);
         } else {
           goto handle_uninterpreted;
         }
@@ -2221,12 +2218,9 @@ bool RemoteResult::MergePartialFromCodedStream(
 
 void RemoteResult::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // required string obj = 1;
+  // required bytes obj = 1;
   if (has_obj()) {
-    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
-      this->obj().data(), this->obj().length(),
-      ::google::protobuf::internal::WireFormat::SERIALIZE);
-    ::google::protobuf::internal::WireFormatLite::WriteString(
+    ::google::protobuf::internal::WireFormatLite::WriteBytes(
       1, this->obj(), output);
   }
 
@@ -2238,13 +2232,10 @@ void RemoteResult::SerializeWithCachedSizes(
 
 ::google::protobuf::uint8* RemoteResult::SerializeWithCachedSizesToArray(
     ::google::protobuf::uint8* target) const {
-  // required string obj = 1;
+  // required bytes obj = 1;
   if (has_obj()) {
-    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
-      this->obj().data(), this->obj().length(),
-      ::google::protobuf::internal::WireFormat::SERIALIZE);
     target =
-      ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
+      ::google::protobuf::internal::WireFormatLite::WriteBytesToArray(
         1, this->obj(), target);
   }
 
@@ -2259,10 +2250,10 @@ int RemoteResult::ByteSize() const {
   int total_size = 0;
 
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    // required string obj = 1;
+    // required bytes obj = 1;
     if (has_obj()) {
       total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::StringSize(
+        ::google::protobuf::internal::WireFormatLite::BytesSize(
           this->obj());
     }
 

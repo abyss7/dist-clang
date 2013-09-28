@@ -803,14 +803,14 @@ class RemoteResult : public ::google::protobuf::Message {
 
   // accessors -------------------------------------------------------
 
-  // required string obj = 1;
+  // required bytes obj = 1;
   inline bool has_obj() const;
   inline void clear_obj();
   static const int kObjFieldNumber = 1;
   inline const ::std::string& obj() const;
   inline void set_obj(const ::std::string& value);
   inline void set_obj(const char* value);
-  inline void set_obj(const char* value, size_t size);
+  inline void set_obj(const void* value, size_t size);
   inline ::std::string* mutable_obj();
   inline ::std::string* release_obj();
   inline void set_allocated_obj(::std::string* obj);
@@ -1622,7 +1622,7 @@ inline void RemoteExecute::set_allocated_cc_flags(::dist_clang::proto::Flags* cc
 
 // RemoteResult
 
-// required string obj = 1;
+// required bytes obj = 1;
 inline bool RemoteResult::has_obj() const {
   return (_has_bits_[0] & 0x00000001u) != 0;
 }
@@ -1655,7 +1655,7 @@ inline void RemoteResult::set_obj(const char* value) {
   }
   obj_->assign(value);
 }
-inline void RemoteResult::set_obj(const char* value, size_t size) {
+inline void RemoteResult::set_obj(const void* value, size_t size) {
   set_has_obj();
   if (obj_ == &::google::protobuf::internal::kEmptyString) {
     obj_ = new ::std::string;
