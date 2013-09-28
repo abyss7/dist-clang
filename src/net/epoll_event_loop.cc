@@ -77,8 +77,7 @@ void EpollEventLoop::DoListenWork(const volatile bool &is_shutting_down) {
       assert(events[i].events & EPOLLIN);
       auto fd = events[i].data.fd;
       while(true) {
-        auto new_fd = accept4(fd, nullptr, nullptr,
-                              SOCK_NONBLOCK|SOCK_CLOEXEC);
+        auto new_fd = accept4(fd, nullptr, nullptr, SOCK_CLOEXEC);
         if (new_fd == -1) {
           assert(errno == EAGAIN || errno == EWOULDBLOCK);
           break;

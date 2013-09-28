@@ -23,7 +23,7 @@ class TestServer: public net::EventLoop {
       strcpy(address.sun_path, socket_path_.c_str());
 
       listen_fd_ =
-          socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+          socket(AF_UNIX, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
       if (-1 == listen_fd_)
         return false;
       if (-1 == bind(listen_fd_, reinterpret_cast<sockaddr*>(&address),
@@ -52,7 +52,7 @@ class TestServer: public net::EventLoop {
       address.sun_family = AF_UNIX;
       strcpy(address.sun_path, socket_path_.c_str());
 
-      int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+      int fd = socket(AF_UNIX, SOCK_STREAM|SOCK_CLOEXEC, 0);
       if (-1 == fd) {
         std::cerr << strerror(errno) << std::endl;
         return net::ConnectionPtr();
@@ -331,51 +331,6 @@ TEST_F(ConnectionTest, Sync_ReadIncompleteMessage) {
   EXPECT_EQ(proto::Status::BAD_MESSAGE, status.code());
 }
 
-TEST_F(ConnectionTest, Sync_ReadWhileReading) {
-  const std::string expected_field1 = "arg1";
-  const std::string expected_field2 = "arg2";
-  const std::string expected_field3 = "arg3";
-
-  net::Connection::Message expected_message;
-  {
-    auto message = expected_message.MutableExtension(proto::Test::test);
-    message->set_field1(expected_field1);
-    message->set_field2(expected_field2);
-    message->add_field3()->assign(expected_field3);
-  }
-
-  auto read_func = [&] () {
-    net::Connection::Message message;
-    proto::Status status;
-
-    ASSERT_TRUE(connection->ReadSync(&message, &status)) << status.description();
-
-    // Check status.
-    EXPECT_EQ(proto::Status::OK, status.code());
-    EXPECT_FALSE(status.has_description());
-
-    // Check incoming message.
-    ASSERT_TRUE(message.HasExtension(proto::Test::test));
-    auto test = message.GetExtension(proto::Test::test);
-    ASSERT_TRUE(test.has_field1());
-    ASSERT_TRUE(test.has_field2());
-    ASSERT_EQ(1, test.field3_size());
-    EXPECT_EQ(expected_field1, test.field1());
-    EXPECT_EQ(expected_field2, test.field2());
-    EXPECT_EQ(expected_field3, test.field3(0));
-  };
-
-  std::thread read_thread(read_func);
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-
-  net::Connection::Message message;
-  proto::Status status;
-  ASSERT_FALSE(connection->ReadSync(&message, &status));
-  EXPECT_EQ(proto::Status::INCONSEQUENT, status.code());
-  ASSERT_TRUE(server.WriteAtOnce(expected_message.SerializeAsString()));
-  read_thread.join();
-}
-
 TEST_F(ConnectionTest, Sync_SendMessage) {
   const std::string expected_field1 = "arg1";
   const std::string expected_field2 = "arg2";
@@ -403,50 +358,6 @@ TEST_F(ConnectionTest, Sync_SendMessage) {
   EXPECT_EQ(expected_field1, test.field1());
   EXPECT_EQ(expected_field2, test.field2());
   EXPECT_EQ(expected_field3, test.field3(0));
-}
-
-TEST_F(ConnectionTest, Sync_SendWhileReading) {
-  const std::string expected_field1 = "arg1";
-  const std::string expected_field2 = "arg2";
-  const std::string expected_field3 = "arg3";
-
-  net::Connection::Message expected_message;
-  {
-    auto message = expected_message.MutableExtension(proto::Test::test);
-    message->set_field1(expected_field1);
-    message->set_field2(expected_field2);
-    message->add_field3()->assign(expected_field3);
-  }
-
-  auto read_func = [&] () {
-    net::Connection::Message message;
-    proto::Status status;
-
-    ASSERT_TRUE(connection->ReadSync(&message, &status)) << status.description();
-
-    // Check status.
-    EXPECT_EQ(proto::Status::OK, status.code());
-    EXPECT_FALSE(status.has_description());
-
-    // Check incoming message.
-    ASSERT_TRUE(message.HasExtension(proto::Test::test));
-    auto test = message.GetExtension(proto::Test::test);
-    ASSERT_TRUE(test.has_field1());
-    ASSERT_TRUE(test.has_field2());
-    ASSERT_EQ(1, test.field3_size());
-    EXPECT_EQ(expected_field1, test.field1());
-    EXPECT_EQ(expected_field2, test.field2());
-    EXPECT_EQ(expected_field3, test.field3(0));
-  };
-
-  std::thread read_thread(read_func);
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-
-  proto::Status status;
-  ASSERT_FALSE(connection->SendSync(expected_message, &status));
-  EXPECT_EQ(proto::Status::INCONSEQUENT, status.code());
-  ASSERT_TRUE(server.WriteAtOnce(expected_message.SerializeAsString()));
-  read_thread.join();
 }
 
 TEST_F(ConnectionTest, DISABLED_Sync_ReadFromClosedConnection) {

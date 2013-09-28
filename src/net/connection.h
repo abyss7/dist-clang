@@ -56,25 +56,21 @@ class Connection: public std::enable_shared_from_this<Connection> {
 
     void CanRead();
     void CanSend();
+    bool ConvertCustomMessage(const CustomMessage& input, Message* output,
+                              Status* status = nullptr);
 
     const fd_t fd_;
+    Message message_;
     EventLoop& event_loop_;
     volatile bool is_closed_;
-    std::atomic<State> state_;
 
     // Read members.
     FileInputStream file_input_stream_;
-    std::unique_ptr<CodedInputStream> coded_input_stream_;
     ReadCallback read_callback_;
-    Message input_message_;
-    Limit input_limit_;
 
     // Send members.
     FileOutputStream file_output_stream_;
-    std::unique_ptr<CodedOutputStream> coded_output_stream_;
     SendCallback send_callback_;
-    size_t total_sent_;
-    std::string output_message_;
 };
 
 }  // namespace net

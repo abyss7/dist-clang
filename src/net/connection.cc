@@ -12,76 +12,29 @@ namespace net {
 
 // static
 ConnectionPtr Connection::Create(EventLoop &event_loop, fd_t fd) {
-  assert(IsNonBlocking(fd));
+  assert(!IsNonBlocking(fd));
   return ConnectionPtr(new Connection(event_loop, fd));
 }
 
 Connection::Connection(EventLoop& event_loop, fd_t fd)
-  : fd_(fd), event_loop_(event_loop), is_closed_(false), state_(IDLE),
-    file_input_stream_(fd_, 1024), input_limit_(0), file_output_stream_(fd_) {}
+  : fd_(fd), event_loop_(event_loop), is_closed_(false),
+    file_input_stream_(fd_), file_output_stream_(fd_) {}
 
 Connection::~Connection() {
   Close();
 }
 
 bool Connection::ReadAsync(ReadCallback callback, Status* status) {
-  State old_state = IDLE;
-  if (!state_.compare_exchange_strong(old_state, WAITING_READ)) {
-    if (status) {
-      status->set_code(Status::INCONSEQUENT);
-      status->set_description("Trying to read while doing another operation");
-    }
-    return false;
-  }
-
   read_callback_ = callback;
-  event_loop_.ReadyForRead(shared_from_this());
-  return true;
+  return event_loop_.ReadyForRead(shared_from_this());
 }
 
 bool Connection::SendAsync(const CustomMessage &message, SendCallback callback,
                            Status* status) {
-  State old_state = IDLE;
-  if (!state_.compare_exchange_strong(old_state, WAITING_SEND)) {
-    if (status) {
-      status->set_code(Status::INCONSEQUENT);
-      status->set_description("Trying to send while doing another operation");
-    }
+  if (!ConvertCustomMessage(message, &message_, status))
     return false;
-  }
-
-  // Handle |message|.
-  proto::Universal output_message;
-  if (message.GetTypeName() == output_message.GetTypeName())
-    output_message.CopyFrom(message);
-  else {
-    output_message.Clear();
-    const google::protobuf::FieldDescriptor* extension_field = nullptr;
-    auto descriptor = message.GetDescriptor();
-    auto reflection = output_message.GetReflection();
-    for (int i = 0; i < descriptor->extension_count(); ++i) {
-      extension_field = reflection->FindKnownExtensionByName(
-          descriptor->extension(i)->full_name());
-      if (extension_field)
-        break;
-    }
-    if (!extension_field) {
-      if (status) {
-        status->set_code(Status::EMPTY_MESSAGE);
-        status->set_description("Message of type " + message.GetTypeName() +
-                               " can't be sent, since it doesn't extend " +
-                               output_message.GetTypeName());
-      }
-      return false;
-    }
-    reflection->MutableMessage(&output_message, extension_field)->
-        CopyFrom(message);
-  }
-
-  output_message.SerializeToString(&output_message_);
   send_callback_ = callback;
-  event_loop_.ReadyForSend(shared_from_this());
-  return true;
+  return event_loop_.ReadyForSend(shared_from_this());
 }
 
 // static
@@ -105,219 +58,101 @@ bool Connection::ReadSync(Message *message, Status *status) {
     return false;
   }
 
-  State old_state = IDLE;
-  if (!state_.compare_exchange_strong(old_state, READING)) {
-    if (status) {
-      status->set_code(Status::INCONSEQUENT);
-      status->set_description("Can't read synchronously while other operation "
-                             "is in progress");
+  unsigned size;
+  {
+    CodedInputStream coded_stream(&file_input_stream_);
+    if (!coded_stream.ReadVarint32(&size)) {
+      if (status) {
+        status->set_code(Status::NETWORK);
+        status->set_description("Can't read incoming message size: ");
+        status->mutable_description()->append(
+            strerror(file_input_stream_.GetErrno()));
+      }
+      return false;
     }
-    return false;
   }
 
-  message->Clear();
-  if (!MakeNonBlocking(fd_, true)) {
-    if (status) {
-      status->set_code(Status::NETWORK);
-      status->set_description("Can't make socket a blocking one");
-    }
-    return false;
-  }
-
-  coded_input_stream_.reset(new CodedInputStream(&file_input_stream_));
-
-  unsigned message_size;
-  if (!coded_input_stream_->ReadVarint32(&message_size)) {
-    if (status) {
-      status->set_code(Status::NETWORK);
-      status->set_description("Can't read incoming message size: ");
-      status->mutable_description()->append(
-          strerror(file_input_stream_.GetErrno()));
-    }
-    Close();
-    return false;
-  }
-  input_limit_ = coded_input_stream_->PushLimit(message_size);
-
-  while (coded_input_stream_->BytesUntilLimit() > 0 &&
-         !coded_input_stream_->ExpectAtEnd())
-    message->MergePartialFromCodedStream(coded_input_stream_.get());
-
-  if (coded_input_stream_->BytesUntilLimit() != 0 ||
-      !message->IsInitialized() ||
-      !coded_input_stream_->ConsumedEntireMessage()) {
+  if (!message->ParseFromBoundedZeroCopyStream(&file_input_stream_, size)) {
     if (status) {
       status->set_code(Status::BAD_MESSAGE);
       status->set_description("Incoming message is malformed");
     }
-    Close();
-    return false;
-  }
-  coded_input_stream_->PopLimit(input_limit_);
-  coded_input_stream_.reset();
-
-  if (!MakeNonBlocking(fd_, false)) {
-    if (status) {
-      status->set_code(Status::NETWORK);
-      status->set_description("Can't make socket a non-blocking one");
-    }
     return false;
   }
 
-  state_.store(IDLE);
   return true;
 }
 
 bool Connection::SendSync(const CustomMessage &message, Status *status) {
-  State old_state = IDLE;
-  if (!state_.compare_exchange_strong(old_state, SENDING)) {
-    if (status) {
-      status->set_code(Status::INCONSEQUENT);
-      status->set_description("Can't send synchronously while other operation "
-                             "is in progress");
-    }
+  if (!ConvertCustomMessage(message, &message_, status))
     return false;
-  }
 
-  // Handle |message|.
-  proto::Universal output_message;
-  if (message.GetTypeName() == output_message.GetTypeName())
-    output_message.CopyFrom(message);
-  else {
-    output_message.Clear();
-    const google::protobuf::FieldDescriptor* extension_field = nullptr;
-    auto descriptor = message.GetDescriptor();
-    auto reflection = output_message.GetReflection();
-    for (int i = 0; i < descriptor->extension_count(); ++i) {
-      extension_field = reflection->FindKnownExtensionByName(
-          descriptor->extension(i)->full_name());
-      if (extension_field)
-        break;
-    }
-    if (!extension_field) {
+  {
+    CodedOutputStream coded_stream(&file_output_stream_);
+    coded_stream.WriteVarint32(message_.ByteSize());
+    if (!message_.SerializeToCodedStream(&coded_stream)) {
       if (status) {
-        status->set_code(Status::EMPTY_MESSAGE);
-        status->set_description("Message of type " + message.GetTypeName() +
-                               " can't be sent, since it doesn't extend " +
-                               output_message.GetTypeName());
+        status->set_code(Status::NETWORK);
+        status->set_description("Can't send whole message at once");
       }
       return false;
     }
-    reflection->MutableMessage(&output_message, extension_field)->
-        CopyFrom(message);
   }
-
-  if (!MakeNonBlocking(fd_, true)) {
-    if (status) {
-      status->set_code(Status::NETWORK);
-      status->set_description("Can't make socket a blocking one");
-    }
-    return false;
-  }
-
-  coded_output_stream_.reset(new CodedOutputStream(&file_output_stream_));
-
-  coded_output_stream_->WriteVarint32(output_message.ByteSize());
-  auto sent_bytes = coded_output_stream_->ByteCount();
-  if (!output_message.SerializeToCodedStream(coded_output_stream_.get()) ||
-      coded_output_stream_->ByteCount() != sent_bytes +
-                                           output_message.ByteSize()) {
-    if (status) {
-      status->set_code(Status::NETWORK);
-      status->set_description("Can't send whole message at once");
-    }
-    Close();
-    return false;
-  }
-
-  coded_output_stream_.reset();
   file_output_stream_.Flush();
 
-  if (!MakeNonBlocking(fd_, false)) {
-    if (status) {
-      status->set_code(Status::NETWORK);
-      status->set_description("Can't make socket a non-blocking one");
-    }
-    return false;
-  }
-
-  state_.store(IDLE);
   return true;
 }
 
 void Connection::CanRead() {
   Status status;
-  assert(state_.load() == WAITING_READ || state_.load() == READING);
-
-  if (state_.load() == WAITING_READ) {
-    input_message_.Clear();
-    unsigned message_size;
-
-    coded_input_stream_.reset(new CodedInputStream(&file_input_stream_));
-
-    if (!coded_input_stream_->ReadVarint32(&message_size)) {
-      status.set_code(Status::NETWORK);
-      status.set_description("Can't read incoming message size");
-      if (!read_callback_(shared_from_this(), input_message_, status))
-        Close();
-      return;
-    }
-    input_limit_ = coded_input_stream_->PushLimit(message_size);
-    state_.store(READING);
-  }
-
-  input_message_.MergePartialFromCodedStream(coded_input_stream_.get());
-  if (coded_input_stream_->BytesUntilLimit() > 0) {
-    event_loop_.ReadyForRead(shared_from_this());
-    return;
-  }
-  else if (!input_message_.IsInitialized() ||
-           !coded_input_stream_->ConsumedEntireMessage()) {
-    status.set_code(Status::BAD_MESSAGE);
-    status.set_description("Incoming message is malformed");
-    if (!read_callback_(shared_from_this(), input_message_, status))
-      Close();
-    return;
-  }
-  coded_input_stream_->PopLimit(input_limit_);
-  coded_input_stream_.reset();
-  state_.store(IDLE);
-  if (!read_callback_(shared_from_this(), input_message_, status))
+  ReadSync(&message_, &status);
+  if (!read_callback_(shared_from_this(), message_, status)) {
     Close();
+  }
 }
 
 void Connection::CanSend() {
   Status status;
-  assert(state_.load() == WAITING_SEND || state_.load() == SENDING);
-
-  if (state_.load() == WAITING_SEND) {
-    coded_output_stream_.reset(new CodedOutputStream(&file_output_stream_));
-    coded_output_stream_->WriteVarint32(output_message_.size());
-    coded_output_stream_.reset();
-    file_output_stream_.Flush();
-    total_sent_ = 0;
-    state_.store(SENDING);
-  }
-
-  auto sent = write(fd_, output_message_.data() + total_sent_,
-                    output_message_.size() - total_sent_);
-  if (sent <= 0) {
-    status.set_code(Status::NETWORK);
-    status.set_description("Can't send message");
-    if (!send_callback_(shared_from_this(), status))
-      Close();
-    return;
-  }
-  total_sent_ += sent;
-
-  if (total_sent_ < output_message_.size()) {
-    event_loop_.ReadyForSend(shared_from_this());
-    return;
-  }
-
-  state_.store(IDLE);
+  SendSync(message_, &status);
   if (!send_callback_(shared_from_this(), status))
     Close();
+}
+
+bool Connection::ConvertCustomMessage(const CustomMessage &input,
+                                      Message *output, Status *status) {
+  auto input_descriptor = input.GetDescriptor();
+  auto output_descriptor = Message::descriptor();
+
+  if (input_descriptor == output_descriptor) {
+    if (output) {
+      output->CopyFrom(input);
+    }
+    return true;
+  }
+
+  const ::google::protobuf::FieldDescriptor* extension_field = nullptr;
+
+  for (int i = 0; i < input_descriptor->extension_count(); ++i) {
+    extension_field = output_descriptor->FindExtensionByName(
+        input_descriptor->extension(i)->full_name());
+    if (extension_field)
+      break;
+  }
+  if (!extension_field) {
+    if (status) {
+      status->set_code(Status::EMPTY_MESSAGE);
+      status->set_description("Message of type " + input.GetTypeName() +
+                              " can't be sent, since it doesn't extend " +
+                              output_descriptor->full_name());
+    }
+    return false;
+  }
+
+  if (output) {
+    auto reflection = output->GetReflection();
+    reflection->MutableMessage(output, extension_field)->CopyFrom(input);
+  }
+  return true;
 }
 
 void Connection::Close() {

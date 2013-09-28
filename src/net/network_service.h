@@ -27,13 +27,10 @@ class NetworkService {
         const std::string& host, unsigned short port,
         ConnectionCallback callback,
         std::string* error = nullptr) THREAD_UNSAFE;
-    ConnectionPtr ConnectAsync(
+    ConnectionPtr Connect(
         const std::string& path,
         std::string* error = nullptr) THREAD_SAFE;
-    ConnectionPtr ConnectAsync(
-        const std::string& host, unsigned short port,
-        std::string* error = nullptr) THREAD_SAFE;
-    ConnectionPtr ConnectSync(
+    ConnectionPtr Connect(
         const std::string& host, unsigned short port,
         std::string* error = nullptr) THREAD_SAFE;
 
