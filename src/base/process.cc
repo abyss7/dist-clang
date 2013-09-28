@@ -149,24 +149,40 @@ bool Process::Run(unsigned short sec_timeout, std::string* error) {
 
 bool Process::Run(unsigned short sec_timeout, const std::string &input,
                   std::string *error) {
+  int in_pipe_fd[2];
   int out_pipe_fd[2];
   int err_pipe_fd[2];
+  if (pipe(in_pipe_fd) == -1) {
+    GetLastError(error);
+    return false;
+  }
   if (pipe(out_pipe_fd) == -1) {
     GetLastError(error);
+    close(in_pipe_fd[0]);
+    close(in_pipe_fd[1]);
     return false;
   }
   if (pipe(err_pipe_fd) == -1) {
     GetLastError(error);
+    close(in_pipe_fd[0]);
+    close(in_pipe_fd[1]);
+    close(out_pipe_fd[0]);
+    close(out_pipe_fd[1]);
     return false;
   }
 
   int child_pid;
   if ((child_pid = fork()) == 0) {  // Child process.
-    dup2(out_pipe_fd[0], 0);
+    if (dup2(in_pipe_fd[0], STDIN_FILENO) == -1 ||
+        dup2(out_pipe_fd[1], STDOUT_FILENO) == -1 ||
+        dup2(err_pipe_fd[1], STDERR_FILENO) == -1) {
+      exit(1);
+    }
+
+    close(in_pipe_fd[0]);
     close(out_pipe_fd[0]);
     close(err_pipe_fd[0]);
-    dup2(out_pipe_fd[1], 1);
-    dup2(err_pipe_fd[1], 2);
+    close(in_pipe_fd[1]);
     close(out_pipe_fd[1]);
     close(err_pipe_fd[1]);
 
@@ -188,30 +204,43 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
 
     return false;
   } else {  // Main process.
+    close(in_pipe_fd[0]);
+    close(out_pipe_fd[1]);
     close(err_pipe_fd[1]);
 
     int result, status = 0;
-    struct pollfd poll_fd[3];
+    struct pollfd poll_fd[2];
     memset(poll_fd, 0 , sizeof(poll_fd));
     poll_fd[0].fd = out_pipe_fd[0];
     poll_fd[0].events = POLLIN;
     poll_fd[1].fd = err_pipe_fd[0];
     poll_fd[1].events = POLLIN;
-    poll_fd[2].fd = out_pipe_fd[1];
-    poll_fd[2].events = POLLOUT;
 
     net::MakeNonBlocking(poll_fd[0].fd);
     net::MakeNonBlocking(poll_fd[1].fd);
-    net::MakeNonBlocking(poll_fd[2].fd);
 
     size_t total_sent = 0;
     const size_t buffer_size = 1024;
     char buffer[buffer_size];
+
+    while(total_sent < input.size()) {
+      int bytes_sent = write(in_pipe_fd[1], input.data() + total_sent,
+                             input.size() - total_sent);
+      if (bytes_sent <= 0) {
+        GetLastError(error);
+        kill();
+        break;
+      } else {
+        total_sent += bytes_sent;
+      }
+    }
+    close(in_pipe_fd[1]);
+
     do {
       if (waitpid(child_pid, &status, WNOHANG) == child_pid)
         break;
 
-      result = poll(poll_fd, 3, sec_timeout * 1000);
+      result = poll(poll_fd, 2, sec_timeout * 1000);
       if (result <= 0) {
         if (result == -1)
           GetLastError(error);
@@ -248,23 +277,6 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
           }
         }
       }
-      if (poll_fd[2].revents == POLLOUT) {
-        while(total_sent < input.size()) {
-          int bytes_sent = write(poll_fd[2].fd, input.data() + total_sent,
-                                 input.size() - total_sent);
-          if (!bytes_sent || (bytes_sent == -1 && errno == EWOULDBLOCK))
-            break;
-          else if (bytes_sent <= 0) {
-            GetLastError(error);
-            kill();
-            break;
-          } else {
-            total_sent += bytes_sent;
-          }
-        }
-        if (total_sent == input.size())
-          close(out_pipe_fd[1]);
-      }
     } while(true);
 
     while(true) {
@@ -293,20 +305,10 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
     }
 
     close(out_pipe_fd[0]);
-    if (total_sent < input.size())
-      close(out_pipe_fd[1]);
     close(err_pipe_fd[0]);
 
     return !WEXITSTATUS(status) && (total_sent == input.size());
   }
-}
-
-const std::string& Process::stdout() const {
-  return stdout_;
-}
-
-const std::string& Process::stderr() const {
-  return stderr_;
 }
 
 

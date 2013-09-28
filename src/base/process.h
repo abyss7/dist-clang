@@ -25,8 +25,8 @@ class Process {
     bool Run(unsigned short sec_timeout, const std::string& input,
              std::string* error = nullptr);
 
-    const std::string& stdout() const;
-    const std::string& stderr() const;
+    inline const std::string& stdout() const;
+    inline const std::string& stderr() const;
 
   private:
     const std::string exec_path_, cwd_path_;
@@ -40,6 +40,14 @@ template<class ConstIterator>
 Process& Process::AppendArg(ConstIterator begin, ConstIterator end) {
   args_.insert(args_.end(), begin, end);
   return *this;
+}
+
+const std::string& Process::stdout() const {
+  return stdout_;
+}
+
+const std::string& Process::stderr() const {
+  return stderr_;
 }
 
 }  // namespace base
