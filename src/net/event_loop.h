@@ -18,6 +18,7 @@ class EventLoop {
     virtual bool ReadyForSend(ConnectionPtr connection) = 0;
 
     bool Run();
+    void Stop();
 
   protected:
     int GetConnectionDescriptor(const ConnectionPtr connection) const;

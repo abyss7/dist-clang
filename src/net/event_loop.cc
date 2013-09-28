@@ -30,20 +30,7 @@ EventLoop::EventLoop(size_t concurrency)
     outgoing_threads_(concurrency + 1), is_shutting_down_(false) {}
 
 EventLoop::~EventLoop() {
-  is_shutting_down_ = true;
-
-  if (is_running_) {
-    listening_thread_.join();
-    closing_thread_.join();
-    for (std::thread& thread: incoming_threads_) {
-      assert(thread.joinable());
-      thread.join();
-    }
-    for (std::thread& thread: outgoing_threads_) {
-      assert(thread.joinable());
-      thread.join();
-    }
-  }
+  assert(is_shutting_down_);
 }
 
 bool EventLoop::Run() {
@@ -70,6 +57,25 @@ bool EventLoop::Run() {
 
   is_running_ = true;
   return true;
+}
+
+void EventLoop::Stop() {
+  is_shutting_down_ = true;
+
+  if (is_running_) {
+    assert(listening_thread_.joinable());
+    listening_thread_.join();
+    assert(closing_thread_.joinable());
+    closing_thread_.join();
+    for (std::thread& thread: incoming_threads_) {
+      assert(thread.joinable());
+      thread.join();
+    }
+    for (std::thread& thread: outgoing_threads_) {
+      assert(thread.joinable());
+      thread.join();
+    }
+  }
 }
 
 int EventLoop::GetConnectionDescriptor(const ConnectionPtr connection) const {

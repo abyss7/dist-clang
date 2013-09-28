@@ -15,6 +15,10 @@ EpollEventLoop::EpollEventLoop(ConnectionCallback callback)
     outgoing_fd_(epoll_create1(EPOLL_CLOEXEC)),
     closing_fd_(epoll_create1(EPOLL_CLOEXEC)), callback_(callback) {}
 
+EpollEventLoop::~EpollEventLoop() {
+  Stop();
+}
+
 bool EpollEventLoop::HandlePassive(fd_t fd) {
   assert(IsListening(fd));
   assert(IsNonBlocking(fd));

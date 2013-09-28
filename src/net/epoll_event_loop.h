@@ -16,6 +16,7 @@ class EpollEventLoop: public EventLoop {
     using ConnectionCallback = std::function<void(fd_t, ConnectionPtr)>;
 
     EpollEventLoop(ConnectionCallback callback);
+    ~EpollEventLoop();
 
     bool HandlePassive(fd_t fd) THREAD_SAFE;
     ConnectionPtr HandleActive(fd_t fd) THREAD_SAFE;

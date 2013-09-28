@@ -45,6 +45,7 @@ class TestServer: public net::EventLoop {
         close(listen_fd_);
       if (server_fd_ != -1)
         close(server_fd_);
+      Stop();
     }
 
     net::ConnectionPtr GetConnection() {
@@ -168,7 +169,7 @@ class ConnectionTest: public ::testing::Test {
     void SetUp() override {
       ASSERT_TRUE(server.Init());
       connection = server.GetConnection();
-      ASSERT_TRUE(static_cast<bool>(connection));
+      ASSERT_TRUE(!!connection);
     }
     void TearDown() override {
       connection.reset();
