@@ -56,6 +56,22 @@ void RemoteExecution::Run() {
     return;
   }
 
+  // Filter out flags (-MMD, -MF, ...) for '*.d' file generation, since it's
+  // generated on a preprocessing phase and will fail local compilation.
+  for (size_t i = 0; i < flags.other_size(); ++i) {
+    if (flags.other(i) == "-MMD") {
+      message_.mutable_cc_flags()->mutable_other(i)->clear();
+    }
+    else if (flags.other(i) == "-MF") {
+      message_.mutable_cc_flags()->mutable_other(i)->clear();
+      message_.mutable_cc_flags()->mutable_other(++i)->clear();
+    }
+    else if (flags.other(i) == "-dependency-file") {
+      message_.mutable_cc_flags()->mutable_other(i)->clear();
+      message_.mutable_cc_flags()->mutable_other(++i)->clear();
+    }
+  }
+
   // Do local compilation. Pipe the input file to the compiler and read output
   // file from the compiler's stdout.
   base::Process process(compiler->second);
@@ -64,6 +80,13 @@ void RemoteExecution::Run() {
   if (!process.Run(30, message_.pp_source())) {
     status.set_code(proto::Status::EXECUTION);
     status.set_description(process.stderr());
+    std::cerr << "Compilation failed with error:" << std::endl;
+    std::cerr << process.stderr();
+    std::cerr << "Arguments:";
+    for (auto flag: flags.other()) {
+      std::cerr << " " << flag;
+    }
+    std::cerr << std::endl << std::endl;
   } else {
     status.set_code(proto::Status::OK);
     status.set_description(process.stderr());
