@@ -1,7 +1,5 @@
 #include "net/event_loop.h"
 
-#include "net/connection.h"
-
 #include <functional>
 
 #include <signal.h>
@@ -34,7 +32,9 @@ EventLoop::~EventLoop() {
 }
 
 bool EventLoop::Run() {
-  if (is_running_ || is_shutting_down_)
+  bool old_running = false;
+  if (!is_running_.compare_exchange_strong(old_running, true) ||
+      is_shutting_down_)
     return false;
 
   auto old_signals = BlockSignals();
@@ -51,14 +51,13 @@ bool EventLoop::Run() {
 
   UnblockSignals(old_signals);
 
-  is_running_ = true;
   return true;
 }
 
 void EventLoop::Stop() {
+  bool old_running = true;
   is_shutting_down_ = true;
-
-  if (is_running_) {
+  if (is_running_.compare_exchange_strong(old_running, false)) {
     assert(listening_thread_.joinable());
     listening_thread_.join();
     assert(closing_thread_.joinable());
@@ -68,18 +67,6 @@ void EventLoop::Stop() {
       thread.join();
     }
   }
-}
-
-int EventLoop::GetConnectionDescriptor(const ConnectionPtr connection) const {
-  return connection->fd_;
-}
-
-void EventLoop::ConnectionCanRead(ConnectionPtr connection) {
-  connection->CanRead();
-}
-
-void EventLoop::ConnectionCanSend(ConnectionPtr connection) {
-  connection->CanSend();
 }
 
 }  // namespace net

@@ -1,6 +1,7 @@
 #pragma once
 
-#include "net/connection_forward.h"
+#include "base/attributes.h"
+#include "net/connection.h"
 
 #include <thread>
 #include <vector>
@@ -17,25 +18,41 @@ class EventLoop {
     virtual bool ReadyForRead(ConnectionPtr connection) = 0;
     virtual bool ReadyForSend(ConnectionPtr connection) = 0;
 
-    bool Run();
-    void Stop();
+    bool Run() THREAD_SAFE;
+    void Stop() THREAD_SAFE;
 
   protected:
-    int GetConnectionDescriptor(const ConnectionPtr connection) const;
-    void ConnectionCanRead(ConnectionPtr connection);
-    void ConnectionCanSend(ConnectionPtr connection);
-
-    volatile bool is_running_;
+    inline int GetConnectionDescriptor(const ConnectionPtr connection) const;
+    inline void ConnectionDoRead(ConnectionPtr connection);
+    inline void ConnectionDoSend(ConnectionPtr connection);
+    inline bool ConnectionToggleWait(ConnectionPtr connection, bool new_wait);
 
   private:
     virtual void DoListenWork(const volatile bool& is_shutting_down_) = 0;
     virtual void DoIOWork(const volatile bool& is_shutting_down) = 0;
     virtual void DoClosingWork(const volatile bool& is_shutting_down) = 0;
 
+    std::atomic<bool> is_running_;
     std::thread listening_thread_, closing_thread_;
     std::vector<std::thread> io_threads_;
     volatile bool is_shutting_down_;
 };
+
+int EventLoop::GetConnectionDescriptor(const ConnectionPtr connection) const {
+  return connection->fd_;
+}
+
+void EventLoop::ConnectionDoRead(ConnectionPtr connection) {
+  connection->DoRead();
+}
+
+void EventLoop::ConnectionDoSend(ConnectionPtr connection) {
+  connection->DoSend();
+}
+
+bool EventLoop::ConnectionToggleWait(ConnectionPtr connection, bool new_wait) {
+  return connection->ToggleWait(new_wait);
+}
 
 }  // namespace net
 }  // namespace dist_clang
