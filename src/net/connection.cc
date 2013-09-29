@@ -84,6 +84,7 @@ bool Connection::ReadSync(Message *message, Status *status) {
 }
 
 bool Connection::SendSync(const CustomMessage &message, Status *status) {
+  message_.Clear();
   if (!ConvertCustomMessage(message, &message_, status))
     return false;
 
@@ -133,10 +134,11 @@ bool Connection::ConvertCustomMessage(const CustomMessage &input,
   const ::google::protobuf::FieldDescriptor* extension_field = nullptr;
 
   for (int i = 0; i < input_descriptor->extension_count(); ++i) {
-    extension_field = output_descriptor->FindExtensionByName(
-        input_descriptor->extension(i)->full_name());
-    if (extension_field)
+    auto containing_type = input_descriptor->extension(i)->containing_type();
+    if (containing_type == output_descriptor) {
+      extension_field = input_descriptor->extension(i);
       break;
+    }
   }
   if (!extension_field) {
     if (status) {

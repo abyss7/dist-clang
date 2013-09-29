@@ -101,8 +101,12 @@ bool DoMain(int argc, char* argv[]) {
           != client::ClangFlagSet::PREPROCESS)
     return true;
 
-  if (!connection->SendSync(message))
+  proto::Status status;
+  if (!connection->SendSync(message, &status)) {
+    std::cerr << "Failed to send message: " << status.description()
+              << std::endl;
     return true;
+  }
 
   net::Connection::Message top_message;
   if (!connection->ReadSync(&top_message))
@@ -111,7 +115,7 @@ bool DoMain(int argc, char* argv[]) {
   if (!top_message.HasExtension(proto::Status::status))
     return true;
 
-  const proto::Status& status = top_message.GetExtension(proto::Status::status);
+  status = top_message.GetExtension(proto::Status::status);
   if (status.code() != proto::Status::EXECUTION &&
       status.code() != proto::Status::OK)
     return true;
