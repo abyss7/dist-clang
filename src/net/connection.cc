@@ -103,7 +103,7 @@ bool Connection::SendSync(const CustomMessage &message, Status *status) {
   return true;
 }
 
-void Connection::CanRead() {
+void Connection::DoRead() {
   Status status;
   ReadSync(&message_, &status);
   if (!read_callback_(shared_from_this(), message_, status)) {
@@ -111,7 +111,7 @@ void Connection::CanRead() {
   }
 }
 
-void Connection::CanSend() {
+void Connection::DoSend() {
   Status status;
   SendSync(message_, &status);
   if (!send_callback_(shared_from_this(), status))
@@ -153,21 +153,6 @@ bool Connection::ConvertCustomMessage(const CustomMessage &input,
     reflection->MutableMessage(output, extension_field)->CopyFrom(input);
   }
   return true;
-}
-
-void Connection::Close() {
-  if (!is_closed_) {
-    is_closed_ = true;
-    close(fd_);
-  }
-}
-
-bool Connection::IsClosed() const {
-  return is_closed_;
-}
-
-bool Connection::IsOnEventLoop(const EventLoop* event_loop) const {
-  return &event_loop_ == event_loop;
 }
 
 }  // namespace net

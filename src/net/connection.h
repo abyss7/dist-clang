@@ -9,6 +9,8 @@
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
+#include <unistd.h>
+
 namespace dist_clang {
 namespace net {
 
@@ -43,9 +45,8 @@ class Connection: public std::enable_shared_from_this<Connection> {
 
     bool ReadSync(Message* message, Status* status = nullptr);
     bool SendSync(const CustomMessage& message, Status* status = nullptr);
-    void Close();
-    bool IsClosed() const;
-    bool IsOnEventLoop(const EventLoop* event_loop) const;
+    inline void Close();
+    inline bool IsOnEventLoop(const EventLoop* event_loop) const;
 
   private:
     friend class EventLoop;
@@ -54,15 +55,16 @@ class Connection: public std::enable_shared_from_this<Connection> {
 
     Connection(EventLoop& event_loop, fd_t fd);
 
-    void CanRead();
-    void CanSend();
+    void DoRead();
+    void DoSend();
+    inline bool ToggleWait(bool new_wait);
     bool ConvertCustomMessage(const CustomMessage& input, Message* output,
                               Status* status = nullptr);
 
     const fd_t fd_;
     Message message_;
     EventLoop& event_loop_;
-    volatile bool is_closed_;
+    std::atomic<bool> is_closed_, waiting_;
 
     // Read members.
     FileInputStream file_input_stream_;
@@ -72,6 +74,22 @@ class Connection: public std::enable_shared_from_this<Connection> {
     FileOutputStream file_output_stream_;
     SendCallback send_callback_;
 };
+
+void Connection::Close() {
+  bool old_closed = false;
+  if (is_closed_.compare_exchange_strong(old_closed, true)) {
+    close(fd_);
+  }
+}
+
+bool Connection::IsOnEventLoop(const EventLoop* event_loop) const {
+  return &event_loop_ == event_loop;
+}
+
+bool Connection::ToggleWait(bool new_wait) {
+  bool old_wait = !new_wait;
+  return waiting_.compare_exchange_strong(old_wait, new_wait);
+}
 
 }  // namespace net
 }  // namespace dist_clang

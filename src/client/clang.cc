@@ -130,8 +130,8 @@ int main(int argc, char* argv[]) {
    * destructed before the invokation of |exec|.
    * Do not use global objects!
    */
-  if (DoMain(argc, argv))
+  if (DoMain(argc, argv)) {
     return ExecuteLocally(argv);
-
+  }
   return 0;
 }
