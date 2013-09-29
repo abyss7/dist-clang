@@ -20,6 +20,9 @@ void Balancer::AddRemote(const proto::Host &remote) {
 
 net::ConnectionPtr Balancer::Decide() {
   // TODO: implement this.
+  if (remotes_.size() == 0)
+    return net::ConnectionPtr();
+
   const proto::Host& remote =
       remotes_[base::Random<size_t>() % remotes_.size()];
   std::string error;

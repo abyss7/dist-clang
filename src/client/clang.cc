@@ -109,8 +109,11 @@ bool DoMain(int argc, char* argv[]) {
   }
 
   net::Connection::Message top_message;
-  if (!connection->ReadSync(&top_message))
+  if (!connection->ReadSync(&top_message, &status)) {
+    std::cerr << "Failed to read message: " << status.description()
+              << std::endl;
     return true;
+  }
 
   if (!top_message.HasExtension(proto::Status::status))
     return true;

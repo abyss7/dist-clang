@@ -88,7 +88,7 @@ LocalExecution::LocalExecution(net::ConnectionPtr connection,
     cache_(cache) {}
 
 void LocalExecution::DoLocalCompilation() {
-  proto::Status status;
+  proto::Status send_status;
   const proto::Flags& flags = message_.cc_flags();
 
   base::Process process(flags.compiler().path(), message_.current_dir());
@@ -97,15 +97,20 @@ void LocalExecution::DoLocalCompilation() {
          .AppendArg(flags.input());
 
   if (!process.Run(10)) {
-    status.set_code(proto::Status::EXECUTION);
-    status.set_description(process.stderr());
+    send_status.set_code(proto::Status::EXECUTION);
+    send_status.set_description(process.stderr());
   } else {
-    status.set_code(proto::Status::OK);
-    status.set_description(process.stderr());
-    UpdateCache(status);
+    send_status.set_code(proto::Status::OK);
+    send_status.set_description(process.stderr());
+    UpdateCache(send_status);
   }
 
-  connection_->SendAsync(status);
+  proto::Status status;
+  if (!connection_->SendAsync(send_status, net::Connection::Idle(), &status)) {
+    std::cerr << "Failed to send message: " << status.description()
+              << std::endl;
+    connection_->Close();
+  }
 }
 
 bool LocalExecution::DoRemoteCompilation(net::ConnectionPtr connection,

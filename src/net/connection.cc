@@ -4,6 +4,7 @@
 #include "net/event_loop.h"
 
 #include <cstdint>
+#include <iostream>
 
 using namespace std::placeholders;
 
@@ -31,6 +32,7 @@ bool Connection::ReadAsync(ReadCallback callback, Status* status) {
 
 bool Connection::SendAsync(const CustomMessage &message, SendCallback callback,
                            Status* status) {
+  message_.Clear();
   if (!ConvertCustomMessage(message, &message_, status))
     return false;
   send_callback_ = callback;
@@ -45,7 +47,13 @@ Connection::SendCallback Connection::CloseAfterSend() {
 
 // static
 Connection::SendCallback Connection::Idle() {
-  auto callback = [](ConnectionPtr, const Status&) -> bool { return true; };
+  auto callback = [](ConnectionPtr, const Status& status) -> bool {
+    if (status.code() != Status::OK) {
+      std::cerr << "Failed to send message: " << status.description()
+                << std::endl;
+    }
+    return true;
+  };
   return std::bind(callback, _1, _2);
 }
 
@@ -72,6 +80,14 @@ bool Connection::ReadSync(Message *message, Status *status) {
     }
   }
 
+  if (!size) {
+    if (status) {
+      status->set_code(Status::BAD_MESSAGE);
+      status->set_description("Incoming message has zero size");
+    }
+    return false;
+  }
+
   if (!message->ParseFromBoundedZeroCopyStream(&file_input_stream_, size)) {
     if (status) {
       status->set_code(Status::BAD_MESSAGE);
@@ -84,9 +100,11 @@ bool Connection::ReadSync(Message *message, Status *status) {
 }
 
 bool Connection::SendSync(const CustomMessage &message, Status *status) {
-  message_.Clear();
-  if (!ConvertCustomMessage(message, &message_, status))
-    return false;
+  if (&message != &message_) {
+    message_.Clear();
+    if (!ConvertCustomMessage(message, &message_, status))
+      return false;
+  }
 
   {
     CodedOutputStream coded_stream(&file_output_stream_);
@@ -152,7 +170,10 @@ bool Connection::ConvertCustomMessage(const CustomMessage &input,
 
   if (output) {
     auto reflection = output->GetReflection();
-    reflection->MutableMessage(output, extension_field)->CopyFrom(input);
+    auto output_field =
+        reflection->FindKnownExtensionByName(extension_field->full_name());
+    assert(output_field);
+    reflection->MutableMessage(output, output_field)->CopyFrom(input);
   }
   return true;
 }
