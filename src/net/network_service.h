@@ -34,8 +34,6 @@ class NetworkService {
         const std::string& host, unsigned short port,
         std::string* error = nullptr) THREAD_SAFE;
 
-    bool Run();
-
   private:
     // |fd| is a descriptor of a listening socket, which accepts new connection.
     void HandleNewConnection(fd_t fd, ConnectionPtr connection);

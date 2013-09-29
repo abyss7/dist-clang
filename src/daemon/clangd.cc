@@ -18,11 +18,6 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  if (!network_service.Run()) {
-    std::cerr << "Network service failed to start." << std::endl;
-    return 1;
-  }
-
   // TODO: implement signal handling.
   pause();
 

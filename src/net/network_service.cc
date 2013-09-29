@@ -19,10 +19,6 @@ NetworkService::NetworkService()
   : event_loop_(new EpollEventLoop(std::bind(
       &NetworkService::HandleNewConnection, this, _1, _2))) {}
 
-bool NetworkService::Run() {
-  return event_loop_->Run();
-}
-
 bool NetworkService::Listen(const std::string& path,
                             ConnectionCallback callback,
                             std::string* error) {
@@ -60,6 +56,7 @@ bool NetworkService::Listen(const std::string& path,
     return false;
   }
 
+  event_loop_->Run();
   return true;
 }
 
@@ -118,6 +115,7 @@ bool NetworkService::Listen(const std::string &host, unsigned short port,
     return false;
   }
 
+  event_loop_->Run();
   return true;
 }
 
@@ -145,6 +143,7 @@ ConnectionPtr NetworkService::Connect(const std::string &path,
     close(fd);
   }
 
+  event_loop_->Run();
   return connection;
 }
 
@@ -186,6 +185,7 @@ ConnectionPtr NetworkService::Connect(const std::string &host,
     close(fd);
   }
 
+  event_loop_->Run();
   return connection;
 }
 
