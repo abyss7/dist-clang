@@ -43,6 +43,8 @@ class EpollEventLoop: public EventLoop {
     // it's destruction.
     std::mutex connections_mutex_;
     std::unordered_set<ConnectionPtr> connections_;
+
+    std::unordered_set<ConnectionPtr> pending_connections_;
 };
 
 }  // namespace net

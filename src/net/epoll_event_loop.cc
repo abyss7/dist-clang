@@ -46,9 +46,9 @@ bool EpollEventLoop::ReadyForRead(ConnectionPtr connection) {
   event.events = EPOLLIN | EPOLLONESHOT;
   event.data.ptr = connection.get();
   auto fd = GetConnectionDescriptor(connection);
-  if (epoll_ctl(io_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
-    if (errno == ENOENT)
-      return epoll_ctl(io_fd_, EPOLL_CTL_ADD, fd, &event) != 1;
+  if (!ConnectionToggleWait(connection, true) ||
+      epoll_ctl(io_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
+    ConnectionToggleWait(connection, false);
     return false;
   }
   return true;
@@ -61,9 +61,9 @@ bool EpollEventLoop::ReadyForSend(ConnectionPtr connection) {
   event.events = EPOLLOUT | EPOLLONESHOT;
   event.data.ptr = connection.get();
   auto fd = GetConnectionDescriptor(connection);
-  if (epoll_ctl(io_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
-    if (errno == ENOENT)
-      return epoll_ctl(io_fd_, EPOLL_CTL_ADD, fd, &event) != -1;
+  if (!ConnectionToggleWait(connection, true) ||
+      epoll_ctl(io_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
+    ConnectionToggleWait(connection, false);
     return false;
   }
   return true;
@@ -71,7 +71,7 @@ bool EpollEventLoop::ReadyForSend(ConnectionPtr connection) {
 
 void EpollEventLoop::DoListenWork(const volatile bool &is_shutting_down) {
   const int MAX_EVENTS = 10;  // This should be enought in most cases.
-  const int TIMEOUT = 3 * 1000;  // In milliseconds.
+  const int TIMEOUT = 1 * 1000;  // In milliseconds.
   struct epoll_event events[MAX_EVENTS];
 
   while(!is_shutting_down) {
@@ -103,7 +103,7 @@ void EpollEventLoop::DoListenWork(const volatile bool &is_shutting_down) {
 
 void EpollEventLoop::DoIOWork(const volatile bool& is_shutting_down) {
   const int MAX_EVENTS = 10;  // This should be enought in most cases.
-  const int TIMEOUT = 3 * 1000;  // In milliseconds.
+  const int TIMEOUT = 1 * 1000;  // In milliseconds.
   struct epoll_event events[MAX_EVENTS];
 
   while(!is_shutting_down) {
@@ -115,11 +115,18 @@ void EpollEventLoop::DoIOWork(const volatile bool& is_shutting_down) {
     for (int i = 0; i < events_count; ++i) {
       auto connection =
           reinterpret_cast<Connection*>(events[i].data.ptr)->shared_from_this();
+
+      if (events[i].events & (EPOLLHUP|EPOLLERR)) {
+        auto fd = GetConnectionDescriptor(connection);
+        assert(!epoll_ctl(io_fd_, EPOLL_CTL_DEL, fd, nullptr));
+      }
+      ConnectionToggleWait(connection, false);
+
       if (events[i].events & EPOLLIN) {
-        ConnectionCanRead(connection);
+        ConnectionDoRead(connection);
       }
       else if (events[i].events & EPOLLOUT) {
-        ConnectionCanSend(connection);
+        ConnectionDoSend(connection);
       }
     }
   }
@@ -127,7 +134,7 @@ void EpollEventLoop::DoIOWork(const volatile bool& is_shutting_down) {
 
 void EpollEventLoop::DoClosingWork(const volatile bool &is_shutting_down) {
   const int MAX_EVENTS = 10;  // This should be enought in most cases.
-  const int TIMEOUT = 3 * 1000;  // In milliseconds.
+  const int TIMEOUT = 1 * 1000;  // In milliseconds.
   struct epoll_event events[MAX_EVENTS];
 
   while(!is_shutting_down) {
@@ -140,9 +147,28 @@ void EpollEventLoop::DoClosingWork(const volatile bool &is_shutting_down) {
       assert(events[i].events & (EPOLLHUP|EPOLLRDHUP|EPOLLERR));
       auto connection =
           reinterpret_cast<Connection*>(events[i].data.ptr)->shared_from_this();
-      connection->Close();
-      std::unique_lock<std::mutex> lock(connections_mutex_);
-      connections_.erase(connection);
+      {
+        std::unique_lock<std::mutex> lock(connections_mutex_);
+        connections_.erase(connection);
+      }
+
+      auto fd = GetConnectionDescriptor(connection);
+      if (ConnectionToggleWait(connection, true)) {
+        assert(!epoll_ctl(io_fd_, EPOLL_CTL_DEL, fd, nullptr));
+      }
+      else {
+        pending_connections_.insert(connection);
+      }
+    }
+
+    for (auto it = pending_connections_.begin();
+         it != pending_connections_.end();) {
+      if (ConnectionToggleWait(*it, true)) {
+        it = pending_connections_.erase(it);
+      }
+      else {
+        ++it;
+      }
     }
   }
 }
@@ -163,10 +189,17 @@ bool EpollEventLoop::ReadyForClose(ConnectionPtr connection) {
   assert(connection->IsOnEventLoop(this));
 
   struct epoll_event event;
+
   event.events = EPOLLONESHOT | EPOLLRDHUP;
   event.data.ptr = connection.get();
   auto fd = GetConnectionDescriptor(connection);
   if (epoll_ctl(closing_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
+    return false;
+  }
+
+  event.events = EPOLLONESHOT;
+  event.data.ptr = connection.get();
+  if (epoll_ctl(io_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
     return false;
   }
   return true;
