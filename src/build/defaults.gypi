@@ -15,6 +15,9 @@
           '-g',
           '-O0',
         ],
+        'ldflags': [
+          '-ltcmalloc',
+        ],
       },
       'Release': {
         'cflags': [
