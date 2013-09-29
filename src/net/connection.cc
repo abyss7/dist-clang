@@ -17,7 +17,7 @@ ConnectionPtr Connection::Create(EventLoop &event_loop, fd_t fd) {
 }
 
 Connection::Connection(EventLoop& event_loop, fd_t fd)
-  : fd_(fd), event_loop_(event_loop), is_closed_(false),
+  : fd_(fd), event_loop_(event_loop), is_closed_(false), waiting_(false),
     file_input_stream_(fd_), file_output_stream_(fd_) {}
 
 Connection::~Connection() {
