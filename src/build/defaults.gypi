@@ -6,7 +6,7 @@
       '-pthread',
       '-fno-exceptions',
       '-Wall',
-      '-Wno-unused-function',
+      '-Wsign-compare',
       '-Werror',
     ],
     'configurations': {

@@ -99,7 +99,7 @@ inline bool WriteFile(const std::string& path, const std::string& input,
     return false;
   }
 
-  int total_bytes = 0;
+  size_t total_bytes = 0;
   int size = 0;
   while(total_bytes < input.size()) {
     size = write(src_fd, input.data() + total_bytes,

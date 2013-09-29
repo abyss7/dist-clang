@@ -58,7 +58,7 @@ void RemoteExecution::Run() {
 
   // Filter out flags (-MMD, -MF, ...) for '*.d' file generation, since it's
   // generated on a preprocessing phase and will fail local compilation.
-  for (size_t i = 0; i < flags.other_size(); ++i) {
+  for (int i = 0; i < flags.other_size(); ++i) {
     if (flags.other(i) == "-MMD") {
       message_.mutable_cc_flags()->mutable_other(i)->clear();
     }

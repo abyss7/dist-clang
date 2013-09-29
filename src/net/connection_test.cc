@@ -91,7 +91,8 @@ class TestServer: public net::EventLoop {
         std::cerr << strerror(errno) << std::endl;
         return false;
       }
-      if (send(server_fd_, data.data(), data.size(), 0) != data.size()) {
+      if (send(server_fd_, data.data(), data.size(), 0) !=
+          static_cast<int>(data.size())) {
         std::cerr << strerror(errno) << std::endl;
         return false;
       }
