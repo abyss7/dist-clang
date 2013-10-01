@@ -2,6 +2,7 @@
 
 #include "base/c_utils.h"
 #include "net/base/utils.h"
+#include "proto/remote.pb.h"
 
 #include <poll.h>
 #include <sys/wait.h>
@@ -12,6 +13,17 @@ namespace base {
 
 Process::Process(const std::string& exec_path, const std::string& cwd_path)
   : exec_path_(exec_path), cwd_path_(cwd_path) {
+}
+
+Process::Process(const proto::Flags &flags, const std::string &cwd_path)
+  : Process(flags.compiler().path(), cwd_path) {
+  AppendArg(flags.other().begin(), flags.other().end());
+  if (flags.has_output()) {
+    AppendArg("-o").AppendArg(flags.output());
+  }
+  if (flags.has_input()) {
+    AppendArg(flags.input());
+  }
 }
 
 Process& Process::AppendArg(const std::string& arg) {

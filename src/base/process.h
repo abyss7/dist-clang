@@ -5,6 +5,11 @@
 #include <string>
 
 namespace dist_clang {
+
+namespace proto {
+class Flags;
+}
+
 namespace base {
 
 class Process {
@@ -12,6 +17,8 @@ class Process {
     enum { MAX_ARGS = 256 };
 
     explicit Process(const std::string& exec_path,
+                     const std::string& cwd_path = std::string());
+    explicit Process(const proto::Flags& flags,
                      const std::string& cwd_path = std::string());
 
     Process& AppendArg(const std::string& arg);

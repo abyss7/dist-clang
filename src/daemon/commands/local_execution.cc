@@ -31,11 +31,10 @@ void LocalExecution::Run() {
     return;
   }
 
-  const proto::Flags& flags = message_.pp_flags();
-  base::Process process(flags.compiler().path(), message_.current_dir());
-  process.AppendArg(flags.other().begin(), flags.other().end())
-         .AppendArg("-o").AppendArg("-")
-         .AppendArg(flags.input());
+  // Redirect output to stdin in |pp_flags|.
+  message_.mutable_pp_flags()->set_output("-");
+
+  base::Process process(message_.pp_flags(), message_.current_dir());
   if (!process.Run(10)) {
     // It usually means, that there is an error in the source code.
     // We should skip a cache check and head to local compilation.
@@ -82,13 +81,7 @@ LocalExecution::LocalExecution(net::ConnectionPtr connection,
 
 void LocalExecution::DoLocalCompilation() {
   proto::Status send_status;
-  const proto::Flags& flags = message_.cc_flags();
-
-  base::Process process(flags.compiler().path(), message_.current_dir());
-  process.AppendArg(flags.other().begin(), flags.other().end())
-         .AppendArg("-o").AppendArg(flags.output())
-         .AppendArg(flags.input());
-
+  base::Process process(message_.cc_flags(), message_.current_dir());
   if (!process.Run(10)) {
     send_status.set_code(proto::Status::EXECUTION);
     send_status.set_description(process.stderr());

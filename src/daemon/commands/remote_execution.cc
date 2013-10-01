@@ -46,6 +46,7 @@ void RemoteExecution::Run() {
     connection_->SendAsync(status, net::Connection::CloseAfterSend());
     return;
   }
+  message_.mutable_cc_flags()->mutable_compiler()->set_path(compiler->second);
 
   // Filter out flags (-MMD, -MF, ...) for '*.d' file generation, since it's
   // generated on a preprocessing phase and will fail local compilation.
@@ -63,11 +64,12 @@ void RemoteExecution::Run() {
     }
   }
 
+  message_.mutable_cc_flags()->set_output("-");
+  message_.mutable_cc_flags()->clear_input();
+
   // Do local compilation. Pipe the input file to the compiler and read output
   // file from the compiler's stdout.
-  base::Process process(compiler->second);
-  process.AppendArg(flags.other().begin(), flags.other().end())
-         .AppendArg("-o").AppendArg("-");
+  base::Process process(flags);
   if (!process.Run(30, message_.pp_source())) {
     status.set_code(proto::Status::EXECUTION);
     status.set_description(process.stderr());
