@@ -1,6 +1,5 @@
 #pragma once
 
-#include "base/attributes.h"
 #include "daemon/command.h"
 #include "daemon/file_cache.h"       // for |FileCache::Entry|
 #include "net/connection_forward.h"
@@ -11,7 +10,7 @@
 namespace dist_clang {
 namespace daemon {
 
-class Balancer;
+class Daemon;
 
 namespace command {
 
@@ -20,8 +19,7 @@ class LocalExecution: public Command {
     static CommandPtr Create(
         net::ConnectionPtr connection,
         const proto::LocalExecute& message,
-        Balancer* balancer,
-        FileCache* cache);
+        Daemon& daemon);
 
     virtual void Run() override;
 
@@ -29,8 +27,7 @@ class LocalExecution: public Command {
     LocalExecution(
         net::ConnectionPtr connection,
         const proto::LocalExecute& message,
-        Balancer* balancer,
-        FileCache* cache);
+        Daemon& daemon);
 
     bool DoRemoteCompilation(
         net::ConnectionPtr connection,
@@ -48,8 +45,7 @@ class LocalExecution: public Command {
 
     net::ConnectionPtr connection_;
     proto::LocalExecute message_;
-    Balancer* balancer_ WEAK_PTR;
-    FileCache* cache_ WEAK_PTR;
+    Daemon& daemon_;
 
     std::string pp_source_;
 };

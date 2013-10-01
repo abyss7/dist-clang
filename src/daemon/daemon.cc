@@ -69,6 +69,29 @@ bool Daemon::Initialize(const Configuration &configuration,
   return true;
 }
 
+bool Daemon::FillFlags(proto::Flags* flags, proto::Status* status) {
+  // No flags - filled flags.
+  if (!flags) {
+    return true;
+  }
+
+  if (flags->compiler().has_path()) {
+    return true;
+  }
+
+  auto compiler = compilers_.find(flags->compiler().version());
+  if (compiler == compilers_.end()) {
+    if (status) {
+      status->set_code(proto::Status::NO_VERSION);
+      status->set_description("Compiler of the required version not found");
+    }
+    return false;
+  }
+  flags->mutable_compiler()->set_path(compiler->second);
+
+  return true;
+}
+
 void Daemon::HandleNewConnection(net::ConnectionPtr connection) {
   connection->ReadAsync(std::bind(&Daemon::HandleNewMessage, this, _1, _2, _3));
 }
@@ -83,16 +106,12 @@ bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
 
   command::CommandPtr command;
   if (message.HasExtension(proto::LocalExecute::local)) {
-    const proto::LocalExecute& local =
-        message.GetExtension(proto::LocalExecute::local);
-    command = command::LocalExecution::Create(connection, local,
-                                              balancer_.get(), cache_.get());
+    const auto& local = message.GetExtension(proto::LocalExecute::local);
+    command = command::LocalExecution::Create(connection, local, *this);
   }
   else if (message.HasExtension(proto::RemoteExecute::remote)) {
-    const proto::RemoteExecute& remote =
-        message.GetExtension(proto::RemoteExecute::remote);
-    command = command::RemoteExecution::Create(connection, remote,
-                                               cache_.get(), &compilers_);
+    const auto& remote = message.GetExtension(proto::RemoteExecute::remote);
+    command = command::RemoteExecution::Create(connection, remote, *this);
   }
 
   return pool_->Push(std::bind(&command::Command::Run, command));

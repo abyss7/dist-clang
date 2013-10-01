@@ -3,7 +3,7 @@
 #include "base/file_utils.h"
 #include "base/process.h"
 #include "base/string_utils.h"
-#include "daemon/balancer.h"
+#include "daemon/daemon.h"
 #include "net/connection.h"
 
 #include <functional>
@@ -18,9 +18,14 @@ namespace command {
 // static
 CommandPtr LocalExecution::Create(net::ConnectionPtr connection,
                                   const proto::LocalExecute& message,
-                                  Balancer* balancer,
-                                  FileCache* cache) {
-  return CommandPtr(new LocalExecution(connection, message, balancer, cache));
+                                  Daemon& daemon) {
+  return CommandPtr(new LocalExecution(connection, message, daemon));
+}
+
+LocalExecution::LocalExecution(net::ConnectionPtr connection,
+                               const proto::LocalExecute& message,
+                               Daemon& daemon)
+  : connection_(connection), message_(message), daemon_(daemon) {
 }
 
 void LocalExecution::Run() {
@@ -51,13 +56,15 @@ void LocalExecution::Run() {
       proto::Status status;
       status.set_code(proto::Status::OK);
       status.set_description(cache_entry.second);
-      connection_->SendAsync(status);
+      if (!connection_->SendAsync(status)) {
+        connection_->Close();
+      }
       return;
     }
   }
 
   // Ask balancer, if we can delegate a compilation to some remote peer.
-  auto remote_connection = balancer_->Decide();
+  auto remote_connection = daemon_.balancer()->Decide();
   if (!remote_connection) {
     DoLocalCompilation();
     return;
@@ -72,23 +79,18 @@ void LocalExecution::Run() {
     DoLocalCompilation();
 }
 
-LocalExecution::LocalExecution(net::ConnectionPtr connection,
-                               const proto::LocalExecute& message,
-                               Balancer* balancer,
-                               FileCache *cache)
-  : connection_(connection), message_(message), balancer_(balancer),
-    cache_(cache) {}
-
 void LocalExecution::DoLocalCompilation() {
   proto::Status send_status;
-  base::Process process(message_.cc_flags(), message_.current_dir());
-  if (!process.Run(10)) {
-    send_status.set_code(proto::Status::EXECUTION);
-    send_status.set_description(process.stderr());
-  } else {
-    send_status.set_code(proto::Status::OK);
-    send_status.set_description(process.stderr());
-    UpdateCache(send_status);
+  if (daemon_.FillFlags(message_.mutable_cc_flags(), &send_status)) {
+    base::Process process(message_.cc_flags(), message_.current_dir());
+    if (!process.Run(10)) {
+      send_status.set_code(proto::Status::EXECUTION);
+      send_status.set_description(process.stderr());
+    } else {
+      send_status.set_code(proto::Status::OK);
+      send_status.set_description(process.stderr());
+      UpdateCache(send_status);
+    }
   }
 
   proto::Status status;
@@ -153,30 +155,31 @@ bool LocalExecution::DoneRemoteCompilation(net::ConnectionPtr /* connection */,
 }
 
 bool LocalExecution::SearchCache(FileCache::Entry* entry) {
-  if (!cache_)
+  if (!daemon_.cache()) {
     return false;
+  }
 
-  const proto::Flags& flags = message_.cc_flags();
-  const std::string& version = flags.compiler().version();
+  const auto& flags = message_.cc_flags();
+  const auto& version = flags.compiler().version();
   std::string command_line = base::JoinString<' '>(flags.other().begin(),
                                                    flags.other().end());
-  return cache_->Find(pp_source_, command_line, version, entry);
+  return daemon_.cache()->Find(pp_source_, command_line, version, entry);
 }
 
 void LocalExecution::UpdateCache(const proto::Status& status) {
-  if (!cache_ || pp_source_.empty() ||
-      !message_.cc_flags().compiler().has_version())
+  if (!daemon_.cache() || pp_source_.empty()) {
     return;
+  }
   assert(status.code() == proto::Status::OK);
 
-  const proto::Flags& flags = message_.cc_flags();
+  const auto& flags = message_.cc_flags();
   FileCache::Entry entry;
   entry.first = message_.current_dir() + "/" + flags.output();
   entry.second = status.description();
-  const std::string& version = flags.compiler().version();
+  const auto& version = flags.compiler().version();
   std::string command_line = base::JoinString<' '>(flags.other().begin(),
                                                    flags.other().end());
-  cache_->Store(pp_source_, command_line, version, entry);
+  daemon_.cache()->Store(pp_source_, command_line, version, entry);
 }
 
 }  // namespace command

@@ -3,6 +3,7 @@
 #include "base/file_utils.h"
 #include "base/process.h"
 #include "base/string_utils.h"
+#include "daemon/daemon.h"
 #include "net/connection.h"
 
 namespace dist_clang {
@@ -11,16 +12,19 @@ namespace command {
 
 // static
 CommandPtr RemoteExecution::Create(net::ConnectionPtr connection,
-                                   const proto::RemoteExecute& remote,
-                                   FileCache* cache,
-                                   const CompilerMap* compilers) {
-  return CommandPtr(new RemoteExecution(connection, remote, cache, compilers));
+                                   const proto::RemoteExecute& message,
+                                   Daemon& daemon) {
+  return CommandPtr(new RemoteExecution(connection, message, daemon));
+}
+
+RemoteExecution::RemoteExecution(net::ConnectionPtr connection,
+                                 const proto::RemoteExecute& message,
+                                 Daemon& daemon)
+  : connection_(connection), message_(message), daemon_(daemon) {
 }
 
 void RemoteExecution::Run() {
   using Remote = proto::RemoteResult;
-
-  proto::Status status;
 
   // Look in the local cache first.
   FileCache::Entry cache_entry;
@@ -38,18 +42,17 @@ void RemoteExecution::Run() {
   }
 
   // Check that we have a compiler of a requested version.
-  const proto::Flags& flags = message_.cc_flags();
-  auto compiler = compilers_->find(flags.compiler().version());
-  if (compiler == compilers_->end()) {
-    status.set_code(proto::Status::NO_VERSION);
-    status.set_description("Compiler of a requested version is missing");
-    connection_->SendAsync(status, net::Connection::CloseAfterSend());
+  proto::Status status;
+  if (!daemon_.FillFlags(message_.mutable_cc_flags(), &status)) {
+    if (!connection_->SendAsync(status, net::Connection::CloseAfterSend())) {
+      connection_->Close();
+    }
     return;
   }
-  message_.mutable_cc_flags()->mutable_compiler()->set_path(compiler->second);
 
   // Filter out flags (-MMD, -MF, ...) for '*.d' file generation, since it's
   // generated on a preprocessing phase and will fail local compilation.
+  const auto& flags = message_.cc_flags();
   for (int i = 0; i < flags.other_size(); ++i) {
     if (flags.other(i) == "-MMD") {
       message_.mutable_cc_flags()->mutable_other(i)->clear();
@@ -88,25 +91,21 @@ void RemoteExecution::Run() {
   proto::Universal message;
   message.MutableExtension(proto::Status::status)->CopyFrom(status);
   message.MutableExtension(Remote::result)->set_obj(process.stdout());
-  connection_->SendAsync(message);
+  if (!connection_->SendAsync(message)) {
+    connection_->Close();
+  }
 }
 
-RemoteExecution::RemoteExecution(net::ConnectionPtr connection,
-                                 const proto::RemoteExecute& remote,
-                                 FileCache* cache,
-                                 const CompilerMap* compilers)
-  : connection_(connection), message_(remote), cache_(cache),
-    compilers_(compilers) {}
-
 bool RemoteExecution::SearchCache(FileCache::Entry *entry) {
-  if (!cache_)
+  if (!daemon_.cache())
     return false;
 
-  const proto::Flags& flags = message_.cc_flags();
-  const std::string& version = flags.compiler().version();
+  const auto& flags = message_.cc_flags();
+  const auto& version = flags.compiler().version();
   std::string command_line = base::JoinString<' '>(flags.other().begin(),
                                                    flags.other().end());
-  return cache_->Find(message_.pp_source(), command_line, version, entry);
+  return
+      daemon_.cache()->Find(message_.pp_source(), command_line, version, entry);
 }
 
 }  // namespace command
