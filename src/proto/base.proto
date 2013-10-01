@@ -1,7 +1,6 @@
 package dist_clang.proto;
 
 message Compiler {
-  required string path        = 1;
-  optional string version     = 2;  // a version is used in a cache, and for
-                                    // remote compilation.
+  required string version     = 1;
+  optional string path        = 2;
 }

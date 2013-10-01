@@ -24,7 +24,7 @@ void RemoteExecution::Run() {
 
   // Look in the local cache first.
   FileCache::Entry cache_entry;
-  if(SearchCache(&cache_entry)) {
+  if (SearchCache(&cache_entry)) {
     proto::Universal message;
     auto result = message.MutableExtension(proto::RemoteResult::result);
     if (base::ReadFile(cache_entry.first, result->mutable_obj())) {
@@ -35,15 +35,6 @@ void RemoteExecution::Run() {
         connection_->Close();
       return;
     }
-  }
-
-  // Check that remote peer has provided us with a compiler version - otherwise,
-  // we won't be able to do local compilation.
-  if (!message_.cc_flags().compiler().has_version()) {
-    status.set_code(proto::Status::BAD_MESSAGE);
-    status.set_description("The compiler version is not specified");
-    connection_->SendAsync(status, net::Connection::CloseAfterSend());
-    return;
   }
 
   // Check that we have a compiler of a requested version.
@@ -110,7 +101,6 @@ bool RemoteExecution::SearchCache(FileCache::Entry *entry) {
     return false;
 
   const proto::Flags& flags = message_.cc_flags();
-  assert(flags.compiler().has_version());
   const std::string& version = flags.compiler().version();
   std::string command_line = base::JoinString<' '>(flags.other().begin(),
                                                    flags.other().end());

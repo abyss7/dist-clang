@@ -44,17 +44,10 @@ void LocalExecution::Run() {
   }
   pp_source_ = process.stdout();
 
-  if (!message_.cc_flags().compiler().has_version()) {
-    // We can't do a remote compilation or a cache lookup, if don't know
-    // the compiler version.
-    DoLocalCompilation();
-    return;
-  }
-
   FileCache::Entry cache_entry;
   std::string output_path =
       message_.current_dir() + "/" + message_.cc_flags().output();
-  if(SearchCache(&cache_entry)) {
+  if (SearchCache(&cache_entry)) {
     if (base::CopyFile(cache_entry.first, output_path, true)) {
       proto::Status status;
       status.set_code(proto::Status::OK);
@@ -136,32 +129,33 @@ bool LocalExecution::DoneRemoteCompilation(net::ConnectionPtr /* connection */,
   if (status.code() != proto::Status::OK) {
     std::cerr << status.description() << std::endl;
     DoLocalCompilation();
+    return false;
   }
-  else if (message.HasExtension(proto::Status::status)) {
+  if (message.HasExtension(proto::Status::status)) {
     const proto::Status& status = message.GetExtension(proto::Status::status);
     if (status.code() != proto::Status::OK) {
       std::cerr << "Remote compilation failed with error(s):" << std::endl;
       std::cerr << status.description() << std::endl;
       DoLocalCompilation();
+      return false;
     }
   }
-  else if (message.HasExtension(proto::RemoteResult::result)) {
+  if (message.HasExtension(proto::RemoteResult::result)) {
     const proto::RemoteResult& result =
         message.GetExtension(proto::RemoteResult::result);
     std::string output_path =
         message_.current_dir() + "/" + message_.cc_flags().output();
-    if (!base::WriteFile(output_path, result.obj()))
-      DoLocalCompilation();
-    else {
+    if (base::WriteFile(output_path, result.obj())) {
       proto::Status status;
       status.set_code(proto::Status::OK);
-      connection_->SendAsync(status);
+      if (!connection_->SendAsync(status))
+        DoLocalCompilation();
       UpdateCache(status);
+      return false;
     }
   }
-  else
-    DoLocalCompilation();
 
+  DoLocalCompilation();
   return false;
 }
 
@@ -170,7 +164,6 @@ bool LocalExecution::SearchCache(FileCache::Entry* entry) {
     return false;
 
   const proto::Flags& flags = message_.cc_flags();
-  assert(flags.compiler().has_version());
   const std::string& version = flags.compiler().version();
   std::string command_line = base::JoinString<' '>(flags.other().begin(),
                                                    flags.other().end());

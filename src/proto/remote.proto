@@ -19,13 +19,13 @@ message Test {
 message Status {
   enum Code {
     OK = 0;
-    INCONSEQUENT  = 1;  // Call to read/send method of |Connection| is inconsequent.
-    NETWORK       = 2;  // Failed to read/send something from network connection.
-    BAD_MESSAGE   = 3;  // Incoming/outgoing message is malformed.
-    EMPTY_MESSAGE = 4;  // Provided |message| pointer for |Read()| is null.
-    EXECUTION     = 5;  // Execution failed.
-    OVERLOAD      = 6;  // Pool's queue is full.
-    NO_VERSION    = 7;  // Compiler of a requested version is missing.
+    INCONSEQUENT  = 1;
+    NETWORK       = 2;
+    BAD_MESSAGE   = 3;
+    EMPTY_MESSAGE = 4;
+    EXECUTION     = 5;
+    OVERLOAD      = 6;
+    NO_VERSION    = 7;
   }
 
   required Code code = 1 [default=OK];
