@@ -26,6 +26,7 @@ class EventLoop {
     inline void ConnectionDoRead(ConnectionPtr connection);
     inline void ConnectionDoSend(ConnectionPtr connection);
     inline bool ConnectionToggleWait(ConnectionPtr connection, bool new_wait);
+    inline bool ConnectionAdd(ConnectionPtr connection);
 
   private:
     virtual void DoListenWork(const volatile bool& is_shutting_down_) = 0;
@@ -52,6 +53,10 @@ void EventLoop::ConnectionDoSend(ConnectionPtr connection) {
 
 bool EventLoop::ConnectionToggleWait(ConnectionPtr connection, bool new_wait) {
   return connection->ToggleWait(new_wait);
+}
+
+bool EventLoop::ConnectionAdd(ConnectionPtr connection) {
+  return connection->AddToEventLoop();
 }
 
 }  // namespace net

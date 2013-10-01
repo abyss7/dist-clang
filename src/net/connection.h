@@ -58,13 +58,14 @@ class Connection: public std::enable_shared_from_this<Connection> {
     void DoRead();
     void DoSend();
     inline bool ToggleWait(bool new_wait);
+    inline bool AddToEventLoop();
     bool ConvertCustomMessage(const CustomMessage& input, Message* output,
                               Status* status = nullptr);
 
     const fd_t fd_;
     Message message_;
     EventLoop& event_loop_;
-    std::atomic<bool> is_closed_, waiting_;
+    std::atomic<bool> is_closed_, waiting_, added_;
 
     // Read members.
     FileInputStream file_input_stream_;
@@ -89,6 +90,11 @@ bool Connection::IsOnEventLoop(const EventLoop* event_loop) const {
 bool Connection::ToggleWait(bool new_wait) {
   bool old_wait = !new_wait;
   return waiting_.compare_exchange_strong(old_wait, new_wait);
+}
+
+bool Connection::AddToEventLoop() {
+  bool old_added = false;
+  return added_.compare_exchange_strong(old_added, true);
 }
 
 }  // namespace net

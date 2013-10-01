@@ -51,8 +51,11 @@ bool EpollEventLoop::ReadyForRead(ConnectionPtr connection) {
   }
   if (epoll_ctl(io_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
     assert(errno == ENOENT);
-    ConnectionToggleWait(connection, false);
-    return false;
+    if (!ConnectionAdd(connection) ||
+        epoll_ctl(io_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
+      ConnectionToggleWait(connection, false);
+      return false;
+    }
   }
   return true;
 }
@@ -69,8 +72,11 @@ bool EpollEventLoop::ReadyForSend(ConnectionPtr connection) {
   }
   if(epoll_ctl(io_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
     assert(errno == ENOENT);
-    ConnectionToggleWait(connection, false);
-    return false;
+    if (!ConnectionAdd(connection) ||
+        epoll_ctl(io_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
+      ConnectionToggleWait(connection, false);
+      return false;
+    }
   }
   return true;
 }
@@ -200,15 +206,6 @@ bool EpollEventLoop::ReadyForClose(ConnectionPtr connection) {
   event.data.ptr = connection.get();
   auto fd = GetConnectionDescriptor(connection);
   if (epoll_ctl(closing_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
-    return false;
-  }
-
-  // TODO: we should do something in case the connection gets closed before any
-  // attempt to read or write - the |ConnectionToggleWait()| assertion will fail
-  // in |DoIOWork()|.
-  event.events = EPOLLONESHOT;
-  event.data.ptr = connection.get();
-  if (epoll_ctl(io_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
     return false;
   }
   return true;
