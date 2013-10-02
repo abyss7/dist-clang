@@ -121,9 +121,7 @@ void LocalExecution::DoLocalCompilation() {
     UpdateCache(message);
   }
 
-  if (!connection_->SendAsync(message, net::Connection::Idle(), &status)) {
-    std::cerr << "Failed to send message: " << status.description()
-              << std::endl;
+  if (!connection_->SendAsync(message, net::Connection::Idle())) {
     connection_->Close();
   }
 }
@@ -179,10 +177,10 @@ bool LocalExecution::DoneRemoteCompilation(net::ConnectionPtr /* connection */,
       proto::Status status;
       status.set_code(proto::Status::OK);
       UpdateCache(status);
-      if (connection_->SendAsync(status)) {
+      if (!connection_->SendAsync(status)) {
         connection_->Close();
-        return false;
       }
+      return false;
     }
   }
 

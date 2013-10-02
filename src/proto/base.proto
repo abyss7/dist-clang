@@ -1,6 +1,12 @@
 package dist_clang.proto;
 
+message Plugin {
+  required string name    = 1;
+  optional string path    = 2;
+}
+
 message Compiler {
-  required string version     = 1;
-  optional string path        = 2;
+  required string version = 1;
+  optional string path    = 2;
+  repeated Plugin plugins = 3;
 }

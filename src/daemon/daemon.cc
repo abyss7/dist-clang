@@ -67,6 +67,13 @@ bool Daemon::Initialize(const Configuration &configuration,
 
   for (const auto& version: config.versions()) {
     compilers_.insert(std::make_pair(version.version(), version.path()));
+
+    // Load plugins.
+    auto value = std::make_pair(version.version(), PluginNameMap());
+    auto& plugin_map = plugins_.insert(value).first->second;
+    for (const auto& plugin: version.plugins()) {
+      plugin_map.insert(std::make_pair(plugin.name(), plugin.path()));
+    }
   }
 
   return true;
@@ -78,19 +85,38 @@ bool Daemon::FillFlags(proto::Flags* flags, proto::Status* status) {
     return true;
   }
 
-  if (flags->compiler().has_path()) {
-    return true;
+  if (!flags->compiler().has_path()) {
+    auto compiler = compilers_.find(flags->compiler().version());
+    if (compiler == compilers_.end()) {
+      if (status) {
+        status->set_code(proto::Status::NO_VERSION);
+        status->set_description("Compiler of the required version not found");
+      }
+      return false;
+    }
+    flags->mutable_compiler()->set_path(compiler->second);
   }
 
-  auto compiler = compilers_.find(flags->compiler().version());
-  if (compiler == compilers_.end()) {
-    if (status) {
-      status->set_code(proto::Status::NO_VERSION);
-      status->set_description("Compiler of the required version not found");
+  auto plugin_map = plugins_.find(flags->compiler().version());
+  auto& plugins = *flags->mutable_compiler()->mutable_plugins();
+  for (auto& plugin: plugins) {
+    if (!plugin.has_path() && plugin_map == plugins_.end()) {
+      if (status) {
+        status->set_code(proto::Status::NO_VERSION);
+        status->set_description("Plugin " + plugin.name() + " not found");
+      }
+      return false;
     }
-    return false;
+    auto plugin_by_name = plugin_map->second.find(plugin.name());
+    if (plugin_by_name == plugin_map->second.end()) {
+      if (status) {
+        status->set_code(proto::Status::NO_VERSION);
+        status->set_description("Plugin " + plugin.name() + " not found");
+      }
+      return false;
+    }
+    plugin.set_path(plugin_by_name->second);
   }
-  flags->mutable_compiler()->set_path(compiler->second);
 
   return true;
 }

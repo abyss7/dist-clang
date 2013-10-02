@@ -34,9 +34,112 @@ void  protobuf_AddDesc_base_2eproto();
 void protobuf_AssignDesc_base_2eproto();
 void protobuf_ShutdownFile_base_2eproto();
 
+class Plugin;
 class Compiler;
 
 // ===================================================================
+
+class Plugin : public ::google::protobuf::Message {
+ public:
+  Plugin();
+  virtual ~Plugin();
+
+  Plugin(const Plugin& from);
+
+  inline Plugin& operator=(const Plugin& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
+    return _unknown_fields_;
+  }
+
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
+    return &_unknown_fields_;
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const Plugin& default_instance();
+
+  void Swap(Plugin* other);
+
+  // implements Message ----------------------------------------------
+
+  Plugin* New() const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const Plugin& from);
+  void MergeFrom(const Plugin& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // required string name = 1;
+  inline bool has_name() const;
+  inline void clear_name();
+  static const int kNameFieldNumber = 1;
+  inline const ::std::string& name() const;
+  inline void set_name(const ::std::string& value);
+  inline void set_name(const char* value);
+  inline void set_name(const char* value, size_t size);
+  inline ::std::string* mutable_name();
+  inline ::std::string* release_name();
+  inline void set_allocated_name(::std::string* name);
+
+  // optional string path = 2;
+  inline bool has_path() const;
+  inline void clear_path();
+  static const int kPathFieldNumber = 2;
+  inline const ::std::string& path() const;
+  inline void set_path(const ::std::string& value);
+  inline void set_path(const char* value);
+  inline void set_path(const char* value, size_t size);
+  inline ::std::string* mutable_path();
+  inline ::std::string* release_path();
+  inline void set_allocated_path(::std::string* path);
+
+  // @@protoc_insertion_point(class_scope:dist_clang.proto.Plugin)
+ private:
+  inline void set_has_name();
+  inline void clear_has_name();
+  inline void set_has_path();
+  inline void clear_has_path();
+
+  ::google::protobuf::UnknownFieldSet _unknown_fields_;
+
+  ::std::string* name_;
+  ::std::string* path_;
+
+  mutable int _cached_size_;
+  ::google::protobuf::uint32 _has_bits_[(2 + 31) / 32];
+
+  friend void  protobuf_AddDesc_base_2eproto();
+  friend void protobuf_AssignDesc_base_2eproto();
+  friend void protobuf_ShutdownFile_base_2eproto();
+
+  void InitAsDefaultInstance();
+  static Plugin* default_instance_;
+};
+// -------------------------------------------------------------------
 
 class Compiler : public ::google::protobuf::Message {
  public:
@@ -116,6 +219,18 @@ class Compiler : public ::google::protobuf::Message {
   inline ::std::string* release_path();
   inline void set_allocated_path(::std::string* path);
 
+  // repeated .dist_clang.proto.Plugin plugins = 3;
+  inline int plugins_size() const;
+  inline void clear_plugins();
+  static const int kPluginsFieldNumber = 3;
+  inline const ::dist_clang::proto::Plugin& plugins(int index) const;
+  inline ::dist_clang::proto::Plugin* mutable_plugins(int index);
+  inline ::dist_clang::proto::Plugin* add_plugins();
+  inline const ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Plugin >&
+      plugins() const;
+  inline ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Plugin >*
+      mutable_plugins();
+
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Compiler)
  private:
   inline void set_has_version();
@@ -127,9 +242,10 @@ class Compiler : public ::google::protobuf::Message {
 
   ::std::string* version_;
   ::std::string* path_;
+  ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Plugin > plugins_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(2 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(3 + 31) / 32];
 
   friend void  protobuf_AddDesc_base_2eproto();
   friend void protobuf_AssignDesc_base_2eproto();
@@ -142,6 +258,150 @@ class Compiler : public ::google::protobuf::Message {
 
 
 // ===================================================================
+
+// Plugin
+
+// required string name = 1;
+inline bool Plugin::has_name() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+inline void Plugin::set_has_name() {
+  _has_bits_[0] |= 0x00000001u;
+}
+inline void Plugin::clear_has_name() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+inline void Plugin::clear_name() {
+  if (name_ != &::google::protobuf::internal::kEmptyString) {
+    name_->clear();
+  }
+  clear_has_name();
+}
+inline const ::std::string& Plugin::name() const {
+  return *name_;
+}
+inline void Plugin::set_name(const ::std::string& value) {
+  set_has_name();
+  if (name_ == &::google::protobuf::internal::kEmptyString) {
+    name_ = new ::std::string;
+  }
+  name_->assign(value);
+}
+inline void Plugin::set_name(const char* value) {
+  set_has_name();
+  if (name_ == &::google::protobuf::internal::kEmptyString) {
+    name_ = new ::std::string;
+  }
+  name_->assign(value);
+}
+inline void Plugin::set_name(const char* value, size_t size) {
+  set_has_name();
+  if (name_ == &::google::protobuf::internal::kEmptyString) {
+    name_ = new ::std::string;
+  }
+  name_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* Plugin::mutable_name() {
+  set_has_name();
+  if (name_ == &::google::protobuf::internal::kEmptyString) {
+    name_ = new ::std::string;
+  }
+  return name_;
+}
+inline ::std::string* Plugin::release_name() {
+  clear_has_name();
+  if (name_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = name_;
+    name_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
+}
+inline void Plugin::set_allocated_name(::std::string* name) {
+  if (name_ != &::google::protobuf::internal::kEmptyString) {
+    delete name_;
+  }
+  if (name) {
+    set_has_name();
+    name_ = name;
+  } else {
+    clear_has_name();
+    name_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
+}
+
+// optional string path = 2;
+inline bool Plugin::has_path() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+inline void Plugin::set_has_path() {
+  _has_bits_[0] |= 0x00000002u;
+}
+inline void Plugin::clear_has_path() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+inline void Plugin::clear_path() {
+  if (path_ != &::google::protobuf::internal::kEmptyString) {
+    path_->clear();
+  }
+  clear_has_path();
+}
+inline const ::std::string& Plugin::path() const {
+  return *path_;
+}
+inline void Plugin::set_path(const ::std::string& value) {
+  set_has_path();
+  if (path_ == &::google::protobuf::internal::kEmptyString) {
+    path_ = new ::std::string;
+  }
+  path_->assign(value);
+}
+inline void Plugin::set_path(const char* value) {
+  set_has_path();
+  if (path_ == &::google::protobuf::internal::kEmptyString) {
+    path_ = new ::std::string;
+  }
+  path_->assign(value);
+}
+inline void Plugin::set_path(const char* value, size_t size) {
+  set_has_path();
+  if (path_ == &::google::protobuf::internal::kEmptyString) {
+    path_ = new ::std::string;
+  }
+  path_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* Plugin::mutable_path() {
+  set_has_path();
+  if (path_ == &::google::protobuf::internal::kEmptyString) {
+    path_ = new ::std::string;
+  }
+  return path_;
+}
+inline ::std::string* Plugin::release_path() {
+  clear_has_path();
+  if (path_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = path_;
+    path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
+}
+inline void Plugin::set_allocated_path(::std::string* path) {
+  if (path_ != &::google::protobuf::internal::kEmptyString) {
+    delete path_;
+  }
+  if (path) {
+    set_has_path();
+    path_ = path;
+  } else {
+    clear_has_path();
+    path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
+}
+
+// -------------------------------------------------------------------
 
 // Compiler
 
@@ -283,6 +543,31 @@ inline void Compiler::set_allocated_path(::std::string* path) {
     clear_has_path();
     path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   }
+}
+
+// repeated .dist_clang.proto.Plugin plugins = 3;
+inline int Compiler::plugins_size() const {
+  return plugins_.size();
+}
+inline void Compiler::clear_plugins() {
+  plugins_.Clear();
+}
+inline const ::dist_clang::proto::Plugin& Compiler::plugins(int index) const {
+  return plugins_.Get(index);
+}
+inline ::dist_clang::proto::Plugin* Compiler::mutable_plugins(int index) {
+  return plugins_.Mutable(index);
+}
+inline ::dist_clang::proto::Plugin* Compiler::add_plugins() {
+  return plugins_.Add();
+}
+inline const ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Plugin >&
+Compiler::plugins() const {
+  return plugins_;
+}
+inline ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Plugin >*
+Compiler::mutable_plugins() {
+  return &plugins_;
 }
 
 

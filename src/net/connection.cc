@@ -71,7 +71,7 @@ bool Connection::ReadSync(Message *message, Status *status) {
   {
     CodedInputStream coded_stream(&file_input_stream_);
     if (!coded_stream.ReadVarint32(&size)) {
-      if (status) {
+      if (file_input_stream_.GetErrno() && status) {
         status->set_code(Status::NETWORK);
         status->set_description("Can't read incoming message size: ");
         status->mutable_description()->append(

@@ -28,6 +28,12 @@ class Daemon {
     // The version is a key, and the compiler's path is a value.
     using CompilerMap = std::unordered_map<std::string, std::string>;
 
+    // The name is a key, and the plugin's path is a value.
+    using PluginNameMap = std::unordered_map<std::string, std::string>;
+
+    // The version is a key.
+    using PluginMap = std::unordered_map<std::string, PluginNameMap>;
+
   public:
     bool Initialize(
         const Configuration& configuration,
@@ -53,6 +59,7 @@ class Daemon {
     std::unique_ptr<Balancer> balancer_;
     std::unique_ptr<FileCache> cache_;
     CompilerMap compilers_;
+    PluginMap plugins_;
 };
 
 ThreadPool* Daemon::pool() {

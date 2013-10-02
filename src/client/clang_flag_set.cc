@@ -38,7 +38,12 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(StringList& flags,
   for (auto it = flags.begin(); it != flags.end(); ++it) {
     std::string& flag = *it;
 
-    if (flag == "-dynamic-linker") {
+    if (flag == "-add-plugin") {
+      message->add_other(flag);
+      message->add_other(*(++it));
+      message->mutable_compiler()->add_plugins()->set_name(*it);
+    }
+    else if (flag == "-dynamic-linker") {
       action = LINK;
       message->add_other(flag);
     }
@@ -53,6 +58,9 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(StringList& flags,
     else if (flag == "-dependency-file") {
       message->add_dependenies(flag);
       message->add_dependenies(*(++it));
+    }
+    else if (flag == "-load") {
+      ++it;
     }
     else if (flag == "-MF") {
       message->add_dependenies(flag);
