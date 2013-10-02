@@ -38,6 +38,7 @@ void protobuf_ShutdownFile_remote_2eproto();
 
 class Universal;
 class Test;
+class TestNotExtension;
 class Status;
 class Flags;
 class LocalExecute;
@@ -266,6 +267,125 @@ class Test : public ::google::protobuf::Message {
 
   void InitAsDefaultInstance();
   static Test* default_instance_;
+};
+// -------------------------------------------------------------------
+
+class TestNotExtension : public ::google::protobuf::Message {
+ public:
+  TestNotExtension();
+  virtual ~TestNotExtension();
+
+  TestNotExtension(const TestNotExtension& from);
+
+  inline TestNotExtension& operator=(const TestNotExtension& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
+    return _unknown_fields_;
+  }
+
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
+    return &_unknown_fields_;
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const TestNotExtension& default_instance();
+
+  void Swap(TestNotExtension* other);
+
+  // implements Message ----------------------------------------------
+
+  TestNotExtension* New() const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const TestNotExtension& from);
+  void MergeFrom(const TestNotExtension& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // required string field1 = 1;
+  inline bool has_field1() const;
+  inline void clear_field1();
+  static const int kField1FieldNumber = 1;
+  inline const ::std::string& field1() const;
+  inline void set_field1(const ::std::string& value);
+  inline void set_field1(const char* value);
+  inline void set_field1(const char* value, size_t size);
+  inline ::std::string* mutable_field1();
+  inline ::std::string* release_field1();
+  inline void set_allocated_field1(::std::string* field1);
+
+  // optional string field2 = 2;
+  inline bool has_field2() const;
+  inline void clear_field2();
+  static const int kField2FieldNumber = 2;
+  inline const ::std::string& field2() const;
+  inline void set_field2(const ::std::string& value);
+  inline void set_field2(const char* value);
+  inline void set_field2(const char* value, size_t size);
+  inline ::std::string* mutable_field2();
+  inline ::std::string* release_field2();
+  inline void set_allocated_field2(::std::string* field2);
+
+  // repeated string field3 = 3;
+  inline int field3_size() const;
+  inline void clear_field3();
+  static const int kField3FieldNumber = 3;
+  inline const ::std::string& field3(int index) const;
+  inline ::std::string* mutable_field3(int index);
+  inline void set_field3(int index, const ::std::string& value);
+  inline void set_field3(int index, const char* value);
+  inline void set_field3(int index, const char* value, size_t size);
+  inline ::std::string* add_field3();
+  inline void add_field3(const ::std::string& value);
+  inline void add_field3(const char* value);
+  inline void add_field3(const char* value, size_t size);
+  inline const ::google::protobuf::RepeatedPtrField< ::std::string>& field3() const;
+  inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_field3();
+
+  // @@protoc_insertion_point(class_scope:dist_clang.proto.TestNotExtension)
+ private:
+  inline void set_has_field1();
+  inline void clear_has_field1();
+  inline void set_has_field2();
+  inline void clear_has_field2();
+
+  ::google::protobuf::UnknownFieldSet _unknown_fields_;
+
+  ::std::string* field1_;
+  ::std::string* field2_;
+  ::google::protobuf::RepeatedPtrField< ::std::string> field3_;
+
+  mutable int _cached_size_;
+  ::google::protobuf::uint32 _has_bits_[(3 + 31) / 32];
+
+  friend void  protobuf_AddDesc_remote_2eproto();
+  friend void protobuf_AssignDesc_remote_2eproto();
+  friend void protobuf_ShutdownFile_remote_2eproto();
+
+  void InitAsDefaultInstance();
+  static TestNotExtension* default_instance_;
 };
 // -------------------------------------------------------------------
 
@@ -1030,6 +1150,194 @@ Test::field3() const {
 }
 inline ::google::protobuf::RepeatedPtrField< ::std::string>*
 Test::mutable_field3() {
+  return &field3_;
+}
+
+// -------------------------------------------------------------------
+
+// TestNotExtension
+
+// required string field1 = 1;
+inline bool TestNotExtension::has_field1() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+inline void TestNotExtension::set_has_field1() {
+  _has_bits_[0] |= 0x00000001u;
+}
+inline void TestNotExtension::clear_has_field1() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+inline void TestNotExtension::clear_field1() {
+  if (field1_ != &::google::protobuf::internal::kEmptyString) {
+    field1_->clear();
+  }
+  clear_has_field1();
+}
+inline const ::std::string& TestNotExtension::field1() const {
+  return *field1_;
+}
+inline void TestNotExtension::set_field1(const ::std::string& value) {
+  set_has_field1();
+  if (field1_ == &::google::protobuf::internal::kEmptyString) {
+    field1_ = new ::std::string;
+  }
+  field1_->assign(value);
+}
+inline void TestNotExtension::set_field1(const char* value) {
+  set_has_field1();
+  if (field1_ == &::google::protobuf::internal::kEmptyString) {
+    field1_ = new ::std::string;
+  }
+  field1_->assign(value);
+}
+inline void TestNotExtension::set_field1(const char* value, size_t size) {
+  set_has_field1();
+  if (field1_ == &::google::protobuf::internal::kEmptyString) {
+    field1_ = new ::std::string;
+  }
+  field1_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* TestNotExtension::mutable_field1() {
+  set_has_field1();
+  if (field1_ == &::google::protobuf::internal::kEmptyString) {
+    field1_ = new ::std::string;
+  }
+  return field1_;
+}
+inline ::std::string* TestNotExtension::release_field1() {
+  clear_has_field1();
+  if (field1_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = field1_;
+    field1_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
+}
+inline void TestNotExtension::set_allocated_field1(::std::string* field1) {
+  if (field1_ != &::google::protobuf::internal::kEmptyString) {
+    delete field1_;
+  }
+  if (field1) {
+    set_has_field1();
+    field1_ = field1;
+  } else {
+    clear_has_field1();
+    field1_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
+}
+
+// optional string field2 = 2;
+inline bool TestNotExtension::has_field2() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+inline void TestNotExtension::set_has_field2() {
+  _has_bits_[0] |= 0x00000002u;
+}
+inline void TestNotExtension::clear_has_field2() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+inline void TestNotExtension::clear_field2() {
+  if (field2_ != &::google::protobuf::internal::kEmptyString) {
+    field2_->clear();
+  }
+  clear_has_field2();
+}
+inline const ::std::string& TestNotExtension::field2() const {
+  return *field2_;
+}
+inline void TestNotExtension::set_field2(const ::std::string& value) {
+  set_has_field2();
+  if (field2_ == &::google::protobuf::internal::kEmptyString) {
+    field2_ = new ::std::string;
+  }
+  field2_->assign(value);
+}
+inline void TestNotExtension::set_field2(const char* value) {
+  set_has_field2();
+  if (field2_ == &::google::protobuf::internal::kEmptyString) {
+    field2_ = new ::std::string;
+  }
+  field2_->assign(value);
+}
+inline void TestNotExtension::set_field2(const char* value, size_t size) {
+  set_has_field2();
+  if (field2_ == &::google::protobuf::internal::kEmptyString) {
+    field2_ = new ::std::string;
+  }
+  field2_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* TestNotExtension::mutable_field2() {
+  set_has_field2();
+  if (field2_ == &::google::protobuf::internal::kEmptyString) {
+    field2_ = new ::std::string;
+  }
+  return field2_;
+}
+inline ::std::string* TestNotExtension::release_field2() {
+  clear_has_field2();
+  if (field2_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = field2_;
+    field2_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
+}
+inline void TestNotExtension::set_allocated_field2(::std::string* field2) {
+  if (field2_ != &::google::protobuf::internal::kEmptyString) {
+    delete field2_;
+  }
+  if (field2) {
+    set_has_field2();
+    field2_ = field2;
+  } else {
+    clear_has_field2();
+    field2_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
+}
+
+// repeated string field3 = 3;
+inline int TestNotExtension::field3_size() const {
+  return field3_.size();
+}
+inline void TestNotExtension::clear_field3() {
+  field3_.Clear();
+}
+inline const ::std::string& TestNotExtension::field3(int index) const {
+  return field3_.Get(index);
+}
+inline ::std::string* TestNotExtension::mutable_field3(int index) {
+  return field3_.Mutable(index);
+}
+inline void TestNotExtension::set_field3(int index, const ::std::string& value) {
+  field3_.Mutable(index)->assign(value);
+}
+inline void TestNotExtension::set_field3(int index, const char* value) {
+  field3_.Mutable(index)->assign(value);
+}
+inline void TestNotExtension::set_field3(int index, const char* value, size_t size) {
+  field3_.Mutable(index)->assign(
+    reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* TestNotExtension::add_field3() {
+  return field3_.Add();
+}
+inline void TestNotExtension::add_field3(const ::std::string& value) {
+  field3_.Add()->assign(value);
+}
+inline void TestNotExtension::add_field3(const char* value) {
+  field3_.Add()->assign(value);
+}
+inline void TestNotExtension::add_field3(const char* value, size_t size) {
+  field3_.Add()->assign(reinterpret_cast<const char*>(value), size);
+}
+inline const ::google::protobuf::RepeatedPtrField< ::std::string>&
+TestNotExtension::field3() const {
+  return field3_;
+}
+inline ::google::protobuf::RepeatedPtrField< ::std::string>*
+TestNotExtension::mutable_field3() {
   return &field3_;
 }
 

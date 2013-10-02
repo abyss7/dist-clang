@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  // TODO: implement signal handling.
+  // TODO: implement signal handling. Also, ignore SIGPIPE.
   pause();
 
   return 0;

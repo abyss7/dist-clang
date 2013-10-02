@@ -132,6 +132,8 @@ bool DoMain(int argc, char* argv[]) {
 }  // namespace
 
 int main(int argc, char* argv[]) {
+  // TODO: Ignore SIGPIPE, to prevent application crash.
+
   /*
    * Use separate |DoMain| function to make sure that all local objects get
    * destructed before the invokation of |exec|.

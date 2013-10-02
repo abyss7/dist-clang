@@ -27,6 +27,9 @@ const ::google::protobuf::internal::GeneratedMessageReflection*
 const ::google::protobuf::Descriptor* Test_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   Test_reflection_ = NULL;
+const ::google::protobuf::Descriptor* TestNotExtension_descriptor_ = NULL;
+const ::google::protobuf::internal::GeneratedMessageReflection*
+  TestNotExtension_reflection_ = NULL;
 const ::google::protobuf::Descriptor* Status_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   Status_reflection_ = NULL;
@@ -84,7 +87,24 @@ void protobuf_AssignDesc_remote_2eproto() {
       ::google::protobuf::DescriptorPool::generated_pool(),
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(Test));
-  Status_descriptor_ = file->message_type(2);
+  TestNotExtension_descriptor_ = file->message_type(2);
+  static const int TestNotExtension_offsets_[3] = {
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(TestNotExtension, field1_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(TestNotExtension, field2_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(TestNotExtension, field3_),
+  };
+  TestNotExtension_reflection_ =
+    new ::google::protobuf::internal::GeneratedMessageReflection(
+      TestNotExtension_descriptor_,
+      TestNotExtension::default_instance_,
+      TestNotExtension_offsets_,
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(TestNotExtension, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(TestNotExtension, _unknown_fields_),
+      -1,
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(TestNotExtension));
+  Status_descriptor_ = file->message_type(3);
   static const int Status_offsets_[2] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Status, code_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Status, description_),
@@ -101,7 +121,7 @@ void protobuf_AssignDesc_remote_2eproto() {
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(Status));
   Status_Code_descriptor_ = Status_descriptor_->enum_type(0);
-  Flags_descriptor_ = file->message_type(3);
+  Flags_descriptor_ = file->message_type(4);
   static const int Flags_offsets_[4] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Flags, compiler_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Flags, output_),
@@ -119,7 +139,7 @@ void protobuf_AssignDesc_remote_2eproto() {
       ::google::protobuf::DescriptorPool::generated_pool(),
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(Flags));
-  LocalExecute_descriptor_ = file->message_type(4);
+  LocalExecute_descriptor_ = file->message_type(5);
   static const int LocalExecute_offsets_[3] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(LocalExecute, current_dir_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(LocalExecute, cc_flags_),
@@ -136,7 +156,7 @@ void protobuf_AssignDesc_remote_2eproto() {
       ::google::protobuf::DescriptorPool::generated_pool(),
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(LocalExecute));
-  RemoteExecute_descriptor_ = file->message_type(5);
+  RemoteExecute_descriptor_ = file->message_type(6);
   static const int RemoteExecute_offsets_[2] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(RemoteExecute, pp_source_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(RemoteExecute, cc_flags_),
@@ -152,7 +172,7 @@ void protobuf_AssignDesc_remote_2eproto() {
       ::google::protobuf::DescriptorPool::generated_pool(),
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(RemoteExecute));
-  RemoteResult_descriptor_ = file->message_type(6);
+  RemoteResult_descriptor_ = file->message_type(7);
   static const int RemoteResult_offsets_[1] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(RemoteResult, obj_),
   };
@@ -184,6 +204,8 @@ void protobuf_RegisterTypes(const ::std::string&) {
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
     Test_descriptor_, &Test::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
+    TestNotExtension_descriptor_, &TestNotExtension::default_instance());
+  ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
     Status_descriptor_, &Status::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
     Flags_descriptor_, &Flags::default_instance());
@@ -202,6 +224,8 @@ void protobuf_ShutdownFile_remote_2eproto() {
   delete Universal_reflection_;
   delete Test::default_instance_;
   delete Test_reflection_;
+  delete TestNotExtension::default_instance_;
+  delete TestNotExtension_reflection_;
   delete Status::default_instance_;
   delete Status_reflection_;
   delete Flags::default_instance_;
@@ -226,32 +250,35 @@ void protobuf_AddDesc_remote_2eproto() {
     "roto\"\022\n\tUniversal*\005\010\001\020\311\001\"y\n\004Test\022\016\n\006fiel"
     "d1\030\001 \002(\t\022\016\n\006field2\030\002 \001(\t\022\016\n\006field3\030\003 \003(\t"
     "2A\n\004test\022\033.dist_clang.proto.Universal\030\001 "
-    "\001(\0132\026.dist_clang.proto.Test\"\225\002\n\006Status\022/"
-    "\n\004code\030\001 \002(\0162\035.dist_clang.proto.Status.C"
-    "ode:\002OK\022\023\n\013description\030\002 \001(\t\"~\n\004Code\022\006\n\002"
-    "OK\020\000\022\020\n\014INCONSEQUENT\020\001\022\013\n\007NETWORK\020\002\022\017\n\013B"
-    "AD_MESSAGE\020\003\022\021\n\rEMPTY_MESSAGE\020\004\022\r\n\tEXECU"
-    "TION\020\005\022\014\n\010OVERLOAD\020\006\022\016\n\nNO_VERSION\020\0072E\n\006"
-    "status\022\033.dist_clang.proto.Universal\030\002 \001("
-    "\0132\030.dist_clang.proto.Status\"c\n\005Flags\022,\n\010"
-    "compiler\030\001 \002(\0132\032.dist_clang.proto.Compil"
-    "er\022\016\n\006output\030\002 \001(\t\022\r\n\005input\030\003 \001(\t\022\r\n\005oth"
-    "er\030\004 \003(\t\"\305\001\n\014LocalExecute\022\023\n\013current_dir"
-    "\030\001 \002(\t\022)\n\010cc_flags\030\002 \002(\0132\027.dist_clang.pr"
-    "oto.Flags\022)\n\010pp_flags\030\003 \001(\0132\027.dist_clang"
-    ".proto.Flags2J\n\005local\022\033.dist_clang.proto"
-    ".Universal\030\003 \001(\0132\036.dist_clang.proto.Loca"
-    "lExecute\"\233\001\n\rRemoteExecute\022\021\n\tpp_source\030"
-    "\001 \002(\t\022)\n\010cc_flags\030\002 \002(\0132\027.dist_clang.pro"
-    "to.Flags2L\n\006remote\022\033.dist_clang.proto.Un"
-    "iversal\030\004 \001(\0132\037.dist_clang.proto.RemoteE"
-    "xecute\"h\n\014RemoteResult\022\013\n\003obj\030\001 \002(\0142K\n\006r"
-    "esult\022\033.dist_clang.proto.Universal\030\005 \001(\013"
-    "2\036.dist_clang.proto.RemoteResult", 1032);
+    "\001(\0132\026.dist_clang.proto.Test\"B\n\020TestNotEx"
+    "tension\022\016\n\006field1\030\001 \002(\t\022\016\n\006field2\030\002 \001(\t\022"
+    "\016\n\006field3\030\003 \003(\t\"\225\002\n\006Status\022/\n\004code\030\001 \002(\016"
+    "2\035.dist_clang.proto.Status.Code:\002OK\022\023\n\013d"
+    "escription\030\002 \001(\t\"~\n\004Code\022\006\n\002OK\020\000\022\020\n\014INCO"
+    "NSEQUENT\020\001\022\013\n\007NETWORK\020\002\022\017\n\013BAD_MESSAGE\020\003"
+    "\022\021\n\rEMPTY_MESSAGE\020\004\022\r\n\tEXECUTION\020\005\022\014\n\010OV"
+    "ERLOAD\020\006\022\016\n\nNO_VERSION\020\0072E\n\006status\022\033.dis"
+    "t_clang.proto.Universal\030\002 \001(\0132\030.dist_cla"
+    "ng.proto.Status\"c\n\005Flags\022,\n\010compiler\030\001 \002"
+    "(\0132\032.dist_clang.proto.Compiler\022\016\n\006output"
+    "\030\002 \001(\t\022\r\n\005input\030\003 \001(\t\022\r\n\005other\030\004 \003(\t\"\305\001\n"
+    "\014LocalExecute\022\023\n\013current_dir\030\001 \002(\t\022)\n\010cc"
+    "_flags\030\002 \002(\0132\027.dist_clang.proto.Flags\022)\n"
+    "\010pp_flags\030\003 \001(\0132\027.dist_clang.proto.Flags"
+    "2J\n\005local\022\033.dist_clang.proto.Universal\030\003"
+    " \001(\0132\036.dist_clang.proto.LocalExecute\"\233\001\n"
+    "\rRemoteExecute\022\021\n\tpp_source\030\001 \002(\t\022)\n\010cc_"
+    "flags\030\002 \002(\0132\027.dist_clang.proto.Flags2L\n\006"
+    "remote\022\033.dist_clang.proto.Universal\030\004 \001("
+    "\0132\037.dist_clang.proto.RemoteExecute\"h\n\014Re"
+    "moteResult\022\013\n\003obj\030\001 \002(\0142K\n\006result\022\033.dist"
+    "_clang.proto.Universal\030\005 \001(\0132\036.dist_clan"
+    "g.proto.RemoteResult", 1100);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "remote.proto", &protobuf_RegisterTypes);
   Universal::default_instance_ = new Universal();
   Test::default_instance_ = new Test();
+  TestNotExtension::default_instance_ = new TestNotExtension();
   Status::default_instance_ = new Status();
   Flags::default_instance_ = new Flags();
   LocalExecute::default_instance_ = new LocalExecute();
@@ -263,6 +290,7 @@ void protobuf_AddDesc_remote_2eproto() {
     &::dist_clang::proto::Universal::default_instance(),
     1, 11, false, false,
     &::dist_clang::proto::Test::default_instance());
+  TestNotExtension::default_instance_->InitAsDefaultInstance();
   Status::default_instance_->InitAsDefaultInstance();
   ::google::protobuf::internal::ExtensionSet::RegisterMessageExtension(
     &::dist_clang::proto::Universal::default_instance(),
@@ -802,6 +830,337 @@ void Test::Swap(Test* other) {
   ::google::protobuf::Metadata metadata;
   metadata.descriptor = Test_descriptor_;
   metadata.reflection = Test_reflection_;
+  return metadata;
+}
+
+
+// ===================================================================
+
+#ifndef _MSC_VER
+const int TestNotExtension::kField1FieldNumber;
+const int TestNotExtension::kField2FieldNumber;
+const int TestNotExtension::kField3FieldNumber;
+#endif  // !_MSC_VER
+
+TestNotExtension::TestNotExtension()
+  : ::google::protobuf::Message() {
+  SharedCtor();
+}
+
+void TestNotExtension::InitAsDefaultInstance() {
+}
+
+TestNotExtension::TestNotExtension(const TestNotExtension& from)
+  : ::google::protobuf::Message() {
+  SharedCtor();
+  MergeFrom(from);
+}
+
+void TestNotExtension::SharedCtor() {
+  _cached_size_ = 0;
+  field1_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  field2_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+}
+
+TestNotExtension::~TestNotExtension() {
+  SharedDtor();
+}
+
+void TestNotExtension::SharedDtor() {
+  if (field1_ != &::google::protobuf::internal::kEmptyString) {
+    delete field1_;
+  }
+  if (field2_ != &::google::protobuf::internal::kEmptyString) {
+    delete field2_;
+  }
+  if (this != default_instance_) {
+  }
+}
+
+void TestNotExtension::SetCachedSize(int size) const {
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+}
+const ::google::protobuf::Descriptor* TestNotExtension::descriptor() {
+  protobuf_AssignDescriptorsOnce();
+  return TestNotExtension_descriptor_;
+}
+
+const TestNotExtension& TestNotExtension::default_instance() {
+  if (default_instance_ == NULL) protobuf_AddDesc_remote_2eproto();
+  return *default_instance_;
+}
+
+TestNotExtension* TestNotExtension::default_instance_ = NULL;
+
+TestNotExtension* TestNotExtension::New() const {
+  return new TestNotExtension;
+}
+
+void TestNotExtension::Clear() {
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    if (has_field1()) {
+      if (field1_ != &::google::protobuf::internal::kEmptyString) {
+        field1_->clear();
+      }
+    }
+    if (has_field2()) {
+      if (field2_ != &::google::protobuf::internal::kEmptyString) {
+        field2_->clear();
+      }
+    }
+  }
+  field3_.Clear();
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+  mutable_unknown_fields()->Clear();
+}
+
+bool TestNotExtension::MergePartialFromCodedStream(
+    ::google::protobuf::io::CodedInputStream* input) {
+#define DO_(EXPRESSION) if (!(EXPRESSION)) return false
+  ::google::protobuf::uint32 tag;
+  while ((tag = input->ReadTag()) != 0) {
+    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
+      // required string field1 = 1;
+      case 1: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->mutable_field1()));
+          ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+            this->field1().data(), this->field1().length(),
+            ::google::protobuf::internal::WireFormat::PARSE);
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(18)) goto parse_field2;
+        break;
+      }
+
+      // optional string field2 = 2;
+      case 2: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
+         parse_field2:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->mutable_field2()));
+          ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+            this->field2().data(), this->field2().length(),
+            ::google::protobuf::internal::WireFormat::PARSE);
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(26)) goto parse_field3;
+        break;
+      }
+
+      // repeated string field3 = 3;
+      case 3: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
+         parse_field3:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->add_field3()));
+          ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+            this->field3(this->field3_size() - 1).data(),
+            this->field3(this->field3_size() - 1).length(),
+            ::google::protobuf::internal::WireFormat::PARSE);
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(26)) goto parse_field3;
+        if (input->ExpectAtEnd()) return true;
+        break;
+      }
+
+      default: {
+      handle_uninterpreted:
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
+          return true;
+        }
+        DO_(::google::protobuf::internal::WireFormat::SkipField(
+              input, tag, mutable_unknown_fields()));
+        break;
+      }
+    }
+  }
+  return true;
+#undef DO_
+}
+
+void TestNotExtension::SerializeWithCachedSizes(
+    ::google::protobuf::io::CodedOutputStream* output) const {
+  // required string field1 = 1;
+  if (has_field1()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->field1().data(), this->field1().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    ::google::protobuf::internal::WireFormatLite::WriteString(
+      1, this->field1(), output);
+  }
+
+  // optional string field2 = 2;
+  if (has_field2()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->field2().data(), this->field2().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    ::google::protobuf::internal::WireFormatLite::WriteString(
+      2, this->field2(), output);
+  }
+
+  // repeated string field3 = 3;
+  for (int i = 0; i < this->field3_size(); i++) {
+  ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+    this->field3(i).data(), this->field3(i).length(),
+    ::google::protobuf::internal::WireFormat::SERIALIZE);
+    ::google::protobuf::internal::WireFormatLite::WriteString(
+      3, this->field3(i), output);
+  }
+
+  if (!unknown_fields().empty()) {
+    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
+        unknown_fields(), output);
+  }
+}
+
+::google::protobuf::uint8* TestNotExtension::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
+  // required string field1 = 1;
+  if (has_field1()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->field1().data(), this->field1().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    target =
+      ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
+        1, this->field1(), target);
+  }
+
+  // optional string field2 = 2;
+  if (has_field2()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->field2().data(), this->field2().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    target =
+      ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
+        2, this->field2(), target);
+  }
+
+  // repeated string field3 = 3;
+  for (int i = 0; i < this->field3_size(); i++) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->field3(i).data(), this->field3(i).length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    target = ::google::protobuf::internal::WireFormatLite::
+      WriteStringToArray(3, this->field3(i), target);
+  }
+
+  if (!unknown_fields().empty()) {
+    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
+        unknown_fields(), target);
+  }
+  return target;
+}
+
+int TestNotExtension::ByteSize() const {
+  int total_size = 0;
+
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    // required string field1 = 1;
+    if (has_field1()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->field1());
+    }
+
+    // optional string field2 = 2;
+    if (has_field2()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->field2());
+    }
+
+  }
+  // repeated string field3 = 3;
+  total_size += 1 * this->field3_size();
+  for (int i = 0; i < this->field3_size(); i++) {
+    total_size += ::google::protobuf::internal::WireFormatLite::StringSize(
+      this->field3(i));
+  }
+
+  if (!unknown_fields().empty()) {
+    total_size +=
+      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
+        unknown_fields());
+  }
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = total_size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+  return total_size;
+}
+
+void TestNotExtension::MergeFrom(const ::google::protobuf::Message& from) {
+  GOOGLE_CHECK_NE(&from, this);
+  const TestNotExtension* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const TestNotExtension*>(
+      &from);
+  if (source == NULL) {
+    ::google::protobuf::internal::ReflectionOps::Merge(from, this);
+  } else {
+    MergeFrom(*source);
+  }
+}
+
+void TestNotExtension::MergeFrom(const TestNotExtension& from) {
+  GOOGLE_CHECK_NE(&from, this);
+  field3_.MergeFrom(from.field3_);
+  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    if (from.has_field1()) {
+      set_field1(from.field1());
+    }
+    if (from.has_field2()) {
+      set_field2(from.field2());
+    }
+  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
+}
+
+void TestNotExtension::CopyFrom(const ::google::protobuf::Message& from) {
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+void TestNotExtension::CopyFrom(const TestNotExtension& from) {
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool TestNotExtension::IsInitialized() const {
+  if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
+
+  return true;
+}
+
+void TestNotExtension::Swap(TestNotExtension* other) {
+  if (other != this) {
+    std::swap(field1_, other->field1_);
+    std::swap(field2_, other->field2_);
+    field3_.Swap(&other->field3_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
+}
+
+::google::protobuf::Metadata TestNotExtension::GetMetadata() const {
+  protobuf_AssignDescriptorsOnce();
+  ::google::protobuf::Metadata metadata;
+  metadata.descriptor = TestNotExtension_descriptor_;
+  metadata.reflection = TestNotExtension_reflection_;
   return metadata;
 }
 

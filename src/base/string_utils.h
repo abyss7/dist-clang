@@ -72,5 +72,13 @@ inline Int StringToInt(const std::string& str) {
   return result;
 }
 
+template <typename Int>
+inline std::string IntToString(Int integer) {
+  std::string result;
+  std::stringstream ss(result);
+  ss << integer;
+  return result;
+}
+
 }  // namespace base
 }  // namespace dist_clang

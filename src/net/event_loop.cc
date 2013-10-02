@@ -24,7 +24,7 @@ namespace dist_clang {
 namespace net {
 
 EventLoop::EventLoop(size_t concurrency)
-  : is_running_(false), io_threads_(concurrency + 1),
+  : is_running_(false), io_threads_(std::max(concurrency, 1ul)),
     is_shutting_down_(false) {}
 
 EventLoop::~EventLoop() {

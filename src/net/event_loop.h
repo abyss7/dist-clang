@@ -29,7 +29,7 @@ class EventLoop {
     inline bool ConnectionAdd(ConnectionPtr connection);
 
   private:
-    virtual void DoListenWork(const volatile bool& is_shutting_down_) = 0;
+    virtual void DoListenWork(const volatile bool& is_shutting_down) = 0;
     virtual void DoIOWork(const volatile bool& is_shutting_down) = 0;
     virtual void DoClosingWork(const volatile bool& is_shutting_down) = 0;
 

@@ -117,7 +117,16 @@ bool Connection::SendSync(const CustomMessage &message, Status *status) {
       return false;
     }
   }
-  file_output_stream_.Flush();
+
+  // The method |Flush()| calls function |write()| and potentially can raise
+  // the signal |SIGPIPE|.
+  if (!file_output_stream_.Flush()) {
+    if (status) {
+      status->set_code(Status::NETWORK);
+      status->set_description("Can't flush sent message to socket");
+    }
+    return false;
+  }
 
   return true;
 }
