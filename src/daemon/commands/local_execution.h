@@ -38,10 +38,12 @@ class LocalExecution: public Command {
         const proto::Status& status);
 
     void DoLocalCompilation();
+    void DeferLocalCompilation();
     bool SearchCache(
         FileCache::Entry* entry);
     void UpdateCache(
         const proto::Status& status);
+    inline std::shared_ptr<LocalExecution> shared_from_this();
 
     net::ConnectionPtr connection_;
     proto::LocalExecute message_;
@@ -49,6 +51,10 @@ class LocalExecution: public Command {
 
     std::string pp_source_;
 };
+
+std::shared_ptr<LocalExecution> LocalExecution::shared_from_this() {
+  return std::static_pointer_cast<LocalExecution>(Command::shared_from_this());
+}
 
 }  // namespace command
 }  // namespace daemon

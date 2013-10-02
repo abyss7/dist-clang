@@ -34,6 +34,7 @@ class Daemon {
         net::NetworkService& network_service);
     bool FillFlags(proto::Flags* flags, proto::Status* status = nullptr);
 
+    inline ThreadPool* WEAK_PTR pool();
     inline Balancer* WEAK_PTR balancer();
     inline FileCache* WEAK_PTR cache();
 
@@ -54,11 +55,15 @@ class Daemon {
     CompilerMap compilers_;
 };
 
-Balancer* WEAK_PTR Daemon::balancer() {
+ThreadPool* Daemon::pool() {
+  return pool_.get();
+}
+
+Balancer* Daemon::balancer() {
   return balancer_.get();
 }
 
-FileCache* WEAK_PTR Daemon::cache() {
+FileCache* Daemon::cache() {
   return cache_.get();
 }
 

@@ -83,7 +83,8 @@ void LocalExecution::Run() {
     return;
   }
 
-  auto callback = std::bind(&LocalExecution::DoRemoteCompilation, this, _1, _2);
+  auto callback = std::bind(&LocalExecution::DoRemoteCompilation,
+                            shared_from_this(), _1, _2);
   proto::RemoteExecute remote;
   remote.set_pp_source(pp_source_);
   remote.mutable_cc_flags()->CopyFrom(message_.cc_flags());
@@ -127,18 +128,26 @@ void LocalExecution::DoLocalCompilation() {
   }
 }
 
+void LocalExecution::DeferLocalCompilation() {
+  auto task =
+      std::bind(&LocalExecution::DoLocalCompilation, shared_from_this());
+  if (!daemon_.pool()->Push(task)) {
+    connection_->Close();
+  }
+}
+
 bool LocalExecution::DoRemoteCompilation(net::ConnectionPtr connection,
                                          const proto::Status& status) {
   if (status.code() != proto::Status::OK) {
     std::cerr << status.description() << std::endl;
-    DoLocalCompilation();
+    DeferLocalCompilation();
     return false;
   }
 
-  auto callback =
-      std::bind(&LocalExecution::DoneRemoteCompilation, this, _1, _2, _3);
+  auto callback = std::bind(&LocalExecution::DoneRemoteCompilation,
+                            shared_from_this(), _1, _2, _3);
   if (!connection->ReadAsync(callback)) {
-    DoLocalCompilation();
+    DeferLocalCompilation();
     return false;
   }
 
@@ -150,7 +159,7 @@ bool LocalExecution::DoneRemoteCompilation(net::ConnectionPtr /* connection */,
                                            const proto::Status& status) {
   if (status.code() != proto::Status::OK) {
     std::cerr << status.description() << std::endl;
-    DoLocalCompilation();
+    DeferLocalCompilation();
     return false;
   }
   if (message.HasExtension(proto::Status::status)) {
@@ -158,7 +167,7 @@ bool LocalExecution::DoneRemoteCompilation(net::ConnectionPtr /* connection */,
     if (status.code() != proto::Status::OK) {
       std::cerr << "Remote compilation failed with error(s):" << std::endl;
       std::cerr << status.description() << std::endl;
-      DoLocalCompilation();
+      DeferLocalCompilation();
       return false;
     }
   }
@@ -177,7 +186,7 @@ bool LocalExecution::DoneRemoteCompilation(net::ConnectionPtr /* connection */,
     }
   }
 
-  DoLocalCompilation();
+  DeferLocalCompilation();
   return false;
 }
 
