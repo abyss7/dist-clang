@@ -10,15 +10,16 @@ using namespace dist_clang;
 
 int main(int argc, char* argv[]) {
   daemon::Configuration configuration(argc, argv);
-  net::NetworkService network_service;
   daemon::Daemon daemon;
+  net::NetworkService network_service;
 
   if (!daemon.Initialize(configuration, network_service)) {
     std::cerr << "Daemon failed to initialize." << std::endl;
     return 1;
   }
 
-  // TODO: implement signal handling. Also, ignore SIGPIPE.
+  // TODO: implement signal handling.
+  signal(SIGPIPE, SIG_IGN);
   pause();
 
   return 0;

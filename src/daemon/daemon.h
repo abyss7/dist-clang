@@ -54,11 +54,11 @@ class Daemon {
     CompilerMap compilers_;
 };
 
-Balancer* Daemon::balancer() {
+Balancer* WEAK_PTR Daemon::balancer() {
   return balancer_.get();
 }
 
-FileCache* Daemon::cache() {
+FileCache* WEAK_PTR Daemon::cache() {
   return cache_.get();
 }
 

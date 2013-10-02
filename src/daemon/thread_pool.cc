@@ -14,7 +14,7 @@ ThreadPool::~ThreadPool() {
   }
   tasks_condition_.notify_all();
 
-  for (std::thread& worker: workers_)
+  for (auto& worker: workers_)
     worker.join();
 }
 
