@@ -75,31 +75,37 @@ bool DoMain(int argc, char* argv[]) {
     return true;
 
   proto::LocalExecute message;
-  client::ClangFlagSet::StringList args;
-  std::string* version;
 
   std::string current_dir = base::GetCurrentDir();
   if (current_dir.empty())
     return true;
   message.set_current_dir(current_dir);
 
-  version = message.mutable_cc_flags()->mutable_compiler()->mutable_version();
-  base::Process cc_process(base::GetEnv(kEnvClangdCxx));
-  cc_process.AppendArg("-###").AppendArg(argv + 1, argv + argc);
-  if (!cc_process.Run(10, nullptr) ||
-      !ParseClangOutput(cc_process.stderr(), version, args) ||
-      client::ClangFlagSet::ProcessFlags(args, message.mutable_cc_flags())
-          != client::ClangFlagSet::COMPILE)
-    return true;
+  {
+    using client::ClangFlagSet;
+    auto flags = message.mutable_cc_flags();
+    auto version = flags->mutable_compiler()->mutable_version();
+    ClangFlagSet::StringList args;
+    base::Process process(base::GetEnv(kEnvClangdCxx));
+    process.AppendArg("-###").AppendArg(argv + 1, argv + argc);
+    if (!process.Run(10) ||
+        !ParseClangOutput(process.stderr(), version, args) ||
+        ClangFlagSet::ProcessFlags(args, flags) != ClangFlagSet::COMPILE)
+      return true;
+  }
 
-  version = message.mutable_pp_flags()->mutable_compiler()->mutable_version();
-  base::Process pp_process(base::GetEnv(kEnvClangdCxx));
-  pp_process.AppendArg("-###").AppendArg("-E").AppendArg(argv + 1, argv + argc);
-  if (!pp_process.Run(10, nullptr) ||
-      !ParseClangOutput(pp_process.stderr(), version, args) ||
-      client::ClangFlagSet::ProcessFlags(args, message.mutable_pp_flags())
-          != client::ClangFlagSet::PREPROCESS)
-    return true;
+  {
+    using client::ClangFlagSet;
+    auto flags = message.mutable_pp_flags();
+    auto version = flags->mutable_compiler()->mutable_version();
+    ClangFlagSet::StringList args;
+    base::Process process(base::GetEnv(kEnvClangdCxx));
+    process.AppendArg("-###").AppendArg("-E").AppendArg(argv + 1, argv + argc);
+    if (!process.Run(10) ||
+        !ParseClangOutput(process.stderr(), version, args) ||
+        ClangFlagSet::ProcessFlags(args, flags) != ClangFlagSet::PREPROCESS)
+      return true;
+  }
 
   proto::Status status;
   if (!connection->SendSync(message, &status)) {

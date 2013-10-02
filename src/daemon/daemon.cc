@@ -17,52 +17,55 @@ namespace daemon {
 
 bool Daemon::Initialize(const Configuration &configuration,
                         net::NetworkService &network_service) {
-  const proto::Configuration& config = configuration.config();
+  const auto& config = configuration.config();
 
   if (!config.IsInitialized()) {
     std::cerr << config.InitializationErrorString() << std::endl;
     return false;
   }
 
-  if (config.has_local())
+  if (config.has_local()) {
     pool_.reset(new ThreadPool(config.pool_capacity(),
                                config.local().threads()));
-  else
+  }
+  else {
     pool_.reset(new ThreadPool(config.pool_capacity()));
+  }
   pool_->Run();
 
   if (config.has_cache_path()) {
     cache_.reset(new FileCache(config.cache_path()));
   }
 
-  auto handle_new_conn = std::bind(&Daemon::HandleNewConnection, this, _1);
+  auto callback = std::bind(&Daemon::HandleNewConnection, this, _1);
   bool is_listening = false;
   if (config.has_local()) {
     std::string error;
     bool result = network_service.Listen(config.local().host(),
                                          config.local().port(),
-                                         handle_new_conn, &error);
+                                         callback, &error);
     if (!result) {
       std::cerr << "Failed to listen on " << config.local().host() << ":"
                 << config.local().port() << " : " << error << std::endl;
     }
     is_listening |= result;
   }
+
   if (config.has_socket_path()) {
-    is_listening |=
-        network_service.Listen(config.socket_path(), handle_new_conn);
+    is_listening |= network_service.Listen(config.socket_path(), callback);
   }
+
   if (!is_listening) {
     std::cerr << "Daemon is not listening. Quitting..." << std::endl;
     return false;
   }
 
   balancer_.reset(new Balancer(network_service));
-  for (auto remote: config.remotes()) {
+  for (const auto& remote: config.remotes()) {
     balancer_->AddRemote(remote);
   }
 
-  for (auto version: config.versions()) {
+  for (const auto& version: config.versions()) {
     compilers_.insert(std::make_pair(version.version(), version.path()));
   }
 
