@@ -47,6 +47,7 @@ message Flags {
   optional string output      = 2;  // "-o" flag and it's param.
   optional string input       = 3;  // relative path in the last argument.
   repeated string other       = 4;  // these flags form hash for a cache.
+  repeated string dependenies = 5;  // "-MMD", "-MF", etc.
 }
 
 message LocalExecute {

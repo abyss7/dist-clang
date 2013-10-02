@@ -90,8 +90,9 @@ bool DoMain(int argc, char* argv[]) {
     process.AppendArg("-###").AppendArg(argv + 1, argv + argc);
     if (!process.Run(10) ||
         !ParseClangOutput(process.stderr(), version, args) ||
-        ClangFlagSet::ProcessFlags(args, flags) != ClangFlagSet::COMPILE)
+        ClangFlagSet::ProcessFlags(args, flags) != ClangFlagSet::COMPILE) {
       return true;
+    }
   }
 
   {
@@ -103,8 +104,10 @@ bool DoMain(int argc, char* argv[]) {
     process.AppendArg("-###").AppendArg("-E").AppendArg(argv + 1, argv + argc);
     if (!process.Run(10) ||
         !ParseClangOutput(process.stderr(), version, args) ||
-        ClangFlagSet::ProcessFlags(args, flags) != ClangFlagSet::PREPROCESS)
+        ClangFlagSet::ProcessFlags(args, flags) != ClangFlagSet::PREPROCESS) {
       return true;
+    }
+    flags->clear_output();
   }
 
   proto::Status status;

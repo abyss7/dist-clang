@@ -24,8 +24,6 @@ RemoteExecution::RemoteExecution(net::ConnectionPtr connection,
 }
 
 void RemoteExecution::Run() {
-  using Remote = proto::RemoteResult;
-
   // Look in the local cache first.
   FileCache::Entry cache_entry;
   if (SearchCache(&cache_entry)) {
@@ -35,8 +33,9 @@ void RemoteExecution::Run() {
       auto status = message.MutableExtension(proto::Status::status);
       status->set_code(proto::Status::OK);
       status->set_description(cache_entry.second);
-      if (!connection_->SendAsync(message))
+      if (!connection_->SendAsync(message)) {
         connection_->Close();
+      }
       return;
     }
   }
@@ -50,36 +49,20 @@ void RemoteExecution::Run() {
     return;
   }
 
-  // Filter out flags (-MMD, -MF, ...) for '*.d' file generation, since it's
-  // generated on a preprocessing phase and will fail local compilation.
-  const auto& flags = message_.cc_flags();
-  for (int i = 0; i < flags.other_size(); ++i) {
-    if (flags.other(i) == "-MMD") {
-      message_.mutable_cc_flags()->mutable_other(i)->clear();
-    }
-    else if (flags.other(i) == "-MF") {
-      message_.mutable_cc_flags()->mutable_other(i)->clear();
-      message_.mutable_cc_flags()->mutable_other(++i)->clear();
-    }
-    else if (flags.other(i) == "-dependency-file") {
-      message_.mutable_cc_flags()->mutable_other(i)->clear();
-      message_.mutable_cc_flags()->mutable_other(++i)->clear();
-    }
-  }
-
   message_.mutable_cc_flags()->set_output("-");
   message_.mutable_cc_flags()->clear_input();
+  message_.mutable_cc_flags()->clear_dependenies();
 
   // Do local compilation. Pipe the input file to the compiler and read output
   // file from the compiler's stdout.
-  base::Process process(flags);
+  base::Process process(message_.cc_flags());
   if (!process.Run(30, message_.pp_source())) {
     status.set_code(proto::Status::EXECUTION);
     status.set_description(process.stderr());
     std::cerr << "Compilation failed with error:" << std::endl;
     std::cerr << process.stderr();
     std::cerr << "Arguments:";
-    for (auto flag: flags.other()) {
+    for (const auto& flag: message_.cc_flags().other()) {
       std::cerr << " " << flag;
     }
     std::cerr << std::endl << std::endl;
@@ -89,8 +72,9 @@ void RemoteExecution::Run() {
   }
 
   proto::Universal message;
+  const auto& result = proto::RemoteResult::result;
   message.MutableExtension(proto::Status::status)->CopyFrom(status);
-  message.MutableExtension(Remote::result)->set_obj(process.stdout());
+  message.MutableExtension(result)->set_obj(process.stdout());
   if (!connection_->SendAsync(message)) {
     connection_->Close();
   }

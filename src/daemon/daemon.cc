@@ -117,6 +117,9 @@ bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
     command = command::RemoteExecution::Create(connection, remote, *this);
   }
 
+  if (!command) {
+    return false;
+  }
   return pool_->Push(std::bind(&command::Command::Run, command));
 }
 

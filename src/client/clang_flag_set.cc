@@ -32,7 +32,7 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(StringList& flags,
   flags.pop_front();
 
   // Last argument is an input path.
-  message->mutable_input()->assign(flags.back());
+  message->set_input(flags.back());
   flags.pop_back();
 
   for (auto it = flags.begin(); it != flags.end(); ++it) {
@@ -40,15 +40,26 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(StringList& flags,
 
     if (flag == "-dynamic-linker") {
       action = LINK;
-      message->add_other()->assign(flag);
+      message->add_other(flag);
     }
     else if (flag == "-emit-obj") {
       action = COMPILE;
-      message->add_other()->assign(flag);
+      message->add_other(flag);
     }
     else if (flag == "-E") {
       action = PREPROCESS;
-      message->add_other()->assign(flag);
+      message->add_other(flag);
+    }
+    else if (flag == "-dependency-file") {
+      message->add_dependenies(flag);
+      message->add_dependenies(*(++it));
+    }
+    else if (flag == "-MF") {
+      message->add_dependenies(flag);
+      message->add_dependenies(*(++it));
+    }
+    else if (flag == "-MMD") {
+      message->add_dependenies(flag);
     }
     else if (flag == "-o") {
       ++it;
@@ -57,11 +68,11 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(StringList& flags,
         break;
       }
       else {
-        message->mutable_output()->assign(*it);
+        message->set_output(*it);
       }
     }
     else {
-      message->add_other()->assign(flag);
+      message->add_other(flag);
     }
   }
 

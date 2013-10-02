@@ -17,6 +17,7 @@ Process::Process(const std::string& exec_path, const std::string& cwd_path)
 
 Process::Process(const proto::Flags &flags, const std::string &cwd_path)
   : Process(flags.compiler().path(), cwd_path) {
+  AppendArg(flags.dependenies().begin(), flags.dependenies().end());
   AppendArg(flags.other().begin(), flags.other().end());
   if (flags.has_output()) {
     AppendArg("-o").AppendArg(flags.output());

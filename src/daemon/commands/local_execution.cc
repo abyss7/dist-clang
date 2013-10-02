@@ -19,6 +19,13 @@ namespace command {
 CommandPtr LocalExecution::Create(net::ConnectionPtr connection,
                                   const proto::LocalExecute& message,
                                   Daemon& daemon) {
+  if (!message.cc_flags().has_output() ||
+      !message.cc_flags().has_input() ||
+      message.cc_flags().input() == "-" ||
+      !message.pp_flags().has_input() ||
+      message.pp_flags().input() == "-") {
+    return CommandPtr();
+  }
   return CommandPtr(new LocalExecution(connection, message, daemon));
 }
 
@@ -29,7 +36,8 @@ LocalExecution::LocalExecution(net::ConnectionPtr connection,
 }
 
 void LocalExecution::Run() {
-  if (!message_.has_pp_flags()) {
+  if (!message_.has_pp_flags() ||
+      !daemon_.FillFlags(message_.mutable_pp_flags())) {
     // Without preprocessing flags we can't neither check the cache, nor do
     // a remote compilation, nor put the result back in cache.
     DoLocalCompilation();
@@ -49,9 +57,9 @@ void LocalExecution::Run() {
   pp_source_ = process.stdout();
 
   FileCache::Entry cache_entry;
-  std::string output_path =
-      message_.current_dir() + "/" + message_.cc_flags().output();
   if (SearchCache(&cache_entry)) {
+    std::string output_path =
+        message_.current_dir() + "/" + message_.cc_flags().output();
     if (base::CopyFile(cache_entry.first, output_path, true)) {
       proto::Status status;
       status.set_code(proto::Status::OK);
@@ -64,37 +72,48 @@ void LocalExecution::Run() {
   }
 
   // Ask balancer, if we can delegate a compilation to some remote peer.
+  if (!daemon_.balancer()) {
+    DoLocalCompilation();
+    return;
+  }
+
   auto remote_connection = daemon_.balancer()->Decide();
   if (!remote_connection) {
     DoLocalCompilation();
     return;
   }
 
-  auto do_remote_compilation =
-      std::bind(&LocalExecution::DoRemoteCompilation, this, _1, _2);
+  auto callback = std::bind(&LocalExecution::DoRemoteCompilation, this, _1, _2);
   proto::RemoteExecute remote;
   remote.set_pp_source(pp_source_);
   remote.mutable_cc_flags()->CopyFrom(message_.cc_flags());
-  if (!remote_connection->SendAsync(remote, do_remote_compilation))
+
+  // Filter outgoing flags.
+  remote.mutable_cc_flags()->mutable_compiler()->clear_path();
+  remote.mutable_cc_flags()->clear_output();
+  remote.mutable_cc_flags()->clear_input();
+  remote.mutable_cc_flags()->clear_dependenies();
+
+  if (!remote_connection->SendAsync(remote, callback)) {
     DoLocalCompilation();
+    return;
+  }
 }
 
 void LocalExecution::DoLocalCompilation() {
-  proto::Status send_status;
-  if (daemon_.FillFlags(message_.mutable_cc_flags(), &send_status)) {
-    base::Process process(message_.cc_flags(), message_.current_dir());
-    if (!process.Run(10)) {
-      send_status.set_code(proto::Status::EXECUTION);
-      send_status.set_description(process.stderr());
-    } else {
-      send_status.set_code(proto::Status::OK);
-      send_status.set_description(process.stderr());
-      UpdateCache(send_status);
-    }
+  proto::Status message;
+  base::Process process(message_.cc_flags(), message_.current_dir());
+  if (!process.Run(10)) {
+    message.set_code(proto::Status::EXECUTION);
+    message.set_description(process.stderr());
+  } else {
+    message.set_code(proto::Status::OK);
+    message.set_description(process.stderr());
+    UpdateCache(message);
   }
 
   proto::Status status;
-  if (!connection_->SendAsync(send_status, net::Connection::Idle(), &status)) {
+  if (!connection_->SendAsync(message, net::Connection::Idle(), &status)) {
     std::cerr << "Failed to send message: " << status.description()
               << std::endl;
     connection_->Close();
@@ -105,12 +124,13 @@ bool LocalExecution::DoRemoteCompilation(net::ConnectionPtr connection,
                                          const proto::Status& status) {
   if (status.code() != proto::Status::OK) {
     std::cerr << status.description() << std::endl;
+    DoLocalCompilation();
     return false;
   }
 
-  auto done_remote_compilation =
+  auto callback =
       std::bind(&LocalExecution::DoneRemoteCompilation, this, _1, _2, _3);
-  if (!connection->ReadAsync(done_remote_compilation)) {
+  if (!connection->ReadAsync(callback)) {
     DoLocalCompilation();
     return false;
   }
@@ -127,7 +147,7 @@ bool LocalExecution::DoneRemoteCompilation(net::ConnectionPtr /* connection */,
     return false;
   }
   if (message.HasExtension(proto::Status::status)) {
-    const proto::Status& status = message.GetExtension(proto::Status::status);
+    const auto& status = message.GetExtension(proto::Status::status);
     if (status.code() != proto::Status::OK) {
       std::cerr << "Remote compilation failed with error(s):" << std::endl;
       std::cerr << status.description() << std::endl;
@@ -136,17 +156,17 @@ bool LocalExecution::DoneRemoteCompilation(net::ConnectionPtr /* connection */,
     }
   }
   if (message.HasExtension(proto::RemoteResult::result)) {
-    const proto::RemoteResult& result =
-        message.GetExtension(proto::RemoteResult::result);
+    const auto& result = message.GetExtension(proto::RemoteResult::result);
     std::string output_path =
         message_.current_dir() + "/" + message_.cc_flags().output();
     if (base::WriteFile(output_path, result.obj())) {
       proto::Status status;
       status.set_code(proto::Status::OK);
-      if (!connection_->SendAsync(status))
-        DoLocalCompilation();
       UpdateCache(status);
-      return false;
+      if (connection_->SendAsync(status)) {
+        connection_->Close();
+        return false;
+      }
     }
   }
 

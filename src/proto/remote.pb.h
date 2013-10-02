@@ -623,6 +623,22 @@ class Flags : public ::google::protobuf::Message {
   inline const ::google::protobuf::RepeatedPtrField< ::std::string>& other() const;
   inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_other();
 
+  // repeated string dependenies = 5;
+  inline int dependenies_size() const;
+  inline void clear_dependenies();
+  static const int kDependeniesFieldNumber = 5;
+  inline const ::std::string& dependenies(int index) const;
+  inline ::std::string* mutable_dependenies(int index);
+  inline void set_dependenies(int index, const ::std::string& value);
+  inline void set_dependenies(int index, const char* value);
+  inline void set_dependenies(int index, const char* value, size_t size);
+  inline ::std::string* add_dependenies();
+  inline void add_dependenies(const ::std::string& value);
+  inline void add_dependenies(const char* value);
+  inline void add_dependenies(const char* value, size_t size);
+  inline const ::google::protobuf::RepeatedPtrField< ::std::string>& dependenies() const;
+  inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_dependenies();
+
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Flags)
  private:
   inline void set_has_compiler();
@@ -638,9 +654,10 @@ class Flags : public ::google::protobuf::Message {
   ::std::string* output_;
   ::std::string* input_;
   ::google::protobuf::RepeatedPtrField< ::std::string> other_;
+  ::google::protobuf::RepeatedPtrField< ::std::string> dependenies_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(4 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(5 + 31) / 32];
 
   friend void  protobuf_AddDesc_remote_2eproto();
   friend void protobuf_AssignDesc_remote_2eproto();
@@ -1662,6 +1679,50 @@ Flags::other() const {
 inline ::google::protobuf::RepeatedPtrField< ::std::string>*
 Flags::mutable_other() {
   return &other_;
+}
+
+// repeated string dependenies = 5;
+inline int Flags::dependenies_size() const {
+  return dependenies_.size();
+}
+inline void Flags::clear_dependenies() {
+  dependenies_.Clear();
+}
+inline const ::std::string& Flags::dependenies(int index) const {
+  return dependenies_.Get(index);
+}
+inline ::std::string* Flags::mutable_dependenies(int index) {
+  return dependenies_.Mutable(index);
+}
+inline void Flags::set_dependenies(int index, const ::std::string& value) {
+  dependenies_.Mutable(index)->assign(value);
+}
+inline void Flags::set_dependenies(int index, const char* value) {
+  dependenies_.Mutable(index)->assign(value);
+}
+inline void Flags::set_dependenies(int index, const char* value, size_t size) {
+  dependenies_.Mutable(index)->assign(
+    reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* Flags::add_dependenies() {
+  return dependenies_.Add();
+}
+inline void Flags::add_dependenies(const ::std::string& value) {
+  dependenies_.Add()->assign(value);
+}
+inline void Flags::add_dependenies(const char* value) {
+  dependenies_.Add()->assign(value);
+}
+inline void Flags::add_dependenies(const char* value, size_t size) {
+  dependenies_.Add()->assign(reinterpret_cast<const char*>(value), size);
+}
+inline const ::google::protobuf::RepeatedPtrField< ::std::string>&
+Flags::dependenies() const {
+  return dependenies_;
+}
+inline ::google::protobuf::RepeatedPtrField< ::std::string>*
+Flags::mutable_dependenies() {
+  return &dependenies_;
 }
 
 // -------------------------------------------------------------------
