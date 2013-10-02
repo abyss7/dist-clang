@@ -36,8 +36,8 @@ void protobuf_AssignDesc_base_2eproto() {
   GOOGLE_CHECK(file != NULL);
   Compiler_descriptor_ = file->message_type(0);
   static const int Compiler_offsets_[2] = {
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Compiler, path_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Compiler, version_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Compiler, path_),
   };
   Compiler_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
@@ -81,7 +81,7 @@ void protobuf_AddDesc_base_2eproto() {
 
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
     "\n\nbase.proto\022\020dist_clang.proto\")\n\010Compil"
-    "er\022\014\n\004path\030\001 \002(\t\022\017\n\007version\030\002 \001(\t", 73);
+    "er\022\017\n\007version\030\001 \002(\t\022\014\n\004path\030\002 \001(\t", 73);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "base.proto", &protobuf_RegisterTypes);
   Compiler::default_instance_ = new Compiler();
@@ -99,8 +99,8 @@ struct StaticDescriptorInitializer_base_2eproto {
 // ===================================================================
 
 #ifndef _MSC_VER
-const int Compiler::kPathFieldNumber;
 const int Compiler::kVersionFieldNumber;
+const int Compiler::kPathFieldNumber;
 #endif  // !_MSC_VER
 
 Compiler::Compiler()
@@ -119,8 +119,8 @@ Compiler::Compiler(const Compiler& from)
 
 void Compiler::SharedCtor() {
   _cached_size_ = 0;
-  path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   version_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -129,11 +129,11 @@ Compiler::~Compiler() {
 }
 
 void Compiler::SharedDtor() {
-  if (path_ != &::google::protobuf::internal::kEmptyString) {
-    delete path_;
-  }
   if (version_ != &::google::protobuf::internal::kEmptyString) {
     delete version_;
+  }
+  if (path_ != &::google::protobuf::internal::kEmptyString) {
+    delete path_;
   }
   if (this != default_instance_) {
   }
@@ -162,14 +162,14 @@ Compiler* Compiler::New() const {
 
 void Compiler::Clear() {
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (has_path()) {
-      if (path_ != &::google::protobuf::internal::kEmptyString) {
-        path_->clear();
-      }
-    }
     if (has_version()) {
       if (version_ != &::google::protobuf::internal::kEmptyString) {
         version_->clear();
+      }
+    }
+    if (has_path()) {
+      if (path_ != &::google::protobuf::internal::kEmptyString) {
+        path_->clear();
       }
     }
   }
@@ -183,31 +183,31 @@ bool Compiler::MergePartialFromCodedStream(
   ::google::protobuf::uint32 tag;
   while ((tag = input->ReadTag()) != 0) {
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // required string path = 1;
+      // required string version = 1;
       case 1: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
           DO_(::google::protobuf::internal::WireFormatLite::ReadString(
-                input, this->mutable_path()));
+                input, this->mutable_version()));
           ::google::protobuf::internal::WireFormat::VerifyUTF8String(
-            this->path().data(), this->path().length(),
+            this->version().data(), this->version().length(),
             ::google::protobuf::internal::WireFormat::PARSE);
         } else {
           goto handle_uninterpreted;
         }
-        if (input->ExpectTag(18)) goto parse_version;
+        if (input->ExpectTag(18)) goto parse_path;
         break;
       }
 
-      // optional string version = 2;
+      // optional string path = 2;
       case 2: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
-         parse_version:
+         parse_path:
           DO_(::google::protobuf::internal::WireFormatLite::ReadString(
-                input, this->mutable_version()));
+                input, this->mutable_path()));
           ::google::protobuf::internal::WireFormat::VerifyUTF8String(
-            this->version().data(), this->version().length(),
+            this->path().data(), this->path().length(),
             ::google::protobuf::internal::WireFormat::PARSE);
         } else {
           goto handle_uninterpreted;
@@ -234,22 +234,22 @@ bool Compiler::MergePartialFromCodedStream(
 
 void Compiler::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // required string path = 1;
-  if (has_path()) {
-    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
-      this->path().data(), this->path().length(),
-      ::google::protobuf::internal::WireFormat::SERIALIZE);
-    ::google::protobuf::internal::WireFormatLite::WriteString(
-      1, this->path(), output);
-  }
-
-  // optional string version = 2;
+  // required string version = 1;
   if (has_version()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->version().data(), this->version().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE);
     ::google::protobuf::internal::WireFormatLite::WriteString(
-      2, this->version(), output);
+      1, this->version(), output);
+  }
+
+  // optional string path = 2;
+  if (has_path()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->path().data(), this->path().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    ::google::protobuf::internal::WireFormatLite::WriteString(
+      2, this->path(), output);
   }
 
   if (!unknown_fields().empty()) {
@@ -260,24 +260,24 @@ void Compiler::SerializeWithCachedSizes(
 
 ::google::protobuf::uint8* Compiler::SerializeWithCachedSizesToArray(
     ::google::protobuf::uint8* target) const {
-  // required string path = 1;
-  if (has_path()) {
-    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
-      this->path().data(), this->path().length(),
-      ::google::protobuf::internal::WireFormat::SERIALIZE);
-    target =
-      ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
-        1, this->path(), target);
-  }
-
-  // optional string version = 2;
+  // required string version = 1;
   if (has_version()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->version().data(), this->version().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE);
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
-        2, this->version(), target);
+        1, this->version(), target);
+  }
+
+  // optional string path = 2;
+  if (has_path()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->path().data(), this->path().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    target =
+      ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
+        2, this->path(), target);
   }
 
   if (!unknown_fields().empty()) {
@@ -291,18 +291,18 @@ int Compiler::ByteSize() const {
   int total_size = 0;
 
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    // required string path = 1;
-    if (has_path()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::StringSize(
-          this->path());
-    }
-
-    // optional string version = 2;
+    // required string version = 1;
     if (has_version()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::StringSize(
           this->version());
+    }
+
+    // optional string path = 2;
+    if (has_path()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->path());
     }
 
   }
@@ -332,11 +332,11 @@ void Compiler::MergeFrom(const ::google::protobuf::Message& from) {
 void Compiler::MergeFrom(const Compiler& from) {
   GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (from.has_path()) {
-      set_path(from.path());
-    }
     if (from.has_version()) {
       set_version(from.version());
+    }
+    if (from.has_path()) {
+      set_path(from.path());
     }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
@@ -362,8 +362,8 @@ bool Compiler::IsInitialized() const {
 
 void Compiler::Swap(Compiler* other) {
   if (other != this) {
-    std::swap(path_, other->path_);
     std::swap(version_, other->version_);
+    std::swap(path_, other->path_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);

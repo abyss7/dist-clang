@@ -92,22 +92,10 @@ class Compiler : public ::google::protobuf::Message {
 
   // accessors -------------------------------------------------------
 
-  // required string path = 1;
-  inline bool has_path() const;
-  inline void clear_path();
-  static const int kPathFieldNumber = 1;
-  inline const ::std::string& path() const;
-  inline void set_path(const ::std::string& value);
-  inline void set_path(const char* value);
-  inline void set_path(const char* value, size_t size);
-  inline ::std::string* mutable_path();
-  inline ::std::string* release_path();
-  inline void set_allocated_path(::std::string* path);
-
-  // optional string version = 2;
+  // required string version = 1;
   inline bool has_version() const;
   inline void clear_version();
-  static const int kVersionFieldNumber = 2;
+  static const int kVersionFieldNumber = 1;
   inline const ::std::string& version() const;
   inline void set_version(const ::std::string& value);
   inline void set_version(const char* value);
@@ -116,17 +104,29 @@ class Compiler : public ::google::protobuf::Message {
   inline ::std::string* release_version();
   inline void set_allocated_version(::std::string* version);
 
+  // optional string path = 2;
+  inline bool has_path() const;
+  inline void clear_path();
+  static const int kPathFieldNumber = 2;
+  inline const ::std::string& path() const;
+  inline void set_path(const ::std::string& value);
+  inline void set_path(const char* value);
+  inline void set_path(const char* value, size_t size);
+  inline ::std::string* mutable_path();
+  inline ::std::string* release_path();
+  inline void set_allocated_path(::std::string* path);
+
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Compiler)
  private:
-  inline void set_has_path();
-  inline void clear_has_path();
   inline void set_has_version();
   inline void clear_has_version();
+  inline void set_has_path();
+  inline void clear_has_path();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
-  ::std::string* path_;
   ::std::string* version_;
+  ::std::string* path_;
 
   mutable int _cached_size_;
   ::google::protobuf::uint32 _has_bits_[(2 + 31) / 32];
@@ -145,85 +145,15 @@ class Compiler : public ::google::protobuf::Message {
 
 // Compiler
 
-// required string path = 1;
-inline bool Compiler::has_path() const {
+// required string version = 1;
+inline bool Compiler::has_version() const {
   return (_has_bits_[0] & 0x00000001u) != 0;
 }
-inline void Compiler::set_has_path() {
+inline void Compiler::set_has_version() {
   _has_bits_[0] |= 0x00000001u;
 }
-inline void Compiler::clear_has_path() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-inline void Compiler::clear_path() {
-  if (path_ != &::google::protobuf::internal::kEmptyString) {
-    path_->clear();
-  }
-  clear_has_path();
-}
-inline const ::std::string& Compiler::path() const {
-  return *path_;
-}
-inline void Compiler::set_path(const ::std::string& value) {
-  set_has_path();
-  if (path_ == &::google::protobuf::internal::kEmptyString) {
-    path_ = new ::std::string;
-  }
-  path_->assign(value);
-}
-inline void Compiler::set_path(const char* value) {
-  set_has_path();
-  if (path_ == &::google::protobuf::internal::kEmptyString) {
-    path_ = new ::std::string;
-  }
-  path_->assign(value);
-}
-inline void Compiler::set_path(const char* value, size_t size) {
-  set_has_path();
-  if (path_ == &::google::protobuf::internal::kEmptyString) {
-    path_ = new ::std::string;
-  }
-  path_->assign(reinterpret_cast<const char*>(value), size);
-}
-inline ::std::string* Compiler::mutable_path() {
-  set_has_path();
-  if (path_ == &::google::protobuf::internal::kEmptyString) {
-    path_ = new ::std::string;
-  }
-  return path_;
-}
-inline ::std::string* Compiler::release_path() {
-  clear_has_path();
-  if (path_ == &::google::protobuf::internal::kEmptyString) {
-    return NULL;
-  } else {
-    ::std::string* temp = path_;
-    path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-    return temp;
-  }
-}
-inline void Compiler::set_allocated_path(::std::string* path) {
-  if (path_ != &::google::protobuf::internal::kEmptyString) {
-    delete path_;
-  }
-  if (path) {
-    set_has_path();
-    path_ = path;
-  } else {
-    clear_has_path();
-    path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-  }
-}
-
-// optional string version = 2;
-inline bool Compiler::has_version() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-inline void Compiler::set_has_version() {
-  _has_bits_[0] |= 0x00000002u;
-}
 inline void Compiler::clear_has_version() {
-  _has_bits_[0] &= ~0x00000002u;
+  _has_bits_[0] &= ~0x00000001u;
 }
 inline void Compiler::clear_version() {
   if (version_ != &::google::protobuf::internal::kEmptyString) {
@@ -282,6 +212,76 @@ inline void Compiler::set_allocated_version(::std::string* version) {
   } else {
     clear_has_version();
     version_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
+}
+
+// optional string path = 2;
+inline bool Compiler::has_path() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+inline void Compiler::set_has_path() {
+  _has_bits_[0] |= 0x00000002u;
+}
+inline void Compiler::clear_has_path() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+inline void Compiler::clear_path() {
+  if (path_ != &::google::protobuf::internal::kEmptyString) {
+    path_->clear();
+  }
+  clear_has_path();
+}
+inline const ::std::string& Compiler::path() const {
+  return *path_;
+}
+inline void Compiler::set_path(const ::std::string& value) {
+  set_has_path();
+  if (path_ == &::google::protobuf::internal::kEmptyString) {
+    path_ = new ::std::string;
+  }
+  path_->assign(value);
+}
+inline void Compiler::set_path(const char* value) {
+  set_has_path();
+  if (path_ == &::google::protobuf::internal::kEmptyString) {
+    path_ = new ::std::string;
+  }
+  path_->assign(value);
+}
+inline void Compiler::set_path(const char* value, size_t size) {
+  set_has_path();
+  if (path_ == &::google::protobuf::internal::kEmptyString) {
+    path_ = new ::std::string;
+  }
+  path_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* Compiler::mutable_path() {
+  set_has_path();
+  if (path_ == &::google::protobuf::internal::kEmptyString) {
+    path_ = new ::std::string;
+  }
+  return path_;
+}
+inline ::std::string* Compiler::release_path() {
+  clear_has_path();
+  if (path_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = path_;
+    path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
+}
+inline void Compiler::set_allocated_path(::std::string* path) {
+  if (path_ != &::google::protobuf::internal::kEmptyString) {
+    delete path_;
+  }
+  if (path) {
+    set_has_path();
+    path_ = path;
+  } else {
+    clear_has_path();
+    path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   }
 }
 
