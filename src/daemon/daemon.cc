@@ -96,7 +96,11 @@ bool Daemon::FillFlags(proto::Flags* flags, proto::Status* status) {
 }
 
 void Daemon::HandleNewConnection(net::ConnectionPtr connection) {
-  connection->ReadAsync(std::bind(&Daemon::HandleNewMessage, this, _1, _2, _3));
+  proto::Status status;
+  auto callback = std::bind(&Daemon::HandleNewMessage, this, _1, _2, _3);
+  if (!connection->ReadAsync(callback, &status)) {
+    connection->Close();
+  }
 }
 
 bool Daemon::HandleNewMessage(net::ConnectionPtr connection,

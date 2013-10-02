@@ -101,6 +101,14 @@ void LocalExecution::Run() {
 }
 
 void LocalExecution::DoLocalCompilation() {
+  proto::Status status;
+  if (!daemon_.FillFlags(message_.mutable_cc_flags(), &status)) {
+    if (!connection_->SendAsync(status, net::Connection::CloseAfterSend())) {
+      connection_->Close();
+    }
+    return;
+  }
+
   proto::Status message;
   base::Process process(message_.cc_flags(), message_.current_dir());
   if (!process.Run(10)) {
@@ -112,7 +120,6 @@ void LocalExecution::DoLocalCompilation() {
     UpdateCache(message);
   }
 
-  proto::Status status;
   if (!connection_->SendAsync(message, net::Connection::Idle(), &status)) {
     std::cerr << "Failed to send message: " << status.description()
               << std::endl;

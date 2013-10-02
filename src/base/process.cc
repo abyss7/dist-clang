@@ -17,8 +17,9 @@ Process::Process(const std::string& exec_path, const std::string& cwd_path)
 
 Process::Process(const proto::Flags &flags, const std::string &cwd_path)
   : Process(flags.compiler().path(), cwd_path) {
-  AppendArg(flags.dependenies().begin(), flags.dependenies().end());
+  // |flags.other()| always must go first, since they contain "-cc1" flag.
   AppendArg(flags.other().begin(), flags.other().end());
+  AppendArg(flags.dependenies().begin(), flags.dependenies().end());
   if (flags.has_output()) {
     AppendArg("-o").AppendArg(flags.output());
   }

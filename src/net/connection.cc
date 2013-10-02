@@ -19,7 +19,8 @@ ConnectionPtr Connection::Create(EventLoop &event_loop, fd_t fd) {
 
 Connection::Connection(EventLoop& event_loop, fd_t fd)
   : fd_(fd), event_loop_(event_loop), is_closed_(false), waiting_(false),
-    file_input_stream_(fd_), file_output_stream_(fd_) {}
+    added_(false), file_input_stream_(fd_), file_output_stream_(fd_) {
+}
 
 Connection::~Connection() {
   Close();
@@ -142,8 +143,9 @@ void Connection::DoRead() {
 void Connection::DoSend() {
   Status status;
   SendSync(message_, &status);
-  if (!send_callback_(shared_from_this(), status))
+  if (!send_callback_(shared_from_this(), status)) {
     Close();
+  }
 }
 
 bool Connection::ConvertCustomMessage(const CustomMessage &input,
