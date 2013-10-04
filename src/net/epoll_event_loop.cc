@@ -87,7 +87,7 @@ void EpollEventLoop::DoListenWork(const volatile bool &is_shutting_down) {
   sigset_t signal_set;
 
   sigfillset(&signal_set);
-  sigdelset(&signal_set, SIGUSR1);
+  sigdelset(&signal_set, interrupt_signal);
   while(!is_shutting_down) {
     auto events_count =
         epoll_pwait(listen_fd_, events, MAX_EVENTS, -1, &signal_set);
@@ -122,7 +122,7 @@ void EpollEventLoop::DoIOWork(const volatile bool& is_shutting_down) {
   sigset_t signal_set;
 
   sigfillset(&signal_set);
-  sigdelset(&signal_set, SIGUSR1);
+  sigdelset(&signal_set, interrupt_signal);
   while(!is_shutting_down) {
     auto events_count =
         epoll_pwait(io_fd_, events, MAX_EVENTS, -1, &signal_set);
