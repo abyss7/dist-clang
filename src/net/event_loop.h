@@ -21,6 +21,8 @@ class EventLoop {
     bool Run() THREAD_SAFE;
     void Stop() THREAD_SAFE;
 
+    const static int interrupt_signal = SIGUSR1;
+
   protected:
     inline int GetConnectionDescriptor(const ConnectionPtr connection) const;
     inline void ConnectionDoRead(ConnectionPtr connection);

@@ -83,11 +83,14 @@ bool EpollEventLoop::ReadyForSend(ConnectionPtr connection) {
 
 void EpollEventLoop::DoListenWork(const volatile bool &is_shutting_down) {
   const int MAX_EVENTS = 10;  // This should be enought in most cases.
-  const int TIMEOUT = 1 * 1000;  // In milliseconds.
   struct epoll_event events[MAX_EVENTS];
+  sigset_t signal_set;
 
+  sigfillset(&signal_set);
+  sigdelset(&signal_set, SIGUSR1);
   while(!is_shutting_down) {
-    auto events_count = epoll_wait(listen_fd_, events, MAX_EVENTS, TIMEOUT);
+    auto events_count =
+        epoll_pwait(listen_fd_, events, MAX_EVENTS, -1, &signal_set);
     if (events_count == -1 && errno != EINTR) {
       break;
     }
@@ -115,11 +118,14 @@ void EpollEventLoop::DoListenWork(const volatile bool &is_shutting_down) {
 
 void EpollEventLoop::DoIOWork(const volatile bool& is_shutting_down) {
   const int MAX_EVENTS = 10;  // This should be enought in most cases.
-  const int TIMEOUT = 1 * 1000;  // In milliseconds.
   struct epoll_event events[MAX_EVENTS];
+  sigset_t signal_set;
 
+  sigfillset(&signal_set);
+  sigdelset(&signal_set, SIGUSR1);
   while(!is_shutting_down) {
-    auto events_count = epoll_wait(io_fd_, events, MAX_EVENTS, TIMEOUT);
+    auto events_count =
+        epoll_pwait(io_fd_, events, MAX_EVENTS, -1, &signal_set);
     if (events_count == -1 && errno != EINTR) {
       break;
     }
@@ -146,11 +152,14 @@ void EpollEventLoop::DoIOWork(const volatile bool& is_shutting_down) {
 
 void EpollEventLoop::DoClosingWork(const volatile bool &is_shutting_down) {
   const int MAX_EVENTS = 10;  // This should be enought in most cases.
-  const int TIMEOUT = 1 * 1000;  // In milliseconds.
   struct epoll_event events[MAX_EVENTS];
+  sigset_t signal_set;
 
+  sigfillset(&signal_set);
+  sigdelset(&signal_set, interrupt_signal);
   while(!is_shutting_down) {
-    auto events_count = epoll_wait(closing_fd_, events, MAX_EVENTS, TIMEOUT);
+    auto events_count =
+        epoll_pwait(closing_fd_, events, MAX_EVENTS, -1, &signal_set);
     if (events_count == -1 && errno != EINTR) {
       return;
     }

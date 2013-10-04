@@ -59,11 +59,16 @@ void EventLoop::Stop() {
   is_shutting_down_ = true;
   if (is_running_.compare_exchange_strong(old_running, false)) {
     assert(listening_thread_.joinable());
+    pthread_kill(listening_thread_.native_handle(), interrupt_signal);
     listening_thread_.join();
+
     assert(closing_thread_.joinable());
+    pthread_kill(closing_thread_.native_handle(), interrupt_signal);
     closing_thread_.join();
+
     for (std::thread& thread: io_threads_) {
       assert(thread.joinable());
+      pthread_kill(thread.native_handle(), interrupt_signal);
       thread.join();
     }
   }
