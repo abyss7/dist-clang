@@ -36,9 +36,10 @@ inline void SplitString(const std::string &input, const std::string& delimiter,
   size_t i = input.find(delimiter);
   while (i != std::string::npos) {
     tokens.push_back(input.substr(prev, i - prev));
-    prev = i + sizeof(delimiter);
+    prev = i + delimiter.size();
     i = input.find(delimiter, prev);
   }
+  tokens.push_back(input.substr(prev));
 }
 
 template<char delimiter, class T>

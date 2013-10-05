@@ -1,3 +1,4 @@
+#include "base/assert.h"
 #include "base/c_utils.h"
 #include "base/constants.h"
 #include "base/process.h"
@@ -49,18 +50,31 @@ bool ParseClangOutput(const std::string& output,
                       client::ClangFlagSet::StringList& args) {
   client::ClangFlagSet::StringList lines;
   base::SplitString<'\n'>(output, lines);
-  if (lines.size() != 4)
+  if (lines.size() != 4) {
     // FIXME: we don't support composite tasks yet.
     return false;
+  }
 
-  if (version)
+  if (version) {
     version->assign(lines.front());
+  }
 
   args.clear();
-  base::SplitString<' '>(lines.back(), args);
-  if (!args.front().empty())
+  base::SplitString(lines.back(), " \"", args);
+  if (!args.front().empty()) {
     // Something went wrong.
     return false;
+  }
+
+  // Escape from double-quotes.
+  for (auto& arg: args) {
+    if (!arg.empty()) {
+      base::Assert(arg[arg.size() - 1] == '"');
+      arg.erase(arg.size() - 1);
+      base::Replace(arg, "\\\\", "\\");
+      base::Replace(arg, "\\\"", "\"");
+    }
+  }
 
   return true;
 }
@@ -132,8 +146,10 @@ bool DoMain(int argc, char* argv[]) {
       status.code() != proto::Status::OK)
     return true;
 
-  if (status.code() == proto::Status::EXECUTION)
+  if (status.code() == proto::Status::EXECUTION) {
     std::cerr << status.description();
+    exit(1);
+  }
 
   return false;
 }

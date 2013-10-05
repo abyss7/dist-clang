@@ -58,22 +58,23 @@ bool Process::Run(unsigned short sec_timeout, std::string* error) {
     close(out_pipe_fd[1]);
     close(err_pipe_fd[1]);
 
-    if (!cwd_path_.empty() && !ChangeCurrentDir(cwd_path_))
+    if (!cwd_path_.empty() && !ChangeCurrentDir(cwd_path_)) {
       exit(1);
+    }
 
+    base::Assert(args_.size() + 1 < MAX_ARGS);
     const char* argv[MAX_ARGS];
     argv[0] = exec_path_.c_str();
     auto arg_it = args_.begin();
-    for (size_t i = 1, s = std::min<size_t>(MAX_ARGS, args_.size() + 1);
-         i < s;
-         ++i, ++arg_it) {
+    for (size_t i = 1, s = args_.size() + 1; i < s; ++i, ++arg_it) {
       argv[i] = arg_it->c_str();
     }
-    base::Assert(args_.size() + 1 < MAX_ARGS);
+    base::Assert(arg_it == args_.end());
     argv[args_.size() + 1] = nullptr;
 
-    if (execv(exec_path_.c_str(), const_cast<char* const*>(argv)) == -1)
+    if (execv(exec_path_.c_str(), const_cast<char* const*>(argv)) == -1) {
       exit(1);
+    }
 
     return false;
   } else {  // Main process.
@@ -208,15 +209,15 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
     if (!cwd_path_.empty() && !ChangeCurrentDir(cwd_path_))
       exit(1);
 
+    base::Assert(args_.size() + 1 < MAX_ARGS);
     const char* argv[MAX_ARGS];
     argv[0] = exec_path_.c_str();
     auto arg_it = args_.begin();
-    for (size_t i = 1, s = std::min<size_t>(MAX_ARGS, args_.size() + 1);
-         i < s;
-         ++i, ++arg_it) {
+    for (size_t i = 1, s = args_.size() + 1; i < s; ++i, ++arg_it) {
       argv[i] = arg_it->c_str();
     }
-    argv[std::min<size_t>(MAX_ARGS, args_.size() + 1)] = nullptr;
+    base::Assert(arg_it == args_.end());
+    argv[args_.size() + 1] = nullptr;
 
     if (execv(exec_path_.c_str(), const_cast<char* const*>(argv)) == -1)
       exit(1);

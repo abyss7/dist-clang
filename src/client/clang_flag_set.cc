@@ -20,13 +20,13 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(StringList& flags,
   Action action(UNKNOWN);
   std::string temp_dir = base::GetEnv(kEnvTempDir, kDefaultTempDir);
 
-  // Escape from double-quotes.
-  for(auto it = flags.begin(); it != flags.end();
-      it->empty() ? it = flags.erase(it) : ++it) {
-    std::string& flag = *it;
-    if (flag[0] == '"')
-      flag = it->substr(1, flag.size() - 2);
-    base::Replace(flag, "\\\"", "\"");
+  for(auto it = flags.begin(); it != flags.end();) {
+    if (it->empty()) {
+      it = flags.erase(it);
+    }
+    else {
+      ++it;
+    }
   }
 
   // First non-empty argument is a path to executable.
