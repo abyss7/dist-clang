@@ -1,53 +1,34 @@
 #include "net/event_loop.h"
 
+#include "net/base/utils.h"
+
 #include <functional>
-
-#include <signal.h>
-
-namespace {
-
-sigset_t BlockSignals() {
-  sigset_t signal_set, old_set;
-
-  sigfillset(&signal_set);
-  pthread_sigmask(SIG_SETMASK, &signal_set, &old_set);
-  return old_set;
-}
-
-void UnblockSignals(sigset_t old_set) {
-  pthread_sigmask(SIG_SETMASK, &old_set, nullptr);
-}
-
-}  // namespace
 
 namespace dist_clang {
 namespace net {
 
 EventLoop::EventLoop(size_t concurrency)
-  : is_running_(false), io_threads_(std::max(concurrency, 1ul)),
-    is_shutting_down_(false) {}
+  : is_running_(0), concurrency_(concurrency) {
+}
 
 EventLoop::~EventLoop() {
-  assert(is_shutting_down_);
+  assert(!pool_);
 }
 
 bool EventLoop::Run() {
-  bool old_running = false;
-  if (!is_running_.compare_exchange_strong(old_running, true) ||
-      is_shutting_down_)
+  using namespace std::placeholders;
+
+  int old_running = 0;
+  if (!is_running_.compare_exchange_strong(old_running, 1)) {
     return false;
+  }
 
   auto old_signals = BlockSignals();
 
-  listening_thread_ = std::thread(&EventLoop::DoListenWork, this,
-                                  std::cref(is_shutting_down_));
-
-  closing_thread_ = std::thread(&EventLoop::DoClosingWork, this,
-                                std::cref(is_shutting_down_));
-
-  for (std::thread& thread: io_threads_)
-    thread = std::thread(&EventLoop::DoIOWork, this,
-                         std::cref(is_shutting_down_));
+  pool_.reset(new WorkerPool);
+  pool_->AddWorker(std::bind(&EventLoop::DoListenWork, this, _1));
+  pool_->AddWorker(std::bind(&EventLoop::DoClosingWork, this, _1));
+  pool_->AddWorker(std::bind(&EventLoop::DoIOWork, this, _1), concurrency_);
 
   UnblockSignals(old_signals);
 
@@ -55,22 +36,9 @@ bool EventLoop::Run() {
 }
 
 void EventLoop::Stop() {
-  bool old_running = true;
-  is_shutting_down_ = true;
-  if (is_running_.compare_exchange_strong(old_running, false)) {
-    assert(listening_thread_.joinable());
-    pthread_kill(listening_thread_.native_handle(), interrupt_signal);
-    listening_thread_.join();
-
-    assert(closing_thread_.joinable());
-    pthread_kill(closing_thread_.native_handle(), interrupt_signal);
-    closing_thread_.join();
-
-    for (std::thread& thread: io_threads_) {
-      assert(thread.joinable());
-      pthread_kill(thread.native_handle(), interrupt_signal);
-      thread.join();
-    }
+  int old_running = 1;
+  if (is_running_.compare_exchange_strong(old_running, 2)) {
+    pool_.reset();
   }
 }
 

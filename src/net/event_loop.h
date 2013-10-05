@@ -1,6 +1,7 @@
 #pragma once
 
 #include "base/attributes.h"
+#include "net/base/worker_pool.h"
 #include "net/connection.h"
 
 #include <thread>
@@ -21,8 +22,6 @@ class EventLoop {
     bool Run() THREAD_SAFE;
     void Stop() THREAD_SAFE;
 
-    const static int interrupt_signal = SIGUSR1;
-
   protected:
     inline int GetConnectionDescriptor(const ConnectionPtr connection) const;
     inline void ConnectionDoRead(ConnectionPtr connection);
@@ -35,10 +34,9 @@ class EventLoop {
     virtual void DoIOWork(const volatile bool& is_shutting_down) = 0;
     virtual void DoClosingWork(const volatile bool& is_shutting_down) = 0;
 
-    std::atomic<bool> is_running_;
-    std::thread listening_thread_, closing_thread_;
-    std::vector<std::thread> io_threads_;
-    volatile bool is_shutting_down_;
+    std::atomic<int> is_running_;
+    size_t concurrency_;
+    std::unique_ptr<WorkerPool> pool_;
 };
 
 int EventLoop::GetConnectionDescriptor(const ConnectionPtr connection) const {

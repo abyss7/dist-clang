@@ -12,6 +12,8 @@
       'sources': [
         'base/types.h',
         'base/utils.h',
+        'base/worker_pool.cc',
+        'base/worker_pool.h',
         'connection.cc',
         'connection.h',
         'connection_forward.h',
