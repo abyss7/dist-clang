@@ -10,27 +10,30 @@
 namespace dist_clang {
 namespace daemon {
 
-Balancer::Balancer(net::NetworkService &network_service)
-  : service_(network_service) {}
+std::atomic<size_t> Balancer::index_(0);
 
-void Balancer::AddRemote(const proto::Host &remote) {
-  // TODO: check for duplicates.
-  remotes_.push_back(remote);
+Balancer::Balancer(net::NetworkService& network_service)
+  : service_(network_service) {
 }
 
-net::ConnectionPtr Balancer::Decide() {
-  // TODO: implement this.
-  if (remotes_.size() == 0)
-    return net::ConnectionPtr();
+void Balancer::AddRemote(const proto::Host& remote) {
+  remotes_.insert(remote);
+}
 
-  const proto::Host& remote =
-      remotes_[base::Random<size_t>() % remotes_.size()];
-  std::string error;
-  auto connection = service_.ConnectSync(remote.host(), remote.port(), &error);
-  if (!connection)
-    std::cerr << "Failed to connect to " << remote.host() << ":"
-              << remote.port() << " : " << error << std::endl;
-  return connection;
+bool Balancer::Decide(const ConnectCallback& callback, std::string* error) {
+  auto remote_index =
+      std::atomic_fetch_add(&index_, 1ul) % (remotes_.size() + 1);
+  if (remote_index == remotes_.size()) {
+    return false;
+  }
+
+  auto remote = remotes_.cbegin();
+  std::advance(remote, remote_index);
+  if (!service_.ConnectAsync(remote->host(), remote->port(), callback, error)) {
+    return false;
+  }
+
+  return true;
 }
 
 }  // namespace daemon

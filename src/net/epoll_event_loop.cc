@@ -1,5 +1,6 @@
 #include "net/epoll_event_loop.h"
 
+#include "base/assert.h"
 #include "net/base/utils.h"
 #include "net/connection.h"
 
@@ -22,15 +23,15 @@ EpollEventLoop::~EpollEventLoop() {
 }
 
 bool EpollEventLoop::HandlePassive(fd_t fd) {
-  assert(IsListening(fd));
-  assert(IsNonBlocking(fd));
+  base::Assert(IsListening(fd));
+  base::Assert(IsNonBlocking(fd));
   std::unique_lock<std::mutex> lock(listening_fds_mutex_);
   listening_fds_.insert(fd);
   return ReadyForListen(fd);
 }
 
 ConnectionPtr EpollEventLoop::HandleActive(fd_t fd) {
-  assert(!IsListening(fd));
+  base::Assert(!IsListening(fd));
   ConnectionPtr new_connection = Connection::Create(*this, fd);
   std::unique_lock<std::mutex> lock(connections_mutex_);
   connections_.insert(new_connection);
@@ -40,7 +41,7 @@ ConnectionPtr EpollEventLoop::HandleActive(fd_t fd) {
 }
 
 bool EpollEventLoop::ReadyForRead(ConnectionPtr connection) {
-  assert(connection->IsOnEventLoop(this));
+  base::Assert(connection->IsOnEventLoop(this));
 
   struct epoll_event event;
   event.events = EPOLLIN | EPOLLONESHOT;
@@ -50,7 +51,7 @@ bool EpollEventLoop::ReadyForRead(ConnectionPtr connection) {
     return false;
   }
   if (epoll_ctl(io_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
-    assert(errno == ENOENT);
+    base::Assert(errno == ENOENT);
     if (!ConnectionAdd(connection) ||
         epoll_ctl(io_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
       ConnectionToggleWait(connection, false);
@@ -61,7 +62,7 @@ bool EpollEventLoop::ReadyForRead(ConnectionPtr connection) {
 }
 
 bool EpollEventLoop::ReadyForSend(ConnectionPtr connection) {
-  assert(connection->IsOnEventLoop(this));
+  base::Assert(connection->IsOnEventLoop(this));
 
   struct epoll_event event;
   event.events = EPOLLOUT | EPOLLONESHOT;
@@ -71,7 +72,7 @@ bool EpollEventLoop::ReadyForSend(ConnectionPtr connection) {
     return false;
   }
   if(epoll_ctl(io_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
-    assert(errno == ENOENT);
+    base::Assert(errno == ENOENT);
     if (!ConnectionAdd(connection) ||
         epoll_ctl(io_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
       ConnectionToggleWait(connection, false);
@@ -96,12 +97,12 @@ void EpollEventLoop::DoListenWork(const volatile bool &is_shutting_down) {
     }
 
     for (int i = 0; i < events_count; ++i) {
-      assert(events[i].events & EPOLLIN);
+      base::Assert(events[i].events & EPOLLIN);
       auto fd = events[i].data.fd;
       while(true) {
         auto new_fd = accept4(fd, nullptr, nullptr, SOCK_CLOEXEC);
         if (new_fd == -1) {
-          assert(errno == EAGAIN || errno == EWOULDBLOCK);
+          base::Assert(errno == EAGAIN || errno == EWOULDBLOCK);
           break;
         }
         auto new_connection = HandleActive(new_fd);
@@ -136,9 +137,9 @@ void EpollEventLoop::DoIOWork(const volatile bool& is_shutting_down) {
 
       if (events[i].events & (EPOLLHUP|EPOLLERR)) {
         auto fd = GetConnectionDescriptor(connection);
-        assert(!epoll_ctl(io_fd_, EPOLL_CTL_DEL, fd, nullptr));
+        base::Assert(!epoll_ctl(io_fd_, EPOLL_CTL_DEL, fd, nullptr));
       }
-      assert(ConnectionToggleWait(connection, false));
+      base::Assert(ConnectionToggleWait(connection, false));
 
       if (events[i].events & EPOLLIN) {
         ConnectionDoRead(connection);
@@ -165,7 +166,7 @@ void EpollEventLoop::DoClosingWork(const volatile bool &is_shutting_down) {
     }
 
     for (int i = 0; i < events_count; ++i) {
-      assert(events[i].events & (EPOLLHUP|EPOLLRDHUP|EPOLLERR));
+      base::Assert(events[i].events & (EPOLLHUP|EPOLLRDHUP|EPOLLERR));
       auto connection =
           reinterpret_cast<Connection*>(events[i].data.ptr)->shared_from_this();
       {
@@ -207,7 +208,7 @@ bool EpollEventLoop::ReadyForListen(fd_t fd) {
 }
 
 bool EpollEventLoop::ReadyForClose(ConnectionPtr connection) {
-  assert(connection->IsOnEventLoop(this));
+  base::Assert(connection->IsOnEventLoop(this));
 
   struct epoll_event event;
 

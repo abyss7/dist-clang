@@ -1,5 +1,6 @@
 #include "net/network_service.h"
 
+#include "base/assert.h"
 #include "base/c_utils.h"
 #include "net/base/utils.h"
 #include "net/epoll_event_loop.h"
@@ -260,7 +261,7 @@ bool NetworkService::ConnectAsync(const std::string &host, unsigned short port,
 
 void NetworkService::HandleNewConnection(fd_t fd, ConnectionPtr connection) {
   auto callback = listen_callbacks_.find(fd);
-  assert(callback != listen_callbacks_.end());
+  base::Assert(callback != listen_callbacks_.end());
   callback->second(connection);
 }
 
@@ -281,7 +282,6 @@ void NetworkService::DoConnectWork(const volatile bool &is_shutting_down) {
     }
 
     for (int i = 0; i < events_count; ++i) {
-      assert(events[i].events & EPOLLOUT);
       fd_t fd = events[i].data.fd;
       ConnectCallback callback;
       {
@@ -293,7 +293,7 @@ void NetworkService::DoConnectWork(const volatile bool &is_shutting_down) {
         }
       }
 
-      assert(epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr) != -1);
+      base::Assert(!epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr));
       if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &error_size) == -1) {
         std::string error;
         base::GetLastError(&error);

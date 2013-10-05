@@ -1,5 +1,6 @@
 #include "net/connection.h"
 
+#include "base/assert.h"
 #include "net/base/utils.h"
 #include "net/event_loop.h"
 
@@ -13,7 +14,7 @@ namespace net {
 
 // static
 ConnectionPtr Connection::Create(EventLoop &event_loop, fd_t fd) {
-  assert(!IsNonBlocking(fd));
+  base::Assert(!IsNonBlocking(fd));
   return ConnectionPtr(new Connection(event_loop, fd));
 }
 
@@ -183,7 +184,7 @@ bool Connection::ConvertCustomMessage(const CustomMessage &input,
     auto reflection = output->GetReflection();
     auto output_field =
         reflection->FindKnownExtensionByName(extension_field->full_name());
-    assert(output_field);
+    base::Assert(output_field);
     reflection->MutableMessage(output, output_field)->CopyFrom(input);
   }
   return true;

@@ -1,3 +1,4 @@
+#include "base/assert.h"
 #include "base/c_utils.h"
 #include "base/string_utils.h"
 #include "net/base/utils.h"
@@ -165,7 +166,7 @@ class TestServer: public net::EventLoop {
     }
 
     bool WriteIncomplete(const std::string& data, size_t size) {
-      assert(size < data.size());
+      base::Assert(size < data.size());
       if (data.size() > 127) {
         std::cerr << "Use messages with size less then 127" << std::endl;
         return false;
@@ -207,7 +208,7 @@ class TestServer: public net::EventLoop {
       event.data.ptr = connection.get();
       auto fd = GetConnectionDescriptor(connection);
       if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
-        assert(errno == ENOENT);
+        base::Assert(errno == ENOENT);
         if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
           return false;
         }
@@ -220,7 +221,7 @@ class TestServer: public net::EventLoop {
       event.data.ptr = connection.get();
       auto fd = GetConnectionDescriptor(connection);
       if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
-        assert(errno == ENOENT);
+        base::Assert(errno == ENOENT);
         if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
           return false;
         }
@@ -247,7 +248,7 @@ class TestServer: public net::EventLoop {
 
           if (events[i].events & (EPOLLHUP|EPOLLERR)) {
             auto fd = GetConnectionDescriptor(connection);
-            assert(!epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr));
+            base::Assert(!epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr));
           }
 
           if (events[i].events & EPOLLIN) {

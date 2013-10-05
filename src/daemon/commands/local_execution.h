@@ -29,6 +29,9 @@ class LocalExecution: public Command {
         const proto::LocalExecute& message,
         Daemon& daemon);
 
+    void DoneRemoteConnection(
+        net::ConnectionPtr connection,
+        const std::string& error);
     bool DoRemoteCompilation(
         net::ConnectionPtr connection,
         const proto::Status& status);

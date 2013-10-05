@@ -1,5 +1,6 @@
 #include "net/event_loop.h"
 
+#include "base/assert.h"
 #include "net/base/utils.h"
 
 #include <functional>
@@ -12,7 +13,7 @@ EventLoop::EventLoop(size_t concurrency)
 }
 
 EventLoop::~EventLoop() {
-  assert(!pool_);
+  base::Assert(!pool_);
 }
 
 bool EventLoop::Run() {

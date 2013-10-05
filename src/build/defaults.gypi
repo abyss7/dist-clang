@@ -7,16 +7,17 @@
       '-fno-exceptions',
       '-Wall',
       '-Wsign-compare',
+      '-Wno-mismatched-tags',  # Remove on libstdc++ >= 4.8.2
       '-Werror',
+    ],
+    'ldflags': [
+      '-ltcmalloc',
     ],
     'configurations': {
       'Debug': {
         'cflags': [
           '-g',
           '-O0',
-        ],
-        'ldflags': [
-          '-ltcmalloc',
         ],
       },
       'Release': {

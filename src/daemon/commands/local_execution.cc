@@ -1,5 +1,6 @@
 #include "daemon/commands/local_execution.h"
 
+#include "base/assert.h"
 #include "base/file_utils.h"
 #include "base/process.h"
 #include "base/string_utils.h"
@@ -77,9 +78,21 @@ void LocalExecution::Run() {
     return;
   }
 
-  auto remote_connection = daemon_.balancer()->Decide();
-  if (!remote_connection) {
+  auto callback = std::bind(&LocalExecution::DoneRemoteConnection,
+                            shared_from_this(), _1, _2);
+  if (!daemon_.balancer()->Decide(callback)) {
     DoLocalCompilation();
+    return;
+  }
+}
+
+void LocalExecution::DoneRemoteConnection(net::ConnectionPtr connection,
+                                          const std::string &error) {
+  if (!connection) {
+    if (!error.empty()) {
+      std::cerr << error << std::endl;
+    }
+    DeferLocalCompilation();
     return;
   }
 
@@ -95,7 +108,7 @@ void LocalExecution::Run() {
   remote.mutable_cc_flags()->clear_input();
   remote.mutable_cc_flags()->clear_dependenies();
 
-  if (!remote_connection->SendAsync(remote, callback)) {
+  if (!connection->SendAsync(remote, callback)) {
     DoLocalCompilation();
     return;
   }
@@ -204,7 +217,7 @@ void LocalExecution::UpdateCache(const proto::Status& status) {
   if (!daemon_.cache() || pp_source_.empty()) {
     return;
   }
-  assert(status.code() == proto::Status::OK);
+  base::Assert(status.code() == proto::Status::OK);
 
   const auto& flags = message_.cc_flags();
   FileCache::Entry entry;
