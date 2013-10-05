@@ -7,6 +7,7 @@
 #include <atomic>
 #include <functional>
 #include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/io/gzip_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
 #include <unistd.h>
@@ -22,6 +23,8 @@ class Connection: public std::enable_shared_from_this<Connection> {
     using CustomMessage = google::protobuf::Message;
     using FileInputStream = google::protobuf::io::FileInputStream;
     using FileOutputStream = google::protobuf::io::FileOutputStream;
+    using GzipInputStream = google::protobuf::io::GzipInputStream;
+    using GzipOutputStream = google::protobuf::io::GzipOutputStream;
     using Limit = google::protobuf::io::CodedInputStream::Limit;
     using Status = proto::Status;
 
