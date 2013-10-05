@@ -134,7 +134,7 @@ void LocalExecution::DoLocalCompilation() {
     UpdateCache(message);
   }
 
-  if (!connection_->SendAsync(message, net::Connection::Idle())) {
+  if (!connection_->SendAsync(message)) {
     connection_->Close();
   }
 }

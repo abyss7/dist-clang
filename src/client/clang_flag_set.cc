@@ -1,6 +1,7 @@
 #include "client/clang_flag_set.h"
 
 #include "base/c_utils.h"
+#include "base/string_utils.h"
 #include "proto/remote.pb.h"
 
 namespace {
@@ -25,6 +26,7 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(StringList& flags,
     std::string& flag = *it;
     if (flag[0] == '"')
       flag = it->substr(1, flag.size() - 2);
+    base::Replace(flag, "\\\"", "\"");
   }
 
   // First non-empty argument is a path to executable.

@@ -1,5 +1,6 @@
 #include "base/process.h"
 
+#include "base/assert.h"
 #include "base/c_utils.h"
 #include "net/base/utils.h"
 #include "proto/remote.pb.h"
@@ -68,7 +69,8 @@ bool Process::Run(unsigned short sec_timeout, std::string* error) {
          ++i, ++arg_it) {
       argv[i] = arg_it->c_str();
     }
-    argv[std::min<size_t>(MAX_ARGS, args_.size() + 1)] = nullptr;
+    base::Assert(args_.size() + 1 < MAX_ARGS);
+    argv[args_.size() + 1] = nullptr;
 
     if (execv(exec_path_.c_str(), const_cast<char* const*>(argv)) == -1)
       exit(1);

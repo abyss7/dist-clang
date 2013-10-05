@@ -80,5 +80,14 @@ inline std::string IntToString(Int integer) {
   return result;
 }
 
+inline void Replace(std::string& input, const std::string& replacee,
+                    const std::string& replacer) {
+  size_t pos = 0;
+  while ((pos = input.find(replacee, pos)) != std::string::npos) {
+     input.replace(pos, replacee.length(), replacer);
+     pos += replacer.length();
+  }
+}
+
 }  // namespace base
 }  // namespace dist_clang
