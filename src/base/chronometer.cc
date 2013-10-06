@@ -43,9 +43,9 @@ Chronometer::~Chronometer() {
       if (interval_index_) {
         for (size_t i = 0; i < interval_index_; ++i) {
           unsigned percent = intervals_[i].second * 100 / diff;
-          std::cout << "  " << intervals_[i].first << " took "
-                    << intervals_[i].second << " ms " << percent << "%"
-                    << std::endl;
+          std::cout << "  " << std::setw(2) << percent << "% "
+                    << intervals_[i].first << " took "
+                    << intervals_[i].second << " ms" << std::endl;
         }
       }
     }

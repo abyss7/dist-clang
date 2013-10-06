@@ -142,7 +142,7 @@ void LocalExecution::DoLocalCompilation() {
     UpdateCache(message);
   }
 
-  if (!connection_->SendAsync(message)) {
+  if (!connection_->SendAsync(message, net::Connection::CloseAfterSend())) {
     connection_->Close();
   }
 }
@@ -200,7 +200,7 @@ bool LocalExecution::DoneRemoteCompilation(net::ConnectionPtr /* connection */,
       std::cout << "Remote compilation successful: "
                 << message_.cc_flags().input() << std::endl;
       UpdateCache(status);
-      if (!connection_->SendAsync(status)) {
+      if (!connection_->SendAsync(status, net::Connection::CloseAfterSend())) {
         connection_->Close();
       }
       return false;

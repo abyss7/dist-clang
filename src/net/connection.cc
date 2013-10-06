@@ -143,6 +143,7 @@ void Connection::DoRead() {
   if (!read_callback_(shared_from_this(), message_, status)) {
     Close();
   }
+  read_callback_ = ReadCallback();
 }
 
 void Connection::DoSend() {
@@ -151,6 +152,7 @@ void Connection::DoSend() {
   if (!send_callback_(shared_from_this(), status)) {
     Close();
   }
+  send_callback_ = SendCallback();
 }
 
 bool Connection::ConvertCustomMessage(const CustomMessage &input,

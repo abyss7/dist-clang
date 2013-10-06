@@ -39,8 +39,6 @@ class Process {
     const std::string exec_path_, cwd_path_;
     std::list<std::string> args_;
     std::string stdout_, stderr_;
-
-    void kill();
 };
 
 template<class ConstIterator>

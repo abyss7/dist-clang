@@ -9,6 +9,7 @@ namespace command {
 class Command: public std::enable_shared_from_this<Command> {
   public:
     virtual void Run() = 0;
+    virtual ~Command() {}
 };
 
 using CommandPtr = std::shared_ptr<Command>;

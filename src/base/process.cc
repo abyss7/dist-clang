@@ -95,25 +95,29 @@ bool Process::Run(unsigned short sec_timeout, std::string* error) {
     const size_t buffer_size = 1024;
     char buffer[buffer_size];
     do {
-      if (waitpid(child_pid, &status, WNOHANG) == child_pid)
+      if (waitpid(child_pid, &status, WNOHANG) == child_pid) {
         break;
+      }
 
       result = poll(poll_fd, 2, sec_timeout * 1000);
       if (result <= 0) {
-        if (result == -1)
+        if (result == -1) {
           GetLastError(error);
-        kill();
+        }
+        kill(child_pid, SIGTERM);
       }
 
       if (poll_fd[0].revents == POLLIN) {
         while(true) {
           int bytes_read = read(poll_fd[0].fd, buffer, buffer_size);
 
-          if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK))
+          if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK)) {
             break;
+          }
           else if (bytes_read == -1) {
             GetLastError(error);
-            kill();
+            kill(child_pid, SIGTERM);
+            break;
           } else {
             stdout_.append(buffer, bytes_read);
           }
@@ -123,11 +127,13 @@ bool Process::Run(unsigned short sec_timeout, std::string* error) {
         while(true) {
           int bytes_read = read(poll_fd[1].fd, buffer, buffer_size);
 
-          if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK))
+          if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK)) {
             break;
+          }
           else if (bytes_read <= 0) {
             GetLastError(error);
-            kill();
+            kill(child_pid, SIGTERM);
+            break;
           } else {
             stderr_.append(buffer, bytes_read);
           }
@@ -138,11 +144,13 @@ bool Process::Run(unsigned short sec_timeout, std::string* error) {
     while(true) {
       int bytes_read = read(poll_fd[0].fd, buffer, buffer_size);
 
-      if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK))
+      if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK)) {
         break;
+      }
       else if (bytes_read == -1) {
         GetLastError(error);
-        kill();
+        kill(child_pid, SIGTERM);
+        break;
       } else {
         stdout_.append(buffer, bytes_read);
       }
@@ -150,11 +158,13 @@ bool Process::Run(unsigned short sec_timeout, std::string* error) {
     while(true) {
       int bytes_read = read(poll_fd[1].fd, buffer, buffer_size);
 
-      if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK))
+      if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK)) {
         break;
+      }
       else if (bytes_read <= 0) {
         GetLastError(error);
-        kill();
+        kill(child_pid, SIGTERM);
+        break;
       } else {
         stderr_.append(buffer, bytes_read);
       }
@@ -206,8 +216,9 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
     close(out_pipe_fd[1]);
     close(err_pipe_fd[1]);
 
-    if (!cwd_path_.empty() && !ChangeCurrentDir(cwd_path_))
+    if (!cwd_path_.empty() && !ChangeCurrentDir(cwd_path_)) {
       exit(1);
+    }
 
     base::Assert(args_.size() + 1 < MAX_ARGS);
     const char* argv[MAX_ARGS];
@@ -219,11 +230,13 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
     base::Assert(arg_it == args_.end());
     argv[args_.size() + 1] = nullptr;
 
-    if (execv(exec_path_.c_str(), const_cast<char* const*>(argv)) == -1)
+    if (execv(exec_path_.c_str(), const_cast<char* const*>(argv)) == -1) {
       exit(1);
+    }
 
     return false;
-  } else {  // Main process.
+  }
+  else {  // Main process.
     close(in_pipe_fd[0]);
     close(out_pipe_fd[1]);
     close(err_pipe_fd[1]);
@@ -248,7 +261,7 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
                              input.size() - total_sent);
       if (bytes_sent <= 0) {
         GetLastError(error);
-        kill();
+        kill(child_pid, SIGTERM);
         break;
       } else {
         total_sent += bytes_sent;
@@ -257,25 +270,28 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
     close(in_pipe_fd[1]);
 
     do {
-      if (waitpid(child_pid, &status, WNOHANG) == child_pid)
+      if (waitpid(child_pid, &status, WNOHANG) == child_pid) {
         break;
+      }
 
       result = poll(poll_fd, 2, sec_timeout * 1000);
       if (result <= 0) {
-        if (result == -1)
+        if (result == -1) {
           GetLastError(error);
-        kill();
+        }
+        kill(child_pid, SIGTERM);
       }
 
       if (poll_fd[0].revents == POLLIN) {
         while(true) {
           int bytes_read = read(poll_fd[0].fd, buffer, buffer_size);
 
-          if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK))
+          if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK)) {
             break;
+          }
           else if (bytes_read == -1) {
             GetLastError(error);
-            kill();
+            kill(child_pid, SIGTERM);
             break;
           } else {
             stdout_.append(buffer, bytes_read);
@@ -286,11 +302,12 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
         while(true) {
           int bytes_read = read(poll_fd[1].fd, buffer, buffer_size);
 
-          if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK))
+          if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK)) {
             break;
+          }
           else if (bytes_read <= 0) {
             GetLastError(error);
-            kill();
+            kill(child_pid, SIGTERM);
             break;
           } else {
             stderr_.append(buffer, bytes_read);
@@ -302,11 +319,13 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
     while(true) {
       int bytes_read = read(poll_fd[0].fd, buffer, buffer_size);
 
-      if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK))
+      if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK)) {
         break;
+      }
       else if (bytes_read == -1) {
         GetLastError(error);
-        kill();
+        kill(child_pid, SIGTERM);
+        break;
       } else {
         stdout_.append(buffer, bytes_read);
       }
@@ -314,11 +333,13 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
     while(true) {
       int bytes_read = read(poll_fd[1].fd, buffer, buffer_size);
 
-      if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK))
+      if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK)) {
         break;
+      }
       else if (bytes_read <= 0) {
         GetLastError(error);
-        kill();
+        kill(child_pid, SIGTERM);
+        break;
       } else {
         stderr_.append(buffer, bytes_read);
       }
@@ -329,11 +350,6 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
 
     return !WEXITSTATUS(status) && (total_sent == input.size());
   }
-}
-
-
-void Process::kill() {
-  // TODO: implement this.
 }
 
 }  // namespace base

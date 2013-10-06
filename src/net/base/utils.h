@@ -14,16 +14,20 @@ inline bool MakeNonBlocking(fd_t fd, bool blocking = false) {
   int flags, s;
 
   flags = fcntl(fd, F_GETFL, 0);
-  if (flags == -1)
+  if (flags == -1) {
     return false;
+  }
 
-  if (!blocking)
+  if (!blocking) {
     flags |= O_NONBLOCK;
-  else
-    flags ^= O_NONBLOCK;
+  }
+  else {
+    flags &= ~O_NONBLOCK;
+  }
   s = fcntl(fd, F_SETFL, flags);
-  if (s == -1)
+  if (s == -1) {
     return false;
+  }
 
   return true;
 }

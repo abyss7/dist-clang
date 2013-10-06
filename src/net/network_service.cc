@@ -242,19 +242,16 @@ bool NetworkService::ConnectAsync(const std::string &host, unsigned short port,
     }
   }
 
-  {
-    std::lock_guard<std::mutex> lock(connect_mutex_);
-    connect_callbacks_.insert(std::make_pair(fd, callback));
-  }
-
   struct epoll_event event;
   event.events = EPOLLOUT | EPOLLONESHOT;
   event.data.fd = fd;
+  std::lock_guard<std::mutex> lock(connect_mutex_);
   if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
     base::GetLastError(error);
     close(fd);
     return false;
   }
+  connect_callbacks_.insert(std::make_pair(fd, callback));
 
   return true;
 }
@@ -287,10 +284,9 @@ void NetworkService::DoConnectWork(const volatile bool &is_shutting_down) {
       {
         std::lock_guard<std::mutex> lock(connect_mutex_);
         auto it = connect_callbacks_.find(fd);
-        if (it != connect_callbacks_.end()) {
-          callback = it->second;
-          connect_callbacks_.erase(it);
-        }
+        base::Assert(it != connect_callbacks_.end());
+        callback = it->second;
+        connect_callbacks_.erase(it);
       }
 
       base::Assert(!epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr));
