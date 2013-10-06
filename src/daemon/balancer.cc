@@ -21,8 +21,7 @@ void Balancer::AddRemote(const proto::Host& remote) {
 }
 
 bool Balancer::Decide(const ConnectCallback& callback, std::string* error) {
-  auto remote_index =
-      std::atomic_fetch_add(&index_, 1ul) % (remotes_.size() + 1);
+  auto remote_index = index_.fetch_add(1) % (remotes_.size() + 1);
   if (remote_index == remotes_.size()) {
     return false;
   }

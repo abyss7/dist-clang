@@ -33,7 +33,8 @@ CommandPtr LocalExecution::Create(net::ConnectionPtr connection,
 LocalExecution::LocalExecution(net::ConnectionPtr connection,
                                const proto::LocalExecute& message,
                                Daemon& daemon)
-  : connection_(connection), message_(message), daemon_(daemon) {
+  : timer_("LocalExecution"), connection_(connection), message_(message),
+    daemon_(daemon) {
 }
 
 void LocalExecution::Run() {
@@ -48,13 +49,17 @@ void LocalExecution::Run() {
   // Redirect output to stdin in |pp_flags|.
   message_.mutable_pp_flags()->set_output("-");
 
+  std::unique_ptr<base::Chronometer>
+      process_timer(new base::Chronometer("Preprocessing", timer_));
   base::Process process(message_.pp_flags(), message_.current_dir());
   if (!process.Run(10)) {
     // It usually means, that there is an error in the source code.
     // We should skip a cache check and head to local compilation.
+    process_timer.reset();
     DoLocalCompilation();
     return;
   }
+  process_timer.reset();
   pp_source_ = process.stdout();
 
   FileCache::Entry cache_entry;
@@ -123,6 +128,7 @@ void LocalExecution::DoLocalCompilation() {
     return;
   }
 
+  base::Chronometer timer("Compilation", timer_);
   proto::Status message;
   base::Process process(message_.cc_flags(), message_.current_dir());
   if (!process.Run(10)) {
@@ -131,6 +137,8 @@ void LocalExecution::DoLocalCompilation() {
   } else {
     message.set_code(proto::Status::OK);
     message.set_description(process.stderr());
+    std::cout << "Local compilation successful: " + message_.cc_flags().input()
+              << std::endl;
     UpdateCache(message);
   }
 
@@ -189,6 +197,8 @@ bool LocalExecution::DoneRemoteCompilation(net::ConnectionPtr /* connection */,
     if (base::WriteFile(output_path, result.obj())) {
       proto::Status status;
       status.set_code(proto::Status::OK);
+      std::cout << "Remote compilation successful: "
+                << message_.cc_flags().input() << std::endl;
       UpdateCache(status);
       if (!connection_->SendAsync(status)) {
         connection_->Close();

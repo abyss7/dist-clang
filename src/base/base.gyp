@@ -9,6 +9,8 @@
       'sources': [
         'attributes.h',
         'c_utils.h',
+        'chronometer.cc',
+        'chronometer.h',
         'constants.cc',
         'constants.h',
         'file_utils.h',
