@@ -234,12 +234,24 @@ bool NetworkService::ConnectAsync(const std::string &host, unsigned short port,
   }
 
   auto socket_address = reinterpret_cast<sockaddr*>(&address);
-  if (connect(fd, socket_address, sizeof(address)) == -1) {
+  auto res = connect(fd, socket_address, sizeof(address));
+  if (res == -1) {
     if (errno != EINPROGRESS) {
       base::GetLastError(error);
       close(fd);
       return false;
     }
+  }
+  else if (res == 0) {
+    MakeNonBlocking(fd, true);
+    auto connection =
+        static_cast<EpollEventLoop*>(event_loop_.get())->HandleActive(fd);
+    if (!connection) {
+      close(fd);
+      return false;
+    }
+    callback(connection, std::string());
+    return true;
   }
 
   struct epoll_event event;
@@ -279,6 +291,7 @@ void NetworkService::DoConnectWork(const volatile bool &is_shutting_down) {
     }
 
     for (int i = 0; i < events_count; ++i) {
+      base::Assert(events[i].events & EPOLLOUT);
       fd_t fd = events[i].data.fd;
       ConnectCallback callback;
       {
@@ -293,18 +306,14 @@ void NetworkService::DoConnectWork(const volatile bool &is_shutting_down) {
       if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &error_size) == -1) {
         std::string error;
         base::GetLastError(&error);
-        if (callback) {
-          callback(ConnectionPtr(), error);
-        }
+        callback(ConnectionPtr(), error);
         close(fd);
       }
       else if (error) {
         errno = error;
         std::string error;
         base::GetLastError(&error);
-        if (callback) {
-          callback(ConnectionPtr(), error);
-        }
+        callback(ConnectionPtr(), error);
         close(fd);
       }
       else {
@@ -314,9 +323,7 @@ void NetworkService::DoConnectWork(const volatile bool &is_shutting_down) {
         if (!connection) {
           close(fd);
         }
-        if (callback) {
-          callback(connection, std::string());
-        }
+        callback(connection, std::string());
       }
     }
   }

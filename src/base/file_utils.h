@@ -1,5 +1,6 @@
 #pragma once
 
+#include "base/assert.h"
 #include "base/c_utils.h"
 
 #include <string>
@@ -109,6 +110,10 @@ inline bool WriteFile(const std::string& path, const std::string& input,
     total_bytes += size;
   }
   close(src_fd);
+
+  struct stat stats;
+  base::Assert(lstat(path.c_str(), &stats) != -1);
+  base::Assert(static_cast<unsigned long>(stats.st_size) == input.size());
 
   return total_bytes == input.size();
 }

@@ -75,7 +75,7 @@ void RemoteExecution::Run() {
   const auto& result = proto::RemoteResult::result;
   message.MutableExtension(proto::Status::status)->CopyFrom(status);
   message.MutableExtension(result)->set_obj(process.stdout());
-  if (!connection_->SendAsync(message)) {
+  if (!connection_->SendAsync(message, net::Connection::CloseAfterSend())) {
     connection_->Close();
   }
 }

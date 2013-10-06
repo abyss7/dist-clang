@@ -28,6 +28,8 @@ int ExecuteLocally(char* argv[]) {
     return 1;
   }
 
+  std::cout << "Running locally." << std::endl;
+
   if (execv(clangd_cxx_path.c_str(), argv) == -1) {
     std::cerr << "Local execution failed: "
               << strerror(errno) << std::endl;

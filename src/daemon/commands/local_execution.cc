@@ -114,7 +114,7 @@ void LocalExecution::DoneRemoteConnection(net::ConnectionPtr connection,
   remote.mutable_cc_flags()->clear_dependenies();
 
   if (!connection->SendAsync(remote, callback)) {
-    DoLocalCompilation();
+    DeferLocalCompilation();
     return;
   }
 }
