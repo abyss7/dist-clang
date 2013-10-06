@@ -32,6 +32,7 @@ bool EpollEventLoop::HandlePassive(fd_t fd) {
 
 ConnectionPtr EpollEventLoop::HandleActive(fd_t fd) {
   base::Assert(!IsListening(fd));
+  base::Assert(!IsNonBlocking(fd));
   ConnectionPtr new_connection = Connection::Create(*this, fd);
   std::unique_lock<std::mutex> lock(connections_mutex_);
   connections_.insert(new_connection);

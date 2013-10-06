@@ -94,7 +94,7 @@ inline bool ReadFile(const std::string& path, std::string* output,
 
 inline bool WriteFile(const std::string& path, const std::string& input,
                       std::string* error = nullptr) {
-  auto src_fd = open(path.c_str(), O_WRONLY|O_TRUNC|O_CREAT, 0444);
+  auto src_fd = open((path + ".tmp").c_str(), O_WRONLY|O_TRUNC|O_CREAT, 0444);
   if (src_fd == -1) {
     GetLastError(error);
     return false;
@@ -111,9 +111,10 @@ inline bool WriteFile(const std::string& path, const std::string& input,
   }
   close(src_fd);
 
-  struct stat stats;
-  base::Assert(lstat(path.c_str(), &stats) != -1);
-  base::Assert(static_cast<unsigned long>(stats.st_size) == input.size());
+  if (!MoveFile(path + ".tmp", path)) {
+    DeleteFile(path + ".tmp");
+    return false;
+  }
 
   return total_bytes == input.size();
 }
