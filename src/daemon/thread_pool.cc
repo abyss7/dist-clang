@@ -49,6 +49,7 @@ void ThreadPool::DoWork() {
       tasks_.pop();
     }
     task();
+    task = Closure();
   } while (true);
 }
 

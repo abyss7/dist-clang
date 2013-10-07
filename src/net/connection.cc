@@ -29,16 +29,25 @@ Connection::~Connection() {
 
 bool Connection::ReadAsync(ReadCallback callback, Status* status) {
   read_callback_ = callback;
-  return event_loop_.ReadyForRead(shared_from_this());
+  if (!event_loop_.ReadyForRead(shared_from_this())) {
+    read_callback_ = ReadCallback();
+    return false;
+  }
+  return true;
 }
 
 bool Connection::SendAsync(const CustomMessage &message, SendCallback callback,
                            Status* status) {
   message_.Clear();
-  if (!ConvertCustomMessage(message, &message_, status))
+  if (!ConvertCustomMessage(message, &message_, status)) {
     return false;
+  }
   send_callback_ = callback;
-  return event_loop_.ReadyForSend(shared_from_this());
+  if (!event_loop_.ReadyForSend(shared_from_this())) {
+    send_callback_ = SendCallback();
+    return false;
+  }
+  return true;
 }
 
 // static
