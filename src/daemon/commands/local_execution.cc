@@ -131,7 +131,7 @@ void LocalExecution::DoLocalCompilation() {
   base::Chronometer timer("Compilation", timer_);
   proto::Status message;
   base::Process process(message_.cc_flags(), message_.current_dir());
-  if (!process.Run(10)) {
+  if (!process.Run(60)) {
     message.set_code(proto::Status::EXECUTION);
     message.set_description(process.stderr());
   } else {
