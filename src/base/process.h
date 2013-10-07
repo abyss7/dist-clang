@@ -36,9 +36,12 @@ class Process {
     inline const std::string& stderr() const;
 
   private:
+    inline void kill(int pid);
+
     const std::string exec_path_, cwd_path_;
     std::list<std::string> args_;
     std::string stdout_, stderr_;
+    bool killed_;
 };
 
 template<class ConstIterator>
@@ -53,6 +56,11 @@ const std::string& Process::stdout() const {
 
 const std::string& Process::stderr() const {
   return stderr_;
+}
+
+void Process::kill(int pid) {
+  kill(pid, SIGTERM);
+  killed_ = true;
 }
 
 }  // namespace base

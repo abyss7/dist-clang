@@ -13,7 +13,7 @@ namespace dist_clang {
 namespace base {
 
 Process::Process(const std::string& exec_path, const std::string& cwd_path)
-  : exec_path_(exec_path), cwd_path_(cwd_path) {
+  : exec_path_(exec_path), cwd_path_(cwd_path), killed_(false) {
 }
 
 Process::Process(const proto::Flags &flags, const std::string &cwd_path)
@@ -83,7 +83,7 @@ bool Process::Run(unsigned short sec_timeout, std::string* error) {
 
     int result, status = 0;
     struct pollfd poll_fd[2];
-    memset(poll_fd, 0 , sizeof(poll_fd));
+    memset(poll_fd, 0, sizeof(poll_fd));
     poll_fd[0].fd = out_pipe_fd[0];
     poll_fd[0].events = POLLIN;
     poll_fd[1].fd = err_pipe_fd[0];
@@ -104,7 +104,7 @@ bool Process::Run(unsigned short sec_timeout, std::string* error) {
         if (result == -1) {
           GetLastError(error);
         }
-        kill(child_pid, SIGTERM);
+        kill(child_pid);
       }
 
       if (poll_fd[0].revents == POLLIN) {
@@ -116,7 +116,7 @@ bool Process::Run(unsigned short sec_timeout, std::string* error) {
           }
           else if (bytes_read == -1) {
             GetLastError(error);
-            kill(child_pid, SIGTERM);
+            kill(child_pid);
             break;
           } else {
             stdout_.append(buffer, bytes_read);
@@ -132,7 +132,7 @@ bool Process::Run(unsigned short sec_timeout, std::string* error) {
           }
           else if (bytes_read <= 0) {
             GetLastError(error);
-            kill(child_pid, SIGTERM);
+            kill(child_pid);
             break;
           } else {
             stderr_.append(buffer, bytes_read);
@@ -149,7 +149,7 @@ bool Process::Run(unsigned short sec_timeout, std::string* error) {
       }
       else if (bytes_read == -1) {
         GetLastError(error);
-        kill(child_pid, SIGTERM);
+        kill(child_pid);
         break;
       } else {
         stdout_.append(buffer, bytes_read);
@@ -163,7 +163,7 @@ bool Process::Run(unsigned short sec_timeout, std::string* error) {
       }
       else if (bytes_read <= 0) {
         GetLastError(error);
-        kill(child_pid, SIGTERM);
+        kill(child_pid);
         break;
       } else {
         stderr_.append(buffer, bytes_read);
@@ -173,7 +173,7 @@ bool Process::Run(unsigned short sec_timeout, std::string* error) {
     close(out_pipe_fd[0]);
     close(err_pipe_fd[0]);
 
-    return !WEXITSTATUS(status);
+    return !WEXITSTATUS(status) && !killed_;
   }
 }
 
@@ -261,7 +261,7 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
                              input.size() - total_sent);
       if (bytes_sent <= 0) {
         GetLastError(error);
-        kill(child_pid, SIGTERM);
+        kill(child_pid);
         break;
       } else {
         total_sent += bytes_sent;
@@ -279,7 +279,7 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
         if (result == -1) {
           GetLastError(error);
         }
-        kill(child_pid, SIGTERM);
+        kill(child_pid);
       }
 
       if (poll_fd[0].revents == POLLIN) {
@@ -291,7 +291,7 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
           }
           else if (bytes_read == -1) {
             GetLastError(error);
-            kill(child_pid, SIGTERM);
+            kill(child_pid);
             break;
           } else {
             stdout_.append(buffer, bytes_read);
@@ -307,7 +307,7 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
           }
           else if (bytes_read <= 0) {
             GetLastError(error);
-            kill(child_pid, SIGTERM);
+            kill(child_pid);
             break;
           } else {
             stderr_.append(buffer, bytes_read);
@@ -324,7 +324,7 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
       }
       else if (bytes_read == -1) {
         GetLastError(error);
-        kill(child_pid, SIGTERM);
+        kill(child_pid);
         break;
       } else {
         stdout_.append(buffer, bytes_read);
@@ -338,7 +338,7 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
       }
       else if (bytes_read <= 0) {
         GetLastError(error);
-        kill(child_pid, SIGTERM);
+        kill(child_pid);
         break;
       } else {
         stderr_.append(buffer, bytes_read);
