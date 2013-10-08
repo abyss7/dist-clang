@@ -7,6 +7,7 @@
       'target_name': 'base',
       'type': 'static_library',
       'sources': [
+        'assert.h',
         'attributes.h',
         'c_utils.h',
         'chronometer.cc',

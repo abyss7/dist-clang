@@ -19,6 +19,9 @@
           '-g',
           '-O0',
         ],
+        'ldflags': [
+          '-rdynamic',  # for backtrace().
+        ],
       },
       'Release': {
         'cflags': [
