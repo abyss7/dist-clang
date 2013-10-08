@@ -6,14 +6,37 @@
 #include "proto/remote.pb.h"
 
 #include <poll.h>
+#include <sys/epoll.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
 namespace dist_clang {
+
+namespace {
+
+class ScopedDescriptor {
+  public:
+    ScopedDescriptor(net::fd_t fd) : fd_(fd) {}
+    ~ScopedDescriptor() {
+      if (fd_ >= 0) {
+        close(fd_);
+      }
+    }
+
+    operator net::fd_t () {
+      return fd_;
+    }
+
+  private:
+    net::fd_t fd_;
+};
+
+}  // namespace
+
 namespace base {
 
 Process::Process(const std::string& exec_path, const std::string& cwd_path)
-  : exec_path_(exec_path), cwd_path_(cwd_path), killed_(false) {
+  : exec_path_(exec_path), cwd_path_(cwd_path) {
 }
 
 Process::Process(const proto::Flags &flags, const std::string &cwd_path)
@@ -80,100 +103,97 @@ bool Process::Run(unsigned short sec_timeout, std::string* error) {
   } else {  // Main process.
     close(out_pipe_fd[1]);
     close(err_pipe_fd[1]);
+    ScopedDescriptor out_fd(out_pipe_fd[0]);
+    ScopedDescriptor err_fd(err_pipe_fd[0]);
 
-    int result, status = 0;
-    struct pollfd poll_fd[2];
-    memset(poll_fd, 0, sizeof(poll_fd));
-    poll_fd[0].fd = out_pipe_fd[0];
-    poll_fd[0].events = POLLIN;
-    poll_fd[1].fd = err_pipe_fd[0];
-    poll_fd[1].events = POLLIN;
+    ScopedDescriptor epoll_fd = epoll_create1(EPOLL_CLOEXEC);
+    if (epoll_fd == -1) {
+      GetLastError(error);
+      ::kill(child_pid, SIGTERM);
+      return false;
+    }
 
-    net::MakeNonBlocking(poll_fd[0].fd);
-    net::MakeNonBlocking(poll_fd[1].fd);
+    {
+      struct epoll_event event;
+      event.events = EPOLLIN;
+      event.data.fd = out_fd;
+      if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, out_fd, &event) == -1) {
+        GetLastError(error);
+        ::kill(child_pid, SIGTERM);
+        return false;
+      }
+    }
+    {
+      struct epoll_event event;
+      event.events = EPOLLIN;
+      event.data.fd = err_fd;
+      if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, err_fd, &event) == -1) {
+        GetLastError(error);
+        ::kill(child_pid, SIGTERM);
+        return false;
+      }
+    }
 
-    const size_t buffer_size = 1024;
-    char buffer[buffer_size];
-    do {
-      if (waitpid(child_pid, &status, WNOHANG) == child_pid) {
-        break;
+    const size_t buffer_size = 10240;
+    size_t stdout_size = 0, stderr_size = 0;
+    std::list<std::pair<char*, int>> stdout, stderr;
+    const int MAX_EVENTS = 2;
+    struct epoll_event events[MAX_EVENTS];
+
+    int exhausted_fds = 0;
+    while(exhausted_fds < 2) {
+      auto event_count =
+          epoll_wait(epoll_fd, events, MAX_EVENTS, sec_timeout * 1000);
+
+      if (event_count == 0) {
+        ::kill(child_pid, SIGTERM);
+        return false;
       }
 
-      result = poll(poll_fd, 2, sec_timeout * 1000);
-      if (result <= 0) {
-        if (result == -1) {
-          GetLastError(error);
-        }
-        kill(child_pid);
-      }
-
-      if (poll_fd[0].revents == POLLIN) {
-        while(true) {
-          int bytes_read = read(poll_fd[0].fd, buffer, buffer_size);
-
-          if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK)) {
-            break;
+      for (int i = 0; i < event_count; ++i) {
+        if (events[i].events & EPOLLIN) {
+          auto buffer = new char[buffer_size];
+          auto bytes_read = read(events[i].data.fd, buffer, buffer_size);
+          if (!bytes_read) {
+            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, nullptr);
+            exhausted_fds++;
           }
           else if (bytes_read == -1) {
             GetLastError(error);
-            kill(child_pid);
-            break;
-          } else {
-            stdout_.append(buffer, bytes_read);
+            ::kill(child_pid, SIGTERM);
+            return false;
+          }
+          else {
+            if (events[i].data.fd == out_fd) {
+              stdout.push_back(std::make_pair(buffer, bytes_read));
+              stdout_size += bytes_read;
+            }
+            else {
+              stderr.push_back(std::make_pair(buffer, bytes_read));
+              stderr_size += bytes_read;
+            }
           }
         }
-      }
-      if (poll_fd[1].revents == POLLIN) {
-        while(true) {
-          int bytes_read = read(poll_fd[1].fd, buffer, buffer_size);
-
-          if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK)) {
-            break;
-          }
-          else if (bytes_read <= 0) {
-            GetLastError(error);
-            kill(child_pid);
-            break;
-          } else {
-            stderr_.append(buffer, bytes_read);
-          }
+        else {
+          epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, nullptr);
+          exhausted_fds++;
         }
-      }
-    } while(true);
-
-    while(true) {
-      int bytes_read = read(poll_fd[0].fd, buffer, buffer_size);
-
-      if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK)) {
-        break;
-      }
-      else if (bytes_read == -1) {
-        GetLastError(error);
-        kill(child_pid);
-        break;
-      } else {
-        stdout_.append(buffer, bytes_read);
-      }
-    }
-    while(true) {
-      int bytes_read = read(poll_fd[1].fd, buffer, buffer_size);
-
-      if (!bytes_read || (bytes_read == -1 && errno == EWOULDBLOCK)) {
-        break;
-      }
-      else if (bytes_read <= 0) {
-        GetLastError(error);
-        kill(child_pid);
-        break;
-      } else {
-        stderr_.append(buffer, bytes_read);
       }
     }
 
-    close(out_pipe_fd[0]);
-    close(err_pipe_fd[0]);
+    stdout_.reserve(stdout_size);
+    for (const auto& piece: stdout) {
+      stdout_.append(std::string(piece.first, piece.second));
+    }
 
-    return !WEXITSTATUS(status) && !killed_;
+    stderr_.reserve(stderr_size);
+    for (const auto& piece: stderr) {
+      stderr_.append(std::string(piece.first, piece.second));
+    }
+
+    int status;
+    base::Assert(waitpid(child_pid, &status, 0) == child_pid);
+    return !WEXITSTATUS(status);
   }
 }
 
@@ -261,7 +281,7 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
                              input.size() - total_sent);
       if (bytes_sent <= 0) {
         GetLastError(error);
-        kill(child_pid);
+        ::kill(child_pid, SIGTERM);
         break;
       } else {
         total_sent += bytes_sent;
@@ -279,7 +299,7 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
         if (result == -1) {
           GetLastError(error);
         }
-        kill(child_pid);
+        ::kill(child_pid, SIGTERM);
       }
 
       if (poll_fd[0].revents == POLLIN) {
@@ -291,7 +311,7 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
           }
           else if (bytes_read == -1) {
             GetLastError(error);
-            kill(child_pid);
+            ::kill(child_pid, SIGTERM);
             break;
           } else {
             stdout_.append(buffer, bytes_read);
@@ -307,7 +327,7 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
           }
           else if (bytes_read <= 0) {
             GetLastError(error);
-            kill(child_pid);
+            ::kill(child_pid, SIGTERM);
             break;
           } else {
             stderr_.append(buffer, bytes_read);
@@ -324,7 +344,7 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
       }
       else if (bytes_read == -1) {
         GetLastError(error);
-        kill(child_pid);
+        ::kill(child_pid, SIGTERM);
         break;
       } else {
         stdout_.append(buffer, bytes_read);
@@ -338,7 +358,7 @@ bool Process::Run(unsigned short sec_timeout, const std::string &input,
       }
       else if (bytes_read <= 0) {
         GetLastError(error);
-        kill(child_pid);
+        ::kill(child_pid, SIGTERM);
         break;
       } else {
         stderr_.append(buffer, bytes_read);
