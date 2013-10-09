@@ -122,11 +122,8 @@ bool Daemon::FillFlags(proto::Flags* flags, proto::Status* status) {
 }
 
 void Daemon::HandleNewConnection(net::ConnectionPtr connection) {
-  proto::Status status;
   auto callback = std::bind(&Daemon::HandleNewMessage, this, _1, _2, _3);
-  if (!connection->ReadAsync(callback, &status)) {
-    connection->Close();
-  }
+  connection->ReadAsync(callback);
 }
 
 bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
@@ -134,7 +131,7 @@ bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
                               const proto::Status& status) {
   if (status.code() != proto::Status::OK) {
     std::cerr << status.description() << std::endl;
-    return connection->SendAsync(status, net::Connection::CloseAfterSend());
+    return connection->SendAsync(status);
   }
 
   command::CommandPtr command;

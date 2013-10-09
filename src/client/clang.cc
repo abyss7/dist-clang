@@ -159,7 +159,7 @@ bool DoMain(int argc, char* argv[]) {
 }  // namespace
 
 int main(int argc, char* argv[]) {
-  // TODO: Ignore SIGPIPE, to prevent application crash.
+  signal(SIGPIPE, SIG_IGN);
 
   /*
    * Use separate |DoMain| function to make sure that all local objects get

@@ -33,9 +33,7 @@ void RemoteExecution::Run() {
       auto status = message.MutableExtension(proto::Status::status);
       status->set_code(proto::Status::OK);
       status->set_description(cache_entry.second);
-      if (!connection_->SendAsync(message)) {
-        connection_->Close();
-      }
+      connection_->SendAsync(message);
       return;
     }
   }
@@ -43,9 +41,7 @@ void RemoteExecution::Run() {
   // Check that we have a compiler of a requested version.
   proto::Status status;
   if (!daemon_.FillFlags(message_.mutable_cc_flags(), &status)) {
-    if (!connection_->SendAsync(status, net::Connection::CloseAfterSend())) {
-      connection_->Close();
-    }
+    connection_->SendAsync(status);
     return;
   }
 
@@ -75,9 +71,7 @@ void RemoteExecution::Run() {
   const auto& result = proto::RemoteResult::result;
   message.MutableExtension(proto::Status::status)->CopyFrom(status);
   message.MutableExtension(result)->set_obj(process.stdout());
-  if (!connection_->SendAsync(message, net::Connection::CloseAfterSend())) {
-    connection_->Close();
-  }
+  connection_->SendAsync(message);
 }
 
 bool RemoteExecution::SearchCache(FileCache::Entry *entry) {

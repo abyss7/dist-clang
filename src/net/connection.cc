@@ -14,46 +14,41 @@ namespace net {
 
 // static
 ConnectionPtr Connection::Create(EventLoop &event_loop, fd_t fd) {
+  base::Assert(!IsListening(fd));
   base::Assert(!IsNonBlocking(fd));
   return ConnectionPtr(new Connection(event_loop, fd));
 }
 
 Connection::Connection(EventLoop& event_loop, fd_t fd)
-  : fd_(fd), event_loop_(event_loop), is_closed_(false), waiting_(false),
-    added_(false), file_input_stream_(fd_), file_output_stream_(fd_) {
+  : fd_(fd), event_loop_(event_loop), is_closed_(false), added_(false),
+    file_input_stream_(fd_), file_output_stream_(fd_) {
 }
 
 Connection::~Connection() {
   Close();
 }
 
-bool Connection::ReadAsync(ReadCallback callback, Status* status) {
-  read_callback_ = callback;
+bool Connection::ReadAsync(ReadCallback callback) {
+  read_callback_ = std::bind(callback, shared_from_this(), _1, _2);
   if (!event_loop_.ReadyForRead(shared_from_this())) {
-    read_callback_ = ReadCallback();
+    read_callback_ = BindedReadCallback();
     return false;
   }
   return true;
 }
 
-bool Connection::SendAsync(const CustomMessage &message, SendCallback callback,
-                           Status* status) {
+bool Connection::SendAsync(const CustomMessage &message,
+                           SendCallback callback) {
   message_.Clear();
-  if (!ConvertCustomMessage(message, &message_, status)) {
+  if (!ConvertCustomMessage(message, &message_, nullptr)) {
     return false;
   }
-  send_callback_ = callback;
+  send_callback_ = std::bind(callback, shared_from_this(), _1);
   if (!event_loop_.ReadyForSend(shared_from_this())) {
-    send_callback_ = SendCallback();
+    send_callback_ = BindedSendCallback();
     return false;
   }
   return true;
-}
-
-// static
-Connection::SendCallback Connection::CloseAfterSend() {
-  auto callback = [](ConnectionPtr, const Status&) -> bool { return false; };
-  return std::bind(callback, _1, _2);
 }
 
 // static
@@ -149,19 +144,33 @@ bool Connection::SendSync(const CustomMessage &message, Status *status) {
 void Connection::DoRead() {
   Status status;
   ReadSync(&message_, &status);
-  if (!read_callback_(shared_from_this(), message_, status)) {
+  if (!read_callback_(message_, status)) {
     Close();
   }
-  read_callback_ = ReadCallback();
+  else {
+    read_callback_ = BindedReadCallback();
+  }
 }
 
 void Connection::DoSend() {
   Status status;
   SendSync(message_, &status);
-  if (!send_callback_(shared_from_this(), status)) {
+  if (!send_callback_(status)) {
     Close();
   }
-  send_callback_ = SendCallback();
+  else {
+    send_callback_ = BindedSendCallback();
+  }
+}
+
+void Connection::Close() {
+  bool old_closed = false;
+  if (is_closed_.compare_exchange_strong(old_closed, true)) {
+    read_callback_ = BindedReadCallback();
+    send_callback_ = BindedSendCallback();
+    event_loop_.RemoveConnection(fd_);
+    close(fd_);
+  }
 }
 
 bool Connection::ConvertCustomMessage(const CustomMessage &input,

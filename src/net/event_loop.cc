@@ -28,7 +28,6 @@ bool EventLoop::Run() {
 
   pool_.reset(new WorkerPool);
   pool_->AddWorker(std::bind(&EventLoop::DoListenWork, this, _1));
-  pool_->AddWorker(std::bind(&EventLoop::DoClosingWork, this, _1));
   pool_->AddWorker(std::bind(&EventLoop::DoIOWork, this, _1), concurrency_);
 
   UnblockSignals(old_signals);

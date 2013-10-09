@@ -100,12 +100,7 @@ class TestServer: public net::EventLoop {
         return net::ConnectionPtr();
       }
 
-      net::ConnectionPtr connection = net::Connection::Create(*this, fd);
-      if (!connection) {
-        std::cerr << "Failed to create connection" << std::endl;
-        close(fd);
-        return net::ConnectionPtr();
-      }
+      auto connection = net::Connection::Create(*this, fd);
 
       if (connect(fd, reinterpret_cast<sockaddr*>(&address),
                   sizeof(address)) == -1 && errno != EINPROGRESS) {
@@ -215,6 +210,7 @@ class TestServer: public net::EventLoop {
       }
       return true;
     }
+
     virtual bool ReadyForSend(net::ConnectionPtr connection) override {
       struct epoll_event event;
       event.events = EPOLLOUT | EPOLLONESHOT;
@@ -228,9 +224,15 @@ class TestServer: public net::EventLoop {
       }
       return true;
     }
+
+    virtual void RemoveConnection(net::fd_t fd) {
+      // Do nothing.
+    }
+
     virtual void DoListenWork(const volatile bool& is_shutting_down) override {
       // Test server doesn't do listening work.
     }
+
     virtual void DoIOWork(const volatile bool& is_shutting_down) override {
       const int MAX_EVENTS = 10;  // This should be enought in most cases.
       const int TIMEOUT = 1 * 1000;  // In milliseconds.
@@ -259,9 +261,6 @@ class TestServer: public net::EventLoop {
           }
         }
       }
-    }
-    virtual void DoClosingWork(const volatile bool& is_shutting_down) override {
-      // Test server doesn't do closing work.
     }
 
     int listen_fd_, server_fd_, epoll_fd_;
@@ -395,7 +394,7 @@ TEST_F(ConnectionTest, Sync_ReadIncompleteMessage) {
   std::this_thread::sleep_for(std::chrono::seconds(1));
   ASSERT_TRUE(server.WriteIncomplete(expected_message.SerializeAsString(),
                                      expected_message.ByteSize() / 2));
-  connection->Close();
+  // TODO: close connection.
   read_thread.join();
 }
 
@@ -403,7 +402,7 @@ TEST_F(ConnectionTest, Sync_ReadFromClosedConnection) {
   net::Connection::Message message;
   proto::Status status;
 
-  connection->Close();
+  // TODO: close connection.
   ASSERT_FALSE(connection->ReadSync(&message, &status));
   EXPECT_EQ(proto::Status::NETWORK, status.code());
   EXPECT_TRUE(status.has_description());
@@ -437,7 +436,7 @@ TEST_F(ConnectionTest, Sync_SendToClosedConnection) {
   auto& expected_message = message.GetTestMessage();
   proto::Status status;
 
-  connection->Close();
+  // TODO: close connection.
   ASSERT_FALSE(connection->SendSync(expected_message, &status));
   EXPECT_EQ(proto::Status::NETWORK, status.code());
   EXPECT_TRUE(status.has_description());

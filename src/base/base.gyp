@@ -18,6 +18,7 @@
         'process.cc',
         'process.h',
         'random.h',
+        'read_write_lock.h',
         'string_utils.h',
       ],
     },

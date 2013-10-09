@@ -158,13 +158,7 @@ ConnectionPtr NetworkService::ConnectSync(const std::string &path,
     return ConnectionPtr();
   }
 
-  auto connection =
-      static_cast<EpollEventLoop*>(event_loop_.get())->HandleActive(fd);
-  if (!connection) {
-    close(fd);
-  }
-
-  return connection;
+  return Connection::Create(*event_loop_, fd);
 }
 
 ConnectionPtr NetworkService::ConnectSync(const std::string &host,
@@ -199,13 +193,7 @@ ConnectionPtr NetworkService::ConnectSync(const std::string &host,
     return ConnectionPtr();
   }
 
-  auto connection =
-      static_cast<EpollEventLoop*>(event_loop_.get())->HandleActive(fd);
-  if (!connection) {
-    close(fd);
-  }
-
-  return connection;
+  return Connection::Create(*event_loop_, fd);
 }
 
 bool NetworkService::ConnectAsync(const std::string &host, unsigned short port,
@@ -244,13 +232,7 @@ bool NetworkService::ConnectAsync(const std::string &host, unsigned short port,
   }
   else if (res == 0) {
     MakeNonBlocking(fd, true);
-    auto connection =
-        static_cast<EpollEventLoop*>(event_loop_.get())->HandleActive(fd);
-    if (!connection) {
-      close(fd);
-      return false;
-    }
-    callback(connection, std::string());
+    callback(Connection::Create(*event_loop_, fd), std::string());
     return true;
   }
 
@@ -318,12 +300,7 @@ void NetworkService::DoConnectWork(const volatile bool &is_shutting_down) {
       }
       else {
         MakeNonBlocking(fd, true);
-        auto connection =
-            static_cast<EpollEventLoop*>(event_loop_.get())->HandleActive(fd);
-        if (!connection) {
-          close(fd);
-        }
-        callback(connection, std::string());
+        callback(Connection::Create(*event_loop_, fd), std::string());
       }
     }
   }

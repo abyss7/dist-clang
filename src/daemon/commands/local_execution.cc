@@ -70,9 +70,7 @@ void LocalExecution::Run() {
       proto::Status status;
       status.set_code(proto::Status::OK);
       status.set_description(cache_entry.second);
-      if (!connection_->SendAsync(status)) {
-        connection_->Close();
-      }
+      connection_->SendAsync(status);
       return;
     }
   }
@@ -122,9 +120,7 @@ void LocalExecution::DoneRemoteConnection(net::ConnectionPtr connection,
 void LocalExecution::DoLocalCompilation() {
   proto::Status status;
   if (!daemon_.FillFlags(message_.mutable_cc_flags(), &status)) {
-    if (!connection_->SendAsync(status, net::Connection::CloseAfterSend())) {
-      connection_->Close();
-    }
+    connection_->SendAsync(status);
     return;
   }
 
@@ -142,17 +138,13 @@ void LocalExecution::DoLocalCompilation() {
     UpdateCache(message);
   }
 
-  if (!connection_->SendAsync(message, net::Connection::CloseAfterSend())) {
-    connection_->Close();
-  }
+  connection_->SendAsync(message);
 }
 
 void LocalExecution::DeferLocalCompilation() {
   auto task =
       std::bind(&LocalExecution::DoLocalCompilation, shared_from_this());
-  if (!daemon_.pool()->Push(task)) {
-    connection_->Close();
-  }
+  daemon_.pool()->Push(task);
 }
 
 bool LocalExecution::DoRemoteCompilation(net::ConnectionPtr connection,
@@ -200,9 +192,7 @@ bool LocalExecution::DoneRemoteCompilation(net::ConnectionPtr /* connection */,
       std::cout << "Remote compilation successful: "
                 << message_.cc_flags().input() << std::endl;
       UpdateCache(status);
-      if (!connection_->SendAsync(status, net::Connection::CloseAfterSend())) {
-        connection_->Close();
-      }
+      connection_->SendAsync(status);
       return false;
     }
   }

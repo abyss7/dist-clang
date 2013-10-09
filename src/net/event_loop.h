@@ -18,6 +18,7 @@ class EventLoop {
 
     virtual bool ReadyForRead(ConnectionPtr connection) = 0;
     virtual bool ReadyForSend(ConnectionPtr connection) = 0;
+    virtual void RemoveConnection(fd_t fd) = 0;
 
     bool Run() THREAD_SAFE;
     void Stop() THREAD_SAFE;
@@ -26,13 +27,11 @@ class EventLoop {
     inline int GetConnectionDescriptor(const ConnectionPtr connection) const;
     inline void ConnectionDoRead(ConnectionPtr connection);
     inline void ConnectionDoSend(ConnectionPtr connection);
-    inline bool ConnectionToggleWait(ConnectionPtr connection, bool new_wait);
     inline bool ConnectionAdd(ConnectionPtr connection);
 
   private:
     virtual void DoListenWork(const volatile bool& is_shutting_down) = 0;
     virtual void DoIOWork(const volatile bool& is_shutting_down) = 0;
-    virtual void DoClosingWork(const volatile bool& is_shutting_down) = 0;
 
     std::atomic<int> is_running_;
     size_t concurrency_;
@@ -49,10 +48,6 @@ void EventLoop::ConnectionDoRead(ConnectionPtr connection) {
 
 void EventLoop::ConnectionDoSend(ConnectionPtr connection) {
   connection->DoSend();
-}
-
-bool EventLoop::ConnectionToggleWait(ConnectionPtr connection, bool new_wait) {
-  return connection->ToggleWait(new_wait);
 }
 
 bool EventLoop::ConnectionAdd(ConnectionPtr connection) {
