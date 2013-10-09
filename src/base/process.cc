@@ -184,11 +184,13 @@ bool Process::Run(unsigned short sec_timeout, std::string* error) {
     stdout_.reserve(stdout_size);
     for (const auto& piece: stdout) {
       stdout_.append(std::string(piece.first, piece.second));
+      delete[] piece.first;
     }
 
     stderr_.reserve(stderr_size);
     for (const auto& piece: stderr) {
       stderr_.append(std::string(piece.first, piece.second));
+      delete[] piece.first;
     }
 
     int status;
