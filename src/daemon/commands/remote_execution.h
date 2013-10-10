@@ -1,5 +1,6 @@
 #pragma once
 
+#include "base/chronometer.h"
 #include "daemon/command.h"
 #include "daemon/file_cache.h"       // for |FileCache::Entry|
 #include "net/connection_forward.h"
@@ -33,6 +34,7 @@ class RemoteExecution: public Command {
     net::ConnectionPtr connection_;
     proto::RemoteExecute message_;
     Daemon& daemon_;
+    base::Chronometer timer_;
 };
 
 }  // namespace command

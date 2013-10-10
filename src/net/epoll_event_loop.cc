@@ -114,8 +114,13 @@ void EpollEventLoop::DoIOWork(const volatile bool& is_shutting_down) {
   sigdelset(&signal_set, WorkerPool::interrupt_signal);
   while(!is_shutting_down) {
     auto events_count = epoll_pwait(io_fd_, &event, 1, -1, &signal_set);
-    if (events_count == -1 && errno != EINTR) {
-      break;
+    if (events_count == -1) {
+      if (errno != EINTR) {
+        break;
+      }
+      else {
+        continue;
+      }
     }
 
     net::ConnectionPtr connection;

@@ -147,9 +147,6 @@ void Connection::DoRead() {
   if (!read_callback_(message_, status)) {
     Close();
   }
-  else {
-    read_callback_ = BindedReadCallback();
-  }
 }
 
 void Connection::DoSend() {
@@ -158,17 +155,14 @@ void Connection::DoSend() {
   if (!send_callback_(status)) {
     Close();
   }
-  else {
-    send_callback_ = BindedSendCallback();
-  }
 }
 
 void Connection::Close() {
   bool old_closed = false;
   if (is_closed_.compare_exchange_strong(old_closed, true)) {
+    event_loop_.RemoveConnection(fd_);
     read_callback_ = BindedReadCallback();
     send_callback_ = BindedSendCallback();
-    event_loop_.RemoveConnection(fd_);
     close(fd_);
   }
 }

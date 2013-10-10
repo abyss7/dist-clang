@@ -20,7 +20,8 @@ CommandPtr RemoteExecution::Create(net::ConnectionPtr connection,
 RemoteExecution::RemoteExecution(net::ConnectionPtr connection,
                                  const proto::RemoteExecute& message,
                                  Daemon& daemon)
-  : connection_(connection), message_(message), daemon_(daemon) {
+  : connection_(connection), message_(message), daemon_(daemon),
+    timer_("RemoteExecution") {
 }
 
 void RemoteExecution::Run() {
@@ -52,19 +53,23 @@ void RemoteExecution::Run() {
   // Do local compilation. Pipe the input file to the compiler and read output
   // file from the compiler's stdout.
   base::Process process(message_.cc_flags());
-  if (!process.Run(30, message_.pp_source())) {
+  if (!process.Run(60, message_.pp_source())) {
     status.set_code(proto::Status::EXECUTION);
     status.set_description(process.stderr());
-    std::cerr << "Compilation failed with error:" << std::endl;
-    std::cerr << process.stderr();
-    std::cerr << "Arguments:";
-    for (const auto& flag: message_.cc_flags().other()) {
-      std::cerr << " " << flag;
+    if (!process.stderr().empty()) {
+      std::cerr << "Compilation failed with error:" << std::endl;
+      std::cerr << process.stderr();
+      std::cerr << "Arguments:";
+      for (const auto& flag: message_.cc_flags().other()) {
+        std::cerr << " " << flag;
+      }
+      std::cerr << std::endl << std::endl;
     }
-    std::cerr << std::endl << std::endl;
-  } else {
+  }
+  else {
     status.set_code(proto::Status::OK);
     status.set_description(process.stderr());
+    std::cout << "External compilation successful" << std::endl;
   }
 
   proto::Universal message;

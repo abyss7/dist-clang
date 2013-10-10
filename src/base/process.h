@@ -27,17 +27,20 @@ class Process {
     // |sec_timeout| specifies timeout in seconds - how long should we wait for
     // another portion of output from child process, and how long to wait
     // between SIG_KILL and SIG_TERM signals sent to process on error.
-    bool Run(unsigned short sec_timeout, std::string* error = nullptr);
-    bool Run(unsigned short sec_timeout, const std::string& input,
+    bool Run(unsigned sec_timeout, std::string* error = nullptr);
+    bool Run(unsigned sec_timeout, const std::string& input,
              std::string* error = nullptr);
 
     inline const std::string& stdout() const;
     inline const std::string& stderr() const;
 
   private:
+    void kill(int pid);
+
     const std::string exec_path_, cwd_path_;
     std::list<std::string> args_;
     std::string stdout_, stderr_;
+    bool killed_;
 };
 
 template<class ConstIterator>
