@@ -639,6 +639,18 @@ class Flags : public ::google::protobuf::Message {
   inline const ::google::protobuf::RepeatedPtrField< ::std::string>& dependenies() const;
   inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_dependenies();
 
+  // optional string language = 6;
+  inline bool has_language() const;
+  inline void clear_language();
+  static const int kLanguageFieldNumber = 6;
+  inline const ::std::string& language() const;
+  inline void set_language(const ::std::string& value);
+  inline void set_language(const char* value);
+  inline void set_language(const char* value, size_t size);
+  inline ::std::string* mutable_language();
+  inline ::std::string* release_language();
+  inline void set_allocated_language(::std::string* language);
+
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Flags)
  private:
   inline void set_has_compiler();
@@ -647,6 +659,8 @@ class Flags : public ::google::protobuf::Message {
   inline void clear_has_output();
   inline void set_has_input();
   inline void clear_has_input();
+  inline void set_has_language();
+  inline void clear_has_language();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -655,9 +669,10 @@ class Flags : public ::google::protobuf::Message {
   ::std::string* input_;
   ::google::protobuf::RepeatedPtrField< ::std::string> other_;
   ::google::protobuf::RepeatedPtrField< ::std::string> dependenies_;
+  ::std::string* language_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(5 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(6 + 31) / 32];
 
   friend void  protobuf_AddDesc_remote_2eproto();
   friend void protobuf_AssignDesc_remote_2eproto();
@@ -1723,6 +1738,76 @@ Flags::dependenies() const {
 inline ::google::protobuf::RepeatedPtrField< ::std::string>*
 Flags::mutable_dependenies() {
   return &dependenies_;
+}
+
+// optional string language = 6;
+inline bool Flags::has_language() const {
+  return (_has_bits_[0] & 0x00000020u) != 0;
+}
+inline void Flags::set_has_language() {
+  _has_bits_[0] |= 0x00000020u;
+}
+inline void Flags::clear_has_language() {
+  _has_bits_[0] &= ~0x00000020u;
+}
+inline void Flags::clear_language() {
+  if (language_ != &::google::protobuf::internal::kEmptyString) {
+    language_->clear();
+  }
+  clear_has_language();
+}
+inline const ::std::string& Flags::language() const {
+  return *language_;
+}
+inline void Flags::set_language(const ::std::string& value) {
+  set_has_language();
+  if (language_ == &::google::protobuf::internal::kEmptyString) {
+    language_ = new ::std::string;
+  }
+  language_->assign(value);
+}
+inline void Flags::set_language(const char* value) {
+  set_has_language();
+  if (language_ == &::google::protobuf::internal::kEmptyString) {
+    language_ = new ::std::string;
+  }
+  language_->assign(value);
+}
+inline void Flags::set_language(const char* value, size_t size) {
+  set_has_language();
+  if (language_ == &::google::protobuf::internal::kEmptyString) {
+    language_ = new ::std::string;
+  }
+  language_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* Flags::mutable_language() {
+  set_has_language();
+  if (language_ == &::google::protobuf::internal::kEmptyString) {
+    language_ = new ::std::string;
+  }
+  return language_;
+}
+inline ::std::string* Flags::release_language() {
+  clear_has_language();
+  if (language_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = language_;
+    language_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
+}
+inline void Flags::set_allocated_language(::std::string* language) {
+  if (language_ != &::google::protobuf::internal::kEmptyString) {
+    delete language_;
+  }
+  if (language) {
+    set_has_language();
+    language_ = language;
+  } else {
+    clear_has_language();
+    language_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
 }
 
 // -------------------------------------------------------------------

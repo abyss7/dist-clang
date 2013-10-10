@@ -43,11 +43,13 @@ message Status {
 }
 
 message Flags {
+
   required Compiler compiler  = 1;  // original compiler executable.
   optional string output      = 2;  // "-o" flag and it's param.
   optional string input       = 3;  // relative path in the last argument.
-  repeated string other       = 4;  // these flags form hash for a cache.
+  repeated string other       = 4;  // all unsorted flags.
   repeated string dependenies = 5;  // "-MMD", "-MF", etc.
+  optional string language    = 6;  // "-x" flag and it's param.
 }
 
 message LocalExecute {
