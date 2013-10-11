@@ -21,7 +21,7 @@ ConnectionPtr Connection::Create(EventLoop &event_loop, fd_t fd) {
 
 Connection::Connection(EventLoop& event_loop, fd_t fd)
   : fd_(fd), event_loop_(event_loop), is_closed_(false), added_(false),
-    file_input_stream_(fd_), file_output_stream_(fd_) {
+    file_input_stream_(fd_, 1024), file_output_stream_(fd_, 1024) {
 }
 
 Connection::~Connection() {
@@ -52,13 +52,13 @@ bool Connection::SendAsync(const CustomMessage &message,
 }
 
 // static
-Connection::SendCallback Connection::Idle() {
+Connection::SendCallback Connection::CloseAfterSend() {
   auto callback = [](ConnectionPtr, const Status& status) -> bool {
     if (status.code() != Status::OK) {
       std::cerr << "Failed to send message: " << status.description()
                 << std::endl;
     }
-    return true;
+    return false;
   };
   return std::bind(callback, _1, _2);
 }
@@ -99,6 +99,11 @@ bool Connection::ReadSync(Message *message, Status *status) {
     if (status) {
       status->set_code(Status::BAD_MESSAGE);
       status->set_description("Incoming message is malformed");
+      if (file_input_stream_.GetErrno()) {
+        status->mutable_description()->append(": ");
+        status->mutable_description()->append(
+          strerror(file_input_stream_.GetErrno()));
+      }
     }
     return false;
   }
@@ -122,7 +127,12 @@ bool Connection::SendSync(const CustomMessage &message, Status *status) {
     if (!message_.SerializeToCodedStream(&coded_stream)) {
       if (status) {
         status->set_code(Status::NETWORK);
-        status->set_description("Can't send whole message at once");
+        status->set_description("Can't serialize message to coded stream");
+        if (coded_stream.HadError()) {
+          auto* description = status->mutable_description();
+          description->append(": ");
+          description->append(strerror(file_output_stream_.GetErrno()));
+        }
       }
       return false;
     }
