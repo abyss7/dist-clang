@@ -75,10 +75,9 @@ inline Int StringToInt(const std::string& str) {
 
 template <typename Int>
 inline std::string IntToString(Int integer) {
-  std::string result;
-  std::stringstream ss(result);
+  std::stringstream ss;
   ss << integer;
-  return result;
+  return ss.str();
 }
 
 inline void Replace(std::string& input, const std::string& replacee,
