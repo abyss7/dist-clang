@@ -155,7 +155,9 @@ void Connection::DoRead() {
   Status status;
   ReadSync(&message_, &status);
   base::Assert(!!read_callback_);
-  if (!read_callback_(message_, status)) {
+  auto read_callback = read_callback_;
+  read_callback_ = BindedReadCallback();
+  if (!read_callback(message_, status)) {
     Close();
   }
 }
@@ -164,7 +166,9 @@ void Connection::DoSend() {
   Status status;
   SendSync(message_, &status);
   base::Assert(!!send_callback_);
-  if (!send_callback_(status)) {
+  auto send_callback = send_callback_;
+  send_callback_ = BindedSendCallback();
+  if (!send_callback(status)) {
     Close();
   }
 }
