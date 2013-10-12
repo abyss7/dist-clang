@@ -81,6 +81,9 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(StringList& flags,
         message->set_output(*it);
       }
     }
+    else if (flag == "-x") {
+      message->set_language(*(++it));
+    }
     else {
       message->add_other(flag);
     }

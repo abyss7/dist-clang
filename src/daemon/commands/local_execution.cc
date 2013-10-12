@@ -210,6 +210,9 @@ bool LocalExecution::SearchCache(FileCache::Entry* entry) {
   const auto& version = flags.compiler().version();
   std::string command_line = base::JoinString<' '>(flags.other().begin(),
                                                    flags.other().end());
+  if (flags.has_language()) {
+    command_line += " -x " + flags.language();
+  }
   return daemon_.cache()->Find(pp_source_, command_line, version, entry);
 }
 
@@ -226,6 +229,9 @@ void LocalExecution::UpdateCache(const proto::Status& status) {
   const auto& version = flags.compiler().version();
   std::string command_line = base::JoinString<' '>(flags.other().begin(),
                                                    flags.other().end());
+  if (flags.has_language()) {
+    command_line += " -x " + flags.language();
+  }
   daemon_.cache()->Store(pp_source_, command_line, version, entry);
 }
 

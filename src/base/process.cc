@@ -52,6 +52,9 @@ Process::Process(const proto::Flags &flags, const std::string &cwd_path)
   for (const auto& plugin: flags.compiler().plugins()) {
     AppendArg("-load").AppendArg(plugin.path());
   }
+  if (flags.has_language()) {
+    AppendArg("-x").AppendArg(flags.language());
+  }
   if (flags.has_output()) {
     AppendArg("-o").AppendArg(flags.output());
   }

@@ -50,6 +50,16 @@ void RemoteExecution::Run() {
   message_.mutable_cc_flags()->clear_input();
   message_.mutable_cc_flags()->clear_dependenies();
 
+  // Optimize compilation for preprocessed code for some languages.
+  if (message_.cc_flags().has_language()) {
+    if (message_.cc_flags().language() == "c") {
+      message_.mutable_cc_flags()->set_language("cpp-output");
+    }
+    else if (message_.cc_flags().language() == "c++") {
+      message_.mutable_cc_flags()->set_language("c++-cpp-output");
+    }
+  }
+
   // Do local compilation. Pipe the input file to the compiler and read output
   // file from the compiler's stdout.
   base::Process process(message_.cc_flags());
@@ -87,6 +97,9 @@ bool RemoteExecution::SearchCache(FileCache::Entry *entry) {
   const auto& version = flags.compiler().version();
   std::string command_line = base::JoinString<' '>(flags.other().begin(),
                                                    flags.other().end());
+  if (flags.has_language()) {
+    command_line += " -x " + flags.language();
+  }
   return
       daemon_.cache()->Find(message_.pp_source(), command_line, version, entry);
 }
