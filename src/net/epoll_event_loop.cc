@@ -36,13 +36,13 @@ bool EpollEventLoop::ReadyForRead(ConnectionPtr connection) {
   struct epoll_event event;
   event.events = EPOLLIN | EPOLLONESHOT;
   event.data.fd = fd;
+  base::WriteLock lock(connections_mutex_);
   if (epoll_ctl(io_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
     if (errno != ENOENT ||
         !ConnectionAdd(connection) ||
         epoll_ctl(io_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
       return false;
     }
-    base::WriteLock lock(connections_mutex_);
     connections_.insert(std::make_pair(fd, connection));
   }
   return true;
@@ -55,13 +55,13 @@ bool EpollEventLoop::ReadyForSend(ConnectionPtr connection) {
   struct epoll_event event;
   event.events = EPOLLOUT | EPOLLONESHOT;
   event.data.fd = fd;
+  base::WriteLock lock(connections_mutex_);
   if(epoll_ctl(io_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
     if (errno != ENOENT ||
         !ConnectionAdd(connection) ||
         epoll_ctl(io_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
       return false;
     }
-    base::WriteLock lock(connections_mutex_);
     connections_.insert(std::make_pair(fd, connection));
   }
   return true;

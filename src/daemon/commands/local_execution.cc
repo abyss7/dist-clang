@@ -49,6 +49,7 @@ void LocalExecution::Run() {
   // Redirect output to stdin in |pp_flags|.
   message_.mutable_pp_flags()->set_output("-");
 
+  // TODO: don't do preprocessing, if we don't have cache and any remotes.
   std::unique_ptr<base::Chronometer>
       process_timer(new base::Chronometer("Preprocessing", timer_));
   base::Process process(message_.pp_flags(), message_.current_dir());
