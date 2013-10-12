@@ -28,6 +28,10 @@ class ScopedDescriptor {
       return fd_;
     }
 
+    void Release() {
+      fd_ = -1;
+    }
+
   private:
     net::fd_t fd_;
 };
@@ -335,7 +339,7 @@ bool Process::Run(unsigned sec_timeout, const std::string &input,
 
       if (event_count == 0) {
         if (error) {
-          error->assign("No events occured on epoll_wait()");
+          error->assign("Time-out occured");
         }
         kill(child_pid);
         break;
@@ -359,7 +363,7 @@ bool Process::Run(unsigned sec_timeout, const std::string &input,
               stdout.push_back(std::make_pair(std::move(buffer), bytes_read));
               stdout_size += bytes_read;
             }
-            else {
+            else if (events[i].data.fd == err_fd) {
               stderr.push_back(std::make_pair(std::move(buffer), bytes_read));
               stderr_size += bytes_read;
             }
@@ -370,7 +374,6 @@ bool Process::Run(unsigned sec_timeout, const std::string &input,
 
           auto bytes_sent = write(events[i].data.fd, input.data() + stdin_size,
                                   input.size() - stdin_size);
-          fsync(events[i].data.fd);
           if (!bytes_sent) {
             epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, nullptr);
             exhausted_fds++;
@@ -384,6 +387,7 @@ bool Process::Run(unsigned sec_timeout, const std::string &input,
             stdin_size += bytes_sent;
             if (stdin_size == input.size()) {
               epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, nullptr);
+              in_fd.Release();
               close(events[i].data.fd);
               exhausted_fds++;
             }
