@@ -154,6 +154,7 @@ bool Connection::SendSync(const CustomMessage &message, Status *status) {
 void Connection::DoRead() {
   Status status;
   ReadSync(&message_, &status);
+  base::Assert(!!read_callback_);
   if (!read_callback_(message_, status)) {
     Close();
   }
@@ -162,6 +163,7 @@ void Connection::DoRead() {
 void Connection::DoSend() {
   Status status;
   SendSync(message_, &status);
+  base::Assert(!!send_callback_);
   if (!send_callback_(status)) {
     Close();
   }
@@ -173,6 +175,7 @@ void Connection::Close() {
     event_loop_.RemoveConnection(fd_);
     read_callback_ = BindedReadCallback();
     send_callback_ = BindedSendCallback();
+    // TODO: do the "polite" shutdown.
     close(fd_);
   }
 }
