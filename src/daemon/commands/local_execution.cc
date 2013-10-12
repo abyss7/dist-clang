@@ -144,7 +144,12 @@ void LocalExecution::DoLocalCompilation() {
 void LocalExecution::DeferLocalCompilation() {
   auto task =
       std::bind(&LocalExecution::DoLocalCompilation, shared_from_this());
-  daemon_.pool()->Push(task);
+  if (!daemon_.pool()->Push(task)) {
+    proto::Status status;
+    status.set_code(proto::Status::OVERLOAD);
+    status.set_description("Queue is full");
+    connection_->SendAsync(status);
+  }
 }
 
 bool LocalExecution::DoRemoteCompilation(net::ConnectionPtr connection,
