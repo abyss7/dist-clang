@@ -14,13 +14,14 @@ namespace net {
 
 // static
 ConnectionPtr Connection::Create(EventLoop &event_loop, fd_t fd,
-                                 EndPointPtr end_point) {
+                                 const EndPointPtr& end_point) {
   base::Assert(!IsListening(fd));
   base::Assert(!IsNonBlocking(fd));
   return ConnectionPtr(new Connection(event_loop, fd, end_point));
 }
 
-Connection::Connection(EventLoop& event_loop, fd_t fd, EndPointPtr end_point)
+Connection::Connection(EventLoop& event_loop, fd_t fd,
+                       const EndPointPtr& end_point)
   : fd_(fd), event_loop_(event_loop), is_closed_(false), added_(false),
     end_point_(end_point), file_input_stream_(fd_, 1024),
     file_output_stream_(fd_, 1024) {

@@ -45,11 +45,13 @@ class NetworkService {
         EndPointPtr end_point,
         std::string* error = nullptr) THREAD_SAFE;
     bool ConnectAsync(
-        EndPointPtr end_point,
+        const EndPointPtr& end_point,
         ConnectCallback callback,
         std::string* error = nullptr) THREAD_SAFE;
 
   private:
+    using CallbackPair = std::pair<ConnectCallback, EndPointPtr>;
+
     // |fd| is a descriptor of a listening socket, which accepts new connection.
     void HandleNewConnection(fd_t fd, ConnectionPtr connection);
     void DoConnectWork(const volatile bool& is_shutting_down);
@@ -60,7 +62,7 @@ class NetworkService {
 
     size_t concurrency_;
     std::mutex connect_mutex_;
-    std::unordered_map<fd_t, ConnectCallback> connect_callbacks_;
+    std::unordered_map<fd_t, CallbackPair> connect_callbacks_;
     std::unique_ptr<WorkerPool> pool_;
 };
 

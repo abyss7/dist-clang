@@ -13,7 +13,8 @@
 #include <sys/types.h>
 #include <sys/un.h>
 
-using namespace std::placeholders;
+using ::std::string;
+using namespace ::std::placeholders;
 
 namespace dist_clang {
 namespace net {
@@ -43,9 +44,8 @@ NetworkService::~NetworkService() {
   close(epoll_fd_);
 }
 
-bool NetworkService::Listen(const std::string& path,
-                            ListenCallback callback,
-                            std::string* error) {
+bool NetworkService::Listen(const string& path, ListenCallback callback,
+                            string* error) {
   sockaddr_un address;
   address.sun_family = AF_UNIX;
   strcpy(address.sun_path, path.c_str());
@@ -83,9 +83,8 @@ bool NetworkService::Listen(const std::string& path,
   return true;
 }
 
-bool NetworkService::Listen(const std::string &host, unsigned short port,
-                            ListenCallback callback,
-                            std::string* error) {
+bool NetworkService::Listen(const string &host, unsigned short port,
+                            ListenCallback callback, string* error) {
   struct hostent* host_entry;
   struct in_addr** address_list;
 
@@ -141,8 +140,7 @@ bool NetworkService::Listen(const std::string &host, unsigned short port,
   return true;
 }
 
-ConnectionPtr NetworkService::ConnectSync(const std::string &path,
-                                      std::string *error) {
+ConnectionPtr NetworkService::ConnectSync(const string &path, string *error) {
   sockaddr_un address;
   address.sun_family = AF_UNIX;
   strcpy(address.sun_path, path.c_str());
@@ -163,7 +161,7 @@ ConnectionPtr NetworkService::ConnectSync(const std::string &path,
 }
 
 ConnectionPtr NetworkService::ConnectSync(EndPointPtr end_point,
-                                      std::string *error) {
+                                          string *error) {
   auto fd = socket(AF_INET, SOCK_STREAM|SOCK_CLOEXEC, 0);
   if (fd == -1) {
     base::GetLastError(error);
@@ -179,9 +177,8 @@ ConnectionPtr NetworkService::ConnectSync(EndPointPtr end_point,
   return Connection::Create(*event_loop_, fd, end_point);
 }
 
-bool NetworkService::ConnectAsync(EndPointPtr end_point,
-                                  ConnectCallback callback,
-                                  std::string *error) {
+bool NetworkService::ConnectAsync(const EndPointPtr& end_point,
+                                  ConnectCallback callback, string *error) {
   auto fd = socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
   if (fd == -1) {
     base::GetLastError(error);
@@ -198,7 +195,7 @@ bool NetworkService::ConnectAsync(EndPointPtr end_point,
   }
   else if (res == 0) {
     MakeNonBlocking(fd, true);
-    callback(Connection::Create(*event_loop_, fd, end_point), std::string());
+    callback(Connection::Create(*event_loop_, fd, end_point), string());
     return true;
   }
 
@@ -211,7 +208,8 @@ bool NetworkService::ConnectAsync(EndPointPtr end_point,
     close(fd);
     return false;
   }
-  connect_callbacks_.insert(std::make_pair(fd, callback));
+  auto new_callback = std::make_pair(fd, std::make_pair(callback, end_point));
+  connect_callbacks_.insert(new_callback);
 
   return true;
 }
@@ -242,31 +240,33 @@ void NetworkService::DoConnectWork(const volatile bool &is_shutting_down) {
       base::Assert(events[i].events & EPOLLOUT);
       fd_t fd = events[i].data.fd;
       ConnectCallback callback;
+      EndPointPtr end_point;
       {
         std::lock_guard<std::mutex> lock(connect_mutex_);
         auto it = connect_callbacks_.find(fd);
         base::Assert(it != connect_callbacks_.end());
-        callback = it->second;
+        callback = it->second.first;
+        end_point = it->second.second;
         connect_callbacks_.erase(it);
       }
 
       base::Assert(!epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr));
       if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &error_size) == -1) {
-        std::string error;
+        string error;
         base::GetLastError(&error);
         callback(ConnectionPtr(), error);
         close(fd);
       }
       else if (error) {
         errno = error;
-        std::string error;
+        string error;
         base::GetLastError(&error);
         callback(ConnectionPtr(), error);
         close(fd);
       }
       else {
         MakeNonBlocking(fd, true);
-        callback(Connection::Create(*event_loop_, fd), std::string());
+        callback(Connection::Create(*event_loop_, fd, end_point), string());
       }
     }
   }

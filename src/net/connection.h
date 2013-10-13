@@ -37,7 +37,7 @@ class Connection: public std::enable_shared_from_this<Connection> {
     // Create connection only on an active socket -
     // i.e. after connect() or accept().
     static ConnectionPtr Create(EventLoop& event_loop, fd_t fd,
-                                EndPointPtr end_point = EndPointPtr());
+                                const EndPointPtr& end_point = EndPointPtr());
     ~Connection();
 
     bool ReadAsync(ReadCallback callback);
@@ -58,7 +58,7 @@ class Connection: public std::enable_shared_from_this<Connection> {
 
     enum State { IDLE, WAITING_SEND, WAITING_READ, SENDING, READING };
 
-    Connection(EventLoop& event_loop, fd_t fd, EndPointPtr end_point);
+    Connection(EventLoop& event_loop, fd_t fd, const EndPointPtr& end_point);
 
     void DoRead();
     void DoSend();
