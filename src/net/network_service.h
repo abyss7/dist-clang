@@ -33,19 +33,21 @@ class NetworkService {
         ListenCallback callback,
         std::string* error = nullptr) THREAD_UNSAFE;
     bool Listen(
-        const std::string& host, unsigned short port,
+        const std::string& host,
+        unsigned short port,
         ListenCallback callback,
         std::string* error = nullptr) THREAD_UNSAFE;
+
     ConnectionPtr ConnectSync(
         const std::string& path,
         std::string* error = nullptr) THREAD_SAFE;
     ConnectionPtr ConnectSync(
-        const std::string& host, unsigned short port,
+        EndPointPtr end_point,
         std::string* error = nullptr) THREAD_SAFE;
     bool ConnectAsync(
-        const std::string& host, unsigned short port,
+        EndPointPtr end_point,
         ConnectCallback callback,
-        std::string* error = nullptr);
+        std::string* error = nullptr) THREAD_SAFE;
 
   private:
     // |fd| is a descriptor of a listening socket, which accepts new connection.

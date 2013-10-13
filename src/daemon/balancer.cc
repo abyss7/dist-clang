@@ -1,6 +1,7 @@
 #include "daemon/balancer.h"
 
 #include "base/random.h"
+#include "net/base/end_point.h"
 #include "net/connection.h"
 #include "net/network_service.h"
 
@@ -17,7 +18,10 @@ Balancer::Balancer(net::NetworkService& network_service)
 }
 
 void Balancer::AddRemote(const proto::Host& remote) {
-  remotes_.insert(remote);
+  auto end_point = net::EndPoint::TcpHost(remote.host(), remote.port());
+  if (end_point) {
+    remotes_.insert(std::make_pair(remote, end_point));
+  }
 }
 
 bool Balancer::Decide(const ConnectCallback& callback, std::string* error) {
@@ -28,7 +32,7 @@ bool Balancer::Decide(const ConnectCallback& callback, std::string* error) {
 
   auto remote = remotes_.cbegin();
   std::advance(remote, remote_index);
-  if (!service_.ConnectAsync(remote->host(), remote->port(), callback, error)) {
+  if (!service_.ConnectAsync(remote->second, callback, error)) {
     return false;
   }
 

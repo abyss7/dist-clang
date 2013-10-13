@@ -5,7 +5,7 @@
 #include "proto/config.pb.h"
 
 #include <atomic>
-#include <unordered_set>
+#include <unordered_map>
 
 namespace std {
 
@@ -54,10 +54,12 @@ class Balancer {
     bool Decide(const ConnectCallback& callback, std::string* error = nullptr);
 
   private:
+    using RemoteMap = std::unordered_map<proto::Host, net::EndPointPtr>;
+
     static std::atomic<size_t> index_;
 
     net::NetworkService& service_;
-    std::unordered_set<proto::Host> remotes_;
+    RemoteMap remotes_;
 };
 
 }  // namespace daemon

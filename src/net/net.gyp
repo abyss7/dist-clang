@@ -10,6 +10,8 @@
         '../proto/proto.gyp:proto',
       ],
       'sources': [
+        'base/end_point.cc',
+        'base/end_point.h',
         'base/types.h',
         'base/utils.h',
         'base/worker_pool.cc',
