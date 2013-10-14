@@ -1,7 +1,7 @@
 {
   'target_defaults': {
     'cflags': [
-      '--std=c++11',
+      '-std=c++11',
       '-pipe',
       '-pthread',
       '-fno-exceptions',
@@ -13,6 +13,18 @@
     'ldflags': [
       '-ltcmalloc',
     ],
+    'xcode_settings': {
+      'OTHER_CFLAGS': [
+        '-std=c++11',
+        '-stdlib=libc++',
+        '-pipe',
+        '-pthread',
+        '-fno-exceptions',
+        '-Wall',
+        '-Wsign-compare',
+        '-Werror',
+      ],
+    },
     'configurations': {
       'Debug': {
         'cflags': [
@@ -22,6 +34,12 @@
         'ldflags': [
           '-rdynamic',  # for backtrace().
         ],
+        'xcode_settings': {
+          'OTHER_CFLAGS': [
+            '-g',
+            '-O0',
+          ],
+        },
       },
       'Release': {
         'cflags': [
@@ -31,6 +49,12 @@
         'defines': [
           'NDEBUG',
         ],
+        'xcode_settings': {
+          'OTHER_CFLAGS': [
+            '-fomit-frame-pointer',
+            '-O2',
+          ],
+        },
       },
     },
     'default_configuration': 'Debug',

@@ -10,6 +10,11 @@
         'cflags!': [
           '-fno-exceptions',  # TCLAP uses exceptions.
         ],
+        'xcode_settings': {
+          'OTHER_CFLAGS!': [
+            '-fno-exceptions',
+          ],
+        },
       },
       'sources': [
         'Arg.h',

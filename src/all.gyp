@@ -27,7 +27,6 @@
       'dependencies': [
         'client/clang.gyp:clang',
         'daemon/clangd.gyp:clangd',
-        'unit_tests',
       ],
     },
   ],
