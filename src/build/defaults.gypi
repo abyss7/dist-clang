@@ -63,5 +63,20 @@
     'include_dirs': [
       '..',
     ],
+    'sources/': [
+      ['exclude', '_(linux|mac)\\.cc$'],
+    ],
+    'conditions': [
+      ['OS=="linux"', {
+        'sources/': [
+          ['include', '_linux\\.cc$'],
+        ],
+      }],
+      ['OS=="mac"', {
+        'sources/': [
+          ['include', '_mac\\.cc$'],
+        ],
+      }],
+    ],
   },
 }
