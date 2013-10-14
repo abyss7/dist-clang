@@ -33,7 +33,8 @@ bool Balancer::Decide(const ConnectCallback& callback, std::string* error) {
 
     auto remote = remotes_.cbegin();
     std::advance(remote, remote_index);
-    if (remote->second.use_count() > remote->first.threads()) {
+    if (static_cast<unsigned long>(remote->second.use_count()) >
+        remote->first.threads()) {
       continue;
     }
     if (!service_.ConnectAsync(remote->second, callback, error)) {
