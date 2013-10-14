@@ -2,20 +2,16 @@
 
 #include "base/assert.h"
 #include "base/string_utils.h"
+#include "base/time.h"
 
 #include <iostream>
-
-#include <time.h>
 
 namespace dist_clang {
 namespace base {
 
 Chronometer::Chronometer(const std::string &label)
-  : label_(label), error_(false), parent_(nullptr), intervals_(MAX_INTERVALS),
-    interval_index_(0) {
-  if (clock_gettime(CLOCK_MONOTONIC, &start_time_) == -1) {
-    error_ = true;
-  }
+  : label_(label), error_(GetAbsoluteTime(start_time_)), parent_(nullptr),
+    intervals_(MAX_INTERVALS), interval_index_(0) {
 }
 
 Chronometer::Chronometer(const std::string &label, Chronometer& parent)
@@ -26,9 +22,7 @@ Chronometer::Chronometer(const std::string &label, Chronometer& parent)
 
 Chronometer::~Chronometer() {
   struct timespec end_time;
-  if (clock_gettime(CLOCK_MONOTONIC, &end_time) == -1) {
-    error_ = true;
-  }
+  error_ = GetAbsoluteTime(end_time);
   if (!error_) {
     unsigned long diff = (end_time.tv_nsec - start_time_.tv_nsec) / 1000000;
     diff += 1000 * (end_time.tv_sec - start_time_.tv_sec);

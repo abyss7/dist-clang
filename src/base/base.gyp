@@ -20,6 +20,9 @@
         'random.h',
         'read_write_lock.h',
         'string_utils.h',
+        'time.h',
+        'time_linux.cc',
+        'time_mac.cc',
       ],
     },
     {

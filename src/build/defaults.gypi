@@ -14,15 +14,17 @@
       '-ltcmalloc',
     ],
     'xcode_settings': {
-      'OTHER_CFLAGS': [
-        '-std=c++11',
-        '-stdlib=libc++',
-        '-pipe',
-        '-pthread',
-        '-fno-exceptions',
+      'CLANG_CXX_LANGUAGE_STANDARD': 'c++11',
+      'CLANG_CXX_LIBRARY': 'libc++',
+      'WARNING_CFLAGS': [
         '-Wall',
         '-Wsign-compare',
         '-Werror',
+      ],
+      'OTHER_CFLAGS': [
+        '-pipe',
+        '-pthread',
+        '-fno-exceptions',
       ],
     },
     'configurations': {

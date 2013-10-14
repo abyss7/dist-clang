@@ -1,5 +1,7 @@
 #include "net/base/end_point.h"
 
+#include <string>
+
 #include <netdb.h>
 
 namespace dist_clang {
