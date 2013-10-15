@@ -23,6 +23,7 @@
         'event_loop.h',
         'network_service.cc',
         'network_service.h',
+        'network_service_linux.cc',
       ],
       'conditions': [
         ['OS=="linux"', {

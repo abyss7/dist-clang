@@ -16,6 +16,7 @@ class EventLoop {
         size_t concurrency = std::thread::hardware_concurrency());
     virtual ~EventLoop();
 
+    virtual bool HandlePassive(fd_t fd) = 0;
     virtual bool ReadyForRead(ConnectionPtr connection) = 0;
     virtual bool ReadyForSend(ConnectionPtr connection) = 0;
     virtual void RemoveConnection(fd_t fd) = 0;

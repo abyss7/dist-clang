@@ -20,8 +20,7 @@ class EpollEventLoop: public EventLoop {
     EpollEventLoop(ConnectionCallback callback);
     ~EpollEventLoop();
 
-    bool HandlePassive(fd_t fd) THREAD_UNSAFE;
-
+    virtual bool HandlePassive(fd_t fd) THREAD_UNSAFE override;
     virtual bool ReadyForRead(ConnectionPtr connection) THREAD_SAFE override;
     virtual bool ReadyForSend(ConnectionPtr connection) THREAD_SAFE override;
     virtual void RemoveConnection(fd_t fd) override;
