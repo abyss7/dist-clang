@@ -10,6 +10,11 @@
         'ldflags': [
          '-lprotobuf',
         ],
+        'xcode_settings': {
+          'OTHER_LDFLAGS': [
+            '-lprotobuf',
+          ],
+        },
       },
       'sources': [
         'base.pb.cc',

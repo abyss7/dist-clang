@@ -15,6 +15,12 @@
         '-lgtest',
         '-lprotobuf',
       ],
+      'xcode_settings': {
+        'OTHER_LDFLAGS': [
+          '-lgtest',
+          '-lprotobuf',
+        ],
+      },
       'sources': [
         'base/process_test.cc',
         'net/connection_test.cc',
