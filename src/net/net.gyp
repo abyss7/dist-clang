@@ -19,12 +19,18 @@
         'connection.cc',
         'connection.h',
         'connection_forward.h',
-        'epoll_event_loop.cc',
-        'epoll_event_loop.h',
         'event_loop.cc',
         'event_loop.h',
         'network_service.cc',
         'network_service.h',
+      ],
+      'conditions': [
+        ['OS=="linux"', {
+          'sources': [
+            'epoll_event_loop.cc',
+            'epoll_event_loop.h',
+          ],
+        }],
       ],
     },
   ],
