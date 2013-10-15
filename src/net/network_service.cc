@@ -3,6 +3,7 @@
 #include "base/assert.h"
 #include "base/c_utils.h"
 #include "net/base/end_point.h"
+#include "net/base/utils.h"
 
 #include <netdb.h>
 #include <netinet/in.h>
@@ -31,11 +32,13 @@ bool NetworkService::Listen(const string& path, ListenCallback callback,
   strcpy(address.sun_path, path.c_str());
   unlink(path.c_str());
 
-  auto fd = socket(AF_UNIX, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
+  auto fd = socket(AF_UNIX, SOCK_STREAM, 0);
   if (fd == -1) {
     base::GetLastError(error);
     return false;
   }
+  MakeCloseOnExec(fd);
+  MakeNonBlocking(fd);
 
   auto socket_address = reinterpret_cast<sockaddr*>(&address);
   if (bind(fd, socket_address, sizeof(address)) == -1) {
@@ -81,11 +84,13 @@ bool NetworkService::Listen(const string &host, unsigned short port,
   address.sin_addr.s_addr = address_list[0]->s_addr;
   address.sin_port = htons(port);
 
-  auto fd = socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
+  auto fd = socket(AF_INET, SOCK_STREAM, 0);
   if (fd == -1) {
     base::GetLastError(error);
     return false;
   }
+  MakeCloseOnExec(fd);
+  MakeNonBlocking(fd);
 
   int on = 1;
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1) {
@@ -125,11 +130,13 @@ ConnectionPtr NetworkService::ConnectSync(const string &path, string *error) {
   address.sun_family = AF_UNIX;
   strcpy(address.sun_path, path.c_str());
 
-  auto fd = socket(AF_UNIX, SOCK_STREAM|SOCK_CLOEXEC, 0);
+  auto fd = socket(AF_UNIX, SOCK_STREAM, 0);
   if (fd == -1) {
     base::GetLastError(error);
     return ConnectionPtr();
   }
+  MakeCloseOnExec(fd);
+
   if (connect(fd, reinterpret_cast<sockaddr*>(&address),
               sizeof(address)) == -1) {
     base::GetLastError(error);
@@ -142,11 +149,12 @@ ConnectionPtr NetworkService::ConnectSync(const string &path, string *error) {
 
 ConnectionPtr NetworkService::ConnectSync(EndPointPtr end_point,
                                           string *error) {
-  auto fd = socket(AF_INET, SOCK_STREAM|SOCK_CLOEXEC, 0);
+  auto fd = socket(AF_INET, SOCK_STREAM, 0);
   if (fd == -1) {
     base::GetLastError(error);
     return ConnectionPtr();
   }
+  MakeCloseOnExec(fd);
 
   if (connect(fd, *end_point, end_point->size()) == -1) {
     base::GetLastError(error);
