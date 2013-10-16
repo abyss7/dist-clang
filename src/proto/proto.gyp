@@ -6,15 +6,11 @@
     {
       'target_name': 'proto',
       'type': 'static_library',
+      'dependencies': [
+        '../third_party/protobuf/protobuf.gyp:protobuf',
+      ],
       'direct_dependent_settings': {
-        'ldflags': [
-         '-lprotobuf',
-        ],
-        'xcode_settings': {
-          'OTHER_LDFLAGS': [
-            '-lprotobuf',
-          ],
-        },
+
       },
       'sources': [
         'base.pb.cc',
