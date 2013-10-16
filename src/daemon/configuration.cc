@@ -2,7 +2,7 @@
 
 #include "base/constants.h"
 #include "base/string_utils.h"
-#include "tclap/CmdLine.h"
+#include "third_party/tclap/CmdLine.h"
 
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/text_format.h>

@@ -12,7 +12,7 @@
         '../base/base.gyp:hash',
         '../net/net.gyp:net',
         '../proto/proto.gyp:proto',
-        '../tclap/tclap.gyp:tclap',
+        '../third_party/tclap/tclap.gyp:tclap',
       ],
       'sources': [
         'balancer.cc',

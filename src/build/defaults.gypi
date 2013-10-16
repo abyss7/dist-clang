@@ -14,6 +14,7 @@
       '-ltcmalloc',
     ],
     'xcode_settings': {
+      'ARCHS': ['x86_64'],
       'CLANG_CXX_LANGUAGE_STANDARD': 'c++11',
       'CLANG_CXX_LIBRARY': 'libc++',
       'WARNING_CFLAGS': [

@@ -1,6 +1,6 @@
 {
   'includes': [
-    '../build/defaults.gypi',
+    '../../build/defaults.gypi',
   ],
   'targets': [
     {
@@ -9,6 +9,9 @@
       'direct_dependent_settings': {
         'cflags!': [
           '-fno-exceptions',  # TCLAP uses exceptions.
+        ],
+        'include_dirs': [
+          '..',
         ],
         'xcode_settings': {
           'OTHER_CFLAGS!': [
