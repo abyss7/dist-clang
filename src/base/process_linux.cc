@@ -102,7 +102,21 @@ bool Process::Run(unsigned sec_timeout, std::string* error) {
       auto event_count =
           epoll_wait(epoll_fd, events, MAX_EVENTS, sec_timeout * 1000);
 
+      if (event_count == -1) {
+        if (errno == EINTR) {
+          continue;
+        }
+        else {
+          GetLastError(error);
+          ::kill(child_pid, SIGTERM);
+          return false;
+        }
+      }
+
       if (event_count == 0) {
+        if (error) {
+          error->assign("Time-out occured");
+        }
         kill(child_pid);
         break;
       }
@@ -282,6 +296,17 @@ bool Process::Run(unsigned sec_timeout, const std::string &input,
     while(exhausted_fds < 3 && !killed_) {
       auto event_count =
           epoll_wait(epoll_fd, events, MAX_EVENTS, sec_timeout * 1000);
+
+      if (event_count == -1) {
+        if (errno == EINTR) {
+          continue;
+        }
+        else {
+          GetLastError(error);
+          ::kill(child_pid, SIGTERM);
+          return false;
+        }
+      }
 
       if (event_count == 0) {
         if (error) {
