@@ -3,9 +3,30 @@
 #include "proto/remote.pb.h"
 
 #include <signal.h>
+#include <unistd.h>
 
 namespace dist_clang {
 namespace base {
+
+Process::ScopedDescriptor::ScopedDescriptor(net::fd_t fd)
+  : fd_(fd) {
+}
+
+Process::ScopedDescriptor::~ScopedDescriptor() {
+  if (fd_ >= 0) {
+    close(fd_);
+  }
+}
+
+Process::ScopedDescriptor::operator net::fd_t () {
+  return fd_;
+}
+
+net::fd_t Process::ScopedDescriptor::Release() {
+  auto old_fd = fd_;
+  fd_ = -1;
+  return old_fd;
+}
 
 Process::Process(const std::string& exec_path, const std::string& cwd_path)
   : exec_path_(exec_path), cwd_path_(cwd_path), killed_(false) {

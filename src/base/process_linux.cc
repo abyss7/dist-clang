@@ -2,41 +2,13 @@
 
 #include "base/assert.h"
 #include "base/c_utils.h"
-#include "net/base/types.h"
 
 #include <memory>
 
 #include <sys/epoll.h>
 #include <sys/wait.h>
-#include <unistd.h>
 
 namespace dist_clang {
-
-namespace {
-
-class ScopedDescriptor {
-  public:
-    ScopedDescriptor(net::fd_t fd) : fd_(fd) {}
-    ~ScopedDescriptor() {
-      if (fd_ >= 0) {
-        close(fd_);
-      }
-    }
-
-    operator net::fd_t () {
-      return fd_;
-    }
-
-    void Release() {
-      fd_ = -1;
-    }
-
-  private:
-    net::fd_t fd_;
-};
-
-}  // namespace
-
 namespace base {
 
 bool Process::Run(unsigned sec_timeout, std::string* error) {
@@ -346,10 +318,10 @@ bool Process::Run(unsigned sec_timeout, const std::string &input,
         else if (events[i].events & EPOLLOUT) {
           base::Assert(events[i].data.fd == in_fd);
 
-          auto bytes_sent = write(events[i].data.fd, input.data() + stdin_size,
+          auto bytes_sent = write(in_fd, input.data() + stdin_size,
                                   input.size() - stdin_size);
           if (!bytes_sent) {
-            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, nullptr);
+            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, in_fd, nullptr);
             exhausted_fds++;
           }
           else if (bytes_sent == -1) {
@@ -360,9 +332,8 @@ bool Process::Run(unsigned sec_timeout, const std::string &input,
           else {
             stdin_size += bytes_sent;
             if (stdin_size == input.size()) {
-              epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, nullptr);
-              in_fd.Release();
-              close(events[i].data.fd);
+              epoll_ctl(epoll_fd, EPOLL_CTL_DEL, in_fd, nullptr);
+              close(in_fd.Release());
               exhausted_fds++;
             }
           }

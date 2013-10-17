@@ -1,5 +1,7 @@
 #pragma once
 
+#include "net/base/types.h"
+
 #include <list>
 #include <string>
 
@@ -35,6 +37,18 @@ class Process {
     inline const std::string& stderr() const;
 
   private:
+    class ScopedDescriptor {
+      public:
+        ScopedDescriptor(net::fd_t fd);
+        ~ScopedDescriptor();
+
+        operator net::fd_t ();
+        net::fd_t Release();
+
+      private:
+        net::fd_t fd_;
+    };
+
     void kill(int pid);
 
     const std::string exec_path_, cwd_path_;

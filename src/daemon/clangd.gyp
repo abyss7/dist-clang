@@ -10,6 +10,7 @@
       'dependencies': [
         '../base/base.gyp:base',
         '../base/base.gyp:hash',
+        '../base/base.gyp:process',
         '../net/net.gyp:net',
         '../proto/proto.gyp:proto',
         '../third_party/tclap/tclap.gyp:tclap',

@@ -9,9 +9,9 @@
       'dependencies': [
         '../third_party/protobuf/protobuf.gyp:protobuf',
       ],
-      'direct_dependent_settings': {
-
-      },
+      'export_dependent_settings': [
+        '../third_party/protobuf/protobuf.gyp:protobuf',
+      ],
       'sources': [
         'base.pb.cc',
         'base.pb.h',
