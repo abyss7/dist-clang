@@ -23,12 +23,10 @@ class Process {
                      const std::string& cwd_path = std::string());
 
     Process& AppendArg(const std::string& arg);
-    template <typename ConstIterator>
-    Process& AppendArg(ConstIterator begin, ConstIterator end);
+    template <class Iterator> Process& AppendArg(Iterator begin, Iterator end);
 
     // |sec_timeout| specifies timeout in seconds - how long should we wait for
-    // another portion of output from child process, and how long to wait
-    // between SIG_KILL and SIG_TERM signals sent to process on error.
+    // another portion of output from child process.
     bool Run(unsigned sec_timeout, std::string* error = nullptr);
     bool Run(unsigned sec_timeout, const std::string& input,
              std::string* error = nullptr);
@@ -57,8 +55,8 @@ class Process {
     bool killed_;
 };
 
-template<class ConstIterator>
-Process& Process::AppendArg(ConstIterator begin, ConstIterator end) {
+template<class Iterator>
+Process& Process::AppendArg(Iterator begin, Iterator end) {
   args_.insert(args_.end(), begin, end);
   return *this;
 }

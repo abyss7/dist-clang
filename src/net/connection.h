@@ -34,7 +34,7 @@ class Connection: public std::enable_shared_from_this<Connection> {
         std::function<bool(ConnectionPtr, const Message&, const Status&)>;
     using SendCallback = std::function<bool(ConnectionPtr, const Status&)>;
 
-    // Create connection only on an active socket -
+    // Create connection only on a socket with a pending connection -
     // i.e. after connect() or accept().
     static ConnectionPtr Create(EventLoop& event_loop, fd_t fd,
                                 const EndPointPtr& end_point = EndPointPtr());
