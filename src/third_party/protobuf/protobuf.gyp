@@ -104,6 +104,16 @@
         'google/protobuf/wire_format_lite.h',
         'google/protobuf/wire_format_lite_inl.h',
       ],
+      'xcode_settings': {
+        'OTHER_CFLAGS': [
+          '-Wno-sign-compare',
+          '-Wno-unused-function',
+        ],
+        'OTHER_LDFLAGS': [
+          '-lc++',
+          '-lz',
+        ],
+      },
     },
   ],
 }

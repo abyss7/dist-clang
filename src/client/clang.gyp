@@ -17,6 +17,11 @@
         'clang_flag_set.cc',
         'clang_flag_set.h',
       ],
+      'xcode_settings': {
+        'OTHER_LDFLAGS': [
+          '-lc++',
+        ],
+      },
     },
   ],
 }
