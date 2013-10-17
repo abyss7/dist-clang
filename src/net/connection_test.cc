@@ -197,6 +197,11 @@ class TestServer: public net::EventLoop {
     }
 
   private:
+    virtual bool HandlePassive(net::fd_t fd) override {
+      // TODO: implement this.
+      return false;
+    }
+
     virtual bool ReadyForRead(net::ConnectionPtr connection) override {
       struct epoll_event event;
       event.events = EPOLLIN | EPOLLONESHOT;
