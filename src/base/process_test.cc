@@ -52,7 +52,6 @@ TEST(ProcessTest, ReadLargeOutput) {
   EXPECT_TRUE(process.stderr().empty());
 }
 
-#if !defined(OS_MACOSX)
 TEST(ProcessTest, EchoSmallInput) {
   const std::string test_data(10, 'a');
   base::Process process("/bin/sh");
@@ -70,7 +69,6 @@ TEST(ProcessTest, EchoLargeInput) {
   EXPECT_EQ(test_data, process.stdout());
   EXPECT_TRUE(process.stderr().empty());
 }
-#endif
 
 TEST(ProcessTest, ReadTimeout) {
   base::Process process("/bin/sh");
