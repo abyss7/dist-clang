@@ -13,12 +13,11 @@ namespace net {
 bool NetworkService::Run() {
   auto old_signals = BlockSignals();
 
-  // TODO: implement this.
   poll_fd_ = kqueue();
   auto callback = std::bind(&NetworkService::HandleNewConnection, this, _1, _2);
   event_loop_.reset(new KqueueEventLoop(callback));
   pool_.reset(new WorkerPool);
-  auto work = std::bind(&NetworkService::DoConnectWork, this, _1);
+  auto work = std::bind(&NetworkService::DoConnectWork, this, _1, _2);
   pool_->AddWorker(work, concurrency_);
 
   UnblockSignals(old_signals);

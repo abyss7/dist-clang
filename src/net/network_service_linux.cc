@@ -22,7 +22,7 @@ bool NetworkService::Run() {
   auto callback = std::bind(&NetworkService::HandleNewConnection, this, _1, _2);
   event_loop_.reset(new EpollEventLoop(callback));
   pool_.reset(new WorkerPool);
-  auto work = std::bind(&NetworkService::DoConnectWork, this, _1);
+  auto work = std::bind(&NetworkService::DoConnectWork, this, _1, _2);
   pool_->AddWorker(work, concurrency_);
 
   UnblockSignals(old_signals);
@@ -67,23 +67,31 @@ bool NetworkService::ConnectAsync(const EndPointPtr& end_point,
   return true;
 }
 
-void NetworkService::DoConnectWork(const volatile bool &is_shutting_down) {
+void NetworkService::DoConnectWork(const volatile bool &is_shutting_down,
+                                   fd_t self_pipe) {
   const int MAX_EVENTS = 10;  // This should be enought in most cases.
   struct epoll_event events[MAX_EVENTS];
-  sigset_t signal_set;
   unsigned long error;
   unsigned int error_size = sizeof(error);
 
-  sigfillset(&signal_set);
-  sigdelset(&signal_set, WorkerPool::interrupt_signal);
+  {
+    struct epoll_event event;
+    event.events = EPOLLIN;
+    event.data.fd = self_pipe;
+    epoll_ctl(poll_fd_, EPOLL_CTL_ADD, self_pipe, &event);
+  }
+
   while(!is_shutting_down) {
-    auto events_count =
-        epoll_pwait(poll_fd_, events, MAX_EVENTS, -1, &signal_set);
+    auto events_count = epoll_wait(poll_fd_, events, MAX_EVENTS, -1);
     if (events_count == -1 && errno != EINTR) {
       break;
     }
 
     for (int i = 0; i < events_count; ++i) {
+      if (events[i].data.fd == self_pipe) {
+        continue;
+      }
+
       base::Assert(events[i].events & EPOLLOUT);
       fd_t fd = events[i].data.fd;
       ConnectCallback callback;

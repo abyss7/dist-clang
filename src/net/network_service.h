@@ -54,7 +54,7 @@ class NetworkService {
 
     // |fd| is a descriptor of a listening socket, which accepts new connection.
     void HandleNewConnection(fd_t fd, ConnectionPtr connection);
-    void DoConnectWork(const volatile bool& is_shutting_down);
+    void DoConnectWork(const volatile bool& is_shutting_down, fd_t self_pipe);
 
     int poll_fd_;
     std::unique_ptr<EventLoop> event_loop_;
