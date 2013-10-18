@@ -33,6 +33,11 @@
         'thread_pool.cc',
         'thread_pool.h',
       ],
+      'xcode_settings': {
+        'OTHER_LDFLAGS': [
+          '-lc++',
+        ],
+      },
     },
   ],
 }

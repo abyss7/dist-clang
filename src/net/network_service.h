@@ -56,7 +56,7 @@ class NetworkService {
     void HandleNewConnection(fd_t fd, ConnectionPtr connection);
     void DoConnectWork(const volatile bool& is_shutting_down);
 
-    int epoll_fd_;
+    int poll_fd_;
     std::unique_ptr<EventLoop> event_loop_;
     std::unordered_map<fd_t, ListenCallback> listen_callbacks_;
 

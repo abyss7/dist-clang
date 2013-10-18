@@ -17,12 +17,14 @@ namespace dist_clang {
 namespace net {
 
 NetworkService::NetworkService(size_t concurrency)
-  : concurrency_(concurrency) {
+  : poll_fd_(-1), concurrency_(concurrency) {
 }
 
 NetworkService::~NetworkService() {
   pool_.reset();
-  close(epoll_fd_);
+  if (poll_fd_ != -1) {
+    close(poll_fd_);
+  }
 }
 
 bool NetworkService::Listen(const string& path, ListenCallback callback,

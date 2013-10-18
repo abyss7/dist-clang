@@ -24,12 +24,19 @@
         'network_service.cc',
         'network_service.h',
         'network_service_linux.cc',
+        'network_service_mac.cc',
       ],
       'conditions': [
         ['OS=="linux"', {
           'sources': [
             'epoll_event_loop.cc',
             'epoll_event_loop.h',
+          ],
+        }],
+        ['OS=="mac"', {
+          'sources': [
+            'kqueue_event_loop.cc',
+            'kqueue_event_loop.h',
           ],
         }],
       ],

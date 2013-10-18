@@ -18,7 +18,7 @@ namespace net {
 bool NetworkService::Run() {
   auto old_signals = BlockSignals();
 
-  epoll_fd_ = epoll_create1(EPOLL_CLOEXEC);
+  poll_fd_ = epoll_create1(EPOLL_CLOEXEC);
   auto callback = std::bind(&NetworkService::HandleNewConnection, this, _1, _2);
   event_loop_.reset(new EpollEventLoop(callback));
   pool_.reset(new WorkerPool);
@@ -56,7 +56,7 @@ bool NetworkService::ConnectAsync(const EndPointPtr& end_point,
   event.events = EPOLLOUT | EPOLLONESHOT;
   event.data.fd = fd;
   std::lock_guard<std::mutex> lock(connect_mutex_);
-  if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
+  if (epoll_ctl(poll_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
     base::GetLastError(error);
     close(fd);
     return false;
@@ -78,7 +78,7 @@ void NetworkService::DoConnectWork(const volatile bool &is_shutting_down) {
   sigdelset(&signal_set, WorkerPool::interrupt_signal);
   while(!is_shutting_down) {
     auto events_count =
-        epoll_pwait(epoll_fd_, events, MAX_EVENTS, -1, &signal_set);
+        epoll_pwait(poll_fd_, events, MAX_EVENTS, -1, &signal_set);
     if (events_count == -1 && errno != EINTR) {
       break;
     }
@@ -97,7 +97,7 @@ void NetworkService::DoConnectWork(const volatile bool &is_shutting_down) {
         connect_callbacks_.erase(it);
       }
 
-      base::Assert(!epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr));
+      base::Assert(!epoll_ctl(poll_fd_, EPOLL_CTL_DEL, fd, nullptr));
       if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &error_size) == -1) {
         string error;
         base::GetLastError(&error);

@@ -14,7 +14,8 @@ namespace net {
 EpollEventLoop::EpollEventLoop(ConnectionCallback callback)
   : listen_fd_(epoll_create1(EPOLL_CLOEXEC)),
     io_fd_(epoll_create1(EPOLL_CLOEXEC)),
-    callback_(callback) {}
+    callback_(callback) {
+}
 
 EpollEventLoop::~EpollEventLoop() {
   Stop();
@@ -73,21 +74,29 @@ void EpollEventLoop::RemoveConnection(fd_t fd) {
   connections_.erase(fd);
 }
 
-void EpollEventLoop::DoListenWork(const volatile bool &is_shutting_down) {
+void EpollEventLoop::DoListenWork(const volatile bool &is_shutting_down,
+                                  fd_t self_pipe) {
   const int MAX_EVENTS = 10;  // This should be enought in most cases.
   struct epoll_event events[MAX_EVENTS];
-  sigset_t signal_set;
 
-  sigfillset(&signal_set);
-  sigdelset(&signal_set, WorkerPool::interrupt_signal);
+  {
+    struct epoll_event event;
+    event.events = EPOLLIN;
+    event.data.fd = self_pipe;
+    epoll_ctl(listen_fd_, EPOLL_CTL_ADD, self_pipe, &event);
+  }
+
   while(!is_shutting_down) {
-    auto events_count =
-        epoll_pwait(listen_fd_, events, MAX_EVENTS, -1, &signal_set);
+    auto events_count = epoll_wait(listen_fd_, events, MAX_EVENTS, -1);
     if (events_count == -1 && errno != EINTR) {
       break;
     }
 
     for (int i = 0; i < events_count; ++i) {
+      if (events[i].data.fd == self_pipe) {
+        continue;
+      }
+
       base::Assert(events[i].events & EPOLLIN);
       auto fd = events[i].data.fd;
       while(true) {
@@ -106,14 +115,19 @@ void EpollEventLoop::DoListenWork(const volatile bool &is_shutting_down) {
     close(fd);
 }
 
-void EpollEventLoop::DoIOWork(const volatile bool& is_shutting_down) {
+void EpollEventLoop::DoIOWork(const volatile bool& is_shutting_down,
+                              fd_t self_pipe) {
   struct epoll_event event;
-  sigset_t signal_set;
 
-  sigfillset(&signal_set);
-  sigdelset(&signal_set, WorkerPool::interrupt_signal);
+  {
+    struct epoll_event event;
+    event.events = EPOLLIN;
+    event.data.fd = self_pipe;
+    epoll_ctl(listen_fd_, EPOLL_CTL_ADD, self_pipe, &event);
+  }
+
   while(!is_shutting_down) {
-    auto events_count = epoll_pwait(io_fd_, &event, 1, -1, &signal_set);
+    auto events_count = epoll_wait(io_fd_, &event, 1, -1);
     if (events_count == -1) {
       if (errno != EINTR) {
         break;
@@ -121,6 +135,10 @@ void EpollEventLoop::DoIOWork(const volatile bool& is_shutting_down) {
       else {
         continue;
       }
+    }
+
+    if (event.data.fd == self_pipe) {
+      continue;
     }
 
     net::ConnectionPtr connection;
