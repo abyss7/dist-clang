@@ -41,6 +41,11 @@
         'internal/gtest-tuple.h',
         'internal/gtest-type-util.h',
       ],
+      'xcode_settings': {
+        'OTHER_LDFLAGS': [
+          '-lc++',
+        ],
+      },
     },
   ],
 }
