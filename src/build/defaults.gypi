@@ -69,11 +69,17 @@
     ],
     'conditions': [
       ['OS=="linux"', {
+        'defines': [
+          'OS_LINUX',
+        ],
         'sources/': [
           ['include', '_linux\\.cc$'],
         ],
       }],
       ['OS=="mac"', {
+        'defines': [
+          'OS_MACOSX',
+        ],
         'sources/': [
           ['include', '_mac\\.cc$'],
         ],

@@ -16,8 +16,8 @@ TEST(ProcessTest, CheckExitCode) {
 }
 
 TEST(ProcessTest, ChangeCurrentDir) {
-  const std::string dir = "/tmp";
-  ASSERT_NE(dir, base::GetCurrentDir()) << "Don't run this test from /tmp";
+  const std::string dir = "/bin";
+  ASSERT_NE(dir, base::GetCurrentDir()) << "Don't run this test from /bin";
   base::Process process("/bin/sh", dir);
   process.AppendArg("-c").AppendArg("pwd");
   ASSERT_TRUE(process.Run(1));
@@ -52,6 +52,7 @@ TEST(ProcessTest, ReadLargeOutput) {
   EXPECT_TRUE(process.stderr().empty());
 }
 
+#if !defined(OS_MACOSX)
 TEST(ProcessTest, EchoSmallInput) {
   const std::string test_data(10, 'a');
   base::Process process("/bin/sh");
@@ -69,6 +70,7 @@ TEST(ProcessTest, EchoLargeInput) {
   EXPECT_EQ(test_data, process.stdout());
   EXPECT_TRUE(process.stderr().empty());
 }
+#endif
 
 TEST(ProcessTest, ReadTimeout) {
   base::Process process("/bin/sh");

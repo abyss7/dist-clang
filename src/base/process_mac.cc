@@ -64,7 +64,6 @@ bool Process::Run(unsigned sec_timeout, std::string* error) {
     ScopedDescriptor out_fd(out_pipe_fd[0]);
     ScopedDescriptor err_fd(err_pipe_fd[0]);
 
-    // TODO: use kqueue.
     ScopedDescriptor kq_fd(kqueue());
     if (kq_fd == -1) {
       GetLastError(error);
@@ -107,8 +106,8 @@ bool Process::Run(unsigned sec_timeout, std::string* error) {
       }
 
       for (int i = 0; i < event_count; ++i) {
+        net::fd_t fd = events[i].ident;
         if (events[i].filter == EVFILT_READ && events[i].data) {
-          net::fd_t fd = events[i].ident;
           auto buffer_size = events[i].data;
           auto buffer = std::unique_ptr<char[]>(new char[buffer_size]);
           auto bytes_read = read(fd, buffer.get(), buffer_size);
@@ -132,6 +131,11 @@ bool Process::Run(unsigned sec_timeout, std::string* error) {
               stderr_size += bytes_read;
             }
           }
+        }
+        else if (events[i].filter == EVFILT_READ && events[i].flags & EV_EOF) {
+          EV_SET(events + i, fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
+          kevent(kq_fd, events + i, 1, nullptr, 0, nullptr);
+          exhausted_fds++;
         }
       }
     }
