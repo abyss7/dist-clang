@@ -19,6 +19,11 @@
         # '../net/connection_test.cc',
         'run_all_tests.cc',
       ],
+      'xcode_settings': {
+        'OTHER_LDFLAGS': [
+          '-lc++',
+        ],
+      },
     },
   ],
 }
