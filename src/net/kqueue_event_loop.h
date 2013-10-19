@@ -1,7 +1,11 @@
 #pragma once
 
 #include "base/attributes.h"
+#include "base/read_write_lock.h"
 #include "net/event_loop.h"
+
+#include <unordered_map>
+#include <unordered_set>
 
 namespace dist_clang {
 namespace net {
@@ -24,8 +28,17 @@ class KqueueEventLoop: public EventLoop {
     virtual void DoIOWork(const volatile bool& is_shutting_down,
                           fd_t self_pipe) override;
 
+    bool ReadyForListen(fd_t fd);
+    bool ReadyFor(ConnectionPtr connection, int16_t filter);
+
     fd_t listen_fd_, io_fd_;
     ConnectionCallback callback_;
+
+    // We need to store listening fds - to be able to close them at shutdown.
+    std::unordered_set<fd_t> listening_fds_;
+
+    base::ReadWriteMutex connections_mutex_;
+    std::unordered_map<fd_t, net::ConnectionWeakPtr> connections_;
 };
 
 }  // namespace net
