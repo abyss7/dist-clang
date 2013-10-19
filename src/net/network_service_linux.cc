@@ -15,19 +15,10 @@ using namespace ::std::placeholders;
 namespace dist_clang {
 namespace net {
 
-bool NetworkService::Run() {
-  auto old_signals = BlockSignals();
-
-  poll_fd_ = epoll_create1(EPOLL_CLOEXEC);
+NetworkService::NetworkService(size_t concurrency)
+  : poll_fd_(epoll_create1(EPOLL_CLOEXEC)), concurrency_(concurrency) {
   auto callback = std::bind(&NetworkService::HandleNewConnection, this, _1, _2);
   event_loop_.reset(new EpollEventLoop(callback));
-  pool_.reset(new WorkerPool);
-  auto work = std::bind(&NetworkService::DoConnectWork, this, _1, _2);
-  pool_->AddWorker(work, concurrency_);
-
-  UnblockSignals(old_signals);
-
-  return event_loop_->Run();
 }
 
 bool NetworkService::ConnectAsync(const EndPointPtr& end_point,

@@ -12,19 +12,28 @@
 #include <sys/un.h>
 
 using ::std::string;
+using namespace ::std::placeholders;
 
 namespace dist_clang {
 namespace net {
-
-NetworkService::NetworkService(size_t concurrency)
-  : poll_fd_(-1), concurrency_(concurrency) {
-}
 
 NetworkService::~NetworkService() {
   pool_.reset();
   if (poll_fd_ != -1) {
     close(poll_fd_);
   }
+}
+
+bool NetworkService::Run() {
+  auto old_signals = BlockSignals();
+
+  pool_.reset(new WorkerPool);
+  auto work = std::bind(&NetworkService::DoConnectWork, this, _1, _2);
+  pool_->AddWorker(work, concurrency_);
+
+  UnblockSignals(old_signals);
+
+  return event_loop_->Run();
 }
 
 bool NetworkService::Listen(const string& path, ListenCallback callback,
