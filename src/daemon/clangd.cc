@@ -4,11 +4,13 @@
 
 #include <iostream>  // FIXME: remove when logging will be implemented.
 
-#include <unistd.h>  // for pause()
+#include <signal.h>
 
 using namespace dist_clang;
 
 int main(int argc, char* argv[]) {
+  signal(SIGPIPE, SIG_IGN);
+
   daemon::Configuration configuration(argc, argv);
   daemon::Daemon daemon;
   net::NetworkService network_service;
@@ -23,9 +25,13 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  // TODO: implement signal handling.
-  signal(SIGPIPE, SIG_IGN);
-  pause();
+  sigset_t signal_mask;
+  sigemptyset(&signal_mask);
+  sigaddset(&signal_mask, SIGTERM);
+  sigaddset(&signal_mask, SIGINT);
+
+  int sig;
+  sigwait(&signal_mask, &sig);
 
   return 0;
 }

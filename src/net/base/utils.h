@@ -11,7 +11,7 @@ namespace dist_clang {
 namespace net {
 
 inline bool MakeCloseOnExec(fd_t fd) {
-  return fcntl(fd, F_SETFD, 1) != -1;
+  return fcntl(fd, F_SETFD, FD_CLOEXEC) != -1;
 }
 
 inline bool MakeNonBlocking(fd_t fd, bool blocking = false) {

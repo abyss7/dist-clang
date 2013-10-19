@@ -96,7 +96,7 @@ void NetworkService::DoConnectWork(const volatile bool &is_shutting_down,
         connect_callbacks_.erase(it);
       }
 
-      base::Assert(!epoll_ctl(poll_fd_, EPOLL_CTL_DEL, fd, nullptr));
+      epoll_ctl(poll_fd_, EPOLL_CTL_DEL, fd, nullptr);
       if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &error_size) == -1) {
         string error;
         base::GetLastError(&error);
