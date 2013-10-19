@@ -94,7 +94,7 @@ void LocalExecution::DoneRemoteConnection(net::ConnectionPtr connection,
                                           const std::string &error) {
   if (!connection) {
     if (!error.empty()) {
-      std::cerr << error << std::endl;
+      std::cerr << "Connection to remote daemon failed: " << error << std::endl;
     }
     DeferLocalCompilation();
     return;

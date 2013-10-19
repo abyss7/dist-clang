@@ -62,7 +62,7 @@ void NetworkService::DoConnectWork(const volatile bool &is_shutting_down,
                                    fd_t self_pipe) {
   const int MAX_EVENTS = 10;  // This should be enought in most cases.
   struct epoll_event events[MAX_EVENTS];
-  unsigned long error;
+  unsigned long error = 0;
   unsigned int error_size = sizeof(error);
 
   {
@@ -103,7 +103,7 @@ void NetworkService::DoConnectWork(const volatile bool &is_shutting_down,
         callback(ConnectionPtr(), error);
         close(fd);
       }
-      else if (error) {
+      else if (error && error_size) {
         errno = error;
         string error;
         base::GetLastError(&error);
