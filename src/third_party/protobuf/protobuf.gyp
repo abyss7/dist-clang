@@ -7,7 +7,6 @@
       'target_name': 'protobuf',
       'type': 'shared_library',
       'cflags': [
-        '-fPIC',
         '-Wno-sign-compare',
         '-Wno-unused-function',
         '-Wno-unused-variable',
@@ -105,15 +104,21 @@
         'google/protobuf/wire_format_lite_inl.h',
       ],
       'xcode_settings': {
-        'OTHER_CFLAGS': [
+        'WARNING_CFLAGS': [
           '-Wno-sign-compare',
           '-Wno-unused-function',
         ],
         'OTHER_LDFLAGS': [
-          '-lc++',
           '-lz',
         ],
       },
+      'conditions': [
+        ['clang==0', {
+          'cflags': [
+            '-Wno-unused-local-typedefs',
+          ],
+        }],
+      ],
     },
   ],
 }

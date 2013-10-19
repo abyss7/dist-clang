@@ -1,4 +1,8 @@
 {
+  'variables': {
+    'clang%': 0,
+  },
+
   'target_defaults': {
     'cflags': [
       '-std=c++11',
@@ -7,7 +11,6 @@
       '-fno-exceptions',
       '-Wall',
       '-Wsign-compare',
-      '-Wno-mismatched-tags',  # Remove on libstdc++ >= 4.8.2
       '-Werror',
     ],
     'ldflags': [
@@ -82,6 +85,25 @@
         ],
         'sources/': [
           ['include', '_mac\\.cc$'],
+        ],
+      }],
+      ['clang==1', {
+        'cflags': [
+          '-Wno-mismatched-tags',  # Remove on libstdc++ >= 4.8.2
+        ],
+      }],
+    ],
+    'target_conditions': [
+      ['_type!="static_library"', {
+        'xcode_settings': {
+          'OTHER_LDFLAGS': [
+            '-lc++',
+          ],
+        },
+      }],
+      ['_type=="shared_library"', {
+        'cflags': [
+          '-fPIC',
         ],
       }],
     ],

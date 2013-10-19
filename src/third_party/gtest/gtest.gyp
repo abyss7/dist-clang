@@ -6,9 +6,6 @@
     {
       'target_name': 'gtest',
       'type': 'shared_library',
-      'cflags': [
-        '-fPIC',
-      ],
       'direct_dependent_settings': {
         'include_dirs': [
           '..',
@@ -41,11 +38,6 @@
         'internal/gtest-tuple.h',
         'internal/gtest-type-util.h',
       ],
-      'xcode_settings': {
-        'OTHER_LDFLAGS': [
-          '-lc++',
-        ],
-      },
     },
   ],
 }
