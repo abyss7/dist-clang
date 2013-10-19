@@ -62,19 +62,27 @@ void RemoteExecution::Run() {
 
   // Do local compilation. Pipe the input file to the compiler and read output
   // file from the compiler's stdout.
+  std::string error;
   base::Process process(message_.cc_flags());
-  if (!process.Run(60, message_.pp_source())) {
+  if (!process.Run(60, message_.pp_source(), &error)) {
     status.set_code(proto::Status::EXECUTION);
     status.set_description(process.stderr());
-    if (!process.stderr().empty()) {
+    if (!process.stdout().empty() || !process.stderr().empty()) {
       std::cerr << "Compilation failed with error:" << std::endl;
-      std::cerr << process.stderr();
-      std::cerr << "Arguments:";
-      for (const auto& flag: message_.cc_flags().other()) {
-        std::cerr << " " << flag;
-      }
-      std::cerr << std::endl << std::endl;
+      std::cerr << process.stderr() << std::endl;
+      std::cerr << process.stdout() << std::endl;
     }
+    else if (!error.empty()) {
+      std::cerr << "Compilation failed with error: " << error << std::endl;
+    }
+    else {
+      std::cerr << "Compilation failed without errors" << std::endl;
+    }
+    std::cerr << "Arguments:";
+    for (const auto& flag: message_.cc_flags().other()) {
+      std::cerr << " " << flag;
+    }
+    std::cerr << std::endl << std::endl;
   }
   else {
     status.set_code(proto::Status::OK);

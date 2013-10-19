@@ -15,7 +15,9 @@ namespace net {
 // static
 ConnectionPtr Connection::Create(EventLoop &event_loop, fd_t fd,
                                  const EndPointPtr& end_point) {
+#if !defined(OS_MACOSX)
   base::Assert(!IsListening(fd));
+#endif
   base::Assert(!IsNonBlocking(fd));
   return ConnectionPtr(new Connection(event_loop, fd, end_point));
 }

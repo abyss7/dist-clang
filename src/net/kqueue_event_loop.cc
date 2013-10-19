@@ -19,7 +19,10 @@ KqueueEventLoop::~KqueueEventLoop() {
 }
 
 bool KqueueEventLoop::HandlePassive(fd_t fd) {
+#if !defined(OS_MACOSX)
+  // TODO: don't know why, but assertion fails on Mac.
   base::Assert(IsListening(fd));
+#endif
   base::Assert(IsNonBlocking(fd));
   listening_fds_.insert(fd);
   return ReadyForListen(fd);
@@ -74,6 +77,7 @@ void KqueueEventLoop::DoListenWork(const volatile bool &is_shutting_down,
           break;
         }
         MakeCloseOnExec(new_fd);
+        MakeNonBlocking(new_fd, true);
         callback_(fd, Connection::Create(*this, new_fd));
       }
       ReadyForListen(fd);

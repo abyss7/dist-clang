@@ -217,6 +217,7 @@ bool Process::Run(unsigned sec_timeout, const std::string &input,
       exit(1);
     }
 
+    // Should not be reached.
     return false;
   }
   else if (child_pid != -1) {  // Main process.
@@ -301,15 +302,10 @@ bool Process::Run(unsigned sec_timeout, const std::string &input,
 
           auto bytes_sent = write(fd, input.data() + stdin_size,
                                   input.size() - stdin_size);
-          if (!bytes_sent) {
+          if (bytes_sent < 1) {
             EV_SET(events + i, fd, EVFILT_WRITE, EV_DELETE, 0, 0, 0);
             kevent(kq_fd, events + i, 1, nullptr, 0, nullptr);
             exhausted_fds++;
-          }
-          else if (bytes_sent == -1) {
-            GetLastError(error);
-            kill(child_pid);
-            break;
           }
           else {
             stdin_size += bytes_sent;
