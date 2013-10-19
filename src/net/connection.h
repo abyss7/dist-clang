@@ -17,15 +17,14 @@ namespace net {
 
 class EventLoop;
 
-class Connection: public std::enable_shared_from_this<Connection> {
-    using CodedInputStream = google::protobuf::io::CodedInputStream;
-    using CodedOutputStream = google::protobuf::io::CodedOutputStream;
-    using CustomMessage = google::protobuf::Message;
-    using FileInputStream = google::protobuf::io::FileInputStream;
-    using FileOutputStream = google::protobuf::io::FileOutputStream;
-    using GzipInputStream = google::protobuf::io::GzipInputStream;
-    using GzipOutputStream = google::protobuf::io::GzipOutputStream;
-    using Limit = google::protobuf::io::CodedInputStream::Limit;
+class Connection: public ::std::enable_shared_from_this<Connection> {
+    using CodedInputStream = ::google::protobuf::io::CodedInputStream;
+    using CodedOutputStream = ::google::protobuf::io::CodedOutputStream;
+    using CustomMessage = ::google::protobuf::Message;
+    using FileInputStream = ::google::protobuf::io::FileInputStream;
+    using FileOutputStream = ::google::protobuf::io::FileOutputStream;
+    using GzipInputStream = ::google::protobuf::io::GzipInputStream;
+    using GzipOutputStream = ::google::protobuf::io::GzipOutputStream;
     using Status = proto::Status;
 
   public:
