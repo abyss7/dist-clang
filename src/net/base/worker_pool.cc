@@ -15,9 +15,9 @@ WorkerPool::WorkerPool()
 
 WorkerPool::~WorkerPool() {
   is_shutting_down_ = true;
+  close(self_pipe_[1]);
   for (auto& thread: workers_) {
     base::Assert(thread.joinable());
-    close(self_pipe_[1]);
     thread.join();
   }
   close(self_pipe_[0]);

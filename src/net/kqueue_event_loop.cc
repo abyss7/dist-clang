@@ -95,7 +95,7 @@ void KqueueEventLoop::DoIOWork(const volatile bool& is_shutting_down,
   {
     struct kevent event;
     EV_SET(&event, self_pipe, EVFILT_READ, EV_ADD, 0, 0, 0);
-    kevent(listen_fd_, &event, 1, nullptr, 0, nullptr);
+    kevent(io_fd_, &event, 1, nullptr, 0, nullptr);
   }
 
   while(!is_shutting_down) {
@@ -125,7 +125,7 @@ void KqueueEventLoop::DoIOWork(const volatile bool& is_shutting_down,
       struct kevent events[2];
       EV_SET(events + 0, fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
       EV_SET(events + 1, fd, EVFILT_WRITE, EV_DELETE, 0, 0, 0);
-      base::Assert(!kevent(io_fd_, events, 2, nullptr, 0, nullptr));
+      kevent(io_fd_, events, 2, nullptr, 0, nullptr);
     }
 
     if (connection) {
