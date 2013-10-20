@@ -16,8 +16,8 @@ TEST(ProcessTest, CheckExitCode) {
 }
 
 TEST(ProcessTest, ChangeCurrentDir) {
-  const std::string dir = "/bin";
-  ASSERT_NE(dir, base::GetCurrentDir()) << "Don't run this test from /bin";
+  const std::string dir = "/usr";
+  ASSERT_NE(dir, base::GetCurrentDir()) << "Don't run this test from " + dir;
   base::Process process("/bin/sh", dir);
   process.AppendArg("-c").AppendArg("pwd");
   ASSERT_TRUE(process.Run(1));
