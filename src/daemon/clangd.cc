@@ -32,6 +32,7 @@ int main(int argc, char* argv[]) {
 
   int sig;
   sigwait(&signal_mask, &sig);
+  std::cout << std::endl;
 
   return 0;
 }

@@ -6,19 +6,19 @@
 #include <gtest/gtest.h>
 
 namespace dist_clang {
-namespace testing {
+namespace base {
 
 TEST(ProcessTest, CheckExitCode) {
   const int exit_code = 1;
-  base::Process process("/bin/sh");
-  process.AppendArg("-c").AppendArg("exit " + base::IntToString(exit_code));
+  Process process("/bin/sh");
+  process.AppendArg("-c").AppendArg("exit " + IntToString(exit_code));
   ASSERT_FALSE(process.Run(1));
 }
 
 TEST(ProcessTest, ChangeCurrentDir) {
   const std::string dir = "/usr";
-  ASSERT_NE(dir, base::GetCurrentDir()) << "Don't run this test from " + dir;
-  base::Process process("/bin/sh", dir);
+  ASSERT_NE(dir, GetCurrentDir()) << "Don't run this test from " + dir;
+  Process process("/bin/sh", dir);
   process.AppendArg("-c").AppendArg("pwd");
   ASSERT_TRUE(process.Run(1));
   EXPECT_EQ(dir + "\n", process.stdout());
@@ -27,7 +27,7 @@ TEST(ProcessTest, ChangeCurrentDir) {
 
 TEST(ProcessTest, ReadStderr) {
   const std::string test_data(10, 'a');
-  base::Process process("/bin/sh");
+  Process process("/bin/sh");
   process.AppendArg("-c").AppendArg("echo " + test_data + " 1>&2");
   ASSERT_TRUE(process.Run(1));
   EXPECT_EQ(test_data + "\n", process.stderr());
@@ -36,7 +36,7 @@ TEST(ProcessTest, ReadStderr) {
 
 TEST(ProcessTest, ReadSmallOutput) {
   const std::string test_data(10, 'a');
-  base::Process process("/bin/sh");
+  Process process("/bin/sh");
   process.AppendArg("-c").AppendArg("echo " + test_data);
   ASSERT_TRUE(process.Run(1));
   EXPECT_EQ(test_data + "\n", process.stdout());
@@ -45,7 +45,7 @@ TEST(ProcessTest, ReadSmallOutput) {
 
 TEST(ProcessTest, ReadLargeOutput) {
   const std::string test_data(67000, 'a');
-  base::Process process("/bin/sh");
+  Process process("/bin/sh");
   process.AppendArg("-c").AppendArg("echo " + test_data);
   ASSERT_TRUE(process.Run(1));
   EXPECT_EQ(test_data + "\n", process.stdout());
@@ -54,7 +54,7 @@ TEST(ProcessTest, ReadLargeOutput) {
 
 TEST(ProcessTest, EchoSmallInput) {
   const std::string test_data(10, 'a');
-  base::Process process("/bin/sh");
+  Process process("/bin/sh");
   process.AppendArg("-c").AppendArg("cat");
   ASSERT_TRUE(process.Run(1, test_data));
   EXPECT_EQ(test_data, process.stdout());
@@ -63,7 +63,7 @@ TEST(ProcessTest, EchoSmallInput) {
 
 TEST(ProcessTest, EchoLargeInput) {
   const std::string test_data(67000, 'a');
-  base::Process process("/bin/sh");
+  Process process("/bin/sh");
   process.AppendArg("-c").AppendArg("cat");
   ASSERT_TRUE(process.Run(1, test_data));
   EXPECT_EQ(test_data, process.stdout());
@@ -71,7 +71,7 @@ TEST(ProcessTest, EchoLargeInput) {
 }
 
 TEST(ProcessTest, ReadTimeout) {
-  base::Process process("/bin/sh");
+  Process process("/bin/sh");
   process.AppendArg("-c").AppendArg("sleep 2");
   ASSERT_FALSE(process.Run(1));
 }
@@ -80,5 +80,5 @@ TEST(ProcessTest, DISABLED_CreateWithFlags) {
   // TODO: implement this.
 }
 
-}  // namespace testing
+}  // namespace base
 }  // namespace dist_clang
