@@ -31,41 +31,11 @@ bool EpollEventLoop::HandlePassive(fd_t fd) {
 }
 
 bool EpollEventLoop::ReadyForRead(ConnectionPtr connection) {
-  base::Assert(connection->IsOnEventLoop(this));
-
-  auto fd = GetConnectionDescriptor(connection);
-  struct epoll_event event;
-  event.events = EPOLLIN | EPOLLONESHOT;
-  event.data.fd = fd;
-  base::WriteLock lock(connections_mutex_);
-  if (epoll_ctl(io_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
-    if (errno != ENOENT ||
-        !ConnectionAdd(connection) ||
-        epoll_ctl(io_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
-      return false;
-    }
-    connections_.insert(std::make_pair(fd, connection));
-  }
-  return true;
+  return ReadyFor(connection, EPOLLIN);
 }
 
 bool EpollEventLoop::ReadyForSend(ConnectionPtr connection) {
-  base::Assert(connection->IsOnEventLoop(this));
-
-  auto fd = GetConnectionDescriptor(connection);
-  struct epoll_event event;
-  event.events = EPOLLOUT | EPOLLONESHOT;
-  event.data.fd = fd;
-  base::WriteLock lock(connections_mutex_);
-  if(epoll_ctl(io_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
-    if (errno != ENOENT ||
-        !ConnectionAdd(connection) ||
-        epoll_ctl(io_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
-      return false;
-    }
-    connections_.insert(std::make_pair(fd, connection));
-  }
-  return true;
+  return ReadyFor(connection, EPOLLOUT);
 }
 
 void EpollEventLoop::RemoveConnection(fd_t fd) {
@@ -172,6 +142,26 @@ bool EpollEventLoop::ReadyForListen(fd_t fd) {
       return epoll_ctl(listen_fd_, EPOLL_CTL_ADD, fd, &event) != -1;
     return false;
   }
+  return true;
+}
+
+bool EpollEventLoop::ReadyFor(ConnectionPtr connection, unsigned events) {
+  base::Assert(connection->IsOnEventLoop(this));
+
+  auto fd = GetConnectionDescriptor(connection);
+  struct epoll_event event;
+  event.events = events | EPOLLONESHOT;
+  event.data.fd = fd;
+  base::WriteLock lock(connections_mutex_);
+  if (epoll_ctl(io_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
+    if (errno != ENOENT ||
+        !ConnectionAdd(connection) ||
+        epoll_ctl(io_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
+      return false;
+    }
+    connections_.insert(std::make_pair(fd, connection));
+  }
+
   return true;
 }
 

@@ -31,6 +31,7 @@ class EpollEventLoop: public EventLoop {
                           fd_t self_pipe) override;
 
     bool ReadyForListen(fd_t fd);
+    bool ReadyFor(ConnectionPtr connection, unsigned events);
 
     fd_t listen_fd_, io_fd_;
     ConnectionCallback callback_;
