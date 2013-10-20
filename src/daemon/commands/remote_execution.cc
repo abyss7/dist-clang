@@ -20,8 +20,7 @@ CommandPtr RemoteExecution::Create(net::ConnectionPtr connection,
 RemoteExecution::RemoteExecution(net::ConnectionPtr connection,
                                  const proto::RemoteExecute& message,
                                  Daemon& daemon)
-  : connection_(connection), message_(message), daemon_(daemon),
-    timer_("RemoteExecution") {
+  : connection_(connection), message_(message), daemon_(daemon) {
 }
 
 void RemoteExecution::Run() {

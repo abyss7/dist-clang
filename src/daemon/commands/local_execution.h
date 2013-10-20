@@ -1,6 +1,5 @@
 #pragma once
 
-#include "base/chronometer.h"
 #include "daemon/command.h"
 #include "daemon/file_cache.h"       // for |FileCache::Entry|
 #include "net/connection_forward.h"
@@ -49,7 +48,6 @@ class LocalExecution: public Command {
         const proto::Status& status);
     inline std::shared_ptr<LocalExecution> shared_from_this();
 
-    base::Chronometer timer_;
     net::ConnectionPtr connection_;
     proto::LocalExecute message_;
     Daemon& daemon_;

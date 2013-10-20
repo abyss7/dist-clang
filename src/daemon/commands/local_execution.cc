@@ -22,9 +22,9 @@ CommandPtr LocalExecution::Create(net::ConnectionPtr connection,
                                   Daemon& daemon) {
   if (!message.cc_flags().has_output() ||
       !message.cc_flags().has_input() ||
-      message.cc_flags().input() == "-" ||
+       message.cc_flags().input() == "-" ||
       !message.pp_flags().has_input() ||
-      message.pp_flags().input() == "-") {
+       message.pp_flags().input() == "-") {
     return CommandPtr();
   }
   return CommandPtr(new LocalExecution(connection, message, daemon));
@@ -33,7 +33,7 @@ CommandPtr LocalExecution::Create(net::ConnectionPtr connection,
 LocalExecution::LocalExecution(net::ConnectionPtr connection,
                                const proto::LocalExecute& message,
                                Daemon& daemon)
-  : timer_("LocalExecution"), connection_(connection), message_(message),
+  : connection_(connection), message_(message),
     daemon_(daemon) {
 }
 
@@ -50,17 +50,13 @@ void LocalExecution::Run() {
   message_.mutable_pp_flags()->set_output("-");
 
   // TODO: don't do preprocessing, if we don't have cache and any remotes.
-  std::unique_ptr<base::Chronometer>
-      process_timer(new base::Chronometer("Preprocessing", timer_));
   base::Process process(message_.pp_flags(), message_.current_dir());
   if (!process.Run(10)) {
     // It usually means, that there is an error in the source code.
     // We should skip a cache check and head to local compilation.
-    process_timer.reset();
     DoLocalCompilation();
     return;
   }
-  process_timer.reset();
   pp_source_ = process.stdout();
 
   FileCache::Entry cache_entry;
@@ -125,7 +121,6 @@ void LocalExecution::DoLocalCompilation() {
     return;
   }
 
-  base::Chronometer timer("Compilation", timer_);
   proto::Status message;
   base::Process process(message_.cc_flags(), message_.current_dir());
   if (!process.Run(60)) {
