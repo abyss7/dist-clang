@@ -98,7 +98,7 @@ void NetworkService::DoConnectWork(const volatile bool &is_shutting_down,
       }
 
       EV_SET(events + i, fd, EVFILT_WRITE, EV_DELETE, 0, 0, 0);
-      base::Assert(!kevent(poll_fd_, events + i, 1, nullptr, 0, nullptr));
+      kevent(poll_fd_, events + i, 1, nullptr, 0, nullptr);
       if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &error_size) == -1) {
         string error;
         base::GetLastError(&error);

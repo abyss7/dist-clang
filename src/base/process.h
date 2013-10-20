@@ -47,6 +47,7 @@ class Process {
         net::fd_t fd_;
     };
 
+    bool RunChild(int (&out_pipe)[2], int (&err_pipe)[2], int* in_pipe);
     void kill(int pid);
 
     const std::string exec_path_, cwd_path_;
