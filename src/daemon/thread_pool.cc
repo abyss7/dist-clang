@@ -4,7 +4,8 @@ namespace dist_clang {
 namespace daemon {
 
 ThreadPool::ThreadPool(size_t capacity, size_t concurrency)
-  : capacity_(capacity), workers_(concurrency), is_shutting_down_(false) {
+  : capacity_(capacity), workers_(concurrency), is_shutting_down_(false),
+    size_(0) {
 }
 
 ThreadPool::~ThreadPool() {
@@ -31,6 +32,7 @@ bool ThreadPool::Push(const Closure& task) {
       return false;
     tasks_.push(task);
   }
+  size_.fetch_add(1);
   tasks_condition_.notify_one();
   return true;
 }
@@ -47,6 +49,7 @@ void ThreadPool::DoWork() {
         break;
       task = tasks_.front();
       tasks_.pop();
+      size_.fetch_sub(1);
     }
     task();
     task = Closure();

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <condition_variable>
 #include <mutex>
 #include <queue>
@@ -33,10 +34,11 @@ class ThreadPool {
     std::condition_variable tasks_condition_;
     bool is_shutting_down_;
     std::queue<Closure> tasks_;
+    std::atomic<size_t> size_;
 };
 
 size_t ThreadPool::QueueSize() const {
-  return tasks_.size();
+  return size_.load();
 }
 
 }  // namespace daemon
