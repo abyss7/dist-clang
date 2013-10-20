@@ -59,10 +59,12 @@ class Connection: public ::std::enable_shared_from_this<Connection> {
 
     Connection(EventLoop& event_loop, fd_t fd, const EndPointPtr& end_point);
 
+#if !defined(OS_MACOSX)
+    inline bool AddToEventLoop();
+#endif
     void DoRead();
     void DoSend();
     void Close();
-    inline bool AddToEventLoop();
     bool ConvertCustomMessage(const CustomMessage& input, Message* output,
                               Status* status = nullptr);
 
@@ -85,10 +87,12 @@ bool Connection::IsOnEventLoop(const EventLoop* event_loop) const {
   return &event_loop_ == event_loop;
 }
 
+#if !defined(OS_MACOSX)
 bool Connection::AddToEventLoop() {
   bool old_added = false;
   return added_.compare_exchange_strong(old_added, true);
 }
+#endif
 
 }  // namespace net
 }  // namespace dist_clang

@@ -17,6 +17,7 @@
       'sources': [
         '../base/process_test.cc',
         # '../net/connection_test.cc',
+        '../net/kqueue_event_loop_test.cc',
         'run_all_tests.cc',
       ],
     },

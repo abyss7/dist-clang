@@ -37,12 +37,7 @@ bool KqueueEventLoop::ReadyForSend(ConnectionPtr connection) {
 }
 
 void KqueueEventLoop::RemoveConnection(fd_t fd) {
-  struct kevent events[2];
-  EV_SET(events + 0, fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
-  EV_SET(events + 1, fd, EVFILT_WRITE, EV_DELETE, 0, 0, 0);
-  kevent(io_fd_, events, 2, nullptr, 0, nullptr);
-  base::WriteLock lock(connections_mutex_);
-  connections_.erase(fd);
+  // do nothing.
 }
 
 void KqueueEventLoop::DoListenWork(const volatile bool &is_shutting_down,
@@ -91,12 +86,8 @@ void KqueueEventLoop::DoListenWork(const volatile bool &is_shutting_down,
 void KqueueEventLoop::DoIOWork(const volatile bool& is_shutting_down,
                                fd_t self_pipe) {
   struct kevent event;
-
-  {
-    struct kevent event;
-    EV_SET(&event, self_pipe, EVFILT_READ, EV_ADD, 0, 0, 0);
-    kevent(io_fd_, &event, 1, nullptr, 0, nullptr);
-  }
+  EV_SET(&event, self_pipe, EVFILT_READ, EV_ADD, 0, 0, 0);
+  kevent(io_fd_, &event, 1, nullptr, 0, nullptr);
 
   while(!is_shutting_down) {
     auto events_count = kevent(io_fd_, nullptr, 0, &event, 1, nullptr);
@@ -109,32 +100,28 @@ void KqueueEventLoop::DoIOWork(const volatile bool& is_shutting_down,
       }
     }
 
+    base::Assert(events_count == 1);
     fd_t fd = event.ident;
+
     if (fd == self_pipe) {
       continue;
     }
 
-    net::ConnectionPtr connection;
-    base::Assert(events_count == 1);
-    {
-      base::ReadLock lock(connections_mutex_);
-      connection = connections_[fd].lock();
-    }
+    auto raw_connection = reinterpret_cast<net::Connection*>(event.udata);
+    auto connection = raw_connection->shared_from_this();
 
-    if (event.flags & (EV_EOF|EV_ERROR)) {
-      struct kevent events[2];
-      EV_SET(events + 0, fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
-      EV_SET(events + 1, fd, EVFILT_WRITE, EV_DELETE, 0, 0, 0);
-      kevent(io_fd_, events, 2, nullptr, 0, nullptr);
+    if ((event.flags & EV_EOF && event.data == 0) || event.flags & EV_ERROR) {
+      ConnectionClose(connection);
     }
-
-    if (connection) {
-      if (event.filter == EVFILT_READ) {
-        ConnectionDoRead(connection);
-      }
-      else if (event.filter == EVFILT_WRITE) {
-        ConnectionDoSend(connection);
-      }
+    else if (event.filter == EVFILT_READ) {
+      ConnectionDoRead(connection);
+    }
+    else if (event.filter == EVFILT_WRITE) {
+      ConnectionDoSend(connection);
+    }
+    else {
+      // Should not be reached.
+      base::Assert(false);
     }
   }
 }
@@ -150,19 +137,8 @@ bool KqueueEventLoop::ReadyFor(ConnectionPtr connection, int16_t filter) {
 
   auto fd = GetConnectionDescriptor(connection);
   struct kevent event;
-  EV_SET(&event, fd, filter, EV_ENABLE | EV_ONESHOT, 0, 0, 0);
-  base::WriteLock lock(connections_mutex_);
-  if (kevent(io_fd_, &event, 1, nullptr, 0, nullptr) == -1) {
-    if (errno != ENOENT || !ConnectionAdd(connection)) {
-      return false;
-    }
-    event.flags |= EV_ADD;
-    if (kevent(io_fd_, &event, 1, nullptr, 0, nullptr) == -1) {
-      return false;
-    }
-    connections_.insert(std::make_pair(fd, connection));
-  }
-  return true;
+  EV_SET(&event, fd, filter, EV_ADD | EV_ONESHOT, 0, 0, connection.get());
+  return kevent(io_fd_, &event, 1, nullptr, 0, nullptr) != -1;
 }
 
 }  // namespace net

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "base/attributes.h"
-#include "base/read_write_lock.h"
 #include "net/event_loop.h"
 
 #include <unordered_map>
@@ -36,9 +35,6 @@ class KqueueEventLoop: public EventLoop {
 
     // We need to store listening fds - to be able to close them at shutdown.
     std::unordered_set<fd_t> listening_fds_;
-
-    base::ReadWriteMutex connections_mutex_;
-    std::unordered_map<fd_t, net::ConnectionWeakPtr> connections_;
 };
 
 }  // namespace net
