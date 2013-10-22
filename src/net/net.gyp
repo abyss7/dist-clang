@@ -7,6 +7,7 @@
       'target_name': 'net',
       'type': 'static_library',
       'dependencies': [
+        '../base/base.gyp:base',
         '../proto/proto.gyp:proto',
       ],
       'sources': [
@@ -14,8 +15,6 @@
         'base/end_point.h',
         'base/types.h',
         'base/utils.h',
-        'base/worker_pool.cc',
-        'base/worker_pool.h',
         'connection.cc',
         'connection.h',
         'connection_forward.h',

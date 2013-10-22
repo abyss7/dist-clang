@@ -1,6 +1,6 @@
 #pragma once
 
-#include "daemon/thread_pool.h"
+#include "base/thread_pool.h"
 
 #include <string>
 
@@ -20,7 +20,7 @@ class FileCache {
 
   private:
     const std::string path_;
-    ThreadPool pool_;
+    base::ThreadPool pool_;
 
     void DoStore(const std::string& path, const Entry& entry);
 };

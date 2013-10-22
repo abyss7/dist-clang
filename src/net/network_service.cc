@@ -27,7 +27,7 @@ NetworkService::~NetworkService() {
 bool NetworkService::Run() {
   auto old_signals = BlockSignals();
 
-  pool_.reset(new WorkerPool);
+  pool_.reset(new base::WorkerPool);
   auto work = std::bind(&NetworkService::DoConnectWork, this, _1, _2);
   pool_->AddWorker(work, concurrency_);
 

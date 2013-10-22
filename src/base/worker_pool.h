@@ -7,11 +7,11 @@
 #include <vector>
 
 namespace dist_clang {
-namespace net {
+namespace base {
 
 class WorkerPool {
   public:
-    using Worker = std::function<void(const volatile bool&, fd_t self_pipe)>;
+    using Worker = std::function<void(const volatile bool&, net::fd_t pipe)>;
 
     WorkerPool();
     ~WorkerPool();
@@ -21,8 +21,8 @@ class WorkerPool {
   private:
     std::vector<std::thread> workers_;
     volatile bool is_shutting_down_;
-    fd_t self_pipe_[2];
+    net::fd_t self_pipe_[2];
 };
 
-}  // namespace net
+}  // namespace base
 }  // namespace dist_clang

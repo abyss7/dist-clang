@@ -1,7 +1,7 @@
 #pragma once
 
 #include "base/attributes.h"
-#include "net/base/worker_pool.h"
+#include "base/worker_pool.h"
 #include "net/connection.h"
 
 #include <thread>
@@ -41,7 +41,7 @@ class EventLoop {
 
     std::atomic<int> is_running_;
     size_t concurrency_;
-    std::unique_ptr<WorkerPool> pool_;
+    std::unique_ptr<base::WorkerPool> pool_;
 };
 
 int EventLoop::GetConnectionDescriptor(const ConnectionPtr connection) const {

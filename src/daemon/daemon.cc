@@ -1,7 +1,6 @@
 #include "daemon/daemon.h"
 
-#include "daemon/commands/local_execution.h"
-#include "daemon/commands/remote_execution.h"
+#include "base/locked_queue.cc"
 #include "daemon/configuration.h"
 #include "net/connection.h"
 #include "net/network_service.h"
@@ -10,10 +9,19 @@
 #include <functional>
 #include <iostream>
 
-using namespace std::placeholders;
+using namespace ::std::placeholders;
 
 namespace dist_clang {
 namespace daemon {
+
+Daemon::Daemon()
+  : pool_(new base::WorkerPool) {
+}
+
+Daemon::~Daemon() {
+  tasks_->Close();
+  local_only_tasks_->Close();
+}
 
 bool Daemon::Initialize(const Configuration &configuration,
                         net::NetworkService &network_service) {
@@ -24,14 +32,21 @@ bool Daemon::Initialize(const Configuration &configuration,
     return false;
   }
 
+  auto local_worker = std::bind(&Daemon::LocalCompilation, this, _1, _2);
+  tasks_.reset(new TaskQueue(config.pool_capacity()));
+  local_only_tasks_.reset(new TaskQueue(config.pool_capacity()));
   if (config.has_local()) {
-    pool_.reset(new ThreadPool(config.pool_capacity(),
-                               config.local().threads()));
+    pool_->AddWorker(local_worker, config.local().threads());
   }
   else {
-    pool_.reset(new ThreadPool(config.pool_capacity()));
+    pool_->AddWorker(local_worker, std::thread::hardware_concurrency());
   }
-  pool_->Run();
+
+  for (const auto& remote: config.remotes()) {
+    auto remote_worker = std::bind(&Daemon::RemoteCompilation, this, _1, _2,
+                                   remote);
+    pool_->AddWorker(remote_worker, remote.threads());
+  }
 
   if (config.has_cache_path()) {
     cache_.reset(new FileCache(config.cache_path()));
@@ -58,11 +73,6 @@ bool Daemon::Initialize(const Configuration &configuration,
   if (!is_listening) {
     std::cerr << "Daemon is not listening. Quitting..." << std::endl;
     return false;
-  }
-
-  balancer_.reset(new Balancer(network_service));
-  for (const auto& remote: config.remotes()) {
-    balancer_->AddRemote(remote);
   }
 
   for (const auto& version: config.versions()) {
@@ -134,20 +144,30 @@ bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
     return connection->SendAsync(status);
   }
 
-  command::CommandPtr command;
   if (message.HasExtension(proto::LocalExecute::local)) {
     const auto& local = message.GetExtension(proto::LocalExecute::local);
-    command = command::LocalExecution::Create(connection, local, *this);
-  }
-  else if (message.HasExtension(proto::RemoteExecute::remote)) {
-    const auto& remote = message.GetExtension(proto::RemoteExecute::remote);
-    command = command::RemoteExecution::Create(connection, remote, *this);
+    auto task = ScopedMessage(new proto::LocalExecute(local));
+    return tasks_->Push(std::move(task));
   }
 
-  if (!command) {
-    return false;
+  if (message.HasExtension(proto::RemoteExecute::remote)) {
+    const auto& remote = message.GetExtension(proto::RemoteExecute::remote);
+    auto task = ScopedMessage(new proto::RemoteExecute(remote));
+    return local_only_tasks_->Push(std::move(task));
   }
-  return pool_->Push(std::bind(&command::Command::Run, command));
+
+  return false;
+}
+
+void Daemon::LocalCompilation(const volatile bool& should_close,
+                              net::fd_t pipe) {
+  // TODO: implement this.
+}
+
+void Daemon::RemoteCompilation(const volatile bool& should_close,
+                               net::fd_t pipe, const proto::Host& remote) {
+  // TODO: implement this.
+
 }
 
 }  // namespace daemon

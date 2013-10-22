@@ -63,7 +63,7 @@ class NetworkService {
     size_t concurrency_;
     std::mutex connect_mutex_;
     std::unordered_map<fd_t, CallbackPair> connect_callbacks_;
-    std::unique_ptr<WorkerPool> pool_;
+    std::unique_ptr<base::WorkerPool> pool_;
 };
 
 }  // namespace net
