@@ -12,10 +12,10 @@ namespace base {
 class ThreadPool {
   public:
     using Closure = std::function<void(void)>;
-    using LockedQueue = LockedQueue<Closure>;
+    using TaskQueue = LockedQueue<Closure>;
 
     explicit ThreadPool(
-        size_t capacity = LockedQueue::UNLIMITED,
+        size_t capacity = TaskQueue::UNLIMITED,
         size_t concurrency = std::thread::hardware_concurrency());
     ~ThreadPool();
 
@@ -26,7 +26,7 @@ class ThreadPool {
   private:
     void DoWork(const volatile bool& is_shutting_down, net::fd_t self_pipe);
 
-    LockedQueue tasks_;
+    TaskQueue tasks_;
     WorkerPool pool_;
     size_t concurrency_;
 };
