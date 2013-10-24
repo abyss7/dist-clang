@@ -65,7 +65,7 @@ class Connection: public ::std::enable_shared_from_this<Connection> {
     void DoRead();
     void DoSend();
     void Close();
-    bool ConvertCustomMessage(const CustomMessage& input, Message* output,
+    bool ConvertCustomMessage(const CustomMessage& input,
                               Status* status = nullptr);
 
     const fd_t fd_;

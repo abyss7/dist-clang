@@ -44,8 +44,7 @@ bool Connection::ReadAsync(ReadCallback callback) {
 
 bool Connection::SendAsync(const CustomMessage &message,
                            SendCallback callback) {
-  message_.Clear();
-  if (!ConvertCustomMessage(message, &message_, nullptr)) {
+  if (!ConvertCustomMessage(message, nullptr)) {
     return false;
   }
   send_callback_ = std::bind(callback, shared_from_this(), _1);
@@ -118,8 +117,7 @@ bool Connection::ReadSync(Message *message, Status *status) {
 
 bool Connection::SendSync(const CustomMessage &message, Status *status) {
   if (&message != &message_) {
-    message_.Clear();
-    if (!ConvertCustomMessage(message, &message_, status))
+    if (!ConvertCustomMessage(message, status))
       return false;
   }
 
@@ -190,14 +188,13 @@ void Connection::Close() {
 }
 
 bool Connection::ConvertCustomMessage(const CustomMessage &input,
-                                      Message *output, Status *status) {
+                                      Status *status) {
   auto input_descriptor = input.GetDescriptor();
   auto output_descriptor = Message::descriptor();
 
+  message_.Clear();
   if (input_descriptor == output_descriptor) {
-    if (output) {
-      output->CopyFrom(input);
-    }
+    message_.CopyFrom(input);
     return true;
   }
 
@@ -220,13 +217,8 @@ bool Connection::ConvertCustomMessage(const CustomMessage &input,
     return false;
   }
 
-  if (output) {
-    auto reflection = output->GetReflection();
-    auto output_field =
-        reflection->FindKnownExtensionByName(extension_field->full_name());
-    base::Assert(output_field);
-    reflection->MutableMessage(output, output_field)->CopyFrom(input);
-  }
+  auto reflection = message_.GetReflection();
+  reflection->MutableMessage(&message_, extension_field)->CopyFrom(input);
   return true;
 }
 
