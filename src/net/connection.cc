@@ -1,6 +1,7 @@
 #include "net/connection.h"
 
 #include "base/assert.h"
+#include "base/ptr_utils.h"
 #include "net/base/utils.h"
 #include "net/event_loop.h"
 
@@ -116,7 +117,7 @@ bool Connection::ReadSync(Message *message, Status *status) {
 }
 
 bool Connection::SendSync(const CustomMessage &message, Status *status) {
-  if (&message != &message_) {
+  if (&message != message_.get()) {
     if (!ConvertCustomMessage(message, status))
       return false;
   }
@@ -126,8 +127,8 @@ bool Connection::SendSync(const CustomMessage &message, Status *status) {
     options.format = GzipOutputStream::ZLIB;
     GzipOutputStream gzip_stream(&file_output_stream_, options);
     CodedOutputStream coded_stream(&gzip_stream);
-    coded_stream.WriteVarint32(message_.ByteSize());
-    if (!message_.SerializeToCodedStream(&coded_stream)) {
+    coded_stream.WriteVarint32(message_->ByteSize());
+    if (!message_->SerializeToCodedStream(&coded_stream)) {
       if (status) {
         status->set_code(Status::NETWORK);
         status->set_description("Can't serialize message to coded stream");
@@ -156,18 +157,19 @@ bool Connection::SendSync(const CustomMessage &message, Status *status) {
 
 void Connection::DoRead() {
   Status status;
-  ReadSync(&message_, &status);
+  message_.reset(new Message);
+  ReadSync(message_.get(), &status);
   base::Assert(!!read_callback_);
   auto read_callback = read_callback_;
   read_callback_ = BindedReadCallback();
-  if (!read_callback(message_, status)) {
+  if (!read_callback(*message_.get(), status)) {
     Close();
   }
 }
 
 void Connection::DoSend() {
   Status status;
-  SendSync(message_, &status);
+  SendSync(*message_.get(), &status);
   base::Assert(!!send_callback_);
   auto send_callback = send_callback_;
   send_callback_ = BindedSendCallback();
@@ -187,14 +189,14 @@ void Connection::Close() {
   }
 }
 
-bool Connection::ConvertCustomMessage(const CustomMessage &input,
-                                      Status *status) {
+bool Connection::ConvertCustomMessage(const CustomMessage& input,
+                                      Status* status) {
   auto input_descriptor = input.GetDescriptor();
   auto output_descriptor = Message::descriptor();
 
-  message_.Clear();
+  message_.reset(new Message);
   if (input_descriptor == output_descriptor) {
-    message_.CopyFrom(input);
+    message_->CopyFrom(input);
     return true;
   }
 
@@ -217,8 +219,44 @@ bool Connection::ConvertCustomMessage(const CustomMessage &input,
     return false;
   }
 
-  auto reflection = message_.GetReflection();
-  reflection->MutableMessage(&message_, extension_field)->CopyFrom(input);
+  auto reflection = message_->GetReflection();
+  reflection->MutableMessage(message_.get(), extension_field)->CopyFrom(input);
+  return true;
+}
+
+bool Connection::ConvertCustomMessage(ScopedCustomMessage input,
+                                      Status* status) {
+  auto input_descriptor = input->GetDescriptor();
+  auto output_descriptor = Message::descriptor();
+
+  if (input_descriptor == output_descriptor) {
+    message_ = base::unique_static_cast<Message>(input);
+    return true;
+  }
+
+  const ::google::protobuf::FieldDescriptor* extension_field = nullptr;
+
+  for (int i = 0; i < input_descriptor->extension_count(); ++i) {
+    auto containing_type = input_descriptor->extension(i)->containing_type();
+    if (containing_type == output_descriptor) {
+      extension_field = input_descriptor->extension(i);
+      break;
+    }
+  }
+  if (!extension_field) {
+    if (status) {
+      status->set_code(Status::EMPTY_MESSAGE);
+      status->set_description("Message of type " + input->GetTypeName() +
+                              " can't be sent, since it doesn't extend " +
+                              output_descriptor->full_name());
+    }
+    return false;
+  }
+
+  message_.reset(new Message);
+  auto reflection = message_->GetReflection();
+  auto output = reflection->MutableMessage(message_.get(), extension_field);
+  reflection->Swap(output, input.get());
   return true;
 }
 

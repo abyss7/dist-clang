@@ -9,6 +9,7 @@
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/gzip_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <memory>
 
 #include <unistd.h>
 
@@ -21,6 +22,7 @@ class Connection: public ::std::enable_shared_from_this<Connection> {
     using CodedInputStream = ::google::protobuf::io::CodedInputStream;
     using CodedOutputStream = ::google::protobuf::io::CodedOutputStream;
     using CustomMessage = ::google::protobuf::Message;
+    using ScopedCustomMessage = ::std::unique_ptr<CustomMessage>;
     using FileInputStream = ::google::protobuf::io::FileInputStream;
     using FileOutputStream = ::google::protobuf::io::FileOutputStream;
     using GzipInputStream = ::google::protobuf::io::GzipInputStream;
@@ -29,6 +31,7 @@ class Connection: public ::std::enable_shared_from_this<Connection> {
 
   public:
     using Message = proto::Universal;
+    using ScopedMessage = ::std::unique_ptr<Message>;
     using ReadCallback =
         std::function<bool(ConnectionPtr, const Message&, const Status&)>;
     using SendCallback = std::function<bool(ConnectionPtr, const Status&)>;
@@ -67,9 +70,11 @@ class Connection: public ::std::enable_shared_from_this<Connection> {
     void Close();
     bool ConvertCustomMessage(const CustomMessage& input,
                               Status* status = nullptr);
+    bool ConvertCustomMessage(ScopedCustomMessage input,
+                              Status* status = nullptr);
 
     const fd_t fd_;
-    Message message_;
+    ScopedMessage message_;
     EventLoop& event_loop_;
     std::atomic<bool> is_closed_, added_;
     EndPointPtr end_point_;
