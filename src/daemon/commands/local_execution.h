@@ -16,9 +16,11 @@ namespace command {
 
 class LocalExecution: public Command {
   public:
+    using ScopedMessage = ::std::unique_ptr<proto::LocalExecute>;
+
     static CommandPtr Create(
         net::ConnectionPtr connection,
-        const proto::LocalExecute& message,
+        ScopedMessage message,
         Daemon& daemon);
 
     virtual void Run() override;
@@ -26,7 +28,7 @@ class LocalExecution: public Command {
   private:
     LocalExecution(
         net::ConnectionPtr connection,
-        const proto::LocalExecute& message,
+        ScopedMessage message,
         Daemon& daemon);
 
     void DoneRemoteConnection(
@@ -37,7 +39,7 @@ class LocalExecution: public Command {
         const proto::Status& status);
     bool DoneRemoteCompilation(
         net::ConnectionPtr connection,
-        const proto::Universal& message,
+        ::std::unique_ptr<proto::Universal> message,
         const proto::Status& status);
 
     void DoLocalCompilation();
@@ -49,7 +51,7 @@ class LocalExecution: public Command {
     inline std::shared_ptr<LocalExecution> shared_from_this();
 
     net::ConnectionPtr connection_;
-    proto::LocalExecute message_;
+    ScopedMessage message_;
     Daemon& daemon_;
 
     std::string pp_source_;

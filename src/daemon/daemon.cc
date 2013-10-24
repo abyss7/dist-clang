@@ -127,7 +127,7 @@ void Daemon::HandleNewConnection(net::ConnectionPtr connection) {
 }
 
 bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
-                              const proto::Universal& message,
+                              ScopedMessage message,
                               const proto::Status& status) {
   if (status.code() != proto::Status::OK) {
     std::cerr << status.description() << std::endl;
@@ -135,13 +135,17 @@ bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
   }
 
   command::CommandPtr command;
-  if (message.HasExtension(proto::LocalExecute::local)) {
-    const auto& local = message.GetExtension(proto::LocalExecute::local);
-    command = command::LocalExecution::Create(connection, local, *this);
+  if (message->HasExtension(proto::LocalExecute::local)) {
+    auto* extension = message->ReleaseExtension(proto::LocalExecute::local);
+    auto local = command::LocalExecution::ScopedMessage(extension);
+    command = command::LocalExecution::Create(connection, std::move(local),
+                                              *this);
   }
-  else if (message.HasExtension(proto::RemoteExecute::remote)) {
-    const auto& remote = message.GetExtension(proto::RemoteExecute::remote);
-    command = command::RemoteExecution::Create(connection, remote, *this);
+  else if (message->HasExtension(proto::RemoteExecute::remote)) {
+    auto* extension = message->ReleaseExtension(proto::RemoteExecute::remote);
+    auto remote = command::RemoteExecution::ScopedMessage(extension);
+    command = command::RemoteExecution::Create(connection, std::move(remote),
+                                               *this);
   }
 
   if (!command) {

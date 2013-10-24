@@ -33,7 +33,7 @@ class Connection: public ::std::enable_shared_from_this<Connection> {
     using Message = proto::Universal;
     using ScopedMessage = ::std::unique_ptr<Message>;
     using ReadCallback =
-        std::function<bool(ConnectionPtr, const Message&, const Status&)>;
+        std::function<bool(ConnectionPtr, ScopedMessage, const Status&)>;
     using SendCallback = std::function<bool(ConnectionPtr, const Status&)>;
 
     // Create connection only on a socket with a pending connection -
@@ -58,7 +58,7 @@ class Connection: public ::std::enable_shared_from_this<Connection> {
     friend class EventLoop;
 
     using BindedReadCallback =
-        std::function<bool(const Message&, const Status&)>;
+        std::function<bool(ScopedMessage, const Status&)>;
     using BindedSendCallback = std::function<bool(const Status&)>;
 
     enum State { IDLE, WAITING_SEND, WAITING_READ, SENDING, READING };
@@ -71,8 +71,6 @@ class Connection: public ::std::enable_shared_from_this<Connection> {
     void DoRead();
     void DoSend();
     void Close();
-    bool ConvertCustomMessage(const CustomMessage& input,
-                              Status* status = nullptr);
     bool ConvertCustomMessage(ScopedCustomMessage input,
                               Status* status = nullptr);
 

@@ -15,6 +15,7 @@
         'file_utils.h',
         'locked_queue.cc',
         'locked_queue.h',
+        'ptr_utils.h',
         'random.h',
         'read_write_lock.h',
         'string_utils.h',

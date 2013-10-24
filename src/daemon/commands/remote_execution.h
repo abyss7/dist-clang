@@ -14,9 +14,11 @@ namespace command {
 
 class RemoteExecution: public Command {
   public:
+    using ScopedMessage = ::std::unique_ptr<proto::RemoteExecute>;
+
     static CommandPtr Create(
         net::ConnectionPtr connection,
-        const proto::RemoteExecute& message,
+        ScopedMessage message,
         Daemon& daemon);
 
     virtual void Run() override;
@@ -24,14 +26,14 @@ class RemoteExecution: public Command {
   private:
     RemoteExecution(
         net::ConnectionPtr connection,
-        const proto::RemoteExecute& message,
+        ScopedMessage message,
         Daemon& daemon);
 
     bool SearchCache(
         FileCache::Entry* entry);
 
     net::ConnectionPtr connection_;
-    proto::RemoteExecute message_;
+    ScopedMessage message_;
     Daemon& daemon_;
 };
 

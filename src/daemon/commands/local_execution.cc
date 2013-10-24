@@ -18,28 +18,27 @@ namespace command {
 
 // static
 CommandPtr LocalExecution::Create(net::ConnectionPtr connection,
-                                  const proto::LocalExecute& message,
+                                  ScopedMessage message,
                                   Daemon& daemon) {
-  if (!message.cc_flags().has_output() ||
-      !message.cc_flags().has_input() ||
-       message.cc_flags().input() == "-" ||
-      !message.pp_flags().has_input() ||
-       message.pp_flags().input() == "-") {
+  if (!message->cc_flags().has_output() ||
+      !message->cc_flags().has_input() ||
+       message->cc_flags().input() == "-" ||
+      !message->pp_flags().has_input() ||
+       message->pp_flags().input() == "-") {
     return CommandPtr();
   }
-  return CommandPtr(new LocalExecution(connection, message, daemon));
+  return CommandPtr(new LocalExecution(connection, std::move(message), daemon));
 }
 
 LocalExecution::LocalExecution(net::ConnectionPtr connection,
-                               const proto::LocalExecute& message,
+                               ScopedMessage message,
                                Daemon& daemon)
-  : connection_(connection), message_(message),
-    daemon_(daemon) {
+  : connection_(connection), message_(std::move(message)), daemon_(daemon) {
 }
 
 void LocalExecution::Run() {
-  if (!message_.has_pp_flags() ||
-      !daemon_.FillFlags(message_.mutable_pp_flags())) {
+  if (!message_->has_pp_flags() ||
+      !daemon_.FillFlags(message_->mutable_pp_flags())) {
     // Without preprocessing flags we can't neither check the cache, nor do
     // a remote compilation, nor put the result back in cache.
     DoLocalCompilation();
@@ -47,10 +46,10 @@ void LocalExecution::Run() {
   }
 
   // Redirect output to stdin in |pp_flags|.
-  message_.mutable_pp_flags()->set_output("-");
+  message_->mutable_pp_flags()->set_output("-");
 
   // TODO: don't do preprocessing, if we don't have cache and any remotes.
-  base::Process process(message_.pp_flags(), message_.current_dir());
+  base::Process process(message_->pp_flags(), message_->current_dir());
   if (!process.Run(10)) {
     // It usually means, that there is an error in the source code.
     // We should skip a cache check and head to local compilation.
@@ -62,7 +61,7 @@ void LocalExecution::Run() {
   FileCache::Entry cache_entry;
   if (SearchCache(&cache_entry)) {
     std::string output_path =
-        message_.current_dir() + "/" + message_.cc_flags().output();
+        message_->current_dir() + "/" + message_->cc_flags().output();
     if (base::CopyFile(cache_entry.first, output_path, true)) {
       proto::Status status;
       status.set_code(proto::Status::OK);
@@ -103,7 +102,7 @@ void LocalExecution::DoneRemoteConnection(net::ConnectionPtr connection,
                             shared_from_this(), _1, _2);
   ::std::unique_ptr<proto::RemoteExecute> remote(new proto::RemoteExecute);
   remote->set_pp_source(pp_source_);
-  remote->mutable_cc_flags()->CopyFrom(message_.cc_flags());
+  remote->mutable_cc_flags()->CopyFrom(message_->cc_flags());
 
   // Filter outgoing flags.
   remote->mutable_cc_flags()->mutable_compiler()->clear_path();
@@ -119,25 +118,25 @@ void LocalExecution::DoneRemoteConnection(net::ConnectionPtr connection,
 
 void LocalExecution::DoLocalCompilation() {
   proto::Status status;
-  if (!daemon_.FillFlags(message_.mutable_cc_flags(), &status)) {
+  if (!daemon_.FillFlags(message_->mutable_cc_flags(), &status)) {
     connection_->ReportStatus(status);
     return;
   }
 
-  ::std::unique_ptr<proto::Status> message(new proto::Status);
-  base::Process process(message_.cc_flags(), message_.current_dir());
+  proto::Status message;
+  base::Process process(message_->cc_flags(), message_->current_dir());
   if (!process.Run(60)) {
-    message->set_code(proto::Status::EXECUTION);
-    message->set_description(process.stderr());
+    message.set_code(proto::Status::EXECUTION);
+    message.set_description(process.stderr());
   } else {
-    message->set_code(proto::Status::OK);
-    message->set_description(process.stderr());
-    std::cout << "Local compilation successful: " + message_.cc_flags().input()
+    message.set_code(proto::Status::OK);
+    message.set_description(process.stderr());
+    std::cout << "Local compilation successful: " + message_->cc_flags().input()
               << std::endl;
-    UpdateCache(*message.get());
+    UpdateCache(message);
   }
 
-  connection_->SendAsync(std::move(message));
+  connection_->ReportStatus(message);
 }
 
 void LocalExecution::DeferLocalCompilation() {
@@ -170,15 +169,15 @@ bool LocalExecution::DoRemoteCompilation(net::ConnectionPtr connection,
 }
 
 bool LocalExecution::DoneRemoteCompilation(net::ConnectionPtr /* connection */,
-                                           const proto::Universal& message,
+                                           Daemon::ScopedMessage message,
                                            const proto::Status& status) {
   if (status.code() != proto::Status::OK) {
     std::cerr << status.description() << std::endl;
     DeferLocalCompilation();
     return false;
   }
-  if (message.HasExtension(proto::Status::status)) {
-    const auto& status = message.GetExtension(proto::Status::status);
+  if (message->HasExtension(proto::Status::status)) {
+    const auto& status = message->GetExtension(proto::Status::status);
     if (status.code() != proto::Status::OK) {
       std::cerr << "Remote compilation failed with error(s):" << std::endl;
       std::cerr << status.description() << std::endl;
@@ -186,15 +185,15 @@ bool LocalExecution::DoneRemoteCompilation(net::ConnectionPtr /* connection */,
       return false;
     }
   }
-  if (message.HasExtension(proto::RemoteResult::result)) {
-    const auto& result = message.GetExtension(proto::RemoteResult::result);
+  if (message->HasExtension(proto::RemoteResult::result)) {
+    const auto& result = message->GetExtension(proto::RemoteResult::result);
     std::string output_path =
-        message_.current_dir() + "/" + message_.cc_flags().output();
+        message_->current_dir() + "/" + message_->cc_flags().output();
     if (base::WriteFile(output_path, result.obj())) {
       proto::Status status;
       status.set_code(proto::Status::OK);
       std::cout << "Remote compilation successful: "
-                << message_.cc_flags().input() << std::endl;
+                << message_->cc_flags().input() << std::endl;
       UpdateCache(status);
       connection_->ReportStatus(status);
       return false;
@@ -210,7 +209,7 @@ bool LocalExecution::SearchCache(FileCache::Entry* entry) {
     return false;
   }
 
-  const auto& flags = message_.cc_flags();
+  const auto& flags = message_->cc_flags();
   const auto& version = flags.compiler().version();
   std::string command_line = base::JoinString<' '>(flags.other().begin(),
                                                    flags.other().end());
@@ -226,9 +225,9 @@ void LocalExecution::UpdateCache(const proto::Status& status) {
   }
   base::Assert(status.code() == proto::Status::OK);
 
-  const auto& flags = message_.cc_flags();
+  const auto& flags = message_->cc_flags();
   FileCache::Entry entry;
-  entry.first = message_.current_dir() + "/" + flags.output();
+  entry.first = message_->current_dir() + "/" + flags.output();
   entry.second = status.description();
   const auto& version = flags.compiler().version();
   std::string command_line = base::JoinString<' '>(flags.other().begin(),

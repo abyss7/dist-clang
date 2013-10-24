@@ -35,6 +35,8 @@ class Daemon {
     using PluginMap = std::unordered_map<std::string, PluginNameMap>;
 
   public:
+    using ScopedMessage = ::std::unique_ptr<proto::Universal>;
+
     bool Initialize(
         const Configuration& configuration,
         net::NetworkService& network_service);
@@ -52,7 +54,7 @@ class Daemon {
     // Invoked on a first message from a new connection.
     bool HandleNewMessage(
         net::ConnectionPtr connection,
-        const proto::Universal& message,
+        ScopedMessage message,
         const proto::Status& status);
 
     std::unique_ptr<base::ThreadPool> pool_;

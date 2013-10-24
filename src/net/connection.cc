@@ -173,7 +173,7 @@ void Connection::DoRead() {
   base::Assert(!!read_callback_);
   auto read_callback = read_callback_;
   read_callback_ = BindedReadCallback();
-  if (!read_callback(*message_.get(), status)) {
+  if (!read_callback(std::move(message_), status)) {
     Close();
   }
 }
@@ -198,41 +198,6 @@ void Connection::Close() {
     // TODO: do the "polite" shutdown.
     close(fd_);
   }
-}
-
-bool Connection::ConvertCustomMessage(const CustomMessage& input,
-                                      Status* status) {
-  auto input_descriptor = input.GetDescriptor();
-  auto output_descriptor = Message::descriptor();
-
-  message_.reset(new Message);
-  if (input_descriptor == output_descriptor) {
-    message_->CopyFrom(input);
-    return true;
-  }
-
-  const ::google::protobuf::FieldDescriptor* extension_field = nullptr;
-
-  for (int i = 0; i < input_descriptor->extension_count(); ++i) {
-    auto containing_type = input_descriptor->extension(i)->containing_type();
-    if (containing_type == output_descriptor) {
-      extension_field = input_descriptor->extension(i);
-      break;
-    }
-  }
-  if (!extension_field) {
-    if (status) {
-      status->set_code(Status::EMPTY_MESSAGE);
-      status->set_description("Message of type " + input.GetTypeName() +
-                              " can't be sent, since it doesn't extend " +
-                              output_descriptor->full_name());
-    }
-    return false;
-  }
-
-  auto reflection = message_->GetReflection();
-  reflection->MutableMessage(message_.get(), extension_field)->CopyFrom(input);
-  return true;
 }
 
 bool Connection::ConvertCustomMessage(ScopedCustomMessage input,
