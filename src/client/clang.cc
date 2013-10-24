@@ -90,16 +90,16 @@ bool DoMain(int argc, char* argv[]) {
   if (!connection)
     return true;
 
-  proto::LocalExecute message;
+  ::std::unique_ptr<proto::LocalExecute> message(new proto::LocalExecute);
 
   std::string current_dir = base::GetCurrentDir();
   if (current_dir.empty())
     return true;
-  message.set_current_dir(current_dir);
+  message->set_current_dir(current_dir);
 
   {
     using client::ClangFlagSet;
-    auto flags = message.mutable_cc_flags();
+    auto flags = message->mutable_cc_flags();
     auto version = flags->mutable_compiler()->mutable_version();
     ClangFlagSet::StringList args;
     base::Process process(base::GetEnv(kEnvClangdCxx));
@@ -113,7 +113,7 @@ bool DoMain(int argc, char* argv[]) {
 
   {
     using client::ClangFlagSet;
-    auto flags = message.mutable_pp_flags();
+    auto flags = message->mutable_pp_flags();
     auto version = flags->mutable_compiler()->mutable_version();
     ClangFlagSet::StringList args;
     base::Process process(base::GetEnv(kEnvClangdCxx));
@@ -127,7 +127,7 @@ bool DoMain(int argc, char* argv[]) {
   }
 
   proto::Status status;
-  if (!connection->SendSync(message, &status)) {
+  if (!connection->SendSync(std::move(message), &status)) {
     std::cerr << "Failed to send message: " << status.description()
               << std::endl;
     return true;

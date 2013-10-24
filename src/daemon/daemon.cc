@@ -131,7 +131,7 @@ bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
                               const proto::Status& status) {
   if (status.code() != proto::Status::OK) {
     std::cerr << status.description() << std::endl;
-    return connection->SendAsync(status);
+    return connection->ReportStatus(status);
   }
 
   command::CommandPtr command;

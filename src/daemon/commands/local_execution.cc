@@ -67,7 +67,7 @@ void LocalExecution::Run() {
       proto::Status status;
       status.set_code(proto::Status::OK);
       status.set_description(cache_entry.second);
-      connection_->SendAsync(status);
+      connection_->ReportStatus(status);
       return;
     }
   }
@@ -101,17 +101,17 @@ void LocalExecution::DoneRemoteConnection(net::ConnectionPtr connection,
 
   auto callback = std::bind(&LocalExecution::DoRemoteCompilation,
                             shared_from_this(), _1, _2);
-  proto::RemoteExecute remote;
-  remote.set_pp_source(pp_source_);
-  remote.mutable_cc_flags()->CopyFrom(message_.cc_flags());
+  ::std::unique_ptr<proto::RemoteExecute> remote(new proto::RemoteExecute);
+  remote->set_pp_source(pp_source_);
+  remote->mutable_cc_flags()->CopyFrom(message_.cc_flags());
 
   // Filter outgoing flags.
-  remote.mutable_cc_flags()->mutable_compiler()->clear_path();
-  remote.mutable_cc_flags()->clear_output();
-  remote.mutable_cc_flags()->clear_input();
-  remote.mutable_cc_flags()->clear_dependenies();
+  remote->mutable_cc_flags()->mutable_compiler()->clear_path();
+  remote->mutable_cc_flags()->clear_output();
+  remote->mutable_cc_flags()->clear_input();
+  remote->mutable_cc_flags()->clear_dependenies();
 
-  if (!connection->SendAsync(remote, callback)) {
+  if (!connection->SendAsync(std::move(remote), callback)) {
     DeferLocalCompilation();
     return;
   }
@@ -120,24 +120,24 @@ void LocalExecution::DoneRemoteConnection(net::ConnectionPtr connection,
 void LocalExecution::DoLocalCompilation() {
   proto::Status status;
   if (!daemon_.FillFlags(message_.mutable_cc_flags(), &status)) {
-    connection_->SendAsync(status);
+    connection_->ReportStatus(status);
     return;
   }
 
-  proto::Status message;
+  ::std::unique_ptr<proto::Status> message(new proto::Status);
   base::Process process(message_.cc_flags(), message_.current_dir());
   if (!process.Run(60)) {
-    message.set_code(proto::Status::EXECUTION);
-    message.set_description(process.stderr());
+    message->set_code(proto::Status::EXECUTION);
+    message->set_description(process.stderr());
   } else {
-    message.set_code(proto::Status::OK);
-    message.set_description(process.stderr());
+    message->set_code(proto::Status::OK);
+    message->set_description(process.stderr());
     std::cout << "Local compilation successful: " + message_.cc_flags().input()
               << std::endl;
-    UpdateCache(message);
+    UpdateCache(*message.get());
   }
 
-  connection_->SendAsync(message);
+  connection_->SendAsync(std::move(message));
 }
 
 void LocalExecution::DeferLocalCompilation() {
@@ -147,7 +147,7 @@ void LocalExecution::DeferLocalCompilation() {
     proto::Status status;
     status.set_code(proto::Status::OVERLOAD);
     status.set_description("Queue is full");
-    connection_->SendAsync(status);
+    connection_->ReportStatus(status);
   }
 }
 
@@ -196,7 +196,7 @@ bool LocalExecution::DoneRemoteCompilation(net::ConnectionPtr /* connection */,
       std::cout << "Remote compilation successful: "
                 << message_.cc_flags().input() << std::endl;
       UpdateCache(status);
-      connection_->SendAsync(status);
+      connection_->ReportStatus(status);
       return false;
     }
   }

@@ -43,9 +43,8 @@ bool Connection::ReadAsync(ReadCallback callback) {
   return true;
 }
 
-bool Connection::SendAsync(const CustomMessage &message,
-                           SendCallback callback) {
-  if (!ConvertCustomMessage(message, nullptr)) {
+bool Connection::SendAsync(ScopedCustomMessage message, SendCallback callback) {
+  if (!ConvertCustomMessage(std::move(message), nullptr)) {
     return false;
   }
   send_callback_ = std::bind(callback, shared_from_this(), _1);
@@ -54,18 +53,6 @@ bool Connection::SendAsync(const CustomMessage &message,
     return false;
   }
   return true;
-}
-
-// static
-Connection::SendCallback Connection::CloseAfterSend() {
-  auto callback = [](ConnectionPtr, const Status& status) -> bool {
-    if (status.code() != Status::OK) {
-      std::cerr << "Failed to send message: " << status.description()
-                << std::endl;
-    }
-    return false;
-  };
-  return std::bind(callback, _1, _2);
 }
 
 bool Connection::ReadSync(Message *message, Status *status) {
@@ -116,10 +103,9 @@ bool Connection::ReadSync(Message *message, Status *status) {
   return true;
 }
 
-bool Connection::SendSync(const CustomMessage &message, Status *status) {
-  if (&message != message_.get()) {
-    if (!ConvertCustomMessage(message, status))
-      return false;
+bool Connection::SendSync(ScopedCustomMessage message, Status* status) {
+  if (!ConvertCustomMessage(std::move(message), status)) {
+    return false;
   }
 
   {
@@ -155,6 +141,31 @@ bool Connection::SendSync(const CustomMessage &message, Status *status) {
   return true;
 }
 
+bool Connection::ReportStatus(const Status& message, SendCallback callback) {
+  ::std::unique_ptr<Status> message_ptr(new Status(message));
+  if (!ConvertCustomMessage(std::move(message_ptr), nullptr)) {
+    return false;
+  }
+  send_callback_ = std::bind(callback, shared_from_this(), _1);
+  if (!event_loop_.ReadyForSend(shared_from_this())) {
+    send_callback_ = BindedSendCallback();
+    return false;
+  }
+  return true;
+}
+
+// static
+Connection::SendCallback Connection::CloseAfterSend() {
+  auto callback = [](ConnectionPtr, const Status& status) -> bool {
+    if (status.code() != Status::OK) {
+      std::cerr << "Failed to send message: " << status.description()
+                << std::endl;
+    }
+    return false;
+  };
+  return std::bind(callback, _1, _2);
+}
+
 void Connection::DoRead() {
   Status status;
   message_.reset(new Message);
@@ -169,7 +180,7 @@ void Connection::DoRead() {
 
 void Connection::DoSend() {
   Status status;
-  SendSync(*message_.get(), &status);
+  SendSync(std::move(message_), &status);
   base::Assert(!!send_callback_);
   auto send_callback = send_callback_;
   send_callback_ = BindedSendCallback();
@@ -256,7 +267,7 @@ bool Connection::ConvertCustomMessage(ScopedCustomMessage input,
   message_.reset(new Message);
   auto reflection = message_->GetReflection();
   auto output = reflection->MutableMessage(message_.get(), extension_field);
-  reflection->Swap(output, input.get());
+  output->GetReflection()->Swap(output, input.get());
   return true;
 }
 

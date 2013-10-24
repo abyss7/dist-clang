@@ -43,12 +43,15 @@ class Connection: public ::std::enable_shared_from_this<Connection> {
     ~Connection();
 
     bool ReadAsync(ReadCallback callback);
-    bool SendAsync(const CustomMessage& message,
+    bool SendAsync(ScopedCustomMessage message,
                    SendCallback callback = CloseAfterSend());
-    static SendCallback CloseAfterSend();
 
     bool ReadSync(Message* message, Status* status = nullptr);
-    bool SendSync(const CustomMessage& message, Status* status = nullptr);
+    bool SendSync(ScopedCustomMessage message, Status* status = nullptr);
+
+    bool ReportStatus(const Status& message,
+                      SendCallback callback = CloseAfterSend());
+    static SendCallback CloseAfterSend();
     inline bool IsOnEventLoop(const EventLoop* event_loop) const;
 
   private:

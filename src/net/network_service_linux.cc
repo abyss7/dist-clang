@@ -83,7 +83,6 @@ void NetworkService::DoConnectWork(const volatile bool &is_shutting_down,
         continue;
       }
 
-      base::Assert(events[i].events & EPOLLOUT);
       fd_t fd = events[i].data.fd;
       ConnectCallback callback;
       EndPointPtr end_point;

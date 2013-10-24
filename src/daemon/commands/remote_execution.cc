@@ -27,13 +27,13 @@ void RemoteExecution::Run() {
   // Look in the local cache first.
   FileCache::Entry cache_entry;
   if (SearchCache(&cache_entry)) {
-    proto::Universal message;
-    auto result = message.MutableExtension(proto::RemoteResult::result);
+    net::Connection::ScopedMessage message(new proto::Universal);
+    auto result = message->MutableExtension(proto::RemoteResult::result);
     if (base::ReadFile(cache_entry.first, result->mutable_obj())) {
-      auto status = message.MutableExtension(proto::Status::status);
+      auto status = message->MutableExtension(proto::Status::status);
       status->set_code(proto::Status::OK);
       status->set_description(cache_entry.second);
-      connection_->SendAsync(message);
+      connection_->SendAsync(std::move(message));
       return;
     }
   }
@@ -41,7 +41,7 @@ void RemoteExecution::Run() {
   // Check that we have a compiler of a requested version.
   proto::Status status;
   if (!daemon_.FillFlags(message_.mutable_cc_flags(), &status)) {
-    connection_->SendAsync(status);
+    connection_->ReportStatus(status);
     return;
   }
 
@@ -89,11 +89,11 @@ void RemoteExecution::Run() {
     std::cout << "External compilation successful" << std::endl;
   }
 
-  proto::Universal message;
+  net::Connection::ScopedMessage message(new proto::Universal);
   const auto& result = proto::RemoteResult::result;
-  message.MutableExtension(proto::Status::status)->CopyFrom(status);
-  message.MutableExtension(result)->set_obj(process.stdout());
-  connection_->SendAsync(message);
+  message->MutableExtension(proto::Status::status)->CopyFrom(status);
+  message->MutableExtension(result)->set_obj(process.stdout());
+  connection_->SendAsync(std::move(message));
 }
 
 bool RemoteExecution::SearchCache(FileCache::Entry *entry) {
