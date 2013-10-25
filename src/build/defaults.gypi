@@ -15,7 +15,6 @@
     ],
     'ldflags': [
       '-ltcmalloc',
-      '-lprofiler',
     ],
     'xcode_settings': {
       'ARCHS': ['x86_64'],

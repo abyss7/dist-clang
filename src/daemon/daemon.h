@@ -37,9 +37,6 @@ class Daemon {
   public:
     using ScopedMessage = ::std::unique_ptr<proto::Universal>;
 
-    Daemon();
-    ~Daemon();
-
     bool Initialize(
         const Configuration& configuration,
         net::NetworkService& network_service);
