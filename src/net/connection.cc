@@ -65,9 +65,8 @@ bool Connection::ReadSync(Message *message, Status *status) {
   }
 
   unsigned size;
-  GzipInputStream gzip_stream(&file_input_stream_, GzipInputStream::ZLIB);
   {
-    CodedInputStream coded_stream(&gzip_stream);
+    CodedInputStream coded_stream(&file_input_stream_);
     if (!coded_stream.ReadVarint32(&size)) {
       if (file_input_stream_.GetErrno() && status) {
         status->set_code(Status::NETWORK);
@@ -87,7 +86,7 @@ bool Connection::ReadSync(Message *message, Status *status) {
     return false;
   }
 
-  if (!message->ParseFromBoundedZeroCopyStream(&gzip_stream, size)) {
+  if (!message->ParseFromBoundedZeroCopyStream(&file_input_stream_, size)) {
     if (status) {
       status->set_code(Status::BAD_MESSAGE);
       status->set_description("Incoming message is malformed");
@@ -109,10 +108,7 @@ bool Connection::SendSync(ScopedCustomMessage message, Status* status) {
   }
 
   {
-    GzipOutputStream::Options options;
-    options.format = GzipOutputStream::ZLIB;
-    GzipOutputStream gzip_stream(&file_output_stream_, options);
-    CodedOutputStream coded_stream(&gzip_stream);
+    CodedOutputStream coded_stream(&file_output_stream_);
     coded_stream.WriteVarint32(message_->ByteSize());
     if (!message_->SerializeToCodedStream(&coded_stream)) {
       if (status) {
