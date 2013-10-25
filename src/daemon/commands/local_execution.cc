@@ -223,7 +223,7 @@ void LocalExecution::UpdateCache(const proto::Status& status) {
   if (!daemon_.cache() || pp_source_.empty()) {
     return;
   }
-  base::Assert(status.code() == proto::Status::OK);
+  CHECK(status.code() == proto::Status::OK);
 
   const auto& flags = message_->cc_flags();
   FileCache::Entry entry;

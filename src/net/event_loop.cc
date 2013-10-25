@@ -13,7 +13,7 @@ EventLoop::EventLoop(size_t concurrency)
 }
 
 EventLoop::~EventLoop() {
-  base::Assert(!pool_);
+  DCHECK(!pool_);
 }
 
 bool EventLoop::Run() {

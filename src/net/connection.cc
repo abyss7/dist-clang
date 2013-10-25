@@ -17,9 +17,9 @@ namespace net {
 ConnectionPtr Connection::Create(EventLoop &event_loop, fd_t fd,
                                  const EndPointPtr& end_point) {
 #if !defined(OS_MACOSX)
-  base::Assert(!IsListening(fd));
+  DCHECK(!IsListening(fd));
 #endif
-  base::Assert(!IsNonBlocking(fd));
+  DCHECK(!IsNonBlocking(fd));
   return ConnectionPtr(new Connection(event_loop, fd, end_point));
 }
 
@@ -170,7 +170,7 @@ void Connection::DoRead() {
   Status status;
   message_.reset(new Message);
   ReadSync(message_.get(), &status);
-  base::Assert(!!read_callback_);
+  DCHECK(!!read_callback_);
   auto read_callback = read_callback_;
   read_callback_ = BindedReadCallback();
   if (!read_callback(std::move(message_), status)) {
@@ -181,7 +181,7 @@ void Connection::DoRead() {
 void Connection::DoSend() {
   Status status;
   SendSync(std::move(message_), &status);
-  base::Assert(!!send_callback_);
+  DCHECK(!!send_callback_);
   auto send_callback = send_callback_;
   send_callback_ = BindedSendCallback();
   if (!send_callback(status)) {

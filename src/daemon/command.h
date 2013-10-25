@@ -1,5 +1,6 @@
 #pragma once
 
+#include <gperftools/profiler.h>
 #include <memory>
 
 namespace dist_clang {
@@ -9,7 +10,9 @@ namespace command {
 class Command: public std::enable_shared_from_this<Command> {
   public:
     virtual void Run() = 0;
-    virtual ~Command() {}
+    virtual ~Command() {
+      ProfilerFlush();
+    }
 };
 
 using CommandPtr = std::shared_ptr<Command>;

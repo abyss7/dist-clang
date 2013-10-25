@@ -56,6 +56,7 @@ inline sigset_t BlockSignals() {
   sigset_t signal_set, old_set;
 
   sigfillset(&signal_set);
+  sigdelset(&signal_set, SIGPROF);
   pthread_sigmask(SIG_SETMASK, &signal_set, &old_set);
   return old_set;
 }

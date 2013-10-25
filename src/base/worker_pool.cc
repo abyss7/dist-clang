@@ -17,14 +17,14 @@ WorkerPool::~WorkerPool() {
   is_shutting_down_ = true;
   close(self_pipe_[1]);
   for (auto& thread: workers_) {
-    base::Assert(thread.joinable());
+    DCHECK(thread.joinable());
     thread.join();
   }
   close(self_pipe_[0]);
 }
 
 void WorkerPool::AddWorker(const Worker& worker, unsigned count) {
-  base::Assert(count);
+  CHECK(count);
   auto closure = std::bind(worker, std::cref(is_shutting_down_), self_pipe_[0]);
   for (unsigned i = 0; i < count; ++i) {
     workers_.emplace_back(closure);

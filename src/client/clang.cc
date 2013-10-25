@@ -71,7 +71,7 @@ bool ParseClangOutput(const std::string& output,
   // Escape from double-quotes.
   for (auto& arg: args) {
     if (!arg.empty()) {
-      base::Assert(arg[arg.size() - 1] == '"');
+      DCHECK(arg[arg.size() - 1] == '"');
       arg.erase(arg.size() - 1);
       base::Replace(arg, "\\\\", "\\");
       base::Replace(arg, "\\\"", "\"");

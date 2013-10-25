@@ -89,7 +89,7 @@ void NetworkService::DoConnectWork(const volatile bool &is_shutting_down,
       {
         std::lock_guard<std::mutex> lock(connect_mutex_);
         auto it = connect_callbacks_.find(fd);
-        base::Assert(it != connect_callbacks_.end());
+        DCHECK(it != connect_callbacks_.end());
         callback = it->second.first;
         end_point = it->second.second;
         connect_callbacks_.erase(it);

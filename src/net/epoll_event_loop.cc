@@ -24,8 +24,8 @@ EpollEventLoop::~EpollEventLoop() {
 }
 
 bool EpollEventLoop::HandlePassive(fd_t fd) {
-  base::Assert(IsListening(fd));
-  base::Assert(IsNonBlocking(fd));
+  DCHECK(IsListening(fd));
+  DCHECK(IsNonBlocking(fd));
   listening_fds_.insert(fd);
   return ReadyForListen(fd);
 }
@@ -67,12 +67,12 @@ void EpollEventLoop::DoListenWork(const volatile bool &is_shutting_down,
         continue;
       }
 
-      base::Assert(events[i].events & EPOLLIN);
+      DCHECK(events[i].events & EPOLLIN);
       auto fd = events[i].data.fd;
       while(true) {
         auto new_fd = accept4(fd, nullptr, nullptr, SOCK_CLOEXEC);
         if (new_fd == -1) {
-          base::Assert(errno == EAGAIN || errno == EWOULDBLOCK);
+          CHECK(errno == EAGAIN || errno == EWOULDBLOCK);
           break;
         }
         callback_(fd, Connection::Create(*this, new_fd));
@@ -112,14 +112,14 @@ void EpollEventLoop::DoIOWork(const volatile bool& is_shutting_down,
     }
 
     net::ConnectionPtr connection;
-    base::Assert(events_count == 1);
+    DCHECK(events_count == 1);
     {
       base::ReadLock lock(connections_mutex_);
       connection = connections_[event.data.fd].lock();
     }
 
     if (event.events & (EPOLLHUP|EPOLLERR)) {
-      base::Assert(!epoll_ctl(io_fd_, EPOLL_CTL_DEL, event.data.fd, nullptr));
+      CHECK(!epoll_ctl(io_fd_, EPOLL_CTL_DEL, event.data.fd, nullptr));
     }
 
     if (connection) {
@@ -146,7 +146,7 @@ bool EpollEventLoop::ReadyForListen(fd_t fd) {
 }
 
 bool EpollEventLoop::ReadyFor(ConnectionPtr connection, unsigned events) {
-  base::Assert(connection->IsOnEventLoop(this));
+  DCHECK(connection->IsOnEventLoop(this));
 
   auto fd = GetConnectionDescriptor(connection);
   struct epoll_event event;

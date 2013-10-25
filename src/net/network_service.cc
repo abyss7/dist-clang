@@ -178,7 +178,7 @@ ConnectionPtr NetworkService::ConnectSync(EndPointPtr end_point,
 
 void NetworkService::HandleNewConnection(fd_t fd, ConnectionPtr connection) {
   auto callback = listen_callbacks_.find(fd);
-  base::Assert(callback != listen_callbacks_.end());
+  DCHECK(callback != listen_callbacks_.end());
   callback->second(connection);
 }
 

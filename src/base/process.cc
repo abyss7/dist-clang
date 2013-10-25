@@ -78,14 +78,14 @@ bool Process::RunChild(int (&out_pipe)[2], int (&err_pipe)[2], int* in_pipe) {
     exit(1);
   }
 
-  base::Assert(args_.size() + 1 < MAX_ARGS);
+  CHECK(args_.size() + 1 < MAX_ARGS);
   const char* argv[MAX_ARGS];
   argv[0] = exec_path_.c_str();
   auto arg_it = args_.begin();
   for (size_t i = 1, s = args_.size() + 1; i < s; ++i, ++arg_it) {
     argv[i] = arg_it->c_str();
   }
-  base::Assert(arg_it == args_.end());
+  DCHECK(arg_it == args_.end());
   argv[args_.size() + 1] = nullptr;
 
   if (execv(exec_path_.c_str(), const_cast<char* const*>(argv)) == -1) {

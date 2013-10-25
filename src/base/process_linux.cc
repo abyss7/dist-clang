@@ -135,7 +135,7 @@ bool Process::Run(unsigned sec_timeout, std::string* error) {
     }
 
     int status;
-    base::Assert(waitpid(child_pid, &status, 0) == child_pid);
+    CHECK(waitpid(child_pid, &status, 0) == child_pid);
     return !WEXITSTATUS(status) && !killed_;
   }
   else {  // Failed to fork.
@@ -270,7 +270,7 @@ bool Process::Run(unsigned sec_timeout, const std::string &input,
           }
         }
         else if (events[i].events & EPOLLOUT) {
-          base::Assert(events[i].data.fd == in_fd);
+          DCHECK(events[i].data.fd == in_fd);
 
           auto bytes_sent = write(in_fd, input.data() + stdin_size,
                                   input.size() - stdin_size);
@@ -305,7 +305,7 @@ bool Process::Run(unsigned sec_timeout, const std::string &input,
     }
 
     int status;
-    base::Assert(waitpid(child_pid, &status, 0) == child_pid);
+    CHECK(waitpid(child_pid, &status, 0) == child_pid);
     return !WEXITSTATUS(status) && !killed_;
   }
   else {  // Failed to fork.
