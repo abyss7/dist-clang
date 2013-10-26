@@ -151,14 +151,15 @@ bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
   }
 
   command::CommandPtr command;
-  if (message->HasExtension(proto::LocalExecute::local)) {
-    auto* extension = message->ReleaseExtension(proto::LocalExecute::local);
+  if (message->HasExtension(proto::LocalExecute::extension)) {
+    auto* extension = message->ReleaseExtension(proto::LocalExecute::extension);
     auto local = command::LocalExecution::ScopedMessage(extension);
     command = command::LocalExecution::Create(connection, std::move(local),
                                               *this);
   }
-  else if (message->HasExtension(proto::RemoteExecute::remote)) {
-    auto* extension = message->ReleaseExtension(proto::RemoteExecute::remote);
+  else if (message->HasExtension(proto::RemoteExecute::extension)) {
+    auto* extension
+        = message->ReleaseExtension(proto::RemoteExecute::extension);
     auto remote = command::RemoteExecution::ScopedMessage(extension);
     command = command::RemoteExecution::Create(connection, std::move(remote),
                                                *this);

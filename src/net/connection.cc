@@ -1,7 +1,6 @@
 #include "net/connection.h"
 
 #include "base/assert.h"
-#include "base/ptr_utils.h"
 #include "net/base/utils.h"
 #include "net/event_loop.h"
 
@@ -43,16 +42,10 @@ bool Connection::ReadAsync(ReadCallback callback) {
   return true;
 }
 
-bool Connection::SendAsync(ScopedCustomMessage message, SendCallback callback) {
-  if (!ConvertCustomMessage(std::move(message), nullptr)) {
-    return false;
-  }
-  send_callback_ = std::bind(callback, shared_from_this(), _1);
-  if (!event_loop_.ReadyForSend(shared_from_this())) {
-    send_callback_ = BindedSendCallback();
-    return false;
-  }
-  return true;
+template <>
+bool Connection::SendAsync(unique_ptr<Message> message, SendCallback callback) {
+  message_ = std::move(message);
+  return SendAsync(callback);
 }
 
 bool Connection::ReadSync(Message *message, Status *status) {
@@ -102,11 +95,22 @@ bool Connection::ReadSync(Message *message, Status *status) {
   return true;
 }
 
-bool Connection::SendSync(ScopedCustomMessage message, Status* status) {
-  if (!ConvertCustomMessage(std::move(message), status)) {
+template <>
+bool Connection::SendSync(unique_ptr<Message> message, Status* status) {
+  message_ = std::move(message);
+  return SendSync(status);
+}
+
+bool Connection::SendAsync(SendCallback callback) {
+  send_callback_ = std::bind(callback, shared_from_this(), _1);
+  if (!event_loop_.ReadyForSend(shared_from_this())) {
+    send_callback_ = BindedSendCallback();
     return false;
   }
+  return true;
+}
 
+bool Connection::SendSync(Status* status) {
   {
     CodedOutputStream coded_stream(&file_output_stream_);
     coded_stream.WriteVarint32(message_->ByteSize());
@@ -138,10 +142,8 @@ bool Connection::SendSync(ScopedCustomMessage message, Status* status) {
 }
 
 bool Connection::ReportStatus(const Status& message, SendCallback callback) {
-  ::std::unique_ptr<Status> message_ptr(new Status(message));
-  if (!ConvertCustomMessage(std::move(message_ptr), nullptr)) {
-    return false;
-  }
+  message_.reset(new Message);
+  message_->SetAllocatedExtension(Status::extension, new Status(message));
   send_callback_ = std::bind(callback, shared_from_this(), _1);
   if (!event_loop_.ReadyForSend(shared_from_this())) {
     send_callback_ = BindedSendCallback();
@@ -194,42 +196,6 @@ void Connection::Close() {
     // TODO: do the "polite" shutdown.
     close(fd_);
   }
-}
-
-bool Connection::ConvertCustomMessage(ScopedCustomMessage input,
-                                      Status* status) {
-  auto input_descriptor = input->GetDescriptor();
-  auto output_descriptor = Message::descriptor();
-
-  if (input_descriptor == output_descriptor) {
-    message_ = base::unique_static_cast<Message>(input);
-    return true;
-  }
-
-  const ::google::protobuf::FieldDescriptor* extension_field = nullptr;
-
-  for (int i = 0; i < input_descriptor->extension_count(); ++i) {
-    auto containing_type = input_descriptor->extension(i)->containing_type();
-    if (containing_type == output_descriptor) {
-      extension_field = input_descriptor->extension(i);
-      break;
-    }
-  }
-  if (!extension_field) {
-    if (status) {
-      status->set_code(Status::EMPTY_MESSAGE);
-      status->set_description("Message of type " + input->GetTypeName() +
-                              " can't be sent, since it doesn't extend " +
-                              output_descriptor->full_name());
-    }
-    return false;
-  }
-
-  message_.reset(new Message);
-  auto reflection = message_->GetReflection();
-  auto output = reflection->MutableMessage(message_.get(), extension_field);
-  output->GetReflection()->Swap(output, input.get());
-  return true;
 }
 
 }  // namespace net

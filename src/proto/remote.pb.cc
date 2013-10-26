@@ -249,34 +249,34 @@ void protobuf_AddDesc_remote_2eproto() {
   ::dist_clang::proto::protobuf_AddDesc_base_2eproto();
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
     "\n\014remote.proto\022\020dist_clang.proto\032\nbase.p"
-    "roto\"\022\n\tUniversal*\005\010\001\020\311\001\"y\n\004Test\022\016\n\006fiel"
+    "roto\"\022\n\tUniversal*\005\010\001\020\311\001\"~\n\004Test\022\016\n\006fiel"
     "d1\030\001 \002(\t\022\016\n\006field2\030\002 \001(\t\022\016\n\006field3\030\003 \003(\t"
-    "2A\n\004test\022\033.dist_clang.proto.Universal\030\001 "
-    "\001(\0132\026.dist_clang.proto.Test\"B\n\020TestNotEx"
-    "tension\022\016\n\006field1\030\001 \002(\t\022\016\n\006field2\030\002 \001(\t\022"
-    "\016\n\006field3\030\003 \003(\t\"\225\002\n\006Status\022/\n\004code\030\001 \002(\016"
-    "2\035.dist_clang.proto.Status.Code:\002OK\022\023\n\013d"
-    "escription\030\002 \001(\t\"~\n\004Code\022\006\n\002OK\020\000\022\020\n\014INCO"
-    "NSEQUENT\020\001\022\013\n\007NETWORK\020\002\022\017\n\013BAD_MESSAGE\020\003"
-    "\022\021\n\rEMPTY_MESSAGE\020\004\022\r\n\tEXECUTION\020\005\022\014\n\010OV"
-    "ERLOAD\020\006\022\016\n\nNO_VERSION\020\0072E\n\006status\022\033.dis"
-    "t_clang.proto.Universal\030\002 \001(\0132\030.dist_cla"
-    "ng.proto.Status\"\212\001\n\005Flags\022,\n\010compiler\030\001 "
-    "\002(\0132\032.dist_clang.proto.Compiler\022\016\n\006outpu"
-    "t\030\002 \001(\t\022\r\n\005input\030\003 \001(\t\022\r\n\005other\030\004 \003(\t\022\023\n"
-    "\013dependenies\030\005 \003(\t\022\020\n\010language\030\006 \001(\t\"\305\001\n"
-    "\014LocalExecute\022\023\n\013current_dir\030\001 \002(\t\022)\n\010cc"
-    "_flags\030\002 \002(\0132\027.dist_clang.proto.Flags\022)\n"
-    "\010pp_flags\030\003 \001(\0132\027.dist_clang.proto.Flags"
-    "2J\n\005local\022\033.dist_clang.proto.Universal\030\003"
-    " \001(\0132\036.dist_clang.proto.LocalExecute\"\233\001\n"
-    "\rRemoteExecute\022\021\n\tpp_source\030\001 \002(\t\022)\n\010cc_"
-    "flags\030\002 \002(\0132\027.dist_clang.proto.Flags2L\n\006"
-    "remote\022\033.dist_clang.proto.Universal\030\004 \001("
-    "\0132\037.dist_clang.proto.RemoteExecute\"h\n\014Re"
-    "moteResult\022\013\n\003obj\030\001 \002(\0142K\n\006result\022\033.dist"
-    "_clang.proto.Universal\030\005 \001(\0132\036.dist_clan"
-    "g.proto.RemoteResult", 1140);
+    "2F\n\textension\022\033.dist_clang.proto.Univers"
+    "al\030\001 \001(\0132\026.dist_clang.proto.Test\"B\n\020Test"
+    "NotExtension\022\016\n\006field1\030\001 \002(\t\022\016\n\006field2\030\002"
+    " \001(\t\022\016\n\006field3\030\003 \003(\t\"\230\002\n\006Status\022/\n\004code\030"
+    "\001 \002(\0162\035.dist_clang.proto.Status.Code:\002OK"
+    "\022\023\n\013description\030\002 \001(\t\"~\n\004Code\022\006\n\002OK\020\000\022\020\n"
+    "\014INCONSEQUENT\020\001\022\013\n\007NETWORK\020\002\022\017\n\013BAD_MESS"
+    "AGE\020\003\022\021\n\rEMPTY_MESSAGE\020\004\022\r\n\tEXECUTION\020\005\022"
+    "\014\n\010OVERLOAD\020\006\022\016\n\nNO_VERSION\020\0072H\n\textensi"
+    "on\022\033.dist_clang.proto.Universal\030\002 \001(\0132\030."
+    "dist_clang.proto.Status\"\212\001\n\005Flags\022,\n\010com"
+    "piler\030\001 \002(\0132\032.dist_clang.proto.Compiler\022"
+    "\016\n\006output\030\002 \001(\t\022\r\n\005input\030\003 \001(\t\022\r\n\005other\030"
+    "\004 \003(\t\022\023\n\013dependenies\030\005 \003(\t\022\020\n\010language\030\006"
+    " \001(\t\"\311\001\n\014LocalExecute\022\023\n\013current_dir\030\001 \002"
+    "(\t\022)\n\010cc_flags\030\002 \002(\0132\027.dist_clang.proto."
+    "Flags\022)\n\010pp_flags\030\003 \001(\0132\027.dist_clang.pro"
+    "to.Flags2N\n\textension\022\033.dist_clang.proto"
+    ".Universal\030\003 \001(\0132\036.dist_clang.proto.Loca"
+    "lExecute\"\236\001\n\rRemoteExecute\022\021\n\tpp_source\030"
+    "\001 \002(\t\022)\n\010cc_flags\030\002 \002(\0132\027.dist_clang.pro"
+    "to.Flags2O\n\textension\022\033.dist_clang.proto"
+    ".Universal\030\004 \001(\0132\037.dist_clang.proto.Remo"
+    "teExecute\"k\n\014RemoteResult\022\013\n\003obj\030\001 \002(\0142N"
+    "\n\textension\022\033.dist_clang.proto.Universal"
+    "\030\005 \001(\0132\036.dist_clang.proto.RemoteResult", 1158);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "remote.proto", &protobuf_RegisterTypes);
   Universal::default_instance_ = new Universal();
@@ -509,11 +509,11 @@ const int Test::kField3FieldNumber;
 #endif  // !_MSC_VER
 
 #ifndef _MSC_VER
-const int Test::kTestFieldNumber;
+const int Test::kExtensionFieldNumber;
 #endif
 ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
     ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::Test >, 11, false >
-  Test::test(kTestFieldNumber, ::dist_clang::proto::Test::default_instance());
+  Test::extension(kExtensionFieldNumber, ::dist_clang::proto::Test::default_instance());
 Test::Test()
   : ::google::protobuf::Message() {
   SharedCtor();
@@ -1209,11 +1209,11 @@ const int Status::kDescriptionFieldNumber;
 #endif  // !_MSC_VER
 
 #ifndef _MSC_VER
-const int Status::kStatusFieldNumber;
+const int Status::kExtensionFieldNumber;
 #endif
 ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
     ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::Status >, 11, false >
-  Status::status(kStatusFieldNumber, ::dist_clang::proto::Status::default_instance());
+  Status::extension(kExtensionFieldNumber, ::dist_clang::proto::Status::default_instance());
 Status::Status()
   : ::google::protobuf::Message() {
   SharedCtor();
@@ -1972,11 +1972,11 @@ const int LocalExecute::kPpFlagsFieldNumber;
 #endif  // !_MSC_VER
 
 #ifndef _MSC_VER
-const int LocalExecute::kLocalFieldNumber;
+const int LocalExecute::kExtensionFieldNumber;
 #endif
 ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
     ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::LocalExecute >, 11, false >
-  LocalExecute::local(kLocalFieldNumber, ::dist_clang::proto::LocalExecute::default_instance());
+  LocalExecute::extension(kExtensionFieldNumber, ::dist_clang::proto::LocalExecute::default_instance());
 LocalExecute::LocalExecute()
   : ::google::protobuf::Message() {
   SharedCtor();
@@ -2299,11 +2299,11 @@ const int RemoteExecute::kCcFlagsFieldNumber;
 #endif  // !_MSC_VER
 
 #ifndef _MSC_VER
-const int RemoteExecute::kRemoteFieldNumber;
+const int RemoteExecute::kExtensionFieldNumber;
 #endif
 ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
     ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::RemoteExecute >, 11, false >
-  RemoteExecute::remote(kRemoteFieldNumber, ::dist_clang::proto::RemoteExecute::default_instance());
+  RemoteExecute::extension(kExtensionFieldNumber, ::dist_clang::proto::RemoteExecute::default_instance());
 RemoteExecute::RemoteExecute()
   : ::google::protobuf::Message() {
   SharedCtor();
@@ -2578,11 +2578,11 @@ const int RemoteResult::kObjFieldNumber;
 #endif  // !_MSC_VER
 
 #ifndef _MSC_VER
-const int RemoteResult::kResultFieldNumber;
+const int RemoteResult::kExtensionFieldNumber;
 #endif
 ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
     ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::RemoteResult >, 11, false >
-  RemoteResult::result(kResultFieldNumber, ::dist_clang::proto::RemoteResult::default_instance());
+  RemoteResult::extension(kExtensionFieldNumber, ::dist_clang::proto::RemoteResult::default_instance());
 RemoteResult::RemoteResult()
   : ::google::protobuf::Message() {
   SharedCtor();

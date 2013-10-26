@@ -172,28 +172,28 @@ bool LocalExecution::DoneRemoteCompilation(net::ConnectionPtr /* connection */,
                                            Daemon::ScopedMessage message,
                                            const proto::Status& status) {
   if (status.code() != proto::Status::OK) {
-    std::cerr << status.description() << std::endl;
+    ::std::cerr << status.description() << ::std::endl;
     DeferLocalCompilation();
     return false;
   }
-  if (message->HasExtension(proto::Status::status)) {
-    const auto& status = message->GetExtension(proto::Status::status);
+  if (message->HasExtension(proto::Status::extension)) {
+    const auto& status = message->GetExtension(proto::Status::extension);
     if (status.code() != proto::Status::OK) {
-      std::cerr << "Remote compilation failed with error(s):" << std::endl;
-      std::cerr << status.description() << std::endl;
+      ::std::cerr << "Remote compilation failed with error(s):" << ::std::endl;
+      ::std::cerr << status.description() << ::std::endl;
       DeferLocalCompilation();
       return false;
     }
   }
-  if (message->HasExtension(proto::RemoteResult::result)) {
-    const auto& result = message->GetExtension(proto::RemoteResult::result);
-    std::string output_path =
+  if (message->HasExtension(proto::RemoteResult::extension)) {
+    const auto& result = message->GetExtension(proto::RemoteResult::extension);
+    ::std::string output_path =
         message_->current_dir() + "/" + message_->cc_flags().output();
     if (base::WriteFile(output_path, result.obj())) {
       proto::Status status;
       status.set_code(proto::Status::OK);
-      std::cout << "Remote compilation successful: "
-                << message_->cc_flags().input() << std::endl;
+      ::std::cout << "Remote compilation successful: "
+                  << message_->cc_flags().input() << ::std::endl;
       UpdateCache(status);
       connection_->ReportStatus(status);
       return false;

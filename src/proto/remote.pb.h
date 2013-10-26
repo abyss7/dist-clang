@@ -241,10 +241,10 @@ class Test : public ::google::protobuf::Message {
   inline const ::google::protobuf::RepeatedPtrField< ::std::string>& field3() const;
   inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_field3();
 
-  static const int kTestFieldNumber = 1;
+  static const int kExtensionFieldNumber = 1;
   static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
       ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::Test >, 11, false >
-    test;
+    extension;
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Test)
  private:
   inline void set_has_field1();
@@ -492,10 +492,10 @@ class Status : public ::google::protobuf::Message {
   inline ::std::string* release_description();
   inline void set_allocated_description(::std::string* description);
 
-  static const int kStatusFieldNumber = 2;
+  static const int kExtensionFieldNumber = 2;
   static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
       ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::Status >, 11, false >
-    status;
+    extension;
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Status)
  private:
   inline void set_has_code();
@@ -767,10 +767,10 @@ class LocalExecute : public ::google::protobuf::Message {
   inline ::dist_clang::proto::Flags* release_pp_flags();
   inline void set_allocated_pp_flags(::dist_clang::proto::Flags* pp_flags);
 
-  static const int kLocalFieldNumber = 3;
+  static const int kExtensionFieldNumber = 3;
   static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
       ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::LocalExecute >, 11, false >
-    local;
+    extension;
   // @@protoc_insertion_point(class_scope:dist_clang.proto.LocalExecute)
  private:
   inline void set_has_current_dir();
@@ -873,10 +873,10 @@ class RemoteExecute : public ::google::protobuf::Message {
   inline ::dist_clang::proto::Flags* release_cc_flags();
   inline void set_allocated_cc_flags(::dist_clang::proto::Flags* cc_flags);
 
-  static const int kRemoteFieldNumber = 4;
+  static const int kExtensionFieldNumber = 4;
   static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
       ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::RemoteExecute >, 11, false >
-    remote;
+    extension;
   // @@protoc_insertion_point(class_scope:dist_clang.proto.RemoteExecute)
  private:
   inline void set_has_pp_source();
@@ -967,10 +967,10 @@ class RemoteResult : public ::google::protobuf::Message {
   inline ::std::string* release_obj();
   inline void set_allocated_obj(::std::string* obj);
 
-  static const int kResultFieldNumber = 5;
+  static const int kExtensionFieldNumber = 5;
   static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
       ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::RemoteResult >, 11, false >
-    result;
+    extension;
   // @@protoc_insertion_point(class_scope:dist_clang.proto.RemoteResult)
  private:
   inline void set_has_obj();

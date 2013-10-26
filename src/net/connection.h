@@ -21,20 +21,21 @@ class EventLoop;
 class Connection: public ::std::enable_shared_from_this<Connection> {
     using CodedInputStream = ::google::protobuf::io::CodedInputStream;
     using CodedOutputStream = ::google::protobuf::io::CodedOutputStream;
-    using CustomMessage = ::google::protobuf::Message;
-    using ScopedCustomMessage = ::std::unique_ptr<CustomMessage>;
     using FileInputStream = ::google::protobuf::io::FileInputStream;
     using FileOutputStream = ::google::protobuf::io::FileOutputStream;
-    using GzipInputStream = ::google::protobuf::io::GzipInputStream;
-    using GzipOutputStream = ::google::protobuf::io::GzipOutputStream;
     using Status = proto::Status;
+
+    template <class T>
+    using unique_ptr = ::std::unique_ptr<T>;
+    template <class Signature>
+    using function = ::std::function<Signature>;
 
   public:
     using Message = proto::Universal;
-    using ScopedMessage = ::std::unique_ptr<Message>;
+    using ScopedMessage = unique_ptr<Message>;
     using ReadCallback =
-        std::function<bool(ConnectionPtr, ScopedMessage, const Status&)>;
-    using SendCallback = std::function<bool(ConnectionPtr, const Status&)>;
+        function<bool(ConnectionPtr, ScopedMessage, const Status&)>;
+    using SendCallback = function<bool(ConnectionPtr, const Status&)>;
 
     // Create connection only on a socket with a pending connection -
     // i.e. after connect() or accept().
@@ -43,11 +44,13 @@ class Connection: public ::std::enable_shared_from_this<Connection> {
     ~Connection();
 
     bool ReadAsync(ReadCallback callback);
-    bool SendAsync(ScopedCustomMessage message,
+    template <class M>
+    bool SendAsync(unique_ptr<M> message,
                    SendCallback callback = CloseAfterSend());
 
     bool ReadSync(Message* message, Status* status = nullptr);
-    bool SendSync(ScopedCustomMessage message, Status* status = nullptr);
+    template <class M>
+    bool SendSync(unique_ptr<M> message, Status* status = nullptr);
 
     bool ReportStatus(const Status& message,
                       SendCallback callback = CloseAfterSend());
@@ -57,9 +60,8 @@ class Connection: public ::std::enable_shared_from_this<Connection> {
   private:
     friend class EventLoop;
 
-    using BindedReadCallback =
-        std::function<bool(ScopedMessage, const Status&)>;
-    using BindedSendCallback = std::function<bool(const Status&)>;
+    using BindedReadCallback = function<bool(ScopedMessage, const Status&)>;
+    using BindedSendCallback = function<bool(const Status&)>;
 
     enum State { IDLE, WAITING_SEND, WAITING_READ, SENDING, READING };
 
@@ -71,13 +73,13 @@ class Connection: public ::std::enable_shared_from_this<Connection> {
     void DoRead();
     void DoSend();
     void Close();
-    bool ConvertCustomMessage(ScopedCustomMessage input,
-                              Status* status = nullptr);
+    bool SendAsync(SendCallback callback);
+    bool SendSync(Status* status);
 
     const fd_t fd_;
     ScopedMessage message_;
     EventLoop& event_loop_;
-    std::atomic<bool> is_closed_, added_;
+    ::std::atomic<bool> is_closed_, added_;
     EndPointPtr end_point_;
 
     // Read members.
@@ -88,6 +90,23 @@ class Connection: public ::std::enable_shared_from_this<Connection> {
     FileOutputStream file_output_stream_;
     BindedSendCallback send_callback_;
 };
+
+template <class M>
+bool Connection::SendAsync(unique_ptr<M> message, SendCallback callback) {
+  message_.reset(new Message);
+  message_->SetAllocatedExtension(M::extension, message.release());
+  return SendAsync(callback);
+}
+
+template <>
+bool Connection::SendAsync(unique_ptr<Message> message, SendCallback callback);
+
+template <class M>
+bool Connection::SendSync(unique_ptr<M> message, Status* status) {
+  message_.reset(new Message);
+  message_->SetAllocatedExtension(M::extension, message.release());
+  return SendSync(status);
+}
 
 bool Connection::IsOnEventLoop(const EventLoop* event_loop) const {
   return &event_loop_ == event_loop;

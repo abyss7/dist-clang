@@ -29,9 +29,9 @@ void RemoteExecution::Run() {
   FileCache::Entry cache_entry;
   if (SearchCache(&cache_entry)) {
     Daemon::ScopedMessage message(new proto::Universal);
-    auto result = message->MutableExtension(proto::RemoteResult::result);
+    auto result = message->MutableExtension(proto::RemoteResult::extension);
     if (base::ReadFile(cache_entry.first, result->mutable_obj())) {
-      auto status = message->MutableExtension(proto::Status::status);
+      auto status = message->MutableExtension(proto::Status::extension);
       status->set_code(proto::Status::OK);
       status->set_description(cache_entry.second);
       connection_->SendAsync(std::move(message));
@@ -91,8 +91,8 @@ void RemoteExecution::Run() {
   }
 
   Daemon::ScopedMessage message(new proto::Universal);
-  const auto& result = proto::RemoteResult::result;
-  message->MutableExtension(proto::Status::status)->CopyFrom(status);
+  const auto& result = proto::RemoteResult::extension;
+  message->MutableExtension(proto::Status::extension)->CopyFrom(status);
   message->MutableExtension(result)->set_obj(process.stdout());
   connection_->SendAsync(std::move(message));
 }
@@ -103,8 +103,8 @@ bool RemoteExecution::SearchCache(FileCache::Entry *entry) {
 
   const auto& flags = message_->cc_flags();
   const auto& version = flags.compiler().version();
-  std::string command_line = base::JoinString<' '>(flags.other().begin(),
-                                                   flags.other().end());
+  ::std::string command_line = base::JoinString<' '>(flags.other().begin(),
+                                                     flags.other().end());
   if (flags.has_language()) {
     command_line += " -x " + flags.language();
   }
