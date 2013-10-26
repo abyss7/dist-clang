@@ -1,6 +1,7 @@
 {
   'variables': {
     'clang%': 0,
+    'profiler%': 0,
   },
 
   'target_defaults': {
@@ -90,6 +91,14 @@
       ['clang==1', {
         'cflags': [
           '-Wno-mismatched-tags',  # Remove on libstdc++ >= 4.8.2
+        ],
+      }],
+      ['profiler==1 and OS=="linux"', {
+        'defines': [
+          'PROFILER',
+        ],
+        'ldflags': [
+          '-lprofiler',
         ],
       }],
     ],

@@ -8,12 +8,25 @@
 #include "proto/config.pb.h"
 
 #include <functional>
+#if defined(PROFILER)
+#  include <gperftools/profiler.h>
+#endif
 #include <iostream>
 
 using namespace std::placeholders;
 
 namespace dist_clang {
 namespace daemon {
+
+#if defined(PROFILER)
+Daemon::Daemon() {
+  ProfilerStart("clangd.prof");
+}
+
+Daemon::~Daemon() {
+  ProfilerStop();
+}
+#endif  // PROFILER
 
 bool Daemon::Initialize(const Configuration &configuration,
                         net::NetworkService &network_service) {
