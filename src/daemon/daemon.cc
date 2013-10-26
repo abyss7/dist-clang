@@ -37,10 +37,10 @@ bool Daemon::Initialize(const Configuration &configuration,
     cache_.reset(new FileCache(config.cache_path()));
   }
 
-  auto callback = std::bind(&Daemon::HandleNewConnection, this, _1);
   bool is_listening = false;
-  if (config.has_local()) {
+  if (config.has_local() && !config.local().disabled()) {
     std::string error;
+    auto callback = std::bind(&Daemon::HandleNewConnection, this, _1);
     bool result = network_service.Listen(config.local().host(),
                                          config.local().port(),
                                          callback, &error);
@@ -52,6 +52,7 @@ bool Daemon::Initialize(const Configuration &configuration,
   }
 
   if (config.has_socket_path()) {
+    auto callback = std::bind(&Daemon::HandleNewConnection, this, _1);
     is_listening |= network_service.Listen(config.socket_path(), callback);
   }
 
@@ -62,7 +63,9 @@ bool Daemon::Initialize(const Configuration &configuration,
 
   balancer_.reset(new Balancer(network_service));
   for (const auto& remote: config.remotes()) {
-    balancer_->AddRemote(remote);
+    if (!remote.disabled()) {
+      balancer_->AddRemote(remote);
+    }
   }
 
   for (const auto& version: config.versions()) {

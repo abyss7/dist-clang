@@ -6,6 +6,7 @@ message Host {
   required string host          = 1;
   optional uint32 port          = 2 [default=6000];
   optional uint32 threads       = 3 [default=2];
+  optional bool disabled        = 4 [default=false];
 }
 
 message Configuration {

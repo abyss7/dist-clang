@@ -120,6 +120,13 @@ class Host : public ::google::protobuf::Message {
   inline ::google::protobuf::uint32 threads() const;
   inline void set_threads(::google::protobuf::uint32 value);
 
+  // optional bool disabled = 4 [default = false];
+  inline bool has_disabled() const;
+  inline void clear_disabled();
+  static const int kDisabledFieldNumber = 4;
+  inline bool disabled() const;
+  inline void set_disabled(bool value);
+
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Host)
  private:
   inline void set_has_host();
@@ -128,15 +135,18 @@ class Host : public ::google::protobuf::Message {
   inline void clear_has_port();
   inline void set_has_threads();
   inline void clear_has_threads();
+  inline void set_has_disabled();
+  inline void clear_has_disabled();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
   ::std::string* host_;
   ::google::protobuf::uint32 port_;
   ::google::protobuf::uint32 threads_;
+  bool disabled_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(3 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(4 + 31) / 32];
 
   friend void  protobuf_AddDesc_config_2eproto();
   friend void protobuf_AssignDesc_config_2eproto();
@@ -414,6 +424,28 @@ inline ::google::protobuf::uint32 Host::threads() const {
 inline void Host::set_threads(::google::protobuf::uint32 value) {
   set_has_threads();
   threads_ = value;
+}
+
+// optional bool disabled = 4 [default = false];
+inline bool Host::has_disabled() const {
+  return (_has_bits_[0] & 0x00000008u) != 0;
+}
+inline void Host::set_has_disabled() {
+  _has_bits_[0] |= 0x00000008u;
+}
+inline void Host::clear_has_disabled() {
+  _has_bits_[0] &= ~0x00000008u;
+}
+inline void Host::clear_disabled() {
+  disabled_ = false;
+  clear_has_disabled();
+}
+inline bool Host::disabled() const {
+  return disabled_;
+}
+inline void Host::set_disabled(bool value) {
+  set_has_disabled();
+  disabled_ = value;
 }
 
 // -------------------------------------------------------------------
