@@ -6,6 +6,7 @@
 #include <memory>
 
 #include <sys/epoll.h>
+#include <sys/ioctl.h>
 #include <sys/wait.h>
 
 namespace dist_clang {
@@ -63,7 +64,6 @@ bool Process::Run(unsigned sec_timeout, std::string* error) {
       }
     }
 
-    const size_t buffer_size = 10240;
     size_t stdout_size = 0, stderr_size = 0;
     std::list<std::pair<std::unique_ptr<char[]>, int>> stdout, stderr;
     const int MAX_EVENTS = 2;
@@ -94,11 +94,20 @@ bool Process::Run(unsigned sec_timeout, std::string* error) {
       }
 
       for (int i = 0; i < event_count; ++i) {
+        net::fd_t fd = events[i].data.fd;
+
         if (events[i].events & EPOLLIN) {
-          auto buffer = std::unique_ptr<char[]>(new char[buffer_size]);
-          auto bytes_read = read(events[i].data.fd, buffer.get(), buffer_size);
+          int bytes_available = 0;
+          if (ioctl(fd, FIONREAD, &bytes_available) == -1) {
+            GetLastError(error);
+            kill(child_pid);
+            break;
+          }
+
+          auto buffer = std::unique_ptr<char[]>(new char[bytes_available]);
+          auto bytes_read = read(fd, buffer.get(), bytes_available);
           if (!bytes_read) {
-            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, nullptr);
+            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
             exhausted_fds++;
           }
           else if (bytes_read == -1) {
@@ -107,7 +116,7 @@ bool Process::Run(unsigned sec_timeout, std::string* error) {
             break;
           }
           else {
-            if (events[i].data.fd == out_fd) {
+            if (fd == out_fd) {
               stdout.push_back(std::make_pair(std::move(buffer), bytes_read));
               stdout_size += bytes_read;
             }
@@ -118,7 +127,7 @@ bool Process::Run(unsigned sec_timeout, std::string* error) {
           }
         }
         else {
-          epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, nullptr);
+          epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
           exhausted_fds++;
         }
       }
@@ -218,7 +227,6 @@ bool Process::Run(unsigned sec_timeout, const std::string &input,
       }
     }
 
-    const size_t buffer_size = 10240;
     size_t stdin_size = 0, stdout_size = 0, stderr_size = 0;
     std::list<std::pair<std::unique_ptr<char[]>, int>> stdout, stderr;
     const int MAX_EVENTS = 3;
@@ -246,11 +254,20 @@ bool Process::Run(unsigned sec_timeout, const std::string &input,
       }
 
       for (int i = 0; i < event_count; ++i) {
+        net::fd_t fd = events[i].data.fd;
+
         if (events[i].events & EPOLLIN) {
-          auto buffer = std::unique_ptr<char[]>(new char[buffer_size]);
-          auto bytes_read = read(events[i].data.fd, buffer.get(), buffer_size);
+          int bytes_available = 0;
+          if (ioctl(fd, FIONREAD, &bytes_available) == -1) {
+            GetLastError(error);
+            kill(child_pid);
+            break;
+          }
+
+          auto buffer = std::unique_ptr<char[]>(new char[bytes_available]);
+          auto bytes_read = read(fd, buffer.get(), bytes_available);
           if (!bytes_read) {
-            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, nullptr);
+            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
             exhausted_fds++;
           }
           else if (bytes_read == -1) {
@@ -259,18 +276,18 @@ bool Process::Run(unsigned sec_timeout, const std::string &input,
             break;
           }
           else {
-            if (events[i].data.fd == out_fd) {
+            if (fd == out_fd) {
               stdout.push_back(std::make_pair(std::move(buffer), bytes_read));
               stdout_size += bytes_read;
             }
-            else if (events[i].data.fd == err_fd) {
+            else if (fd == err_fd) {
               stderr.push_back(std::make_pair(std::move(buffer), bytes_read));
               stderr_size += bytes_read;
             }
           }
         }
         else if (events[i].events & EPOLLOUT) {
-          DCHECK(events[i].data.fd == in_fd);
+          DCHECK(fd == in_fd);
 
           auto bytes_sent = write(in_fd, input.data() + stdin_size,
                                   input.size() - stdin_size);
@@ -288,7 +305,7 @@ bool Process::Run(unsigned sec_timeout, const std::string &input,
           }
         }
         else {
-          epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, nullptr);
+          epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
           exhausted_fds++;
         }
       }
