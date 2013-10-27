@@ -1,11 +1,8 @@
 #pragma once
 
 #include "base/attributes.h"
-#include "base/read_write_lock.h"
-#include "net/base/types.h"
 #include "net/event_loop.h"
 
-#include <functional>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -22,7 +19,6 @@ class EpollEventLoop: public EventLoop {
     virtual bool HandlePassive(fd_t fd) THREAD_UNSAFE override;
     virtual bool ReadyForRead(ConnectionPtr connection) THREAD_SAFE override;
     virtual bool ReadyForSend(ConnectionPtr connection) THREAD_SAFE override;
-    virtual void RemoveConnection(fd_t fd) THREAD_SAFE override;
 
   private:
     virtual void DoListenWork(const volatile bool& is_shutting_down,
@@ -38,9 +34,6 @@ class EpollEventLoop: public EventLoop {
 
     // We need to store listening fds - to be able to close them at shutdown.
     std::unordered_set<fd_t> listening_fds_;
-
-    base::ReadWriteMutex connections_mutex_;
-    std::unordered_map<fd_t, net::ConnectionWeakPtr> connections_;
 };
 
 }  // namespace net

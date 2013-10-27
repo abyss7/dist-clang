@@ -19,12 +19,6 @@ message Test {
   }
 }
 
-message TestNotExtension {
-  required string field1 = 1;
-  optional string field2 = 2;
-  repeated string field3 = 3;
-}
-
 message Status {
   enum Code {
     OK = 0;

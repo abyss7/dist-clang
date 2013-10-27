@@ -6,13 +6,14 @@
 #include "net/event_loop.h"
 
 #include <gtest/gtest.h>
+#include <memory>
 
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 
 namespace dist_clang {
-namespace testing {
+namespace net {
 
 class TestMessage {
   public:
@@ -20,19 +21,20 @@ class TestMessage {
       : expected_field1_("arg" + base::IntToString(number_++)),
         expected_field2_("arg" + base::IntToString(number_++)),
         expected_field3_("arg" + base::IntToString(number_++)) {
-      auto message = message_.MutableExtension(proto::Test::test);
+      message_.reset(new Connection::Message);
+      auto message = message_->MutableExtension(proto::Test::extension);
       message->set_field1(expected_field1_);
       message->set_field2(expected_field2_);
       message->add_field3()->assign(expected_field3_);
     }
 
-    net::Connection::Message& GetTestMessage() {
-      return message_;
+    std::unique_ptr<Connection::Message> GetTestMessage() {
+      return std::move(message_);
     }
 
-    void CheckTestMessage(const net::Connection::Message& message) {
-      ASSERT_TRUE(message.HasExtension(proto::Test::test));
-      auto test = message.GetExtension(proto::Test::test);
+    void CheckTestMessage(const Connection::Message& message) {
+      ASSERT_TRUE(message.HasExtension(proto::Test::extension));
+      auto test = message.GetExtension(proto::Test::extension);
       ASSERT_TRUE(test.has_field1());
       ASSERT_TRUE(test.has_field2());
       ASSERT_EQ(1, test.field3_size());
@@ -44,12 +46,12 @@ class TestMessage {
   private:
     static int number_;
     const std::string expected_field1_, expected_field2_, expected_field3_;
-    net::Connection::Message message_;
+    std::unique_ptr<Connection::Message> message_;
 };
 
 int TestMessage::number_ = 1;
 
-class TestServer: public net::EventLoop {
+class TestServer: public EventLoop {
   public:
     bool Init() {
       tmp_path_ = base::CreateTempDir();
@@ -89,7 +91,7 @@ class TestServer: public net::EventLoop {
       Stop();
     }
 
-    net::ConnectionPtr GetConnection() {
+    ConnectionPtr GetConnection() {
       sockaddr_un address;
       address.sun_family = AF_UNIX;
       strcpy(address.sun_path, socket_path_.c_str());
@@ -97,21 +99,21 @@ class TestServer: public net::EventLoop {
       int fd = socket(AF_UNIX, SOCK_STREAM|SOCK_CLOEXEC, 0);
       if (-1 == fd) {
         std::cerr << strerror(errno) << std::endl;
-        return net::ConnectionPtr();
+        return ConnectionPtr();
       }
 
-      auto connection = net::Connection::Create(*this, fd);
+      auto connection = Connection::Create(*this, fd);
 
       if (connect(fd, reinterpret_cast<sockaddr*>(&address),
                   sizeof(address)) == -1 && errno != EINPROGRESS) {
         std::cerr << strerror(errno) << std::endl;
-        return net::ConnectionPtr();
+        return ConnectionPtr();
       }
 
       server_fd_ = accept(listen_fd_, nullptr, nullptr);
       if (server_fd_ == -1) {
         std::cerr << strerror(errno) << std::endl;
-        return net::ConnectionPtr();
+        return ConnectionPtr();
       }
 
       return connection;
@@ -161,7 +163,7 @@ class TestServer: public net::EventLoop {
     }
 
     bool WriteIncomplete(const std::string& data, size_t size) {
-      base::Assert(size < data.size());
+      DCHECK(size < data.size());
       if (data.size() > 127) {
         std::cerr << "Use messages with size less then 127" << std::endl;
         return false;
@@ -197,18 +199,18 @@ class TestServer: public net::EventLoop {
     }
 
   private:
-    virtual bool HandlePassive(net::fd_t fd) override {
+    virtual bool HandlePassive(fd_t fd) override {
       // TODO: implement this.
       return false;
     }
 
-    virtual bool ReadyForRead(net::ConnectionPtr connection) override {
+    virtual bool ReadyForRead(ConnectionPtr connection) override {
       struct epoll_event event;
       event.events = EPOLLIN | EPOLLONESHOT;
       event.data.ptr = connection.get();
       auto fd = GetConnectionDescriptor(connection);
       if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
-        base::Assert(errno == ENOENT);
+        DCHECK(errno == ENOENT);
         if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
           return false;
         }
@@ -216,13 +218,13 @@ class TestServer: public net::EventLoop {
       return true;
     }
 
-    virtual bool ReadyForSend(net::ConnectionPtr connection) override {
+    virtual bool ReadyForSend(ConnectionPtr connection) override {
       struct epoll_event event;
       event.events = EPOLLOUT | EPOLLONESHOT;
       event.data.ptr = connection.get();
       auto fd = GetConnectionDescriptor(connection);
       if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
-        base::Assert(errno == ENOENT);
+        DCHECK(errno == ENOENT);
         if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
           return false;
         }
@@ -230,40 +232,55 @@ class TestServer: public net::EventLoop {
       return true;
     }
 
-    virtual void RemoveConnection(net::fd_t fd) {
+    virtual void RemoveConnection(fd_t fd) {
       // Do nothing.
     }
 
-    virtual void DoListenWork(const volatile bool& is_shutting_down) override {
+    virtual void DoListenWork(const volatile bool& is_shutting_down,
+                              fd_t self_pipe) override {
       // Test server doesn't do listening work.
     }
 
-    virtual void DoIOWork(const volatile bool& is_shutting_down) override {
-      const int MAX_EVENTS = 10;  // This should be enought in most cases.
+    virtual void DoIOWork(const volatile bool& is_shutting_down,
+                          fd_t self_pipe) override {
       const int TIMEOUT = 1 * 1000;  // In milliseconds.
-      struct epoll_event events[MAX_EVENTS];
+      struct epoll_event event;
+      event.events = EPOLLIN;
+      event.data.fd = self_pipe;
+      epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, self_pipe, &event);
 
       while(!is_shutting_down) {
-        auto events_count = epoll_wait(epoll_fd_, events, MAX_EVENTS, TIMEOUT);
-        if (events_count == -1 && errno != EINTR) {
-          break;
+        auto events_count = epoll_wait(epoll_fd_, &event, 1, TIMEOUT);
+        if (events_count == -1) {
+          if (errno != EINTR) {
+            break;
+          }
+          else {
+            continue;
+          }
         }
 
-        for (int i = 0; i < events_count; ++i) {
-          auto ptr = reinterpret_cast<net::Connection*>(events[i].data.ptr);
-          auto connection = ptr->shared_from_this();
+        DCHECK(events_count == 1);
+        fd_t fd = event.data.fd;
 
-          if (events[i].events & (EPOLLHUP|EPOLLERR)) {
-            auto fd = GetConnectionDescriptor(connection);
-            base::Assert(!epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr));
-          }
+        // FIXME: it's a little bit hacky, but should work almost always.
+        if (fd == self_pipe) {
+          continue;
+        }
 
-          if (events[i].events & EPOLLIN) {
-            ConnectionDoRead(connection);
-          }
-          else if (events[i].events & EPOLLOUT) {
-            ConnectionDoSend(connection);
-          }
+        auto ptr = reinterpret_cast<Connection*>(event.data.ptr);
+        auto connection = ptr->shared_from_this();
+
+        if (event.events & (EPOLLHUP|EPOLLERR)) {
+          auto fd = GetConnectionDescriptor(connection);
+          DCHECK(!epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr));
+        }
+
+        if (event.events & EPOLLIN) {
+          ConnectionDoRead(connection);
+        }
+        else if (event.events & EPOLLOUT) {
+          ConnectionDoSend(connection);
         }
       }
     }
@@ -290,10 +307,10 @@ class ConnectionTest: public ::testing::Test {
 
 TEST_F(ConnectionTest, Sync_ReadOneMessage) {
   TestMessage test_message;
-  auto& expected_message = test_message.GetTestMessage();
-  ASSERT_TRUE(server.WriteAtOnce(expected_message.SerializeAsString()));
+  auto expected_message = test_message.GetTestMessage();
+  ASSERT_TRUE(server.WriteAtOnce(expected_message->SerializeAsString()));
 
-  net::Connection::Message message;
+  Connection::Message message;
   proto::Status status;
 
   ASSERT_TRUE(connection->ReadSync(&message, &status)) << status.description();
@@ -305,10 +322,10 @@ TEST_F(ConnectionTest, Sync_ReadOneMessage) {
 
 TEST_F(ConnectionTest, Sync_ReadTwoMessages) {
   TestMessage test_message1, test_message2;
-  auto& expected_message1 = test_message1.GetTestMessage();
-  auto& expected_message2 = test_message2.GetTestMessage();
-  ASSERT_TRUE(server.WriteAtOnce(expected_message1.SerializeAsString()));
-  ASSERT_TRUE(server.WriteAtOnce(expected_message2.SerializeAsString()));
+  auto expected_message1 = test_message1.GetTestMessage();
+  auto expected_message2 = test_message2.GetTestMessage();
+  ASSERT_TRUE(server.WriteAtOnce(expected_message1->SerializeAsString()));
+  ASSERT_TRUE(server.WriteAtOnce(expected_message2->SerializeAsString()));
 
   net::Connection::Message message;
   proto::Status status;
@@ -341,10 +358,10 @@ TEST_F(ConnectionTest, Sync_ReadSplitMessage) {
     test_message.CheckTestMessage(message);
   };
 
-  auto& expected_message = test_message.GetTestMessage();
+  auto expected_message = test_message.GetTestMessage();
   std::thread read_thread(read_func);
   std::this_thread::sleep_for(std::chrono::seconds(1));
-  ASSERT_TRUE(server.WriteByParts(expected_message.SerializeAsString()));
+  ASSERT_TRUE(server.WriteByParts(expected_message->SerializeAsString()));
   read_thread.join();
 }
 
@@ -354,7 +371,7 @@ TEST_F(ConnectionTest, Sync_ReadUninitializedMessage) {
 
   net::Connection::Message expected_message;
   {
-    auto message = expected_message.MutableExtension(proto::Test::test);
+    auto message = expected_message.MutableExtension(proto::Test::extension);
     message->set_field2(expected_field2);
     message->add_field3()->assign(expected_field3);
   }
@@ -369,9 +386,9 @@ TEST_F(ConnectionTest, Sync_ReadUninitializedMessage) {
 
 TEST_F(ConnectionTest, Sync_SendMessage) {
   TestMessage test_message;
-  auto& expected_message = test_message.GetTestMessage();
+  auto expected_message = test_message.GetTestMessage();
   proto::Status status;
-  ASSERT_TRUE(connection->SendSync(expected_message, &status))
+  ASSERT_TRUE(connection->SendSync(std::move(expected_message), &status))
       << status.description();
   std::string data;
   ASSERT_TRUE(server.ReadAtOnce(data));
@@ -394,12 +411,12 @@ TEST_F(ConnectionTest, Sync_ReadIncompleteMessage) {
     EXPECT_TRUE(status.has_description());
   };
 
-  auto& expected_message = test_message.GetTestMessage();
+  auto expected_message = test_message.GetTestMessage();
   std::thread read_thread(read_func);
   std::this_thread::sleep_for(std::chrono::seconds(1));
-  ASSERT_TRUE(server.WriteIncomplete(expected_message.SerializeAsString(),
-                                     expected_message.ByteSize() / 2));
-  // TODO: close connection.
+  ASSERT_TRUE(server.WriteIncomplete(expected_message->SerializeAsString(),
+                                     expected_message->ByteSize() / 2));
+  connection->Close();
   read_thread.join();
 }
 
@@ -407,7 +424,7 @@ TEST_F(ConnectionTest, Sync_ReadFromClosedConnection) {
   net::Connection::Message message;
   proto::Status status;
 
-  // TODO: close connection.
+  connection->Close();
   ASSERT_FALSE(connection->ReadSync(&message, &status));
   EXPECT_EQ(proto::Status::NETWORK, status.code());
   EXPECT_TRUE(status.has_description());
@@ -429,41 +446,43 @@ TEST_F(ConnectionTest, Sync_ReadAfterClosingConnectionOnServerSide) {
     test_message.CheckTestMessage(message);
   };
 
-  auto& expected_message = test_message.GetTestMessage();
+  auto expected_message = test_message.GetTestMessage();
   std::thread read_thread(read_func);
-  ASSERT_TRUE(server.WriteAtOnce(expected_message.SerializeAsString()));
+  ASSERT_TRUE(server.WriteAtOnce(expected_message->SerializeAsString()));
   server.CloseServerConnection();
   read_thread.join();
 }
 
 TEST_F(ConnectionTest, Sync_SendToClosedConnection) {
   TestMessage message;
-  auto& expected_message = message.GetTestMessage();
+  auto expected_message = message.GetTestMessage();
   proto::Status status;
 
-  // TODO: close connection.
-  ASSERT_FALSE(connection->SendSync(expected_message, &status));
+  connection->Close();
+  ASSERT_FALSE(connection->SendSync(std::move(expected_message), &status));
   EXPECT_EQ(proto::Status::NETWORK, status.code());
   EXPECT_TRUE(status.has_description());
 }
 
 TEST_F(ConnectionTest, Sync_SendAfterClosingConnectionOnServerSide) {
   TestMessage message;
-  auto& expected_message = message.GetTestMessage();
+  auto expected_message = message.GetTestMessage();
   proto::Status status;
 
   server.CloseServerConnection();
-  ASSERT_FALSE(connection->SendSync(expected_message, &status));
+  ASSERT_FALSE(connection->SendSync(std::move(expected_message), &status));
   EXPECT_EQ(proto::Status::NETWORK, status.code());
   EXPECT_TRUE(status.has_description());
 }
 
 TEST_F(ConnectionTest, Sync_SendSubMessages) {
   TestMessage test_message;
-  auto& expected_message =
-      test_message.GetTestMessage().GetExtension(proto::Test::test);
+  std::unique_ptr<proto::Test> expected_message;
+  auto test_extension =
+      test_message.GetTestMessage()->GetExtension(proto::Test::extension);
+  expected_message.reset(new proto::Test(test_extension));
   proto::Status status;
-  ASSERT_TRUE(connection->SendSync(expected_message, &status))
+  ASSERT_TRUE(connection->SendSync(std::move(expected_message), &status))
       << status.description();
   std::string data;
   ASSERT_TRUE(server.ReadAtOnce(data));
@@ -471,12 +490,6 @@ TEST_F(ConnectionTest, Sync_SendSubMessages) {
   net::Connection::Message message;
   message.ParseFromString(data);
   test_message.CheckTestMessage(message);
-
-  proto::TestNotExtension bad_message;
-  bad_message.set_field1("arg1");
-  bad_message.set_field2("arg2");
-  bad_message.add_field3("arg3");
-  ASSERT_FALSE(connection->SendSync(bad_message, &status));
 }
 
 }  // namespace testing

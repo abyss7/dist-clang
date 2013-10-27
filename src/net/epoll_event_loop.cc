@@ -6,6 +6,7 @@
 #include "net/connection.h"
 
 #include <sys/epoll.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 
 namespace dist_clang {
@@ -36,12 +37,6 @@ bool EpollEventLoop::ReadyForRead(ConnectionPtr connection) {
 
 bool EpollEventLoop::ReadyForSend(ConnectionPtr connection) {
   return ReadyFor(connection, EPOLLOUT);
-}
-
-void EpollEventLoop::RemoveConnection(fd_t fd) {
-  epoll_ctl(io_fd_, EPOLL_CTL_DEL, fd, nullptr);
-  base::WriteLock lock(connections_mutex_);
-  connections_.erase(fd);
 }
 
 void EpollEventLoop::DoListenWork(const volatile bool &is_shutting_down,
@@ -88,13 +83,9 @@ void EpollEventLoop::DoListenWork(const volatile bool &is_shutting_down,
 void EpollEventLoop::DoIOWork(const volatile bool& is_shutting_down,
                               fd_t self_pipe) {
   struct epoll_event event;
-
-  {
-    struct epoll_event event;
-    event.events = EPOLLIN;
-    event.data.fd = self_pipe;
-    epoll_ctl(listen_fd_, EPOLL_CTL_ADD, self_pipe, &event);
-  }
+  event.events = EPOLLIN;
+  event.data.fd = self_pipe;
+  epoll_ctl(io_fd_, EPOLL_CTL_ADD, self_pipe, &event);
 
   while(!is_shutting_down) {
     auto events_count = epoll_wait(io_fd_, &event, 1, -1);
@@ -107,28 +98,31 @@ void EpollEventLoop::DoIOWork(const volatile bool& is_shutting_down,
       }
     }
 
-    if (event.data.fd == self_pipe) {
+    DCHECK(events_count == 1);
+    fd_t fd = event.data.fd;
+
+    // FIXME: it's a little bit hacky, but should work almost always.
+    if (fd == self_pipe) {
       continue;
     }
 
-    net::ConnectionPtr connection;
-    DCHECK(events_count == 1);
-    {
-      base::ReadLock lock(connections_mutex_);
-      connection = connections_[event.data.fd].lock();
-    }
+    auto raw_connection = reinterpret_cast<Connection*>(event.data.ptr);
+    auto connection = raw_connection->shared_from_this();
+    fd = GetConnectionDescriptor(connection);
 
-    if (event.events & (EPOLLHUP|EPOLLERR)) {
-      CHECK(!epoll_ctl(io_fd_, EPOLL_CTL_DEL, event.data.fd, nullptr));
+    int data = 0;
+    if (event.events & EPOLLERR || ioctl(fd, FIONREAD, &data) == -1 ||
+        (event.events & EPOLLHUP && data == 0)) {
+      ConnectionClose(connection);
     }
-
-    if (connection) {
-      if (event.events & EPOLLIN) {
-        ConnectionDoRead(connection);
-      }
-      else if (event.events & EPOLLOUT) {
-        ConnectionDoSend(connection);
-      }
+    else if (event.events & EPOLLIN) {
+      ConnectionDoRead(connection);
+    }
+    else if (event.events & EPOLLOUT) {
+      ConnectionDoSend(connection);
+    }
+    else {
+      NOTREACHED();
     }
   }
 }
@@ -138,8 +132,9 @@ bool EpollEventLoop::ReadyForListen(fd_t fd) {
   event.events = EPOLLIN | EPOLLONESHOT;
   event.data.fd = fd;
   if (epoll_ctl(listen_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
-    if (errno == ENOENT)
+    if (errno == ENOENT) {
       return epoll_ctl(listen_fd_, EPOLL_CTL_ADD, fd, &event) != -1;
+    }
     return false;
   }
   return true;
@@ -151,18 +146,9 @@ bool EpollEventLoop::ReadyFor(ConnectionPtr connection, unsigned events) {
   auto fd = GetConnectionDescriptor(connection);
   struct epoll_event event;
   event.events = events | EPOLLONESHOT;
-  event.data.fd = fd;
-  base::WriteLock lock(connections_mutex_);
-  if (epoll_ctl(io_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
-    if (errno != ENOENT ||
-        !ConnectionAdd(connection) ||
-        epoll_ctl(io_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
-      return false;
-    }
-    connections_.insert(std::make_pair(fd, connection));
-  }
-
-  return true;
+  event.data.ptr = connection.get();
+  return epoll_ctl(io_fd_, EPOLL_CTL_MOD, fd, &event) != -1 ||
+      (errno == ENOENT && epoll_ctl(io_fd_, EPOLL_CTL_ADD, fd, &event) != -1);
 }
 
 }  // namespace net

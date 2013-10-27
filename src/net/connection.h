@@ -9,6 +9,7 @@
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/gzip_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <gtest/gtest_prod.h>
 #include <memory>
 
 #include <unistd.h>
@@ -67,9 +68,6 @@ class Connection: public ::std::enable_shared_from_this<Connection> {
 
     Connection(EventLoop& event_loop, fd_t fd, const EndPointPtr& end_point);
 
-#if !defined(OS_MACOSX)
-    inline bool AddToEventLoop();
-#endif
     void DoRead();
     void DoSend();
     void Close();
@@ -89,6 +87,10 @@ class Connection: public ::std::enable_shared_from_this<Connection> {
     // Send members.
     FileOutputStream file_output_stream_;
     BindedSendCallback send_callback_;
+
+    FRIEND_TEST(ConnectionTest, Sync_ReadFromClosedConnection);
+    FRIEND_TEST(ConnectionTest, Sync_ReadIncompleteMessage);
+    FRIEND_TEST(ConnectionTest, Sync_SendToClosedConnection);
 };
 
 template <class M>
@@ -108,16 +110,12 @@ bool Connection::SendSync(unique_ptr<M> message, Status* status) {
   return SendSync(status);
 }
 
+template <>
+bool Connection::SendSync(unique_ptr<Message> message, Status* status);
+
 bool Connection::IsOnEventLoop(const EventLoop* event_loop) const {
   return &event_loop_ == event_loop;
 }
-
-#if !defined(OS_MACOSX)
-bool Connection::AddToEventLoop() {
-  bool old_added = false;
-  return added_.compare_exchange_strong(old_added, true);
-}
-#endif
 
 }  // namespace net
 }  // namespace dist_clang

@@ -21,9 +21,9 @@ KqueueEventLoop::~KqueueEventLoop() {
 bool KqueueEventLoop::HandlePassive(fd_t fd) {
 #if !defined(OS_MACOSX)
   // TODO: don't know why, but assertion fails on Mac.
-  base::Assert(IsListening(fd));
+  DCHECK(IsListening(fd));
 #endif
-  base::Assert(IsNonBlocking(fd));
+  DCHECK(IsNonBlocking(fd));
   listening_fds_.insert(fd);
   return ReadyForListen(fd);
 }
@@ -34,10 +34,6 @@ bool KqueueEventLoop::ReadyForRead(ConnectionPtr connection) {
 
 bool KqueueEventLoop::ReadyForSend(ConnectionPtr connection) {
   return ReadyFor(connection, EVFILT_WRITE);
-}
-
-void KqueueEventLoop::RemoveConnection(fd_t fd) {
-  // do nothing.
 }
 
 void KqueueEventLoop::DoListenWork(const volatile bool &is_shutting_down,
@@ -64,11 +60,11 @@ void KqueueEventLoop::DoListenWork(const volatile bool &is_shutting_down,
         continue;
       }
 
-      base::Assert(events[i].filter == EVFILT_READ);
+      DCHECK(events[i].filter == EVFILT_READ);
       while(true) {
         auto new_fd = accept(fd, nullptr, nullptr);
         if (new_fd == -1) {
-          base::Assert(errno == EAGAIN || errno == EWOULDBLOCK);
+          DCHECK(errno == EAGAIN || errno == EWOULDBLOCK);
           break;
         }
         MakeCloseOnExec(new_fd);
@@ -100,17 +96,17 @@ void KqueueEventLoop::DoIOWork(const volatile bool& is_shutting_down,
       }
     }
 
-    base::Assert(events_count == 1);
+    DCHECK(events_count == 1);
     fd_t fd = event.ident;
 
     if (fd == self_pipe) {
       continue;
     }
 
-    auto raw_connection = reinterpret_cast<net::Connection*>(event.udata);
+    auto raw_connection = reinterpret_cast<Connection*>(event.udata);
     auto connection = raw_connection->shared_from_this();
 
-    if ((event.flags & EV_EOF && event.data == 0) || event.flags & EV_ERROR) {
+    if (event.flags & EV_ERROR || (event.flags & EV_EOF && event.data == 0)) {
       ConnectionClose(connection);
     }
     else if (event.filter == EVFILT_READ) {
@@ -120,8 +116,7 @@ void KqueueEventLoop::DoIOWork(const volatile bool& is_shutting_down,
       ConnectionDoSend(connection);
     }
     else {
-      // Should not be reached.
-      base::Assert(false);
+      NOTREACHED();
     }
   }
 }
@@ -133,7 +128,7 @@ bool KqueueEventLoop::ReadyForListen(fd_t fd) {
 }
 
 bool KqueueEventLoop::ReadyFor(ConnectionPtr connection, int16_t filter) {
-  base::Assert(connection->IsOnEventLoop(this));
+  DCHECK(connection->IsOnEventLoop(this));
 
   auto fd = GetConnectionDescriptor(connection);
   struct kevent event;

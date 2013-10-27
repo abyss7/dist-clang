@@ -85,13 +85,13 @@ void NetworkService::DoConnectWork(const volatile bool &is_shutting_down,
         continue;
       }
 
-      base::Assert(events[i].filter == EVFILT_WRITE);
+      DCHECK(events[i].filter == EVFILT_WRITE);
       ConnectCallback callback;
       EndPointPtr end_point;
       {
         std::lock_guard<std::mutex> lock(connect_mutex_);
         auto it = connect_callbacks_.find(fd);
-        base::Assert(it != connect_callbacks_.end());
+        DCHECK(it != connect_callbacks_.end());
         callback = it->second.first;
         end_point = it->second.second;
         connect_callbacks_.erase(it);

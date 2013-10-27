@@ -19,7 +19,6 @@ class EventLoop {
     virtual bool HandlePassive(fd_t fd) = 0;
     virtual bool ReadyForRead(ConnectionPtr connection) = 0;
     virtual bool ReadyForSend(ConnectionPtr connection) = 0;
-    virtual void RemoveConnection(fd_t fd) = 0;
 
     bool Run() THREAD_SAFE;
     void Stop() THREAD_SAFE;
@@ -29,9 +28,6 @@ class EventLoop {
     inline void ConnectionDoRead(ConnectionPtr connection);
     inline void ConnectionDoSend(ConnectionPtr connection);
     inline void ConnectionClose(ConnectionPtr connection);
-#if !defined(OS_MACOSX)
-    inline bool ConnectionAdd(ConnectionPtr connection);
-#endif
 
   private:
     virtual void DoListenWork(const volatile bool& is_shutting_down,
@@ -59,12 +55,6 @@ void EventLoop::ConnectionDoSend(ConnectionPtr connection) {
 void EventLoop::ConnectionClose(ConnectionPtr connection) {
   connection->Close();
 }
-
-#if !defined(OS_MACOSX)
-bool EventLoop::ConnectionAdd(ConnectionPtr connection) {
-  return connection->AddToEventLoop();
-}
-#endif
 
 }  // namespace net
 }  // namespace dist_clang

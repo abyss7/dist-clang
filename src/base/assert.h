@@ -81,6 +81,7 @@ inline void GetStackTrace(size_t depth, ::std::vector<::std::string>& strings) {
 #  define DCHECK_O_EVAL(expr) CHECK(expr)
 #  define DCHECK(expr) CHECK(expr)
 #endif
+#define NOTREACHED() DCHECK(false)
 
 }  // namespace base
 }  // namespace dist_clang
