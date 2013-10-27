@@ -9,9 +9,6 @@
       'dependencies': [
         '../third_party/protobuf/protobuf.gyp:protobuf',
       ],
-      'export_dependent_settings': [
-        '../third_party/protobuf/protobuf.gyp:protobuf',
-      ],
       'sources': [
         'base.pb.cc',
         'base.pb.h',
@@ -22,7 +19,9 @@
         'remote.pb.cc',
         'remote.pb.h',
         'remote.proto',
-        'utils.h',
+        'stats.pb.cc',
+        'stats.pb.h',
+        'stats.proto',
       ],
     },
   ],

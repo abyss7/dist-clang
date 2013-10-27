@@ -6,22 +6,24 @@
     {
       'target_name': 'base',
       'type': 'static_library',
+      'dependencies': [
+        'headers_only',
+      ],
       'sources': [
-        'assert.h',
-        'attributes.h',
-        'c_utils.h',
-        'constants.cc',
-        'constants.h',
-        'file_utils.h',
         'locked_queue.cc',
         'locked_queue.h',
-        'random.h',
-        'read_write_lock.h',
-        'string_utils.h',
         'thread_pool.cc',
         'thread_pool.h',
         'worker_pool.cc',
         'worker_pool.h',
+      ],
+    },
+    {
+      'target_name': 'constants',
+      'type': 'static_library',
+      'sources': [
+        'constants.cc',
+        'constants.h',
       ],
     },
     {
@@ -31,6 +33,19 @@
         'hash.h',
         'hash/murmur_hash3.cc',
         'hash/murmur_hash3.h',
+      ],
+    },
+    {
+      'target_name': 'headers_only',
+      'type': 'none',
+      'sources': [
+        'assert.h',
+        'attributes.h',
+        'c_utils.h',
+        'file_utils.h',
+        'random.h',
+        'read_write_lock.h',
+        'string_utils.h',
       ],
     },
     {

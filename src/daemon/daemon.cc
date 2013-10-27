@@ -3,6 +3,7 @@
 #include "daemon/commands/local_execution.h"
 #include "daemon/commands/remote_execution.h"
 #include "daemon/configuration.h"
+#include "daemon/statistic.h"
 #include "net/connection.h"
 #include "net/network_service.h"
 #include "proto/config.pb.h"
@@ -13,7 +14,7 @@
 #endif
 #include <iostream>
 
-using namespace std::placeholders;
+using namespace ::std::placeholders;
 
 namespace dist_clang {
 namespace daemon {
@@ -35,6 +36,10 @@ bool Daemon::Initialize(const Configuration &configuration,
   if (!config.IsInitialized()) {
     std::cerr << config.InitializationErrorString() << std::endl;
     return false;
+  }
+
+  if (config.has_statistic()) {
+    Statistic::Initialize(network_service, config.statistic());
   }
 
   if (config.has_local()) {

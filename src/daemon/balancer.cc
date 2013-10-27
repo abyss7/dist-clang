@@ -1,6 +1,7 @@
 #include "daemon/balancer.h"
 
 #include "base/random.h"
+#include "daemon/statistic.h"
 #include "net/base/end_point.h"
 #include "net/connection.h"
 #include "net/network_service.h"
@@ -28,6 +29,7 @@ bool Balancer::Decide(const ConnectCallback& callback, std::string* error) {
   do {
     auto remote_index = index_.fetch_add(1) % (remotes_.size() + 1);
     if (remote_index == remotes_.size()) {
+      Statistic::Accumulate(proto::Statistic::TASK_COUNT, remote_index);
       return false;
     }
 
@@ -38,8 +40,10 @@ bool Balancer::Decide(const ConnectCallback& callback, std::string* error) {
       continue;
     }
     if (!service_.ConnectAsync(remote->second, callback, error)) {
+      Statistic::Accumulate(proto::Statistic::TASK_COUNT, remotes_.size());
       return false;
     }
+    Statistic::Accumulate(proto::Statistic::TASK_COUNT, remote_index);
     return true;
   }
   while(true);

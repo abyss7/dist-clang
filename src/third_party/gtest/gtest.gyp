@@ -4,6 +4,27 @@
   ],
   'targets': [
     {
+      'target_name': 'public_headers',
+      'type': 'none',
+      'all_dependent_settings': {
+        'include_dirs': [
+          '..',
+        ],
+      },
+      'sources': [
+        'gtest-death-test.h',
+        'gtest-message.h',
+        'gtest-param-test.h',
+        'gtest-printers.h',
+        'gtest-spi.h',
+        'gtest-test-part.h',
+        'gtest-typed-test.h',
+        'gtest.h',
+        'gtest_pred_impl.h',
+        'gtest_prod.h',
+      ],
+    },
+    {
       'target_name': 'gtest',
       'type': 'shared_library',
       'direct_dependent_settings': {
@@ -16,17 +37,7 @@
       ],
       'sources': [
         'gtest-all.cc',
-        'gtest-death-test.h',
         'gtest-internal-inl.h',
-        'gtest-message.h',
-        'gtest-param-test.h',
-        'gtest-printers.h',
-        'gtest-spi.h',
-        'gtest-test-part.h',
-        'gtest-typed-test.h',
-        'gtest.h',
-        'gtest_pred_impl.h',
-        'gtest_prod.h',
         'internal/gtest-death-test-internal.h',
         'internal/gtest-filepath.h',
         'internal/gtest-internal.h',

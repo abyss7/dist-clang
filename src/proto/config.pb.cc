@@ -56,13 +56,14 @@ void protobuf_AssignDesc_config_2eproto() {
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(Host));
   Configuration_descriptor_ = file->message_type(1);
-  static const int Configuration_offsets_[6] = {
+  static const int Configuration_offsets_[7] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, socket_path_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, pool_capacity_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, cache_path_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, remotes_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, local_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, versions_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, statistic_),
   };
   Configuration_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
@@ -113,12 +114,13 @@ void protobuf_AddDesc_config_2eproto() {
     "\n\014config.proto\022\020dist_clang.proto\032\nbase.p"
     "roto\"U\n\004Host\022\014\n\004host\030\001 \002(\t\022\022\n\004port\030\002 \001(\r"
     ":\0046000\022\022\n\007threads\030\003 \001(\r:\0012\022\027\n\010disabled\030\004"
-    " \001(\010:\005false\"\321\001\n\rConfiguration\022\023\n\013socket_"
+    " \001(\010:\005false\"\374\001\n\rConfiguration\022\023\n\013socket_"
     "path\030\001 \001(\t\022\031\n\rpool_capacity\030\002 \001(\r:\00216\022\022\n"
     "\ncache_path\030\003 \001(\t\022\'\n\007remotes\030\004 \003(\0132\026.dis"
     "t_clang.proto.Host\022%\n\005local\030\005 \001(\0132\026.dist"
     "_clang.proto.Host\022,\n\010versions\030\006 \003(\0132\032.di"
-    "st_clang.proto.Compiler", 343);
+    "st_clang.proto.Compiler\022)\n\tstatistic\030\007 \001"
+    "(\0132\026.dist_clang.proto.Host", 386);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "config.proto", &protobuf_RegisterTypes);
   Host::default_instance_ = new Host();
@@ -488,6 +490,7 @@ const int Configuration::kCachePathFieldNumber;
 const int Configuration::kRemotesFieldNumber;
 const int Configuration::kLocalFieldNumber;
 const int Configuration::kVersionsFieldNumber;
+const int Configuration::kStatisticFieldNumber;
 #endif  // !_MSC_VER
 
 Configuration::Configuration()
@@ -497,6 +500,7 @@ Configuration::Configuration()
 
 void Configuration::InitAsDefaultInstance() {
   local_ = const_cast< ::dist_clang::proto::Host*>(&::dist_clang::proto::Host::default_instance());
+  statistic_ = const_cast< ::dist_clang::proto::Host*>(&::dist_clang::proto::Host::default_instance());
 }
 
 Configuration::Configuration(const Configuration& from)
@@ -511,6 +515,7 @@ void Configuration::SharedCtor() {
   pool_capacity_ = 16u;
   cache_path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   local_ = NULL;
+  statistic_ = NULL;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -527,6 +532,7 @@ void Configuration::SharedDtor() {
   }
   if (this != default_instance_) {
     delete local_;
+    delete statistic_;
   }
 }
 
@@ -566,6 +572,9 @@ void Configuration::Clear() {
     }
     if (has_local()) {
       if (local_ != NULL) local_->::dist_clang::proto::Host::Clear();
+    }
+    if (has_statistic()) {
+      if (statistic_ != NULL) statistic_->::dist_clang::proto::Host::Clear();
     }
   }
   remotes_.Clear();
@@ -669,6 +678,20 @@ bool Configuration::MergePartialFromCodedStream(
           goto handle_uninterpreted;
         }
         if (input->ExpectTag(50)) goto parse_versions;
+        if (input->ExpectTag(58)) goto parse_statistic;
+        break;
+      }
+
+      // optional .dist_clang.proto.Host statistic = 7;
+      case 7: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
+         parse_statistic:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
+               input, mutable_statistic()));
+        } else {
+          goto handle_uninterpreted;
+        }
         if (input->ExpectAtEnd()) return true;
         break;
       }
@@ -732,6 +755,12 @@ void Configuration::SerializeWithCachedSizes(
       6, this->versions(i), output);
   }
 
+  // optional .dist_clang.proto.Host statistic = 7;
+  if (has_statistic()) {
+    ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
+      7, this->statistic(), output);
+  }
+
   if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
@@ -786,6 +815,13 @@ void Configuration::SerializeWithCachedSizes(
         6, this->versions(i), target);
   }
 
+  // optional .dist_clang.proto.Host statistic = 7;
+  if (has_statistic()) {
+    target = ::google::protobuf::internal::WireFormatLite::
+      WriteMessageNoVirtualToArray(
+        7, this->statistic(), target);
+  }
+
   if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
@@ -823,6 +859,13 @@ int Configuration::ByteSize() const {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
           this->local());
+    }
+
+    // optional .dist_clang.proto.Host statistic = 7;
+    if (has_statistic()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+          this->statistic());
     }
 
   }
@@ -882,6 +925,9 @@ void Configuration::MergeFrom(const Configuration& from) {
     if (from.has_local()) {
       mutable_local()->::dist_clang::proto::Host::MergeFrom(from.local());
     }
+    if (from.has_statistic()) {
+      mutable_statistic()->::dist_clang::proto::Host::MergeFrom(from.statistic());
+    }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
@@ -909,6 +955,9 @@ bool Configuration::IsInitialized() const {
   for (int i = 0; i < versions_size(); i++) {
     if (!this->versions(i).IsInitialized()) return false;
   }
+  if (has_statistic()) {
+    if (!this->statistic().IsInitialized()) return false;
+  }
   return true;
 }
 
@@ -920,6 +969,7 @@ void Configuration::Swap(Configuration* other) {
     remotes_.Swap(&other->remotes_);
     std::swap(local_, other->local_);
     versions_.Swap(&other->versions_);
+    std::swap(statistic_, other->statistic_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);

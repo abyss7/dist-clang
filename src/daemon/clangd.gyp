@@ -9,6 +9,7 @@
       'type': 'executable',
       'dependencies': [
         '../base/base.gyp:base',
+        '../base/base.gyp:constants',
         '../base/base.gyp:hash',
         '../base/base.gyp:process',
         '../net/net.gyp:net',
@@ -30,6 +31,8 @@
         'daemon.h',
         'file_cache.cc',
         'file_cache.h',
+        'statistic.cc',
+        'statistic.h',
       ],
     },
   ],

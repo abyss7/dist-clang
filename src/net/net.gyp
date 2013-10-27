@@ -9,6 +9,7 @@
       'dependencies': [
         '../base/base.gyp:base',
         '../proto/proto.gyp:proto',
+        '../third_party/gtest/gtest.gyp:public_headers',
       ],
       'sources': [
         'base/end_point.cc',

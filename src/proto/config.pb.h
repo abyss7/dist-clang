@@ -275,6 +275,15 @@ class Configuration : public ::google::protobuf::Message {
   inline ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Compiler >*
       mutable_versions();
 
+  // optional .dist_clang.proto.Host statistic = 7;
+  inline bool has_statistic() const;
+  inline void clear_statistic();
+  static const int kStatisticFieldNumber = 7;
+  inline const ::dist_clang::proto::Host& statistic() const;
+  inline ::dist_clang::proto::Host* mutable_statistic();
+  inline ::dist_clang::proto::Host* release_statistic();
+  inline void set_allocated_statistic(::dist_clang::proto::Host* statistic);
+
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Configuration)
  private:
   inline void set_has_socket_path();
@@ -285,6 +294,8 @@ class Configuration : public ::google::protobuf::Message {
   inline void clear_has_cache_path();
   inline void set_has_local();
   inline void clear_has_local();
+  inline void set_has_statistic();
+  inline void clear_has_statistic();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -293,10 +304,11 @@ class Configuration : public ::google::protobuf::Message {
   ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Host > remotes_;
   ::dist_clang::proto::Host* local_;
   ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Compiler > versions_;
+  ::dist_clang::proto::Host* statistic_;
   ::google::protobuf::uint32 pool_capacity_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(6 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(7 + 31) / 32];
 
   friend void  protobuf_AddDesc_config_2eproto();
   friend void protobuf_AssignDesc_config_2eproto();
@@ -700,6 +712,44 @@ Configuration::versions() const {
 inline ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Compiler >*
 Configuration::mutable_versions() {
   return &versions_;
+}
+
+// optional .dist_clang.proto.Host statistic = 7;
+inline bool Configuration::has_statistic() const {
+  return (_has_bits_[0] & 0x00000040u) != 0;
+}
+inline void Configuration::set_has_statistic() {
+  _has_bits_[0] |= 0x00000040u;
+}
+inline void Configuration::clear_has_statistic() {
+  _has_bits_[0] &= ~0x00000040u;
+}
+inline void Configuration::clear_statistic() {
+  if (statistic_ != NULL) statistic_->::dist_clang::proto::Host::Clear();
+  clear_has_statistic();
+}
+inline const ::dist_clang::proto::Host& Configuration::statistic() const {
+  return statistic_ != NULL ? *statistic_ : *default_instance_->statistic_;
+}
+inline ::dist_clang::proto::Host* Configuration::mutable_statistic() {
+  set_has_statistic();
+  if (statistic_ == NULL) statistic_ = new ::dist_clang::proto::Host;
+  return statistic_;
+}
+inline ::dist_clang::proto::Host* Configuration::release_statistic() {
+  clear_has_statistic();
+  ::dist_clang::proto::Host* temp = statistic_;
+  statistic_ = NULL;
+  return temp;
+}
+inline void Configuration::set_allocated_statistic(::dist_clang::proto::Host* statistic) {
+  delete statistic_;
+  statistic_ = statistic;
+  if (statistic) {
+    set_has_statistic();
+  } else {
+    clear_has_statistic();
+  }
 }
 
 

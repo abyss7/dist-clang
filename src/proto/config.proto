@@ -16,4 +16,5 @@ message Configuration {
   repeated Host remotes         = 4;
   optional Host local           = 5;
   repeated Compiler versions    = 6;
+  optional Host statistic       = 7;
 }
