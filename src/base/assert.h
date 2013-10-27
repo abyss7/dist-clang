@@ -75,7 +75,7 @@ inline void GetStackTrace(size_t depth, ::std::vector<::std::string>& strings) {
   }
 
 #if defined(NDEBUG)
-#  define DCHECK_O_EVAL(expr) (expr)
+#  define DCHECK_O_EVAL(expr) (void)(expr)
 #  define DCHECK(expr)
 #else
 #  define DCHECK_O_EVAL(expr) CHECK(expr)

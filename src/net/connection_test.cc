@@ -273,7 +273,7 @@ class TestServer: public EventLoop {
 
         if (event.events & (EPOLLHUP|EPOLLERR)) {
           auto fd = GetConnectionDescriptor(connection);
-          DCHECK(!epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr));
+          DCHECK_O_EVAL(!epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr));
         }
 
         if (event.events & EPOLLIN) {
