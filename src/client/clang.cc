@@ -7,7 +7,6 @@
 #include "net/connection.h"
 #include "net/network_service.h"
 #include "proto/remote.pb.h"
-#include "proto/utils.h"
 
 #include <iostream>
 #include <list>
