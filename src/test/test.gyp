@@ -16,12 +16,13 @@
       ],
       'sources': [
         '../base/process_test.cc',
-        '../net/connection_test.cc',
         'run_all_tests.cc',
       ],
       'conditions': [
         ['OS=="linux"', {
           'sources': [
+            # Connection tests use epoll right now.
+            '../net/connection_test.cc',
             '../net/epoll_event_loop_test.cc',
           ],
         }],
