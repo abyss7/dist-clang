@@ -10,8 +10,6 @@
         'headers_only',
       ],
       'sources': [
-        'locked_queue.cc',
-        'locked_queue.h',
         'thread_pool.cc',
         'thread_pool.h',
         'worker_pool.cc',
@@ -43,6 +41,9 @@
         'attributes.h',
         'c_utils.h',
         'file_utils.h',
+        'locked_queue.h',
+        'locked_queue_impl.h',
+        'locked_queue_observer.h',
         'random.h',
         'read_write_lock.h',
         'string_utils.h',

@@ -40,8 +40,7 @@ class Universal;
 class Test;
 class Status;
 class Flags;
-class LocalExecute;
-class RemoteExecute;
+class Execute;
 class RemoteResult;
 
 enum Status_Code {
@@ -563,14 +562,14 @@ class Flags : public ::google::protobuf::Message {
 };
 // -------------------------------------------------------------------
 
-class LocalExecute : public ::google::protobuf::Message {
+class Execute : public ::google::protobuf::Message {
  public:
-  LocalExecute();
-  virtual ~LocalExecute();
+  Execute();
+  virtual ~Execute();
 
-  LocalExecute(const LocalExecute& from);
+  Execute(const Execute& from);
 
-  inline LocalExecute& operator=(const LocalExecute& from) {
+  inline Execute& operator=(const Execute& from) {
     CopyFrom(from);
     return *this;
   }
@@ -584,17 +583,17 @@ class LocalExecute : public ::google::protobuf::Message {
   }
 
   static const ::google::protobuf::Descriptor* descriptor();
-  static const LocalExecute& default_instance();
+  static const Execute& default_instance();
 
-  void Swap(LocalExecute* other);
+  void Swap(Execute* other);
 
   // implements Message ----------------------------------------------
 
-  LocalExecute* New() const;
+  Execute* New() const;
   void CopyFrom(const ::google::protobuf::Message& from);
   void MergeFrom(const ::google::protobuf::Message& from);
-  void CopyFrom(const LocalExecute& from);
-  void MergeFrom(const LocalExecute& from);
+  void CopyFrom(const Execute& from);
+  void MergeFrom(const Execute& from);
   void Clear();
   bool IsInitialized() const;
 
@@ -617,17 +616,12 @@ class LocalExecute : public ::google::protobuf::Message {
 
   // accessors -------------------------------------------------------
 
-  // required string current_dir = 1;
-  inline bool has_current_dir() const;
-  inline void clear_current_dir();
-  static const int kCurrentDirFieldNumber = 1;
-  inline const ::std::string& current_dir() const;
-  inline void set_current_dir(const ::std::string& value);
-  inline void set_current_dir(const char* value);
-  inline void set_current_dir(const char* value, size_t size);
-  inline ::std::string* mutable_current_dir();
-  inline ::std::string* release_current_dir();
-  inline void set_allocated_current_dir(::std::string* current_dir);
+  // required bool remote = 1;
+  inline bool has_remote() const;
+  inline void clear_remote();
+  static const int kRemoteFieldNumber = 1;
+  inline bool remote() const;
+  inline void set_remote(bool value);
 
   // required .dist_clang.proto.Flags cc_flags = 2;
   inline bool has_cc_flags() const;
@@ -647,95 +641,22 @@ class LocalExecute : public ::google::protobuf::Message {
   inline ::dist_clang::proto::Flags* release_pp_flags();
   inline void set_allocated_pp_flags(::dist_clang::proto::Flags* pp_flags);
 
-  static const int kExtensionFieldNumber = 3;
-  static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
-      ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::LocalExecute >, 11, false >
-    extension;
-  // @@protoc_insertion_point(class_scope:dist_clang.proto.LocalExecute)
- private:
-  inline void set_has_current_dir();
-  inline void clear_has_current_dir();
-  inline void set_has_cc_flags();
-  inline void clear_has_cc_flags();
-  inline void set_has_pp_flags();
-  inline void clear_has_pp_flags();
+  // optional string current_dir = 4;
+  inline bool has_current_dir() const;
+  inline void clear_current_dir();
+  static const int kCurrentDirFieldNumber = 4;
+  inline const ::std::string& current_dir() const;
+  inline void set_current_dir(const ::std::string& value);
+  inline void set_current_dir(const char* value);
+  inline void set_current_dir(const char* value, size_t size);
+  inline ::std::string* mutable_current_dir();
+  inline ::std::string* release_current_dir();
+  inline void set_allocated_current_dir(::std::string* current_dir);
 
-  ::google::protobuf::UnknownFieldSet _unknown_fields_;
-
-  ::std::string* current_dir_;
-  ::dist_clang::proto::Flags* cc_flags_;
-  ::dist_clang::proto::Flags* pp_flags_;
-
-  mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(3 + 31) / 32];
-
-  friend void  protobuf_AddDesc_remote_2eproto();
-  friend void protobuf_AssignDesc_remote_2eproto();
-  friend void protobuf_ShutdownFile_remote_2eproto();
-
-  void InitAsDefaultInstance();
-  static LocalExecute* default_instance_;
-};
-// -------------------------------------------------------------------
-
-class RemoteExecute : public ::google::protobuf::Message {
- public:
-  RemoteExecute();
-  virtual ~RemoteExecute();
-
-  RemoteExecute(const RemoteExecute& from);
-
-  inline RemoteExecute& operator=(const RemoteExecute& from) {
-    CopyFrom(from);
-    return *this;
-  }
-
-  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
-    return _unknown_fields_;
-  }
-
-  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
-    return &_unknown_fields_;
-  }
-
-  static const ::google::protobuf::Descriptor* descriptor();
-  static const RemoteExecute& default_instance();
-
-  void Swap(RemoteExecute* other);
-
-  // implements Message ----------------------------------------------
-
-  RemoteExecute* New() const;
-  void CopyFrom(const ::google::protobuf::Message& from);
-  void MergeFrom(const ::google::protobuf::Message& from);
-  void CopyFrom(const RemoteExecute& from);
-  void MergeFrom(const RemoteExecute& from);
-  void Clear();
-  bool IsInitialized() const;
-
-  int ByteSize() const;
-  bool MergePartialFromCodedStream(
-      ::google::protobuf::io::CodedInputStream* input);
-  void SerializeWithCachedSizes(
-      ::google::protobuf::io::CodedOutputStream* output) const;
-  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
-  int GetCachedSize() const { return _cached_size_; }
-  private:
-  void SharedCtor();
-  void SharedDtor();
-  void SetCachedSize(int size) const;
-  public:
-
-  ::google::protobuf::Metadata GetMetadata() const;
-
-  // nested types ----------------------------------------------------
-
-  // accessors -------------------------------------------------------
-
-  // required string pp_source = 1;
+  // optional string pp_source = 5;
   inline bool has_pp_source() const;
   inline void clear_pp_source();
-  static const int kPpSourceFieldNumber = 1;
+  static const int kPpSourceFieldNumber = 5;
   inline const ::std::string& pp_source() const;
   inline void set_pp_source(const ::std::string& value);
   inline void set_pp_source(const char* value);
@@ -744,40 +665,40 @@ class RemoteExecute : public ::google::protobuf::Message {
   inline ::std::string* release_pp_source();
   inline void set_allocated_pp_source(::std::string* pp_source);
 
-  // required .dist_clang.proto.Flags cc_flags = 2;
-  inline bool has_cc_flags() const;
-  inline void clear_cc_flags();
-  static const int kCcFlagsFieldNumber = 2;
-  inline const ::dist_clang::proto::Flags& cc_flags() const;
-  inline ::dist_clang::proto::Flags* mutable_cc_flags();
-  inline ::dist_clang::proto::Flags* release_cc_flags();
-  inline void set_allocated_cc_flags(::dist_clang::proto::Flags* cc_flags);
-
-  static const int kExtensionFieldNumber = 4;
+  static const int kExtensionFieldNumber = 3;
   static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
-      ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::RemoteExecute >, 11, false >
+      ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::Execute >, 11, false >
     extension;
-  // @@protoc_insertion_point(class_scope:dist_clang.proto.RemoteExecute)
+  // @@protoc_insertion_point(class_scope:dist_clang.proto.Execute)
  private:
-  inline void set_has_pp_source();
-  inline void clear_has_pp_source();
+  inline void set_has_remote();
+  inline void clear_has_remote();
   inline void set_has_cc_flags();
   inline void clear_has_cc_flags();
+  inline void set_has_pp_flags();
+  inline void clear_has_pp_flags();
+  inline void set_has_current_dir();
+  inline void clear_has_current_dir();
+  inline void set_has_pp_source();
+  inline void clear_has_pp_source();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
-  ::std::string* pp_source_;
   ::dist_clang::proto::Flags* cc_flags_;
+  ::dist_clang::proto::Flags* pp_flags_;
+  ::std::string* current_dir_;
+  ::std::string* pp_source_;
+  bool remote_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(2 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(5 + 31) / 32];
 
   friend void  protobuf_AddDesc_remote_2eproto();
   friend void protobuf_AssignDesc_remote_2eproto();
   friend void protobuf_ShutdownFile_remote_2eproto();
 
   void InitAsDefaultInstance();
-  static RemoteExecute* default_instance_;
+  static Execute* default_instance_;
 };
 // -------------------------------------------------------------------
 
@@ -847,7 +768,7 @@ class RemoteResult : public ::google::protobuf::Message {
   inline ::std::string* release_obj();
   inline void set_allocated_obj(::std::string* obj);
 
-  static const int kExtensionFieldNumber = 5;
+  static const int kExtensionFieldNumber = 4;
   static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
       ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::RemoteResult >, 11, false >
     extension;
@@ -1504,56 +1425,154 @@ inline void Flags::set_allocated_language(::std::string* language) {
 
 // -------------------------------------------------------------------
 
-// LocalExecute
+// Execute
 
-// required string current_dir = 1;
-inline bool LocalExecute::has_current_dir() const {
+// required bool remote = 1;
+inline bool Execute::has_remote() const {
   return (_has_bits_[0] & 0x00000001u) != 0;
 }
-inline void LocalExecute::set_has_current_dir() {
+inline void Execute::set_has_remote() {
   _has_bits_[0] |= 0x00000001u;
 }
-inline void LocalExecute::clear_has_current_dir() {
+inline void Execute::clear_has_remote() {
   _has_bits_[0] &= ~0x00000001u;
 }
-inline void LocalExecute::clear_current_dir() {
+inline void Execute::clear_remote() {
+  remote_ = false;
+  clear_has_remote();
+}
+inline bool Execute::remote() const {
+  return remote_;
+}
+inline void Execute::set_remote(bool value) {
+  set_has_remote();
+  remote_ = value;
+}
+
+// required .dist_clang.proto.Flags cc_flags = 2;
+inline bool Execute::has_cc_flags() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+inline void Execute::set_has_cc_flags() {
+  _has_bits_[0] |= 0x00000002u;
+}
+inline void Execute::clear_has_cc_flags() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+inline void Execute::clear_cc_flags() {
+  if (cc_flags_ != NULL) cc_flags_->::dist_clang::proto::Flags::Clear();
+  clear_has_cc_flags();
+}
+inline const ::dist_clang::proto::Flags& Execute::cc_flags() const {
+  return cc_flags_ != NULL ? *cc_flags_ : *default_instance_->cc_flags_;
+}
+inline ::dist_clang::proto::Flags* Execute::mutable_cc_flags() {
+  set_has_cc_flags();
+  if (cc_flags_ == NULL) cc_flags_ = new ::dist_clang::proto::Flags;
+  return cc_flags_;
+}
+inline ::dist_clang::proto::Flags* Execute::release_cc_flags() {
+  clear_has_cc_flags();
+  ::dist_clang::proto::Flags* temp = cc_flags_;
+  cc_flags_ = NULL;
+  return temp;
+}
+inline void Execute::set_allocated_cc_flags(::dist_clang::proto::Flags* cc_flags) {
+  delete cc_flags_;
+  cc_flags_ = cc_flags;
+  if (cc_flags) {
+    set_has_cc_flags();
+  } else {
+    clear_has_cc_flags();
+  }
+}
+
+// optional .dist_clang.proto.Flags pp_flags = 3;
+inline bool Execute::has_pp_flags() const {
+  return (_has_bits_[0] & 0x00000004u) != 0;
+}
+inline void Execute::set_has_pp_flags() {
+  _has_bits_[0] |= 0x00000004u;
+}
+inline void Execute::clear_has_pp_flags() {
+  _has_bits_[0] &= ~0x00000004u;
+}
+inline void Execute::clear_pp_flags() {
+  if (pp_flags_ != NULL) pp_flags_->::dist_clang::proto::Flags::Clear();
+  clear_has_pp_flags();
+}
+inline const ::dist_clang::proto::Flags& Execute::pp_flags() const {
+  return pp_flags_ != NULL ? *pp_flags_ : *default_instance_->pp_flags_;
+}
+inline ::dist_clang::proto::Flags* Execute::mutable_pp_flags() {
+  set_has_pp_flags();
+  if (pp_flags_ == NULL) pp_flags_ = new ::dist_clang::proto::Flags;
+  return pp_flags_;
+}
+inline ::dist_clang::proto::Flags* Execute::release_pp_flags() {
+  clear_has_pp_flags();
+  ::dist_clang::proto::Flags* temp = pp_flags_;
+  pp_flags_ = NULL;
+  return temp;
+}
+inline void Execute::set_allocated_pp_flags(::dist_clang::proto::Flags* pp_flags) {
+  delete pp_flags_;
+  pp_flags_ = pp_flags;
+  if (pp_flags) {
+    set_has_pp_flags();
+  } else {
+    clear_has_pp_flags();
+  }
+}
+
+// optional string current_dir = 4;
+inline bool Execute::has_current_dir() const {
+  return (_has_bits_[0] & 0x00000008u) != 0;
+}
+inline void Execute::set_has_current_dir() {
+  _has_bits_[0] |= 0x00000008u;
+}
+inline void Execute::clear_has_current_dir() {
+  _has_bits_[0] &= ~0x00000008u;
+}
+inline void Execute::clear_current_dir() {
   if (current_dir_ != &::google::protobuf::internal::kEmptyString) {
     current_dir_->clear();
   }
   clear_has_current_dir();
 }
-inline const ::std::string& LocalExecute::current_dir() const {
+inline const ::std::string& Execute::current_dir() const {
   return *current_dir_;
 }
-inline void LocalExecute::set_current_dir(const ::std::string& value) {
+inline void Execute::set_current_dir(const ::std::string& value) {
   set_has_current_dir();
   if (current_dir_ == &::google::protobuf::internal::kEmptyString) {
     current_dir_ = new ::std::string;
   }
   current_dir_->assign(value);
 }
-inline void LocalExecute::set_current_dir(const char* value) {
+inline void Execute::set_current_dir(const char* value) {
   set_has_current_dir();
   if (current_dir_ == &::google::protobuf::internal::kEmptyString) {
     current_dir_ = new ::std::string;
   }
   current_dir_->assign(value);
 }
-inline void LocalExecute::set_current_dir(const char* value, size_t size) {
+inline void Execute::set_current_dir(const char* value, size_t size) {
   set_has_current_dir();
   if (current_dir_ == &::google::protobuf::internal::kEmptyString) {
     current_dir_ = new ::std::string;
   }
   current_dir_->assign(reinterpret_cast<const char*>(value), size);
 }
-inline ::std::string* LocalExecute::mutable_current_dir() {
+inline ::std::string* Execute::mutable_current_dir() {
   set_has_current_dir();
   if (current_dir_ == &::google::protobuf::internal::kEmptyString) {
     current_dir_ = new ::std::string;
   }
   return current_dir_;
 }
-inline ::std::string* LocalExecute::release_current_dir() {
+inline ::std::string* Execute::release_current_dir() {
   clear_has_current_dir();
   if (current_dir_ == &::google::protobuf::internal::kEmptyString) {
     return NULL;
@@ -1563,7 +1582,7 @@ inline ::std::string* LocalExecute::release_current_dir() {
     return temp;
   }
 }
-inline void LocalExecute::set_allocated_current_dir(::std::string* current_dir) {
+inline void Execute::set_allocated_current_dir(::std::string* current_dir) {
   if (current_dir_ != &::google::protobuf::internal::kEmptyString) {
     delete current_dir_;
   }
@@ -1576,134 +1595,54 @@ inline void LocalExecute::set_allocated_current_dir(::std::string* current_dir) 
   }
 }
 
-// required .dist_clang.proto.Flags cc_flags = 2;
-inline bool LocalExecute::has_cc_flags() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
+// optional string pp_source = 5;
+inline bool Execute::has_pp_source() const {
+  return (_has_bits_[0] & 0x00000010u) != 0;
 }
-inline void LocalExecute::set_has_cc_flags() {
-  _has_bits_[0] |= 0x00000002u;
+inline void Execute::set_has_pp_source() {
+  _has_bits_[0] |= 0x00000010u;
 }
-inline void LocalExecute::clear_has_cc_flags() {
-  _has_bits_[0] &= ~0x00000002u;
+inline void Execute::clear_has_pp_source() {
+  _has_bits_[0] &= ~0x00000010u;
 }
-inline void LocalExecute::clear_cc_flags() {
-  if (cc_flags_ != NULL) cc_flags_->::dist_clang::proto::Flags::Clear();
-  clear_has_cc_flags();
-}
-inline const ::dist_clang::proto::Flags& LocalExecute::cc_flags() const {
-  return cc_flags_ != NULL ? *cc_flags_ : *default_instance_->cc_flags_;
-}
-inline ::dist_clang::proto::Flags* LocalExecute::mutable_cc_flags() {
-  set_has_cc_flags();
-  if (cc_flags_ == NULL) cc_flags_ = new ::dist_clang::proto::Flags;
-  return cc_flags_;
-}
-inline ::dist_clang::proto::Flags* LocalExecute::release_cc_flags() {
-  clear_has_cc_flags();
-  ::dist_clang::proto::Flags* temp = cc_flags_;
-  cc_flags_ = NULL;
-  return temp;
-}
-inline void LocalExecute::set_allocated_cc_flags(::dist_clang::proto::Flags* cc_flags) {
-  delete cc_flags_;
-  cc_flags_ = cc_flags;
-  if (cc_flags) {
-    set_has_cc_flags();
-  } else {
-    clear_has_cc_flags();
-  }
-}
-
-// optional .dist_clang.proto.Flags pp_flags = 3;
-inline bool LocalExecute::has_pp_flags() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
-}
-inline void LocalExecute::set_has_pp_flags() {
-  _has_bits_[0] |= 0x00000004u;
-}
-inline void LocalExecute::clear_has_pp_flags() {
-  _has_bits_[0] &= ~0x00000004u;
-}
-inline void LocalExecute::clear_pp_flags() {
-  if (pp_flags_ != NULL) pp_flags_->::dist_clang::proto::Flags::Clear();
-  clear_has_pp_flags();
-}
-inline const ::dist_clang::proto::Flags& LocalExecute::pp_flags() const {
-  return pp_flags_ != NULL ? *pp_flags_ : *default_instance_->pp_flags_;
-}
-inline ::dist_clang::proto::Flags* LocalExecute::mutable_pp_flags() {
-  set_has_pp_flags();
-  if (pp_flags_ == NULL) pp_flags_ = new ::dist_clang::proto::Flags;
-  return pp_flags_;
-}
-inline ::dist_clang::proto::Flags* LocalExecute::release_pp_flags() {
-  clear_has_pp_flags();
-  ::dist_clang::proto::Flags* temp = pp_flags_;
-  pp_flags_ = NULL;
-  return temp;
-}
-inline void LocalExecute::set_allocated_pp_flags(::dist_clang::proto::Flags* pp_flags) {
-  delete pp_flags_;
-  pp_flags_ = pp_flags;
-  if (pp_flags) {
-    set_has_pp_flags();
-  } else {
-    clear_has_pp_flags();
-  }
-}
-
-// -------------------------------------------------------------------
-
-// RemoteExecute
-
-// required string pp_source = 1;
-inline bool RemoteExecute::has_pp_source() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-inline void RemoteExecute::set_has_pp_source() {
-  _has_bits_[0] |= 0x00000001u;
-}
-inline void RemoteExecute::clear_has_pp_source() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-inline void RemoteExecute::clear_pp_source() {
+inline void Execute::clear_pp_source() {
   if (pp_source_ != &::google::protobuf::internal::kEmptyString) {
     pp_source_->clear();
   }
   clear_has_pp_source();
 }
-inline const ::std::string& RemoteExecute::pp_source() const {
+inline const ::std::string& Execute::pp_source() const {
   return *pp_source_;
 }
-inline void RemoteExecute::set_pp_source(const ::std::string& value) {
+inline void Execute::set_pp_source(const ::std::string& value) {
   set_has_pp_source();
   if (pp_source_ == &::google::protobuf::internal::kEmptyString) {
     pp_source_ = new ::std::string;
   }
   pp_source_->assign(value);
 }
-inline void RemoteExecute::set_pp_source(const char* value) {
+inline void Execute::set_pp_source(const char* value) {
   set_has_pp_source();
   if (pp_source_ == &::google::protobuf::internal::kEmptyString) {
     pp_source_ = new ::std::string;
   }
   pp_source_->assign(value);
 }
-inline void RemoteExecute::set_pp_source(const char* value, size_t size) {
+inline void Execute::set_pp_source(const char* value, size_t size) {
   set_has_pp_source();
   if (pp_source_ == &::google::protobuf::internal::kEmptyString) {
     pp_source_ = new ::std::string;
   }
   pp_source_->assign(reinterpret_cast<const char*>(value), size);
 }
-inline ::std::string* RemoteExecute::mutable_pp_source() {
+inline ::std::string* Execute::mutable_pp_source() {
   set_has_pp_source();
   if (pp_source_ == &::google::protobuf::internal::kEmptyString) {
     pp_source_ = new ::std::string;
   }
   return pp_source_;
 }
-inline ::std::string* RemoteExecute::release_pp_source() {
+inline ::std::string* Execute::release_pp_source() {
   clear_has_pp_source();
   if (pp_source_ == &::google::protobuf::internal::kEmptyString) {
     return NULL;
@@ -1713,7 +1652,7 @@ inline ::std::string* RemoteExecute::release_pp_source() {
     return temp;
   }
 }
-inline void RemoteExecute::set_allocated_pp_source(::std::string* pp_source) {
+inline void Execute::set_allocated_pp_source(::std::string* pp_source) {
   if (pp_source_ != &::google::protobuf::internal::kEmptyString) {
     delete pp_source_;
   }
@@ -1723,44 +1662,6 @@ inline void RemoteExecute::set_allocated_pp_source(::std::string* pp_source) {
   } else {
     clear_has_pp_source();
     pp_source_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-  }
-}
-
-// required .dist_clang.proto.Flags cc_flags = 2;
-inline bool RemoteExecute::has_cc_flags() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-inline void RemoteExecute::set_has_cc_flags() {
-  _has_bits_[0] |= 0x00000002u;
-}
-inline void RemoteExecute::clear_has_cc_flags() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-inline void RemoteExecute::clear_cc_flags() {
-  if (cc_flags_ != NULL) cc_flags_->::dist_clang::proto::Flags::Clear();
-  clear_has_cc_flags();
-}
-inline const ::dist_clang::proto::Flags& RemoteExecute::cc_flags() const {
-  return cc_flags_ != NULL ? *cc_flags_ : *default_instance_->cc_flags_;
-}
-inline ::dist_clang::proto::Flags* RemoteExecute::mutable_cc_flags() {
-  set_has_cc_flags();
-  if (cc_flags_ == NULL) cc_flags_ = new ::dist_clang::proto::Flags;
-  return cc_flags_;
-}
-inline ::dist_clang::proto::Flags* RemoteExecute::release_cc_flags() {
-  clear_has_cc_flags();
-  ::dist_clang::proto::Flags* temp = cc_flags_;
-  cc_flags_ = NULL;
-  return temp;
-}
-inline void RemoteExecute::set_allocated_cc_flags(::dist_clang::proto::Flags* cc_flags) {
-  delete cc_flags_;
-  cc_flags_ = cc_flags;
-  if (cc_flags) {
-    set_has_cc_flags();
-  } else {
-    clear_has_cc_flags();
   }
 }
 

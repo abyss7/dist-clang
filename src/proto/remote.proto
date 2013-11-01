@@ -49,22 +49,15 @@ message Flags {
   optional string language    = 6;  // "-x" flag and it's param.
 }
 
-message LocalExecute {
-  required string current_dir = 1;
+message Execute {
+  required bool remote        = 1;
   required Flags cc_flags     = 2;  // Flags to run compilation.
   optional Flags pp_flags     = 3;  // Flags to run preprocessor.
+  optional string current_dir = 4;  // Required for local execution.
+  optional string pp_source   = 5;  // Required for remote execution.
 
   extend Universal {
-    optional LocalExecute extension = 3;
-  }
-}
-
-message RemoteExecute {
-  required string pp_source   = 1;
-  required Flags cc_flags     = 2;
-
-  extend Universal {
-    optional RemoteExecute extension = 4;
+    optional Execute extension = 3;
   }
 }
 
@@ -72,8 +65,8 @@ message RemoteResult {
   required bytes obj          = 1;
 
   extend Universal {
-    optional RemoteResult extension = 5;
+    optional RemoteResult extension = 4;
   }
 }
 
-// Last unused extension index: 6.
+// Last unused extension index: 5.

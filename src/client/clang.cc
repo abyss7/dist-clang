@@ -81,17 +81,17 @@ bool ParseClangOutput(const std::string& output,
 }
 
 bool DoMain(int argc, char* argv[]) {
-  ::std::string clangd_socket_path = base::GetEnv(kEnvClangdSocket,
-                                                  base::kDefaultClangdSocket);
+  std::string clangd_socket_path = base::GetEnv(kEnvClangdSocket,
+                                                base::kDefaultClangdSocket);
 
   net::NetworkService service;
   auto connection = service.ConnectSync(clangd_socket_path);
   if (!connection)
     return true;
 
-  ::std::unique_ptr<proto::LocalExecute> message(new proto::LocalExecute);
+  std::unique_ptr<proto::Execute> message(new proto::Execute);
 
-  ::std::string current_dir = base::GetCurrentDir();
+  std::string current_dir = base::GetCurrentDir();
   if (current_dir.empty())
     return true;
   message->set_current_dir(current_dir);

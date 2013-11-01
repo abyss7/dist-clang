@@ -1,20 +1,27 @@
 #include "daemon/daemon.h"
 
-#include "daemon/commands/local_execution.h"
-#include "daemon/commands/remote_execution.h"
+#include "base/assert.h"
+#include "base/file_utils.h"
+#include "base/locked_queue_impl.h"
+#include "base/process.h"
+#include "base/worker_pool.h"
 #include "daemon/configuration.h"
 #include "daemon/statistic.h"
+#include "net/base/end_point.h"
 #include "net/connection.h"
 #include "net/network_service.h"
 #include "proto/config.pb.h"
 
+#include <atomic>
+#include <condition_variable>
 #include <functional>
 #if defined(PROFILER)
 #  include <gperftools/profiler.h>
 #endif
 #include <iostream>
+#include <mutex>
 
-using namespace ::std::placeholders;
+using namespace std::placeholders;
 
 namespace dist_clang {
 namespace daemon {
@@ -23,14 +30,21 @@ namespace daemon {
 Daemon::Daemon() {
   ProfilerStart("clangd.prof");
 }
-
-Daemon::~Daemon() {
-  ProfilerStop();
-}
 #endif  // PROFILER
 
-bool Daemon::Initialize(const Configuration &configuration,
-                        net::NetworkService &network_service) {
+Daemon::~Daemon() {
+#if defined(PROFILER)
+  ProfilerStop();
+#endif  // PROFILER
+
+  local_tasks_->Close();
+  failed_tasks_->Close();
+  remote_tasks_->Close();
+  workers_.reset();
+  network_service_.reset();
+}
+
+bool Daemon::Initialize(const Configuration &configuration) {
   const auto& config = configuration.config();
 
   if (!config.IsInitialized()) {
@@ -38,18 +52,25 @@ bool Daemon::Initialize(const Configuration &configuration,
     return false;
   }
 
+  network_service_.reset(new net::NetworkService);
   if (config.has_statistic()) {
-    Statistic::Initialize(network_service, config.statistic());
+    // TODO: initialize statistic in proper way - regarding |NetworkService|.
+    // Statistic::Initialize(network_service_, config.statistic());
   }
 
+  workers_.reset(new base::WorkerPool);
+  local_tasks_.reset(new Queue);
+  failed_tasks_.reset(new Queue);
   if (config.has_local()) {
-    pool_.reset(new base::ThreadPool(config.pool_capacity(),
-                                     config.local().threads()));
+    remote_tasks_.reset(new Queue(config.pool_capacity()));
+    auto worker = std::bind(&Daemon::DoLocalExecution, this, _1, _2);
+    workers_->AddWorker(worker, config.local().threads());
   }
   else {
-    pool_.reset(new base::ThreadPool(config.pool_capacity()));
+    remote_tasks_.reset(new Queue);
+    auto worker = std::bind(&Daemon::DoLocalExecution, this, _1, _2);
+    workers_->AddWorker(worker, std::thread::hardware_concurrency());
   }
-  pool_->Run();
 
   if (config.has_cache_path()) {
     cache_.reset(new FileCache(config.cache_path()));
@@ -59,9 +80,9 @@ bool Daemon::Initialize(const Configuration &configuration,
   if (config.has_local() && !config.local().disabled()) {
     std::string error;
     auto callback = std::bind(&Daemon::HandleNewConnection, this, _1);
-    bool result = network_service.Listen(config.local().host(),
-                                         config.local().port(),
-                                         callback, &error);
+    bool result = network_service_->Listen(config.local().host(),
+                                           config.local().port(),
+                                           callback, &error);
     if (!result) {
       std::cerr << "Failed to listen on " << config.local().host() << ":"
                 << config.local().port() << " : " << error << std::endl;
@@ -71,7 +92,7 @@ bool Daemon::Initialize(const Configuration &configuration,
 
   if (config.has_socket_path()) {
     auto callback = std::bind(&Daemon::HandleNewConnection, this, _1);
-    is_listening |= network_service.Listen(config.socket_path(), callback);
+    is_listening |= network_service_->Listen(config.socket_path(), callback);
   }
 
   if (!is_listening) {
@@ -79,10 +100,12 @@ bool Daemon::Initialize(const Configuration &configuration,
     return false;
   }
 
-  balancer_.reset(new Balancer(network_service));
   for (const auto& remote: config.remotes()) {
     if (!remote.disabled()) {
-      balancer_->AddRemote(remote);
+      auto end_point = net::EndPoint::TcpHost(remote.host(), remote.port());
+      auto worker =
+          std::bind(&Daemon::DoRemoteExecution, this, _1, _2, end_point);
+      workers_->AddWorker(worker, remote.threads());
     }
   }
 
@@ -97,7 +120,7 @@ bool Daemon::Initialize(const Configuration &configuration,
     }
   }
 
-  return true;
+  return network_service_->Run();
 }
 
 bool Daemon::FillFlags(proto::Flags* flags, proto::Status* status) {
@@ -155,25 +178,255 @@ bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
     return connection->ReportStatus(status);
   }
 
-  command::CommandPtr command;
-  if (message->HasExtension(proto::LocalExecute::extension)) {
-    auto* extension = message->ReleaseExtension(proto::LocalExecute::extension);
-    auto local = command::LocalExecution::ScopedMessage(extension);
-    command = command::LocalExecution::Create(connection, std::move(local),
-                                              *this);
-  }
-  else if (message->HasExtension(proto::RemoteExecute::extension)) {
-    auto* extension
-        = message->ReleaseExtension(proto::RemoteExecute::extension);
-    auto remote = command::RemoteExecution::ScopedMessage(extension);
-    command = command::RemoteExecution::Create(connection, std::move(remote),
-                                               *this);
-  }
-
-  if (!command) {
+  if (!message->HasExtension(proto::Execute::extension) ||
+      !message->GetExtension(proto::Execute::extension).has_remote()) {
+    NOTREACHED();
     return false;
   }
-  return pool_->Push(std::bind(&command::Command::Run, command));
+  auto* extension = message->ReleaseExtension(proto::Execute::extension);
+  std::unique_ptr<proto::Execute> execute(extension);
+
+  if (!execute->remote() && execute->has_current_dir()) {
+    return local_tasks_->Push(std::make_pair(connection, std::move(execute)));
+  }
+  else if (execute->remote() && execute->has_pp_source()){
+    return remote_tasks_->Push(std::make_pair(connection, std::move(execute)));
+  }
+
+  NOTREACHED();
+  return false;
+}
+
+void Daemon::DoRemoteExecution(const volatile bool& is_shutting_down,
+                               net::fd_t /* self_pipe */,
+                               net::EndPointPtr end_point) {
+  if (!end_point) {
+    // TODO: do re-resolve |end_point| periodically, since the network
+    // configuration may change on runtime.
+    return;
+  }
+
+  while (!is_shutting_down) {
+    ScopedTask task;
+    if (!local_tasks_->Pop(task)) {
+      break;
+    }
+
+    if (!task.second->has_pp_flags() ||
+        !FillFlags(task.second->mutable_pp_flags())) {
+      // Without preprocessing flags we can't neither check the cache, nor do
+      // a remote compilation, nor put the result back in cache.
+      failed_tasks_->Push(std::move(task));
+      continue;
+    }
+
+    // Redirect output to stdin in |pp_flags|.
+    task.second->mutable_pp_flags()->set_output("-");
+
+    base::Process process(task.second->pp_flags(), task.second->current_dir());
+    if (!process.Run(10)) {
+      // It usually means, that there is an error in the source code.
+      // We should skip a cache check and head to local compilation.
+      failed_tasks_->Push(std::move(task));
+      continue;
+    }
+
+    // TODO: check file cache.
+
+    // TODO: cache connection before popping a task.
+    // FIXME: save preprocessed result somehow.
+    auto connection = network_service_->ConnectSync(end_point);
+    if (!connection) {
+      local_tasks_->Push(std::move(task));
+      continue;
+    }
+
+    ScopedExecute remote(new proto::Execute);
+    remote->set_pp_source(process.stdout());
+    remote->mutable_cc_flags()->CopyFrom(task.second->cc_flags());
+
+    // Filter outgoing flags.
+    remote->mutable_cc_flags()->mutable_compiler()->clear_path();
+    remote->mutable_cc_flags()->clear_output();
+    remote->mutable_cc_flags()->clear_input();
+    remote->mutable_cc_flags()->clear_dependenies();
+
+    if (!connection->SendSync(std::move(remote))) {
+      local_tasks_->Push(std::move(task));
+      continue;
+    }
+
+    ScopedMessage message(new proto::Universal);
+    if (!connection->ReadSync(message.get())) {
+      local_tasks_->Push(std::move(task));
+      continue;
+    }
+
+    if (message->HasExtension(proto::Status::extension)) {
+      const auto& status = message->GetExtension(proto::Status::extension);
+      if (status.code() != proto::Status::OK) {
+        std::cerr << "Remote compilation failed with error(s):" << std::endl;
+        std::cerr << status.description() << std::endl;
+        failed_tasks_->Push(std::move(task));
+        continue;
+      }
+    }
+
+    if (message->HasExtension(proto::RemoteResult::extension)) {
+      const auto& result =
+          message->GetExtension(proto::RemoteResult::extension);
+      std::string output_path =
+          task.second->current_dir() + "/" + task.second->cc_flags().output();
+      if (base::WriteFile(output_path, result.obj())) {
+        proto::Status status;
+        status.set_code(proto::Status::OK);
+        std::cout << "Remote compilation successful: " +
+                     task.second->cc_flags().input() << std::endl;
+        // TODO: update file cache.
+        task.first->ReportStatus(status);
+        continue;
+      }
+    }
+
+    // In case this task has crashed the remote end, we will try only local
+    // compilation next time.
+    failed_tasks_->Push(std::move(task));
+  }
+}
+
+void Daemon::DoLocalExecution(const volatile bool &is_shutting_down,
+                              net::fd_t /* self_pipe */) {
+  class Observer: public base::LockedQueueObserver {
+    public:
+      Observer(std::atomic<unsigned>& indicator,
+               std::atomic<unsigned>& closed_queues,
+               std::condition_variable& notifier)
+        : indicator_(indicator), closed_(closed_queues), notifier_(notifier) {}
+
+      virtual void Observe(bool close) override {
+        if (close) {
+          closed_.fetch_add(1);
+        }
+        indicator_.fetch_add(1);
+        notifier_.notify_one();
+      }
+
+    private:
+      std::atomic<unsigned>& indicator_;
+      std::atomic<unsigned>& closed_;
+      std::condition_variable& notifier_;
+  };
+
+  std::mutex mutex;  // TODO: replace with lockless condition variable.
+  std::atomic<unsigned> indicator(0), closed_queues(0);
+  std::condition_variable condition;
+  Observer observer(indicator, closed_queues, condition);
+  failed_tasks_->AddObserver(&observer);
+  local_tasks_->AddObserver(&observer);
+  remote_tasks_->AddObserver(&observer);
+
+  std::unique_lock<std::mutex> lock(mutex);
+  while (!is_shutting_down) {
+    ScopedTask task;
+
+    while(!indicator.load() && closed_queues.load() < 3) {
+      condition.wait(lock);
+    }
+    indicator.store(0);
+    if (closed_queues.load() == 3) {
+      break;
+    }
+
+    if (!failed_tasks_->TryPop(task) &&
+        !local_tasks_->TryPop(task) &&
+        !remote_tasks_->TryPop(task)) {
+      continue;
+    }
+
+    if (task.second && !task.second->remote()) {
+      proto::Status status;
+      if (!FillFlags(task.second->mutable_cc_flags(), &status)) {
+        task.first->ReportStatus(status);
+        continue;
+      }
+
+      proto::Status message;
+      base::Process process(task.second->cc_flags(),
+                            task.second->current_dir());
+      if (!process.Run(60)) {
+        message.set_code(proto::Status::EXECUTION);
+        message.set_description(process.stderr());
+      } else {
+        message.set_code(proto::Status::OK);
+        message.set_description(process.stderr());
+        std::cout << "Local compilation successful: " +
+                     task.second->cc_flags().input() << std::endl;
+        // TODO: update file cache.
+      }
+
+      task.first->ReportStatus(message);
+    }
+    else if (task.second && task.second->remote()) {
+      // TODO: check file cache.
+
+      // Check that we have a compiler of a requested version.
+      proto::Status status;
+      if (!FillFlags(task.second->mutable_cc_flags(), &status)) {
+        task.first->ReportStatus(status);
+        continue;
+      }
+
+      task.second->mutable_cc_flags()->set_output("-");
+      task.second->mutable_cc_flags()->clear_input();
+      task.second->mutable_cc_flags()->clear_dependenies();
+
+      // Optimize compilation for preprocessed code for some languages.
+      if (task.second->cc_flags().has_language()) {
+        if (task.second->cc_flags().language() == "c") {
+          task.second->mutable_cc_flags()->set_language("cpp-output");
+        }
+        else if (task.second->cc_flags().language() == "c++") {
+          task.second->mutable_cc_flags()->set_language("c++-cpp-output");
+        }
+      }
+
+      // Do local compilation. Pipe the input file to the compiler and read
+      // output file from the compiler's stdout.
+      std::string error;
+      base::Process process(task.second->cc_flags());
+      if (!process.Run(60, task.second->pp_source(), &error)) {
+        status.set_code(proto::Status::EXECUTION);
+        status.set_description(process.stderr());
+        if (!process.stdout().empty() || !process.stderr().empty()) {
+          std::cerr << "Compilation failed with error:" << std::endl;
+          std::cerr << process.stderr() << std::endl;
+          std::cerr << process.stdout() << std::endl;
+        }
+        else if (!error.empty()) {
+          std::cerr << "Compilation failed with error: " << error << std::endl;
+        }
+        else {
+          std::cerr << "Compilation failed without errors" << std::endl;
+        }
+        std::cerr << "Arguments:";
+        for (const auto& flag: task.second->cc_flags().other()) {
+          std::cerr << " " << flag;
+        }
+        std::cerr << std::endl << std::endl;
+      }
+      else {
+        status.set_code(proto::Status::OK);
+        status.set_description(process.stderr());
+        std::cout << "External compilation successful" << std::endl;
+      }
+
+      Daemon::ScopedMessage message(new proto::Universal);
+      const auto& result = proto::RemoteResult::extension;
+      message->MutableExtension(proto::Status::extension)->CopyFrom(status);
+      message->MutableExtension(result)->set_obj(process.stdout());
+      task.first->SendAsync(std::move(message));
+    }
+  }
 }
 
 }  // namespace daemon

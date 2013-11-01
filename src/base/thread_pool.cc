@@ -1,6 +1,6 @@
 #include "base/thread_pool.h"
 
-#include "base/locked_queue.cc"
+#include "base/locked_queue_impl.h"
 
 using namespace ::std::placeholders;
 

@@ -34,12 +34,9 @@ const ::google::protobuf::EnumDescriptor* Status_Code_descriptor_ = NULL;
 const ::google::protobuf::Descriptor* Flags_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   Flags_reflection_ = NULL;
-const ::google::protobuf::Descriptor* LocalExecute_descriptor_ = NULL;
+const ::google::protobuf::Descriptor* Execute_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
-  LocalExecute_reflection_ = NULL;
-const ::google::protobuf::Descriptor* RemoteExecute_descriptor_ = NULL;
-const ::google::protobuf::internal::GeneratedMessageReflection*
-  RemoteExecute_reflection_ = NULL;
+  Execute_reflection_ = NULL;
 const ::google::protobuf::Descriptor* RemoteResult_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   RemoteResult_reflection_ = NULL;
@@ -121,40 +118,26 @@ void protobuf_AssignDesc_remote_2eproto() {
       ::google::protobuf::DescriptorPool::generated_pool(),
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(Flags));
-  LocalExecute_descriptor_ = file->message_type(4);
-  static const int LocalExecute_offsets_[3] = {
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(LocalExecute, current_dir_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(LocalExecute, cc_flags_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(LocalExecute, pp_flags_),
+  Execute_descriptor_ = file->message_type(4);
+  static const int Execute_offsets_[5] = {
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Execute, remote_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Execute, cc_flags_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Execute, pp_flags_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Execute, current_dir_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Execute, pp_source_),
   };
-  LocalExecute_reflection_ =
+  Execute_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
-      LocalExecute_descriptor_,
-      LocalExecute::default_instance_,
-      LocalExecute_offsets_,
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(LocalExecute, _has_bits_[0]),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(LocalExecute, _unknown_fields_),
+      Execute_descriptor_,
+      Execute::default_instance_,
+      Execute_offsets_,
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Execute, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Execute, _unknown_fields_),
       -1,
       ::google::protobuf::DescriptorPool::generated_pool(),
       ::google::protobuf::MessageFactory::generated_factory(),
-      sizeof(LocalExecute));
-  RemoteExecute_descriptor_ = file->message_type(5);
-  static const int RemoteExecute_offsets_[2] = {
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(RemoteExecute, pp_source_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(RemoteExecute, cc_flags_),
-  };
-  RemoteExecute_reflection_ =
-    new ::google::protobuf::internal::GeneratedMessageReflection(
-      RemoteExecute_descriptor_,
-      RemoteExecute::default_instance_,
-      RemoteExecute_offsets_,
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(RemoteExecute, _has_bits_[0]),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(RemoteExecute, _unknown_fields_),
-      -1,
-      ::google::protobuf::DescriptorPool::generated_pool(),
-      ::google::protobuf::MessageFactory::generated_factory(),
-      sizeof(RemoteExecute));
-  RemoteResult_descriptor_ = file->message_type(6);
+      sizeof(Execute));
+  RemoteResult_descriptor_ = file->message_type(5);
   static const int RemoteResult_offsets_[1] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(RemoteResult, obj_),
   };
@@ -190,9 +173,7 @@ void protobuf_RegisterTypes(const ::std::string&) {
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
     Flags_descriptor_, &Flags::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-    LocalExecute_descriptor_, &LocalExecute::default_instance());
-  ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-    RemoteExecute_descriptor_, &RemoteExecute::default_instance());
+    Execute_descriptor_, &Execute::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
     RemoteResult_descriptor_, &RemoteResult::default_instance());
 }
@@ -208,10 +189,8 @@ void protobuf_ShutdownFile_remote_2eproto() {
   delete Status_reflection_;
   delete Flags::default_instance_;
   delete Flags_reflection_;
-  delete LocalExecute::default_instance_;
-  delete LocalExecute_reflection_;
-  delete RemoteExecute::default_instance_;
-  delete RemoteExecute_reflection_;
+  delete Execute::default_instance_;
+  delete Execute_reflection_;
   delete RemoteResult::default_instance_;
   delete RemoteResult_reflection_;
 }
@@ -239,27 +218,22 @@ void protobuf_AddDesc_remote_2eproto() {
     "Flags\022,\n\010compiler\030\001 \002(\0132\032.dist_clang.pro"
     "to.Compiler\022\016\n\006output\030\002 \001(\t\022\r\n\005input\030\003 \001"
     "(\t\022\r\n\005other\030\004 \003(\t\022\023\n\013dependenies\030\005 \003(\t\022\020"
-    "\n\010language\030\006 \001(\t\"\311\001\n\014LocalExecute\022\023\n\013cur"
-    "rent_dir\030\001 \002(\t\022)\n\010cc_flags\030\002 \002(\0132\027.dist_"
-    "clang.proto.Flags\022)\n\010pp_flags\030\003 \001(\0132\027.di"
-    "st_clang.proto.Flags2N\n\textension\022\033.dist"
-    "_clang.proto.Universal\030\003 \001(\0132\036.dist_clan"
-    "g.proto.LocalExecute\"\236\001\n\rRemoteExecute\022\021"
-    "\n\tpp_source\030\001 \002(\t\022)\n\010cc_flags\030\002 \002(\0132\027.di"
-    "st_clang.proto.Flags2O\n\textension\022\033.dist"
-    "_clang.proto.Universal\030\004 \001(\0132\037.dist_clan"
-    "g.proto.RemoteExecute\"k\n\014RemoteResult\022\013\n"
-    "\003obj\030\001 \002(\0142N\n\textension\022\033.dist_clang.pro"
-    "to.Universal\030\005 \001(\0132\036.dist_clang.proto.Re"
-    "moteResult", 1090);
+    "\n\010language\030\006 \001(\t\"\342\001\n\007Execute\022\016\n\006remote\030\001"
+    " \002(\010\022)\n\010cc_flags\030\002 \002(\0132\027.dist_clang.prot"
+    "o.Flags\022)\n\010pp_flags\030\003 \001(\0132\027.dist_clang.p"
+    "roto.Flags\022\023\n\013current_dir\030\004 \001(\t\022\021\n\tpp_so"
+    "urce\030\005 \001(\t2I\n\textension\022\033.dist_clang.pro"
+    "to.Universal\030\003 \001(\0132\031.dist_clang.proto.Ex"
+    "ecute\"k\n\014RemoteResult\022\013\n\003obj\030\001 \002(\0142N\n\tex"
+    "tension\022\033.dist_clang.proto.Universal\030\004 \001"
+    "(\0132\036.dist_clang.proto.RemoteResult", 954);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "remote.proto", &protobuf_RegisterTypes);
   Universal::default_instance_ = new Universal();
   Test::default_instance_ = new Test();
   Status::default_instance_ = new Status();
   Flags::default_instance_ = new Flags();
-  LocalExecute::default_instance_ = new LocalExecute();
-  RemoteExecute::default_instance_ = new RemoteExecute();
+  Execute::default_instance_ = new Execute();
   RemoteResult::default_instance_ = new RemoteResult();
   Universal::default_instance_->InitAsDefaultInstance();
   Test::default_instance_->InitAsDefaultInstance();
@@ -273,20 +247,15 @@ void protobuf_AddDesc_remote_2eproto() {
     2, 11, false, false,
     &::dist_clang::proto::Status::default_instance());
   Flags::default_instance_->InitAsDefaultInstance();
-  LocalExecute::default_instance_->InitAsDefaultInstance();
+  Execute::default_instance_->InitAsDefaultInstance();
   ::google::protobuf::internal::ExtensionSet::RegisterMessageExtension(
     &::dist_clang::proto::Universal::default_instance(),
     3, 11, false, false,
-    &::dist_clang::proto::LocalExecute::default_instance());
-  RemoteExecute::default_instance_->InitAsDefaultInstance();
-  ::google::protobuf::internal::ExtensionSet::RegisterMessageExtension(
-    &::dist_clang::proto::Universal::default_instance(),
-    4, 11, false, false,
-    &::dist_clang::proto::RemoteExecute::default_instance());
+    &::dist_clang::proto::Execute::default_instance());
   RemoteResult::default_instance_->InitAsDefaultInstance();
   ::google::protobuf::internal::ExtensionSet::RegisterMessageExtension(
     &::dist_clang::proto::Universal::default_instance(),
-    5, 11, false, false,
+    4, 11, false, false,
     &::dist_clang::proto::RemoteResult::default_instance());
   ::google::protobuf::internal::OnShutdown(&protobuf_ShutdownFile_remote_2eproto);
 }
@@ -1608,48 +1577,55 @@ void Flags::Swap(Flags* other) {
 // ===================================================================
 
 #ifndef _MSC_VER
-const int LocalExecute::kCurrentDirFieldNumber;
-const int LocalExecute::kCcFlagsFieldNumber;
-const int LocalExecute::kPpFlagsFieldNumber;
+const int Execute::kRemoteFieldNumber;
+const int Execute::kCcFlagsFieldNumber;
+const int Execute::kPpFlagsFieldNumber;
+const int Execute::kCurrentDirFieldNumber;
+const int Execute::kPpSourceFieldNumber;
 #endif  // !_MSC_VER
 
 #ifndef _MSC_VER
-const int LocalExecute::kExtensionFieldNumber;
+const int Execute::kExtensionFieldNumber;
 #endif
 ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
-    ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::LocalExecute >, 11, false >
-  LocalExecute::extension(kExtensionFieldNumber, ::dist_clang::proto::LocalExecute::default_instance());
-LocalExecute::LocalExecute()
+    ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::Execute >, 11, false >
+  Execute::extension(kExtensionFieldNumber, ::dist_clang::proto::Execute::default_instance());
+Execute::Execute()
   : ::google::protobuf::Message() {
   SharedCtor();
 }
 
-void LocalExecute::InitAsDefaultInstance() {
+void Execute::InitAsDefaultInstance() {
   cc_flags_ = const_cast< ::dist_clang::proto::Flags*>(&::dist_clang::proto::Flags::default_instance());
   pp_flags_ = const_cast< ::dist_clang::proto::Flags*>(&::dist_clang::proto::Flags::default_instance());
 }
 
-LocalExecute::LocalExecute(const LocalExecute& from)
+Execute::Execute(const Execute& from)
   : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
 }
 
-void LocalExecute::SharedCtor() {
+void Execute::SharedCtor() {
   _cached_size_ = 0;
-  current_dir_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  remote_ = false;
   cc_flags_ = NULL;
   pp_flags_ = NULL;
+  current_dir_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  pp_source_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
-LocalExecute::~LocalExecute() {
+Execute::~Execute() {
   SharedDtor();
 }
 
-void LocalExecute::SharedDtor() {
+void Execute::SharedDtor() {
   if (current_dir_ != &::google::protobuf::internal::kEmptyString) {
     delete current_dir_;
+  }
+  if (pp_source_ != &::google::protobuf::internal::kEmptyString) {
+    delete pp_source_;
   }
   if (this != default_instance_) {
     delete cc_flags_;
@@ -1657,60 +1633,65 @@ void LocalExecute::SharedDtor() {
   }
 }
 
-void LocalExecute::SetCachedSize(int size) const {
+void Execute::SetCachedSize(int size) const {
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
   _cached_size_ = size;
   GOOGLE_SAFE_CONCURRENT_WRITES_END();
 }
-const ::google::protobuf::Descriptor* LocalExecute::descriptor() {
+const ::google::protobuf::Descriptor* Execute::descriptor() {
   protobuf_AssignDescriptorsOnce();
-  return LocalExecute_descriptor_;
+  return Execute_descriptor_;
 }
 
-const LocalExecute& LocalExecute::default_instance() {
+const Execute& Execute::default_instance() {
   if (default_instance_ == NULL) protobuf_AddDesc_remote_2eproto();
   return *default_instance_;
 }
 
-LocalExecute* LocalExecute::default_instance_ = NULL;
+Execute* Execute::default_instance_ = NULL;
 
-LocalExecute* LocalExecute::New() const {
-  return new LocalExecute;
+Execute* Execute::New() const {
+  return new Execute;
 }
 
-void LocalExecute::Clear() {
+void Execute::Clear() {
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (has_current_dir()) {
-      if (current_dir_ != &::google::protobuf::internal::kEmptyString) {
-        current_dir_->clear();
-      }
-    }
+    remote_ = false;
     if (has_cc_flags()) {
       if (cc_flags_ != NULL) cc_flags_->::dist_clang::proto::Flags::Clear();
     }
     if (has_pp_flags()) {
       if (pp_flags_ != NULL) pp_flags_->::dist_clang::proto::Flags::Clear();
     }
+    if (has_current_dir()) {
+      if (current_dir_ != &::google::protobuf::internal::kEmptyString) {
+        current_dir_->clear();
+      }
+    }
+    if (has_pp_source()) {
+      if (pp_source_ != &::google::protobuf::internal::kEmptyString) {
+        pp_source_->clear();
+      }
+    }
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   mutable_unknown_fields()->Clear();
 }
 
-bool LocalExecute::MergePartialFromCodedStream(
+bool Execute::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
 #define DO_(EXPRESSION) if (!(EXPRESSION)) return false
   ::google::protobuf::uint32 tag;
   while ((tag = input->ReadTag()) != 0) {
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // required string current_dir = 1;
+      // required bool remote = 1;
       case 1: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
-          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
-                input, this->mutable_current_dir()));
-          ::google::protobuf::internal::WireFormat::VerifyUTF8String(
-            this->current_dir().data(), this->current_dir().length(),
-            ::google::protobuf::internal::WireFormat::PARSE);
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   bool, ::google::protobuf::internal::WireFormatLite::TYPE_BOOL>(
+                 input, &remote_)));
+          set_has_remote();
         } else {
           goto handle_uninterpreted;
         }
@@ -1742,6 +1723,40 @@ bool LocalExecute::MergePartialFromCodedStream(
         } else {
           goto handle_uninterpreted;
         }
+        if (input->ExpectTag(34)) goto parse_current_dir;
+        break;
+      }
+
+      // optional string current_dir = 4;
+      case 4: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
+         parse_current_dir:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->mutable_current_dir()));
+          ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+            this->current_dir().data(), this->current_dir().length(),
+            ::google::protobuf::internal::WireFormat::PARSE);
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(42)) goto parse_pp_source;
+        break;
+      }
+
+      // optional string pp_source = 5;
+      case 5: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
+         parse_pp_source:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->mutable_pp_source()));
+          ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+            this->pp_source().data(), this->pp_source().length(),
+            ::google::protobuf::internal::WireFormat::PARSE);
+        } else {
+          goto handle_uninterpreted;
+        }
         if (input->ExpectAtEnd()) return true;
         break;
       }
@@ -1762,15 +1777,11 @@ bool LocalExecute::MergePartialFromCodedStream(
 #undef DO_
 }
 
-void LocalExecute::SerializeWithCachedSizes(
+void Execute::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // required string current_dir = 1;
-  if (has_current_dir()) {
-    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
-      this->current_dir().data(), this->current_dir().length(),
-      ::google::protobuf::internal::WireFormat::SERIALIZE);
-    ::google::protobuf::internal::WireFormatLite::WriteString(
-      1, this->current_dir(), output);
+  // required bool remote = 1;
+  if (has_remote()) {
+    ::google::protobuf::internal::WireFormatLite::WriteBool(1, this->remote(), output);
   }
 
   // required .dist_clang.proto.Flags cc_flags = 2;
@@ -1785,22 +1796,35 @@ void LocalExecute::SerializeWithCachedSizes(
       3, this->pp_flags(), output);
   }
 
+  // optional string current_dir = 4;
+  if (has_current_dir()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->current_dir().data(), this->current_dir().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    ::google::protobuf::internal::WireFormatLite::WriteString(
+      4, this->current_dir(), output);
+  }
+
+  // optional string pp_source = 5;
+  if (has_pp_source()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->pp_source().data(), this->pp_source().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    ::google::protobuf::internal::WireFormatLite::WriteString(
+      5, this->pp_source(), output);
+  }
+
   if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
 }
 
-::google::protobuf::uint8* LocalExecute::SerializeWithCachedSizesToArray(
+::google::protobuf::uint8* Execute::SerializeWithCachedSizesToArray(
     ::google::protobuf::uint8* target) const {
-  // required string current_dir = 1;
-  if (has_current_dir()) {
-    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
-      this->current_dir().data(), this->current_dir().length(),
-      ::google::protobuf::internal::WireFormat::SERIALIZE);
-    target =
-      ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
-        1, this->current_dir(), target);
+  // required bool remote = 1;
+  if (has_remote()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(1, this->remote(), target);
   }
 
   // required .dist_clang.proto.Flags cc_flags = 2;
@@ -1817,6 +1841,26 @@ void LocalExecute::SerializeWithCachedSizes(
         3, this->pp_flags(), target);
   }
 
+  // optional string current_dir = 4;
+  if (has_current_dir()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->current_dir().data(), this->current_dir().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    target =
+      ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
+        4, this->current_dir(), target);
+  }
+
+  // optional string pp_source = 5;
+  if (has_pp_source()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->pp_source().data(), this->pp_source().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    target =
+      ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
+        5, this->pp_source(), target);
+  }
+
   if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
@@ -1824,15 +1868,13 @@ void LocalExecute::SerializeWithCachedSizes(
   return target;
 }
 
-int LocalExecute::ByteSize() const {
+int Execute::ByteSize() const {
   int total_size = 0;
 
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    // required string current_dir = 1;
-    if (has_current_dir()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::StringSize(
-          this->current_dir());
+    // required bool remote = 1;
+    if (has_remote()) {
+      total_size += 1 + 1;
     }
 
     // required .dist_clang.proto.Flags cc_flags = 2;
@@ -1849,6 +1891,20 @@ int LocalExecute::ByteSize() const {
           this->pp_flags());
     }
 
+    // optional string current_dir = 4;
+    if (has_current_dir()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->current_dir());
+    }
+
+    // optional string pp_source = 5;
+    if (has_pp_source()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->pp_source());
+    }
+
   }
   if (!unknown_fields().empty()) {
     total_size +=
@@ -1861,10 +1917,10 @@ int LocalExecute::ByteSize() const {
   return total_size;
 }
 
-void LocalExecute::MergeFrom(const ::google::protobuf::Message& from) {
+void Execute::MergeFrom(const ::google::protobuf::Message& from) {
   GOOGLE_CHECK_NE(&from, this);
-  const LocalExecute* source =
-    ::google::protobuf::internal::dynamic_cast_if_available<const LocalExecute*>(
+  const Execute* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const Execute*>(
       &from);
   if (source == NULL) {
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
@@ -1873,11 +1929,11 @@ void LocalExecute::MergeFrom(const ::google::protobuf::Message& from) {
   }
 }
 
-void LocalExecute::MergeFrom(const LocalExecute& from) {
+void Execute::MergeFrom(const Execute& from) {
   GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (from.has_current_dir()) {
-      set_current_dir(from.current_dir());
+    if (from.has_remote()) {
+      set_remote(from.remote());
     }
     if (from.has_cc_flags()) {
       mutable_cc_flags()->::dist_clang::proto::Flags::MergeFrom(from.cc_flags());
@@ -1885,23 +1941,29 @@ void LocalExecute::MergeFrom(const LocalExecute& from) {
     if (from.has_pp_flags()) {
       mutable_pp_flags()->::dist_clang::proto::Flags::MergeFrom(from.pp_flags());
     }
+    if (from.has_current_dir()) {
+      set_current_dir(from.current_dir());
+    }
+    if (from.has_pp_source()) {
+      set_pp_source(from.pp_source());
+    }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
-void LocalExecute::CopyFrom(const ::google::protobuf::Message& from) {
+void Execute::CopyFrom(const ::google::protobuf::Message& from) {
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
-void LocalExecute::CopyFrom(const LocalExecute& from) {
+void Execute::CopyFrom(const Execute& from) {
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
-bool LocalExecute::IsInitialized() const {
+bool Execute::IsInitialized() const {
   if ((_has_bits_[0] & 0x00000003) != 0x00000003) return false;
 
   if (has_cc_flags()) {
@@ -1913,302 +1975,24 @@ bool LocalExecute::IsInitialized() const {
   return true;
 }
 
-void LocalExecute::Swap(LocalExecute* other) {
+void Execute::Swap(Execute* other) {
   if (other != this) {
-    std::swap(current_dir_, other->current_dir_);
+    std::swap(remote_, other->remote_);
     std::swap(cc_flags_, other->cc_flags_);
     std::swap(pp_flags_, other->pp_flags_);
-    std::swap(_has_bits_[0], other->_has_bits_[0]);
-    _unknown_fields_.Swap(&other->_unknown_fields_);
-    std::swap(_cached_size_, other->_cached_size_);
-  }
-}
-
-::google::protobuf::Metadata LocalExecute::GetMetadata() const {
-  protobuf_AssignDescriptorsOnce();
-  ::google::protobuf::Metadata metadata;
-  metadata.descriptor = LocalExecute_descriptor_;
-  metadata.reflection = LocalExecute_reflection_;
-  return metadata;
-}
-
-
-// ===================================================================
-
-#ifndef _MSC_VER
-const int RemoteExecute::kPpSourceFieldNumber;
-const int RemoteExecute::kCcFlagsFieldNumber;
-#endif  // !_MSC_VER
-
-#ifndef _MSC_VER
-const int RemoteExecute::kExtensionFieldNumber;
-#endif
-::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
-    ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::RemoteExecute >, 11, false >
-  RemoteExecute::extension(kExtensionFieldNumber, ::dist_clang::proto::RemoteExecute::default_instance());
-RemoteExecute::RemoteExecute()
-  : ::google::protobuf::Message() {
-  SharedCtor();
-}
-
-void RemoteExecute::InitAsDefaultInstance() {
-  cc_flags_ = const_cast< ::dist_clang::proto::Flags*>(&::dist_clang::proto::Flags::default_instance());
-}
-
-RemoteExecute::RemoteExecute(const RemoteExecute& from)
-  : ::google::protobuf::Message() {
-  SharedCtor();
-  MergeFrom(from);
-}
-
-void RemoteExecute::SharedCtor() {
-  _cached_size_ = 0;
-  pp_source_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-  cc_flags_ = NULL;
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
-}
-
-RemoteExecute::~RemoteExecute() {
-  SharedDtor();
-}
-
-void RemoteExecute::SharedDtor() {
-  if (pp_source_ != &::google::protobuf::internal::kEmptyString) {
-    delete pp_source_;
-  }
-  if (this != default_instance_) {
-    delete cc_flags_;
-  }
-}
-
-void RemoteExecute::SetCachedSize(int size) const {
-  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
-  _cached_size_ = size;
-  GOOGLE_SAFE_CONCURRENT_WRITES_END();
-}
-const ::google::protobuf::Descriptor* RemoteExecute::descriptor() {
-  protobuf_AssignDescriptorsOnce();
-  return RemoteExecute_descriptor_;
-}
-
-const RemoteExecute& RemoteExecute::default_instance() {
-  if (default_instance_ == NULL) protobuf_AddDesc_remote_2eproto();
-  return *default_instance_;
-}
-
-RemoteExecute* RemoteExecute::default_instance_ = NULL;
-
-RemoteExecute* RemoteExecute::New() const {
-  return new RemoteExecute;
-}
-
-void RemoteExecute::Clear() {
-  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (has_pp_source()) {
-      if (pp_source_ != &::google::protobuf::internal::kEmptyString) {
-        pp_source_->clear();
-      }
-    }
-    if (has_cc_flags()) {
-      if (cc_flags_ != NULL) cc_flags_->::dist_clang::proto::Flags::Clear();
-    }
-  }
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  mutable_unknown_fields()->Clear();
-}
-
-bool RemoteExecute::MergePartialFromCodedStream(
-    ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!(EXPRESSION)) return false
-  ::google::protobuf::uint32 tag;
-  while ((tag = input->ReadTag()) != 0) {
-    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // required string pp_source = 1;
-      case 1: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
-          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
-                input, this->mutable_pp_source()));
-          ::google::protobuf::internal::WireFormat::VerifyUTF8String(
-            this->pp_source().data(), this->pp_source().length(),
-            ::google::protobuf::internal::WireFormat::PARSE);
-        } else {
-          goto handle_uninterpreted;
-        }
-        if (input->ExpectTag(18)) goto parse_cc_flags;
-        break;
-      }
-
-      // required .dist_clang.proto.Flags cc_flags = 2;
-      case 2: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
-         parse_cc_flags:
-          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
-               input, mutable_cc_flags()));
-        } else {
-          goto handle_uninterpreted;
-        }
-        if (input->ExpectAtEnd()) return true;
-        break;
-      }
-
-      default: {
-      handle_uninterpreted:
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
-          return true;
-        }
-        DO_(::google::protobuf::internal::WireFormat::SkipField(
-              input, tag, mutable_unknown_fields()));
-        break;
-      }
-    }
-  }
-  return true;
-#undef DO_
-}
-
-void RemoteExecute::SerializeWithCachedSizes(
-    ::google::protobuf::io::CodedOutputStream* output) const {
-  // required string pp_source = 1;
-  if (has_pp_source()) {
-    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
-      this->pp_source().data(), this->pp_source().length(),
-      ::google::protobuf::internal::WireFormat::SERIALIZE);
-    ::google::protobuf::internal::WireFormatLite::WriteString(
-      1, this->pp_source(), output);
-  }
-
-  // required .dist_clang.proto.Flags cc_flags = 2;
-  if (has_cc_flags()) {
-    ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      2, this->cc_flags(), output);
-  }
-
-  if (!unknown_fields().empty()) {
-    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
-        unknown_fields(), output);
-  }
-}
-
-::google::protobuf::uint8* RemoteExecute::SerializeWithCachedSizesToArray(
-    ::google::protobuf::uint8* target) const {
-  // required string pp_source = 1;
-  if (has_pp_source()) {
-    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
-      this->pp_source().data(), this->pp_source().length(),
-      ::google::protobuf::internal::WireFormat::SERIALIZE);
-    target =
-      ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
-        1, this->pp_source(), target);
-  }
-
-  // required .dist_clang.proto.Flags cc_flags = 2;
-  if (has_cc_flags()) {
-    target = ::google::protobuf::internal::WireFormatLite::
-      WriteMessageNoVirtualToArray(
-        2, this->cc_flags(), target);
-  }
-
-  if (!unknown_fields().empty()) {
-    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
-        unknown_fields(), target);
-  }
-  return target;
-}
-
-int RemoteExecute::ByteSize() const {
-  int total_size = 0;
-
-  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    // required string pp_source = 1;
-    if (has_pp_source()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::StringSize(
-          this->pp_source());
-    }
-
-    // required .dist_clang.proto.Flags cc_flags = 2;
-    if (has_cc_flags()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          this->cc_flags());
-    }
-
-  }
-  if (!unknown_fields().empty()) {
-    total_size +=
-      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
-        unknown_fields());
-  }
-  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
-  _cached_size_ = total_size;
-  GOOGLE_SAFE_CONCURRENT_WRITES_END();
-  return total_size;
-}
-
-void RemoteExecute::MergeFrom(const ::google::protobuf::Message& from) {
-  GOOGLE_CHECK_NE(&from, this);
-  const RemoteExecute* source =
-    ::google::protobuf::internal::dynamic_cast_if_available<const RemoteExecute*>(
-      &from);
-  if (source == NULL) {
-    ::google::protobuf::internal::ReflectionOps::Merge(from, this);
-  } else {
-    MergeFrom(*source);
-  }
-}
-
-void RemoteExecute::MergeFrom(const RemoteExecute& from) {
-  GOOGLE_CHECK_NE(&from, this);
-  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (from.has_pp_source()) {
-      set_pp_source(from.pp_source());
-    }
-    if (from.has_cc_flags()) {
-      mutable_cc_flags()->::dist_clang::proto::Flags::MergeFrom(from.cc_flags());
-    }
-  }
-  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-}
-
-void RemoteExecute::CopyFrom(const ::google::protobuf::Message& from) {
-  if (&from == this) return;
-  Clear();
-  MergeFrom(from);
-}
-
-void RemoteExecute::CopyFrom(const RemoteExecute& from) {
-  if (&from == this) return;
-  Clear();
-  MergeFrom(from);
-}
-
-bool RemoteExecute::IsInitialized() const {
-  if ((_has_bits_[0] & 0x00000003) != 0x00000003) return false;
-
-  if (has_cc_flags()) {
-    if (!this->cc_flags().IsInitialized()) return false;
-  }
-  return true;
-}
-
-void RemoteExecute::Swap(RemoteExecute* other) {
-  if (other != this) {
+    std::swap(current_dir_, other->current_dir_);
     std::swap(pp_source_, other->pp_source_);
-    std::swap(cc_flags_, other->cc_flags_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);
   }
 }
 
-::google::protobuf::Metadata RemoteExecute::GetMetadata() const {
+::google::protobuf::Metadata Execute::GetMetadata() const {
   protobuf_AssignDescriptorsOnce();
   ::google::protobuf::Metadata metadata;
-  metadata.descriptor = RemoteExecute_descriptor_;
-  metadata.reflection = RemoteExecute_reflection_;
+  metadata.descriptor = Execute_descriptor_;
+  metadata.reflection = Execute_reflection_;
   return metadata;
 }
 

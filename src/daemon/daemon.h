@@ -1,8 +1,6 @@
 #pragma once
 
 #include "base/attributes.h"
-#include "base/thread_pool.h"
-#include "daemon/balancer.h"
 #include "daemon/file_cache.h"
 #include "net/connection_forward.h"
 
@@ -16,6 +14,7 @@ class NetworkService;
 
 namespace proto {
 class Flags;
+class Execute;
 class Status;
 class Universal;
 }
@@ -25,61 +24,46 @@ namespace daemon {
 class Configuration;
 
 class Daemon {
-    // The version is a key, and the compiler's path is a value.
-    using CompilerMap = std::unordered_map<std::string, std::string>;
-
-    // The name is a key, and the plugin's path is a value.
-    using PluginNameMap = std::unordered_map<std::string, std::string>;
-
-    // The version is a key.
-    using PluginMap = std::unordered_map<std::string, PluginNameMap>;
-
   public:
-    using ScopedMessage = ::std::unique_ptr<proto::Universal>;
-
 #if defined(PROFILER)
     Daemon();
-    ~Daemon();
 #endif  // PROFILER
+    ~Daemon();
 
-    bool Initialize(
-        const Configuration& configuration,
-        net::NetworkService& network_service);
-    bool FillFlags(proto::Flags* flags, proto::Status* status = nullptr);
-
-    inline base::ThreadPool* WEAK_PTR pool();
-    inline Balancer* WEAK_PTR balancer();
-    inline FileCache* WEAK_PTR cache();
+    bool Initialize(const Configuration& configuration);
 
   private:
-    // Invoked on a new connection.
-    void HandleNewConnection(
-        net::ConnectionPtr connection);
+    using ScopedMessage = std::unique_ptr<proto::Universal>;
+    using ScopedExecute = std::unique_ptr<proto::Execute>;
+    using ScopedTask = std::pair<net::ConnectionPtr, ScopedExecute>;
+    using Queue = base::LockedQueue<ScopedTask>;
+    using CompilerMap =
+        std::unordered_map<std::string /* version */, std::string /* path */>;
+    using PluginNameMap =
+        std::unordered_map<std::string /* name */, std::string /* path */>;
+    using PluginMap =
+        std::unordered_map<std::string /* version */, PluginNameMap>;
 
-    // Invoked on a first message from a new connection.
-    bool HandleNewMessage(
-        net::ConnectionPtr connection,
-        ScopedMessage message,
-        const proto::Status& status);
+    bool FillFlags(proto::Flags* flags, proto::Status* status = nullptr);
+    void HandleNewConnection(net::ConnectionPtr connection);
+    bool HandleNewMessage(net::ConnectionPtr connection, ScopedMessage message,
+                          const proto::Status& status);
 
-    std::unique_ptr<base::ThreadPool> pool_;
-    std::unique_ptr<Balancer> balancer_;
-    std::unique_ptr<FileCache> cache_;
+    // Workers
+    void DoRemoteExecution(const volatile bool& is_shutting_down,
+                           net::fd_t self_pipe, net::EndPointPtr end_point);
+    void DoLocalExecution(const volatile bool& is_shutting_down,
+                          net::fd_t self_pipe);
+
     CompilerMap compilers_;
     PluginMap plugins_;
+    std::unique_ptr<FileCache> cache_;
+    std::unique_ptr<net::NetworkService> network_service_;
+    std::unique_ptr<Queue> local_tasks_;
+    std::unique_ptr<Queue> failed_tasks_;
+    std::unique_ptr<Queue> remote_tasks_;
+    std::unique_ptr<base::WorkerPool> workers_;
 };
-
-base::ThreadPool* Daemon::pool() {
-  return pool_.get();
-}
-
-Balancer* Daemon::balancer() {
-  return balancer_.get();
-}
-
-FileCache* Daemon::cache() {
-  return cache_.get();
-}
 
 }  // namespace daemon
 }  // namespace dist_clang

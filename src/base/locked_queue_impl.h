@@ -1,5 +1,7 @@
 #include "base/locked_queue.h"
 
+#include "base/locked_queue_observer.h"
+
 namespace dist_clang {
 namespace base {
 
@@ -12,7 +14,25 @@ template <class T>
 void LockedQueue<T>::Close() {
   closed_ = true;
   pop_condition_.notify_all();
-  wait_condition_.notify_all();
+
+  {
+    std::lock_guard<std::mutex> lock(observer_mutex_);
+    for (auto* observer: observers_) {
+      observer->Observe(true);
+    }
+  }
+}
+
+template <class T>
+void LockedQueue<T>::AddObserver(LockedQueueObserver* observer) {
+  std::lock_guard<std::mutex> lock(observer_mutex_);
+  observers_.insert(observer);
+}
+
+template <class T>
+void LockedQueue<T>::RemoveObserver(LockedQueueObserver* observer) {
+  std::lock_guard<std::mutex> lock(observer_mutex_);
+  observers_.erase(observer);
 }
 
 template <class T>
@@ -26,7 +46,13 @@ bool LockedQueue<T>::Push(T obj) {
   }
   size_.fetch_add(1);
   pop_condition_.notify_one();
-  wait_condition_.notify_all();
+
+  {
+    std::lock_guard<std::mutex> lock(observer_mutex_);
+    for (auto* observer: observers_) {
+      observer->Observe(false);
+    }
+  }
   return true;
 }
 
@@ -42,18 +68,6 @@ bool LockedQueue<T>::Pop(T& obj) {
   obj = std::move(queue_.front());
   queue_.pop();
   size_.fetch_sub(1);
-  return true;
-}
-
-template <class T>
-bool LockedQueue<T>::Wait() {
-  std::unique_lock<std::mutex> lock(wait_mutex_);
-  while (!closed_ && !size_.load()) {
-    wait_condition_.wait(lock);
-  }
-  if (closed_ && !size_.load()) {
-    return false;
-  }
   return true;
 }
 
