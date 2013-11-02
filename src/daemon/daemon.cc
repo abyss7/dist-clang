@@ -2,8 +2,8 @@
 
 #include "base/assert.h"
 #include "base/file_utils.h"
-#include "base/locked_queue_impl.h"
 #include "base/process.h"
+#include "base/queue_aggregator_impl.h"
 #include "base/worker_pool.h"
 #include "daemon/configuration.h"
 #include "daemon/statistic.h"
@@ -37,6 +37,7 @@ Daemon::~Daemon() {
   ProfilerStop();
 #endif  // PROFILER
 
+  all_tasks_->Close();
   local_tasks_->Close();
   failed_tasks_->Close();
   remote_tasks_->Close();
@@ -59,6 +60,7 @@ bool Daemon::Initialize(const Configuration &configuration) {
   }
 
   workers_.reset(new base::WorkerPool);
+  all_tasks_.reset(new QueueAggregator);
   local_tasks_.reset(new Queue);
   failed_tasks_.reset(new Queue);
   if (config.has_local()) {
@@ -71,6 +73,9 @@ bool Daemon::Initialize(const Configuration &configuration) {
     auto worker = std::bind(&Daemon::DoLocalExecution, this, _1, _2);
     workers_->AddWorker(worker, std::thread::hardware_concurrency());
   }
+  all_tasks_->Aggregate(local_tasks_.get());
+  all_tasks_->Aggregate(failed_tasks_.get());
+  all_tasks_->Aggregate(remote_tasks_.get());
 
   if (config.has_cache_path()) {
     cache_.reset(new FileCache(config.cache_path()));
@@ -242,6 +247,7 @@ void Daemon::DoRemoteExecution(const volatile bool& is_shutting_down,
     }
 
     ScopedExecute remote(new proto::Execute);
+    remote->set_remote(true);
     remote->set_pp_source(process.stdout());
     remote->mutable_cc_flags()->CopyFrom(task.second->cc_flags());
 
@@ -296,54 +302,13 @@ void Daemon::DoRemoteExecution(const volatile bool& is_shutting_down,
 
 void Daemon::DoLocalExecution(const volatile bool &is_shutting_down,
                               net::fd_t /* self_pipe */) {
-  class Observer: public base::LockedQueueObserver {
-    public:
-      Observer(std::atomic<unsigned>& indicator,
-               std::atomic<unsigned>& closed_queues,
-               std::condition_variable& notifier)
-        : indicator_(indicator), closed_(closed_queues), notifier_(notifier) {}
-
-      virtual void Observe(bool close) override {
-        if (close) {
-          closed_.fetch_add(1);
-        }
-        indicator_.fetch_add(1);
-        notifier_.notify_one();
-      }
-
-    private:
-      std::atomic<unsigned>& indicator_;
-      std::atomic<unsigned>& closed_;
-      std::condition_variable& notifier_;
-  };
-
-  std::mutex mutex;  // TODO: replace with lockless condition variable.
-  std::atomic<unsigned> indicator(0), closed_queues(0);
-  std::condition_variable condition;
-  Observer observer(indicator, closed_queues, condition);
-  failed_tasks_->AddObserver(&observer);
-  local_tasks_->AddObserver(&observer);
-  remote_tasks_->AddObserver(&observer);
-
-  std::unique_lock<std::mutex> lock(mutex);
   while (!is_shutting_down) {
     ScopedTask task;
-
-    while(!indicator.load() && closed_queues.load() < 3) {
-      condition.wait(lock);
-    }
-    indicator.store(0);
-    if (closed_queues.load() == 3) {
+    if (!all_tasks_->Pop(task)) {
       break;
     }
 
-    if (!failed_tasks_->TryPop(task) &&
-        !local_tasks_->TryPop(task) &&
-        !remote_tasks_->TryPop(task)) {
-      continue;
-    }
-
-    if (task.second && !task.second->remote()) {
+    if (!task.second->remote()) {
       proto::Status status;
       if (!FillFlags(task.second->mutable_cc_flags(), &status)) {
         task.first->ReportStatus(status);
@@ -366,7 +331,7 @@ void Daemon::DoLocalExecution(const volatile bool &is_shutting_down,
 
       task.first->ReportStatus(message);
     }
-    else if (task.second && task.second->remote()) {
+    else {
       // TODO: check file cache.
 
       // Check that we have a compiler of a requested version.

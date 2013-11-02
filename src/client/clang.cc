@@ -90,6 +90,7 @@ bool DoMain(int argc, char* argv[]) {
     return true;
 
   std::unique_ptr<proto::Execute> message(new proto::Execute);
+  message->set_remote(false);
 
   std::string current_dir = base::GetCurrentDir();
   if (current_dir.empty())

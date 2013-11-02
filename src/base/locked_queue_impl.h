@@ -1,6 +1,6 @@
-#include "base/locked_queue.h"
+#pragma once
 
-#include "base/locked_queue_observer.h"
+#include "base/locked_queue.h"
 
 namespace dist_clang {
 namespace base {
@@ -12,34 +12,21 @@ LockedQueue<T>::LockedQueue(size_t capacity)
 
 template <class T>
 void LockedQueue<T>::Close() {
-  closed_ = true;
-  pop_condition_.notify_all();
-
-  {
-    std::lock_guard<std::mutex> lock(observer_mutex_);
-    for (auto* observer: observers_) {
-      observer->Observe(true);
-    }
+  bool old_closed = false;
+  if (closed_.compare_exchange_strong(old_closed, true)) {
+    pop_condition_.notify_all();
   }
 }
 
 template <class T>
-void LockedQueue<T>::AddObserver(LockedQueueObserver* observer) {
-  std::lock_guard<std::mutex> lock(observer_mutex_);
-  observers_.insert(observer);
-}
-
-template <class T>
-void LockedQueue<T>::RemoveObserver(LockedQueueObserver* observer) {
-  std::lock_guard<std::mutex> lock(observer_mutex_);
-  observers_.erase(observer);
-}
-
-template <class T>
 bool LockedQueue<T>::Push(T obj) {
+  if (!closed_.load()) {
+    return false;
+  }
+
   {
     std::lock_guard<std::mutex> lock(pop_mutex_);
-    if (queue_.size() >= capacity_ && capacity_ != UNLIMITED && !closed_) {
+    if (queue_.size() >= capacity_ && capacity_ != UNLIMITED) {
       return false;
     }
     queue_.push(std::move(obj));
@@ -47,34 +34,14 @@ bool LockedQueue<T>::Push(T obj) {
   size_.fetch_add(1);
   pop_condition_.notify_one();
 
-  {
-    std::lock_guard<std::mutex> lock(observer_mutex_);
-    for (auto* observer: observers_) {
-      observer->Observe(false);
-    }
-  }
   return true;
 }
 
 template <class T>
 bool LockedQueue<T>::Pop(T& obj) {
   std::unique_lock<std::mutex> lock(pop_mutex_);
-  while(!closed_ && queue_.empty()) {
-    pop_condition_.wait(lock);
-  }
+  pop_condition_.wait(lock, [this]{ return closed_ || !queue_.empty(); });
   if (closed_ && queue_.empty()) {
-    return false;
-  }
-  obj = std::move(queue_.front());
-  queue_.pop();
-  size_.fetch_sub(1);
-  return true;
-}
-
-template <class T>
-bool LockedQueue<T>::TryPop(T& obj) {
-  std::unique_lock<std::mutex> lock(pop_mutex_);
-  if (queue_.empty()) {
     return false;
   }
   obj = std::move(queue_.front());

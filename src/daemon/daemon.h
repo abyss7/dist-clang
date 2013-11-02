@@ -1,6 +1,7 @@
 #pragma once
 
 #include "base/attributes.h"
+#include "base/queue_aggregator.h"
 #include "daemon/file_cache.h"
 #include "net/connection_forward.h"
 
@@ -37,6 +38,7 @@ class Daemon {
     using ScopedExecute = std::unique_ptr<proto::Execute>;
     using ScopedTask = std::pair<net::ConnectionPtr, ScopedExecute>;
     using Queue = base::LockedQueue<ScopedTask>;
+    using QueueAggregator = base::QueueAggregator<ScopedTask>;
     using CompilerMap =
         std::unordered_map<std::string /* version */, std::string /* path */>;
     using PluginNameMap =
@@ -62,6 +64,7 @@ class Daemon {
     std::unique_ptr<Queue> local_tasks_;
     std::unique_ptr<Queue> failed_tasks_;
     std::unique_ptr<Queue> remote_tasks_;
+    std::unique_ptr<QueueAggregator> all_tasks_;
     std::unique_ptr<base::WorkerPool> workers_;
 };
 

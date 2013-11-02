@@ -6,12 +6,12 @@
 #include <condition_variable>
 #include <mutex>
 #include <queue>
-#include <unordered_set>
 
 namespace dist_clang {
 namespace base {
 
-class LockedQueueObserver;
+template <class T>
+class QueueAggregator;
 
 template <class T>
 class LockedQueue {
@@ -21,17 +21,16 @@ class LockedQueue {
     explicit LockedQueue(size_t capacity = UNLIMITED);
     void Close() THREAD_SAFE;
 
-    void AddObserver(LockedQueueObserver* observer);
-    void RemoveObserver(LockedQueueObserver* observer);
-
-    bool Push(T obj) THREAD_SAFE;
-    bool Pop(T& obj) THREAD_SAFE;
-    bool TryPop(T& obj) THREAD_SAFE;
     inline size_t Size() const THREAD_SAFE;
 
+    // Returns |false| only when this queue is closed.
+    bool Push(T obj) THREAD_SAFE;
+
+    // Returns |false| only when this queue is closed and empty.
+    bool Pop(T& obj) THREAD_SAFE;
+
   private:
-    std::mutex observer_mutex_;
-    std::unordered_set<LockedQueueObserver*> observers_;
+    friend class QueueAggregator<T>;
 
     std::mutex pop_mutex_;
     std::condition_variable pop_condition_;
@@ -39,7 +38,7 @@ class LockedQueue {
 
     std::atomic<size_t> size_;
     size_t capacity_;
-    bool closed_;
+    std::atomic<bool> closed_;
 };
 
 template <class T>
