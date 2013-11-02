@@ -61,11 +61,14 @@ bool Connection::ReadSync(Message *message, Status *status) {
   {
     CodedInputStream coded_stream(&file_input_stream_);
     if (!coded_stream.ReadVarint32(&size)) {
-      if (file_input_stream_.GetErrno() && status) {
+      if (status) {
         status->set_code(Status::NETWORK);
-        status->set_description("Can't read incoming message size: ");
-        status->mutable_description()->append(
-            strerror(file_input_stream_.GetErrno()));
+        status->set_description("Can't read incoming message size");
+        if (file_input_stream_.GetErrno()) {
+          status->mutable_description()->append(": ");
+          status->mutable_description()->append(
+              strerror(file_input_stream_.GetErrno()));
+        }
       }
       return false;
     }

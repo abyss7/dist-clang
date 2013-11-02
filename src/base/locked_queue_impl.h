@@ -20,7 +20,7 @@ void LockedQueue<T>::Close() {
 
 template <class T>
 bool LockedQueue<T>::Push(T obj) {
-  if (!closed_.load()) {
+  if (closed_.load()) {
     return false;
   }
 
