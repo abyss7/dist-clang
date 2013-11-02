@@ -73,6 +73,7 @@ bool Daemon::Initialize(const Configuration &configuration) {
     auto worker = std::bind(&Daemon::DoLocalExecution, this, _1, _2);
     workers_->AddWorker(worker, std::thread::hardware_concurrency());
   }
+  // FIXME: need to improve |QueueAggregator| to prioritize queues.
   all_tasks_->Aggregate(local_tasks_.get());
   all_tasks_->Aggregate(failed_tasks_.get());
   all_tasks_->Aggregate(remote_tasks_.get());
@@ -216,9 +217,10 @@ void Daemon::DoRemoteExecution(const volatile bool& is_shutting_down,
     if (!local_tasks_->Pop(task)) {
       break;
     }
+    auto* message = task.second.get();
 
-    if (!task.second->has_pp_flags() ||
-        !FillFlags(task.second->mutable_pp_flags())) {
+    if (!message->has_pp_flags() ||
+        !FillFlags(message->mutable_pp_flags())) {
       // Without preprocessing flags we can't neither check the cache, nor do
       // a remote compilation, nor put the result back in cache.
       failed_tasks_->Push(std::move(task));
@@ -226,20 +228,22 @@ void Daemon::DoRemoteExecution(const volatile bool& is_shutting_down,
     }
 
     // Redirect output to stdin in |pp_flags|.
-    task.second->mutable_pp_flags()->set_output("-");
+    message->mutable_pp_flags()->set_output("-");
 
-    base::Process process(task.second->pp_flags(), task.second->current_dir());
-    if (!process.Run(10)) {
-      // It usually means, that there is an error in the source code.
-      // We should skip a cache check and head to local compilation.
-      failed_tasks_->Push(std::move(task));
-      continue;
+    if (!message->has_pp_source()) {
+      base::Process process(message->pp_flags(), message->current_dir());
+      if (!process.Run(10)) {
+        // It usually means, that there is an error in the source code.
+        // We should skip a cache check and head to local compilation.
+        failed_tasks_->Push(std::move(task));
+        continue;
+      }
+      message->set_pp_source(process.stdout());
     }
 
     // TODO: check file cache.
 
     // TODO: cache connection before popping a task.
-    // FIXME: save preprocessed result somehow.
     auto connection = network_service_->ConnectSync(end_point);
     if (!connection) {
       local_tasks_->Push(std::move(task));
@@ -248,8 +252,8 @@ void Daemon::DoRemoteExecution(const volatile bool& is_shutting_down,
 
     ScopedExecute remote(new proto::Execute);
     remote->set_remote(true);
-    remote->set_pp_source(process.stdout());
-    remote->mutable_cc_flags()->CopyFrom(task.second->cc_flags());
+    remote->set_pp_source(message->pp_source());
+    remote->mutable_cc_flags()->CopyFrom(message->cc_flags());
 
     // Filter outgoing flags.
     remote->mutable_cc_flags()->mutable_compiler()->clear_path();
@@ -262,14 +266,14 @@ void Daemon::DoRemoteExecution(const volatile bool& is_shutting_down,
       continue;
     }
 
-    ScopedMessage message(new proto::Universal);
-    if (!connection->ReadSync(message.get())) {
+    ScopedMessage result(new proto::Universal);
+    if (!connection->ReadSync(result.get())) {
       local_tasks_->Push(std::move(task));
       continue;
     }
 
-    if (message->HasExtension(proto::Status::extension)) {
-      const auto& status = message->GetExtension(proto::Status::extension);
+    if (result->HasExtension(proto::Status::extension)) {
+      const auto& status = result->GetExtension(proto::Status::extension);
       if (status.code() != proto::Status::OK) {
         std::cerr << "Remote compilation failed with error(s):" << std::endl;
         std::cerr << status.description() << std::endl;
@@ -278,16 +282,16 @@ void Daemon::DoRemoteExecution(const volatile bool& is_shutting_down,
       }
     }
 
-    if (message->HasExtension(proto::RemoteResult::extension)) {
-      const auto& result =
-          message->GetExtension(proto::RemoteResult::extension);
+    if (result->HasExtension(proto::RemoteResult::extension)) {
+      const auto& extension =
+          result->GetExtension(proto::RemoteResult::extension);
       std::string output_path =
-          task.second->current_dir() + "/" + task.second->cc_flags().output();
-      if (base::WriteFile(output_path, result.obj())) {
+          message->current_dir() + "/" + message->cc_flags().output();
+      if (base::WriteFile(output_path, extension.obj())) {
         proto::Status status;
         status.set_code(proto::Status::OK);
         std::cout << "Remote compilation successful: " +
-                     task.second->cc_flags().input() << std::endl;
+                     message->cc_flags().input() << std::endl;
         // TODO: update file cache.
         task.first->ReportStatus(status);
         continue;
@@ -324,7 +328,7 @@ void Daemon::DoLocalExecution(const volatile bool &is_shutting_down,
       } else {
         message.set_code(proto::Status::OK);
         message.set_description(process.stderr());
-        std::cout << "Local compilation successful: " +
+        std::cout << "Local compilation successful:  " +
                      task.second->cc_flags().input() << std::endl;
         // TODO: update file cache.
       }
