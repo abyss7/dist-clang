@@ -55,6 +55,8 @@ class Daemon {
                           const proto::Status& status);
 
     // Workers
+    void DoCheckCache(const volatile bool& is_shutting_down,
+                      net::fd_t self_pipe);
     void DoRemoteExecution(const volatile bool& is_shutting_down,
                            net::fd_t self_pipe, net::EndPointPtr end_point);
     void DoLocalExecution(const volatile bool& is_shutting_down,
@@ -67,6 +69,7 @@ class Daemon {
     std::unique_ptr<Queue> local_tasks_;
     std::unique_ptr<Queue> failed_tasks_;
     std::unique_ptr<Queue> remote_tasks_;
+    std::unique_ptr<Queue> cache_tasks_;
     std::unique_ptr<QueueAggregator> all_tasks_;
     std::unique_ptr<base::WorkerPool> workers_;
 };

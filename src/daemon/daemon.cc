@@ -38,6 +38,7 @@ Daemon::~Daemon() {
   ProfilerStop();
 #endif  // PROFILER
 
+  cache_tasks_->Close();
   all_tasks_->Close();
   local_tasks_->Close();
   failed_tasks_->Close();
@@ -61,6 +62,7 @@ bool Daemon::Initialize(const Configuration &configuration) {
   }
 
   workers_.reset(new base::WorkerPool);
+  cache_tasks_.reset(new Queue);
   all_tasks_.reset(new QueueAggregator);
   local_tasks_.reset(new Queue);
   failed_tasks_.reset(new Queue);
@@ -72,6 +74,10 @@ bool Daemon::Initialize(const Configuration &configuration) {
   else {
     remote_tasks_.reset(new Queue);
     auto worker = std::bind(&Daemon::DoLocalExecution, this, _1, _2);
+    workers_->AddWorker(worker, std::thread::hardware_concurrency());
+  }
+  {
+    auto worker = std::bind(&Daemon::DoCheckCache, this, _1, _2);
     workers_->AddWorker(worker, std::thread::hardware_concurrency());
   }
   // FIXME: need to improve |QueueAggregator| to prioritize queues.
@@ -229,15 +235,79 @@ bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
   auto* extension = message->ReleaseExtension(proto::Execute::extension);
   std::unique_ptr<proto::Execute> execute(extension);
 
-  if (!execute->remote() && execute->has_current_dir()) {
-    return local_tasks_->Push(std::make_pair(connection, std::move(execute)));
-  }
-  else if (execute->remote() && execute->has_pp_source()){
-    return remote_tasks_->Push(std::make_pair(connection, std::move(execute)));
+  if (( execute->remote() && execute->has_pp_source()) ||
+      (!execute->remote() && execute->has_current_dir())) {
+    return cache_tasks_->Push(std::make_pair(connection, std::move(execute)));
   }
 
   NOTREACHED();
   return false;
+}
+
+void Daemon::DoCheckCache(const volatile bool &is_shutting_down,
+                          net::fd_t self_pipe) {
+  while (!is_shutting_down) {
+    ScopedTask task;
+    if (!cache_tasks_->Pop(task)) {
+      break;
+    }
+    auto* message = task.second.get();
+
+    if (!message->has_pp_source()) {
+      if (!message->has_pp_flags() ||
+          !FillFlags(message->mutable_pp_flags())) {
+        // Without preprocessing flags we can't neither check the cache, nor do
+        // a remote compilation, nor put the result back in cache.
+        failed_tasks_->Push(std::move(task));
+        continue;
+      }
+
+      // Redirect output to stdin in |pp_flags|.
+      message->mutable_pp_flags()->set_output("-");
+
+      base::Process process(message->pp_flags(), message->current_dir());
+      if (!process.Run(10)) {
+        // It usually means, that there is an error in the source code.
+        // We should skip a cache check and head to local compilation.
+        failed_tasks_->Push(std::move(task));
+        continue;
+      }
+      message->set_pp_source(process.stdout());
+    }
+
+    FileCache::Entry cache_entry;
+    if (SearchCache(message, &cache_entry)) {
+      if (!message->remote()) {
+        std::string output_path =
+            message->current_dir() + "/" + message->cc_flags().output();
+        if (base::CopyFile(cache_entry.first, output_path, true)) {
+          proto::Status status;
+          status.set_code(proto::Status::OK);
+          status.set_description(cache_entry.second);
+          task.first->ReportStatus(status);
+          continue;
+        }
+      }
+      else {
+        Daemon::ScopedMessage message(new proto::Universal);
+        auto result = message->MutableExtension(proto::RemoteResult::extension);
+        if (base::ReadFile(cache_entry.first, result->mutable_obj())) {
+          auto status = message->MutableExtension(proto::Status::extension);
+          status->set_code(proto::Status::OK);
+          status->set_description(cache_entry.second);
+          task.first->SendAsync(std::move(message));
+          continue;
+        }
+      }
+    }
+
+    if (!message->remote()) {
+      local_tasks_->Push(std::move(task));
+    }
+    else {
+      remote_tasks_->Push(std::move(task));
+    }
+  }
 }
 
 void Daemon::DoRemoteExecution(const volatile bool& is_shutting_down,
@@ -255,41 +325,6 @@ void Daemon::DoRemoteExecution(const volatile bool& is_shutting_down,
       break;
     }
     auto* message = task.second.get();
-
-    if (!message->has_pp_flags() ||
-        !FillFlags(message->mutable_pp_flags())) {
-      // Without preprocessing flags we can't neither check the cache, nor do
-      // a remote compilation, nor put the result back in cache.
-      failed_tasks_->Push(std::move(task));
-      continue;
-    }
-
-    // Redirect output to stdin in |pp_flags|.
-    message->mutable_pp_flags()->set_output("-");
-
-    if (!message->has_pp_source()) {
-      base::Process process(message->pp_flags(), message->current_dir());
-      if (!process.Run(10)) {
-        // It usually means, that there is an error in the source code.
-        // We should skip a cache check and head to local compilation.
-        failed_tasks_->Push(std::move(task));
-        continue;
-      }
-      message->set_pp_source(process.stdout());
-    }
-
-    FileCache::Entry cache_entry;
-    if (SearchCache(message, &cache_entry)) {
-      std::string output_path =
-          message->current_dir() + "/" + message->cc_flags().output();
-      if (base::CopyFile(cache_entry.first, output_path, true)) {
-        proto::Status status;
-        status.set_code(proto::Status::OK);
-        status.set_description(cache_entry.second);
-        task.first->ReportStatus(status);
-        continue;
-      }
-    }
 
     // TODO: cache connection before popping a task.
     auto connection = network_service_->ConnectSync(end_point);
@@ -383,20 +418,6 @@ void Daemon::DoLocalExecution(const volatile bool &is_shutting_down,
       task.first->ReportStatus(status);
     }
     else {
-      // Look in the local cache first.
-      FileCache::Entry cache_entry;
-      if (SearchCache(task.second.get(), &cache_entry)) {
-        Daemon::ScopedMessage message(new proto::Universal);
-        auto result = message->MutableExtension(proto::RemoteResult::extension);
-        if (base::ReadFile(cache_entry.first, result->mutable_obj())) {
-          auto status = message->MutableExtension(proto::Status::extension);
-          status->set_code(proto::Status::OK);
-          status->set_description(cache_entry.second);
-          task.first->SendAsync(std::move(message));
-          continue;
-        }
-      }
-
       // Check that we have a compiler of a requested version.
       proto::Status status;
       if (!FillFlags(task.second->mutable_cc_flags(), &status)) {
