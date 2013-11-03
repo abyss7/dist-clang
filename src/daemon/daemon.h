@@ -46,6 +46,9 @@ class Daemon {
     using PluginMap =
         std::unordered_map<std::string /* version */, PluginNameMap>;
 
+    bool SearchCache(const proto::Execute* message, FileCache::Entry* entry);
+    void UpdateCache(const proto::Execute* message,
+                     const proto::Status& status);
     bool FillFlags(proto::Flags* flags, proto::Status* status = nullptr);
     void HandleNewConnection(net::ConnectionPtr connection);
     bool HandleNewMessage(net::ConnectionPtr connection, ScopedMessage message,

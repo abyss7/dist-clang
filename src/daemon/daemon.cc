@@ -4,6 +4,7 @@
 #include "base/file_utils.h"
 #include "base/process.h"
 #include "base/queue_aggregator_impl.h"
+#include "base/string_utils.h"
 #include "base/worker_pool.h"
 #include "daemon/configuration.h"
 #include "daemon/statistic.h"
@@ -129,6 +130,42 @@ bool Daemon::Initialize(const Configuration &configuration) {
   return network_service_->Run();
 }
 
+bool Daemon::SearchCache(const proto::Execute* message,
+                         FileCache::Entry *entry) {
+  if (!cache_ || !message || !entry) {
+    return false;
+  }
+
+  const auto& flags = message->cc_flags();
+  const auto& version = flags.compiler().version();
+  std::string command_line = base::JoinString<' '>(flags.other().begin(),
+                                                   flags.other().end());
+  if (flags.has_language()) {
+    command_line += " -x " + flags.language();
+  }
+  return cache_->Find(message->pp_source(), command_line, version, entry);
+}
+
+void Daemon::UpdateCache(const proto::Execute* message,
+                         const proto::Status& status) {
+  if (!cache_ || !message || !message->has_pp_source()) {
+    return;
+  }
+  CHECK(status.code() == proto::Status::OK);
+
+  const auto& flags = message->cc_flags();
+  FileCache::Entry entry;
+  entry.first = message->current_dir() + "/" + flags.output();
+  entry.second = status.description();
+  const auto& version = flags.compiler().version();
+  std::string command_line = base::JoinString<' '>(flags.other().begin(),
+                                                   flags.other().end());
+  if (flags.has_language()) {
+    command_line += " -x " + flags.language();
+  }
+  cache_->Store(message->pp_source(), command_line, version, entry);
+}
+
 bool Daemon::FillFlags(proto::Flags* flags, proto::Status* status) {
   // No flags - filled flags.
   if (!flags) {
@@ -241,7 +278,18 @@ void Daemon::DoRemoteExecution(const volatile bool& is_shutting_down,
       message->set_pp_source(process.stdout());
     }
 
-    // TODO: check file cache.
+    FileCache::Entry cache_entry;
+    if (SearchCache(message, &cache_entry)) {
+      std::string output_path =
+          message->current_dir() + "/" + message->cc_flags().output();
+      if (base::CopyFile(cache_entry.first, output_path, true)) {
+        proto::Status status;
+        status.set_code(proto::Status::OK);
+        status.set_description(cache_entry.second);
+        task.first->ReportStatus(status);
+        continue;
+      }
+    }
 
     // TODO: cache connection before popping a task.
     auto connection = network_service_->ConnectSync(end_point);
@@ -292,7 +340,7 @@ void Daemon::DoRemoteExecution(const volatile bool& is_shutting_down,
         status.set_code(proto::Status::OK);
         std::cout << "Remote compilation successful: " +
                      message->cc_flags().input() << std::endl;
-        // TODO: update file cache.
+        UpdateCache(message, status);
         task.first->ReportStatus(status);
         continue;
       }
@@ -319,24 +367,35 @@ void Daemon::DoLocalExecution(const volatile bool &is_shutting_down,
         continue;
       }
 
-      proto::Status message;
       base::Process process(task.second->cc_flags(),
                             task.second->current_dir());
       if (!process.Run(60)) {
-        message.set_code(proto::Status::EXECUTION);
-        message.set_description(process.stderr());
+        status.set_code(proto::Status::EXECUTION);
+        status.set_description(process.stderr());
       } else {
-        message.set_code(proto::Status::OK);
-        message.set_description(process.stderr());
+        status.set_code(proto::Status::OK);
+        status.set_description(process.stderr());
         std::cout << "Local compilation successful:  " +
                      task.second->cc_flags().input() << std::endl;
-        // TODO: update file cache.
+        UpdateCache(task.second.get(), status);
       }
 
-      task.first->ReportStatus(message);
+      task.first->ReportStatus(status);
     }
     else {
-      // TODO: check file cache.
+      // Look in the local cache first.
+      FileCache::Entry cache_entry;
+      if (SearchCache(task.second.get(), &cache_entry)) {
+        Daemon::ScopedMessage message(new proto::Universal);
+        auto result = message->MutableExtension(proto::RemoteResult::extension);
+        if (base::ReadFile(cache_entry.first, result->mutable_obj())) {
+          auto status = message->MutableExtension(proto::Status::extension);
+          status->set_code(proto::Status::OK);
+          status->set_description(cache_entry.second);
+          task.first->SendAsync(std::move(message));
+          continue;
+        }
+      }
 
       // Check that we have a compiler of a requested version.
       proto::Status status;
