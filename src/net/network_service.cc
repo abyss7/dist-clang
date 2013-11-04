@@ -7,7 +7,6 @@
 
 #include <netdb.h>
 #include <netinet/in.h>
-#include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/un.h>
@@ -103,12 +102,6 @@ bool NetworkService::Listen(const string &host, unsigned short port,
     return false;
   }
 
-  if (tcp_fast_open_) {
-    // If we fail to set the option TCP_FASTOPEN - it's not fatal.
-    int qlen = 5;  // FIXME: magic value from https://lwn.net/Articles/508865/
-    setsockopt(fd, SOL_TCP, TCP_FASTOPEN, &qlen, sizeof(qlen));
-  }
-
   if (listen(fd, 100) == -1) {  // FIXME: hardcode.
     base::GetLastError(error);
     close(fd);
@@ -158,14 +151,10 @@ ConnectionPtr NetworkService::Connect(EndPointPtr end_point, string *error) {
   }
   MakeCloseOnExec(fd);
 
-  if (!tcp_fast_open_) {
-    if (connect(fd, *end_point, end_point->size()) == -1) {
-      base::GetLastError(error);
-      close(fd);
-      return ConnectionPtr();
-    }
-
-    return Connection::Create(*event_loop_, fd);
+  if (connect(fd, *end_point, end_point->size()) == -1) {
+    base::GetLastError(error);
+    close(fd);
+    return ConnectionPtr();
   }
 
   return Connection::Create(*event_loop_, fd, end_point);

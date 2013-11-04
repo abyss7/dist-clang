@@ -56,7 +56,7 @@ void protobuf_AssignDesc_config_2eproto() {
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(Host));
   Configuration_descriptor_ = file->message_type(1);
-  static const int Configuration_offsets_[8] = {
+  static const int Configuration_offsets_[7] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, socket_path_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, pool_capacity_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, cache_path_),
@@ -64,7 +64,6 @@ void protobuf_AssignDesc_config_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, local_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, versions_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, statistic_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, tcp_fast_open_),
   };
   Configuration_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
@@ -115,14 +114,13 @@ void protobuf_AddDesc_config_2eproto() {
     "\n\014config.proto\022\020dist_clang.proto\032\nbase.p"
     "roto\"U\n\004Host\022\014\n\004host\030\001 \002(\t\022\022\n\004port\030\002 \001(\r"
     ":\0046000\022\022\n\007threads\030\003 \001(\r:\0012\022\027\n\010disabled\030\004"
-    " \001(\010:\005false\"\232\002\n\rConfiguration\022\023\n\013socket_"
+    " \001(\010:\005false\"\374\001\n\rConfiguration\022\023\n\013socket_"
     "path\030\001 \001(\t\022\031\n\rpool_capacity\030\002 \001(\r:\00216\022\022\n"
     "\ncache_path\030\003 \001(\t\022\'\n\007remotes\030\004 \003(\0132\026.dis"
     "t_clang.proto.Host\022%\n\005local\030\005 \001(\0132\026.dist"
     "_clang.proto.Host\022,\n\010versions\030\006 \003(\0132\032.di"
     "st_clang.proto.Compiler\022)\n\tstatistic\030\007 \001"
-    "(\0132\026.dist_clang.proto.Host\022\034\n\rtcp_fast_o"
-    "pen\030\010 \001(\010:\005false", 416);
+    "(\0132\026.dist_clang.proto.Host", 386);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "config.proto", &protobuf_RegisterTypes);
   Host::default_instance_ = new Host();
@@ -493,7 +491,6 @@ const int Configuration::kRemotesFieldNumber;
 const int Configuration::kLocalFieldNumber;
 const int Configuration::kVersionsFieldNumber;
 const int Configuration::kStatisticFieldNumber;
-const int Configuration::kTcpFastOpenFieldNumber;
 #endif  // !_MSC_VER
 
 Configuration::Configuration()
@@ -519,7 +516,6 @@ void Configuration::SharedCtor() {
   cache_path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   local_ = NULL;
   statistic_ = NULL;
-  tcp_fast_open_ = false;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -580,7 +576,6 @@ void Configuration::Clear() {
     if (has_statistic()) {
       if (statistic_ != NULL) statistic_->::dist_clang::proto::Host::Clear();
     }
-    tcp_fast_open_ = false;
   }
   remotes_.Clear();
   versions_.Clear();
@@ -697,22 +692,6 @@ bool Configuration::MergePartialFromCodedStream(
         } else {
           goto handle_uninterpreted;
         }
-        if (input->ExpectTag(64)) goto parse_tcp_fast_open;
-        break;
-      }
-
-      // optional bool tcp_fast_open = 8 [default = false];
-      case 8: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
-         parse_tcp_fast_open:
-          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   bool, ::google::protobuf::internal::WireFormatLite::TYPE_BOOL>(
-                 input, &tcp_fast_open_)));
-          set_has_tcp_fast_open();
-        } else {
-          goto handle_uninterpreted;
-        }
         if (input->ExpectAtEnd()) return true;
         break;
       }
@@ -782,11 +761,6 @@ void Configuration::SerializeWithCachedSizes(
       7, this->statistic(), output);
   }
 
-  // optional bool tcp_fast_open = 8 [default = false];
-  if (has_tcp_fast_open()) {
-    ::google::protobuf::internal::WireFormatLite::WriteBool(8, this->tcp_fast_open(), output);
-  }
-
   if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
@@ -848,11 +822,6 @@ void Configuration::SerializeWithCachedSizes(
         7, this->statistic(), target);
   }
 
-  // optional bool tcp_fast_open = 8 [default = false];
-  if (has_tcp_fast_open()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(8, this->tcp_fast_open(), target);
-  }
-
   if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
@@ -897,11 +866,6 @@ int Configuration::ByteSize() const {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
           this->statistic());
-    }
-
-    // optional bool tcp_fast_open = 8 [default = false];
-    if (has_tcp_fast_open()) {
-      total_size += 1 + 1;
     }
 
   }
@@ -964,9 +928,6 @@ void Configuration::MergeFrom(const Configuration& from) {
     if (from.has_statistic()) {
       mutable_statistic()->::dist_clang::proto::Host::MergeFrom(from.statistic());
     }
-    if (from.has_tcp_fast_open()) {
-      set_tcp_fast_open(from.tcp_fast_open());
-    }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
@@ -1009,7 +970,6 @@ void Configuration::Swap(Configuration* other) {
     std::swap(local_, other->local_);
     versions_.Swap(&other->versions_);
     std::swap(statistic_, other->statistic_);
-    std::swap(tcp_fast_open_, other->tcp_fast_open_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);
