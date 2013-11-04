@@ -18,7 +18,7 @@ class NetworkService {
   public:
     using ListenCallback = std::function<void(ConnectionPtr)>;
 
-    NetworkService();
+    explicit NetworkService(bool tcp_fast_open);
 
     // We need method |Run()| to allow user to add all listening sockets in
     // a non-threadsafe way, thus, prevent locking inside |HandleNewConnection|.
@@ -45,6 +45,7 @@ class NetworkService {
     // |fd| is a descriptor of a listening socket, which accepts new connection.
     void HandleNewConnection(fd_t fd, ConnectionPtr connection);
 
+    const bool tcp_fast_open_;
     std::unique_ptr<EventLoop> event_loop_;
     std::unordered_map<fd_t, ListenCallback> listen_callbacks_;
 };

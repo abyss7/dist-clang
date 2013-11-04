@@ -24,9 +24,8 @@ ConnectionPtr Connection::Create(EventLoop &event_loop, fd_t fd,
 
 Connection::Connection(EventLoop& event_loop, fd_t fd,
                        const EndPointPtr& end_point)
-  : fd_(fd), event_loop_(event_loop), is_closed_(false), added_(false),
-    end_point_(end_point), file_input_stream_(fd_, 1024),
-    file_output_stream_(fd_, 1024) {
+  : fd_(fd), event_loop_(event_loop), is_closed_(false),
+    file_input_stream_(fd_, 1024), file_output_stream_(fd_, end_point, 1024) {
 }
 
 Connection::~Connection() {
@@ -133,6 +132,7 @@ bool Connection::SendSync(Status* status) {
 
   // The method |Flush()| calls function |write()| and potentially can raise
   // the signal |SIGPIPE|.
+  // FIXME: is it still so with |sendto()|?
   if (!file_output_stream_.Flush()) {
     if (status) {
       status->set_code(Status::NETWORK);

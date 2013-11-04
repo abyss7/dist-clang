@@ -55,7 +55,7 @@ bool Daemon::Initialize(const Configuration &configuration) {
     return false;
   }
 
-  network_service_.reset(new net::NetworkService);
+  network_service_.reset(new net::NetworkService(config.tcp_fast_open()));
   if (config.has_statistic()) {
     // TODO: initialize statistic in proper way - regarding |NetworkService|.
     // Statistic::Initialize(network_service_, config.statistic());

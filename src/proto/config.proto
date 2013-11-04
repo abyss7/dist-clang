@@ -3,10 +3,10 @@ import "base.proto";
 package dist_clang.proto;
 
 message Host {
-  required string host          = 1;
-  optional uint32 port          = 2 [default=6000];
-  optional uint32 threads       = 3 [default=2];
-  optional bool disabled        = 4 [default=false];
+  required string host    = 1;
+  optional uint32 port    = 2 [default=6000];
+  optional uint32 threads = 3 [default=2];
+  optional bool disabled  = 4 [default=false];
 }
 
 message Configuration {
@@ -17,4 +17,5 @@ message Configuration {
   optional Host local           = 5;
   repeated Compiler versions    = 6;
   optional Host statistic       = 7;
+  optional bool tcp_fast_open   = 8 [default=false];
 }

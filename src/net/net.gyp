@@ -25,6 +25,8 @@
         'network_service.h',
         'network_service_linux.cc',
         'network_service_mac.cc',
+        'socket_output_stream.cc',
+        'socket_output_stream.h',
       ],
       'conditions': [
         ['OS=="linux"', {

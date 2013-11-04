@@ -284,6 +284,13 @@ class Configuration : public ::google::protobuf::Message {
   inline ::dist_clang::proto::Host* release_statistic();
   inline void set_allocated_statistic(::dist_clang::proto::Host* statistic);
 
+  // optional bool tcp_fast_open = 8 [default = false];
+  inline bool has_tcp_fast_open() const;
+  inline void clear_tcp_fast_open();
+  static const int kTcpFastOpenFieldNumber = 8;
+  inline bool tcp_fast_open() const;
+  inline void set_tcp_fast_open(bool value);
+
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Configuration)
  private:
   inline void set_has_socket_path();
@@ -296,6 +303,8 @@ class Configuration : public ::google::protobuf::Message {
   inline void clear_has_local();
   inline void set_has_statistic();
   inline void clear_has_statistic();
+  inline void set_has_tcp_fast_open();
+  inline void clear_has_tcp_fast_open();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -303,12 +312,13 @@ class Configuration : public ::google::protobuf::Message {
   ::std::string* cache_path_;
   ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Host > remotes_;
   ::dist_clang::proto::Host* local_;
+  ::google::protobuf::uint32 pool_capacity_;
+  bool tcp_fast_open_;
   ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Compiler > versions_;
   ::dist_clang::proto::Host* statistic_;
-  ::google::protobuf::uint32 pool_capacity_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(7 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(8 + 31) / 32];
 
   friend void  protobuf_AddDesc_config_2eproto();
   friend void protobuf_AssignDesc_config_2eproto();
@@ -750,6 +760,28 @@ inline void Configuration::set_allocated_statistic(::dist_clang::proto::Host* st
   } else {
     clear_has_statistic();
   }
+}
+
+// optional bool tcp_fast_open = 8 [default = false];
+inline bool Configuration::has_tcp_fast_open() const {
+  return (_has_bits_[0] & 0x00000080u) != 0;
+}
+inline void Configuration::set_has_tcp_fast_open() {
+  _has_bits_[0] |= 0x00000080u;
+}
+inline void Configuration::clear_has_tcp_fast_open() {
+  _has_bits_[0] &= ~0x00000080u;
+}
+inline void Configuration::clear_tcp_fast_open() {
+  tcp_fast_open_ = false;
+  clear_has_tcp_fast_open();
+}
+inline bool Configuration::tcp_fast_open() const {
+  return tcp_fast_open_;
+}
+inline void Configuration::set_tcp_fast_open(bool value) {
+  set_has_tcp_fast_open();
+  tcp_fast_open_ = value;
 }
 
 

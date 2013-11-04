@@ -2,12 +2,12 @@
 
 #include "net/base/types.h"
 #include "net/connection_forward.h"
+#include "net/socket_output_stream.h"
 #include "proto/remote.pb.h"
 
 #include <atomic>
 #include <functional>
 #include <google/protobuf/io/coded_stream.h>
-#include <google/protobuf/io/gzip_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <gtest/gtest_prod.h>
 #include <memory>
@@ -19,17 +19,13 @@ namespace net {
 
 class EventLoop;
 
-class Connection: public ::std::enable_shared_from_this<Connection> {
-    using CodedInputStream = ::google::protobuf::io::CodedInputStream;
-    using CodedOutputStream = ::google::protobuf::io::CodedOutputStream;
-    using FileInputStream = ::google::protobuf::io::FileInputStream;
-    using FileOutputStream = ::google::protobuf::io::FileOutputStream;
+class Connection: public std::enable_shared_from_this<Connection> {
     using Status = proto::Status;
 
     template <class T>
-    using unique_ptr = ::std::unique_ptr<T>;
+    using unique_ptr = std::unique_ptr<T>;
     template <class Signature>
-    using function = ::std::function<Signature>;
+    using function = std::function<Signature>;
 
   public:
     using Message = proto::Universal;
@@ -63,6 +59,9 @@ class Connection: public ::std::enable_shared_from_this<Connection> {
 
     using BindedReadCallback = function<bool(ScopedMessage, const Status&)>;
     using BindedSendCallback = function<bool(const Status&)>;
+    using CodedInputStream = google::protobuf::io::CodedInputStream;
+    using CodedOutputStream = google::protobuf::io::CodedOutputStream;
+    using FileInputStream = google::protobuf::io::FileInputStream;
 
     enum State { IDLE, WAITING_SEND, WAITING_READ, SENDING, READING };
 
@@ -77,15 +76,14 @@ class Connection: public ::std::enable_shared_from_this<Connection> {
     const fd_t fd_;
     ScopedMessage message_;
     EventLoop& event_loop_;
-    ::std::atomic<bool> is_closed_, added_;
-    EndPointPtr end_point_;
+    std::atomic<bool> is_closed_;
 
     // Read members.
     FileInputStream file_input_stream_;
     BindedReadCallback read_callback_;
 
     // Send members.
-    FileOutputStream file_output_stream_;
+    SocketOutputStream file_output_stream_;
     BindedSendCallback send_callback_;
 
     FRIEND_TEST(ConnectionTest, Sync_ReadFromClosedConnection);

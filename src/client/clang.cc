@@ -84,7 +84,7 @@ bool DoMain(int argc, char* argv[]) {
   std::string clangd_socket_path = base::GetEnv(kEnvClangdSocket,
                                                 base::kDefaultClangdSocket);
 
-  net::NetworkService service;
+  net::NetworkService service(false);
   auto connection = service.Connect(clangd_socket_path);
   if (!connection)
     return true;
