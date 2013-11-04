@@ -62,7 +62,6 @@ bool Daemon::Initialize(const Configuration &configuration) {
   }
 
   workers_.reset(new base::WorkerPool);
-  cache_tasks_.reset(new Queue);
   all_tasks_.reset(new QueueAggregator);
   local_tasks_.reset(new Queue);
   failed_tasks_.reset(new Queue);
@@ -76,17 +75,16 @@ bool Daemon::Initialize(const Configuration &configuration) {
     auto worker = std::bind(&Daemon::DoLocalExecution, this, _1, _2);
     workers_->AddWorker(worker, std::thread::hardware_concurrency());
   }
-  {
-    auto worker = std::bind(&Daemon::DoCheckCache, this, _1, _2);
-    workers_->AddWorker(worker, std::thread::hardware_concurrency());
-  }
   // FIXME: need to improve |QueueAggregator| to prioritize queues.
   all_tasks_->Aggregate(local_tasks_.get());
   all_tasks_->Aggregate(failed_tasks_.get());
   all_tasks_->Aggregate(remote_tasks_.get());
 
+  cache_tasks_.reset(new Queue);
   if (config.has_cache_path()) {
     cache_.reset(new FileCache(config.cache_path()));
+    auto worker = std::bind(&Daemon::DoCheckCache, this, _1, _2);
+    workers_->AddWorker(worker, std::thread::hardware_concurrency());
   }
 
   bool is_listening = false;
