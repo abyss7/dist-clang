@@ -355,7 +355,7 @@ void Daemon::DoRemoteExecution(const volatile bool& is_shutting_down,
     }
 
     // TODO: cache connection before popping a task.
-    auto connection = network_service_->ConnectSync(end_point);
+    auto connection = network_service_->Connect(end_point);
     if (!connection) {
       local_tasks_->Push(std::move(task));
       continue;

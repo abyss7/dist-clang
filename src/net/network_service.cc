@@ -17,22 +17,7 @@ using namespace ::std::placeholders;
 namespace dist_clang {
 namespace net {
 
-NetworkService::~NetworkService() {
-  pool_.reset();
-  if (poll_fd_ != -1) {
-    close(poll_fd_);
-  }
-}
-
 bool NetworkService::Run() {
-  auto old_signals = BlockSignals();
-
-  pool_.reset(new base::WorkerPool);
-  auto work = std::bind(&NetworkService::DoConnectWork, this, _1, _2);
-  pool_->AddWorker(work, concurrency_);
-
-  UnblockSignals(old_signals);
-
   return event_loop_->Run();
 }
 
@@ -136,7 +121,7 @@ bool NetworkService::Listen(const string &host, unsigned short port,
   return true;
 }
 
-ConnectionPtr NetworkService::ConnectSync(const string &path, string *error) {
+ConnectionPtr NetworkService::Connect(const string &path, string *error) {
   sockaddr_un address;
   address.sun_family = AF_UNIX;
   strcpy(address.sun_path, path.c_str());
@@ -158,8 +143,7 @@ ConnectionPtr NetworkService::ConnectSync(const string &path, string *error) {
   return Connection::Create(*event_loop_, fd);
 }
 
-ConnectionPtr NetworkService::ConnectSync(EndPointPtr end_point,
-                                          string *error) {
+ConnectionPtr NetworkService::Connect(EndPointPtr end_point, string *error) {
   auto fd = socket(AF_INET, SOCK_STREAM, 0);
   if (fd == -1) {
     base::GetLastError(error);
