@@ -9,15 +9,14 @@ namespace net {
 
 // static
 EndPointPtr EndPoint::TcpHost(const std::string& host, unsigned short port) {
-  ::hostent* host_entry;
-  ::in_addr** address_list;
+  hostent* host_entry;
+  in_addr** address_list;
 
-  if ((host_entry = ::gethostbyname(host.c_str())) == NULL) {
+  if ((host_entry = gethostbyname(host.c_str())) == NULL) {
     return EndPointPtr();
   }
 
-  address_list =
-      reinterpret_cast<::in_addr**>(host_entry->h_addr_list);
+  address_list = reinterpret_cast<in_addr**>(host_entry->h_addr_list);
 
   EndPointPtr end_point(new EndPoint);
   end_point->in_address_.sin_family = AF_INET;
