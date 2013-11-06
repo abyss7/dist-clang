@@ -1,8 +1,15 @@
 {
   'variables': {
     'clang%': 0,
+    'libcxx%': 0,
     'profiler%': 0,
   },
+
+  'conditions': [
+    ['OS=="mac"', {
+      'libcxx': 1,  # the only way on MacOS for now.
+    }],
+  ],
 
   'target_defaults': {
     'cflags': [
@@ -20,7 +27,6 @@
     'xcode_settings': {
       'ARCHS': ['x86_64'],
       'CLANG_CXX_LANGUAGE_STANDARD': 'c++11',
-      'CLANG_CXX_LIBRARY': 'libc++',
       'WARNING_CFLAGS': [
         '-Wall',
         '-Wsign-compare',
@@ -93,6 +99,20 @@
           '-Wno-mismatched-tags',  # Remove on libstdc++ >= 4.8.2
         ],
       }],
+      ['libcxx!=0', {
+        'cflags': [
+          '-stdlib=libc++',
+        ],
+        'xcode_settings': {
+          'CLANG_CXX_LIBRARY': 'libc++',
+        },
+      }],
+      ['libcxx!=0 and libcxx!=1', {
+        'cflags': [
+          '-I<(libcxx)/include',
+          '-I<(libcxx)/include/c++/v1',
+        ],
+      }],
       ['profiler==1 and OS=="linux"', {
         'defines': [
           'PROFILER',
@@ -104,11 +124,24 @@
     ],
     'target_conditions': [
       ['_type!="static_library"', {
-        'xcode_settings': {
-          'OTHER_LDFLAGS': [
-            '-lc++',
-          ],
-        },
+        'conditions': [
+          ['libcxx!=0', {
+            'ldflags': [
+              '-lc++',
+              '-lpthread',
+            ],
+            'xcode_settings': {
+              'OTHER_LDFLAGS': [
+                '-lc++',
+              ],
+            },
+          }],
+          ['libcxx!=0 and libcxx!=1', {
+            'ldflags': [
+              '-L<(libcxx)/lib',
+            ],
+          }],
+        ],
       }],
       ['_type=="shared_library"', {
         'cflags': [

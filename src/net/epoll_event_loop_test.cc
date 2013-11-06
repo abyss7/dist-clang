@@ -24,6 +24,7 @@ TEST(EpollTest, PersistentEPOLLHUP) {
   ASSERT_NE(-1, epoll_ctl(epoll_fd, EPOLL_CTL_ADD, test_pipe[0], &event));
 
   // FIXME: g++ complains about |a|, if it's not passed by value.
+  // See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=58894
   auto lambda = [&, a]() {
     ASSERT_EQ(static_cast<int>(sizeof(a)), write(test_pipe[1], &a, sizeof(a)));
     ASSERT_NE(-1, close(test_pipe[1]));
