@@ -1,5 +1,6 @@
 {
   'variables': {
+    'clang%': 0,
     'profiler%': 0,
   },
 
