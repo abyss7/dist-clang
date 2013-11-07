@@ -11,6 +11,7 @@
   'target_defaults': {
     'dependencies': [
       '<(DEPTH)/third_party/libcxx/libcxx.gyp:c++',
+      '<(DEPTH)/third_party/libcxxabi/libcxxabi.gyp:c++abi',
     ],
     'cflags': [
       '-std=c++11',
