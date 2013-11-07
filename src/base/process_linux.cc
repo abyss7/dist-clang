@@ -86,10 +86,10 @@ bool Process::Run(unsigned sec_timeout, std::string* error) {
       }
 
       if (event_count == 0) {
-        if (error) {
-          error->assign("Time-out occured");
-        }
         kill(child_pid);
+        if (error) {
+          error->assign("Timeout occured");
+        }
         break;
       }
 
@@ -250,6 +250,9 @@ bool Process::Run(unsigned sec_timeout, const std::string &input,
 
       if (event_count == 0) {
         kill(child_pid);
+        if (error) {
+          error->assign("Timeout occured");
+        }
         break;
       }
 

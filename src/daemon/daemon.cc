@@ -471,7 +471,7 @@ void Daemon::DoLocalExecution(const volatile bool &is_shutting_down,
       // output file from the compiler's stdout.
       std::string error;
       base::Process process(task.second->cc_flags());
-      if (!process.Run(60, task.second->pp_source(), &error)) {
+      if (!process.Run(10, task.second->pp_source(), &error)) {
         status.set_code(proto::Status::EXECUTION);
         status.set_description(process.stderr());
         if (!process.stdout().empty() || !process.stderr().empty()) {
