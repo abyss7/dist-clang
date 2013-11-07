@@ -1,19 +1,19 @@
 {
   'variables': {
-    'clang%': 0,
-    'libcxx%': 0,
     'profiler%': 0,
   },
 
-  'conditions': [
-    ['OS=="mac"', {
-      'libcxx': 1,  # the only way on MacOS for now.
-    }],
+  'includes': [
+    'configs.gypi',
   ],
 
   'target_defaults': {
+    'dependencies': [
+      '<(DEPTH)/third_party/libcxx/libcxx.gyp:c++',
+    ],
     'cflags': [
       '-std=c++11',
+      '-stdlib=libc++',
       '-pipe',
       '-pthread',
       '-fno-exceptions',
@@ -22,11 +22,13 @@
       '-Werror',
     ],
     'ldflags': [
+      '-lpthread',
       '-ltcmalloc',
     ],
     'xcode_settings': {
       'ARCHS': ['x86_64'],
       'CLANG_CXX_LANGUAGE_STANDARD': 'c++11',
+      'CLANG_CXX_LIBRARY': 'libc++',
       'WARNING_CFLAGS': [
         '-Wall',
         '-Wsign-compare',
@@ -38,39 +40,6 @@
         '-fno-exceptions',
       ],
     },
-    'configurations': {
-      'Debug': {
-        'cflags': [
-          '-g',
-          '-O0',
-        ],
-        'ldflags': [
-          '-rdynamic',  # for backtrace().
-        ],
-        'xcode_settings': {
-          'OTHER_CFLAGS': [
-            '-g',
-            '-O0',
-          ],
-        },
-      },
-      'Release': {
-        'cflags': [
-          '-fomit-frame-pointer',
-          '-O2',
-        ],
-        'defines': [
-          'NDEBUG',
-        ],
-        'xcode_settings': {
-          'OTHER_CFLAGS': [
-            '-fomit-frame-pointer',
-            '-O2',
-          ],
-        },
-      },
-    },
-    'default_configuration': 'Debug',
     'include_dirs': [
       '..',
     ],
@@ -94,25 +63,6 @@
           ['include', '_mac\\.cc$'],
         ],
       }],
-      ['clang==1', {
-        'cflags': [
-          '-Wno-mismatched-tags',  # Remove on libstdc++ >= 4.8.2
-        ],
-      }],
-      ['libcxx!=0', {
-        'cflags': [
-          '-stdlib=libc++',
-        ],
-        'xcode_settings': {
-          'CLANG_CXX_LIBRARY': 'libc++',
-        },
-      }],
-      ['libcxx!=0 and libcxx!=1', {
-        'cflags': [
-          '-I<(libcxx)/include',
-          '-I<(libcxx)/include/c++/v1',
-        ],
-      }],
       ['profiler==1 and OS=="linux"', {
         'defines': [
           'PROFILER',
@@ -123,26 +73,6 @@
       }],
     ],
     'target_conditions': [
-      ['_type!="static_library"', {
-        'conditions': [
-          ['libcxx!=0', {
-            'ldflags': [
-              '-lc++',
-              '-lpthread',
-            ],
-            'xcode_settings': {
-              'OTHER_LDFLAGS': [
-                '-lc++',
-              ],
-            },
-          }],
-          ['libcxx!=0 and libcxx!=1', {
-            'ldflags': [
-              '-L<(libcxx)/lib',
-            ],
-          }],
-        ],
-      }],
       ['_type=="shared_library"', {
         'cflags': [
           '-fPIC',

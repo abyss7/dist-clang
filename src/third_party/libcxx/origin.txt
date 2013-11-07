@@ -1,0 +1,3 @@
+scm_type: svn
+repo: http://llvm.org/svn/llvm-project/libcxx/trunk
+rev: 194187
