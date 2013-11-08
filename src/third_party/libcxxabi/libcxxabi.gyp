@@ -8,7 +8,7 @@
       'target_name': 'c++abi',
       'type': 'shared_library',
       'dependencies': [
-        '../libcxx/libcxx.gyp:c++-bootstrap',
+        '../libcxx/bootstrap.gyp:c++-bootstrap',
       ],
       'all_dependent_settings': {
         'include_dirs': [
