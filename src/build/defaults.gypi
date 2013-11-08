@@ -2,6 +2,7 @@
   'variables': {
     'clang%': 0,
     'profiler%': 0,
+    'tcmalloc%': 1,
   },
 
   'includes': [
@@ -25,7 +26,6 @@
     ],
     'ldflags': [
       '-lpthread',
-      '-ltcmalloc',
     ],
     'xcode_settings': {
       'ARCHS': ['x86_64'],
@@ -71,6 +71,11 @@
         ],
         'ldflags': [
           '-lprofiler',
+        ],
+      }],
+      ['tcmalloc==1 and OS=="linux"', {
+        'ldflags': [
+          '-ltcmalloc',
         ],
       }],
     ],
