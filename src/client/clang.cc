@@ -12,6 +12,8 @@
 #include <list>
 #include <string>
 
+#include <signal.h>
+
 using namespace dist_clang;
 
 namespace {
