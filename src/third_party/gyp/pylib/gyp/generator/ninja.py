@@ -807,7 +807,7 @@ class NinjaWriter:
       cflags_c = self.xcode_settings.GetCflagsC(config_name) + \
                  config.get('cflags_c', [])
       cflags_cc = self.xcode_settings.GetCflagsCC(config_name) + \
-                  cflags_cc = config.get('cflags_cc', [])
+                  config.get('cflags_cc', [])
       cflags_objc = ['$cflags_c'] + \
                     self.xcode_settings.GetCflagsObjC(config_name)
       cflags_objcc = ['$cflags_cc'] + \
