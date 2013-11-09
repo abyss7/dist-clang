@@ -6,15 +6,13 @@
           '-g',
           '-O0',
         ],
-        'ldflags': [
-          '-rdynamic',  # for backtrace().
+        'conditions': [
+          ['OS=="linux"', {
+            'ldflags': [
+              '-rdynamic',  # for backtrace().
+            ],
+          }],
         ],
-        'xcode_settings': {
-          'OTHER_CFLAGS': [
-            '-g',
-            '-O0',
-          ],
-        },
       },
       'Release': {
         'cflags': [
@@ -25,15 +23,13 @@
           'NDEBUG',
           '_DEBUG',  # for libc++
         ],
-        'ldflags': [
-          '-rdynamic',  # for backtrace().
+        'conditions': [
+          ['OS=="linux"', {
+            'ldflags': [
+              '-rdynamic',  # for backtrace().
+            ],
+          }],
         ],
-        'xcode_settings': {
-          'OTHER_CFLAGS': [
-            '-fomit-frame-pointer',
-            '-O2',
-          ],
-        },
       },
     },
     'default_configuration': 'Debug',

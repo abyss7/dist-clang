@@ -13,11 +13,6 @@
         'include_dirs': [
           '..',
         ],
-        'xcode_settings': {
-          'OTHER_CFLAGS!': [
-            '-fno-exceptions',
-          ],
-        },
       },
       'sources': [
         'Arg.h',

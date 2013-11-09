@@ -2,6 +2,8 @@
 
 #include "net/kqueue_event_loop.h"
 
+using namespace std::placeholders;
+
 namespace dist_clang {
 namespace net {
 
