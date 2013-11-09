@@ -473,16 +473,18 @@ void Daemon::DoLocalExecution(const volatile bool &is_shutting_down,
       base::Process process(task.second->cc_flags());
       if (!process.Run(10, task.second->pp_source(), &error)) {
         status.set_code(proto::Status::EXECUTION);
-        status.set_description(process.stderr());
         if (!process.stdout().empty() || !process.stderr().empty()) {
+          status.set_description(process.stderr());
           std::cerr << "Compilation failed with error:" << std::endl;
           std::cerr << process.stderr() << std::endl;
           std::cerr << process.stdout() << std::endl;
         }
         else if (!error.empty()) {
+          status.set_description(error);
           std::cerr << "Compilation failed with error: " << error << std::endl;
         }
         else {
+          status.set_description("without errors");
           std::cerr << "Compilation failed without errors" << std::endl;
         }
         std::cerr << "Arguments:";

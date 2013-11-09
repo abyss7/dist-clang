@@ -17,7 +17,7 @@
       'Release': {
         'cflags': [
           '-fomit-frame-pointer',
-          '-O2',
+          '-O3',
         ],
         'defines': [
           'NDEBUG',
