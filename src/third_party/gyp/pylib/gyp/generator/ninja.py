@@ -1035,7 +1035,7 @@ class NinjaWriter:
       ldflags = self.xcode_settings.GetLdflags(config_name,
           self.ExpandSpecial(generator_default_variables['PRODUCT_DIR']),
           self.GypPathToNinja, arch)
-      ldflags = env_ldflags + ldflags
+      ldflags = env_ldflags + ldflags + config.get('ldflags', [])
     elif self.flavor == 'win':
       manifest_name = self.GypPathToUniqueOutput(
           self.ComputeOutputFileName(spec))
