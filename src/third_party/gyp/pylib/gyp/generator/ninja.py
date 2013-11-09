@@ -802,9 +802,12 @@ class NinjaWriter:
 
     extra_defines = []
     if self.flavor == 'mac':
-      cflags = self.xcode_settings.GetCflags(config_name, arch=arch)
-      cflags_c = self.xcode_settings.GetCflagsC(config_name)
-      cflags_cc = self.xcode_settings.GetCflagsCC(config_name)
+      cflags = self.xcode_settings.GetCflags(config_name, arch=arch) + \
+               config.get('cflags', [])
+      cflags_c = self.xcode_settings.GetCflagsC(config_name) + \
+                 config.get('cflags_c', [])
+      cflags_cc = self.xcode_settings.GetCflagsCC(config_name) + \
+                  cflags_cc = config.get('cflags_cc', [])
       cflags_objc = ['$cflags_c'] + \
                     self.xcode_settings.GetCflagsObjC(config_name)
       cflags_objcc = ['$cflags_cc'] + \
