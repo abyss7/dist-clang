@@ -11,7 +11,7 @@ namespace base {
 TEST(ProcessTest, CheckExitCode) {
   const int exit_code = 1;
   Process process("/bin/sh");
-  process.AppendArg("-c").AppendArg("exit " + IntToString(exit_code));
+  process.AppendArg("-c").AppendArg("exit " + std::to_string(exit_code));
   ASSERT_FALSE(process.Run(1));
 }
 

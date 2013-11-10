@@ -4,8 +4,7 @@
 #include "net/base/utils.h"
 #include "net/event_loop.h"
 
-#include <cstdint>
-#include <iostream>
+#include "base/using_log.h"
 
 using namespace std::placeholders;
 
@@ -159,8 +158,7 @@ bool Connection::ReportStatus(const Status& message, SendCallback callback) {
 Connection::SendCallback Connection::CloseAfterSend() {
   auto callback = [](ConnectionPtr, const Status& status) -> bool {
     if (status.code() != Status::OK) {
-      std::cerr << "Failed to send message: " << status.description()
-                << std::endl;
+      LOG(ERROR) << "Failed to send message: " << status.description();
     }
     return false;
   };

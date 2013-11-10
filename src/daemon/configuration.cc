@@ -1,6 +1,7 @@
 #include "daemon/configuration.h"
 
 #include "base/constants.h"
+#include "base/logging.h"
 #include "base/string_utils.h"
 #include "third_party/tclap/CmdLine.h"
 
@@ -9,6 +10,8 @@
 #include <string>
 
 #include <fcntl.h>
+
+#include "base/using_log.h"
 
 using namespace TCLAP;
 
@@ -55,11 +58,11 @@ Configuration::Configuration(int argc, char *argv[]) {
         remote->set_host(strs.front());
         strs.pop_front();
         if (!strs.empty()) {
-          remote->set_port(base::StringToInt<unsigned short>(strs.front()));
+          remote->set_port(std::stoul(strs.front()));
           strs.pop_front();
         }
         if (!strs.empty()) {
-          remote->set_threads(base::StringToInt<unsigned>(strs.front()));
+          remote->set_threads(std::stoul(strs.front()));
           strs.pop_front();
         }
       } else {
@@ -75,17 +78,17 @@ Configuration::Configuration(int argc, char *argv[]) {
         local->set_host(strs.front());
         strs.pop_front();
         if (!strs.empty()) {
-          local->set_port(base::StringToInt<unsigned short>(strs.front()));
+          local->set_port(std::stoul(strs.front()));
           strs.pop_front();
         }
         if (!strs.empty()) {
-          local->set_threads(base::StringToInt<unsigned>(strs.front()));
+          local->set_threads(std::stoul(strs.front()));
           strs.pop_front();
         }
       }
     }
   } catch (ArgException &e) {
-    std::cerr << e.argId() << std::endl << e.error() << std::endl;
+    LOG(ERROR) << e.argId() << std::endl << e.error();
     return;
   }
 }

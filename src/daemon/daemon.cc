@@ -19,8 +19,9 @@
 #if defined(PROFILER)
 #  include <gperftools/profiler.h>
 #endif
-#include <iostream>
 #include <mutex>
+
+#include "base/using_log.h"
 
 using namespace std::placeholders;
 
@@ -51,7 +52,7 @@ bool Daemon::Initialize(const Configuration &configuration) {
   const auto& config = configuration.config();
 
   if (!config.IsInitialized()) {
-    std::cerr << config.InitializationErrorString() << std::endl;
+    LOG(ERROR) << config.InitializationErrorString();
     return false;
   }
 
@@ -95,8 +96,8 @@ bool Daemon::Initialize(const Configuration &configuration) {
                                            config.local().port(),
                                            callback, &error);
     if (!result) {
-      std::cerr << "Failed to listen on " << config.local().host() << ":"
-                << config.local().port() << " : " << error << std::endl;
+      LOG(ERROR) << "Failed to listen on " << config.local().host() << ":"
+                 << config.local().port() << " : " << error;
     }
     is_listening |= result;
   }
@@ -107,7 +108,7 @@ bool Daemon::Initialize(const Configuration &configuration) {
   }
 
   if (!is_listening) {
-    std::cerr << "Daemon is not listening. Quitting..." << std::endl;
+    LOG(ERROR) << "Daemon is not listening. Quitting...";
     return false;
   }
 
@@ -221,7 +222,7 @@ bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
                               ScopedMessage message,
                               const proto::Status& status) {
   if (status.code() != proto::Status::OK) {
-    std::cerr << status.description() << std::endl;
+    LOG(ERROR) << status.description();
     return connection->ReportStatus(status);
   }
 
@@ -386,8 +387,8 @@ void Daemon::DoRemoteExecution(const volatile bool& is_shutting_down,
     if (result->HasExtension(proto::Status::extension)) {
       const auto& status = result->GetExtension(proto::Status::extension);
       if (status.code() != proto::Status::OK) {
-        std::cerr << "Remote compilation failed with error(s):" << std::endl;
-        std::cerr << status.description() << std::endl;
+        LOG(WARNING) << "Remote compilation failed with error(s):" << std::endl
+                     << status.description();
         failed_tasks_->Push(std::move(task));
         continue;
       }
@@ -401,8 +402,8 @@ void Daemon::DoRemoteExecution(const volatile bool& is_shutting_down,
       if (base::WriteFile(output_path, extension.obj())) {
         proto::Status status;
         status.set_code(proto::Status::OK);
-        std::cout << "Remote compilation successful: " +
-                     message->cc_flags().input() << std::endl;
+        LOG(INFO) << "Remote compilation successful: "
+                  << message->cc_flags().input();
         UpdateCache(message, status);
         task.first->ReportStatus(status);
         continue;
@@ -438,8 +439,8 @@ void Daemon::DoLocalExecution(const volatile bool &is_shutting_down,
       } else {
         status.set_code(proto::Status::OK);
         status.set_description(process.stderr());
-        std::cout << "Local compilation successful:  " +
-                     task.second->cc_flags().input() << std::endl;
+        LOG(INFO) << "Local compilation successful:  "
+                  << task.second->cc_flags().input();
         UpdateCache(task.second.get(), status);
       }
 
@@ -472,31 +473,36 @@ void Daemon::DoLocalExecution(const volatile bool &is_shutting_down,
       std::string error;
       base::Process process(task.second->cc_flags());
       if (!process.Run(10, task.second->pp_source(), &error)) {
+        std::stringstream arguments;
+        arguments << "Arguments:";
+        for (const auto& flag: task.second->cc_flags().other()) {
+          arguments << " " << flag;
+        }
+        arguments << std::endl << std::endl;
+
         status.set_code(proto::Status::EXECUTION);
         if (!process.stdout().empty() || !process.stderr().empty()) {
           status.set_description(process.stderr());
-          std::cerr << "Compilation failed with error:" << std::endl;
-          std::cerr << process.stderr() << std::endl;
-          std::cerr << process.stdout() << std::endl;
+          LOG(WARNING) << "Compilation failed with error:" << std::endl
+                       << process.stderr() << std::endl
+                       << process.stdout() << std::endl
+                       << arguments.str();
         }
         else if (!error.empty()) {
           status.set_description(error);
-          std::cerr << "Compilation failed with error: " << error << std::endl;
+          LOG(WARNING) << "Compilation failed with error: " << error
+                       << std::endl << arguments.str();
         }
         else {
           status.set_description("without errors");
-          std::cerr << "Compilation failed without errors" << std::endl;
+          LOG(WARNING) << "Compilation failed without errors" << std::endl
+                       << arguments.str();
         }
-        std::cerr << "Arguments:";
-        for (const auto& flag: task.second->cc_flags().other()) {
-          std::cerr << " " << flag;
-        }
-        std::cerr << std::endl << std::endl;
       }
       else {
         status.set_code(proto::Status::OK);
         status.set_description(process.stderr());
-        std::cout << "External compilation successful" << std::endl;
+        LOG(INFO) << "External compilation successful";
       }
 
       Daemon::ScopedMessage message(new proto::Universal);

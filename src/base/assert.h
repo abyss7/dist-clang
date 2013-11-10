@@ -1,6 +1,7 @@
 #pragma once
 
-#include <iostream>
+#include "base/logging.h"
+
 #include <memory>
 #include <sstream>
 #include <string>
@@ -65,12 +66,12 @@ inline void GetStackTrace(size_t depth, std::vector<std::string>& strings) {
   if (!(expr)) { \
     std::stringstream ss; \
     std::vector<std::string> strings; \
-    base::GetStackTrace(5, strings); \
+    dist_clang::base::GetStackTrace(5, strings); \
     ss << "Assertion failed: " << #expr << std::endl; \
     for (const auto& str: strings) { \
       ss << "  " << str << std::endl; \
     } \
-    std::cerr << ss.str(); \
+    dist_clang::base::Log(dist_clang::base::NamedLevels::FATAL) << ss.str(); \
     std::abort(); \
   }
 

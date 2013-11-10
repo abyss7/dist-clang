@@ -9,6 +9,31 @@ message Host {
   optional bool disabled        = 4 [default=false];
 }
 
+message Verbosity {
+  message Condition {
+    enum Op {
+      LS = 1;  // less
+      LE = 2;  // less or equal
+      EQ = 3;  // equal
+      GE = 4;  // greater or equal
+      GR = 5;  // greater
+    }
+
+    required Op operator        = 1;
+    required uint32 value       = 2;
+  }
+
+  message Conjunctor {
+    repeated Condition condition = 1;
+  }
+
+  // less'o'equal to |error_mark| levels go to stderr.
+  optional uint32 error_mark    = 1 [default=3];
+
+  // |levels| is a DNF of visible log levels. By default, all are invisible.
+  repeated Conjunctor levels    = 2;
+}
+
 message Configuration {
   optional string socket_path   = 1;
   optional uint32 pool_capacity = 2 [default=16];  // 0 - is unlimited.
@@ -17,4 +42,5 @@ message Configuration {
   optional Host local           = 5;
   repeated Compiler versions    = 6;
   optional Host statistic       = 7;
+  optional Verbosity verbosity  = 8;
 }

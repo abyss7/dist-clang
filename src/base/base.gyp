@@ -10,6 +10,8 @@
         'headers_only',
       ],
       'sources': [
+        'logging.cc',
+        'logging.h',
         'thread_pool.cc',
         'thread_pool.h',
         'worker_pool.cc',

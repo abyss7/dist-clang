@@ -65,21 +65,6 @@ inline std::string Hexify(const std::string& binary) {
   return ss.str();
 }
 
-template <typename Int>
-inline Int StringToInt(const std::string& str) {
-  Int result;
-  std::stringstream ss(str);
-  ss >> result;
-  return result;
-}
-
-template <typename Int>
-inline std::string IntToString(Int integer) {
-  std::stringstream ss;
-  ss << integer;
-  return ss.str();
-}
-
 inline void Replace(std::string& input, const std::string& replacee,
                     const std::string& replacer) {
   size_t pos = 0;

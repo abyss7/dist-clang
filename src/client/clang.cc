@@ -1,6 +1,7 @@
 #include "base/assert.h"
 #include "base/c_utils.h"
 #include "base/constants.h"
+#include "base/logging.h"
 #include "base/process.h"
 #include "base/string_utils.h"
 #include "client/clang_flag_set.h"
@@ -8,11 +9,12 @@
 #include "net/network_service.h"
 #include "proto/remote.pb.h"
 
-#include <iostream>
 #include <list>
 #include <string>
 
 #include <signal.h>
+
+#include "base/using_log.h"
 
 using namespace dist_clang;
 
@@ -24,16 +26,14 @@ const char* kEnvClangdCxx = "CLANGD_CXX";
 int ExecuteLocally(char* argv[]) {
   std::string clangd_cxx_path = base::GetEnv(kEnvClangdCxx);
   if (clangd_cxx_path.empty()) {
-    std::cerr << "Provide real clang++ compiler path via "
-              << kEnvClangdCxx << std::endl;
+    LOG(FATAL) << "Provide real clang++ compiler path via " << kEnvClangdCxx;
     return 1;
   }
 
-  std::cout << "Running locally." << std::endl;
+  DLOG(INFO) << "Running locally.";
 
   if (execv(clangd_cxx_path.c_str(), argv) == -1) {
-    std::cerr << "Local execution failed: "
-              << strerror(errno) << std::endl;
+    LOG(FATAL) << "Local execution failed: " << strerror(errno);
     return 1;
   }
 
@@ -130,15 +130,13 @@ bool DoMain(int argc, char* argv[]) {
 
   proto::Status status;
   if (!connection->SendSync(std::move(message), &status)) {
-    std::cerr << "Failed to send message: " << status.description()
-              << std::endl;
+    LOG(ERROR) << "Failed to send message: " << status.description();
     return true;
   }
 
   net::Connection::Message top_message;
   if (!connection->ReadSync(&top_message, &status)) {
-    std::cerr << "Failed to read message: " << status.description()
-              << std::endl;
+    LOG(ERROR) << "Failed to read message: " << status.description();
     return true;
   }
 
@@ -153,7 +151,7 @@ bool DoMain(int argc, char* argv[]) {
   }
 
   if (status.code() == proto::Status::EXECUTION) {
-    std::cerr << status.description();
+    LOG(FATAL) << status.description();
     exit(1);
   }
 

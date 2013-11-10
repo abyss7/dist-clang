@@ -24,6 +24,16 @@ namespace {
 const ::google::protobuf::Descriptor* Host_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   Host_reflection_ = NULL;
+const ::google::protobuf::Descriptor* Verbosity_descriptor_ = NULL;
+const ::google::protobuf::internal::GeneratedMessageReflection*
+  Verbosity_reflection_ = NULL;
+const ::google::protobuf::Descriptor* Verbosity_Condition_descriptor_ = NULL;
+const ::google::protobuf::internal::GeneratedMessageReflection*
+  Verbosity_Condition_reflection_ = NULL;
+const ::google::protobuf::EnumDescriptor* Verbosity_Condition_Op_descriptor_ = NULL;
+const ::google::protobuf::Descriptor* Verbosity_Conjunctor_descriptor_ = NULL;
+const ::google::protobuf::internal::GeneratedMessageReflection*
+  Verbosity_Conjunctor_reflection_ = NULL;
 const ::google::protobuf::Descriptor* Configuration_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   Configuration_reflection_ = NULL;
@@ -55,8 +65,56 @@ void protobuf_AssignDesc_config_2eproto() {
       ::google::protobuf::DescriptorPool::generated_pool(),
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(Host));
-  Configuration_descriptor_ = file->message_type(1);
-  static const int Configuration_offsets_[7] = {
+  Verbosity_descriptor_ = file->message_type(1);
+  static const int Verbosity_offsets_[2] = {
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Verbosity, error_mark_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Verbosity, levels_),
+  };
+  Verbosity_reflection_ =
+    new ::google::protobuf::internal::GeneratedMessageReflection(
+      Verbosity_descriptor_,
+      Verbosity::default_instance_,
+      Verbosity_offsets_,
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Verbosity, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Verbosity, _unknown_fields_),
+      -1,
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(Verbosity));
+  Verbosity_Condition_descriptor_ = Verbosity_descriptor_->nested_type(0);
+  static const int Verbosity_Condition_offsets_[2] = {
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Verbosity_Condition, operator__),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Verbosity_Condition, value_),
+  };
+  Verbosity_Condition_reflection_ =
+    new ::google::protobuf::internal::GeneratedMessageReflection(
+      Verbosity_Condition_descriptor_,
+      Verbosity_Condition::default_instance_,
+      Verbosity_Condition_offsets_,
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Verbosity_Condition, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Verbosity_Condition, _unknown_fields_),
+      -1,
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(Verbosity_Condition));
+  Verbosity_Condition_Op_descriptor_ = Verbosity_Condition_descriptor_->enum_type(0);
+  Verbosity_Conjunctor_descriptor_ = Verbosity_descriptor_->nested_type(1);
+  static const int Verbosity_Conjunctor_offsets_[1] = {
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Verbosity_Conjunctor, condition_),
+  };
+  Verbosity_Conjunctor_reflection_ =
+    new ::google::protobuf::internal::GeneratedMessageReflection(
+      Verbosity_Conjunctor_descriptor_,
+      Verbosity_Conjunctor::default_instance_,
+      Verbosity_Conjunctor_offsets_,
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Verbosity_Conjunctor, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Verbosity_Conjunctor, _unknown_fields_),
+      -1,
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(Verbosity_Conjunctor));
+  Configuration_descriptor_ = file->message_type(2);
+  static const int Configuration_offsets_[8] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, socket_path_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, pool_capacity_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, cache_path_),
@@ -64,6 +122,7 @@ void protobuf_AssignDesc_config_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, local_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, versions_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, statistic_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, verbosity_),
   };
   Configuration_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
@@ -91,6 +150,12 @@ void protobuf_RegisterTypes(const ::std::string&) {
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
     Host_descriptor_, &Host::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
+    Verbosity_descriptor_, &Verbosity::default_instance());
+  ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
+    Verbosity_Condition_descriptor_, &Verbosity_Condition::default_instance());
+  ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
+    Verbosity_Conjunctor_descriptor_, &Verbosity_Conjunctor::default_instance());
+  ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
     Configuration_descriptor_, &Configuration::default_instance());
 }
 
@@ -99,6 +164,12 @@ void protobuf_RegisterTypes(const ::std::string&) {
 void protobuf_ShutdownFile_config_2eproto() {
   delete Host::default_instance_;
   delete Host_reflection_;
+  delete Verbosity::default_instance_;
+  delete Verbosity_reflection_;
+  delete Verbosity_Condition::default_instance_;
+  delete Verbosity_Condition_reflection_;
+  delete Verbosity_Conjunctor::default_instance_;
+  delete Verbosity_Conjunctor_reflection_;
   delete Configuration::default_instance_;
   delete Configuration_reflection_;
 }
@@ -114,18 +185,33 @@ void protobuf_AddDesc_config_2eproto() {
     "\n\014config.proto\022\020dist_clang.proto\032\nbase.p"
     "roto\"U\n\004Host\022\014\n\004host\030\001 \002(\t\022\022\n\004port\030\002 \001(\r"
     ":\0046000\022\022\n\007threads\030\003 \001(\r:\0012\022\027\n\010disabled\030\004"
-    " \001(\010:\005false\"\374\001\n\rConfiguration\022\023\n\013socket_"
-    "path\030\001 \001(\t\022\031\n\rpool_capacity\030\002 \001(\r:\00216\022\022\n"
-    "\ncache_path\030\003 \001(\t\022\'\n\007remotes\030\004 \003(\0132\026.dis"
-    "t_clang.proto.Host\022%\n\005local\030\005 \001(\0132\026.dist"
-    "_clang.proto.Host\022,\n\010versions\030\006 \003(\0132\032.di"
-    "st_clang.proto.Compiler\022)\n\tstatistic\030\007 \001"
-    "(\0132\026.dist_clang.proto.Host", 386);
+    " \001(\010:\005false\"\251\002\n\tVerbosity\022\025\n\nerror_mark\030"
+    "\001 \001(\r:\0013\0226\n\006levels\030\002 \003(\0132&.dist_clang.pr"
+    "oto.Verbosity.Conjunctor\032\204\001\n\tCondition\022:"
+    "\n\010operator\030\001 \002(\0162(.dist_clang.proto.Verb"
+    "osity.Condition.Op\022\r\n\005value\030\002 \002(\r\",\n\002Op\022"
+    "\006\n\002LS\020\001\022\006\n\002LE\020\002\022\006\n\002EQ\020\003\022\006\n\002GE\020\004\022\006\n\002GR\020\005\032"
+    "F\n\nConjunctor\0228\n\tcondition\030\001 \003(\0132%.dist_"
+    "clang.proto.Verbosity.Condition\"\254\002\n\rConf"
+    "iguration\022\023\n\013socket_path\030\001 \001(\t\022\031\n\rpool_c"
+    "apacity\030\002 \001(\r:\00216\022\022\n\ncache_path\030\003 \001(\t\022\'\n"
+    "\007remotes\030\004 \003(\0132\026.dist_clang.proto.Host\022%"
+    "\n\005local\030\005 \001(\0132\026.dist_clang.proto.Host\022,\n"
+    "\010versions\030\006 \003(\0132\032.dist_clang.proto.Compi"
+    "ler\022)\n\tstatistic\030\007 \001(\0132\026.dist_clang.prot"
+    "o.Host\022.\n\tverbosity\030\010 \001(\0132\033.dist_clang.p"
+    "roto.Verbosity", 734);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "config.proto", &protobuf_RegisterTypes);
   Host::default_instance_ = new Host();
+  Verbosity::default_instance_ = new Verbosity();
+  Verbosity_Condition::default_instance_ = new Verbosity_Condition();
+  Verbosity_Conjunctor::default_instance_ = new Verbosity_Conjunctor();
   Configuration::default_instance_ = new Configuration();
   Host::default_instance_->InitAsDefaultInstance();
+  Verbosity::default_instance_->InitAsDefaultInstance();
+  Verbosity_Condition::default_instance_->InitAsDefaultInstance();
+  Verbosity_Conjunctor::default_instance_->InitAsDefaultInstance();
   Configuration::default_instance_->InitAsDefaultInstance();
   ::google::protobuf::internal::OnShutdown(&protobuf_ShutdownFile_config_2eproto);
 }
@@ -483,6 +569,745 @@ void Host::Swap(Host* other) {
 
 // ===================================================================
 
+const ::google::protobuf::EnumDescriptor* Verbosity_Condition_Op_descriptor() {
+  protobuf_AssignDescriptorsOnce();
+  return Verbosity_Condition_Op_descriptor_;
+}
+bool Verbosity_Condition_Op_IsValid(int value) {
+  switch(value) {
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+    case 5:
+      return true;
+    default:
+      return false;
+  }
+}
+
+#ifndef _MSC_VER
+const Verbosity_Condition_Op Verbosity_Condition::LS;
+const Verbosity_Condition_Op Verbosity_Condition::LE;
+const Verbosity_Condition_Op Verbosity_Condition::EQ;
+const Verbosity_Condition_Op Verbosity_Condition::GE;
+const Verbosity_Condition_Op Verbosity_Condition::GR;
+const Verbosity_Condition_Op Verbosity_Condition::Op_MIN;
+const Verbosity_Condition_Op Verbosity_Condition::Op_MAX;
+const int Verbosity_Condition::Op_ARRAYSIZE;
+#endif  // _MSC_VER
+#ifndef _MSC_VER
+const int Verbosity_Condition::kOperatorFieldNumber;
+const int Verbosity_Condition::kValueFieldNumber;
+#endif  // !_MSC_VER
+
+Verbosity_Condition::Verbosity_Condition()
+  : ::google::protobuf::Message() {
+  SharedCtor();
+}
+
+void Verbosity_Condition::InitAsDefaultInstance() {
+}
+
+Verbosity_Condition::Verbosity_Condition(const Verbosity_Condition& from)
+  : ::google::protobuf::Message() {
+  SharedCtor();
+  MergeFrom(from);
+}
+
+void Verbosity_Condition::SharedCtor() {
+  _cached_size_ = 0;
+  operator__ = 1;
+  value_ = 0u;
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+}
+
+Verbosity_Condition::~Verbosity_Condition() {
+  SharedDtor();
+}
+
+void Verbosity_Condition::SharedDtor() {
+  if (this != default_instance_) {
+  }
+}
+
+void Verbosity_Condition::SetCachedSize(int size) const {
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+}
+const ::google::protobuf::Descriptor* Verbosity_Condition::descriptor() {
+  protobuf_AssignDescriptorsOnce();
+  return Verbosity_Condition_descriptor_;
+}
+
+const Verbosity_Condition& Verbosity_Condition::default_instance() {
+  if (default_instance_ == NULL) protobuf_AddDesc_config_2eproto();
+  return *default_instance_;
+}
+
+Verbosity_Condition* Verbosity_Condition::default_instance_ = NULL;
+
+Verbosity_Condition* Verbosity_Condition::New() const {
+  return new Verbosity_Condition;
+}
+
+void Verbosity_Condition::Clear() {
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    operator__ = 1;
+    value_ = 0u;
+  }
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+  mutable_unknown_fields()->Clear();
+}
+
+bool Verbosity_Condition::MergePartialFromCodedStream(
+    ::google::protobuf::io::CodedInputStream* input) {
+#define DO_(EXPRESSION) if (!(EXPRESSION)) return false
+  ::google::protobuf::uint32 tag;
+  while ((tag = input->ReadTag()) != 0) {
+    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
+      // required .dist_clang.proto.Verbosity.Condition.Op operator = 1;
+      case 1: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
+          int value;
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   int, ::google::protobuf::internal::WireFormatLite::TYPE_ENUM>(
+                 input, &value)));
+          if (::dist_clang::proto::Verbosity_Condition_Op_IsValid(value)) {
+            set_operator_(static_cast< ::dist_clang::proto::Verbosity_Condition_Op >(value));
+          } else {
+            mutable_unknown_fields()->AddVarint(1, value);
+          }
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(16)) goto parse_value;
+        break;
+      }
+
+      // required uint32 value = 2;
+      case 2: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
+         parse_value:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
+                 input, &value_)));
+          set_has_value();
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectAtEnd()) return true;
+        break;
+      }
+
+      default: {
+      handle_uninterpreted:
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
+          return true;
+        }
+        DO_(::google::protobuf::internal::WireFormat::SkipField(
+              input, tag, mutable_unknown_fields()));
+        break;
+      }
+    }
+  }
+  return true;
+#undef DO_
+}
+
+void Verbosity_Condition::SerializeWithCachedSizes(
+    ::google::protobuf::io::CodedOutputStream* output) const {
+  // required .dist_clang.proto.Verbosity.Condition.Op operator = 1;
+  if (has_operator_()) {
+    ::google::protobuf::internal::WireFormatLite::WriteEnum(
+      1, this->operator_(), output);
+  }
+
+  // required uint32 value = 2;
+  if (has_value()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(2, this->value(), output);
+  }
+
+  if (!unknown_fields().empty()) {
+    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
+        unknown_fields(), output);
+  }
+}
+
+::google::protobuf::uint8* Verbosity_Condition::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
+  // required .dist_clang.proto.Verbosity.Condition.Op operator = 1;
+  if (has_operator_()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteEnumToArray(
+      1, this->operator_(), target);
+  }
+
+  // required uint32 value = 2;
+  if (has_value()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(2, this->value(), target);
+  }
+
+  if (!unknown_fields().empty()) {
+    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
+        unknown_fields(), target);
+  }
+  return target;
+}
+
+int Verbosity_Condition::ByteSize() const {
+  int total_size = 0;
+
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    // required .dist_clang.proto.Verbosity.Condition.Op operator = 1;
+    if (has_operator_()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::EnumSize(this->operator_());
+    }
+
+    // required uint32 value = 2;
+    if (has_value()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt32Size(
+          this->value());
+    }
+
+  }
+  if (!unknown_fields().empty()) {
+    total_size +=
+      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
+        unknown_fields());
+  }
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = total_size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+  return total_size;
+}
+
+void Verbosity_Condition::MergeFrom(const ::google::protobuf::Message& from) {
+  GOOGLE_CHECK_NE(&from, this);
+  const Verbosity_Condition* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const Verbosity_Condition*>(
+      &from);
+  if (source == NULL) {
+    ::google::protobuf::internal::ReflectionOps::Merge(from, this);
+  } else {
+    MergeFrom(*source);
+  }
+}
+
+void Verbosity_Condition::MergeFrom(const Verbosity_Condition& from) {
+  GOOGLE_CHECK_NE(&from, this);
+  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    if (from.has_operator_()) {
+      set_operator_(from.operator_());
+    }
+    if (from.has_value()) {
+      set_value(from.value());
+    }
+  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
+}
+
+void Verbosity_Condition::CopyFrom(const ::google::protobuf::Message& from) {
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+void Verbosity_Condition::CopyFrom(const Verbosity_Condition& from) {
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool Verbosity_Condition::IsInitialized() const {
+  if ((_has_bits_[0] & 0x00000003) != 0x00000003) return false;
+
+  return true;
+}
+
+void Verbosity_Condition::Swap(Verbosity_Condition* other) {
+  if (other != this) {
+    std::swap(operator__, other->operator__);
+    std::swap(value_, other->value_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
+}
+
+::google::protobuf::Metadata Verbosity_Condition::GetMetadata() const {
+  protobuf_AssignDescriptorsOnce();
+  ::google::protobuf::Metadata metadata;
+  metadata.descriptor = Verbosity_Condition_descriptor_;
+  metadata.reflection = Verbosity_Condition_reflection_;
+  return metadata;
+}
+
+
+// -------------------------------------------------------------------
+
+#ifndef _MSC_VER
+const int Verbosity_Conjunctor::kConditionFieldNumber;
+#endif  // !_MSC_VER
+
+Verbosity_Conjunctor::Verbosity_Conjunctor()
+  : ::google::protobuf::Message() {
+  SharedCtor();
+}
+
+void Verbosity_Conjunctor::InitAsDefaultInstance() {
+}
+
+Verbosity_Conjunctor::Verbosity_Conjunctor(const Verbosity_Conjunctor& from)
+  : ::google::protobuf::Message() {
+  SharedCtor();
+  MergeFrom(from);
+}
+
+void Verbosity_Conjunctor::SharedCtor() {
+  _cached_size_ = 0;
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+}
+
+Verbosity_Conjunctor::~Verbosity_Conjunctor() {
+  SharedDtor();
+}
+
+void Verbosity_Conjunctor::SharedDtor() {
+  if (this != default_instance_) {
+  }
+}
+
+void Verbosity_Conjunctor::SetCachedSize(int size) const {
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+}
+const ::google::protobuf::Descriptor* Verbosity_Conjunctor::descriptor() {
+  protobuf_AssignDescriptorsOnce();
+  return Verbosity_Conjunctor_descriptor_;
+}
+
+const Verbosity_Conjunctor& Verbosity_Conjunctor::default_instance() {
+  if (default_instance_ == NULL) protobuf_AddDesc_config_2eproto();
+  return *default_instance_;
+}
+
+Verbosity_Conjunctor* Verbosity_Conjunctor::default_instance_ = NULL;
+
+Verbosity_Conjunctor* Verbosity_Conjunctor::New() const {
+  return new Verbosity_Conjunctor;
+}
+
+void Verbosity_Conjunctor::Clear() {
+  condition_.Clear();
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+  mutable_unknown_fields()->Clear();
+}
+
+bool Verbosity_Conjunctor::MergePartialFromCodedStream(
+    ::google::protobuf::io::CodedInputStream* input) {
+#define DO_(EXPRESSION) if (!(EXPRESSION)) return false
+  ::google::protobuf::uint32 tag;
+  while ((tag = input->ReadTag()) != 0) {
+    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
+      // repeated .dist_clang.proto.Verbosity.Condition condition = 1;
+      case 1: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
+         parse_condition:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
+                input, add_condition()));
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(10)) goto parse_condition;
+        if (input->ExpectAtEnd()) return true;
+        break;
+      }
+
+      default: {
+      handle_uninterpreted:
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
+          return true;
+        }
+        DO_(::google::protobuf::internal::WireFormat::SkipField(
+              input, tag, mutable_unknown_fields()));
+        break;
+      }
+    }
+  }
+  return true;
+#undef DO_
+}
+
+void Verbosity_Conjunctor::SerializeWithCachedSizes(
+    ::google::protobuf::io::CodedOutputStream* output) const {
+  // repeated .dist_clang.proto.Verbosity.Condition condition = 1;
+  for (int i = 0; i < this->condition_size(); i++) {
+    ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
+      1, this->condition(i), output);
+  }
+
+  if (!unknown_fields().empty()) {
+    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
+        unknown_fields(), output);
+  }
+}
+
+::google::protobuf::uint8* Verbosity_Conjunctor::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
+  // repeated .dist_clang.proto.Verbosity.Condition condition = 1;
+  for (int i = 0; i < this->condition_size(); i++) {
+    target = ::google::protobuf::internal::WireFormatLite::
+      WriteMessageNoVirtualToArray(
+        1, this->condition(i), target);
+  }
+
+  if (!unknown_fields().empty()) {
+    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
+        unknown_fields(), target);
+  }
+  return target;
+}
+
+int Verbosity_Conjunctor::ByteSize() const {
+  int total_size = 0;
+
+  // repeated .dist_clang.proto.Verbosity.Condition condition = 1;
+  total_size += 1 * this->condition_size();
+  for (int i = 0; i < this->condition_size(); i++) {
+    total_size +=
+      ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+        this->condition(i));
+  }
+
+  if (!unknown_fields().empty()) {
+    total_size +=
+      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
+        unknown_fields());
+  }
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = total_size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+  return total_size;
+}
+
+void Verbosity_Conjunctor::MergeFrom(const ::google::protobuf::Message& from) {
+  GOOGLE_CHECK_NE(&from, this);
+  const Verbosity_Conjunctor* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const Verbosity_Conjunctor*>(
+      &from);
+  if (source == NULL) {
+    ::google::protobuf::internal::ReflectionOps::Merge(from, this);
+  } else {
+    MergeFrom(*source);
+  }
+}
+
+void Verbosity_Conjunctor::MergeFrom(const Verbosity_Conjunctor& from) {
+  GOOGLE_CHECK_NE(&from, this);
+  condition_.MergeFrom(from.condition_);
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
+}
+
+void Verbosity_Conjunctor::CopyFrom(const ::google::protobuf::Message& from) {
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+void Verbosity_Conjunctor::CopyFrom(const Verbosity_Conjunctor& from) {
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool Verbosity_Conjunctor::IsInitialized() const {
+
+  for (int i = 0; i < condition_size(); i++) {
+    if (!this->condition(i).IsInitialized()) return false;
+  }
+  return true;
+}
+
+void Verbosity_Conjunctor::Swap(Verbosity_Conjunctor* other) {
+  if (other != this) {
+    condition_.Swap(&other->condition_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
+}
+
+::google::protobuf::Metadata Verbosity_Conjunctor::GetMetadata() const {
+  protobuf_AssignDescriptorsOnce();
+  ::google::protobuf::Metadata metadata;
+  metadata.descriptor = Verbosity_Conjunctor_descriptor_;
+  metadata.reflection = Verbosity_Conjunctor_reflection_;
+  return metadata;
+}
+
+
+// -------------------------------------------------------------------
+
+#ifndef _MSC_VER
+const int Verbosity::kErrorMarkFieldNumber;
+const int Verbosity::kLevelsFieldNumber;
+#endif  // !_MSC_VER
+
+Verbosity::Verbosity()
+  : ::google::protobuf::Message() {
+  SharedCtor();
+}
+
+void Verbosity::InitAsDefaultInstance() {
+}
+
+Verbosity::Verbosity(const Verbosity& from)
+  : ::google::protobuf::Message() {
+  SharedCtor();
+  MergeFrom(from);
+}
+
+void Verbosity::SharedCtor() {
+  _cached_size_ = 0;
+  error_mark_ = 3u;
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+}
+
+Verbosity::~Verbosity() {
+  SharedDtor();
+}
+
+void Verbosity::SharedDtor() {
+  if (this != default_instance_) {
+  }
+}
+
+void Verbosity::SetCachedSize(int size) const {
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+}
+const ::google::protobuf::Descriptor* Verbosity::descriptor() {
+  protobuf_AssignDescriptorsOnce();
+  return Verbosity_descriptor_;
+}
+
+const Verbosity& Verbosity::default_instance() {
+  if (default_instance_ == NULL) protobuf_AddDesc_config_2eproto();
+  return *default_instance_;
+}
+
+Verbosity* Verbosity::default_instance_ = NULL;
+
+Verbosity* Verbosity::New() const {
+  return new Verbosity;
+}
+
+void Verbosity::Clear() {
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    error_mark_ = 3u;
+  }
+  levels_.Clear();
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+  mutable_unknown_fields()->Clear();
+}
+
+bool Verbosity::MergePartialFromCodedStream(
+    ::google::protobuf::io::CodedInputStream* input) {
+#define DO_(EXPRESSION) if (!(EXPRESSION)) return false
+  ::google::protobuf::uint32 tag;
+  while ((tag = input->ReadTag()) != 0) {
+    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
+      // optional uint32 error_mark = 1 [default = 3];
+      case 1: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
+                 input, &error_mark_)));
+          set_has_error_mark();
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(18)) goto parse_levels;
+        break;
+      }
+
+      // repeated .dist_clang.proto.Verbosity.Conjunctor levels = 2;
+      case 2: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
+         parse_levels:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
+                input, add_levels()));
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(18)) goto parse_levels;
+        if (input->ExpectAtEnd()) return true;
+        break;
+      }
+
+      default: {
+      handle_uninterpreted:
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
+          return true;
+        }
+        DO_(::google::protobuf::internal::WireFormat::SkipField(
+              input, tag, mutable_unknown_fields()));
+        break;
+      }
+    }
+  }
+  return true;
+#undef DO_
+}
+
+void Verbosity::SerializeWithCachedSizes(
+    ::google::protobuf::io::CodedOutputStream* output) const {
+  // optional uint32 error_mark = 1 [default = 3];
+  if (has_error_mark()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(1, this->error_mark(), output);
+  }
+
+  // repeated .dist_clang.proto.Verbosity.Conjunctor levels = 2;
+  for (int i = 0; i < this->levels_size(); i++) {
+    ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
+      2, this->levels(i), output);
+  }
+
+  if (!unknown_fields().empty()) {
+    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
+        unknown_fields(), output);
+  }
+}
+
+::google::protobuf::uint8* Verbosity::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
+  // optional uint32 error_mark = 1 [default = 3];
+  if (has_error_mark()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(1, this->error_mark(), target);
+  }
+
+  // repeated .dist_clang.proto.Verbosity.Conjunctor levels = 2;
+  for (int i = 0; i < this->levels_size(); i++) {
+    target = ::google::protobuf::internal::WireFormatLite::
+      WriteMessageNoVirtualToArray(
+        2, this->levels(i), target);
+  }
+
+  if (!unknown_fields().empty()) {
+    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
+        unknown_fields(), target);
+  }
+  return target;
+}
+
+int Verbosity::ByteSize() const {
+  int total_size = 0;
+
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    // optional uint32 error_mark = 1 [default = 3];
+    if (has_error_mark()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt32Size(
+          this->error_mark());
+    }
+
+  }
+  // repeated .dist_clang.proto.Verbosity.Conjunctor levels = 2;
+  total_size += 1 * this->levels_size();
+  for (int i = 0; i < this->levels_size(); i++) {
+    total_size +=
+      ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+        this->levels(i));
+  }
+
+  if (!unknown_fields().empty()) {
+    total_size +=
+      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
+        unknown_fields());
+  }
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = total_size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+  return total_size;
+}
+
+void Verbosity::MergeFrom(const ::google::protobuf::Message& from) {
+  GOOGLE_CHECK_NE(&from, this);
+  const Verbosity* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const Verbosity*>(
+      &from);
+  if (source == NULL) {
+    ::google::protobuf::internal::ReflectionOps::Merge(from, this);
+  } else {
+    MergeFrom(*source);
+  }
+}
+
+void Verbosity::MergeFrom(const Verbosity& from) {
+  GOOGLE_CHECK_NE(&from, this);
+  levels_.MergeFrom(from.levels_);
+  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    if (from.has_error_mark()) {
+      set_error_mark(from.error_mark());
+    }
+  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
+}
+
+void Verbosity::CopyFrom(const ::google::protobuf::Message& from) {
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+void Verbosity::CopyFrom(const Verbosity& from) {
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool Verbosity::IsInitialized() const {
+
+  for (int i = 0; i < levels_size(); i++) {
+    if (!this->levels(i).IsInitialized()) return false;
+  }
+  return true;
+}
+
+void Verbosity::Swap(Verbosity* other) {
+  if (other != this) {
+    std::swap(error_mark_, other->error_mark_);
+    levels_.Swap(&other->levels_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
+}
+
+::google::protobuf::Metadata Verbosity::GetMetadata() const {
+  protobuf_AssignDescriptorsOnce();
+  ::google::protobuf::Metadata metadata;
+  metadata.descriptor = Verbosity_descriptor_;
+  metadata.reflection = Verbosity_reflection_;
+  return metadata;
+}
+
+
+// ===================================================================
+
 #ifndef _MSC_VER
 const int Configuration::kSocketPathFieldNumber;
 const int Configuration::kPoolCapacityFieldNumber;
@@ -491,6 +1316,7 @@ const int Configuration::kRemotesFieldNumber;
 const int Configuration::kLocalFieldNumber;
 const int Configuration::kVersionsFieldNumber;
 const int Configuration::kStatisticFieldNumber;
+const int Configuration::kVerbosityFieldNumber;
 #endif  // !_MSC_VER
 
 Configuration::Configuration()
@@ -501,6 +1327,7 @@ Configuration::Configuration()
 void Configuration::InitAsDefaultInstance() {
   local_ = const_cast< ::dist_clang::proto::Host*>(&::dist_clang::proto::Host::default_instance());
   statistic_ = const_cast< ::dist_clang::proto::Host*>(&::dist_clang::proto::Host::default_instance());
+  verbosity_ = const_cast< ::dist_clang::proto::Verbosity*>(&::dist_clang::proto::Verbosity::default_instance());
 }
 
 Configuration::Configuration(const Configuration& from)
@@ -516,6 +1343,7 @@ void Configuration::SharedCtor() {
   cache_path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   local_ = NULL;
   statistic_ = NULL;
+  verbosity_ = NULL;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -533,6 +1361,7 @@ void Configuration::SharedDtor() {
   if (this != default_instance_) {
     delete local_;
     delete statistic_;
+    delete verbosity_;
   }
 }
 
@@ -575,6 +1404,9 @@ void Configuration::Clear() {
     }
     if (has_statistic()) {
       if (statistic_ != NULL) statistic_->::dist_clang::proto::Host::Clear();
+    }
+    if (has_verbosity()) {
+      if (verbosity_ != NULL) verbosity_->::dist_clang::proto::Verbosity::Clear();
     }
   }
   remotes_.Clear();
@@ -692,6 +1524,20 @@ bool Configuration::MergePartialFromCodedStream(
         } else {
           goto handle_uninterpreted;
         }
+        if (input->ExpectTag(66)) goto parse_verbosity;
+        break;
+      }
+
+      // optional .dist_clang.proto.Verbosity verbosity = 8;
+      case 8: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
+         parse_verbosity:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
+               input, mutable_verbosity()));
+        } else {
+          goto handle_uninterpreted;
+        }
         if (input->ExpectAtEnd()) return true;
         break;
       }
@@ -761,6 +1607,12 @@ void Configuration::SerializeWithCachedSizes(
       7, this->statistic(), output);
   }
 
+  // optional .dist_clang.proto.Verbosity verbosity = 8;
+  if (has_verbosity()) {
+    ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
+      8, this->verbosity(), output);
+  }
+
   if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
@@ -822,6 +1674,13 @@ void Configuration::SerializeWithCachedSizes(
         7, this->statistic(), target);
   }
 
+  // optional .dist_clang.proto.Verbosity verbosity = 8;
+  if (has_verbosity()) {
+    target = ::google::protobuf::internal::WireFormatLite::
+      WriteMessageNoVirtualToArray(
+        8, this->verbosity(), target);
+  }
+
   if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
@@ -866,6 +1725,13 @@ int Configuration::ByteSize() const {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
           this->statistic());
+    }
+
+    // optional .dist_clang.proto.Verbosity verbosity = 8;
+    if (has_verbosity()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+          this->verbosity());
     }
 
   }
@@ -928,6 +1794,9 @@ void Configuration::MergeFrom(const Configuration& from) {
     if (from.has_statistic()) {
       mutable_statistic()->::dist_clang::proto::Host::MergeFrom(from.statistic());
     }
+    if (from.has_verbosity()) {
+      mutable_verbosity()->::dist_clang::proto::Verbosity::MergeFrom(from.verbosity());
+    }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
@@ -958,6 +1827,9 @@ bool Configuration::IsInitialized() const {
   if (has_statistic()) {
     if (!this->statistic().IsInitialized()) return false;
   }
+  if (has_verbosity()) {
+    if (!this->verbosity().IsInitialized()) return false;
+  }
   return true;
 }
 
@@ -970,6 +1842,7 @@ void Configuration::Swap(Configuration* other) {
     std::swap(local_, other->local_);
     versions_.Swap(&other->versions_);
     std::swap(statistic_, other->statistic_);
+    std::swap(verbosity_, other->verbosity_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);

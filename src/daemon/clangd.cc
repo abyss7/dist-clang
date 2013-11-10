@@ -1,10 +1,13 @@
+#include "base/logging.h"
 #include "daemon/configuration.h"
 #include "daemon/daemon.h"
 #include "net/network_service.h"
 
-#include <iostream>  // FIXME: remove when logging will be implemented.
+#include <iostream>
 
 #include <signal.h>
+
+#include "base/using_log.h"
 
 using namespace dist_clang;
 
@@ -15,7 +18,7 @@ int main(int argc, char* argv[]) {
   daemon::Daemon daemon;
 
   if (!daemon.Initialize(configuration)) {
-    std::cerr << "Daemon failed to initialize." << std::endl;
+    LOG(FATAL) << "Daemon failed to initialize.";
     return 1;
   }
 

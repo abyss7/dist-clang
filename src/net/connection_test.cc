@@ -12,15 +12,17 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
+#include "base/using_log.h"
+
 namespace dist_clang {
 namespace net {
 
 class TestMessage {
   public:
     TestMessage()
-      : expected_field1_("arg" + base::IntToString(number_++)),
-        expected_field2_("arg" + base::IntToString(number_++)),
-        expected_field3_("arg" + base::IntToString(number_++)) {
+      : expected_field1_("arg" + std::to_string(number_++)),
+        expected_field2_("arg" + std::to_string(number_++)),
+        expected_field3_("arg" + std::to_string(number_++)) {
       message_.reset(new Connection::Message);
       auto message = message_->MutableExtension(proto::Test::extension);
       message->set_field1(expected_field1_);
@@ -98,7 +100,7 @@ class TestServer: public EventLoop {
 
       int fd = socket(AF_UNIX, SOCK_STREAM|SOCK_CLOEXEC, 0);
       if (-1 == fd) {
-        std::cerr << strerror(errno) << std::endl;
+        LOG(ERROR) << strerror(errno) << std::endl;
         return ConnectionPtr();
       }
 
@@ -106,13 +108,13 @@ class TestServer: public EventLoop {
 
       if (connect(fd, reinterpret_cast<sockaddr*>(&address),
                   sizeof(address)) == -1 && errno != EINPROGRESS) {
-        std::cerr << strerror(errno) << std::endl;
+        LOG(ERROR) << strerror(errno) << std::endl;
         return ConnectionPtr();
       }
 
       server_fd_ = accept(listen_fd_, nullptr, nullptr);
       if (server_fd_ == -1) {
-        std::cerr << strerror(errno) << std::endl;
+        LOG(ERROR) << strerror(errno) << std::endl;
         return ConnectionPtr();
       }
 
@@ -125,17 +127,17 @@ class TestServer: public EventLoop {
 
     bool WriteAtOnce(const std::string& data) {
       if (data.size() > 127) {
-        std::cerr << "Use messages with size less then 127" << std::endl;
+        LOG(ERROR) << "Use messages with size less then 127" << std::endl;
         return false;
       }
       unsigned char size = data.size();
       if (send(server_fd_, &size, 1, 0) != 1) {
-        std::cerr << strerror(errno) << std::endl;
+        LOG(ERROR) << strerror(errno) << std::endl;
         return false;
       }
       if (send(server_fd_, data.data(), data.size(), 0) !=
           static_cast<int>(data.size())) {
-        std::cerr << strerror(errno) << std::endl;
+        LOG(ERROR) << strerror(errno) << std::endl;
         return false;
       }
 
@@ -144,17 +146,17 @@ class TestServer: public EventLoop {
 
     bool WriteByParts(const std::string& data) {
       if (data.size() > 127) {
-        std::cerr << "Use messages with size less then 127" << std::endl;
+        LOG(ERROR) << "Use messages with size less then 127" << std::endl;
         return false;
       }
       unsigned char size = data.size();
       if (send(server_fd_, &size, 1, 0) != 1) {
-        std::cerr << strerror(errno) << std::endl;
+        LOG(ERROR) << strerror(errno) << std::endl;
         return false;
       }
       for (size_t i = 0; i < size; ++i) {
         if (send(server_fd_, data.data() + i, 1, 0) != 1) {
-          std::cerr << strerror(errno) << std::endl;
+          LOG(ERROR) << strerror(errno) << std::endl;
           return false;
         }
       }
@@ -165,17 +167,17 @@ class TestServer: public EventLoop {
     bool WriteIncomplete(const std::string& data, size_t size) {
       DCHECK(size < data.size());
       if (data.size() > 127) {
-        std::cerr << "Use messages with size less then 127" << std::endl;
+        LOG(ERROR) << "Use messages with size less then 127" << std::endl;
         return false;
       }
 
       unsigned char data_size = data.size();
       if (send(server_fd_, &data_size, 1, 0) != 1) {
-        std::cerr << strerror(errno) << std::endl;
+        LOG(ERROR) << strerror(errno) << std::endl;
         return false;
       }
       if (send(server_fd_, data.data(), size, 0) != static_cast<int>(size)) {
-        std::cerr << strerror(errno) << std::endl;
+        LOG(ERROR) << strerror(errno) << std::endl;
         return false;
       }
 
@@ -185,12 +187,12 @@ class TestServer: public EventLoop {
     bool ReadAtOnce(std::string& data) {
       unsigned char size = 0;
       if (recv(server_fd_, &size, 1, 0) != 1) {
-        std::cerr << strerror(errno) << std::endl;
+        LOG(ERROR) << strerror(errno) << std::endl;
         return false;
       }
       char buf[128];
       if (recv(server_fd_, buf, size, 0) != size) {
-        std::cerr << strerror(errno) << std::endl;
+        LOG(ERROR) << strerror(errno) << std::endl;
         return false;
       }
       data.assign(std::string(buf, size));
