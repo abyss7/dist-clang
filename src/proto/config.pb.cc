@@ -27,13 +27,9 @@ const ::google::protobuf::internal::GeneratedMessageReflection*
 const ::google::protobuf::Descriptor* Verbosity_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   Verbosity_reflection_ = NULL;
-const ::google::protobuf::Descriptor* Verbosity_Condition_descriptor_ = NULL;
+const ::google::protobuf::Descriptor* Verbosity_Range_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
-  Verbosity_Condition_reflection_ = NULL;
-const ::google::protobuf::EnumDescriptor* Verbosity_Condition_Op_descriptor_ = NULL;
-const ::google::protobuf::Descriptor* Verbosity_Conjunctor_descriptor_ = NULL;
-const ::google::protobuf::internal::GeneratedMessageReflection*
-  Verbosity_Conjunctor_reflection_ = NULL;
+  Verbosity_Range_reflection_ = NULL;
 const ::google::protobuf::Descriptor* Configuration_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   Configuration_reflection_ = NULL;
@@ -81,38 +77,22 @@ void protobuf_AssignDesc_config_2eproto() {
       ::google::protobuf::DescriptorPool::generated_pool(),
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(Verbosity));
-  Verbosity_Condition_descriptor_ = Verbosity_descriptor_->nested_type(0);
-  static const int Verbosity_Condition_offsets_[2] = {
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Verbosity_Condition, operator__),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Verbosity_Condition, value_),
+  Verbosity_Range_descriptor_ = Verbosity_descriptor_->nested_type(0);
+  static const int Verbosity_Range_offsets_[2] = {
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Verbosity_Range, right_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Verbosity_Range, left_),
   };
-  Verbosity_Condition_reflection_ =
+  Verbosity_Range_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
-      Verbosity_Condition_descriptor_,
-      Verbosity_Condition::default_instance_,
-      Verbosity_Condition_offsets_,
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Verbosity_Condition, _has_bits_[0]),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Verbosity_Condition, _unknown_fields_),
+      Verbosity_Range_descriptor_,
+      Verbosity_Range::default_instance_,
+      Verbosity_Range_offsets_,
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Verbosity_Range, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Verbosity_Range, _unknown_fields_),
       -1,
       ::google::protobuf::DescriptorPool::generated_pool(),
       ::google::protobuf::MessageFactory::generated_factory(),
-      sizeof(Verbosity_Condition));
-  Verbosity_Condition_Op_descriptor_ = Verbosity_Condition_descriptor_->enum_type(0);
-  Verbosity_Conjunctor_descriptor_ = Verbosity_descriptor_->nested_type(1);
-  static const int Verbosity_Conjunctor_offsets_[1] = {
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Verbosity_Conjunctor, condition_),
-  };
-  Verbosity_Conjunctor_reflection_ =
-    new ::google::protobuf::internal::GeneratedMessageReflection(
-      Verbosity_Conjunctor_descriptor_,
-      Verbosity_Conjunctor::default_instance_,
-      Verbosity_Conjunctor_offsets_,
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Verbosity_Conjunctor, _has_bits_[0]),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Verbosity_Conjunctor, _unknown_fields_),
-      -1,
-      ::google::protobuf::DescriptorPool::generated_pool(),
-      ::google::protobuf::MessageFactory::generated_factory(),
-      sizeof(Verbosity_Conjunctor));
+      sizeof(Verbosity_Range));
   Configuration_descriptor_ = file->message_type(2);
   static const int Configuration_offsets_[8] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, socket_path_),
@@ -152,9 +132,7 @@ void protobuf_RegisterTypes(const ::std::string&) {
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
     Verbosity_descriptor_, &Verbosity::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-    Verbosity_Condition_descriptor_, &Verbosity_Condition::default_instance());
-  ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-    Verbosity_Conjunctor_descriptor_, &Verbosity_Conjunctor::default_instance());
+    Verbosity_Range_descriptor_, &Verbosity_Range::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
     Configuration_descriptor_, &Configuration::default_instance());
 }
@@ -166,10 +144,8 @@ void protobuf_ShutdownFile_config_2eproto() {
   delete Host_reflection_;
   delete Verbosity::default_instance_;
   delete Verbosity_reflection_;
-  delete Verbosity_Condition::default_instance_;
-  delete Verbosity_Condition_reflection_;
-  delete Verbosity_Conjunctor::default_instance_;
-  delete Verbosity_Conjunctor_reflection_;
+  delete Verbosity_Range::default_instance_;
+  delete Verbosity_Range_reflection_;
   delete Configuration::default_instance_;
   delete Configuration_reflection_;
 }
@@ -185,33 +161,26 @@ void protobuf_AddDesc_config_2eproto() {
     "\n\014config.proto\022\020dist_clang.proto\032\nbase.p"
     "roto\"U\n\004Host\022\014\n\004host\030\001 \002(\t\022\022\n\004port\030\002 \001(\r"
     ":\0046000\022\022\n\007threads\030\003 \001(\r:\0012\022\027\n\010disabled\030\004"
-    " \001(\010:\005false\"\251\002\n\tVerbosity\022\025\n\nerror_mark\030"
-    "\001 \001(\r:\0013\0226\n\006levels\030\002 \003(\0132&.dist_clang.pr"
-    "oto.Verbosity.Conjunctor\032\204\001\n\tCondition\022:"
-    "\n\010operator\030\001 \002(\0162(.dist_clang.proto.Verb"
-    "osity.Condition.Op\022\r\n\005value\030\002 \002(\r\",\n\002Op\022"
-    "\006\n\002LS\020\001\022\006\n\002LE\020\002\022\006\n\002EQ\020\003\022\006\n\002GE\020\004\022\006\n\002GR\020\005\032"
-    "F\n\nConjunctor\0228\n\tcondition\030\001 \003(\0132%.dist_"
-    "clang.proto.Verbosity.Condition\"\254\002\n\rConf"
-    "iguration\022\023\n\013socket_path\030\001 \001(\t\022\031\n\rpool_c"
-    "apacity\030\002 \001(\r:\00216\022\022\n\ncache_path\030\003 \001(\t\022\'\n"
-    "\007remotes\030\004 \003(\0132\026.dist_clang.proto.Host\022%"
-    "\n\005local\030\005 \001(\0132\026.dist_clang.proto.Host\022,\n"
-    "\010versions\030\006 \003(\0132\032.dist_clang.proto.Compi"
-    "ler\022)\n\tstatistic\030\007 \001(\0132\026.dist_clang.prot"
-    "o.Host\022.\n\tverbosity\030\010 \001(\0132\033.dist_clang.p"
-    "roto.Verbosity", 734);
+    " \001(\010:\005false\"|\n\tVerbosity\022\026\n\nerror_mark\030\001"
+    " \001(\r:\00220\0221\n\006levels\030\002 \003(\0132!.dist_clang.pr"
+    "oto.Verbosity.Range\032$\n\005Range\022\r\n\005right\030\001 "
+    "\002(\r\022\014\n\004left\030\002 \001(\r\"\254\002\n\rConfiguration\022\023\n\013s"
+    "ocket_path\030\001 \001(\t\022\031\n\rpool_capacity\030\002 \001(\r:"
+    "\00216\022\022\n\ncache_path\030\003 \001(\t\022\'\n\007remotes\030\004 \003(\013"
+    "2\026.dist_clang.proto.Host\022%\n\005local\030\005 \001(\0132"
+    "\026.dist_clang.proto.Host\022,\n\010versions\030\006 \003("
+    "\0132\032.dist_clang.proto.Compiler\022)\n\tstatist"
+    "ic\030\007 \001(\0132\026.dist_clang.proto.Host\022.\n\tverb"
+    "osity\030\010 \001(\0132\033.dist_clang.proto.Verbosity", 560);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "config.proto", &protobuf_RegisterTypes);
   Host::default_instance_ = new Host();
   Verbosity::default_instance_ = new Verbosity();
-  Verbosity_Condition::default_instance_ = new Verbosity_Condition();
-  Verbosity_Conjunctor::default_instance_ = new Verbosity_Conjunctor();
+  Verbosity_Range::default_instance_ = new Verbosity_Range();
   Configuration::default_instance_ = new Configuration();
   Host::default_instance_->InitAsDefaultInstance();
   Verbosity::default_instance_->InitAsDefaultInstance();
-  Verbosity_Condition::default_instance_->InitAsDefaultInstance();
-  Verbosity_Conjunctor::default_instance_->InitAsDefaultInstance();
+  Verbosity_Range::default_instance_->InitAsDefaultInstance();
   Configuration::default_instance_->InitAsDefaultInstance();
   ::google::protobuf::internal::OnShutdown(&protobuf_ShutdownFile_config_2eproto);
 }
@@ -569,133 +538,101 @@ void Host::Swap(Host* other) {
 
 // ===================================================================
 
-const ::google::protobuf::EnumDescriptor* Verbosity_Condition_Op_descriptor() {
-  protobuf_AssignDescriptorsOnce();
-  return Verbosity_Condition_Op_descriptor_;
-}
-bool Verbosity_Condition_Op_IsValid(int value) {
-  switch(value) {
-    case 1:
-    case 2:
-    case 3:
-    case 4:
-    case 5:
-      return true;
-    default:
-      return false;
-  }
-}
-
 #ifndef _MSC_VER
-const Verbosity_Condition_Op Verbosity_Condition::LS;
-const Verbosity_Condition_Op Verbosity_Condition::LE;
-const Verbosity_Condition_Op Verbosity_Condition::EQ;
-const Verbosity_Condition_Op Verbosity_Condition::GE;
-const Verbosity_Condition_Op Verbosity_Condition::GR;
-const Verbosity_Condition_Op Verbosity_Condition::Op_MIN;
-const Verbosity_Condition_Op Verbosity_Condition::Op_MAX;
-const int Verbosity_Condition::Op_ARRAYSIZE;
-#endif  // _MSC_VER
-#ifndef _MSC_VER
-const int Verbosity_Condition::kOperatorFieldNumber;
-const int Verbosity_Condition::kValueFieldNumber;
+const int Verbosity_Range::kRightFieldNumber;
+const int Verbosity_Range::kLeftFieldNumber;
 #endif  // !_MSC_VER
 
-Verbosity_Condition::Verbosity_Condition()
+Verbosity_Range::Verbosity_Range()
   : ::google::protobuf::Message() {
   SharedCtor();
 }
 
-void Verbosity_Condition::InitAsDefaultInstance() {
+void Verbosity_Range::InitAsDefaultInstance() {
 }
 
-Verbosity_Condition::Verbosity_Condition(const Verbosity_Condition& from)
+Verbosity_Range::Verbosity_Range(const Verbosity_Range& from)
   : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
 }
 
-void Verbosity_Condition::SharedCtor() {
+void Verbosity_Range::SharedCtor() {
   _cached_size_ = 0;
-  operator__ = 1;
-  value_ = 0u;
+  right_ = 0u;
+  left_ = 0u;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
-Verbosity_Condition::~Verbosity_Condition() {
+Verbosity_Range::~Verbosity_Range() {
   SharedDtor();
 }
 
-void Verbosity_Condition::SharedDtor() {
+void Verbosity_Range::SharedDtor() {
   if (this != default_instance_) {
   }
 }
 
-void Verbosity_Condition::SetCachedSize(int size) const {
+void Verbosity_Range::SetCachedSize(int size) const {
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
   _cached_size_ = size;
   GOOGLE_SAFE_CONCURRENT_WRITES_END();
 }
-const ::google::protobuf::Descriptor* Verbosity_Condition::descriptor() {
+const ::google::protobuf::Descriptor* Verbosity_Range::descriptor() {
   protobuf_AssignDescriptorsOnce();
-  return Verbosity_Condition_descriptor_;
+  return Verbosity_Range_descriptor_;
 }
 
-const Verbosity_Condition& Verbosity_Condition::default_instance() {
+const Verbosity_Range& Verbosity_Range::default_instance() {
   if (default_instance_ == NULL) protobuf_AddDesc_config_2eproto();
   return *default_instance_;
 }
 
-Verbosity_Condition* Verbosity_Condition::default_instance_ = NULL;
+Verbosity_Range* Verbosity_Range::default_instance_ = NULL;
 
-Verbosity_Condition* Verbosity_Condition::New() const {
-  return new Verbosity_Condition;
+Verbosity_Range* Verbosity_Range::New() const {
+  return new Verbosity_Range;
 }
 
-void Verbosity_Condition::Clear() {
+void Verbosity_Range::Clear() {
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    operator__ = 1;
-    value_ = 0u;
+    right_ = 0u;
+    left_ = 0u;
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   mutable_unknown_fields()->Clear();
 }
 
-bool Verbosity_Condition::MergePartialFromCodedStream(
+bool Verbosity_Range::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
 #define DO_(EXPRESSION) if (!(EXPRESSION)) return false
   ::google::protobuf::uint32 tag;
   while ((tag = input->ReadTag()) != 0) {
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // required .dist_clang.proto.Verbosity.Condition.Op operator = 1;
+      // required uint32 right = 1;
       case 1: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
-          int value;
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   int, ::google::protobuf::internal::WireFormatLite::TYPE_ENUM>(
-                 input, &value)));
-          if (::dist_clang::proto::Verbosity_Condition_Op_IsValid(value)) {
-            set_operator_(static_cast< ::dist_clang::proto::Verbosity_Condition_Op >(value));
-          } else {
-            mutable_unknown_fields()->AddVarint(1, value);
-          }
+                   ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
+                 input, &right_)));
+          set_has_right();
         } else {
           goto handle_uninterpreted;
         }
-        if (input->ExpectTag(16)) goto parse_value;
+        if (input->ExpectTag(16)) goto parse_left;
         break;
       }
 
-      // required uint32 value = 2;
+      // optional uint32 left = 2;
       case 2: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
-         parse_value:
+         parse_left:
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
-                 input, &value_)));
-          set_has_value();
+                 input, &left_)));
+          set_has_left();
         } else {
           goto handle_uninterpreted;
         }
@@ -719,17 +656,16 @@ bool Verbosity_Condition::MergePartialFromCodedStream(
 #undef DO_
 }
 
-void Verbosity_Condition::SerializeWithCachedSizes(
+void Verbosity_Range::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // required .dist_clang.proto.Verbosity.Condition.Op operator = 1;
-  if (has_operator_()) {
-    ::google::protobuf::internal::WireFormatLite::WriteEnum(
-      1, this->operator_(), output);
+  // required uint32 right = 1;
+  if (has_right()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(1, this->right(), output);
   }
 
-  // required uint32 value = 2;
-  if (has_value()) {
-    ::google::protobuf::internal::WireFormatLite::WriteUInt32(2, this->value(), output);
+  // optional uint32 left = 2;
+  if (has_left()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(2, this->left(), output);
   }
 
   if (!unknown_fields().empty()) {
@@ -738,17 +674,16 @@ void Verbosity_Condition::SerializeWithCachedSizes(
   }
 }
 
-::google::protobuf::uint8* Verbosity_Condition::SerializeWithCachedSizesToArray(
+::google::protobuf::uint8* Verbosity_Range::SerializeWithCachedSizesToArray(
     ::google::protobuf::uint8* target) const {
-  // required .dist_clang.proto.Verbosity.Condition.Op operator = 1;
-  if (has_operator_()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteEnumToArray(
-      1, this->operator_(), target);
+  // required uint32 right = 1;
+  if (has_right()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(1, this->right(), target);
   }
 
-  // required uint32 value = 2;
-  if (has_value()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(2, this->value(), target);
+  // optional uint32 left = 2;
+  if (has_left()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(2, this->left(), target);
   }
 
   if (!unknown_fields().empty()) {
@@ -758,21 +693,22 @@ void Verbosity_Condition::SerializeWithCachedSizes(
   return target;
 }
 
-int Verbosity_Condition::ByteSize() const {
+int Verbosity_Range::ByteSize() const {
   int total_size = 0;
 
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    // required .dist_clang.proto.Verbosity.Condition.Op operator = 1;
-    if (has_operator_()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::EnumSize(this->operator_());
-    }
-
-    // required uint32 value = 2;
-    if (has_value()) {
+    // required uint32 right = 1;
+    if (has_right()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::UInt32Size(
-          this->value());
+          this->right());
+    }
+
+    // optional uint32 left = 2;
+    if (has_left()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt32Size(
+          this->left());
     }
 
   }
@@ -787,10 +723,10 @@ int Verbosity_Condition::ByteSize() const {
   return total_size;
 }
 
-void Verbosity_Condition::MergeFrom(const ::google::protobuf::Message& from) {
+void Verbosity_Range::MergeFrom(const ::google::protobuf::Message& from) {
   GOOGLE_CHECK_NE(&from, this);
-  const Verbosity_Condition* source =
-    ::google::protobuf::internal::dynamic_cast_if_available<const Verbosity_Condition*>(
+  const Verbosity_Range* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const Verbosity_Range*>(
       &from);
   if (source == NULL) {
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
@@ -799,258 +735,52 @@ void Verbosity_Condition::MergeFrom(const ::google::protobuf::Message& from) {
   }
 }
 
-void Verbosity_Condition::MergeFrom(const Verbosity_Condition& from) {
+void Verbosity_Range::MergeFrom(const Verbosity_Range& from) {
   GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (from.has_operator_()) {
-      set_operator_(from.operator_());
+    if (from.has_right()) {
+      set_right(from.right());
     }
-    if (from.has_value()) {
-      set_value(from.value());
+    if (from.has_left()) {
+      set_left(from.left());
     }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
-void Verbosity_Condition::CopyFrom(const ::google::protobuf::Message& from) {
+void Verbosity_Range::CopyFrom(const ::google::protobuf::Message& from) {
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
-void Verbosity_Condition::CopyFrom(const Verbosity_Condition& from) {
+void Verbosity_Range::CopyFrom(const Verbosity_Range& from) {
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
-bool Verbosity_Condition::IsInitialized() const {
-  if ((_has_bits_[0] & 0x00000003) != 0x00000003) return false;
+bool Verbosity_Range::IsInitialized() const {
+  if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
 
   return true;
 }
 
-void Verbosity_Condition::Swap(Verbosity_Condition* other) {
+void Verbosity_Range::Swap(Verbosity_Range* other) {
   if (other != this) {
-    std::swap(operator__, other->operator__);
-    std::swap(value_, other->value_);
+    std::swap(right_, other->right_);
+    std::swap(left_, other->left_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);
   }
 }
 
-::google::protobuf::Metadata Verbosity_Condition::GetMetadata() const {
+::google::protobuf::Metadata Verbosity_Range::GetMetadata() const {
   protobuf_AssignDescriptorsOnce();
   ::google::protobuf::Metadata metadata;
-  metadata.descriptor = Verbosity_Condition_descriptor_;
-  metadata.reflection = Verbosity_Condition_reflection_;
-  return metadata;
-}
-
-
-// -------------------------------------------------------------------
-
-#ifndef _MSC_VER
-const int Verbosity_Conjunctor::kConditionFieldNumber;
-#endif  // !_MSC_VER
-
-Verbosity_Conjunctor::Verbosity_Conjunctor()
-  : ::google::protobuf::Message() {
-  SharedCtor();
-}
-
-void Verbosity_Conjunctor::InitAsDefaultInstance() {
-}
-
-Verbosity_Conjunctor::Verbosity_Conjunctor(const Verbosity_Conjunctor& from)
-  : ::google::protobuf::Message() {
-  SharedCtor();
-  MergeFrom(from);
-}
-
-void Verbosity_Conjunctor::SharedCtor() {
-  _cached_size_ = 0;
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
-}
-
-Verbosity_Conjunctor::~Verbosity_Conjunctor() {
-  SharedDtor();
-}
-
-void Verbosity_Conjunctor::SharedDtor() {
-  if (this != default_instance_) {
-  }
-}
-
-void Verbosity_Conjunctor::SetCachedSize(int size) const {
-  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
-  _cached_size_ = size;
-  GOOGLE_SAFE_CONCURRENT_WRITES_END();
-}
-const ::google::protobuf::Descriptor* Verbosity_Conjunctor::descriptor() {
-  protobuf_AssignDescriptorsOnce();
-  return Verbosity_Conjunctor_descriptor_;
-}
-
-const Verbosity_Conjunctor& Verbosity_Conjunctor::default_instance() {
-  if (default_instance_ == NULL) protobuf_AddDesc_config_2eproto();
-  return *default_instance_;
-}
-
-Verbosity_Conjunctor* Verbosity_Conjunctor::default_instance_ = NULL;
-
-Verbosity_Conjunctor* Verbosity_Conjunctor::New() const {
-  return new Verbosity_Conjunctor;
-}
-
-void Verbosity_Conjunctor::Clear() {
-  condition_.Clear();
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  mutable_unknown_fields()->Clear();
-}
-
-bool Verbosity_Conjunctor::MergePartialFromCodedStream(
-    ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!(EXPRESSION)) return false
-  ::google::protobuf::uint32 tag;
-  while ((tag = input->ReadTag()) != 0) {
-    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // repeated .dist_clang.proto.Verbosity.Condition condition = 1;
-      case 1: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
-         parse_condition:
-          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
-                input, add_condition()));
-        } else {
-          goto handle_uninterpreted;
-        }
-        if (input->ExpectTag(10)) goto parse_condition;
-        if (input->ExpectAtEnd()) return true;
-        break;
-      }
-
-      default: {
-      handle_uninterpreted:
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
-          return true;
-        }
-        DO_(::google::protobuf::internal::WireFormat::SkipField(
-              input, tag, mutable_unknown_fields()));
-        break;
-      }
-    }
-  }
-  return true;
-#undef DO_
-}
-
-void Verbosity_Conjunctor::SerializeWithCachedSizes(
-    ::google::protobuf::io::CodedOutputStream* output) const {
-  // repeated .dist_clang.proto.Verbosity.Condition condition = 1;
-  for (int i = 0; i < this->condition_size(); i++) {
-    ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      1, this->condition(i), output);
-  }
-
-  if (!unknown_fields().empty()) {
-    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
-        unknown_fields(), output);
-  }
-}
-
-::google::protobuf::uint8* Verbosity_Conjunctor::SerializeWithCachedSizesToArray(
-    ::google::protobuf::uint8* target) const {
-  // repeated .dist_clang.proto.Verbosity.Condition condition = 1;
-  for (int i = 0; i < this->condition_size(); i++) {
-    target = ::google::protobuf::internal::WireFormatLite::
-      WriteMessageNoVirtualToArray(
-        1, this->condition(i), target);
-  }
-
-  if (!unknown_fields().empty()) {
-    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
-        unknown_fields(), target);
-  }
-  return target;
-}
-
-int Verbosity_Conjunctor::ByteSize() const {
-  int total_size = 0;
-
-  // repeated .dist_clang.proto.Verbosity.Condition condition = 1;
-  total_size += 1 * this->condition_size();
-  for (int i = 0; i < this->condition_size(); i++) {
-    total_size +=
-      ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-        this->condition(i));
-  }
-
-  if (!unknown_fields().empty()) {
-    total_size +=
-      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
-        unknown_fields());
-  }
-  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
-  _cached_size_ = total_size;
-  GOOGLE_SAFE_CONCURRENT_WRITES_END();
-  return total_size;
-}
-
-void Verbosity_Conjunctor::MergeFrom(const ::google::protobuf::Message& from) {
-  GOOGLE_CHECK_NE(&from, this);
-  const Verbosity_Conjunctor* source =
-    ::google::protobuf::internal::dynamic_cast_if_available<const Verbosity_Conjunctor*>(
-      &from);
-  if (source == NULL) {
-    ::google::protobuf::internal::ReflectionOps::Merge(from, this);
-  } else {
-    MergeFrom(*source);
-  }
-}
-
-void Verbosity_Conjunctor::MergeFrom(const Verbosity_Conjunctor& from) {
-  GOOGLE_CHECK_NE(&from, this);
-  condition_.MergeFrom(from.condition_);
-  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-}
-
-void Verbosity_Conjunctor::CopyFrom(const ::google::protobuf::Message& from) {
-  if (&from == this) return;
-  Clear();
-  MergeFrom(from);
-}
-
-void Verbosity_Conjunctor::CopyFrom(const Verbosity_Conjunctor& from) {
-  if (&from == this) return;
-  Clear();
-  MergeFrom(from);
-}
-
-bool Verbosity_Conjunctor::IsInitialized() const {
-
-  for (int i = 0; i < condition_size(); i++) {
-    if (!this->condition(i).IsInitialized()) return false;
-  }
-  return true;
-}
-
-void Verbosity_Conjunctor::Swap(Verbosity_Conjunctor* other) {
-  if (other != this) {
-    condition_.Swap(&other->condition_);
-    std::swap(_has_bits_[0], other->_has_bits_[0]);
-    _unknown_fields_.Swap(&other->_unknown_fields_);
-    std::swap(_cached_size_, other->_cached_size_);
-  }
-}
-
-::google::protobuf::Metadata Verbosity_Conjunctor::GetMetadata() const {
-  protobuf_AssignDescriptorsOnce();
-  ::google::protobuf::Metadata metadata;
-  metadata.descriptor = Verbosity_Conjunctor_descriptor_;
-  metadata.reflection = Verbosity_Conjunctor_reflection_;
+  metadata.descriptor = Verbosity_Range_descriptor_;
+  metadata.reflection = Verbosity_Range_reflection_;
   return metadata;
 }
 
@@ -1078,7 +808,7 @@ Verbosity::Verbosity(const Verbosity& from)
 
 void Verbosity::SharedCtor() {
   _cached_size_ = 0;
-  error_mark_ = 3u;
+  error_mark_ = 20u;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -1114,7 +844,7 @@ Verbosity* Verbosity::New() const {
 
 void Verbosity::Clear() {
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    error_mark_ = 3u;
+    error_mark_ = 20u;
   }
   levels_.Clear();
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
@@ -1127,7 +857,7 @@ bool Verbosity::MergePartialFromCodedStream(
   ::google::protobuf::uint32 tag;
   while ((tag = input->ReadTag()) != 0) {
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // optional uint32 error_mark = 1 [default = 3];
+      // optional uint32 error_mark = 1 [default = 20];
       case 1: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
@@ -1142,7 +872,7 @@ bool Verbosity::MergePartialFromCodedStream(
         break;
       }
 
-      // repeated .dist_clang.proto.Verbosity.Conjunctor levels = 2;
+      // repeated .dist_clang.proto.Verbosity.Range levels = 2;
       case 2: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
@@ -1175,12 +905,12 @@ bool Verbosity::MergePartialFromCodedStream(
 
 void Verbosity::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // optional uint32 error_mark = 1 [default = 3];
+  // optional uint32 error_mark = 1 [default = 20];
   if (has_error_mark()) {
     ::google::protobuf::internal::WireFormatLite::WriteUInt32(1, this->error_mark(), output);
   }
 
-  // repeated .dist_clang.proto.Verbosity.Conjunctor levels = 2;
+  // repeated .dist_clang.proto.Verbosity.Range levels = 2;
   for (int i = 0; i < this->levels_size(); i++) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
       2, this->levels(i), output);
@@ -1194,12 +924,12 @@ void Verbosity::SerializeWithCachedSizes(
 
 ::google::protobuf::uint8* Verbosity::SerializeWithCachedSizesToArray(
     ::google::protobuf::uint8* target) const {
-  // optional uint32 error_mark = 1 [default = 3];
+  // optional uint32 error_mark = 1 [default = 20];
   if (has_error_mark()) {
     target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(1, this->error_mark(), target);
   }
 
-  // repeated .dist_clang.proto.Verbosity.Conjunctor levels = 2;
+  // repeated .dist_clang.proto.Verbosity.Range levels = 2;
   for (int i = 0; i < this->levels_size(); i++) {
     target = ::google::protobuf::internal::WireFormatLite::
       WriteMessageNoVirtualToArray(
@@ -1217,7 +947,7 @@ int Verbosity::ByteSize() const {
   int total_size = 0;
 
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    // optional uint32 error_mark = 1 [default = 3];
+    // optional uint32 error_mark = 1 [default = 20];
     if (has_error_mark()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::UInt32Size(
@@ -1225,7 +955,7 @@ int Verbosity::ByteSize() const {
     }
 
   }
-  // repeated .dist_clang.proto.Verbosity.Conjunctor levels = 2;
+  // repeated .dist_clang.proto.Verbosity.Range levels = 2;
   total_size += 1 * this->levels_size();
   for (int i = 0; i < this->levels_size(); i++) {
     total_size +=

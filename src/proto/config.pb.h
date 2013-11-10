@@ -23,7 +23,6 @@
 #include <google/protobuf/message.h>
 #include <google/protobuf/repeated_field.h>
 #include <google/protobuf/extension_set.h>
-#include <google/protobuf/generated_enum_reflection.h>
 #include <google/protobuf/unknown_field_set.h>
 #include "base.pb.h"
 // @@protoc_insertion_point(includes)
@@ -38,32 +37,9 @@ void protobuf_ShutdownFile_config_2eproto();
 
 class Host;
 class Verbosity;
-class Verbosity_Condition;
-class Verbosity_Conjunctor;
+class Verbosity_Range;
 class Configuration;
 
-enum Verbosity_Condition_Op {
-  Verbosity_Condition_Op_LS = 1,
-  Verbosity_Condition_Op_LE = 2,
-  Verbosity_Condition_Op_EQ = 3,
-  Verbosity_Condition_Op_GE = 4,
-  Verbosity_Condition_Op_GR = 5
-};
-bool Verbosity_Condition_Op_IsValid(int value);
-const Verbosity_Condition_Op Verbosity_Condition_Op_Op_MIN = Verbosity_Condition_Op_LS;
-const Verbosity_Condition_Op Verbosity_Condition_Op_Op_MAX = Verbosity_Condition_Op_GR;
-const int Verbosity_Condition_Op_Op_ARRAYSIZE = Verbosity_Condition_Op_Op_MAX + 1;
-
-const ::google::protobuf::EnumDescriptor* Verbosity_Condition_Op_descriptor();
-inline const ::std::string& Verbosity_Condition_Op_Name(Verbosity_Condition_Op value) {
-  return ::google::protobuf::internal::NameOfEnum(
-    Verbosity_Condition_Op_descriptor(), value);
-}
-inline bool Verbosity_Condition_Op_Parse(
-    const ::std::string& name, Verbosity_Condition_Op* value) {
-  return ::google::protobuf::internal::ParseNamedEnum<Verbosity_Condition_Op>(
-    Verbosity_Condition_Op_descriptor(), name, value);
-}
 // ===================================================================
 
 class Host : public ::google::protobuf::Message {
@@ -183,14 +159,14 @@ class Host : public ::google::protobuf::Message {
 };
 // -------------------------------------------------------------------
 
-class Verbosity_Condition : public ::google::protobuf::Message {
+class Verbosity_Range : public ::google::protobuf::Message {
  public:
-  Verbosity_Condition();
-  virtual ~Verbosity_Condition();
+  Verbosity_Range();
+  virtual ~Verbosity_Range();
 
-  Verbosity_Condition(const Verbosity_Condition& from);
+  Verbosity_Range(const Verbosity_Range& from);
 
-  inline Verbosity_Condition& operator=(const Verbosity_Condition& from) {
+  inline Verbosity_Range& operator=(const Verbosity_Range& from) {
     CopyFrom(from);
     return *this;
   }
@@ -204,17 +180,17 @@ class Verbosity_Condition : public ::google::protobuf::Message {
   }
 
   static const ::google::protobuf::Descriptor* descriptor();
-  static const Verbosity_Condition& default_instance();
+  static const Verbosity_Range& default_instance();
 
-  void Swap(Verbosity_Condition* other);
+  void Swap(Verbosity_Range* other);
 
   // implements Message ----------------------------------------------
 
-  Verbosity_Condition* New() const;
+  Verbosity_Range* New() const;
   void CopyFrom(const ::google::protobuf::Message& from);
   void MergeFrom(const ::google::protobuf::Message& from);
-  void CopyFrom(const Verbosity_Condition& from);
-  void MergeFrom(const Verbosity_Condition& from);
+  void CopyFrom(const Verbosity_Range& from);
+  void MergeFrom(const Verbosity_Range& from);
   void Clear();
   bool IsInitialized() const;
 
@@ -235,60 +211,33 @@ class Verbosity_Condition : public ::google::protobuf::Message {
 
   // nested types ----------------------------------------------------
 
-  typedef Verbosity_Condition_Op Op;
-  static const Op LS = Verbosity_Condition_Op_LS;
-  static const Op LE = Verbosity_Condition_Op_LE;
-  static const Op EQ = Verbosity_Condition_Op_EQ;
-  static const Op GE = Verbosity_Condition_Op_GE;
-  static const Op GR = Verbosity_Condition_Op_GR;
-  static inline bool Op_IsValid(int value) {
-    return Verbosity_Condition_Op_IsValid(value);
-  }
-  static const Op Op_MIN =
-    Verbosity_Condition_Op_Op_MIN;
-  static const Op Op_MAX =
-    Verbosity_Condition_Op_Op_MAX;
-  static const int Op_ARRAYSIZE =
-    Verbosity_Condition_Op_Op_ARRAYSIZE;
-  static inline const ::google::protobuf::EnumDescriptor*
-  Op_descriptor() {
-    return Verbosity_Condition_Op_descriptor();
-  }
-  static inline const ::std::string& Op_Name(Op value) {
-    return Verbosity_Condition_Op_Name(value);
-  }
-  static inline bool Op_Parse(const ::std::string& name,
-      Op* value) {
-    return Verbosity_Condition_Op_Parse(name, value);
-  }
-
   // accessors -------------------------------------------------------
 
-  // required .dist_clang.proto.Verbosity.Condition.Op operator = 1;
-  inline bool has_operator_() const;
-  inline void clear_operator_();
-  static const int kOperatorFieldNumber = 1;
-  inline ::dist_clang::proto::Verbosity_Condition_Op operator_() const;
-  inline void set_operator_(::dist_clang::proto::Verbosity_Condition_Op value);
+  // required uint32 right = 1;
+  inline bool has_right() const;
+  inline void clear_right();
+  static const int kRightFieldNumber = 1;
+  inline ::google::protobuf::uint32 right() const;
+  inline void set_right(::google::protobuf::uint32 value);
 
-  // required uint32 value = 2;
-  inline bool has_value() const;
-  inline void clear_value();
-  static const int kValueFieldNumber = 2;
-  inline ::google::protobuf::uint32 value() const;
-  inline void set_value(::google::protobuf::uint32 value);
+  // optional uint32 left = 2;
+  inline bool has_left() const;
+  inline void clear_left();
+  static const int kLeftFieldNumber = 2;
+  inline ::google::protobuf::uint32 left() const;
+  inline void set_left(::google::protobuf::uint32 value);
 
-  // @@protoc_insertion_point(class_scope:dist_clang.proto.Verbosity.Condition)
+  // @@protoc_insertion_point(class_scope:dist_clang.proto.Verbosity.Range)
  private:
-  inline void set_has_operator_();
-  inline void clear_has_operator_();
-  inline void set_has_value();
-  inline void clear_has_value();
+  inline void set_has_right();
+  inline void clear_has_right();
+  inline void set_has_left();
+  inline void clear_has_left();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
-  int operator__;
-  ::google::protobuf::uint32 value_;
+  ::google::protobuf::uint32 right_;
+  ::google::protobuf::uint32 left_;
 
   mutable int _cached_size_;
   ::google::protobuf::uint32 _has_bits_[(2 + 31) / 32];
@@ -298,92 +247,7 @@ class Verbosity_Condition : public ::google::protobuf::Message {
   friend void protobuf_ShutdownFile_config_2eproto();
 
   void InitAsDefaultInstance();
-  static Verbosity_Condition* default_instance_;
-};
-// -------------------------------------------------------------------
-
-class Verbosity_Conjunctor : public ::google::protobuf::Message {
- public:
-  Verbosity_Conjunctor();
-  virtual ~Verbosity_Conjunctor();
-
-  Verbosity_Conjunctor(const Verbosity_Conjunctor& from);
-
-  inline Verbosity_Conjunctor& operator=(const Verbosity_Conjunctor& from) {
-    CopyFrom(from);
-    return *this;
-  }
-
-  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
-    return _unknown_fields_;
-  }
-
-  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
-    return &_unknown_fields_;
-  }
-
-  static const ::google::protobuf::Descriptor* descriptor();
-  static const Verbosity_Conjunctor& default_instance();
-
-  void Swap(Verbosity_Conjunctor* other);
-
-  // implements Message ----------------------------------------------
-
-  Verbosity_Conjunctor* New() const;
-  void CopyFrom(const ::google::protobuf::Message& from);
-  void MergeFrom(const ::google::protobuf::Message& from);
-  void CopyFrom(const Verbosity_Conjunctor& from);
-  void MergeFrom(const Verbosity_Conjunctor& from);
-  void Clear();
-  bool IsInitialized() const;
-
-  int ByteSize() const;
-  bool MergePartialFromCodedStream(
-      ::google::protobuf::io::CodedInputStream* input);
-  void SerializeWithCachedSizes(
-      ::google::protobuf::io::CodedOutputStream* output) const;
-  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
-  int GetCachedSize() const { return _cached_size_; }
-  private:
-  void SharedCtor();
-  void SharedDtor();
-  void SetCachedSize(int size) const;
-  public:
-
-  ::google::protobuf::Metadata GetMetadata() const;
-
-  // nested types ----------------------------------------------------
-
-  // accessors -------------------------------------------------------
-
-  // repeated .dist_clang.proto.Verbosity.Condition condition = 1;
-  inline int condition_size() const;
-  inline void clear_condition();
-  static const int kConditionFieldNumber = 1;
-  inline const ::dist_clang::proto::Verbosity_Condition& condition(int index) const;
-  inline ::dist_clang::proto::Verbosity_Condition* mutable_condition(int index);
-  inline ::dist_clang::proto::Verbosity_Condition* add_condition();
-  inline const ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Verbosity_Condition >&
-      condition() const;
-  inline ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Verbosity_Condition >*
-      mutable_condition();
-
-  // @@protoc_insertion_point(class_scope:dist_clang.proto.Verbosity.Conjunctor)
- private:
-
-  ::google::protobuf::UnknownFieldSet _unknown_fields_;
-
-  ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Verbosity_Condition > condition_;
-
-  mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(1 + 31) / 32];
-
-  friend void  protobuf_AddDesc_config_2eproto();
-  friend void protobuf_AssignDesc_config_2eproto();
-  friend void protobuf_ShutdownFile_config_2eproto();
-
-  void InitAsDefaultInstance();
-  static Verbosity_Conjunctor* default_instance_;
+  static Verbosity_Range* default_instance_;
 };
 // -------------------------------------------------------------------
 
@@ -439,28 +303,27 @@ class Verbosity : public ::google::protobuf::Message {
 
   // nested types ----------------------------------------------------
 
-  typedef Verbosity_Condition Condition;
-  typedef Verbosity_Conjunctor Conjunctor;
+  typedef Verbosity_Range Range;
 
   // accessors -------------------------------------------------------
 
-  // optional uint32 error_mark = 1 [default = 3];
+  // optional uint32 error_mark = 1 [default = 20];
   inline bool has_error_mark() const;
   inline void clear_error_mark();
   static const int kErrorMarkFieldNumber = 1;
   inline ::google::protobuf::uint32 error_mark() const;
   inline void set_error_mark(::google::protobuf::uint32 value);
 
-  // repeated .dist_clang.proto.Verbosity.Conjunctor levels = 2;
+  // repeated .dist_clang.proto.Verbosity.Range levels = 2;
   inline int levels_size() const;
   inline void clear_levels();
   static const int kLevelsFieldNumber = 2;
-  inline const ::dist_clang::proto::Verbosity_Conjunctor& levels(int index) const;
-  inline ::dist_clang::proto::Verbosity_Conjunctor* mutable_levels(int index);
-  inline ::dist_clang::proto::Verbosity_Conjunctor* add_levels();
-  inline const ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Verbosity_Conjunctor >&
+  inline const ::dist_clang::proto::Verbosity_Range& levels(int index) const;
+  inline ::dist_clang::proto::Verbosity_Range* mutable_levels(int index);
+  inline ::dist_clang::proto::Verbosity_Range* add_levels();
+  inline const ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Verbosity_Range >&
       levels() const;
-  inline ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Verbosity_Conjunctor >*
+  inline ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Verbosity_Range >*
       mutable_levels();
 
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Verbosity)
@@ -470,7 +333,7 @@ class Verbosity : public ::google::protobuf::Message {
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
-  ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Verbosity_Conjunctor > levels_;
+  ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Verbosity_Range > levels_;
   ::google::protobuf::uint32 error_mark_;
 
   mutable int _cached_size_;
@@ -802,87 +665,57 @@ inline void Host::set_disabled(bool value) {
 
 // -------------------------------------------------------------------
 
-// Verbosity_Condition
+// Verbosity_Range
 
-// required .dist_clang.proto.Verbosity.Condition.Op operator = 1;
-inline bool Verbosity_Condition::has_operator_() const {
+// required uint32 right = 1;
+inline bool Verbosity_Range::has_right() const {
   return (_has_bits_[0] & 0x00000001u) != 0;
 }
-inline void Verbosity_Condition::set_has_operator_() {
+inline void Verbosity_Range::set_has_right() {
   _has_bits_[0] |= 0x00000001u;
 }
-inline void Verbosity_Condition::clear_has_operator_() {
+inline void Verbosity_Range::clear_has_right() {
   _has_bits_[0] &= ~0x00000001u;
 }
-inline void Verbosity_Condition::clear_operator_() {
-  operator__ = 1;
-  clear_has_operator_();
+inline void Verbosity_Range::clear_right() {
+  right_ = 0u;
+  clear_has_right();
 }
-inline ::dist_clang::proto::Verbosity_Condition_Op Verbosity_Condition::operator_() const {
-  return static_cast< ::dist_clang::proto::Verbosity_Condition_Op >(operator__);
+inline ::google::protobuf::uint32 Verbosity_Range::right() const {
+  return right_;
 }
-inline void Verbosity_Condition::set_operator_(::dist_clang::proto::Verbosity_Condition_Op value) {
-  assert(::dist_clang::proto::Verbosity_Condition_Op_IsValid(value));
-  set_has_operator_();
-  operator__ = value;
+inline void Verbosity_Range::set_right(::google::protobuf::uint32 value) {
+  set_has_right();
+  right_ = value;
 }
 
-// required uint32 value = 2;
-inline bool Verbosity_Condition::has_value() const {
+// optional uint32 left = 2;
+inline bool Verbosity_Range::has_left() const {
   return (_has_bits_[0] & 0x00000002u) != 0;
 }
-inline void Verbosity_Condition::set_has_value() {
+inline void Verbosity_Range::set_has_left() {
   _has_bits_[0] |= 0x00000002u;
 }
-inline void Verbosity_Condition::clear_has_value() {
+inline void Verbosity_Range::clear_has_left() {
   _has_bits_[0] &= ~0x00000002u;
 }
-inline void Verbosity_Condition::clear_value() {
-  value_ = 0u;
-  clear_has_value();
+inline void Verbosity_Range::clear_left() {
+  left_ = 0u;
+  clear_has_left();
 }
-inline ::google::protobuf::uint32 Verbosity_Condition::value() const {
-  return value_;
+inline ::google::protobuf::uint32 Verbosity_Range::left() const {
+  return left_;
 }
-inline void Verbosity_Condition::set_value(::google::protobuf::uint32 value) {
-  set_has_value();
-  value_ = value;
-}
-
-// -------------------------------------------------------------------
-
-// Verbosity_Conjunctor
-
-// repeated .dist_clang.proto.Verbosity.Condition condition = 1;
-inline int Verbosity_Conjunctor::condition_size() const {
-  return condition_.size();
-}
-inline void Verbosity_Conjunctor::clear_condition() {
-  condition_.Clear();
-}
-inline const ::dist_clang::proto::Verbosity_Condition& Verbosity_Conjunctor::condition(int index) const {
-  return condition_.Get(index);
-}
-inline ::dist_clang::proto::Verbosity_Condition* Verbosity_Conjunctor::mutable_condition(int index) {
-  return condition_.Mutable(index);
-}
-inline ::dist_clang::proto::Verbosity_Condition* Verbosity_Conjunctor::add_condition() {
-  return condition_.Add();
-}
-inline const ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Verbosity_Condition >&
-Verbosity_Conjunctor::condition() const {
-  return condition_;
-}
-inline ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Verbosity_Condition >*
-Verbosity_Conjunctor::mutable_condition() {
-  return &condition_;
+inline void Verbosity_Range::set_left(::google::protobuf::uint32 value) {
+  set_has_left();
+  left_ = value;
 }
 
 // -------------------------------------------------------------------
 
 // Verbosity
 
-// optional uint32 error_mark = 1 [default = 3];
+// optional uint32 error_mark = 1 [default = 20];
 inline bool Verbosity::has_error_mark() const {
   return (_has_bits_[0] & 0x00000001u) != 0;
 }
@@ -893,7 +726,7 @@ inline void Verbosity::clear_has_error_mark() {
   _has_bits_[0] &= ~0x00000001u;
 }
 inline void Verbosity::clear_error_mark() {
-  error_mark_ = 3u;
+  error_mark_ = 20u;
   clear_has_error_mark();
 }
 inline ::google::protobuf::uint32 Verbosity::error_mark() const {
@@ -904,27 +737,27 @@ inline void Verbosity::set_error_mark(::google::protobuf::uint32 value) {
   error_mark_ = value;
 }
 
-// repeated .dist_clang.proto.Verbosity.Conjunctor levels = 2;
+// repeated .dist_clang.proto.Verbosity.Range levels = 2;
 inline int Verbosity::levels_size() const {
   return levels_.size();
 }
 inline void Verbosity::clear_levels() {
   levels_.Clear();
 }
-inline const ::dist_clang::proto::Verbosity_Conjunctor& Verbosity::levels(int index) const {
+inline const ::dist_clang::proto::Verbosity_Range& Verbosity::levels(int index) const {
   return levels_.Get(index);
 }
-inline ::dist_clang::proto::Verbosity_Conjunctor* Verbosity::mutable_levels(int index) {
+inline ::dist_clang::proto::Verbosity_Range* Verbosity::mutable_levels(int index) {
   return levels_.Mutable(index);
 }
-inline ::dist_clang::proto::Verbosity_Conjunctor* Verbosity::add_levels() {
+inline ::dist_clang::proto::Verbosity_Range* Verbosity::add_levels() {
   return levels_.Add();
 }
-inline const ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Verbosity_Conjunctor >&
+inline const ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Verbosity_Range >&
 Verbosity::levels() const {
   return levels_;
 }
-inline ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Verbosity_Conjunctor >*
+inline ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Verbosity_Range >*
 Verbosity::mutable_levels() {
   return &levels_;
 }
@@ -1269,10 +1102,6 @@ inline void Configuration::set_allocated_verbosity(::dist_clang::proto::Verbosit
 namespace google {
 namespace protobuf {
 
-template <>
-inline const EnumDescriptor* GetEnumDescriptor< ::dist_clang::proto::Verbosity_Condition_Op>() {
-  return ::dist_clang::proto::Verbosity_Condition_Op_descriptor();
-}
 
 }  // namespace google
 }  // namespace protobuf

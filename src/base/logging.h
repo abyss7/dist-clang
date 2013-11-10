@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <set>
 #include <sstream>
 
 namespace dist_clang {
@@ -19,7 +20,9 @@ enum {
 
 class Log {
   public:
-    static void Init(unsigned error_mark);
+    using RangeSet = std::set<std::pair<unsigned, unsigned>>;
+
+    static void Init(unsigned error_mark, RangeSet&& ranges);
 
     Log(unsigned level);
     ~Log();
@@ -30,15 +33,17 @@ class Log {
 
     template <class T>
     Log& operator<< (const T& info);
-    Log& operator<< (std::ostream& (*func)(std::ostream&));
+    Log& operator<< (std::ostream& (*func)(std::ostream&));  // for |std::endl|
 
   private:
     static unsigned& error_mark();
+    static RangeSet& ranges();
 
     unsigned level_;
     std::stringstream stream_;
 };
 
+// Use this class, if for some reason you can't include "using_log.h".
 class DLog {
   public:
     DLog(unsigned level);

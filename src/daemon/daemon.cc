@@ -108,7 +108,7 @@ bool Daemon::Initialize(const Configuration &configuration) {
   }
 
   if (!is_listening) {
-    LOG(ERROR) << "Daemon is not listening. Quitting...";
+    LOG(ERROR) << "Daemon is not listening.";
     return false;
   }
 
@@ -131,6 +131,34 @@ bool Daemon::Initialize(const Configuration &configuration) {
       plugin_map.insert(std::make_pair(plugin.name(), plugin.path()));
     }
   }
+
+  base::Log::RangeSet ranges;
+  for (const auto& level: config.verbosity().levels()) {
+    if (level.has_left() && level.left() > level.right()) {
+      continue;
+    }
+
+    if (!level.has_left()) {
+      ranges.insert(std::make_pair(level.right(), level.right()));
+    }
+    else {
+      ranges.insert(std::make_pair(level.left(), level.right()));
+    }
+  }
+
+  base::Log::RangeSet results;
+  auto current = *ranges.begin();
+  for (auto it = std::next(ranges.begin()); it != ranges.end(); ++it) {
+    if (current.second + 1 >= it->first) {
+      current.second = std::max(it->second, current.second);
+    }
+    else {
+      results.insert(std::make_pair(current.second, current.first));
+      current = *it;
+    }
+  }
+  results.insert(std::make_pair(current.second, current.first));
+  base::Log::Init(config.verbosity().error_mark(), std::move(results));
 
   return network_service_->Run();
 }
