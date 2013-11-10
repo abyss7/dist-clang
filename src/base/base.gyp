@@ -16,6 +16,7 @@
         'thread_pool.h',
         'worker_pool.cc',
         'worker_pool.h',
+        'using_log.h',
       ],
     },
     {
