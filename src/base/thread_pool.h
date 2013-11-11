@@ -24,7 +24,7 @@ class ThreadPool {
     inline size_t QueueSize() const;
 
   private:
-    void DoWork(const volatile bool& is_shutting_down, net::fd_t self_pipe);
+    void DoWork(const volatile bool& is_shutting_down);
 
     TaskQueue tasks_;
     WorkerPool pool_;

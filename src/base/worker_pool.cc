@@ -23,9 +23,17 @@ WorkerPool::~WorkerPool() {
   close(self_pipe_[0]);
 }
 
-void WorkerPool::AddWorker(const Worker& worker, unsigned count) {
+void WorkerPool::AddWorker(const NetWorker& worker, unsigned count) {
   CHECK(count);
   auto closure = std::bind(worker, std::cref(is_shutting_down_), self_pipe_[0]);
+  for (unsigned i = 0; i < count; ++i) {
+    workers_.emplace_back(closure);
+  }
+}
+
+void WorkerPool::AddWorker(const SimpleWorker& worker, unsigned count) {
+  CHECK(count);
+  auto closure = std::bind(worker, std::cref(is_shutting_down_));
   for (unsigned i = 0; i < count; ++i) {
     workers_.emplace_back(closure);
   }

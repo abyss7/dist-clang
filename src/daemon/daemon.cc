@@ -68,12 +68,14 @@ bool Daemon::Initialize(const Configuration &configuration) {
   failed_tasks_.reset(new Queue);
   if (config.has_local()) {
     remote_tasks_.reset(new Queue(config.pool_capacity()));
-    auto worker = std::bind(&Daemon::DoLocalExecution, this, _1, _2);
+    base::WorkerPool::SimpleWorker worker =
+        std::bind(&Daemon::DoLocalExecution, this, _1);
     workers_->AddWorker(worker, config.local().threads());
   }
   else {
     remote_tasks_.reset(new Queue);
-    auto worker = std::bind(&Daemon::DoLocalExecution, this, _1, _2);
+    base::WorkerPool::SimpleWorker worker =
+        std::bind(&Daemon::DoLocalExecution, this, _1);
     workers_->AddWorker(worker, std::thread::hardware_concurrency());
   }
   // FIXME: need to improve |QueueAggregator| to prioritize queues.
@@ -84,7 +86,8 @@ bool Daemon::Initialize(const Configuration &configuration) {
   cache_tasks_.reset(new Queue);
   if (config.has_cache_path()) {
     cache_.reset(new FileCache(config.cache_path()));
-    auto worker = std::bind(&Daemon::DoCheckCache, this, _1, _2);
+    base::WorkerPool::SimpleWorker worker =
+        std::bind(&Daemon::DoCheckCache, this, _1);
     workers_->AddWorker(worker, std::thread::hardware_concurrency());
   }
 
@@ -115,8 +118,8 @@ bool Daemon::Initialize(const Configuration &configuration) {
   for (const auto& remote: config.remotes()) {
     if (!remote.disabled()) {
       auto end_point = net::EndPoint::TcpHost(remote.host(), remote.port());
-      auto worker =
-          std::bind(&Daemon::DoRemoteExecution, this, _1, _2, end_point);
+      base::WorkerPool::SimpleWorker worker =
+          std::bind(&Daemon::DoRemoteExecution, this, _1, end_point);
       workers_->AddWorker(worker, remote.threads());
     }
   }
@@ -283,8 +286,7 @@ bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
   return false;
 }
 
-void Daemon::DoCheckCache(const volatile bool &is_shutting_down,
-                          net::fd_t self_pipe) {
+void Daemon::DoCheckCache(const volatile bool& is_shutting_down) {
   while (!is_shutting_down) {
     ScopedTask task;
     if (!cache_tasks_->Pop(task)) {
@@ -350,7 +352,6 @@ void Daemon::DoCheckCache(const volatile bool &is_shutting_down,
 }
 
 void Daemon::DoRemoteExecution(const volatile bool& is_shutting_down,
-                               net::fd_t /* self_pipe */,
                                net::EndPointPtr end_point) {
   if (!end_point) {
     // TODO: do re-resolve |end_point| periodically, since the network
@@ -448,8 +449,7 @@ void Daemon::DoRemoteExecution(const volatile bool& is_shutting_down,
   }
 }
 
-void Daemon::DoLocalExecution(const volatile bool &is_shutting_down,
-                              net::fd_t /* self_pipe */) {
+void Daemon::DoLocalExecution(const volatile bool& is_shutting_down) {
   while (!is_shutting_down) {
     ScopedTask task;
     if (!all_tasks_->Pop(task)) {

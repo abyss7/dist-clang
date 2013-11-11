@@ -11,12 +11,14 @@ namespace base {
 
 class WorkerPool {
   public:
-    using Worker = std::function<void(const volatile bool&, net::fd_t pipe)>;
+    using NetWorker = std::function<void(const volatile bool&, net::fd_t)>;
+    using SimpleWorker = std::function<void(const volatile bool&)>;
 
     WorkerPool();
     ~WorkerPool();
 
-    void AddWorker(const Worker& worker, unsigned count = 1);
+    void AddWorker(const NetWorker& worker, unsigned count = 1);
+    void AddWorker(const SimpleWorker& worker, unsigned count = 1);
 
   private:
     std::vector<std::thread> workers_;

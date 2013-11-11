@@ -19,17 +19,13 @@ namespace net {
 
 class EventLoop;
 
-class Connection: public ::std::enable_shared_from_this<Connection> {
-    using CodedInputStream = ::google::protobuf::io::CodedInputStream;
-    using CodedOutputStream = ::google::protobuf::io::CodedOutputStream;
-    using FileInputStream = ::google::protobuf::io::FileInputStream;
-    using FileOutputStream = ::google::protobuf::io::FileOutputStream;
+class Connection: public std::enable_shared_from_this<Connection> {
     using Status = proto::Status;
 
     template <class T>
-    using unique_ptr = ::std::unique_ptr<T>;
+    using unique_ptr = std::unique_ptr<T>;
     template <class Signature>
-    using function = ::std::function<Signature>;
+    using function = std::function<Signature>;
 
   public:
     using Message = proto::Universal;
@@ -61,6 +57,10 @@ class Connection: public ::std::enable_shared_from_this<Connection> {
   private:
     friend class EventLoop;
 
+    using CodedInputStream = ::google::protobuf::io::CodedInputStream;
+    using CodedOutputStream = ::google::protobuf::io::CodedOutputStream;
+    using FileInputStream = ::google::protobuf::io::FileInputStream;
+    using FileOutputStream = ::google::protobuf::io::FileOutputStream;
     using BindedReadCallback = function<bool(ScopedMessage, const Status&)>;
     using BindedSendCallback = function<bool(const Status&)>;
 

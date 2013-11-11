@@ -76,8 +76,9 @@ void EpollEventLoop::DoListenWork(const volatile bool &is_shutting_down,
     }
   }
 
-  for (auto fd: listening_fds_)
+  for (auto fd: listening_fds_) {
     close(fd);
+  }
 }
 
 void EpollEventLoop::DoIOWork(const volatile bool& is_shutting_down,
