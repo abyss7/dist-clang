@@ -15,7 +15,7 @@ namespace base {
 
 class Process {
   public:
-    enum { MAX_ARGS = 1024 };
+    enum { UNLIMITED = 0, MAX_ARGS = 1024 };
 
     explicit Process(const std::string& exec_path,
                      const std::string& cwd_path = std::string());

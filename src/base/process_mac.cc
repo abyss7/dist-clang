@@ -53,6 +53,7 @@ bool Process::Run(unsigned sec_timeout, std::string* error) {
       return false;
     }
 
+    // TODO: respect UNLIMITED timeout.
     struct timespec timeout = { sec_timeout, 0 };
     size_t stdout_size = 0, stderr_size = 0;
     std::list<std::pair<std::unique_ptr<char[]>, int>> stdout, stderr;
@@ -186,6 +187,7 @@ bool Process::Run(unsigned sec_timeout, const std::string &input,
       return false;
     }
 
+    // TODO: respect UNLIMITED timeout.
     struct timespec timeout = { sec_timeout, 0 };
     size_t stdin_size = 0, stdout_size = 0, stderr_size = 0;
     std::list<std::pair<std::unique_ptr<char[]>, int>> stdout, stderr;

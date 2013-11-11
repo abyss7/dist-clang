@@ -463,11 +463,20 @@ void Daemon::DoLocalExecution(const volatile bool &is_shutting_down,
         continue;
       }
 
+      std::string error;
       base::Process process(task.second->cc_flags(),
                             task.second->current_dir());
-      if (!process.Run(60)) {
+      if (!process.Run(base::Process::UNLIMITED, &error)) {
         status.set_code(proto::Status::EXECUTION);
-        status.set_description(process.stderr());
+        if (!process.stderr().empty()) {
+          status.set_description(process.stderr());
+        }
+        else if (!error.empty()) {
+          status.set_description(error);
+        }
+        else {
+          status.set_description("without errors");
+        }
       } else {
         status.set_code(proto::Status::OK);
         status.set_description(process.stderr());

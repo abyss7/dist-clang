@@ -69,10 +69,11 @@ bool Process::Run(unsigned sec_timeout, std::string* error) {
     const int MAX_EVENTS = 2;
     struct epoll_event events[MAX_EVENTS];
 
+    int epoll_timeout = sec_timeout == UNLIMITED ? -1 : sec_timeout * 1000;
     int exhausted_fds = 0;
     while(exhausted_fds < 2 && !killed_) {
       auto event_count =
-          epoll_wait(epoll_fd, events, MAX_EVENTS, sec_timeout * 1000);
+          epoll_wait(epoll_fd, events, MAX_EVENTS, epoll_timeout);
 
       if (event_count == -1) {
         if (errno == EINTR) {
@@ -232,10 +233,11 @@ bool Process::Run(unsigned sec_timeout, const std::string &input,
     const int MAX_EVENTS = 3;
     struct epoll_event events[MAX_EVENTS];
 
+    int epoll_timeout = sec_timeout == UNLIMITED ? -1 : sec_timeout * 1000;
     int exhausted_fds = 0;
     while(exhausted_fds < 3 && !killed_) {
       auto event_count =
-          epoll_wait(epoll_fd, events, MAX_EVENTS, sec_timeout * 1000);
+          epoll_wait(epoll_fd, events, MAX_EVENTS, epoll_timeout);
 
       if (event_count == -1) {
         if (errno == EINTR) {
