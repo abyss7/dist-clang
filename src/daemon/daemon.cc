@@ -147,17 +147,21 @@ bool Daemon::Initialize(const Configuration &configuration) {
   }
 
   base::Log::RangeSet results;
-  auto current = *ranges.begin();
-  for (auto it = std::next(ranges.begin()); it != ranges.end(); ++it) {
-    if (current.second + 1 >= it->first) {
-      current.second = std::max(it->second, current.second);
+  if (!ranges.empty()) {
+    auto current = *ranges.begin();
+    if (ranges.size() > 1) {
+      for (auto it = std::next(ranges.begin()); it != ranges.end(); ++it) {
+        if (current.second + 1 >= it->first) {
+          current.second = std::max(it->second, current.second);
+        }
+        else {
+          results.insert(std::make_pair(current.second, current.first));
+          current = *it;
+        }
+      }
     }
-    else {
-      results.insert(std::make_pair(current.second, current.first));
-      current = *it;
-    }
+    results.insert(std::make_pair(current.second, current.first));
   }
-  results.insert(std::make_pair(current.second, current.first));
   base::Log::Init(config.verbosity().error_mark(), std::move(results));
 
   return network_service_->Run();
