@@ -38,6 +38,7 @@ Process::Process(const proto::Flags &flags, const std::string &cwd_path)
   : Process(flags.compiler().path(), cwd_path) {
   // |flags.other()| always must go first, since they contain "-cc1" flag.
   AppendArg(flags.other().begin(), flags.other().end());
+  AppendArg(flags.non_cached().begin(), flags.non_cached().end());
   AppendArg(flags.dependenies().begin(), flags.dependenies().end());
   for (const auto& plugin: flags.compiler().plugins()) {
     AppendArg("-load").AppendArg(plugin.path());

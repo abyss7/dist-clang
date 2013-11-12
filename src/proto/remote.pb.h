@@ -530,6 +530,22 @@ class Flags : public ::google::protobuf::Message {
   inline ::std::string* release_language();
   inline void set_allocated_language(::std::string* language);
 
+  // repeated string non_cached = 7;
+  inline int non_cached_size() const;
+  inline void clear_non_cached();
+  static const int kNonCachedFieldNumber = 7;
+  inline const ::std::string& non_cached(int index) const;
+  inline ::std::string* mutable_non_cached(int index);
+  inline void set_non_cached(int index, const ::std::string& value);
+  inline void set_non_cached(int index, const char* value);
+  inline void set_non_cached(int index, const char* value, size_t size);
+  inline ::std::string* add_non_cached();
+  inline void add_non_cached(const ::std::string& value);
+  inline void add_non_cached(const char* value);
+  inline void add_non_cached(const char* value, size_t size);
+  inline const ::google::protobuf::RepeatedPtrField< ::std::string>& non_cached() const;
+  inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_non_cached();
+
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Flags)
  private:
   inline void set_has_compiler();
@@ -549,9 +565,10 @@ class Flags : public ::google::protobuf::Message {
   ::google::protobuf::RepeatedPtrField< ::std::string> other_;
   ::google::protobuf::RepeatedPtrField< ::std::string> dependenies_;
   ::std::string* language_;
+  ::google::protobuf::RepeatedPtrField< ::std::string> non_cached_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(6 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(7 + 31) / 32];
 
   friend void  protobuf_AddDesc_remote_2eproto();
   friend void protobuf_AssignDesc_remote_2eproto();
@@ -1421,6 +1438,50 @@ inline void Flags::set_allocated_language(::std::string* language) {
     clear_has_language();
     language_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   }
+}
+
+// repeated string non_cached = 7;
+inline int Flags::non_cached_size() const {
+  return non_cached_.size();
+}
+inline void Flags::clear_non_cached() {
+  non_cached_.Clear();
+}
+inline const ::std::string& Flags::non_cached(int index) const {
+  return non_cached_.Get(index);
+}
+inline ::std::string* Flags::mutable_non_cached(int index) {
+  return non_cached_.Mutable(index);
+}
+inline void Flags::set_non_cached(int index, const ::std::string& value) {
+  non_cached_.Mutable(index)->assign(value);
+}
+inline void Flags::set_non_cached(int index, const char* value) {
+  non_cached_.Mutable(index)->assign(value);
+}
+inline void Flags::set_non_cached(int index, const char* value, size_t size) {
+  non_cached_.Mutable(index)->assign(
+    reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* Flags::add_non_cached() {
+  return non_cached_.Add();
+}
+inline void Flags::add_non_cached(const ::std::string& value) {
+  non_cached_.Add()->assign(value);
+}
+inline void Flags::add_non_cached(const char* value) {
+  non_cached_.Add()->assign(value);
+}
+inline void Flags::add_non_cached(const char* value, size_t size) {
+  non_cached_.Add()->assign(reinterpret_cast<const char*>(value), size);
+}
+inline const ::google::protobuf::RepeatedPtrField< ::std::string>&
+Flags::non_cached() const {
+  return non_cached_;
+}
+inline ::google::protobuf::RepeatedPtrField< ::std::string>*
+Flags::mutable_non_cached() {
+  return &non_cached_;
 }
 
 // -------------------------------------------------------------------

@@ -84,6 +84,33 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(StringList& flags,
     else if (flag == "-x") {
       message->set_language(*(++it));
     }
+
+    // Non-cacheable flags.
+    // NOTE: we should be very cautious here, since the local compilations are
+    // performed on non-preprocessed file, but the result is saved using hash
+    // from preprocessed file.
+    else if (flag == "-coverage-file") {
+      message->add_non_cached(flag);
+      message->add_non_cached(*(++it));
+    }
+    else if (flag == "-internal-externc-isystem") {
+      message->add_non_cached(flag);
+      message->add_non_cached(*(++it));
+    }
+    else if (flag == "-internal-isystem") {
+      message->add_non_cached(flag);
+      message->add_non_cached(*(++it));
+    }
+    else if (flag == "-main-file-name") {
+      message->add_non_cached(flag);
+      message->add_non_cached(*(++it));
+    }
+    else if (flag == "-resource-dir") {
+      message->add_non_cached(flag);
+      message->add_non_cached(*(++it));
+    }
+
+    // By default all other flags are cacheable.
     else {
       message->add_other(flag);
     }

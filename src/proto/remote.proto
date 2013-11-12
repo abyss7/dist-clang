@@ -47,6 +47,7 @@ message Flags {
   repeated string other       = 4;  // all unsorted flags.
   repeated string dependenies = 5;  // "-MMD", "-MF", etc.
   optional string language    = 6;  // "-x" flag and it's param.
+  repeated string non_cached  = 7;  // flags, that shouldn't be cached.
 }
 
 message Execute {

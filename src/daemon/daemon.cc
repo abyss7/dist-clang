@@ -49,6 +49,8 @@ Daemon::~Daemon() {
 }
 
 bool Daemon::Initialize(const Configuration &configuration) {
+  using Worker = base::WorkerPool::SimpleWorker;
+
   const auto& config = configuration.config();
 
   if (!config.IsInitialized()) {
@@ -68,14 +70,12 @@ bool Daemon::Initialize(const Configuration &configuration) {
   failed_tasks_.reset(new Queue);
   if (config.has_local()) {
     remote_tasks_.reset(new Queue(config.pool_capacity()));
-    base::WorkerPool::SimpleWorker worker =
-        std::bind(&Daemon::DoLocalExecution, this, _1);
+    Worker worker = std::bind(&Daemon::DoLocalExecution, this, _1);
     workers_->AddWorker(worker, config.local().threads());
   }
   else {
     remote_tasks_.reset(new Queue);
-    base::WorkerPool::SimpleWorker worker =
-        std::bind(&Daemon::DoLocalExecution, this, _1);
+    Worker worker = std::bind(&Daemon::DoLocalExecution, this, _1);
     workers_->AddWorker(worker, std::thread::hardware_concurrency());
   }
   // FIXME: need to improve |QueueAggregator| to prioritize queues.
@@ -86,8 +86,7 @@ bool Daemon::Initialize(const Configuration &configuration) {
   cache_tasks_.reset(new Queue);
   if (config.has_cache_path()) {
     cache_.reset(new FileCache(config.cache_path()));
-    base::WorkerPool::SimpleWorker worker =
-        std::bind(&Daemon::DoCheckCache, this, _1);
+    Worker worker = std::bind(&Daemon::DoCheckCache, this, _1);
     workers_->AddWorker(worker, std::thread::hardware_concurrency());
   }
 
@@ -118,7 +117,7 @@ bool Daemon::Initialize(const Configuration &configuration) {
   for (const auto& remote: config.remotes()) {
     if (!remote.disabled()) {
       auto end_point = net::EndPoint::TcpHost(remote.host(), remote.port());
-      base::WorkerPool::SimpleWorker worker =
+      Worker worker =
           std::bind(&Daemon::DoRemoteExecution, this, _1, end_point);
       workers_->AddWorker(worker, remote.threads());
     }

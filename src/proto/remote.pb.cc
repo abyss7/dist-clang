@@ -99,13 +99,14 @@ void protobuf_AssignDesc_remote_2eproto() {
       sizeof(Status));
   Status_Code_descriptor_ = Status_descriptor_->enum_type(0);
   Flags_descriptor_ = file->message_type(3);
-  static const int Flags_offsets_[6] = {
+  static const int Flags_offsets_[7] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Flags, compiler_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Flags, output_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Flags, input_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Flags, other_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Flags, dependenies_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Flags, language_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Flags, non_cached_),
   };
   Flags_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
@@ -214,19 +215,20 @@ void protobuf_AddDesc_remote_2eproto() {
     "\022\017\n\013BAD_MESSAGE\020\003\022\021\n\rEMPTY_MESSAGE\020\004\022\r\n\t"
     "EXECUTION\020\005\022\014\n\010OVERLOAD\020\006\022\016\n\nNO_VERSION\020"
     "\0072H\n\textension\022\033.dist_clang.proto.Univer"
-    "sal\030\002 \001(\0132\030.dist_clang.proto.Status\"\212\001\n\005"
+    "sal\030\002 \001(\0132\030.dist_clang.proto.Status\"\236\001\n\005"
     "Flags\022,\n\010compiler\030\001 \002(\0132\032.dist_clang.pro"
     "to.Compiler\022\016\n\006output\030\002 \001(\t\022\r\n\005input\030\003 \001"
     "(\t\022\r\n\005other\030\004 \003(\t\022\023\n\013dependenies\030\005 \003(\t\022\020"
-    "\n\010language\030\006 \001(\t\"\342\001\n\007Execute\022\016\n\006remote\030\001"
-    " \002(\010\022)\n\010cc_flags\030\002 \002(\0132\027.dist_clang.prot"
-    "o.Flags\022)\n\010pp_flags\030\003 \001(\0132\027.dist_clang.p"
-    "roto.Flags\022\023\n\013current_dir\030\004 \001(\t\022\021\n\tpp_so"
-    "urce\030\005 \001(\t2I\n\textension\022\033.dist_clang.pro"
-    "to.Universal\030\003 \001(\0132\031.dist_clang.proto.Ex"
-    "ecute\"k\n\014RemoteResult\022\013\n\003obj\030\001 \002(\0142N\n\tex"
-    "tension\022\033.dist_clang.proto.Universal\030\004 \001"
-    "(\0132\036.dist_clang.proto.RemoteResult", 954);
+    "\n\010language\030\006 \001(\t\022\022\n\nnon_cached\030\007 \003(\t\"\342\001\n"
+    "\007Execute\022\016\n\006remote\030\001 \002(\010\022)\n\010cc_flags\030\002 \002"
+    "(\0132\027.dist_clang.proto.Flags\022)\n\010pp_flags\030"
+    "\003 \001(\0132\027.dist_clang.proto.Flags\022\023\n\013curren"
+    "t_dir\030\004 \001(\t\022\021\n\tpp_source\030\005 \001(\t2I\n\textens"
+    "ion\022\033.dist_clang.proto.Universal\030\003 \001(\0132\031"
+    ".dist_clang.proto.Execute\"k\n\014RemoteResul"
+    "t\022\013\n\003obj\030\001 \002(\0142N\n\textension\022\033.dist_clang"
+    ".proto.Universal\030\004 \001(\0132\036.dist_clang.prot"
+    "o.RemoteResult", 974);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "remote.proto", &protobuf_RegisterTypes);
   Universal::default_instance_ = new Universal();
@@ -1099,6 +1101,7 @@ const int Flags::kInputFieldNumber;
 const int Flags::kOtherFieldNumber;
 const int Flags::kDependeniesFieldNumber;
 const int Flags::kLanguageFieldNumber;
+const int Flags::kNonCachedFieldNumber;
 #endif  // !_MSC_VER
 
 Flags::Flags()
@@ -1188,6 +1191,7 @@ void Flags::Clear() {
   }
   other_.Clear();
   dependenies_.Clear();
+  non_cached_.Clear();
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   mutable_unknown_fields()->Clear();
 }
@@ -1296,6 +1300,25 @@ bool Flags::MergePartialFromCodedStream(
         } else {
           goto handle_uninterpreted;
         }
+        if (input->ExpectTag(58)) goto parse_non_cached;
+        break;
+      }
+
+      // repeated string non_cached = 7;
+      case 7: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
+         parse_non_cached:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->add_non_cached()));
+          ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+            this->non_cached(this->non_cached_size() - 1).data(),
+            this->non_cached(this->non_cached_size() - 1).length(),
+            ::google::protobuf::internal::WireFormat::PARSE);
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(58)) goto parse_non_cached;
         if (input->ExpectAtEnd()) return true;
         break;
       }
@@ -1369,6 +1392,15 @@ void Flags::SerializeWithCachedSizes(
       6, this->language(), output);
   }
 
+  // repeated string non_cached = 7;
+  for (int i = 0; i < this->non_cached_size(); i++) {
+  ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+    this->non_cached(i).data(), this->non_cached(i).length(),
+    ::google::protobuf::internal::WireFormat::SERIALIZE);
+    ::google::protobuf::internal::WireFormatLite::WriteString(
+      7, this->non_cached(i), output);
+  }
+
   if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
@@ -1432,6 +1464,15 @@ void Flags::SerializeWithCachedSizes(
         6, this->language(), target);
   }
 
+  // repeated string non_cached = 7;
+  for (int i = 0; i < this->non_cached_size(); i++) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->non_cached(i).data(), this->non_cached(i).length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    target = ::google::protobuf::internal::WireFormatLite::
+      WriteStringToArray(7, this->non_cached(i), target);
+  }
+
   if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
@@ -1486,6 +1527,13 @@ int Flags::ByteSize() const {
       this->dependenies(i));
   }
 
+  // repeated string non_cached = 7;
+  total_size += 1 * this->non_cached_size();
+  for (int i = 0; i < this->non_cached_size(); i++) {
+    total_size += ::google::protobuf::internal::WireFormatLite::StringSize(
+      this->non_cached(i));
+  }
+
   if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
@@ -1513,6 +1561,7 @@ void Flags::MergeFrom(const Flags& from) {
   GOOGLE_CHECK_NE(&from, this);
   other_.MergeFrom(from.other_);
   dependenies_.MergeFrom(from.dependenies_);
+  non_cached_.MergeFrom(from.non_cached_);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_compiler()) {
       mutable_compiler()->::dist_clang::proto::Compiler::MergeFrom(from.compiler());
@@ -1559,6 +1608,7 @@ void Flags::Swap(Flags* other) {
     other_.Swap(&other->other_);
     dependenies_.Swap(&other->dependenies_);
     std::swap(language_, other->language_);
+    non_cached_.Swap(&other->non_cached_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);
