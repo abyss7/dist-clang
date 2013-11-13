@@ -17,6 +17,15 @@ void DeleteFile(const std::string& path);
 
 inline bool CopyFile(const std::string& src, const std::string& dst,
                      bool overwrite = false, std::string* error = nullptr) {
+  // Try to create hard-link at first.
+  if (link(src.c_str(), dst.c_str()) == 0) {
+    return true;
+  }
+  else if (errno == EEXIST && overwrite &&
+           unlink(dst.c_str()) == 0 && link(src.c_str(), dst.c_str()) == 0) {
+    return true;
+  }
+
   auto src_fd = open(src.c_str(), O_RDONLY);
   if (src_fd == -1) {
     GetLastError(error);
@@ -29,11 +38,13 @@ inline bool CopyFile(const std::string& src, const std::string& dst,
     return false;
   }
 
-  auto flags = O_CREAT|O_WRONLY;
-  if (!overwrite)
-    flags |= O_EXCL;
-  else
-    flags |= O_TRUNC;
+  auto flags = O_CREAT|O_WRONLY|O_EXCL;
+  // Force unlinking of |dst|, since it may be hard-linked with other places.
+  if (overwrite && unlink(dst.c_str()) == -1) {
+    GetLastError(error);
+    close(src_fd);
+    return false;
+  }
   auto dst_fd = open(dst.c_str(), flags, src_stats.st_mode & 0777);
   if (dst_fd == -1) {
     GetLastError(error);
