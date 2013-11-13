@@ -5,6 +5,8 @@
 #include "base/string_utils.h"
 
 #include <fstream>
+#include <sys/types.h>
+#include <utime.h>
 
 namespace dist_clang {
 namespace daemon {
@@ -14,17 +16,22 @@ FileCache::FileCache(const std::string &path)
   pool_.Run();
 }
 
-bool FileCache::Find(const std::string &code, const std::string &command_line,
-                     const std::string &version, Entry *entry) const {
+bool FileCache::Find(const std::string& code, const std::string& command_line,
+                     const std::string& version, Entry* entry) const {
   bool result = false;
-  std::string code_hash = base::Hexify(base::MakeHash(code));
-  std::string args_hash = base::Hexify(base::MakeHash(command_line));
-  std::string version_hash = base::Hexify(base::MakeHash(version));
-  std::string path =
-      path_ + "/" + code_hash + "/" + args_hash + "/" + version_hash;
+  const std::string code_hash = base::Hexify(base::MakeHash(code));
+  const std::string args_hash = base::Hexify(base::MakeHash(command_line));
+  const std::string version_hash = base::Hexify(base::MakeHash(version));
+  const std::string code_path = path_ + "/" + code_hash;
+  const std::string args_path = code_path + "/" + args_hash;
+  const std::string path = args_path + "/" + version_hash;
 
   std::ifstream obj(path + "/object");
   if (obj.is_open()) {
+    DCHECK_O_EVAL(utime((path + "/object").c_str(), nullptr) == 0);
+    DCHECK_O_EVAL(utime(path.c_str(), nullptr) == 0);
+    DCHECK_O_EVAL(utime(args_path.c_str(), nullptr) == 0);
+    DCHECK_O_EVAL(utime(code_path.c_str(), nullptr) == 0);
     if (!entry)
       return true;
     result = true;
@@ -33,6 +40,10 @@ bool FileCache::Find(const std::string &code, const std::string &command_line,
 
   std::ifstream stderr(path + "/stderr");
   if (stderr.is_open()) {
+    DCHECK_O_EVAL(utime((path + "/stderr").c_str(), nullptr) == 0);
+    DCHECK_O_EVAL(utime(path.c_str(), nullptr) == 0);
+    DCHECK_O_EVAL(utime(args_path.c_str(), nullptr) == 0);
+    DCHECK_O_EVAL(utime(code_path.c_str(), nullptr) == 0);
     if (!entry)
       return true;
     result = true;
