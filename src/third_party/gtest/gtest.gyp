@@ -32,6 +32,12 @@
           '..',
         ],
       },
+      'cflags!': [
+        '-fno-exceptions',
+      ],
+      'defines': [
+        'GTEST_HAS_EXCEPTIONS=1',
+      ],
       'include_dirs': [
         '..',
       ],
