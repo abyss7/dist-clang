@@ -9,9 +9,10 @@ namespace daemon {
 
 class FileCache {
   public:
+    enum { UNLIMITED = 0 };
     using Entry = std::pair<std::string /* path */, std::string /* stderr */>;
 
-    explicit FileCache(const std::string& path);
+    explicit FileCache(const std::string& path, uint64_t size_mb = UNLIMITED);
 
     bool Find(const std::string& code, const std::string& command_line,
               const std::string& version, Entry* entry) const;
@@ -21,6 +22,7 @@ class FileCache {
   private:
     const std::string path_;
     base::ThreadPool pool_;
+    uint64_t size_mb_;
 
     void DoStore(const std::string& path, const Entry& entry);
 };

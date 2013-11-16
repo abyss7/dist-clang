@@ -11,8 +11,8 @@
 namespace dist_clang {
 namespace daemon {
 
-FileCache::FileCache(const std::string &path)
-  : path_(path) {
+FileCache::FileCache(const std::string &path, uint64_t size_mb)
+  : path_(path), size_mb_(size_mb) {
   pool_.Run();
 }
 
@@ -82,6 +82,10 @@ void FileCache::DoStore(const std::string &path, const Entry &entry) {
     base::DeleteFile(path + "/object.tmp");
     base::DeleteFile(path + "/stderr");
   }
+
+  // TODO: clean up cache, if it exceeds size limits.
+  // The most ancient files should be wiped out.
+  (void)size_mb_;
 }
 
 }  // namespace daemon
