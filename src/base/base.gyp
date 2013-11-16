@@ -10,6 +10,8 @@
         'headers_only',
       ],
       'sources': [
+        'file_utils.cc',
+        'file_utils.h',
         'logging.cc',
         'logging.h',
         'thread_pool.cc',
@@ -43,7 +45,6 @@
         'assert.h',
         'attributes.h',
         'c_utils.h',
-        'file_utils.h',
         'locked_queue.h',
         'locked_queue_impl.h',
         'queue_aggregator.h',

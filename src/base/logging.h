@@ -7,6 +7,13 @@
 namespace dist_clang {
 namespace base {
 
+// Since the enum values are defined in the parent's scope - to be able to use
+// something like this:
+//
+//     LOG(ERROR) << "Message";
+//
+// in any part of code, we need a separate namespace with an enum only, to
+// include it with "using namespace NamedLevels;". See using_log.h .
 namespace NamedLevels {
 
 enum {

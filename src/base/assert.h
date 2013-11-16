@@ -1,7 +1,6 @@
 #pragma once
 
-#include "base/logging.h"
-
+#include <iostream>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -62,18 +61,38 @@ inline void GetStackTrace(size_t depth, std::vector<std::string>& strings) {
   free(symbols);
 }
 
-#define CHECK(expr) \
+// Don't use |base::Log| inside |CHECK()| since we always need a stacktrace -
+// even if we disable logging at all. Also, potentially, |base::Log| facility
+// may use assertions too.
+
+// In tests it's better to throw unhandled exception - not to crash the whole
+// binary, but catch the failure.
+#if __has_feature(cxx_exceptions)
+#  define CHECK(expr) \
   if (!(expr)) { \
     std::stringstream ss; \
     std::vector<std::string> strings; \
-    dist_clang::base::GetStackTrace(5, strings); \
+    dist_clang::base::GetStackTrace(62, strings); \
     ss << "Assertion failed: " << #expr << std::endl; \
     for (const auto& str: strings) { \
       ss << "  " << str << std::endl; \
     } \
-    dist_clang::base::Log(dist_clang::base::NamedLevels::FATAL) << ss.str(); \
+    throw std::runtime_error(ss.str()); \
+  }
+#else  // !__has_feature(cxx_exceptions)
+#  define CHECK(expr) \
+  if (!(expr)) { \
+    std::stringstream ss; \
+    std::vector<std::string> strings; \
+    dist_clang::base::GetStackTrace(62, strings); \
+    ss << "Assertion failed: " << #expr << std::endl; \
+    for (const auto& str: strings) { \
+      ss << "  " << str << std::endl; \
+    } \
+    std::cerr << ss.str(); \
     std::abort(); \
   }
+#endif  // __has_feature(cxx_exceptions)
 
 #if defined(NDEBUG)
 #  define DCHECK_O_EVAL(expr) (void)(expr)

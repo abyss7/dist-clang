@@ -9,12 +9,20 @@
       'type': 'executable',
       'dependencies': [
         '../base/base.gyp:base',
+        '../base/base.gyp:hash',
         '../base/base.gyp:process',
         '../net/net.gyp:net',
         '../third_party/gtest/gtest.gyp:gtest',
         '../third_party/protobuf/protobuf.gyp:protobuf',
       ],
+      'cflags!': [
+        '-fno-exceptions',  # catch failures with exceptions in tests.
+      ],
       'sources': [
+        '../base/assert_debug_test.cc',
+        '../base/assert_release_test.cc',
+        '../base/file_utils_test.cc',
+        '../base/hash_test.cc',
         '../base/process_test.cc',
         'run_all_tests.cc',
       ],

@@ -5,5 +5,6 @@ int main(int argc, char* argv[]) {
   signal(SIGPIPE, SIG_IGN);
 
   ::testing::InitGoogleTest(&argc, argv);
+  ::testing::FLAGS_gtest_death_test_style = "fast";
   return RUN_ALL_TESTS();
 }

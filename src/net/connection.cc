@@ -1,6 +1,7 @@
 #include "net/connection.h"
 
 #include "base/assert.h"
+#include "base/logging.h"
 #include "net/base/utils.h"
 #include "net/event_loop.h"
 

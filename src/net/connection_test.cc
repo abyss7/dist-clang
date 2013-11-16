@@ -1,5 +1,6 @@
 #include "base/assert.h"
 #include "base/c_utils.h"
+#include "base/logging.h"
 #include "base/string_utils.h"
 #include "net/base/utils.h"
 #include "net/connection.h"

@@ -2,6 +2,7 @@
 
 #include "base/assert.h"
 #include "base/file_utils.h"
+#include "base/logging.h"
 #include "base/process.h"
 #include "base/queue_aggregator_impl.h"
 #include "base/string_utils.h"
