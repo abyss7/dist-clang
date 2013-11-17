@@ -39,7 +39,7 @@ bool EpollEventLoop::ReadyForSend(ConnectionPtr connection) {
   return ReadyFor(connection, EPOLLOUT);
 }
 
-void EpollEventLoop::DoListenWork(const volatile bool &is_shutting_down,
+void EpollEventLoop::DoListenWork(const std::atomic<bool>& is_shutting_down,
                                   fd_t self_pipe) {
   const int MAX_EVENTS = 10;  // This should be enought in most cases.
   struct epoll_event events[MAX_EVENTS];
@@ -81,7 +81,7 @@ void EpollEventLoop::DoListenWork(const volatile bool &is_shutting_down,
   }
 }
 
-void EpollEventLoop::DoIOWork(const volatile bool& is_shutting_down,
+void EpollEventLoop::DoIOWork(const std::atomic<bool>& is_shutting_down,
                               fd_t self_pipe) {
   struct epoll_event event;
   event.events = EPOLLIN;

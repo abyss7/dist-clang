@@ -55,10 +55,10 @@ class Daemon {
                           const proto::Status& status);
 
     // Workers
-    void DoCheckCache(const volatile bool& is_shutting_down);
-    void DoRemoteExecution(const volatile bool& is_shutting_down,
+    void DoCheckCache(const std::atomic<bool>& is_shutting_down);
+    void DoRemoteExecution(const std::atomic<bool>& is_shutting_down,
                            net::EndPointPtr end_point);
-    void DoLocalExecution(const volatile bool& is_shutting_down);
+    void DoLocalExecution(const std::atomic<bool>& is_shutting_down);
 
     CompilerMap compilers_;
     PluginMap plugins_;

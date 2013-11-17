@@ -24,7 +24,7 @@ bool ThreadPool::Push(const Closure& task) {
   return tasks_.Push(task);
 }
 
-void ThreadPool::DoWork(const volatile bool& is_shutting_down) {
+void ThreadPool::DoWork(const std::atomic<bool>& is_shutting_down) {
   while (!is_shutting_down) {
     Closure task;
     tasks_.Pop(task);

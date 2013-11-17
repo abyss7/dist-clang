@@ -30,9 +30,9 @@ class EventLoop {
     inline void ConnectionClose(ConnectionPtr connection);
 
   private:
-    virtual void DoListenWork(const volatile bool& is_shutting_down,
+    virtual void DoListenWork(const std::atomic<bool>& is_shutting_down,
                               fd_t self_pipe) = 0;
-    virtual void DoIOWork(const volatile bool& is_shutting_down,
+    virtual void DoIOWork(const std::atomic<bool>& is_shutting_down,
                           fd_t self_pipe) = 0;
 
     std::atomic<int> is_running_;

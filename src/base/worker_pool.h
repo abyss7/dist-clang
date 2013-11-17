@@ -2,6 +2,7 @@
 
 #include "net/base/types.h"
 
+#include <atomic>
 #include <functional>
 #include <thread>
 #include <vector>
@@ -11,8 +12,8 @@ namespace base {
 
 class WorkerPool {
   public:
-    using NetWorker = std::function<void(const volatile bool&, net::fd_t)>;
-    using SimpleWorker = std::function<void(const volatile bool&)>;
+    using NetWorker = std::function<void(const std::atomic<bool>&, net::fd_t)>;
+    using SimpleWorker = std::function<void(const std::atomic<bool>&)>;
 
     WorkerPool();
     ~WorkerPool();
@@ -22,7 +23,7 @@ class WorkerPool {
 
   private:
     std::vector<std::thread> workers_;
-    volatile bool is_shutting_down_;
+    std::atomic<bool> is_shutting_down_;
     net::fd_t self_pipe_[2];
 };
 

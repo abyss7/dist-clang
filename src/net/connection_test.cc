@@ -239,12 +239,12 @@ class TestServer: public EventLoop {
       // Do nothing.
     }
 
-    virtual void DoListenWork(const volatile bool& is_shutting_down,
+    virtual void DoListenWork(const std::atomic<bool>& is_shutting_down,
                               fd_t self_pipe) override {
       // Test server doesn't do listening work.
     }
 
-    virtual void DoIOWork(const volatile bool& is_shutting_down,
+    virtual void DoIOWork(const std::atomic<bool>& is_shutting_down,
                           fd_t self_pipe) override {
       const int TIMEOUT = 1 * 1000;  // In milliseconds.
       struct epoll_event event;

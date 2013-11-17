@@ -21,9 +21,9 @@ class EpollEventLoop: public EventLoop {
     virtual bool ReadyForSend(ConnectionPtr connection) THREAD_SAFE override;
 
   private:
-    virtual void DoListenWork(const volatile bool& is_shutting_down,
+    virtual void DoListenWork(const std::atomic<bool>& is_shutting_down,
                               fd_t self_pipe) override;
-    virtual void DoIOWork(const volatile bool& is_shutting_down,
+    virtual void DoIOWork(const std::atomic<bool>& is_shutting_down,
                           fd_t self_pipe) override;
 
     bool ReadyForListen(fd_t fd);

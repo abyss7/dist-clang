@@ -286,7 +286,7 @@ bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
   return false;
 }
 
-void Daemon::DoCheckCache(const volatile bool& is_shutting_down) {
+void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
   while (!is_shutting_down) {
     ScopedTask task;
     if (!cache_tasks_->Pop(task)) {
@@ -351,7 +351,7 @@ void Daemon::DoCheckCache(const volatile bool& is_shutting_down) {
   }
 }
 
-void Daemon::DoRemoteExecution(const volatile bool& is_shutting_down,
+void Daemon::DoRemoteExecution(const std::atomic<bool>& is_shutting_down,
                                net::EndPointPtr end_point) {
   if (!end_point) {
     // TODO: do re-resolve |end_point| periodically, since the network
@@ -449,7 +449,7 @@ void Daemon::DoRemoteExecution(const volatile bool& is_shutting_down,
   }
 }
 
-void Daemon::DoLocalExecution(const volatile bool& is_shutting_down) {
+void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
   while (!is_shutting_down) {
     ScopedTask task;
     if (!all_tasks_->Pop(task)) {

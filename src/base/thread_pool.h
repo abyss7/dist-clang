@@ -24,7 +24,7 @@ class ThreadPool {
     inline size_t QueueSize() const;
 
   private:
-    void DoWork(const volatile bool& is_shutting_down);
+    void DoWork(const std::atomic<bool>& is_shutting_down);
 
     TaskQueue tasks_;
     WorkerPool pool_;
