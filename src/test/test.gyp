@@ -24,6 +24,7 @@
         '../base/file_utils_test.cc',
         '../base/hash_test.cc',
         '../base/process_test.cc',
+        '../base/string_utils_test.cc',
         'run_all_tests.cc',
       ],
       'conditions': [
