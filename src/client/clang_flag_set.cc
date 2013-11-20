@@ -86,9 +86,9 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(StringList& flags,
     }
 
     // Non-cacheable flags.
-    // NOTE: we should be very cautious here, since the local compilations are
-    // performed on non-preprocessed file, but the result is saved using hash
-    // from preprocessed file.
+    // NOTICE: we should be very cautious here, since the local compilations are
+    //         performed on a non-preprocessed file, but the result is saved
+    //         using the hash from a preprocessed file.
     else if (flag == "-coverage-file") {
       message->add_non_cached(flag);
       message->add_non_cached(*(++it));

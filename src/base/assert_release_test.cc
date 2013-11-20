@@ -1,3 +1,4 @@
+#undef NDEBUG
 #define NDEBUG
 #include "base/assert.h"
 
