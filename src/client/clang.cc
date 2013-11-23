@@ -1,3 +1,5 @@
+#include "client/clang.h"
+
 #include "base/assert.h"
 #include "base/c_utils.h"
 #include "base/constants.h"
@@ -12,32 +14,11 @@
 #include <list>
 #include <string>
 
-#include <signal.h>
-
 using namespace dist_clang;
 
 namespace {
 
 const char* kEnvClangdSocket = "CLANGD_SOCKET_PATH";
-const char* kEnvClangdCxx = "CLANGD_CXX";
-
-int ExecuteLocally(char* argv[]) {
-  std::string clangd_cxx_path = base::GetEnv(kEnvClangdCxx);
-  if (clangd_cxx_path.empty()) {
-    std::cerr << "Provide real clang++ compiler path via " << kEnvClangdCxx
-              << std::endl;
-    return 1;
-  }
-
-  std::cout << "Running locally." << std::endl;
-
-  if (execv(clangd_cxx_path.c_str(), argv) == -1) {
-    std::cerr << "Local execution failed: " << strerror(errno) << std::endl;
-    return 1;
-  }
-
-  return 0;
-}
 
 // The clang output has following format:
 //
@@ -81,6 +62,11 @@ bool ParseClangOutput(const std::string& output,
   return true;
 }
 
+}  // namespace
+
+namespace dist_clang {
+namespace client {
+
 bool DoMain(int argc, char* argv[]) {
   std::string clangd_socket_path = base::GetEnv(kEnvClangdSocket,
                                                 base::kDefaultClangdSocket);
@@ -99,11 +85,10 @@ bool DoMain(int argc, char* argv[]) {
   message->set_current_dir(current_dir);
 
   {
-    using client::ClangFlagSet;
     auto flags = message->mutable_cc_flags();
     auto version = flags->mutable_compiler()->mutable_version();
     ClangFlagSet::StringList args;
-    base::Process process(base::GetEnv(kEnvClangdCxx));
+    base::Process process(base::GetEnv(base::kEnvClangdCxx));
     process.AppendArg("-###").AppendArg(argv + 1, argv + argc);
     if (!process.Run(10) ||
         !ParseClangOutput(process.stderr(), version, args) ||
@@ -113,11 +98,10 @@ bool DoMain(int argc, char* argv[]) {
   }
 
   {
-    using client::ClangFlagSet;
     auto flags = message->mutable_pp_flags();
     auto version = flags->mutable_compiler()->mutable_version();
     ClangFlagSet::StringList args;
-    base::Process process(base::GetEnv(kEnvClangdCxx));
+    base::Process process(base::GetEnv(base::kEnvClangdCxx));
     process.AppendArg("-###").AppendArg("-E").AppendArg(argv + 1, argv + argc);
     if (!process.Run(10) ||
         !ParseClangOutput(process.stderr(), version, args) ||
@@ -160,18 +144,5 @@ bool DoMain(int argc, char* argv[]) {
   return false;
 }
 
-}  // namespace
-
-int main(int argc, char* argv[]) {
-  signal(SIGPIPE, SIG_IGN);
-
-  /*
-   * Use separate |DoMain| function to make sure that all local objects get
-   * destructed before the invokation of |exec|.
-   * Do not use global objects!
-   */
-  if (DoMain(argc, argv)) {
-    return ExecuteLocally(argv);
-  }
-  return 0;
-}
+}  // namespace client
+}  // namespace dist_clang

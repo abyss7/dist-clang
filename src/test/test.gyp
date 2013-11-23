@@ -11,6 +11,7 @@
         '../base/base.gyp:base',
         '../base/base.gyp:hash',
         '../base/base.gyp:process',
+        '../client/clang.gyp:clang_helpers',
         '../net/net.gyp:net',
         '../third_party/gtest/gtest.gyp:gtest',
         '../third_party/protobuf/protobuf.gyp:protobuf',
@@ -25,6 +26,7 @@
         '../base/hash_test.cc',
         '../base/process_test.cc',
         '../base/string_utils_test.cc',
+        '../client/clang_test.cc',
         'run_all_tests.cc',
       ],
       'conditions': [

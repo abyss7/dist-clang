@@ -93,6 +93,10 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(StringList& flags,
       message->add_non_cached(flag);
       message->add_non_cached(*(++it));
     }
+    else if (flag == "-fdebug-compilation-dir") {
+      message->add_non_cached(flag);
+      message->add_non_cached(*(++it));
+    }
     else if (flag == "-internal-externc-isystem") {
       message->add_non_cached(flag);
       message->add_non_cached(*(++it));
