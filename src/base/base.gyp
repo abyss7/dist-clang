@@ -50,6 +50,7 @@
         'queue_aggregator.h',
         'queue_aggregator_impl.h',
         'string_utils.h',
+        'testable.h',
       ],
     },
     {

@@ -71,7 +71,7 @@ bool DoMain(int argc, char* argv[]) {
   std::string clangd_socket_path = base::GetEnv(kEnvClangdSocket,
                                                 base::kDefaultClangdSocket);
 
-  std::unique_ptr<net::NetworkService> service(new net::NetworkServiceImpl);
+  auto service = net::NetworkService::Create();
   auto connection = service->Connect(clangd_socket_path);
   if (!connection)
     return true;

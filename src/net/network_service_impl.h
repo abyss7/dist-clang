@@ -3,7 +3,6 @@
 #include "net/event_loop.h"
 #include "net/network_service.h"
 
-#include <memory>
 #include <unordered_map>
 
 namespace dist_clang {

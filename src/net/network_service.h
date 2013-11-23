@@ -1,15 +1,20 @@
 #pragma once
 
 #include "base/attributes.h"
+#include "base/testable.h"
 #include "net/base/types.h"
 
 #include <functional>
+#include <memory>
 #include <string>
 
 namespace dist_clang {
 namespace net {
 
-class NetworkService {
+class NetworkServiceImpl;
+
+class NetworkService:
+    public base::Testable<NetworkService, NetworkServiceImpl> {
   public:
     using ListenCallback = std::function<void(ConnectionPtr)>;
 
