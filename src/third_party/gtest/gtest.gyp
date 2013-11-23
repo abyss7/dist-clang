@@ -4,7 +4,7 @@
   ],
   'targets': [
     {
-      'target_name': 'public_headers',
+      'target_name': 'gtest_headers',
       'type': 'none',
       'all_dependent_settings': {
         'include_dirs': [
@@ -27,11 +27,6 @@
     {
       'target_name': 'gtest',
       'type': 'shared_library',
-      'direct_dependent_settings': {
-        'include_dirs': [
-          '..',
-        ],
-      },
       'cflags!': [
         '-fno-exceptions',
       ],

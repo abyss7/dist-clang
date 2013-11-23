@@ -1,0 +1,3 @@
+scm: svn
+repo: http://googlemock.googlecode.com/svn/trunk/
+rev: 458

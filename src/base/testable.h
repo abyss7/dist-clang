@@ -60,7 +60,7 @@ std::unique_ptr<T> Testable<T, Default>::Create() {
 template <class T, class Default>
 template <class F>
 void Testable<T, Default>::SetFactory() {
-  factory_().reset(new F);
+  factory_() = F();
 }
 
 // static

@@ -13,6 +13,7 @@
         '../base/base.gyp:process',
         '../client/clang.gyp:clang_helpers',
         '../net/net.gyp:net',
+        '../third_party/gmock/gmock.gyp:gmock',
         '../third_party/gtest/gtest.gyp:gtest',
         '../third_party/protobuf/protobuf.gyp:protobuf',
       ],
