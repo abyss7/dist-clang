@@ -4,6 +4,7 @@
 #include "base/queue_aggregator.h"
 #include "daemon/file_cache.h"
 #include "net/connection_forward.h"
+#include "proto/remote.pb.h"
 
 #include <unordered_map>
 
@@ -11,13 +12,6 @@ namespace dist_clang {
 
 namespace net {
 class NetworkService;
-}
-
-namespace proto {
-class Flags;
-class Execute;
-class Status;
-class Universal;
 }
 
 namespace daemon {

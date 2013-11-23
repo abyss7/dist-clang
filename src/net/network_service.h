@@ -2,14 +2,9 @@
 
 #include "base/attributes.h"
 #include "net/base/types.h"
-#include "net/event_loop.h"
-#include "proto/remote.pb.h"
 
 #include <functional>
-#include <memory>
-#include <mutex>
 #include <string>
-#include <unordered_map>
 
 namespace dist_clang {
 namespace net {
@@ -18,35 +13,26 @@ class NetworkService {
   public:
     using ListenCallback = std::function<void(ConnectionPtr)>;
 
-    NetworkService();
+    virtual ~NetworkService() {}
 
-    // We need method |Run()| to allow user to add all listening sockets in
-    // a non-threadsafe way, thus, prevent locking inside |HandleNewConnection|.
-    bool Run() THREAD_UNSAFE;
+    virtual bool Run() THREAD_UNSAFE = 0;
 
-    bool Listen(
+    virtual bool Listen(
         const std::string& path,
         ListenCallback callback,
-        std::string* error = nullptr) THREAD_UNSAFE;
-    bool Listen(
+        std::string* error = nullptr) THREAD_UNSAFE = 0;
+    virtual bool Listen(
         const std::string& host,
         unsigned short port,
         ListenCallback callback,
-        std::string* error = nullptr) THREAD_UNSAFE;
+        std::string* error = nullptr) THREAD_UNSAFE = 0;
 
-    ConnectionPtr Connect(
+    virtual ConnectionPtr Connect(
         const std::string& path,
-        std::string* error = nullptr) THREAD_SAFE;
-    ConnectionPtr Connect(
+        std::string* error = nullptr) THREAD_SAFE = 0;
+    virtual ConnectionPtr Connect(
         EndPointPtr end_point,
-        std::string* error = nullptr) THREAD_SAFE;
-
-  private:
-    // |fd| is a descriptor of a listening socket, which accepts new connection.
-    void HandleNewConnection(fd_t fd, ConnectionPtr connection);
-
-    std::unique_ptr<EventLoop> event_loop_;
-    std::unordered_map<fd_t, ListenCallback> listen_callbacks_;
+        std::string* error = nullptr) THREAD_SAFE = 0;
 };
 
 }  // namespace net

@@ -5,7 +5,7 @@
 namespace dist_clang {
 
 namespace net {
-class NetworkService;
+class NetworkServiceImpl;
 }
 
 namespace proto {
@@ -18,7 +18,7 @@ class Statistic {
   public:
     using Metric = proto::Statistic::Metric;
 
-    static void Initialize(net::NetworkService& network_service,
+    static void Initialize(net::NetworkServiceImpl& network_service,
                            const proto::Host& host);
     static void Accumulate(Metric metric, uint64_t value, uint64_t count = 1);
 };

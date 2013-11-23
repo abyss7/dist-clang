@@ -11,7 +11,7 @@
 #include "daemon/statistic.h"
 #include "net/base/end_point.h"
 #include "net/connection.h"
-#include "net/network_service.h"
+#include "net/network_service_impl.h"
 #include "proto/config.pb.h"
 
 #include <atomic>
@@ -59,7 +59,7 @@ bool Daemon::Initialize(const Configuration &configuration) {
     return false;
   }
 
-  network_service_.reset(new net::NetworkService);
+  network_service_.reset(new net::NetworkServiceImpl);
   if (config.has_statistic()) {
     // TODO: initialize statistic in proper way - regarding |NetworkService|.
     // Statistic::Initialize(network_service_, config.statistic());

@@ -4,7 +4,7 @@ namespace dist_clang {
 namespace daemon {
 
 // static
-void Statistic::Initialize(net::NetworkService& network_service,
+void Statistic::Initialize(net::NetworkServiceImpl& network_service,
                            const proto::Host& host) {
   // TODO: implement this.
 }

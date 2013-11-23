@@ -1,4 +1,4 @@
-#include "net/network_service.h"
+#include "net/network_service_impl.h"
 
 #include "base/assert.h"
 #include "base/c_utils.h"
@@ -17,11 +17,11 @@ using namespace ::std::placeholders;
 namespace dist_clang {
 namespace net {
 
-bool NetworkService::Run() {
+bool NetworkServiceImpl::Run() {
   return event_loop_->Run();
 }
 
-bool NetworkService::Listen(const string& path, ListenCallback callback,
+bool NetworkServiceImpl::Listen(const string& path, ListenCallback callback,
                             string* error) {
   sockaddr_un address;
   address.sun_family = AF_UNIX;
@@ -62,7 +62,7 @@ bool NetworkService::Listen(const string& path, ListenCallback callback,
   return true;
 }
 
-bool NetworkService::Listen(const string &host, unsigned short port,
+bool NetworkServiceImpl::Listen(const string &host, unsigned short port,
                             ListenCallback callback, string* error) {
   struct hostent* host_entry;
   struct in_addr** address_list;
@@ -121,7 +121,7 @@ bool NetworkService::Listen(const string &host, unsigned short port,
   return true;
 }
 
-ConnectionPtr NetworkService::Connect(const string &path, string *error) {
+ConnectionPtr NetworkServiceImpl::Connect(const string &path, string *error) {
   sockaddr_un address;
   address.sun_family = AF_UNIX;
   strcpy(address.sun_path, path.c_str());
@@ -143,7 +143,7 @@ ConnectionPtr NetworkService::Connect(const string &path, string *error) {
   return Connection::Create(*event_loop_, fd);
 }
 
-ConnectionPtr NetworkService::Connect(EndPointPtr end_point, string *error) {
+ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point, string *error) {
   auto fd = socket(AF_INET, SOCK_STREAM, 0);
   if (fd == -1) {
     base::GetLastError(error);
@@ -160,7 +160,7 @@ ConnectionPtr NetworkService::Connect(EndPointPtr end_point, string *error) {
   return Connection::Create(*event_loop_, fd, end_point);
 }
 
-void NetworkService::HandleNewConnection(fd_t fd, ConnectionPtr connection) {
+void NetworkServiceImpl::HandleNewConnection(fd_t fd, ConnectionPtr connection) {
   auto callback = listen_callbacks_.find(fd);
   DCHECK(callback != listen_callbacks_.end());
   callback->second(connection);
