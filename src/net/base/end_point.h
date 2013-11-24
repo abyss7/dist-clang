@@ -12,17 +12,22 @@ namespace net {
 class EndPoint: public std::enable_shared_from_this<EndPoint> {
   public:
     static EndPointPtr TcpHost(const std::string& host, unsigned short port);
+    static EndPointPtr UnixSocket(const std::string& path);
 
     operator const ::sockaddr* () const {
-      return reinterpret_cast<const ::sockaddr*>(&in_address_);
+      return &address_;
     }
 
     size_t size() const {
-      return sizeof(in_address_);
+      return sizeof(address_);
+    }
+
+    int domain() const {
+      return address_.sa_family;
     }
 
   private:
-    ::sockaddr_in in_address_;
+    ::sockaddr address_;
 };
 
 }  // namespace net

@@ -6,6 +6,7 @@
 #include <cstring>
 #include <string>
 
+#include <sys/stat.h>
 #include <unistd.h>
 
 namespace dist_clang {
@@ -48,6 +49,15 @@ inline std::string CreateTempDir(std::string* error = nullptr) {
 inline bool ChangeCurrentDir(const std::string& path,
                              std::string* error = nullptr) {
   if (chdir(path.c_str()) == -1) {
+    GetLastError(error);
+    return false;
+  }
+  return true;
+}
+
+inline bool SetPermissions(const std::string& path, int mask,
+                           std::string* error = nullptr) {
+  if (chmod(path.c_str(), mask) == -1) {
     GetLastError(error);
     return false;
   }

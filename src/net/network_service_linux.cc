@@ -8,7 +8,8 @@ namespace dist_clang {
 namespace net {
 
 NetworkServiceImpl::NetworkServiceImpl() {
-  auto callback = std::bind(&NetworkServiceImpl::HandleNewConnection, this, _1, _2);
+  auto callback =
+      std::bind(&NetworkServiceImpl::HandleNewConnection, this, _1, _2);
   event_loop_.reset(new EpollEventLoop(callback));
 }
 

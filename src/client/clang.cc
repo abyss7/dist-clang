@@ -6,6 +6,7 @@
 #include "base/process.h"
 #include "base/string_utils.h"
 #include "client/clang_flag_set.h"
+#include "net/base/end_point.h"
 #include "net/connection.h"
 #include "net/network_service_impl.h"
 #include "proto/remote.pb.h"
@@ -72,7 +73,8 @@ bool DoMain(int argc, char* argv[]) {
                                                 base::kDefaultClangdSocket);
 
   auto service = net::NetworkService::Create();
-  auto connection = service->Connect(clangd_socket_path);
+  auto end_point = net::EndPoint::UnixSocket(clangd_socket_path);
+  auto connection = service->Connect(end_point);
   if (!connection)
     return true;
 

@@ -42,6 +42,7 @@ bool NetworkServiceImpl::Listen(const string& path, ListenCallback callback,
     close(fd);
     return false;
   }
+  base::SetPermissions(path, 0777);
 
   if (listen(fd, 100) == -1) {  // FIXME: hardcode.
     base::GetLastError(error);
@@ -121,30 +122,9 @@ bool NetworkServiceImpl::Listen(const string &host, unsigned short port,
   return true;
 }
 
-ConnectionPtr NetworkServiceImpl::Connect(const string &path, string *error) {
-  sockaddr_un address;
-  address.sun_family = AF_UNIX;
-  strcpy(address.sun_path, path.c_str());
-
-  auto fd = socket(AF_UNIX, SOCK_STREAM, 0);
-  if (fd == -1) {
-    base::GetLastError(error);
-    return ConnectionPtr();
-  }
-  MakeCloseOnExec(fd);
-
-  if (connect(fd, reinterpret_cast<sockaddr*>(&address),
-              sizeof(address)) == -1) {
-    base::GetLastError(error);
-    close(fd);
-    return ConnectionPtr();
-  }
-
-  return Connection::Create(*event_loop_, fd);
-}
-
-ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point, string *error) {
-  auto fd = socket(AF_INET, SOCK_STREAM, 0);
+ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point,
+                                          string *error) {
+  auto fd = socket(end_point->domain(), SOCK_STREAM, 0);
   if (fd == -1) {
     base::GetLastError(error);
     return ConnectionPtr();
@@ -160,7 +140,8 @@ ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point, string *error) 
   return Connection::Create(*event_loop_, fd, end_point);
 }
 
-void NetworkServiceImpl::HandleNewConnection(fd_t fd, ConnectionPtr connection) {
+void NetworkServiceImpl::HandleNewConnection(fd_t fd,
+                                             ConnectionPtr connection) {
   auto callback = listen_callbacks_.find(fd);
   DCHECK(callback != listen_callbacks_.end());
   callback->second(connection);

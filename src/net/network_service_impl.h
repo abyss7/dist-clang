@@ -27,9 +27,6 @@ class NetworkServiceImpl: public NetworkService {
         std::string* error) THREAD_UNSAFE override;
 
     virtual ConnectionPtr Connect(
-        const std::string& path,
-        std::string* error) THREAD_SAFE override;
-    virtual ConnectionPtr Connect(
         EndPointPtr end_point,
         std::string* error) THREAD_SAFE override;
 

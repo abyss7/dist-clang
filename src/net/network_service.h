@@ -34,9 +34,6 @@ class NetworkService:
         std::string* error = nullptr) THREAD_UNSAFE = 0;
 
     virtual ConnectionPtr Connect(
-        const std::string& path,
-        std::string* error = nullptr) THREAD_SAFE = 0;
-    virtual ConnectionPtr Connect(
         EndPointPtr end_point,
         std::string* error = nullptr) THREAD_SAFE = 0;
 };

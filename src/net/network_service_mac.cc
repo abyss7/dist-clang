@@ -7,8 +7,9 @@ using namespace std::placeholders;
 namespace dist_clang {
 namespace net {
 
-NetworkService::NetworkService() {
-  auto callback = std::bind(&NetworkService::HandleNewConnection, this, _1, _2);
+NetworkServiceImpl::NetworkServiceImpl() {
+  auto callback =
+      std::bind(&NetworkServiceImpl::HandleNewConnection, this, _1, _2);
   event_loop_.reset(new KqueueEventLoop(callback));
 }
 
