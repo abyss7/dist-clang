@@ -74,8 +74,10 @@ bool DoMain(int argc, char* argv[]) {
 
   auto service = net::NetworkService::Create();
   auto end_point = net::EndPoint::UnixSocket(clangd_socket_path);
-  auto connection = service->Connect(end_point);
+  std::string error;
+  auto connection = service->Connect(end_point, &error);
   if (!connection) {
+    std::cout << "Failed to connect to daemon: " << error << std::endl;
     return true;
   }
 

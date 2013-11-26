@@ -95,19 +95,27 @@ bool Daemon::Initialize(const Configuration &configuration) {
   if (config.has_local() && !config.local().disabled()) {
     std::string error;
     auto callback = std::bind(&Daemon::HandleNewConnection, this, _1);
-    bool result = network_service_->Listen(config.local().host(),
-                                           config.local().port(),
-                                           callback, &error);
-    if (!result) {
+    if (!network_service_->Listen(config.local().host(),
+                                  config.local().port(),
+                                  callback, &error)) {
       LOG(ERROR) << "Failed to listen on " << config.local().host() << ":"
                  << config.local().port() << " : " << error;
     }
-    is_listening |= result;
+    else {
+      is_listening = true;
+    }
   }
 
   if (config.has_socket_path()) {
+    std::string error;
     auto callback = std::bind(&Daemon::HandleNewConnection, this, _1);
-    is_listening |= network_service_->Listen(config.socket_path(), callback);
+    if (!network_service_->Listen(config.socket_path(), callback, &error)) {
+      LOG(ERROR) << "Failed to listen on " << config.socket_path() << " : "
+                 << error;
+    }
+    else {
+      is_listening = true;
+    }
   }
 
   if (!is_listening) {
