@@ -18,7 +18,7 @@ class Testable {
     class DefaultFactory: public Factory {
       public:
         virtual std::unique_ptr<T> Create() override {
-          return new Default;
+          return std::unique_ptr<T>(new Default);
         }
     };
 
@@ -28,7 +28,7 @@ class Testable {
     static void SetFactory();
 
   private:
-    static Factory& factory_();
+    static std::unique_ptr<Factory>& factory_();
 };
 
 template <class T>
@@ -47,27 +47,30 @@ class Testable<T, T> {
     static void SetFactory();
 
   private:
-    static Factory& factory_();
+    static std::unique_ptr<Factory>& factory_();
 };
 
 // static
 template <class T, class Default>
 std::unique_ptr<T> Testable<T, Default>::Create() {
-  return std::move(factory_().Create());
+  if (!factory_()) {
+    return typename std::unique_ptr<T>();
+  }
+  return factory_()->Create();
 }
 
 // static
 template <class T, class Default>
 template <class F>
 void Testable<T, Default>::SetFactory() {
-  factory_() = F();
+  factory_().reset(new F());
 }
 
 // static
-template <class T, class Default>
-typename Testable<T, Default>::Factory& Testable<T, Default>::factory_() {
-  static std::unique_ptr<Factory> factory;
-  return *factory.get();
+template <class T, class D>
+std::unique_ptr<typename Testable<T, D>::Factory>& Testable<T, D>::factory_() {
+  static std::unique_ptr<Factory> factory(new DefaultFactory());
+  return factory;
 }
 
 }  // namespace base
