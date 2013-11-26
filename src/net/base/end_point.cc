@@ -24,6 +24,7 @@ EndPointPtr EndPoint::TcpHost(const std::string& host, unsigned short port) {
   address->sin_family = AF_INET;
   address->sin_addr.s_addr = address_list[0]->s_addr;
   address->sin_port = htons(port);
+  end_point->size_ = sizeof(*address);
   return end_point;
 }
 
@@ -32,7 +33,8 @@ EndPointPtr EndPoint::UnixSocket(const std::string& path) {
   EndPointPtr end_point(new EndPoint);
   sockaddr_un* address = reinterpret_cast<sockaddr_un*>(&end_point->address_);
   address->sun_family = AF_UNIX;
-  strcpy(address->sun_path, path.c_str());
+  strncpy(address->sun_path, path.c_str(), sizeof(address->sun_path) - 1);
+  end_point->size_ = sizeof(*address);
   return end_point;
 }
 

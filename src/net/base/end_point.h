@@ -14,20 +14,21 @@ class EndPoint: public std::enable_shared_from_this<EndPoint> {
     static EndPointPtr TcpHost(const std::string& host, unsigned short port);
     static EndPointPtr UnixSocket(const std::string& path);
 
-    operator const ::sockaddr* () const {
-      return &address_;
+    operator const sockaddr* () const {
+      return reinterpret_cast<const sockaddr*>(&address_);
     }
 
     size_t size() const {
-      return sizeof(address_);
+      return size_;
     }
 
     int domain() const {
-      return address_.sa_family;
+      return address_.ss_family;
     }
 
   private:
-    ::sockaddr address_;
+    sockaddr_storage address_;
+    size_t size_;
 };
 
 }  // namespace net

@@ -75,15 +75,17 @@ bool DoMain(int argc, char* argv[]) {
   auto service = net::NetworkService::Create();
   auto end_point = net::EndPoint::UnixSocket(clangd_socket_path);
   auto connection = service->Connect(end_point);
-  if (!connection)
+  if (!connection) {
     return true;
+  }
 
   std::unique_ptr<proto::Execute> message(new proto::Execute);
   message->set_remote(false);
 
   std::string current_dir = base::GetCurrentDir();
-  if (current_dir.empty())
+  if (current_dir.empty()) {
     return true;
+  }
   message->set_current_dir(current_dir);
 
   {
