@@ -71,6 +71,10 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(StringList& flags,
     else if (flag == "-MMD") {
       message->add_dependenies(flag);
     }
+    else if (flag == "-MT") {
+      message->add_dependenies(flag);
+      message->add_dependenies(*(++it));
+    }
     else if (flag == "-o") {
       ++it;
       if (it->find(temp_dir) != std::string::npos) {
