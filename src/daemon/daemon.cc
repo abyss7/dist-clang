@@ -516,6 +516,10 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
         else if (task.second->cc_flags().language() == "c++") {
           task.second->mutable_cc_flags()->set_language("c++-cpp-output");
         }
+        else if (task.second->cc_flags().language() == "objective-c++") {
+          task.second->mutable_cc_flags()->
+              set_language("objective-c++-cpp-output");
+        }
       }
 
       // Do local compilation. Pipe the input file to the compiler and read
