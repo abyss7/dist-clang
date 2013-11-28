@@ -2,6 +2,7 @@
 
 #include "base/assert.h"
 #include "base/c_utils.h"
+#include "net/base/utils.h"
 
 #include <memory>
 
@@ -189,6 +190,8 @@ bool Process::Run(unsigned sec_timeout, const std::string& input,
     ScopedDescriptor in_fd(in_pipe_fd[1]);
     ScopedDescriptor out_fd(out_pipe_fd[0]);
     ScopedDescriptor err_fd(err_pipe_fd[0]);
+
+    net::MakeNonBlocking(in_fd);
 
     ScopedDescriptor epoll_fd = epoll_create1(EPOLL_CLOEXEC);
     if (epoll_fd == -1) {
