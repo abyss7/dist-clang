@@ -61,6 +61,10 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(StringList& flags,
       message->add_dependenies(flag);
       message->add_dependenies(*(++it));
     }
+    else if (flag == "-include") {
+      // FIXME: until we support PCH - ignore this flag.
+      ++it;
+    }
     else if (flag == "-load") {
       ++it;
     }
@@ -106,6 +110,10 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(StringList& flags,
       message->add_non_cached(*(++it));
     }
     else if (flag == "-internal-isystem") {
+      message->add_non_cached(flag);
+      message->add_non_cached(*(++it));
+    }
+    else if (flag == "-isysroot") {
       message->add_non_cached(flag);
       message->add_non_cached(*(++it));
     }
