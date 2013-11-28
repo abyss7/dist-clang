@@ -61,10 +61,6 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(StringList& flags,
       message->add_dependenies(flag);
       message->add_dependenies(*(++it));
     }
-    else if (flag == "-include") {
-      // FIXME: until we support PCH - ignore this flag.
-      ++it;
-    }
     else if (flag == "-load") {
       ++it;
     }
@@ -102,6 +98,10 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(StringList& flags,
       message->add_non_cached(*(++it));
     }
     else if (flag == "-fdebug-compilation-dir") {
+      message->add_non_cached(flag);
+      message->add_non_cached(*(++it));
+    }
+    else if (flag == "-include") {
       message->add_non_cached(flag);
       message->add_non_cached(*(++it));
     }
