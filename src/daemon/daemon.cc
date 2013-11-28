@@ -530,7 +530,10 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
         }
         arguments << std::endl;
         arguments << "Input size: " << task.second->pp_source().size()
-                  << std::endl << std::endl;
+                  << std::endl;
+        arguments << "Language: " << task.second->cc_flags().language()
+                  << std::endl;
+        arguments << std::endl;
 
         status.set_code(proto::Status::EXECUTION);
         if (!process.stdout().empty() || !process.stderr().empty()) {
