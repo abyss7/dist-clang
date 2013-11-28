@@ -154,8 +154,8 @@ bool Process::Run(unsigned sec_timeout, std::string* error) {
   }
 }
 
-bool Process::Run(unsigned sec_timeout, const std::string &input,
-                  std::string *error) {
+bool Process::Run(unsigned sec_timeout, const std::string& input,
+                  std::string* error) {
   int in_pipe_fd[2];
   int out_pipe_fd[2];
   int err_pipe_fd[2];

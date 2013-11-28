@@ -133,7 +133,7 @@ bool Process::Run(unsigned sec_timeout, std::string* error) {
   }
 }
 
-bool Process::Run(unsigned sec_timeout, const std::string &input,
+bool Process::Run(unsigned sec_timeout, const std::string& input,
                   std::string* error) {
   int in_pipe_fd[2];
   int out_pipe_fd[2];
@@ -202,6 +202,7 @@ bool Process::Run(unsigned sec_timeout, const std::string &input,
           continue;
         }
         else {
+          GetLastError(error);
           ::kill(child_pid, SIGTERM);
           return false;
         }
@@ -209,11 +210,15 @@ bool Process::Run(unsigned sec_timeout, const std::string &input,
 
       if (event_count == 0) {
         kill(child_pid);
+        if (error) {
+          error->assign("Timeout occured");
+        }
         break;
       }
 
       for (int i = 0; i < event_count; ++i) {
         net::fd_t fd = events[i].ident;
+
         if (events[i].filter == EVFILT_READ && events[i].data) {
           auto buffer_size = events[i].data;
           auto buffer = std::unique_ptr<char[]>(new char[buffer_size]);
