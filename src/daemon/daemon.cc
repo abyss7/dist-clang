@@ -413,6 +413,7 @@ void Daemon::DoRemoteExecution(const std::atomic<bool>& is_shutting_down,
     remote->mutable_cc_flags()->clear_output();
     remote->mutable_cc_flags()->clear_input();
     remote->mutable_cc_flags()->clear_dependenies();
+    remote->mutable_cc_flags()->clear_non_cached();
 
     if (!connection->SendSync(std::move(remote))) {
       local_tasks_->Push(std::move(task));
