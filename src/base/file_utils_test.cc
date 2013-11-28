@@ -17,7 +17,7 @@ TEST(FileUtilsTest, ReadFile) {
   const char* expected_content = "All your base are belong to us";
   auto content_size = strlen(expected_content);
   char pattern[] = "/tmp/file-XXXXXX";
-  int fd = mkstemp64(pattern);
+  int fd = mkstemp(pattern);
   ASSERT_NE(-1, fd);
   EXPECT_EQ(content_size,
             static_cast<size_t>(write(fd, expected_content, content_size)));
@@ -32,7 +32,7 @@ TEST(FileUtilsTest, ReadFile) {
 TEST(FileUtilsTest, WriteFile) {
   const char* expected_content = "All your base are belong to us";
   char pattern[] = "/tmp/file-XXXXXX";
-  int fd = mkstemp64(pattern);
+  int fd = mkstemp(pattern);
   ASSERT_NE(-1, fd);
   close(fd);
   EXPECT_TRUE(WriteFile(pattern, expected_content));

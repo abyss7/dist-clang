@@ -43,7 +43,7 @@ class LockedQueue {
 
 template <class T>
 size_t LockedQueue<T>::Size() const {
-  return size_.load();
+  return size_;
 }
 
 }  // namespace base

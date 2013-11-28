@@ -7,9 +7,6 @@
     {
       'target_name': 'c++',
       'type': 'shared_library',
-      'dependencies': [
-        '../libcxxabi/libcxxabi.gyp:c++abi',
-      ],
       'all_dependent_settings': {
         'include_dirs': [
           'include',
@@ -41,8 +38,6 @@
         '-lpthread',
         '-lc',
         '-lm',
-        '-lrt',
-        '-lgcc_s',
       ],
       'include_dirs': [
         'include',
@@ -75,6 +70,25 @@
         'src/utility.cpp',
         'src/valarray.cpp',
       ],
+      'conditions': [
+        ['OS=="linux"', {
+          'dependencies': [
+            '../libcxxabi/libcxxabi.gyp:c++abi',
+          ],
+          'ldflags': [
+            '-lrt',
+            '-lgcc_s',
+          ],
+        }],
+        ['OS=="mac"', {
+          'ldflags': [
+            '-lc++abi',
+          ],
+        }],
+      ],
+      'xcode_settings': {
+        'ARCHS': ['x86_64'],
+      },
     },
   ],
 }

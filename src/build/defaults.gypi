@@ -20,6 +20,9 @@
       '-Wsign-compare',
       '-Werror',
     ],
+    'dependencies': [
+      '<(DEPTH)/third_party/libcxx/libcxx.gyp:c++',
+    ],
     'ldflags': [
       '-lpthread',
     ],
@@ -38,7 +41,6 @@
           'OS_LINUX',
         ],
         'dependencies': [
-          '<(DEPTH)/third_party/libcxx/libcxx.gyp:c++',
           '<(DEPTH)/third_party/libcxxabi/libcxxabi.gyp:c++abi',
         ],
         'sources/': [
