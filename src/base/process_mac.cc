@@ -54,15 +54,18 @@ bool Process::Run(unsigned sec_timeout, std::string* error) {
       return false;
     }
 
-    // TODO: respect UNLIMITED timeout.
     struct timespec timeout = { sec_timeout, 0 };
+    struct timespec* timeout_ptr = nullptr;
+    if (sec_timeout != UNLIMITED) {
+      timeout_ptr = &timeout;
+    }
     size_t stdout_size = 0, stderr_size = 0;
     std::list<std::pair<std::unique_ptr<char[]>, int>> stdout, stderr;
 
     int exhausted_fds = 0;
     while(exhausted_fds < 2 && !killed_) {
       auto event_count =
-          kevent(kq_fd, nullptr, 0, events, MAX_EVENTS, &timeout);
+          kevent(kq_fd, nullptr, 0, events, MAX_EVENTS, timeout_ptr);
 
       if (event_count == -1) {
         if (errno == EINTR) {
@@ -190,15 +193,18 @@ bool Process::Run(unsigned sec_timeout, const std::string& input,
       return false;
     }
 
-    // TODO: respect UNLIMITED timeout.
     struct timespec timeout = { sec_timeout, 0 };
+    struct timespec* timeout_ptr = nullptr;
+    if (sec_timeout != UNLIMITED) {
+      timeout_ptr = &timeout;
+    }
     size_t stdin_size = 0, stdout_size = 0, stderr_size = 0;
     std::list<std::pair<std::unique_ptr<char[]>, int>> stdout, stderr;
 
     int exhausted_fds = 0;
     while(exhausted_fds < 3 && !killed_) {
       auto event_count =
-          kevent(kq_fd, nullptr, 0, events, MAX_EVENTS, &timeout);
+          kevent(kq_fd, nullptr, 0, events, MAX_EVENTS, timeout_ptr);
 
       if (event_count == -1) {
         if (errno == EINTR) {
