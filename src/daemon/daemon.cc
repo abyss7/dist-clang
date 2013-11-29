@@ -41,10 +41,10 @@ Daemon::~Daemon() {
 #endif  // PROFILER
 
   cache_tasks_->Close();
-  all_tasks_->Close();
   local_tasks_->Close();
   failed_tasks_->Close();
   remote_tasks_->Close();
+  all_tasks_->Close();
   workers_.reset();
   network_service_.reset();
 }
@@ -157,8 +157,6 @@ bool Daemon::Initialize(const Configuration &configuration) {
     }
   }
 
-  // TODO: move initialization somewhere else, since the errors in configuration
-  // file won't be seen.
   base::Log::RangeSet results;
   if (!ranges.empty()) {
     auto current = *ranges.begin();
@@ -175,7 +173,7 @@ bool Daemon::Initialize(const Configuration &configuration) {
     }
     results.insert(std::make_pair(current.second, current.first));
   }
-  base::Log::Init(config.verbosity().error_mark(), std::move(results));
+  base::Log::Reset(config.verbosity().error_mark(), std::move(results));
 
   return network_service_->Run();
 }

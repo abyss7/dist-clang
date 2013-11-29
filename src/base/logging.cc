@@ -8,7 +8,7 @@ namespace dist_clang {
 namespace base {
 
 // static
-void Log::Init(unsigned error_mark, RangeSet&& ranges) {
+void Log::Reset(unsigned error_mark, RangeSet&& ranges) {
   unsigned prev = 0;
   for (const auto& range: ranges) {
     if ((prev > 0 && range.second <= prev) || range.second > range.first) {
@@ -19,17 +19,17 @@ void Log::Init(unsigned error_mark, RangeSet&& ranges) {
   }
 
   Log::error_mark() = error_mark;
-  Log::ranges() = std::move(ranges);
+  Log::ranges().reset(new RangeSet(std::move(ranges)));
 }
 
 Log::Log(unsigned level)
-  : level_(level) {
+  : level_(level), error_mark_(error_mark()), ranges_(ranges()) {
 }
 
 Log::~Log() {
-  auto& output_stream = (level_ <= error_mark()) ? std::cerr : std::cout;
-  auto it = ranges().lower_bound(std::make_pair(level_, 0));
-  if (it != ranges().end() && level_ >= it->second) {
+  auto& output_stream = (level_ <= error_mark_) ? std::cerr : std::cout;
+  auto it = ranges_->lower_bound(std::make_pair(level_, 0));
+  if (it != ranges_->end() && level_ >= it->second) {
     stream_ << std::endl;
     output_stream << stream_.str();
   }
@@ -47,8 +47,9 @@ unsigned& Log::error_mark() {
 }
 
 // static
-Log::RangeSet& Log::ranges() {
-  static RangeSet ranges;
+std::shared_ptr<Log::RangeSet>& Log::ranges() {
+  static std::shared_ptr<RangeSet> ranges(
+      new RangeSet{std::make_pair(NamedLevels::WARNING, NamedLevels::FATAL)});
   return ranges;
 }
 

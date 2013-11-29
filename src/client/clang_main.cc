@@ -50,8 +50,8 @@ int main(int argc, char* argv[]) {
       unsigned right = base::StringTo<unsigned>(*number);
       ranges.emplace(right, left);
     }
-    base::Log::Init(base::StringTo<unsigned>(clangd_log_mark),
-                    std::move(ranges));
+    base::Log::Reset(base::StringTo<unsigned>(clangd_log_mark),
+                     std::move(ranges));
   }
 
   // NOTICE: Use separate |DoMain| function to make sure that all local objects

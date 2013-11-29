@@ -32,7 +32,7 @@ class Log {
     using RangeSet = std::set<std::pair<unsigned, unsigned>>;
 
     // Expects, that ranges are already filtered.
-    static void Init(unsigned error_mark, RangeSet&& ranges);
+    static void Reset(unsigned error_mark, RangeSet&& ranges);
 
     Log(unsigned level);
     ~Log();
@@ -47,9 +47,11 @@ class Log {
 
   private:
     static unsigned& error_mark();
-    static RangeSet& ranges();
+    static std::shared_ptr<RangeSet>& ranges();
 
     unsigned level_;
+    unsigned error_mark_;
+    std::shared_ptr<RangeSet> ranges_;
     std::stringstream stream_;
 };
 
