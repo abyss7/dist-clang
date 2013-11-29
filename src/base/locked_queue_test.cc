@@ -75,11 +75,11 @@ TEST(LockedQueueTest, MoveSemantics) {
   };
 
   LockedQueue<TestClass> queue;
-  TestClass actual;
+  TestClass expected, actual;
 
-  ASSERT_TRUE(queue.Push(TestClass()));
+  ASSERT_TRUE(queue.Push(expected));
   ASSERT_TRUE(queue.Pop(actual));
-  EXPECT_EQ(2, actual.counter());
+  EXPECT_EQ(3, actual.counter());
 }
 
 TEST(LockedQueueTest, DISABLED_BasicMultiThreadedUsage) {
