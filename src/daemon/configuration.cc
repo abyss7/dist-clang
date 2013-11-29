@@ -41,14 +41,17 @@ Configuration::Configuration(int argc, char *argv[]) {
 
     // Configuration file, if provided, has lower priority then command-line
     // arguments.
-    if (config_arg.isSet())
-      LoadFromFile(config_arg.getValue());
+    if (config_arg.isSet() && !LoadFromFile(config_arg.getValue())) {
+      LOG(ERROR) << "Failed to read config file: " << config_arg.getValue();
+    }
 
-    if (socket_arg.isSet())
+    if (socket_arg.isSet()) {
       config_.set_socket_path(socket_arg.getValue());
+    }
 
-    if (cache_arg.isSet())
+    if (cache_arg.isSet()) {
       config_.set_cache_path(cache_arg.getValue());
+    }
 
     for (auto host: hosts_arg) {
       std::list<std::string> strs;
