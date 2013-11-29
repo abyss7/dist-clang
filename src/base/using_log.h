@@ -7,6 +7,7 @@
 #undef ERROR
 #undef WARNING
 #undef INFO
+#undef VERBOSE
 using namespace dist_clang::base::NamedLevels;
 
 #define LOG(level) dist_clang::base::Log(level)

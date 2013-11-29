@@ -59,7 +59,7 @@ bool Daemon::Initialize(const Configuration &configuration) {
     return false;
   }
 
-  network_service_.reset(new net::NetworkServiceImpl);
+  network_service_ = net::NetworkService::Create();
   if (config.has_statistic()) {
     // TODO: initialize statistic in proper way - regarding |NetworkService|.
     // Statistic::Initialize(network_service_, config.statistic());
@@ -544,19 +544,18 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
           status.set_description(process.stderr());
           LOG(WARNING) << "Compilation failed with error:" << std::endl
                        << process.stderr() << std::endl
-                       << process.stdout() << std::endl
-                       << arguments.str();
+                       << process.stdout();
         }
         else if (!error.empty()) {
           status.set_description(error);
-          LOG(WARNING) << "Compilation failed with error: " << error
-                       << std::endl << arguments.str();
+          LOG(WARNING) << "Compilation failed with error: " << error;
         }
         else {
           status.set_description("without errors");
-          LOG(WARNING) << "Compilation failed without errors" << std::endl
-                       << arguments.str();
+          LOG(WARNING) << "Compilation failed without errors";
         }
+        // We lose atomicity, but the WARNING level will be less verbose.
+        LOG(VERBOSE) << arguments.str();
       }
       else {
         status.set_code(proto::Status::OK);

@@ -10,8 +10,6 @@ namespace net {
 
 class NetworkServiceImpl: public NetworkService {
   public:
-    NetworkServiceImpl();
-
     // We need the method |Run()| to allow user to add all listening sockets in
     // a non-threadsafe way, thus, prevent locking inside |HandleNewConnection|.
     virtual bool Run() THREAD_UNSAFE override;
@@ -31,6 +29,10 @@ class NetworkServiceImpl: public NetworkService {
         std::string* error) THREAD_SAFE override;
 
   private:
+    friend class DefaultFactory;
+
+    NetworkServiceImpl();
+
     // |fd| is a descriptor of a listening socket, which accepts new connection.
     void HandleNewConnection(fd_t fd, ConnectionPtr connection);
 

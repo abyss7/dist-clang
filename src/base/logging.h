@@ -13,7 +13,7 @@ namespace base {
 //     LOG(ERROR) << "Message";
 //
 // in any part of code, we need a separate namespace with an enum only, to
-// include it with "using namespace NamedLevels;". See using_log.h .
+// include it with "using namespace NamedLevels;". See using_log.h file.
 namespace NamedLevels {
 
 enum {
@@ -21,6 +21,7 @@ enum {
   ERROR =   10u,
   WARNING = 20u,
   INFO =    30u,
+  VERBOSE = 40u,
 };
 
 }  // namespace NamedLevels
