@@ -46,11 +46,12 @@ int main(int argc, char* argv[]) {
   if (numbers.size() % 2 == 0) {
     base::Log::RangeSet ranges;
     for (auto number = numbers.begin(); number != numbers.end(); ++number) {
-      unsigned left = std::stoul(*number++);
-      unsigned right = std::stoul(*number);
-      ranges.emplace(left, right);
+      unsigned left = base::StringTo<unsigned>(*number++);
+      unsigned right = base::StringTo<unsigned>(*number);
+      ranges.emplace(right, left);
     }
-    base::Log::Init(std::stoul(clangd_log_mark), std::move(ranges));
+    base::Log::Init(base::StringTo<unsigned>(clangd_log_mark),
+                    std::move(ranges));
   }
 
   // NOTICE: Use separate |DoMain| function to make sure that all local objects

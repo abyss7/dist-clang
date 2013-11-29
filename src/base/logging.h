@@ -28,6 +28,7 @@ enum {
 
 class Log {
   public:
+    // First value is a right edge of interval, the second - a left edge.
     using RangeSet = std::set<std::pair<unsigned, unsigned>>;
 
     // Expects, that ranges are already filtered.

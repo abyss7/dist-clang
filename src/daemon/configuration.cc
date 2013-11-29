@@ -58,11 +58,11 @@ Configuration::Configuration(int argc, char *argv[]) {
         remote->set_host(strs.front());
         strs.pop_front();
         if (!strs.empty()) {
-          remote->set_port(std::stoul(strs.front()));
+          remote->set_port(base::StringTo<uint32_t>(strs.front()));
           strs.pop_front();
         }
         if (!strs.empty()) {
-          remote->set_threads(std::stoul(strs.front()));
+          remote->set_threads(base::StringTo<uint32_t>(strs.front()));
           strs.pop_front();
         }
       } else {
@@ -78,11 +78,11 @@ Configuration::Configuration(int argc, char *argv[]) {
         local->set_host(strs.front());
         strs.pop_front();
         if (!strs.empty()) {
-          local->set_port(std::stoul(strs.front()));
+          local->set_port(base::StringTo<uint32_t>(strs.front()));
           strs.pop_front();
         }
         if (!strs.empty()) {
-          local->set_threads(std::stoul(strs.front()));
+          local->set_threads(base::StringTo<uint32_t>(strs.front()));
           strs.pop_front();
         }
       }

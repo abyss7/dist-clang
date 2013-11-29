@@ -11,11 +11,11 @@ namespace base {
 void Log::Init(unsigned error_mark, RangeSet&& ranges) {
   unsigned prev = 0;
   for (const auto& range: ranges) {
-    if ((prev > 0 && range.first <= prev) || range.first > range.second) {
+    if ((prev > 0 && range.second <= prev) || range.second > range.first) {
       NOTREACHED();
       return;
     }
-    prev = range.second;
+    prev = range.first;
   }
 
   Log::error_mark() = error_mark;

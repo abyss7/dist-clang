@@ -62,6 +62,17 @@ TEST(StringUtilsTest, Hexify) {
   ASSERT_EQ(expected, Hexify(input));
 }
 
+TEST(StringUtilsTest, StringTo) {
+  const std::string to_uint = "123456";
+  const std::string to_int = "-123456";
+  const std::string bad_to_int = "abc";
+
+  EXPECT_EQ(123456u, StringTo<unsigned>(to_uint));
+  EXPECT_EQ(-123456, StringTo<int>(to_int));
+  EXPECT_EQ(0u, StringTo<unsigned>(to_int));
+  EXPECT_EQ(0u, StringTo<unsigned>(bad_to_int));
+}
+
 TEST(StringUtilsTest, DISABLED_Replace) {
   // TODO: implement this.
 }

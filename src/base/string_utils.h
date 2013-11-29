@@ -74,5 +74,13 @@ inline void Replace(std::string& input, const std::string& replacee,
   }
 }
 
+template <typename T>
+inline T StringTo(const std::string& str) {
+  T result;
+  std::stringstream ss(str);
+  ss >> result;
+  return result;
+}
+
 }  // namespace base
 }  // namespace dist_clang

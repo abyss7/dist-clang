@@ -10,6 +10,7 @@
       'dependencies': [
         '../base/base.gyp:constants',
         '../base/base.gyp:headers_only',
+        '../base/base.gyp:logging',
         '../base/base.gyp:process',
         '../net/net.gyp:net',
         '../proto/proto.gyp:proto',

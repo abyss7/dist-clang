@@ -157,6 +157,8 @@ bool Daemon::Initialize(const Configuration &configuration) {
     }
   }
 
+  // TODO: move initialization somewhere else, since the errors in configuration
+  // file won't be seen.
   base::Log::RangeSet results;
   if (!ranges.empty()) {
     auto current = *ranges.begin();

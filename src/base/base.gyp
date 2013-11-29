@@ -8,17 +8,15 @@
       'type': 'static_library',
       'dependencies': [
         'headers_only',
+        'logging',
       ],
       'sources': [
         'file_utils.cc',
         'file_utils.h',
-        'logging.cc',
-        'logging.h',
         'thread_pool.cc',
         'thread_pool.h',
         'worker_pool.cc',
         'worker_pool.h',
-        'using_log.h',
       ],
     },
     {
@@ -51,6 +49,15 @@
         'queue_aggregator_impl.h',
         'string_utils.h',
         'testable.h',
+      ],
+    },
+    {
+      'target_name': 'logging',
+      'type': 'static_library',
+      'sources': [
+        'logging.cc',
+        'logging.h',
+        'using_log.h',
       ],
     },
     {
