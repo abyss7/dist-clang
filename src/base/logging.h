@@ -30,6 +30,7 @@ class Log {
   public:
     using RangeSet = std::set<std::pair<unsigned, unsigned>>;
 
+    // Expects, that ranges are already filtered.
     static void Init(unsigned error_mark, RangeSet&& ranges);
 
     Log(unsigned level);

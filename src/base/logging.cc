@@ -1,5 +1,7 @@
 #include "base/logging.h"
 
+#include "base/assert.h"
+
 #include <iostream>
 
 namespace dist_clang {
@@ -7,6 +9,15 @@ namespace base {
 
 // static
 void Log::Init(unsigned error_mark, RangeSet&& ranges) {
+  unsigned prev = 0;
+  for (const auto& range: ranges) {
+    if ((prev > 0 && range.first <= prev) || range.first > range.second) {
+      NOTREACHED();
+      return;
+    }
+    prev = range.second;
+  }
+
   Log::error_mark() = error_mark;
   Log::ranges() = std::move(ranges);
 }
