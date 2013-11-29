@@ -3,6 +3,7 @@
 #include "base/assert.h"
 #include "base/c_utils.h"
 #include "base/constants.h"
+#include "base/logging.h"
 #include "base/process.h"
 #include "base/string_utils.h"
 #include "client/clang_flag_set.h"
@@ -11,9 +12,10 @@
 #include "net/network_service_impl.h"
 #include "proto/remote.pb.h"
 
-#include <iostream>
 #include <list>
 #include <string>
+
+#include "base/using_log.h"
 
 using namespace dist_clang;
 
@@ -77,7 +79,7 @@ bool DoMain(int argc, char* argv[]) {
   std::string error;
   auto connection = service->Connect(end_point, &error);
   if (!connection) {
-    std::cout << "Failed to connect to daemon: " << error << std::endl;
+    LOG(WARNING) << "Failed to connect to daemon: " << error;
     return true;
   }
 
@@ -119,15 +121,13 @@ bool DoMain(int argc, char* argv[]) {
 
   proto::Status status;
   if (!connection->SendSync(std::move(message), &status)) {
-    std::cerr << "Failed to send message: " << status.description()
-              << std::endl;
+    LOG(ERROR) << "Failed to send message: " << status.description();
     return true;
   }
 
   net::Connection::Message top_message;
   if (!connection->ReadSync(&top_message, &status)) {
-    std::cerr << "Failed to read message: " << status.description()
-              << std::endl;
+    LOG(ERROR) << "Failed to read message: " << status.description();
     return true;
   }
 
@@ -142,8 +142,8 @@ bool DoMain(int argc, char* argv[]) {
   }
 
   if (status.code() == proto::Status::EXECUTION) {
-    std::cerr << "Compilation on daemon failed:" << std::endl
-              << status.description() << std::endl;
+    LOG(FATAL) << "Compilation on daemon failed:" << std::endl
+               << status.description();
     exit(1);
   }
 
