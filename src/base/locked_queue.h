@@ -23,7 +23,8 @@ class LockedQueue {
 
     inline size_t Size() const THREAD_SAFE;
 
-    // Returns |false| only when this queue is closed.
+    // Returns |false| only when this queue is closed or when the capacity is
+    // exceeded.
     bool Push(T obj) THREAD_SAFE;
 
     // Returns |false| only when this queue is closed and empty.

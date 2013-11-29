@@ -25,6 +25,7 @@
         '../base/assert_release_test.cc',
         '../base/file_utils_test.cc',
         '../base/hash_test.cc',
+        '../base/locked_queue_test.cc',
         '../base/process_test.cc',
         '../base/string_utils_test.cc',
         '../client/clang_test.cc',
