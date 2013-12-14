@@ -142,7 +142,6 @@ bool DoMain(int argc, const char* const argv[]) {
   if (status.code() == proto::Status::EXECUTION) {
     LOG(FATAL) << "Compilation on daemon failed:" << std::endl
                << status.description();
-    exit(1);
   }
 
   return false;

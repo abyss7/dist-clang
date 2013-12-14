@@ -231,8 +231,13 @@ TEST(ClientTest, DISABLED_SuccessfulCompilation) {
  *
  * Socket file without daemon.
  * Socket file with bad permissions.
+ * No CLANGD_CXX environment variable.
+ * No input file.
  * Daemon crashes before sending message.
  * Daemon crashes before reading message.
+ * Daemon sends malformed message.
+ * Successful compilation.
+ * Failed compilation.
  *
  */
 

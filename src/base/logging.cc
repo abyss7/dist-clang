@@ -33,6 +33,10 @@ Log::~Log() {
     stream_ << std::endl;
     output_stream << stream_.str();
   }
+
+  if (level_ == named_levels::FATAL) {
+    exit(1);
+  }
 }
 
 Log& Log::operator<< (std::ostream& (*func)(std::ostream&)) {
@@ -49,7 +53,7 @@ unsigned& Log::error_mark() {
 // static
 std::shared_ptr<Log::RangeSet>& Log::ranges() {
   static std::shared_ptr<RangeSet> ranges(
-      new RangeSet{std::make_pair(NamedLevels::WARNING, NamedLevels::FATAL)});
+      new RangeSet{std::make_pair(named_levels::WARNING, named_levels::FATAL)});
   return ranges;
 }
 

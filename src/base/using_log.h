@@ -8,7 +8,7 @@
 #undef WARNING
 #undef INFO
 #undef VERBOSE
-using namespace dist_clang::base::NamedLevels;
+using namespace dist_clang::base::named_levels;
 
 #define LOG(level) dist_clang::base::Log(level)
 #if defined(NDEBUG)

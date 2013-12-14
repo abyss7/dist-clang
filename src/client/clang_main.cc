@@ -18,14 +18,12 @@ int ExecuteLocally(char* argv[]) {
   if (clangd_cxx_path.empty()) {
     LOG(FATAL) << "Provide real clang++ compiler path via "
                << base::kEnvClangdCxx;
-    return 1;
   }
 
   LOG(INFO) << "Running locally.";
 
   if (execv(clangd_cxx_path.c_str(), argv) == -1) {
     LOG(FATAL) << "Local execution failed: " << strerror(errno);
-    return 1;
   }
 
   return 0;

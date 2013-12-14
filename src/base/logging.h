@@ -14,7 +14,10 @@ namespace base {
 //
 // in any part of code, we need a separate namespace with an enum only, to
 // include it with "using namespace NamedLevels;". See using_log.h file.
-namespace NamedLevels {
+
+// The |FATAL| is a special value: after LOG(FATAL) the program terminates with
+// |exit(1)|.
+namespace named_levels {
 
 enum {
   FATAL =    0u,

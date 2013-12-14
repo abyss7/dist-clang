@@ -19,7 +19,6 @@ int main(int argc, char* argv[]) {
 
   if (!daemon.Initialize(configuration)) {
     LOG(FATAL) << "Daemon failed to initialize.";
-    return 1;
   }
 
   sigset_t signal_mask;
