@@ -13,6 +13,10 @@ TEST(FileUtilsTest, DISABLED_CopyFile) {
   //  - Check contents.
 }
 
+TEST(FileUtilsTest, DISABLED_FileExists) {
+  // TODO: implement this.
+}
+
 TEST(FileUtilsTest, ReadFile) {
   const char* expected_content = "All your base are belong to us";
   auto content_size = strlen(expected_content);

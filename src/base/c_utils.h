@@ -28,6 +28,16 @@ inline void GetLastError(std::string* error) {
     error->assign(strerror(errno));
 }
 
+inline std::string SetEnv(const char* env_name, const std::string& value,
+                          std::string* error = nullptr) {
+  std::string old_value = GetEnv(env_name);
+  if (setenv(env_name, value.c_str(), 1) == -1) {
+    GetLastError(error);
+    return std::string();
+  }
+  return old_value;
+}
+
 inline std::string GetCurrentDir(std::string* error = nullptr) {
   char buf[PATH_MAX];
   if (!getcwd(buf, sizeof(buf))) {
@@ -38,7 +48,7 @@ inline std::string GetCurrentDir(std::string* error = nullptr) {
 }
 
 inline std::string CreateTempDir(std::string* error = nullptr) {
-  char buf[] = "/tmp/socket-XXXXXX";
+  char buf[] = "/tmp/clangd-XXXXXX";
   if (!mkdtemp(buf)) {
     GetLastError(error);
     return std::string();

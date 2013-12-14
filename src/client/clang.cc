@@ -21,8 +21,6 @@ using namespace dist_clang;
 
 namespace {
 
-const char* kEnvClangdSocket = "CLANGD_SOCKET_PATH";
-
 // The clang output has following format:
 //
 // clang version 3.4 (...)
@@ -70,8 +68,8 @@ bool ParseClangOutput(const std::string& output,
 namespace dist_clang {
 namespace client {
 
-bool DoMain(int argc, char* argv[]) {
-  std::string clangd_socket_path = base::GetEnv(kEnvClangdSocket,
+bool DoMain(int argc, const char* const argv[]) {
+  std::string clangd_socket_path = base::GetEnv(base::kEnvClangdSocket,
                                                 base::kDefaultClangdSocket);
 
   auto service = net::NetworkService::Create();

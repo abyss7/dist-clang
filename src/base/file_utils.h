@@ -20,6 +20,14 @@ inline void DeleteFile(const std::string& path) {
   unlink(path.c_str());
 }
 
+inline bool FileExists(const std::string& path, std::string* error = nullptr) {
+  if (access(path.c_str(), F_OK)) {
+    GetLastError(error);
+    return false;
+  }
+  return true;
+}
+
 inline bool MoveFile(const std::string& src, const std::string& dst) {
   return rename(src.c_str(), dst.c_str()) != -1;
 }

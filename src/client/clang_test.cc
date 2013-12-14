@@ -1,5 +1,9 @@
+#include "base/c_utils.h"
+#include "base/constants.h"
+#include "base/file_utils.h"
+#include "client/clang.h"
 #include "client/clang_flag_set.h"
-
+#include "net/network_service_impl.h"
 #include "proto/remote.pb.h"
 
 #include <gtest/gtest.h>
@@ -122,6 +126,115 @@ TEST(ClientTest, ClangFlagSetTest) {
   ASSERT_EQ(expected_flags.SerializeAsString(),
             actual_flags.SerializeAsString());
 }
+
+namespace {
+
+template <class T>
+class TestFactory: public net::NetworkService::Factory {
+  public:
+    virtual std::unique_ptr<net::NetworkService> Create() override {
+      return std::unique_ptr<net::NetworkService>(new T);
+    }
+};
+
+class TestService: public net::NetworkService {
+  public:
+    virtual bool Run() override {
+      return false;
+    }
+
+    virtual bool Listen(
+        const std::string& path,
+        ListenCallback callback,
+        std::string* error) override {
+      return false;
+    }
+
+    virtual bool Listen(
+        const std::string& host,
+        unsigned short port,
+        ListenCallback callback,
+        std::string* error) override {
+      return false;
+    }
+
+    virtual net::ConnectionPtr Connect(
+        net::EndPointPtr end_point,
+        std::string* error) override {
+      return net::ConnectionPtr();
+    }
+};
+
+class TestServiceWithConnection: public TestService {
+  public:
+    virtual net::ConnectionPtr Connect(
+        net::EndPointPtr end_point,
+        std::string *error) override {
+      return net::ConnectionPtr();
+    }
+};
+
+}  // namespace
+
+TEST(ClientTest, NoConnection) {
+  net::NetworkService::SetFactory<TestFactory<TestService>>();
+
+  int argc = 3;
+  const char* argv[] = {"a", "b", "c", nullptr};
+
+  ASSERT_TRUE(client::DoMain(argc, argv));
+}
+
+TEST(ClientTest, NoSocketFile) {
+  net::NetworkService::SetFactory<net::NetworkService::DefaultFactory>();
+
+  int argc = 3;
+  const char* argv[] = {"a", "b", "c", nullptr};
+
+  std::string no_such_file = base::CreateTempDir() + "/no_such_file";
+  ASSERT_FALSE(base::FileExists(no_such_file))
+      << "Looks like someone is trying to sabotage this test!";
+  std::string error, old_env =
+      base::SetEnv(base::kEnvClangdSocket, no_such_file, &error);
+
+  ASSERT_TRUE(error.empty());
+  ASSERT_TRUE(client::DoMain(argc, argv));
+
+  base::SetEnv(base::kEnvClangdSocket, old_env);
+}
+
+TEST(ClientTest, NonSocketFile) {
+  net::NetworkService::SetFactory<net::NetworkService::DefaultFactory>();
+
+  int argc = 3;
+  const char* argv[] = {"a", "b", "c", nullptr};
+
+  std::string non_socket_file = base::CreateTempDir() + "/fake_socket";
+  ASSERT_FALSE(base::FileExists(non_socket_file))
+      << "Looks like someone is trying to sabotage this test!";
+  ASSERT_TRUE(base::WriteFile(non_socket_file, ""));
+  std::string error, old_env =
+      base::SetEnv(base::kEnvClangdSocket, non_socket_file, &error);
+
+  ASSERT_TRUE(error.empty());
+  ASSERT_TRUE(client::DoMain(argc, argv));
+
+  base::SetEnv(base::kEnvClangdSocket, old_env);
+  base::DeleteFile(non_socket_file);
+}
+
+TEST(ClientTest, DISABLED_SuccessfulCompilation) {
+  // TODO: implement this.
+}
+
+/*
+ *
+ * Socket file without daemon.
+ * Socket file with bad permissions.
+ * Daemon crashes before sending message.
+ * Daemon crashes before reading message.
+ *
+ */
 
 }  // namespace client
 }  // namespace dist_clang
