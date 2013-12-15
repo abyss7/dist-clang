@@ -165,15 +165,6 @@ class TestService: public net::NetworkService {
     }
 };
 
-class TestServiceWithConnection: public TestService {
-  public:
-    virtual net::ConnectionPtr Connect(
-        net::EndPointPtr end_point,
-        std::string *error) override {
-      return net::ConnectionPtr();
-    }
-};
-
 }  // namespace
 
 TEST(ClientTest, NoConnection) {
@@ -225,6 +216,14 @@ TEST(ClientTest, NonSocketFile) {
 
 TEST(ClientTest, DISABLED_SuccessfulCompilation) {
   // TODO: implement this.
+
+  // Expect one connection on specific socket path.
+  // Expect sending one message.
+  //   Message type should be Execute.
+  //   remote = false
+  //   Message should contain some specific cc and pp flags among others.
+  //   Message should have specific current_dir
+  // Expect reading one message.
 }
 
 /*
