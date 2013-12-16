@@ -101,6 +101,9 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(StringList& flags,
       message->add_non_cached(flag);
       message->add_non_cached(*(++it));
     }
+    else if (flag.find("-ferror-limit=") != std::string::npos) {
+      message->add_non_cached(flag);
+    }
     else if (flag == "-include") {
       message->add_non_cached(flag);
       message->add_non_cached(*(++it));
