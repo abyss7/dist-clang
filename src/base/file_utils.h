@@ -12,7 +12,7 @@ namespace dist_clang {
 namespace base {
 
 // This function expects that the source and destination files are immutable -
-// they don't have write permissions.
+// i.e. they don't have write permissions.
 bool CopyFile(const std::string& src, const std::string& dst,
               bool overwrite = false, std::string* error = nullptr);
 

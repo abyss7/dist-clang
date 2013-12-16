@@ -83,9 +83,10 @@ void FileCache::DoStore(const std::string &path, const Entry &entry) {
     base::DeleteFile(path + "/stderr");
   }
 
-  // TODO: clean up cache, if it exceeds size limits.
-  // The most ancient files should be wiped out.
-  (void)size_mb_;
+  if (size_mb_ != UNLIMITED) {
+    // TODO: clean up cache, if it exceeds size limits.
+    // The most ancient files should be wiped out.
+  }
 }
 
 }  // namespace daemon
