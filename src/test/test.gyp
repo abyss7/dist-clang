@@ -12,6 +12,7 @@
         '../base/base.gyp:hash',
         '../base/base.gyp:process',
         '../client/clang.gyp:clang_helpers',
+        '../daemon/clangd.gyp:file_cache',
         '../net/net.gyp:net',
         '../third_party/gmock/gmock.gyp:gmock',
         '../third_party/gtest/gtest.gyp:gtest',
@@ -29,6 +30,7 @@
         '../base/process_test.cc',
         '../base/string_utils_test.cc',
         '../client/clang_test.cc',
+        '../daemon/file_cache_test.cc',
         'run_all_tests.cc',
       ],
       'conditions': [

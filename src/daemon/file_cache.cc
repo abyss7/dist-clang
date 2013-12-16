@@ -38,16 +38,14 @@ bool FileCache::Find(const std::string& code, const std::string& command_line,
     entry->first = path + "/object";
   }
 
-  std::ifstream stderr(path + "/stderr");
-  if (stderr.is_open()) {
+  if (base::FileExists(path + "/stderr")) {
     DCHECK_O_EVAL(utime((path + "/stderr").c_str(), nullptr) == 0);
     DCHECK_O_EVAL(utime(path.c_str(), nullptr) == 0);
     DCHECK_O_EVAL(utime(args_path.c_str(), nullptr) == 0);
     DCHECK_O_EVAL(utime(code_path.c_str(), nullptr) == 0);
     if (!entry)
       return true;
-    result = true;
-    stderr >> entry->second;
+    result = base::ReadFile(path + "/stderr", &entry->second);
   }
 
   return result;
@@ -65,19 +63,18 @@ void FileCache::Store(const std::string &code, const std::string &command_line,
 }
 
 void FileCache::DoStore(const std::string &path, const Entry &entry) {
-  if (system((std::string("mkdir -p ") + path).c_str()) == -1)
+  if (system((std::string("mkdir -p ") + path).c_str()) == -1) {
     // "mkdir -p" doesn't fail if the path already exists.
     return;
+  }
 
-  if (!base::CopyFile(entry.first, path + "/object.tmp"))
+  if (!base::CopyFile(entry.first, path + "/object.tmp")) {
     return;
-  std::ofstream stderr_file(path + "/stderr", std::ios::out|std::ios::trunc);
-  if (!stderr_file.is_open()) {
+  }
+  if (!base::WriteFile(path + "/stderr", entry.second)) {
     base::DeleteFile(path + "/object.tmp");
     return;
   }
-  stderr_file << entry.second;
-  stderr_file.close();
   if (!base::MoveFile(path + "/object.tmp", path + "/object")) {
     base::DeleteFile(path + "/object.tmp");
     base::DeleteFile(path + "/stderr");

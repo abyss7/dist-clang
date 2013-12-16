@@ -2,6 +2,7 @@
 
 #include "net/base/types.h"
 #include "net/connection_forward.h"
+#include "gtest/gtest_prod.h"
 #include "proto/remote.pb.h"
 
 #include <atomic>
@@ -9,7 +10,6 @@
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/gzip_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
-#include <gtest/gtest_prod.h>
 #include <memory>
 
 #include <unistd.h>

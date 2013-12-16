@@ -3,10 +3,9 @@
 #include "base/file_utils.h"
 #include "client/clang.h"
 #include "client/clang_flag_set.h"
+#include "gtest/gtest.h"
 #include "net/network_service_impl.h"
 #include "proto/remote.pb.h"
-
-#include <gtest/gtest.h>
 
 namespace dist_clang {
 namespace client {
