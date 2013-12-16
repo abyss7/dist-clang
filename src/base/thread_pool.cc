@@ -27,7 +27,9 @@ bool ThreadPool::Push(const Closure& task) {
 void ThreadPool::DoWork(const std::atomic<bool>& is_shutting_down) {
   while (!is_shutting_down) {
     Closure task;
-    tasks_.Pop(task);
+    if (!tasks_.Pop(task)) {
+      break;
+    }
     task();
   }
 }
