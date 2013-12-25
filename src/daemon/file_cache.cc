@@ -2,11 +2,14 @@
 
 #include "base/file_utils.h"
 #include "base/hash.h"
+#include "base/logging.h"
 #include "base/string_utils.h"
 
 #include <fstream>
 #include <sys/types.h>
 #include <utime.h>
+
+#include "base/using_log.h"
 
 namespace dist_clang {
 namespace daemon {
@@ -65,19 +68,24 @@ void FileCache::Store(const std::string &code, const std::string &command_line,
 void FileCache::DoStore(const std::string &path, const Entry &entry) {
   if (system((std::string("mkdir -p ") + path).c_str()) == -1) {
     // "mkdir -p" doesn't fail if the path already exists.
+    LOG(CACHE_VERBOSE) << "Failed to `mkdir -p`";
     return;
   }
 
   if (!base::CopyFile(entry.first, path + "/object.tmp")) {
+    LOG(CACHE_VERBOSE) << "Failed to copy file to object.tmp";
     return;
   }
   if (!base::WriteFile(path + "/stderr", entry.second)) {
     base::DeleteFile(path + "/object.tmp");
+    LOG(CACHE_VERBOSE) << "Failed to write stderr to file";
     return;
   }
   if (!base::MoveFile(path + "/object.tmp", path + "/object")) {
     base::DeleteFile(path + "/object.tmp");
     base::DeleteFile(path + "/stderr");
+    LOG(CACHE_VERBOSE) << "Failed to move object.tmp to object";
+    return;
   }
 
   if (size_mb_ != UNLIMITED) {
