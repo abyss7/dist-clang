@@ -181,7 +181,7 @@ bool Daemon::Initialize(const Configuration &configuration) {
 bool Daemon::SearchCache(const proto::Execute* message,
                          FileCache::Entry *entry) {
   if (!cache_ || !message || !entry) {
-    LOG(CACHE_VERBOSE) << "Failed to check the cache";
+    LOG(CACHE_WARNING) << "Failed to check the cache";
     return false;
   }
 
@@ -194,7 +194,7 @@ bool Daemon::SearchCache(const proto::Execute* message,
   }
 
   if (!cache_->Find(message->pp_source(), command_line, version, entry)) {
-    LOG(CACHE_VERBOSE) << "Cache miss: " << message->cc_flags().input();
+    LOG(CACHE_INFO) << "Cache miss: " << message->cc_flags().input();
     return false;
   }
   return true;
@@ -203,7 +203,7 @@ bool Daemon::SearchCache(const proto::Execute* message,
 void Daemon::UpdateCache(const proto::Execute* message,
                          const proto::Status& status) {
   if (!cache_ || !message || !message->has_pp_source()) {
-    LOG(CACHE_VERBOSE) << "Failed to update the cache";
+    LOG(CACHE_WARNING) << "Failed to update the cache";
     return;
   }
   CHECK(status.code() == proto::Status::OK);

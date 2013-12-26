@@ -68,25 +68,27 @@ void FileCache::Store(const std::string &code, const std::string &command_line,
 void FileCache::DoStore(const std::string &path, const Entry &entry) {
   if (system((std::string("mkdir -p ") + path).c_str()) == -1) {
     // "mkdir -p" doesn't fail if the path already exists.
-    LOG(CACHE_VERBOSE) << "Failed to `mkdir -p`";
+    LOG(CACHE_ERROR) << "Failed to `mkdir -p` for " << path;
     return;
   }
 
   if (!base::CopyFile(entry.first, path + "/object.tmp")) {
-    LOG(CACHE_VERBOSE) << "Failed to copy file to object.tmp";
+    LOG(CACHE_ERROR) << "Failed to copy " << entry.first << " to object.tmp";
     return;
   }
   if (!base::WriteFile(path + "/stderr", entry.second)) {
     base::DeleteFile(path + "/object.tmp");
-    LOG(CACHE_VERBOSE) << "Failed to write stderr to file";
+    LOG(CACHE_ERROR) << "Failed to write stderr to file";
     return;
   }
   if (!base::MoveFile(path + "/object.tmp", path + "/object")) {
     base::DeleteFile(path + "/object.tmp");
     base::DeleteFile(path + "/stderr");
-    LOG(CACHE_VERBOSE) << "Failed to move object.tmp to object";
+    LOG(CACHE_ERROR) << "Failed to move object.tmp to object";
     return;
   }
+
+  LOG(CACHE_VERBOSE) << "File " << entry.first << " is cached on path " << path;
 
   if (size_mb_ != UNLIMITED) {
     // TODO: clean up cache, if it exceeds size limits.
