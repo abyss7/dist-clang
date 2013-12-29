@@ -32,6 +32,11 @@ bool CopyFile(const std::string& src, const std::string& dst, bool overwrite,
     close(src_fd);
     return false;
   }
+  if (posix_fadvise(src_fd, 0, 0, POSIX_FADV_SEQUENTIAL) == -1) {
+    GetLastError(error);
+    close(src_fd);
+    return false;
+  }
 
   auto flags = O_CREAT|O_WRONLY|O_EXCL;
   // Force unlinking of |dst|, since it may be hard-linked with other places.
@@ -44,6 +49,13 @@ bool CopyFile(const std::string& src, const std::string& dst, bool overwrite,
   if (dst_fd == -1) {
     GetLastError(error);
     close(src_fd);
+    return false;
+  }
+  // FIXME: may be, we should allocate st_blocks*st_blk_size?
+  if (posix_fallocate(dst_fd, 0, src_stats.st_size) == -1) {
+    GetLastError(error);
+    close(src_fd);
+    close(dst_fd);
     return false;
   }
 
@@ -81,6 +93,11 @@ bool ReadFile(const std::string& path, std::string* output,
     GetLastError(error);
     return false;
   }
+  if (posix_fadvise(src_fd, 0, 0, POSIX_FADV_SEQUENTIAL) == -1) {
+    GetLastError(error);
+    close(src_fd);
+    return false;
+  }
 
   const size_t buffer_size = 1024;
   char buffer[buffer_size];
@@ -97,6 +114,11 @@ bool WriteFile(const std::string& path, const std::string& input,
   auto src_fd = open((path + ".tmp").c_str(), O_WRONLY|O_TRUNC|O_CREAT, 0444);
   if (src_fd == -1) {
     GetLastError(error);
+    return false;
+  }
+  if (posix_fallocate(src_fd, 0, input.size()) == -1) {
+    GetLastError(error);
+    close(src_fd);
     return false;
   }
 

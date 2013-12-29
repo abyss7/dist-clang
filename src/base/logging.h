@@ -21,6 +21,7 @@ namespace named_levels {
 // |exit(1)|.
 enum {
   FATAL         =  0u,
+
   ERROR         = 10u,
   WARNING       = 20u,
   INFO          = 30u,
