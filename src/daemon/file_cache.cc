@@ -22,33 +22,33 @@ FileCache::FileCache(const std::string &path, uint64_t size_mb)
 bool FileCache::Find(const std::string& code, const std::string& command_line,
                      const std::string& version, Entry* entry) const {
   bool result = false;
-  const std::string code_hash = base::Hexify(base::MakeHash(code));
-  const std::string args_hash = base::Hexify(base::MakeHash(command_line));
   const std::string version_hash = base::Hexify(base::MakeHash(version));
-  const std::string code_path = path_ + "/" + code_hash;
-  const std::string args_path = code_path + "/" + args_hash;
-  const std::string path = args_path + "/" + version_hash;
+  const std::string args_hash = base::Hexify(base::MakeHash(command_line));
+  const std::string code_hash = base::Hexify(base::MakeHash(code));
 
-  std::ifstream obj(path + "/object");
+  const std::string version_path = path_ + "/" + version_hash;
+  const std::string args_path = version_path + "/" + args_hash;
+  const std::string object_path = args_path + "/" + code_hash + "-object";
+  const std::string stderr_path = args_path + "/" + code_hash + "-stderr";
+
+  std::ifstream obj(object_path);
   if (obj.is_open()) {
-    DCHECK_O_EVAL(utime((path + "/object").c_str(), nullptr) == 0);
-    DCHECK_O_EVAL(utime(path.c_str(), nullptr) == 0);
+    DCHECK_O_EVAL(utime(object_path.c_str(), nullptr) == 0);
     DCHECK_O_EVAL(utime(args_path.c_str(), nullptr) == 0);
-    DCHECK_O_EVAL(utime(code_path.c_str(), nullptr) == 0);
+    DCHECK_O_EVAL(utime(version_path.c_str(), nullptr) == 0);
     if (!entry)
       return true;
     result = true;
-    entry->first = path + "/object";
+    entry->first = object_path;
   }
 
-  if (base::FileExists(path + "/stderr")) {
-    DCHECK_O_EVAL(utime((path + "/stderr").c_str(), nullptr) == 0);
-    DCHECK_O_EVAL(utime(path.c_str(), nullptr) == 0);
+  if (base::FileExists(stderr_path)) {
+    DCHECK_O_EVAL(utime(stderr_path.c_str(), nullptr) == 0);
     DCHECK_O_EVAL(utime(args_path.c_str(), nullptr) == 0);
-    DCHECK_O_EVAL(utime(code_path.c_str(), nullptr) == 0);
+    DCHECK_O_EVAL(utime(version_path.c_str(), nullptr) == 0);
     if (!entry)
       return true;
-    result = base::ReadFile(path + "/stderr", &entry->second);
+    result = base::ReadFile(stderr_path, &entry->second);
   }
 
   return result;
@@ -56,34 +56,38 @@ bool FileCache::Find(const std::string& code, const std::string& command_line,
 
 void FileCache::Store(const std::string &code, const std::string &command_line,
                       const std::string &version, const Entry &entry) {
-  std::string code_hash = base::Hexify(base::MakeHash(code));
-  std::string args_hash = base::Hexify(base::MakeHash(command_line));
   std::string version_hash = base::Hexify(base::MakeHash(version));
+  std::string args_hash = base::Hexify(base::MakeHash(command_line));
+  std::string code_hash = base::Hexify(base::MakeHash(code));
   std::string path =
-      path_ + "/" + code_hash + "/" + args_hash + "/" + version_hash;
+      path_ + "/" + version_hash + "/" + args_hash;
 
-  pool_.Push(std::bind(&FileCache::DoStore, this, path, entry));
+  pool_.Push(std::bind(&FileCache::DoStore, this, path, code_hash, entry));
 }
 
-void FileCache::DoStore(const std::string &path, const Entry &entry) {
+void FileCache::DoStore(const std::string &path, const std::string& code_hash,
+                        const Entry &entry) {
   if (system((std::string("mkdir -p ") + path).c_str()) == -1) {
     // "mkdir -p" doesn't fail if the path already exists.
     LOG(CACHE_ERROR) << "Failed to `mkdir -p` for " << path;
     return;
   }
 
-  if (!base::CopyFile(entry.first, path + "/object.tmp")) {
+  const std::string object_path = path + "/" + code_hash + "-object";
+  const std::string stderr_path = path + "/" + code_hash + "-stderr";
+
+  if (!base::CopyFile(entry.first, object_path + ".tmp")) {
     LOG(CACHE_ERROR) << "Failed to copy " << entry.first << " to object.tmp";
     return;
   }
-  if (!base::WriteFile(path + "/stderr", entry.second)) {
-    base::DeleteFile(path + "/object.tmp");
+  if (!base::WriteFile(stderr_path, entry.second)) {
+    base::DeleteFile(object_path + ".tmp");
     LOG(CACHE_ERROR) << "Failed to write stderr to file";
     return;
   }
-  if (!base::MoveFile(path + "/object.tmp", path + "/object")) {
-    base::DeleteFile(path + "/object.tmp");
-    base::DeleteFile(path + "/stderr");
+  if (!base::MoveFile(object_path + ".tmp", object_path)) {
+    base::DeleteFile(object_path + ".tmp");
+    base::DeleteFile(stderr_path);
     LOG(CACHE_ERROR) << "Failed to move object.tmp to object";
     return;
   }

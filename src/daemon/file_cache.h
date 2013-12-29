@@ -24,7 +24,8 @@ class FileCache {
     base::ThreadPool pool_;
     uint64_t size_mb_;
 
-    void DoStore(const std::string& path, const Entry& entry);
+    void DoStore(const std::string& path, const std::string& code_hash,
+                 const Entry& entry);
 };
 
 }  // namespace daemon
