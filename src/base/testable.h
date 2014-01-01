@@ -1,5 +1,7 @@
 #pragma once
 
+#include "base/attributes.h"
+
 #include <memory>
 
 namespace dist_clang {
@@ -25,7 +27,7 @@ class Testable {
     static std::unique_ptr<T> Create();
 
     template <class F>
-    static void SetFactory();
+    static F* WEAK_PTR SetFactory();
 
   private:
     static std::unique_ptr<Factory>& factory_();
@@ -44,7 +46,7 @@ class Testable<T, T> {
     static std::unique_ptr<T> Create();
 
     template <class F>
-    static void SetFactory();
+    static F* WEAK_PTR SetFactory();
 
   private:
     static std::unique_ptr<Factory>& factory_();
@@ -62,8 +64,9 @@ std::unique_ptr<T> Testable<T, Default>::Create() {
 // static
 template <class T, class Default>
 template <class F>
-void Testable<T, Default>::SetFactory() {
+F* Testable<T, Default>::SetFactory() {
   factory_().reset(new F());
+  return static_cast<F*>(factory_().get());
 }
 
 // static

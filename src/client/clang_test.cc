@@ -131,11 +131,23 @@ namespace {
 template <class T>
 class TestFactory: public net::NetworkService::Factory {
   public:
+    TestFactory() : on_create_([](T*) {}) {}
+
     virtual std::unique_ptr<net::NetworkService> Create() override {
-      return std::unique_ptr<net::NetworkService>(new T);
+      auto new_t = new T;
+      on_create_(new_t);
+      return std::unique_ptr<net::NetworkService>(new_t);
     }
+
+    void CallOnCreate(std::function<void(T*)> callback) {
+      on_create_ = callback;
+    }
+
+  private:
+    std::function<void(T*)> on_create_;
 };
 
+template <bool DoConnect>
 class TestService: public net::NetworkService {
   public:
     virtual bool Run() override {
@@ -160,14 +172,23 @@ class TestService: public net::NetworkService {
     virtual net::ConnectionPtr Connect(
         net::EndPointPtr end_point,
         std::string* error) override {
-      return net::ConnectionPtr();
+      if (!DoConnect) {
+        if (error) {
+          error->assign("Test service rejects connection intentionally");
+        }
+        return net::ConnectionPtr();
+      }
+      else {
+        // TODO: implement this.
+        return net::ConnectionPtr();
+      }
     }
 };
 
 }  // namespace
 
 TEST(ClientTest, NoConnection) {
-  net::NetworkService::SetFactory<TestFactory<TestService>>();
+  net::NetworkService::SetFactory<TestFactory<TestService<false>>>();
 
   int argc = 3;
   const char* argv[] = {"a", "b", "c", nullptr};
@@ -175,46 +196,18 @@ TEST(ClientTest, NoConnection) {
   ASSERT_TRUE(client::DoMain(argc, argv));
 }
 
-TEST(ClientTest, NoSocketFile) {
-  net::NetworkService::SetFactory<net::NetworkService::DefaultFactory>();
+TEST(ClientTest, DISABLED_NoEnvironmentVariable) {
+  // TODO: implement this.
 
-  int argc = 3;
-  const char* argv[] = {"a", "b", "c", nullptr};
-
-  std::string no_such_file = base::CreateTempDir() + "/no_such_file";
-  ASSERT_FALSE(base::FileExists(no_such_file))
-      << "Looks like someone is trying to sabotage this test!";
-  std::string error, old_env =
-      base::SetEnv(base::kEnvClangdSocket, no_such_file, &error);
-
-  ASSERT_TRUE(error.empty());
-  ASSERT_TRUE(client::DoMain(argc, argv));
-
-  base::SetEnv(base::kEnvClangdSocket, old_env);
-}
-
-TEST(ClientTest, NonSocketFile) {
-  net::NetworkService::SetFactory<net::NetworkService::DefaultFactory>();
-
-  int argc = 3;
-  const char* argv[] = {"a", "b", "c", nullptr};
-
-  std::string non_socket_file = base::CreateTempDir() + "/fake_socket";
-  ASSERT_FALSE(base::FileExists(non_socket_file))
-      << "Looks like someone is trying to sabotage this test!";
-  ASSERT_TRUE(base::WriteFile(non_socket_file, ""));
-  std::string error, old_env =
-      base::SetEnv(base::kEnvClangdSocket, non_socket_file, &error);
-
-  ASSERT_TRUE(error.empty());
-  ASSERT_TRUE(client::DoMain(argc, argv));
-
-  base::SetEnv(base::kEnvClangdSocket, old_env);
-  base::DeleteFile(non_socket_file);
+  net::NetworkService::SetFactory<TestFactory<TestService<true>>>();
 }
 
 TEST(ClientTest, DISABLED_SuccessfulCompilation) {
   // TODO: implement this.
+  using Service = TestService<true>;
+
+  auto factory = net::NetworkService::SetFactory<TestFactory<Service>>();
+  factory->CallOnCreate([](Service*) {});
 
   // Expect one connection on specific socket path.
   // Expect sending one message.
@@ -227,12 +220,10 @@ TEST(ClientTest, DISABLED_SuccessfulCompilation) {
 
 /*
  *
- * Socket file without daemon.
- * Socket file with bad permissions.
  * No CLANGD_CXX environment variable.
  * No input file.
- * Daemon crashes before sending message.
- * Daemon crashes before reading message.
+ * Can't send message.
+ * Can't read message.
  * Daemon sends malformed message.
  * Successful compilation.
  * Failed compilation.
