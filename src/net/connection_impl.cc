@@ -1,4 +1,4 @@
-#include "net/connection.h"
+#include "net/connection_impl.h"
 
 #include "base/assert.h"
 #include "base/logging.h"
@@ -13,27 +13,27 @@ namespace dist_clang {
 namespace net {
 
 // static
-ConnectionPtr Connection::Create(EventLoop &event_loop, fd_t fd,
-                                 const EndPointPtr& end_point) {
+ConnectionPtr ConnectionImpl::Create(EventLoop &event_loop, fd_t fd,
+                                     const EndPointPtr& end_point) {
 #if !defined(OS_MACOSX)
   DCHECK(!IsListening(fd));
 #endif
   DCHECK(!IsNonBlocking(fd));
-  return ConnectionPtr(new Connection(event_loop, fd, end_point));
+  return ConnectionPtr(new ConnectionImpl(event_loop, fd, end_point));
 }
 
-Connection::Connection(EventLoop& event_loop, fd_t fd,
-                       const EndPointPtr& end_point)
+ConnectionImpl::ConnectionImpl(EventLoop& event_loop, fd_t fd,
+                               const EndPointPtr& end_point)
   : fd_(fd), event_loop_(event_loop), is_closed_(false), added_(false),
     end_point_(end_point), file_input_stream_(fd_, 1024),
     file_output_stream_(fd_, 1024) {
 }
 
-Connection::~Connection() {
+ConnectionImpl::~ConnectionImpl() {
   Close();
 }
 
-bool Connection::ReadAsync(ReadCallback callback) {
+bool ConnectionImpl::ReadAsync(ReadCallback callback) {
   read_callback_ = std::bind(callback, shared_from_this(), _1, _2);
   if (!event_loop_.ReadyForRead(shared_from_this())) {
     read_callback_ = BindedReadCallback();
@@ -43,12 +43,12 @@ bool Connection::ReadAsync(ReadCallback callback) {
 }
 
 template <>
-bool Connection::SendAsync(unique_ptr<Message> message, SendCallback callback) {
+bool ConnectionImpl::SendAsync(ScopedMessage message, SendCallback callback) {
   message_ = std::move(message);
   return SendAsync(callback);
 }
 
-bool Connection::ReadSync(Message *message, Status *status) {
+bool ConnectionImpl::ReadSync(Message *message, Status *status) {
   if (!message) {
     if (status) {
       status->set_code(Status::EMPTY_MESSAGE);
@@ -99,12 +99,12 @@ bool Connection::ReadSync(Message *message, Status *status) {
 }
 
 template <>
-bool Connection::SendSync(unique_ptr<Message> message, Status* status) {
+bool ConnectionImpl::SendSync(ScopedMessage message, Status* status) {
   message_ = std::move(message);
   return SendSync(status);
 }
 
-bool Connection::SendAsync(SendCallback callback) {
+bool ConnectionImpl::SendAsync(SendCallback callback) {
   send_callback_ = std::bind(callback, shared_from_this(), _1);
   if (!event_loop_.ReadyForSend(shared_from_this())) {
     send_callback_ = BindedSendCallback();
@@ -113,7 +113,7 @@ bool Connection::SendAsync(SendCallback callback) {
   return true;
 }
 
-bool Connection::SendSync(Status* status) {
+bool ConnectionImpl::SendSync(Status* status) {
   {
     CodedOutputStream coded_stream(&file_output_stream_);
     coded_stream.WriteVarint32(message_->ByteSize());
@@ -144,7 +144,8 @@ bool Connection::SendSync(Status* status) {
   return true;
 }
 
-bool Connection::ReportStatus(const Status& message, SendCallback callback) {
+bool ConnectionImpl::ReportStatus(const Status& message,
+                                  SendCallback callback) {
   message_.reset(new Message);
   message_->SetAllocatedExtension(Status::extension, new Status(message));
   send_callback_ = std::bind(callback, shared_from_this(), _1);
@@ -156,7 +157,7 @@ bool Connection::ReportStatus(const Status& message, SendCallback callback) {
 }
 
 // static
-Connection::SendCallback Connection::CloseAfterSend() {
+Connection::SendCallback ConnectionImpl::CloseAfterSend() {
   auto callback = [](ConnectionPtr, const Status& status) -> bool {
     if (status.code() != Status::OK) {
       LOG(ERROR) << "Failed to send message: " << status.description();
@@ -166,7 +167,7 @@ Connection::SendCallback Connection::CloseAfterSend() {
   return std::bind(callback, _1, _2);
 }
 
-void Connection::DoRead() {
+void ConnectionImpl::DoRead() {
   Status status;
   message_.reset(new Message);
   ReadSync(message_.get(), &status);
@@ -178,7 +179,7 @@ void Connection::DoRead() {
   }
 }
 
-void Connection::DoSend() {
+void ConnectionImpl::DoSend() {
   Status status;
   SendSync(std::move(message_), &status);
   DCHECK(!!send_callback_);
@@ -189,7 +190,7 @@ void Connection::DoSend() {
   }
 }
 
-void Connection::Close() {
+void ConnectionImpl::Close() {
   bool old_closed = false;
   if (is_closed_.compare_exchange_strong(old_closed, true)) {
     read_callback_ = BindedReadCallback();

@@ -137,7 +137,7 @@ ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point,
     return ConnectionPtr();
   }
 
-  return Connection::Create(*event_loop_, fd, end_point);
+  return ConnectionImpl::Create(*event_loop_, fd, end_point);
 }
 
 void NetworkServiceImpl::HandleNewConnection(fd_t fd,

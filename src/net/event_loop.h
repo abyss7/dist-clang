@@ -2,7 +2,7 @@
 
 #include "base/attributes.h"
 #include "base/worker_pool.h"
-#include "net/connection.h"
+#include "net/connection_impl.h"
 
 #include <thread>
 #include <vector>

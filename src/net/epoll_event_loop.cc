@@ -70,7 +70,7 @@ void EpollEventLoop::DoListenWork(const std::atomic<bool>& is_shutting_down,
           CHECK(errno == EAGAIN || errno == EWOULDBLOCK);
           break;
         }
-        callback_(fd, Connection::Create(*this, new_fd));
+        callback_(fd, ConnectionImpl::Create(*this, new_fd));
       }
       ReadyForListen(fd);
     }
@@ -107,7 +107,7 @@ void EpollEventLoop::DoIOWork(const std::atomic<bool>& is_shutting_down,
       continue;
     }
 
-    auto raw_connection = reinterpret_cast<Connection*>(event.data.ptr);
+    auto raw_connection = reinterpret_cast<ConnectionImpl*>(event.data.ptr);
     auto connection = raw_connection->shared_from_this();
     fd = GetConnectionDescriptor(connection);
 

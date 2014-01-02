@@ -1,121 +1,40 @@
 #pragma once
 
-#include "net/base/types.h"
 #include "net/connection_forward.h"
-#include "gtest/gtest_prod.h"
-#include "proto/remote.pb.h"
 
-#include <atomic>
 #include <functional>
-#include <google/protobuf/io/coded_stream.h>
-#include <google/protobuf/io/gzip_stream.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
-#include <memory>
-
-#include <unistd.h>
 
 namespace dist_clang {
+
+namespace proto {
+class Status;
+class Universal;
+}  // namespace proto
+
 namespace net {
 
-class EventLoop;
-
-class Connection: public std::enable_shared_from_this<Connection> {
-    using Status = proto::Status;
-
-    template <class T>
-    using unique_ptr = std::unique_ptr<T>;
-    template <class Signature>
-    using function = std::function<Signature>;
-
+class Connection {
   public:
+    template <typename S> using Fn = std::function<S>;
+    template <class T> using UniquePtr = std::unique_ptr<T>;
+    using Status = proto::Status;
     using Message = proto::Universal;
-    using ScopedMessage = unique_ptr<Message>;
-    using ReadCallback =
-        function<bool(ConnectionPtr, ScopedMessage, const Status&)>;
-    using SendCallback = function<bool(ConnectionPtr, const Status&)>;
+    using ScopedMessage = UniquePtr<Message>;
+    using ReadCallback = Fn<bool(ConnectionPtr, ScopedMessage, const Status&)>;
+    using SendCallback = Fn<bool(ConnectionPtr, const Status&)>;
 
-    // Create connection only on a socket with a pending connection -
-    // i.e. after connect() or accept().
-    static ConnectionPtr Create(EventLoop& event_loop, fd_t fd,
-                                const EndPointPtr& end_point = EndPointPtr());
-    ~Connection();
+    virtual ~Connection() {}
 
-    bool ReadAsync(ReadCallback callback);
-    template <class M>
-    bool SendAsync(unique_ptr<M> message,
-                   SendCallback callback = CloseAfterSend());
+    virtual bool ReadAsync(ReadCallback callback) = 0;
+    virtual bool ReadSync(Message* message, Status* status = nullptr) = 0;
 
-    bool ReadSync(Message* message, Status* status = nullptr);
-    template <class M>
-    bool SendSync(unique_ptr<M> message, Status* status = nullptr);
-
-    bool ReportStatus(const Status& message,
-                      SendCallback callback = CloseAfterSend());
-    static SendCallback CloseAfterSend();
-    inline bool IsOnEventLoop(const EventLoop* event_loop) const;
+  protected:
+    ScopedMessage message_;
 
   private:
-    friend class EventLoop;
-
-    using CodedInputStream = ::google::protobuf::io::CodedInputStream;
-    using CodedOutputStream = ::google::protobuf::io::CodedOutputStream;
-    using FileInputStream = ::google::protobuf::io::FileInputStream;
-    using FileOutputStream = ::google::protobuf::io::FileOutputStream;
-    using BindedReadCallback = function<bool(ScopedMessage, const Status&)>;
-    using BindedSendCallback = function<bool(const Status&)>;
-
-    enum State { IDLE, WAITING_SEND, WAITING_READ, SENDING, READING };
-
-    Connection(EventLoop& event_loop, fd_t fd, const EndPointPtr& end_point);
-
-    void DoRead();
-    void DoSend();
-    void Close();
-    bool SendAsync(SendCallback callback);
-    bool SendSync(Status* status);
-
-    const fd_t fd_;
-    ScopedMessage message_;
-    EventLoop& event_loop_;
-    ::std::atomic<bool> is_closed_, added_;
-    EndPointPtr end_point_;
-
-    // Read members.
-    FileInputStream file_input_stream_;
-    BindedReadCallback read_callback_;
-
-    // Send members.
-    FileOutputStream file_output_stream_;
-    BindedSendCallback send_callback_;
-
-    FRIEND_TEST(ConnectionTest, Sync_ReadFromClosedConnection);
-    FRIEND_TEST(ConnectionTest, Sync_ReadIncompleteMessage);
-    FRIEND_TEST(ConnectionTest, Sync_SendToClosedConnection);
+    virtual bool SendAsync(SendCallback callback) = 0;
+    virtual bool SendSync(Status* status) = 0;
 };
-
-template <class M>
-bool Connection::SendAsync(unique_ptr<M> message, SendCallback callback) {
-  message_.reset(new Message);
-  message_->SetAllocatedExtension(M::extension, message.release());
-  return SendAsync(callback);
-}
-
-template <>
-bool Connection::SendAsync(unique_ptr<Message> message, SendCallback callback);
-
-template <class M>
-bool Connection::SendSync(unique_ptr<M> message, Status* status) {
-  message_.reset(new Message);
-  message_->SetAllocatedExtension(M::extension, message.release());
-  return SendSync(status);
-}
-
-template <>
-bool Connection::SendSync(unique_ptr<Message> message, Status* status);
-
-bool Connection::IsOnEventLoop(const EventLoop* event_loop) const {
-  return &event_loop_ == event_loop;
-}
 
 }  // namespace net
 }  // namespace dist_clang

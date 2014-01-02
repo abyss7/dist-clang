@@ -105,7 +105,7 @@ class TestServer: public EventLoop {
         return ConnectionPtr();
       }
 
-      auto connection = Connection::Create(*this, fd);
+      auto connection = ConnectionImpl::Create(*this, fd);
 
       if (connect(fd, reinterpret_cast<sockaddr*>(&address),
                   sizeof(address)) == -1 && errno != EINPROGRESS) {
@@ -271,7 +271,7 @@ class TestServer: public EventLoop {
           continue;
         }
 
-        auto ptr = reinterpret_cast<Connection*>(event.data.ptr);
+        auto ptr = reinterpret_cast<ConnectionImpl*>(event.data.ptr);
         auto connection = ptr->shared_from_this();
 
         if (event.events & (EPOLLHUP|EPOLLERR)) {

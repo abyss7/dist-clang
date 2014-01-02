@@ -69,7 +69,7 @@ void KqueueEventLoop::DoListenWork(const std::atomic<bool>& is_shutting_down,
         }
         MakeCloseOnExec(new_fd);
         MakeNonBlocking(new_fd, true);
-        callback_(fd, Connection::Create(*this, new_fd));
+        callback_(fd, ConnectionImpl::Create(*this, new_fd));
       }
       ReadyForListen(fd);
     }
@@ -103,7 +103,7 @@ void KqueueEventLoop::DoIOWork(const std::atomic<bool>& is_shutting_down,
       continue;
     }
 
-    auto raw_connection = reinterpret_cast<Connection*>(event.udata);
+    auto raw_connection = reinterpret_cast<ConnectionImpl*>(event.udata);
     auto connection = raw_connection->shared_from_this();
 
     if (event.flags & EV_ERROR || (event.flags & EV_EOF && event.data == 0)) {
