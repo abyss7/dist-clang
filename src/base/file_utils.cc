@@ -32,11 +32,13 @@ bool CopyFile(const std::string& src, const std::string& dst, bool overwrite,
     close(src_fd);
     return false;
   }
+#if defined(OS_LINUX)
   if (posix_fadvise(src_fd, 0, 0, POSIX_FADV_SEQUENTIAL) == -1) {
     GetLastError(error);
     close(src_fd);
     return false;
   }
+#endif  // defined(OS_LINUX)
 
   auto flags = O_CREAT|O_WRONLY|O_EXCL;
   // Force unlinking of |dst|, since it may be hard-linked with other places.
@@ -51,6 +53,7 @@ bool CopyFile(const std::string& src, const std::string& dst, bool overwrite,
     close(src_fd);
     return false;
   }
+#if defined(OS_LINUX)
   // FIXME: may be, we should allocate st_blocks*st_blk_size?
   if (posix_fallocate(dst_fd, 0, src_stats.st_size) == -1) {
     GetLastError(error);
@@ -58,6 +61,7 @@ bool CopyFile(const std::string& src, const std::string& dst, bool overwrite,
     close(dst_fd);
     return false;
   }
+#endif  // defined(OS_LINUX)
 
   const size_t buffer_size = 1024;
   char buffer[buffer_size];
@@ -93,11 +97,13 @@ bool ReadFile(const std::string& path, std::string* output,
     GetLastError(error);
     return false;
   }
+#if defined(OS_LINUX)
   if (posix_fadvise(src_fd, 0, 0, POSIX_FADV_SEQUENTIAL) == -1) {
     GetLastError(error);
     close(src_fd);
     return false;
   }
+#endif  // defined(OS_LINUX)
 
   const size_t buffer_size = 1024;
   char buffer[buffer_size];
@@ -116,11 +122,13 @@ bool WriteFile(const std::string& path, const std::string& input,
     GetLastError(error);
     return false;
   }
+#if defined(OS_LINUX)
   if (posix_fallocate(src_fd, 0, input.size()) == -1) {
     GetLastError(error);
     close(src_fd);
     return false;
   }
+#endif  // defined(OS_LINUX)
 
   size_t total_bytes = 0;
   int size = 0;
