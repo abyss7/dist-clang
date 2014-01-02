@@ -49,7 +49,7 @@ class TestMessage {
   private:
     static int number_;
     const std::string expected_field1_, expected_field2_, expected_field3_;
-    std::unique_ptr<Connection::Message> message_;
+    Connection::ScopedMessage message_;
 };
 
 int TestMessage::number_ = 1;
@@ -94,7 +94,7 @@ class TestServer: public EventLoop {
       Stop();
     }
 
-    ConnectionPtr GetConnection() {
+    ConnectionImplPtr GetConnection() {
       sockaddr_un address;
       address.sun_family = AF_UNIX;
       strcpy(address.sun_path, socket_path_.c_str());
@@ -102,7 +102,7 @@ class TestServer: public EventLoop {
       int fd = socket(AF_UNIX, SOCK_STREAM|SOCK_CLOEXEC, 0);
       if (-1 == fd) {
         LOG(ERROR) << strerror(errno) << std::endl;
-        return ConnectionPtr();
+        return ConnectionImplPtr();
       }
 
       auto connection = ConnectionImpl::Create(*this, fd);
@@ -110,13 +110,13 @@ class TestServer: public EventLoop {
       if (connect(fd, reinterpret_cast<sockaddr*>(&address),
                   sizeof(address)) == -1 && errno != EINPROGRESS) {
         LOG(ERROR) << strerror(errno) << std::endl;
-        return ConnectionPtr();
+        return ConnectionImplPtr();
       }
 
       server_fd_ = accept(listen_fd_, nullptr, nullptr);
       if (server_fd_ == -1) {
         LOG(ERROR) << strerror(errno) << std::endl;
-        return ConnectionPtr();
+        return ConnectionImplPtr();
       }
 
       return connection;
@@ -207,7 +207,7 @@ class TestServer: public EventLoop {
       return false;
     }
 
-    virtual bool ReadyForRead(ConnectionPtr connection) override {
+    virtual bool ReadyForRead(ConnectionImplPtr connection) override {
       struct epoll_event event;
       event.events = EPOLLIN | EPOLLONESHOT;
       event.data.ptr = connection.get();
@@ -221,7 +221,7 @@ class TestServer: public EventLoop {
       return true;
     }
 
-    virtual bool ReadyForSend(ConnectionPtr connection) override {
+    virtual bool ReadyForSend(ConnectionImplPtr connection) override {
       struct epoll_event event;
       event.events = EPOLLOUT | EPOLLONESHOT;
       event.data.ptr = connection.get();
@@ -271,8 +271,9 @@ class TestServer: public EventLoop {
           continue;
         }
 
-        auto ptr = reinterpret_cast<ConnectionImpl*>(event.data.ptr);
-        auto connection = ptr->shared_from_this();
+        auto ptr = reinterpret_cast<Connection*>(event.data.ptr);
+        auto connection =
+            std::static_pointer_cast<ConnectionImpl>(ptr->shared_from_this());
 
         if (event.events & (EPOLLHUP|EPOLLERR)) {
           auto fd = GetConnectionDescriptor(connection);
@@ -304,7 +305,7 @@ class ConnectionTest: public ::testing::Test {
     }
 
   protected:
-    net::ConnectionPtr connection;
+    net::ConnectionImplPtr connection;
     TestServer server;
 };
 

@@ -3,7 +3,7 @@
 #include "base/assert.h"
 #include "base/c_utils.h"
 #include "net/base/utils.h"
-#include "net/connection.h"
+#include "net/connection_impl.h"
 
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
@@ -31,11 +31,11 @@ bool EpollEventLoop::HandlePassive(fd_t fd) {
   return ReadyForListen(fd);
 }
 
-bool EpollEventLoop::ReadyForRead(ConnectionPtr connection) {
+bool EpollEventLoop::ReadyForRead(ConnectionImplPtr connection) {
   return ReadyFor(connection, EPOLLIN);
 }
 
-bool EpollEventLoop::ReadyForSend(ConnectionPtr connection) {
+bool EpollEventLoop::ReadyForSend(ConnectionImplPtr connection) {
   return ReadyFor(connection, EPOLLOUT);
 }
 
@@ -107,8 +107,9 @@ void EpollEventLoop::DoIOWork(const std::atomic<bool>& is_shutting_down,
       continue;
     }
 
-    auto raw_connection = reinterpret_cast<ConnectionImpl*>(event.data.ptr);
-    auto connection = raw_connection->shared_from_this();
+    auto raw_connection =
+        reinterpret_cast<Connection*>(event.data.ptr)->shared_from_this();
+    auto connection = std::static_pointer_cast<ConnectionImpl>(raw_connection);
     fd = GetConnectionDescriptor(connection);
 
     int data = 0;
@@ -141,7 +142,7 @@ bool EpollEventLoop::ReadyForListen(fd_t fd) {
   return true;
 }
 
-bool EpollEventLoop::ReadyFor(ConnectionPtr connection, unsigned events) {
+bool EpollEventLoop::ReadyFor(ConnectionImplPtr connection, unsigned events) {
   DCHECK(connection->IsOnEventLoop(this));
 
   auto fd = GetConnectionDescriptor(connection);

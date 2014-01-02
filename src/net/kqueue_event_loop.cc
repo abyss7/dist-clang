@@ -28,11 +28,11 @@ bool KqueueEventLoop::HandlePassive(fd_t fd) {
   return ReadyForListen(fd);
 }
 
-bool KqueueEventLoop::ReadyForRead(ConnectionPtr connection) {
+bool KqueueEventLoop::ReadyForRead(ConnectionImplPtr connection) {
   return ReadyFor(connection, EVFILT_READ);
 }
 
-bool KqueueEventLoop::ReadyForSend(ConnectionPtr connection) {
+bool KqueueEventLoop::ReadyForSend(ConnectionImplPtr connection) {
   return ReadyFor(connection, EVFILT_WRITE);
 }
 
@@ -103,8 +103,9 @@ void KqueueEventLoop::DoIOWork(const std::atomic<bool>& is_shutting_down,
       continue;
     }
 
-    auto raw_connection = reinterpret_cast<ConnectionImpl*>(event.udata);
-    auto connection = raw_connection->shared_from_this();
+    auto raw_connection =
+        reinterpret_cast<Connection*>(event.udata)->shared_from_this();
+    auto connection = std::static_pointer_cast<ConnectionImpl>(raw_connection);
 
     if (event.flags & EV_ERROR || (event.flags & EV_EOF && event.data == 0)) {
       ConnectionClose(connection);
@@ -127,7 +128,7 @@ bool KqueueEventLoop::ReadyForListen(fd_t fd) {
   return kevent(listen_fd_, &event, 1, nullptr, 0, nullptr) != -1;
 }
 
-bool KqueueEventLoop::ReadyFor(ConnectionPtr connection, int16_t filter) {
+bool KqueueEventLoop::ReadyFor(ConnectionImplPtr connection, int16_t filter) {
   DCHECK(connection->IsOnEventLoop(this));
 
   auto fd = GetConnectionDescriptor(connection);

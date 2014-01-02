@@ -17,8 +17,8 @@ class EpollEventLoop: public EventLoop {
     ~EpollEventLoop();
 
     virtual bool HandlePassive(fd_t fd) THREAD_UNSAFE override;
-    virtual bool ReadyForRead(ConnectionPtr connection) THREAD_SAFE override;
-    virtual bool ReadyForSend(ConnectionPtr connection) THREAD_SAFE override;
+    virtual bool ReadyForRead(ConnectionImplPtr connection)THREAD_SAFE override;
+    virtual bool ReadyForSend(ConnectionImplPtr connection)THREAD_SAFE override;
 
   private:
     virtual void DoListenWork(const std::atomic<bool>& is_shutting_down,
@@ -27,7 +27,7 @@ class EpollEventLoop: public EventLoop {
                           fd_t self_pipe) override;
 
     bool ReadyForListen(fd_t fd);
-    bool ReadyFor(ConnectionPtr connection, unsigned events);
+    bool ReadyFor(ConnectionImplPtr connection, unsigned events);
 
     fd_t listen_fd_, io_fd_;
     ConnectionCallback callback_;

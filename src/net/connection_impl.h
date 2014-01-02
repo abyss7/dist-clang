@@ -3,7 +3,6 @@
 #include "gtest/gtest_prod.h"
 #include "net/base/types.h"
 #include "net/connection.h"
-#include "proto/remote.pb.h"
 
 #include <atomic>
 #include <google/protobuf/io/coded_stream.h>
@@ -17,29 +16,19 @@ namespace net {
 
 class EventLoop;
 
-class ConnectionImpl: public Connection,
-                      public std::enable_shared_from_this<ConnectionImpl> {
+class ConnectionImpl: public Connection {
   public:
     // Create connection only on a socket with a pending connection -
     // i.e. after connect() or accept().
-    static ConnectionPtr Create(EventLoop& event_loop, fd_t fd,
-                                const EndPointPtr& end_point = EndPointPtr());
+    static ConnectionImplPtr Create(
+        EventLoop& event_loop, fd_t fd,
+        const EndPointPtr& end_point = EndPointPtr());
     ~ConnectionImpl();
 
     virtual bool ReadAsync(ReadCallback callback) override;
     virtual bool ReadSync(Message* message, Status* status = nullptr) override;
 
-    template <class M>
-    bool SendAsync(
-        UniquePtr<M> message, SendCallback callback = CloseAfterSend());
-
-    template <class M>
-    bool SendSync(UniquePtr<M> message, Status* status = nullptr);
-
-    bool ReportStatus(
-        const Status& message, SendCallback callback = CloseAfterSend());
-
-    static SendCallback CloseAfterSend();
+    using Connection::SendSync;
 
     inline bool IsOnEventLoop(const EventLoop* event_loop) const;
 
@@ -58,8 +47,8 @@ class ConnectionImpl: public Connection,
     ConnectionImpl(EventLoop& event_loop, fd_t fd,
                    const EndPointPtr& end_point);
 
-    virtual bool SendAsync(SendCallback callback) override;
-    virtual bool SendSync(Status* status) override;
+    virtual bool SendAsyncImpl(SendCallback callback) override;
+    virtual bool SendSyncImpl(Status* status) override;
 
     void DoRead();
     void DoSend();
@@ -83,26 +72,6 @@ class ConnectionImpl: public Connection,
     FRIEND_TEST(ConnectionTest, Sync_ReadIncompleteMessage);
     FRIEND_TEST(ConnectionTest, Sync_SendToClosedConnection);
 };
-
-template <class M>
-bool ConnectionImpl::SendAsync(UniquePtr<M> message, SendCallback callback) {
-  message_.reset(new Message);
-  message_->SetAllocatedExtension(M::extension, message.release());
-  return SendAsync(callback);
-}
-
-template <>
-bool ConnectionImpl::SendAsync(ScopedMessage message, SendCallback callback);
-
-template <class M>
-bool ConnectionImpl::SendSync(UniquePtr<M> message, Status* status) {
-  message_.reset(new Message);
-  message_->SetAllocatedExtension(M::extension, message.release());
-  return SendSync(status);
-}
-
-template <>
-bool ConnectionImpl::SendSync(ScopedMessage message, Status* status);
 
 bool ConnectionImpl::IsOnEventLoop(const EventLoop* event_loop) const {
   return &event_loop_ == event_loop;

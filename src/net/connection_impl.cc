@@ -13,13 +13,13 @@ namespace dist_clang {
 namespace net {
 
 // static
-ConnectionPtr ConnectionImpl::Create(EventLoop &event_loop, fd_t fd,
-                                     const EndPointPtr& end_point) {
+ConnectionImplPtr ConnectionImpl::Create(EventLoop &event_loop, fd_t fd,
+                                         const EndPointPtr& end_point) {
 #if !defined(OS_MACOSX)
   DCHECK(!IsListening(fd));
 #endif
   DCHECK(!IsNonBlocking(fd));
-  return ConnectionPtr(new ConnectionImpl(event_loop, fd, end_point));
+  return ConnectionImplPtr(new ConnectionImpl(event_loop, fd, end_point));
 }
 
 ConnectionImpl::ConnectionImpl(EventLoop& event_loop, fd_t fd,
@@ -34,18 +34,13 @@ ConnectionImpl::~ConnectionImpl() {
 }
 
 bool ConnectionImpl::ReadAsync(ReadCallback callback) {
+  auto shared = std::static_pointer_cast<ConnectionImpl>(shared_from_this());
   read_callback_ = std::bind(callback, shared_from_this(), _1, _2);
-  if (!event_loop_.ReadyForRead(shared_from_this())) {
+  if (!event_loop_.ReadyForRead(shared)) {
     read_callback_ = BindedReadCallback();
     return false;
   }
   return true;
-}
-
-template <>
-bool ConnectionImpl::SendAsync(ScopedMessage message, SendCallback callback) {
-  message_ = std::move(message);
-  return SendAsync(callback);
 }
 
 bool ConnectionImpl::ReadSync(Message *message, Status *status) {
@@ -98,22 +93,17 @@ bool ConnectionImpl::ReadSync(Message *message, Status *status) {
   return true;
 }
 
-template <>
-bool ConnectionImpl::SendSync(ScopedMessage message, Status* status) {
-  message_ = std::move(message);
-  return SendSync(status);
-}
-
-bool ConnectionImpl::SendAsync(SendCallback callback) {
+bool ConnectionImpl::SendAsyncImpl(SendCallback callback) {
+  auto shared = std::static_pointer_cast<ConnectionImpl>(shared_from_this());
   send_callback_ = std::bind(callback, shared_from_this(), _1);
-  if (!event_loop_.ReadyForSend(shared_from_this())) {
+  if (!event_loop_.ReadyForSend(shared)) {
     send_callback_ = BindedSendCallback();
     return false;
   }
   return true;
 }
 
-bool ConnectionImpl::SendSync(Status* status) {
+bool ConnectionImpl::SendSyncImpl(Status* status) {
   {
     CodedOutputStream coded_stream(&file_output_stream_);
     coded_stream.WriteVarint32(message_->ByteSize());
@@ -144,29 +134,6 @@ bool ConnectionImpl::SendSync(Status* status) {
   return true;
 }
 
-bool ConnectionImpl::ReportStatus(const Status& message,
-                                  SendCallback callback) {
-  message_.reset(new Message);
-  message_->SetAllocatedExtension(Status::extension, new Status(message));
-  send_callback_ = std::bind(callback, shared_from_this(), _1);
-  if (!event_loop_.ReadyForSend(shared_from_this())) {
-    send_callback_ = BindedSendCallback();
-    return false;
-  }
-  return true;
-}
-
-// static
-Connection::SendCallback ConnectionImpl::CloseAfterSend() {
-  auto callback = [](ConnectionPtr, const Status& status) -> bool {
-    if (status.code() != Status::OK) {
-      LOG(ERROR) << "Failed to send message: " << status.description();
-    }
-    return false;
-  };
-  return std::bind(callback, _1, _2);
-}
-
 void ConnectionImpl::DoRead() {
   Status status;
   message_.reset(new Message);
@@ -181,7 +148,7 @@ void ConnectionImpl::DoRead() {
 
 void ConnectionImpl::DoSend() {
   Status status;
-  SendSync(std::move(message_), &status);
+  Connection::SendSync(std::move(message_), &status);
   DCHECK(!!send_callback_);
   auto send_callback = send_callback_;
   send_callback_ = BindedSendCallback();

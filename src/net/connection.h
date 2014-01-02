@@ -1,19 +1,14 @@
 #pragma once
 
 #include "net/connection_forward.h"
+#include "proto/remote.pb.h"
 
 #include <functional>
 
 namespace dist_clang {
-
-namespace proto {
-class Status;
-class Universal;
-}  // namespace proto
-
 namespace net {
 
-class Connection {
+class Connection: public std::enable_shared_from_this<Connection> {
   public:
     template <typename S> using Fn = std::function<S>;
     template <class T> using UniquePtr = std::unique_ptr<T>;
@@ -28,13 +23,45 @@ class Connection {
     virtual bool ReadAsync(ReadCallback callback) = 0;
     virtual bool ReadSync(Message* message, Status* status = nullptr) = 0;
 
+    template <class M>
+    bool SendAsync(
+        UniquePtr<M> message, SendCallback callback = CloseAfterSend());
+
+    template <class M>
+    bool SendSync(UniquePtr<M> message, Status* status = nullptr);
+
+    static SendCallback CloseAfterSend();
+
+    bool ReportStatus(
+        const Status& message, SendCallback callback = CloseAfterSend());
+
   protected:
     ScopedMessage message_;
 
   private:
-    virtual bool SendAsync(SendCallback callback) = 0;
-    virtual bool SendSync(Status* status) = 0;
+    virtual bool SendAsyncImpl(SendCallback callback) = 0;
+    virtual bool SendSyncImpl(Status* status) = 0;
 };
+
+template <class M>
+bool Connection::SendAsync(UniquePtr<M> message, SendCallback callback) {
+  message_.reset(new Message);
+  message_->SetAllocatedExtension(M::extension, message.release());
+  return SendAsyncImpl(callback);
+}
+
+template <>
+bool Connection::SendAsync(ScopedMessage message, SendCallback callback);
+
+template <class M>
+bool Connection::SendSync(UniquePtr<M> message, Status* status) {
+  message_.reset(new Message);
+  message_->SetAllocatedExtension(M::extension, message.release());
+  return SendSyncImpl(status);
+}
+
+template <>
+bool Connection::SendSync(ScopedMessage message, Status* status);
 
 }  // namespace net
 }  // namespace dist_clang

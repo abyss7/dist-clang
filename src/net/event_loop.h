@@ -17,17 +17,17 @@ class EventLoop {
     virtual ~EventLoop();
 
     virtual bool HandlePassive(fd_t fd) = 0;
-    virtual bool ReadyForRead(ConnectionPtr connection) = 0;
-    virtual bool ReadyForSend(ConnectionPtr connection) = 0;
+    virtual bool ReadyForRead(ConnectionImplPtr connection) = 0;
+    virtual bool ReadyForSend(ConnectionImplPtr connection) = 0;
 
     bool Run() THREAD_SAFE;
     void Stop() THREAD_SAFE;
 
   protected:
-    inline int GetConnectionDescriptor(const ConnectionPtr connection) const;
-    inline void ConnectionDoRead(ConnectionPtr connection);
-    inline void ConnectionDoSend(ConnectionPtr connection);
-    inline void ConnectionClose(ConnectionPtr connection);
+    inline int GetConnectionDescriptor(ConnectionImplPtr connection);
+    inline void ConnectionDoRead(ConnectionImplPtr connection);
+    inline void ConnectionDoSend(ConnectionImplPtr connection);
+    inline void ConnectionClose(ConnectionImplPtr connection);
 
   private:
     virtual void DoListenWork(const std::atomic<bool>& is_shutting_down,
@@ -40,19 +40,19 @@ class EventLoop {
     std::unique_ptr<base::WorkerPool> pool_;
 };
 
-int EventLoop::GetConnectionDescriptor(const ConnectionPtr connection) const {
+int EventLoop::GetConnectionDescriptor(ConnectionImplPtr connection) {
   return connection->fd_;
 }
 
-void EventLoop::ConnectionDoRead(ConnectionPtr connection) {
+void EventLoop::ConnectionDoRead(ConnectionImplPtr connection) {
   connection->DoRead();
 }
 
-void EventLoop::ConnectionDoSend(ConnectionPtr connection) {
+void EventLoop::ConnectionDoSend(ConnectionImplPtr connection) {
   connection->DoSend();
 }
 
-void EventLoop::ConnectionClose(ConnectionPtr connection) {
+void EventLoop::ConnectionClose(ConnectionImplPtr connection) {
   connection->Close();
 }
 

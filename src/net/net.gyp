@@ -16,6 +16,7 @@
         'base/end_point.h',
         'base/types.h',
         'base/utils.h',
+        'connection.cc',
         'connection.h',
         'connection_forward.h',
         'connection_impl.cc',

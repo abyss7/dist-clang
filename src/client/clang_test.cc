@@ -128,6 +128,30 @@ TEST(ClientTest, ClangFlagSetTest) {
 
 namespace {
 
+class TestConnection: public net::Connection {
+  public:
+    virtual bool ReadAsync(ReadCallback callback) override {
+      // TODO: implement this.
+      return false;
+    }
+
+    virtual bool ReadSync(Message *message, Status *status) override {
+      // TODO: implement this.
+      return false;
+    }
+
+  private:
+    virtual bool SendAsyncImpl(SendCallback callback) override {
+      // TODO: implement this.
+      return false;
+    }
+
+    virtual bool SendSyncImpl(Status *status) override {
+      // TODO: implement this.
+      return false;
+    }
+};
+
 template <class T>
 class TestFactory: public net::NetworkService::Factory {
   public:
@@ -179,8 +203,7 @@ class TestService: public net::NetworkService {
         return net::ConnectionPtr();
       }
       else {
-        // TODO: implement this.
-        return net::ConnectionPtr();
+        return net::ConnectionPtr(new TestConnection);
       }
     }
 };

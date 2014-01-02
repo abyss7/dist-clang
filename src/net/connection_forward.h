@@ -6,9 +6,10 @@ namespace dist_clang {
 namespace net {
 
 class Connection;
+using ConnectionPtr = std::shared_ptr<Connection>;
+
 class ConnectionImpl;
-using ConnectionPtr = std::shared_ptr<ConnectionImpl>;
-using ConnectionWeakPtr = std::weak_ptr<ConnectionImpl>;
+using ConnectionImplPtr = std::shared_ptr<ConnectionImpl>;
 
 class EndPoint;
 using EndPointPtr = std::shared_ptr<EndPoint>;
