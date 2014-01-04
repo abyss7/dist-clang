@@ -1,4 +1,3 @@
-#include "base/c_utils.h"
 #include "base/constants.h"
 #include "base/file_utils.h"
 #include "client/clang.h"
@@ -130,6 +129,8 @@ namespace {
 
 class TestConnection: public net::Connection {
   public:
+    TestConnection() : abort_on_send_(false) {}
+
     virtual bool ReadAsync(ReadCallback callback) override {
       // TODO: implement this.
       return false;
@@ -140,16 +141,40 @@ class TestConnection: public net::Connection {
       return false;
     }
 
+    void AbortOnSend() {
+      abort_on_send_ = true;
+    }
+
+    void CountSendSync(uint* counter) {
+      send_sync_counter_ = counter;
+    }
+
   private:
     virtual bool SendAsyncImpl(SendCallback callback) override {
+      if (abort_on_send_) {
+        return false;
+      }
+
       // TODO: implement this.
-      return false;
+      return true;
     }
 
     virtual bool SendSyncImpl(Status *status) override {
+      (*send_sync_counter_)++;
+
+      if (abort_on_send_) {
+        if (status) {
+          status->set_description("Test connection aborts sending");
+        }
+        return false;
+      }
+
       // TODO: implement this.
-      return false;
+      return true;
     }
+
+    bool abort_on_send_;
+    uint* send_sync_counter_;
 };
 
 template <class T>
@@ -174,6 +199,8 @@ class TestFactory: public net::NetworkService::Factory {
 template <bool DoConnect>
 class TestService: public net::NetworkService {
   public:
+    TestService() : on_connect_([](TestConnection*) {}) {}
+
     virtual bool Run() override {
       return false;
     }
@@ -203,9 +230,18 @@ class TestService: public net::NetworkService {
         return net::ConnectionPtr();
       }
       else {
-        return net::ConnectionPtr(new TestConnection);
+        auto new_connection = new TestConnection;
+        on_connect_(new_connection);
+        return net::ConnectionPtr(new_connection);
       }
     }
+
+    void CallOnConnect(std::function<void(TestConnection*)> callback) {
+      on_connect_ = callback;
+    }
+
+  private:
+    std::function<void(TestConnection*)> on_connect_;
 };
 
 }  // namespace
@@ -216,13 +252,58 @@ TEST(ClientTest, NoConnection) {
   int argc = 3;
   const char* argv[] = {"a", "b", "c", nullptr};
 
-  ASSERT_TRUE(client::DoMain(argc, argv));
+  ASSERT_TRUE(client::DoMain(argc, argv, "socket_path", "clang_path"));
 }
 
-TEST(ClientTest, DISABLED_NoEnvironmentVariable) {
-  // TODO: implement this.
-
+TEST(ClientTest, NoEnvironmentVariable) {
   net::NetworkService::SetFactory<TestFactory<TestService<true>>>();
+
+  int argc = 3;
+  auto tmp_dir = base::CreateTempDir();
+  auto test_file = tmp_dir + "/test.cc";
+  ASSERT_TRUE(base::WriteFile(test_file, "int main() { return 0; }"));
+  const char* argv[] = {"clang++", "-c", test_file.c_str(), nullptr};
+
+  EXPECT_TRUE(client::DoMain(argc, argv, std::string(), std::string()));
+
+  base::DeleteFile(test_file);
+}
+
+TEST(ClientTest, NoInputFile) {
+  net::NetworkService::SetFactory<TestFactory<TestService<true>>>();
+
+  int argc = 3;
+  auto tmp_dir = base::CreateTempDir();
+  auto test_file = tmp_dir + "/test.cc";
+  ASSERT_FALSE(base::FileExists(test_file))
+      << "Looks like someone is trying to sabotage this test!";
+  const char* argv[] = {"clang++", "-c", test_file.c_str(), nullptr};
+
+  EXPECT_TRUE(client::DoMain(argc, argv, "socket_path", "clang++"));
+}
+
+TEST(ClientTest, CantSendMessage) {
+  using Service = TestService<true>;
+
+  auto send_sync = 0u;
+  auto factory = net::NetworkService::SetFactory<TestFactory<Service>>();
+  factory->CallOnCreate([&send_sync](Service* service) {
+    service->CallOnConnect([&send_sync](TestConnection* connection) {
+      connection->AbortOnSend();
+      connection->CountSendSync(&send_sync);
+    });
+  });
+
+  int argc = 3;
+  auto tmp_dir = base::CreateTempDir();
+  auto test_file = tmp_dir + "/test.cc";
+  ASSERT_TRUE(base::WriteFile(test_file, "int main() { return 0; }"));
+  const char* argv[] = {"clang++", "-c", test_file.c_str(), nullptr};
+
+  EXPECT_TRUE(client::DoMain(argc, argv, std::string(), "clang++"));
+  EXPECT_EQ(1u, send_sync);
+
+  base::DeleteFile(test_file);
 }
 
 TEST(ClientTest, DISABLED_SuccessfulCompilation) {

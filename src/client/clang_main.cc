@@ -55,7 +55,10 @@ int main(int argc, char* argv[]) {
   // NOTICE: Use separate |DoMain| function to make sure that all local objects
   //         get destructed before the invokation of |exec|. Do not use global
   //         objects!
-  if (client::DoMain(argc, argv)) {
+  std::string clang_path = base::GetEnv(base::kEnvClangdCxx);
+  std::string socket_path = base::GetEnv(base::kEnvClangdSocket,
+                                         base::kDefaultClangdSocket);
+  if (client::DoMain(argc, argv, socket_path, clang_path)) {
     return ExecuteLocally(argv);
   }
   return 0;

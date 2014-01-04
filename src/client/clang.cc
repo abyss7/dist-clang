@@ -13,7 +13,6 @@
 #include "proto/remote.pb.h"
 
 #include <list>
-#include <string>
 
 #include "base/using_log.h"
 
@@ -68,12 +67,14 @@ bool ParseClangOutput(const std::string& output,
 namespace dist_clang {
 namespace client {
 
-bool DoMain(int argc, const char* const argv[]) {
-  std::string clangd_socket_path = base::GetEnv(base::kEnvClangdSocket,
-                                                base::kDefaultClangdSocket);
+bool DoMain(int argc, const char* const argv[], const std::string& socket_path,
+            const std::string& clang_path) {
+  if (clang_path.empty()) {
+    return true;
+  }
 
   auto service = net::NetworkService::Create();
-  auto end_point = net::EndPoint::UnixSocket(clangd_socket_path);
+  auto end_point = net::EndPoint::UnixSocket(socket_path);
   std::string error;
   auto connection = service->Connect(end_point, &error);
   if (!connection) {
@@ -94,7 +95,7 @@ bool DoMain(int argc, const char* const argv[]) {
     auto flags = message->mutable_cc_flags();
     auto version = flags->mutable_compiler()->mutable_version();
     ClangFlagSet::StringList args;
-    base::Process process(base::GetEnv(base::kEnvClangdCxx));
+    base::Process process(clang_path);
     process.AppendArg("-###").AppendArg(argv + 1, argv + argc);
     if (!process.Run(10) ||
         !ParseClangOutput(process.stderr(), version, args) ||
@@ -107,7 +108,7 @@ bool DoMain(int argc, const char* const argv[]) {
     auto flags = message->mutable_pp_flags();
     auto version = flags->mutable_compiler()->mutable_version();
     ClangFlagSet::StringList args;
-    base::Process process(base::GetEnv(base::kEnvClangdCxx));
+    base::Process process(clang_path);
     process.AppendArg("-###").AppendArg("-E").AppendArg(argv + 1, argv + argc);
     if (!process.Run(10) ||
         !ParseClangOutput(process.stderr(), version, args) ||

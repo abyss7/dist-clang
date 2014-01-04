@@ -63,6 +63,7 @@ bool Process::RunChild(int (&out_pipe)[2], int (&err_pipe)[2], int* in_pipe) {
   if ((in_pipe && dup2(in_pipe[0], STDIN_FILENO) == -1) ||
       dup2(out_pipe[1], STDOUT_FILENO) == -1 ||
       dup2(err_pipe[1], STDERR_FILENO) == -1) {
+    std::cerr << "dup2: " << strerror(errno) << std::endl;
     exit(1);
   }
 
@@ -76,6 +77,7 @@ bool Process::RunChild(int (&out_pipe)[2], int (&err_pipe)[2], int* in_pipe) {
   close(err_pipe[1]);
 
   if (!cwd_path_.empty() && !ChangeCurrentDir(cwd_path_)) {
+    std::cerr << "Can't change current directory to " + cwd_path_ << std::endl;
     exit(1);
   }
 
@@ -89,11 +91,12 @@ bool Process::RunChild(int (&out_pipe)[2], int (&err_pipe)[2], int* in_pipe) {
   DCHECK(arg_it == args_.end());
   argv[args_.size() + 1] = nullptr;
 
-  if (execv(exec_path_.c_str(), const_cast<char* const*>(argv)) == -1) {
+  if (execvp(exec_path_.c_str(), const_cast<char* const*>(argv)) == -1) {
+    std::cerr << "execvp: " << strerror(errno) << std::endl;
     exit(1);
   }
 
-  // Should not get here.
+  NOTREACHED();
   return false;
 }
 
