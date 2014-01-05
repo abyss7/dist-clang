@@ -132,7 +132,7 @@ class TestConnection: public net::Connection {
     TestConnection()
       : abort_on_send_(false), abort_on_read_(false),
         send_attempts_(nullptr), read_attempts_(nullptr),
-        on_send_([](const Message&) {}) {}
+        on_send_([](const Message&) {}), on_read_([](Message*) {}) {}
 
     virtual bool ReadAsync(ReadCallback callback) override {
       if (read_attempts_) {
@@ -159,7 +159,7 @@ class TestConnection: public net::Connection {
         return false;
       }
 
-      // TODO: implement this.
+      on_read_(message);
       return true;
     }
 
@@ -181,6 +181,10 @@ class TestConnection: public net::Connection {
 
     void CallOnSend(std::function<void(const Message&)> callback) {
       on_send_ = callback;
+    }
+
+    void CallOnRead(std::function<void(Message*)> callback) {
+      on_read_ = callback;
     }
 
   private:
@@ -217,6 +221,7 @@ class TestConnection: public net::Connection {
     uint* send_attempts_;
     uint* read_attempts_;
     std::function<void(const Message&)> on_send_;
+    std::function<void(Message*)> on_read_;
 };
 
 template <class T>
@@ -504,30 +509,90 @@ TEST_F(ClientTest, CannotReadMessage) {
   base::DeleteFile(test_file);
 }
 
-TEST_F(ClientTest, DISABLED_SuccessfulCompilation) {
-  // TODO: implement this.
-  using Service = TestService<true>;
+TEST_F(ClientTest, ReadMessageWithoutStatus) {
+  int argc = 3;
+  auto tmp_dir = base::CreateTempDir();
+  auto test_file = tmp_dir + "/test.cc";
+  ASSERT_TRUE(base::WriteFile(test_file, "int main() { return 0; }"));
+  const char* argv[] = {"clang++", "-c", test_file.c_str(), nullptr};
 
-  auto factory = net::NetworkService::SetFactory<TestFactory<Service>>();
-  factory->CallOnCreate([](Service*) {});
+  EXPECT_TRUE(client::DoMain(argc, argv, std::string(), "clang++"));
+  EXPECT_TRUE(weak_ptr.expired());
+  EXPECT_EQ(1u, send_count);
+  EXPECT_EQ(1u, read_count);
+  EXPECT_EQ(1u, connect_count);
+  EXPECT_EQ(1u, connections_created);
 
-  // Expect one connection on specific socket path.
-  // Expect sending one message.
-  //   Message type should be Execute.
-  //   remote = false
-  //   Message should contain some specific cc and pp flags among others.
-  //   Message should have specific current_dir
-  // Expect reading one message.
+  base::DeleteFile(test_file);
 }
 
-/*
- *
- * Can't read message.
- * Daemon sends malformed message.
- * Successful compilation.
- * Failed compilation.
- *
- */
+TEST_F(ClientTest, ReadMessageWithBadStatus) {
+  custom_callback = [](TestConnection* connection) {
+    connection->CallOnRead([](net::Connection::Message* message) {
+      auto extension = message->MutableExtension(proto::Status::extension);
+      extension->set_code(proto::Status::INCONSEQUENT);
+    });
+  };
+
+  int argc = 3;
+  auto tmp_dir = base::CreateTempDir();
+  auto test_file = tmp_dir + "/test.cc";
+  ASSERT_TRUE(base::WriteFile(test_file, "int main() { return 0; }"));
+  const char* argv[] = {"clang++", "-c", test_file.c_str(), nullptr};
+
+  EXPECT_TRUE(client::DoMain(argc, argv, std::string(), "clang++"));
+  EXPECT_TRUE(weak_ptr.expired());
+  EXPECT_EQ(1u, send_count);
+  EXPECT_EQ(1u, read_count);
+  EXPECT_EQ(1u, connect_count);
+  EXPECT_EQ(1u, connections_created);
+
+  base::DeleteFile(test_file);
+}
+
+TEST_F(ClientTest, SuccessfulCompilation) {
+  custom_callback = [](TestConnection* connection) {
+    connection->CallOnRead([](net::Connection::Message* message) {
+      auto extension = message->MutableExtension(proto::Status::extension);
+      extension->set_code(proto::Status::OK);
+    });
+  };
+
+  int argc = 3;
+  auto tmp_dir = base::CreateTempDir();
+  auto test_file = tmp_dir + "/test.cc";
+  ASSERT_TRUE(base::WriteFile(test_file, "int main() { return 0; }"));
+  const char* argv[] = {"clang++", "-c", test_file.c_str(), nullptr};
+
+  EXPECT_FALSE(client::DoMain(argc, argv, std::string(), "clang++"));
+  EXPECT_TRUE(weak_ptr.expired());
+  EXPECT_EQ(1u, send_count);
+  EXPECT_EQ(1u, read_count);
+  EXPECT_EQ(1u, connect_count);
+  EXPECT_EQ(1u, connections_created);
+
+  base::DeleteFile(test_file);
+}
+
+TEST_F(ClientTest, FailedCompilation) {
+  custom_callback = [](TestConnection* connection) {
+    connection->CallOnRead([](net::Connection::Message* message) {
+      auto extension = message->MutableExtension(proto::Status::extension);
+      extension->set_code(proto::Status::EXECUTION);
+    });
+  };
+
+  int argc = 3;
+  auto tmp_dir = base::CreateTempDir();
+  auto test_file = tmp_dir + "/test.cc";
+  ASSERT_TRUE(base::WriteFile(test_file, "int main() { return 0; }"));
+  const char* argv[] = {"clang++", "-c", test_file.c_str(), nullptr};
+
+  EXPECT_EXIT(client::DoMain(argc, argv, std::string(), "clang++"),
+              ::testing::ExitedWithCode(1), ".*");
+
+  base::DeleteFile(test_file);
+}
 
 }  // namespace client
 }  // namespace dist_clang
