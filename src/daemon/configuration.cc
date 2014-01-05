@@ -3,10 +3,10 @@
 #include "base/constants.h"
 #include "base/logging.h"
 #include "base/string_utils.h"
+#include "google/protobuf/io/zero_copy_stream_impl.h"
+#include "google/protobuf/text_format.h"
 #include "third_party/tclap/CmdLine.h"
 
-#include <google/protobuf/io/zero_copy_stream_impl.h>
-#include <google/protobuf/text_format.h>
 #include <string>
 
 #include <fcntl.h>
