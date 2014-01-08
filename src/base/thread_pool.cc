@@ -2,7 +2,7 @@
 
 #include "base/locked_queue_impl.h"
 
-using namespace ::std::placeholders;
+using namespace std::placeholders;
 
 namespace dist_clang {
 namespace base {

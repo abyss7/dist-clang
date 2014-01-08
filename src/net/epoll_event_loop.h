@@ -3,7 +3,6 @@
 #include "base/attributes.h"
 #include "net/event_loop.h"
 
-#include <unordered_map>
 #include <unordered_set>
 
 namespace dist_clang {
