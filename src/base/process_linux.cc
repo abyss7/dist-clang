@@ -14,6 +14,8 @@ namespace dist_clang {
 namespace base {
 
 bool Process::Run(unsigned sec_timeout, std::string* error) {
+  CHECK(args_.size() + 1 < MAX_ARGS);
+
   int out_pipe_fd[2];
   int err_pipe_fd[2];
   if (pipe(out_pipe_fd) == -1) {
@@ -157,6 +159,8 @@ bool Process::Run(unsigned sec_timeout, std::string* error) {
 
 bool Process::Run(unsigned sec_timeout, const std::string& input,
                   std::string* error) {
+  CHECK(args_.size() + 1 < MAX_ARGS);
+
   int in_pipe_fd[2];
   int out_pipe_fd[2];
   int err_pipe_fd[2];

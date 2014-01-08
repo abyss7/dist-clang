@@ -81,7 +81,6 @@ bool Process::RunChild(int (&out_pipe)[2], int (&err_pipe)[2], int* in_pipe) {
     exit(1);
   }
 
-  CHECK(args_.size() + 1 < MAX_ARGS);
   const char* argv[MAX_ARGS];
   argv[0] = exec_path_.c_str();
   auto arg_it = args_.begin();

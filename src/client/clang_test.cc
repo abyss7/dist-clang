@@ -78,8 +78,6 @@ TEST(ClangFlagSetTest, SimpleInput) {
   expected_flags.add_other()->assign("-target-linker-version");
   expected_flags.add_other()->assign("2.23.2");
   expected_flags.add_other()->assign("-fdeprecated-macro");
-  expected_flags.add_other()->assign("-ferror-limit");
-  expected_flags.add_other()->assign("19");
   expected_flags.add_other()->assign("-fmessage-length");
   expected_flags.add_other()->assign("213");
   expected_flags.add_other()->assign("-mstackrealign");
@@ -116,6 +114,8 @@ TEST(ClangFlagSetTest, SimpleInput) {
   expected_flags.add_non_cached()->assign("/usr/include");
   expected_flags.add_non_cached()->assign("-fdebug-compilation-dir");
   expected_flags.add_non_cached()->assign("/tmp");
+  expected_flags.add_non_cached()->assign("-ferror-limit");
+  expected_flags.add_non_cached()->assign("19");
 
   proto::Flags actual_flags;
   actual_flags.mutable_compiler()->set_version("0.0");

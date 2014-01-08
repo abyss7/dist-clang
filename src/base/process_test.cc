@@ -79,5 +79,13 @@ TEST(ProcessTest, DISABLED_CreateWithFlags) {
   // TODO: implement this.
 }
 
+TEST(ProcessTast, TooManyArgs) {
+  Process process("/bin/sh");
+  for (int i = 0; i < Process::MAX_ARGS + 2; ++i) {
+    process.AppendArg("yes");
+  }
+  ASSERT_DEATH(process.Run(1), "Assertion failed: .* < MAX_ARGS");
+}
+
 }  // namespace base
 }  // namespace dist_clang
