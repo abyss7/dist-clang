@@ -1,26 +1,27 @@
 #pragma once
 
-#include "proto/stats.pb.h"
+#include "base/testable.h"
+#include "net/connection_forward.h"
 
 namespace dist_clang {
 
 namespace net {
-class NetworkServiceImpl;
-}
+class NetworkService;
+}  // namespace net
 
 namespace proto {
 class Host;
-}
+}  // namespace proto
 
 namespace daemon {
 
-class Statistic {
+class Statistic: public base::Testable<Statistic> {
   public:
-    using Metric = proto::Statistic::Metric;
+    bool Initialize(net::NetworkService& network_service,
+                    const proto::Host& host);
 
-    static void Initialize(net::NetworkServiceImpl& network_service,
-                           const proto::Host& host);
-    static void Accumulate(Metric metric, uint64_t value, uint64_t count = 1);
+  private:
+    void HandleNewConnection(net::ConnectionPtr connection);
 };
 
 }  // namespace daemon

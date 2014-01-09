@@ -61,8 +61,10 @@ bool Daemon::Initialize(const Configuration &configuration) {
 
   network_service_ = net::NetworkService::Create();
   if (config.has_statistic()) {
-    // TODO: initialize statistic in proper way - regarding |NetworkService|.
-    // Statistic::Initialize(network_service_, config.statistic());
+    stat_service_ = daemon::Statistic::Create();
+    if (!stat_service_->Initialize(*network_service_, config.statistic())) {
+      LOG(ERROR) << "Failed to start the statistic service";
+    }
   }
 
   workers_.reset(new base::WorkerPool);

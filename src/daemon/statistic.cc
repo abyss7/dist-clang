@@ -1,17 +1,22 @@
 #include "daemon/statistic.h"
 
+#include "net/connection.h"
+#include "net/network_service.h"
+#include "proto/config.pb.h"
+
+using namespace std::placeholders;
+
 namespace dist_clang {
 namespace daemon {
 
-// static
-void Statistic::Initialize(net::NetworkServiceImpl& network_service,
+bool Statistic::Initialize(net::NetworkService& network_service,
                            const proto::Host& host) {
-  // TODO: implement this.
+  auto callback = std::bind(&Statistic::HandleNewConnection, this, _1);
+  return network_service.Listen(host.host(), host.port(), callback);
 }
 
-// static
-void Statistic::Accumulate(Metric metric, uint64_t value, uint64_t count) {
-  // TODO: implement this.
+void Statistic::HandleNewConnection(net::ConnectionPtr connection) {
+
 }
 
 }  // namespace daemon

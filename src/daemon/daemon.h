@@ -3,6 +3,7 @@
 #include "base/attributes.h"
 #include "base/queue_aggregator.h"
 #include "daemon/file_cache.h"
+#include "daemon/statistic.h"
 #include "net/connection_forward.h"
 #include "proto/remote.pb.h"
 
@@ -58,6 +59,7 @@ class Daemon {
     PluginMap plugins_;
     std::unique_ptr<FileCache> cache_;
     std::unique_ptr<net::NetworkService> network_service_;
+    std::unique_ptr<daemon::Statistic> stat_service_;
     std::unique_ptr<Queue> local_tasks_;
     std::unique_ptr<Queue> failed_tasks_;
     std::unique_ptr<Queue> remote_tasks_;

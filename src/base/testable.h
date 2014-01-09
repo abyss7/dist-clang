@@ -33,25 +33,6 @@ class Testable {
     static std::unique_ptr<Factory>& factory_();
 };
 
-template <class T>
-class Testable<T, T> {
-  public:
-    class Factory {
-      public:
-        virtual ~Factory() {}
-
-        virtual std::unique_ptr<T> Create() = 0;
-    };
-
-    static std::unique_ptr<T> Create();
-
-    template <class F>
-    static F* WEAK_PTR SetFactory();
-
-  private:
-    static std::unique_ptr<Factory>& factory_();
-};
-
 // static
 template <class T, class Default>
 std::unique_ptr<T> Testable<T, Default>::Create() {
