@@ -1,0 +1,95 @@
+#include "net/test_connection.h"
+
+namespace dist_clang {
+namespace net {
+
+TestConnection::TestConnection()
+  : abort_on_send_(false), abort_on_read_(false),
+    send_attempts_(nullptr), read_attempts_(nullptr),
+    on_send_([](const Message&) {}), on_read_([](Message*) {}) {
+}
+
+bool TestConnection::ReadAsync(ReadCallback callback) {
+  if (read_attempts_) {
+    (*read_attempts_)++;
+  }
+
+  if (abort_on_read_) {
+    return false;
+  }
+
+  // TODO: implement this.
+  return true;
+}
+
+bool TestConnection::ReadSync(Message *message, Status *status) {
+  if (read_attempts_) {
+    (*read_attempts_)++;
+  }
+
+  if (abort_on_read_) {
+    if (status) {
+      status->set_description("Test connection aborts reading");
+    }
+    return false;
+  }
+
+  on_read_(message);
+  return true;
+}
+
+void TestConnection::AbortOnSend() {
+  abort_on_send_ = true;
+}
+
+void TestConnection::AbortOnRead() {
+  abort_on_read_ = true;
+}
+
+void TestConnection::CountSendAttempts(uint* counter) {
+  send_attempts_ = counter;
+}
+
+void TestConnection::CountReadAttempts(uint* counter) {
+  read_attempts_ = counter;
+}
+
+void TestConnection::CallOnSend(std::function<void(const Message&)> callback) {
+  on_send_ = callback;
+}
+
+void TestConnection::CallOnRead(std::function<void(Message*)> callback) {
+  on_read_ = callback;
+}
+
+bool TestConnection::SendAsyncImpl(SendCallback callback) {
+  if (send_attempts_) {
+    (*send_attempts_)++;
+  }
+
+  if (abort_on_send_) {
+    return false;
+  }
+
+  on_send_(*message_.get());
+  return true;
+}
+
+bool TestConnection::SendSyncImpl(Status *status) {
+  if (send_attempts_) {
+    (*send_attempts_)++;
+  }
+
+  if (abort_on_send_) {
+    if (status) {
+      status->set_description("Test connection aborts sending");
+    }
+    return false;
+  }
+
+  on_send_(*message_.get());
+  return true;
+}
+
+}  // namespace net
+}  // namespace dist_clang

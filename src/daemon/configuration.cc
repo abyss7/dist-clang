@@ -96,6 +96,10 @@ Configuration::Configuration(int argc, char *argv[]) {
   }
 }
 
+Configuration::Configuration(const proto::Configuration &config)
+  : config_(config) {
+}
+
 bool Configuration::LoadFromFile(const std::string &config_path) {
   auto fd = open(config_path.c_str(), O_RDONLY);
   if (fd == -1)

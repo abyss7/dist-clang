@@ -8,6 +8,7 @@ namespace daemon {
 class Configuration {
   public:
     Configuration(int argc, char* argv[]);
+    Configuration(const proto::Configuration& config);
 
     const proto::Configuration& config() const;
 

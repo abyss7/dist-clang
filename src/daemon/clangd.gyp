@@ -8,6 +8,16 @@
       'target_name': 'clangd',
       'type': 'executable',
       'dependencies': [
+        'daemon',
+      ],
+      'sources': [
+        'clangd.cc',
+      ],
+    },
+    {
+      'target_name': 'daemon',
+      'type': 'static_library',
+      'dependencies': [
         '../base/base.gyp:base',
         '../base/base.gyp:constants',
         '../base/base.gyp:hash',
@@ -18,7 +28,6 @@
         'file_cache',
       ],
       'sources': [
-        'clangd.cc',
         'configuration.cc',
         'configuration.h',
         'daemon.cc',

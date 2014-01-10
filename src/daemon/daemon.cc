@@ -7,7 +7,6 @@
 #include "base/queue_aggregator_impl.h"
 #include "base/string_utils.h"
 #include "base/worker_pool.h"
-#include "daemon/configuration.h"
 #include "daemon/statistic.h"
 #include "net/base/end_point.h"
 #include "net/connection.h"
@@ -40,13 +39,25 @@ Daemon::~Daemon() {
   ProfilerStop();
 #endif  // PROFILER
 
-  cache_tasks_->Close();
-  local_tasks_->Close();
-  failed_tasks_->Close();
-  remote_tasks_->Close();
-  all_tasks_->Close();
+  if (cache_tasks_) {
+    cache_tasks_->Close();
+  }
+  if (local_tasks_) {
+    local_tasks_->Close();
+  }
+  if (failed_tasks_) {
+    failed_tasks_->Close();
+  }
+  if (remote_tasks_) {
+    remote_tasks_->Close();
+  }
+  if (all_tasks_) {
+    all_tasks_->Close();
+  }
+
   workers_.reset();
   network_service_.reset();
+  stat_service_.reset();
 }
 
 bool Daemon::Initialize(const Configuration &configuration) {

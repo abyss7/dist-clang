@@ -2,22 +2,17 @@
 
 #include "base/attributes.h"
 #include "base/queue_aggregator.h"
+#include "daemon/configuration.h"
 #include "daemon/file_cache.h"
 #include "daemon/statistic.h"
 #include "net/connection_forward.h"
+#include "net/network_service.h"
 #include "proto/remote.pb.h"
 
 #include <unordered_map>
 
 namespace dist_clang {
-
-namespace net {
-class NetworkService;
-}
-
 namespace daemon {
-
-class Configuration;
 
 class Daemon {
   public:

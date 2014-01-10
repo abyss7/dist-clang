@@ -4,6 +4,7 @@
 #include "client/clang_flag_set.h"
 #include "gtest/gtest.h"
 #include "net/network_service_impl.h"
+#include "net/test_network_service.h"
 #include "proto/remote.pb.h"
 
 namespace dist_clang {
@@ -125,200 +126,19 @@ TEST(ClangFlagSetTest, SimpleInput) {
             actual_flags.SerializeAsString());
 }
 
-namespace {
-
-class TestConnection: public net::Connection {
-  public:
-    TestConnection()
-      : abort_on_send_(false), abort_on_read_(false),
-        send_attempts_(nullptr), read_attempts_(nullptr),
-        on_send_([](const Message&) {}), on_read_([](Message*) {}) {}
-
-    virtual bool ReadAsync(ReadCallback callback) override {
-      if (read_attempts_) {
-        (*read_attempts_)++;
-      }
-
-      if (abort_on_read_) {
-        return false;
-      }
-
-      // TODO: implement this.
-      return true;
-    }
-
-    virtual bool ReadSync(Message *message, Status *status) override {
-      if (read_attempts_) {
-        (*read_attempts_)++;
-      }
-
-      if (abort_on_read_) {
-        if (status) {
-          status->set_description("Test connection aborts reading");
-        }
-        return false;
-      }
-
-      on_read_(message);
-      return true;
-    }
-
-    void AbortOnSend() {
-      abort_on_send_ = true;
-    }
-
-    void AbortOnRead() {
-      abort_on_read_ = true;
-    }
-
-    void CountSendAttempts(uint* counter) {
-      send_attempts_ = counter;
-    }
-
-    void CountReadAttempts(uint* counter) {
-      read_attempts_ = counter;
-    }
-
-    void CallOnSend(std::function<void(const Message&)> callback) {
-      on_send_ = callback;
-    }
-
-    void CallOnRead(std::function<void(Message*)> callback) {
-      on_read_ = callback;
-    }
-
-  private:
-    virtual bool SendAsyncImpl(SendCallback callback) override {
-      if (send_attempts_) {
-        (*send_attempts_)++;
-      }
-
-      if (abort_on_send_) {
-        return false;
-      }
-
-      on_send_(*message_.get());
-      return true;
-    }
-
-    virtual bool SendSyncImpl(Status *status) override {
-      if (send_attempts_) {
-        (*send_attempts_)++;
-      }
-
-      if (abort_on_send_) {
-        if (status) {
-          status->set_description("Test connection aborts sending");
-        }
-        return false;
-      }
-
-      on_send_(*message_.get());
-      return true;
-    }
-
-    bool abort_on_send_, abort_on_read_;
-    uint* send_attempts_;
-    uint* read_attempts_;
-    std::function<void(const Message&)> on_send_;
-    std::function<void(Message*)> on_read_;
-};
-
-template <class T>
-class TestFactory: public net::NetworkService::Factory {
-  public:
-    TestFactory() : on_create_([](T*) {}) {}
-
-    virtual std::unique_ptr<net::NetworkService> Create() override {
-      auto new_t = new T;
-      on_create_(new_t);
-      return std::unique_ptr<net::NetworkService>(new_t);
-    }
-
-    void CallOnCreate(std::function<void(T*)> callback) {
-      on_create_ = callback;
-    }
-
-  private:
-    std::function<void(T*)> on_create_;
-};
-
-template <bool DoConnect>
-class TestService: public net::NetworkService {
-  public:
-    using TestConnectionPtr = std::shared_ptr<TestConnection>;
-
-    TestService()
-      : on_connect_([](TestConnection*) {}),
-        connect_attempts_(nullptr) {}
-
-    virtual bool Run() override {
-      return false;
-    }
-
-    virtual bool Listen(
-        const std::string& path,
-        ListenCallback callback,
-        std::string* error) override {
-      return false;
-    }
-
-    virtual bool Listen(
-        const std::string& host,
-        unsigned short port,
-        ListenCallback callback,
-        std::string* error) override {
-      return false;
-    }
-
-    virtual net::ConnectionPtr Connect(
-        net::EndPointPtr end_point,
-        std::string* error) override {
-      if (connect_attempts_) {
-        (*connect_attempts_)++;
-      }
-
-      if (!DoConnect) {
-        if (error) {
-          error->assign("Test service rejects connection intentionally");
-        }
-        return net::ConnectionPtr();
-      }
-      else {
-        auto new_connection = TestConnectionPtr(new TestConnection);
-        on_connect_(new_connection.get());
-        return new_connection;
-      }
-    }
-
-    void CallOnConnect(std::function<void(TestConnection*)> callback) {
-      on_connect_ = callback;
-    }
-
-    void CountConnectAttempts(uint* counter) {
-      connect_attempts_ = counter;
-    }
-
-  private:
-    std::function<void(TestConnection*)> on_connect_;
-    uint* connect_attempts_;
-};
-
-}  // namespace
-
 class ClientTest: public ::testing::Test {
   public:
     virtual void SetUp() override {
-      using Service = TestService<true>;
+      using Service = net::TestNetworkService<true>;
 
       send_count = 0, read_count = 0, connect_count = 0;
       connections_created = 0;
-      custom_callback = [](TestConnection*) {};
+      custom_callback = [](net::TestConnection*) {};
 
-      auto factory = net::NetworkService::SetFactory<TestFactory<Service>>();
+      auto factory = net::NetworkService::SetFactory<Service::Factory>();
       factory->CallOnCreate([this](Service* service) {
         service->CountConnectAttempts(&connect_count);
-        service->CallOnConnect([this](TestConnection* connection) {
+        service->CallOnConnect([this](net::TestConnection* connection) {
           connection->CountSendAttempts(&send_count);
           connection->CountReadAttempts(&read_count);
           weak_ptr = connection->shared_from_this();
@@ -331,19 +151,19 @@ class ClientTest: public ::testing::Test {
   protected:
     std::weak_ptr<net::Connection> weak_ptr;
     uint send_count, read_count, connect_count, connections_created;
-    std::function<void(TestConnection*)> custom_callback;
+    std::function<void(net::TestConnection*)> custom_callback;
 };
 
 TEST_F(ClientTest, NoConnection) {
-  using Service = TestService<false>;
+  using Service = net::TestNetworkService<false>;
 
   std::weak_ptr<net::Connection> weak_ptr;
   auto send_count = 0u, read_count = 0u, connect_count = 0u,
       connections_created = 0u;
-  auto factory = net::NetworkService::SetFactory<TestFactory<Service>>();
+  auto factory = net::NetworkService::SetFactory<Service::Factory>();
   factory->CallOnCreate([&](Service* service) {
     service->CountConnectAttempts(&connect_count);
-    service->CallOnConnect([&](TestConnection* connection) {
+    service->CallOnConnect([&](net::TestConnection* connection) {
       connection->CountSendAttempts(&send_count);
       connection->CountReadAttempts(&read_count);
       weak_ptr = connection->shared_from_this();
@@ -396,7 +216,7 @@ TEST_F(ClientTest, NoInputFile) {
 }
 
 TEST_F(ClientTest, CannotSendMessage) {
-  custom_callback = [](TestConnection* connection) {
+  custom_callback = [](net::TestConnection* connection) {
     connection->AbortOnSend();
   };
 
@@ -422,7 +242,7 @@ TEST_F(ClientTest, CannotReadMessage) {
   auto test_file_name = test_file_base + ".cc";
   auto test_file = tmp_dir + "/" + test_file_name;
 
-  custom_callback = [&](TestConnection* connection) {
+  custom_callback = [&](net::TestConnection* connection) {
     connection->AbortOnRead();
     connection->CallOnSend([&](const net::Connection::Message& message) {
       ASSERT_TRUE(message.HasExtension(proto::Execute::extension));
@@ -527,7 +347,7 @@ TEST_F(ClientTest, ReadMessageWithoutStatus) {
 }
 
 TEST_F(ClientTest, ReadMessageWithBadStatus) {
-  custom_callback = [](TestConnection* connection) {
+  custom_callback = [](net::TestConnection* connection) {
     connection->CallOnRead([](net::Connection::Message* message) {
       auto extension = message->MutableExtension(proto::Status::extension);
       extension->set_code(proto::Status::INCONSEQUENT);
@@ -551,7 +371,7 @@ TEST_F(ClientTest, ReadMessageWithBadStatus) {
 }
 
 TEST_F(ClientTest, SuccessfulCompilation) {
-  custom_callback = [](TestConnection* connection) {
+  custom_callback = [](net::TestConnection* connection) {
     connection->CallOnRead([](net::Connection::Message* message) {
       auto extension = message->MutableExtension(proto::Status::extension);
       extension->set_code(proto::Status::OK);
@@ -575,7 +395,7 @@ TEST_F(ClientTest, SuccessfulCompilation) {
 }
 
 TEST_F(ClientTest, FailedCompilation) {
-  custom_callback = [](TestConnection* connection) {
+  custom_callback = [](net::TestConnection* connection) {
     connection->CallOnRead([](net::Connection::Message* message) {
       auto extension = message->MutableExtension(proto::Status::extension);
       extension->set_code(proto::Status::EXECUTION);
