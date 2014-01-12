@@ -13,5 +13,11 @@ inline std::string MakeHash(const std::string& input) {
   return std::string(buf, 16);
 }
 
+template <class T, class Hash = std::hash<T>>
+inline void HashCombine(std::size_t& seed, const T& value) {
+  Hash hash;
+  seed ^= hash(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+
 }  // namespace base
 }  // namespace dist_clang

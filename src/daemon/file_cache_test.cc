@@ -1,14 +1,15 @@
 #include "daemon/file_cache.h"
 
-#include "base/c_utils.h"
 #include "base/file_utils.h"
+#include "base/temporary_dir.h"
 #include "gtest/gtest.h"
 
 namespace dist_clang {
 namespace daemon {
 
 TEST(FileCacheTest, RestoreSingleEntry) {
-  const std::string path = base::CreateTempDir();
+  const base::TemporaryDir tmp_dir;
+  const std::string path = tmp_dir;
   const std::string entry_path = path + "/test.o";
   const std::string stderror = "some warning";
   const std::string expected_object_code = "some object code";

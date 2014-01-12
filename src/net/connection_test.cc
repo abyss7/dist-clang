@@ -1,7 +1,7 @@
 #include "base/assert.h"
-#include "base/c_utils.h"
 #include "base/logging.h"
 #include "base/string_utils.h"
+#include "base/temporary_dir.h"
 #include "gtest/gtest.h"
 #include "net/base/utils.h"
 #include "net/connection.h"
@@ -57,10 +57,10 @@ int TestMessage::number_ = 1;
 class TestServer: public EventLoop {
   public:
     bool Init() {
-      tmp_path_ = base::CreateTempDir();
-      if (tmp_path_.empty())
+      if (tmp_dir_.GetPath().empty()) {
         return false;
-      socket_path_ = tmp_path_ + "/socket";
+      }
+      socket_path_ = tmp_dir_.GetPath() + "/socket";
 
       sockaddr_un address;
       address.sun_family = AF_UNIX;
@@ -83,10 +83,6 @@ class TestServer: public EventLoop {
         epoll_fd_(epoll_create1(EPOLL_CLOEXEC)) {
     }
     ~TestServer() {
-      if (!socket_path_.empty())
-        unlink(socket_path_.c_str());
-      if (!tmp_path_.empty())
-        rmdir(tmp_path_.c_str());
       if (listen_fd_ != -1)
         close(listen_fd_);
       if (server_fd_ != -1)
@@ -290,7 +286,8 @@ class TestServer: public EventLoop {
     }
 
     int listen_fd_, server_fd_, epoll_fd_;
-    std::string tmp_path_, socket_path_;
+    base::TemporaryDir tmp_dir_;
+    std::string socket_path_;
 };
 
 class ConnectionTest: public ::testing::Test {

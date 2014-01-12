@@ -1,5 +1,6 @@
 #include "base/constants.h"
 #include "base/file_utils.h"
+#include "base/temporary_dir.h"
 #include "client/clang.h"
 #include "client/clang_flag_set.h"
 #include "gtest/gtest.h"
@@ -129,7 +130,7 @@ TEST(ClangFlagSetTest, SimpleInput) {
 class ClientTest: public ::testing::Test {
   public:
     virtual void SetUp() override {
-      using Service = net::TestNetworkService<true>;
+      using Service = net::TestNetworkService<>;
 
       send_count = 0, read_count = 0, connect_count = 0;
       connections_created = 0;
@@ -184,8 +185,8 @@ TEST_F(ClientTest, NoConnection) {
 
 TEST_F(ClientTest, NoEnvironmentVariable) {
   int argc = 3;
-  auto tmp_dir = base::CreateTempDir();
-  auto test_file = tmp_dir + "/test.cc";
+  base::TemporaryDir tmp_dir;
+  auto test_file = tmp_dir.GetPath() + "/test.cc";
   ASSERT_TRUE(base::WriteFile(test_file, "int main() { return 0; }"));
   const char* argv[] = {"clang++", "-c", test_file.c_str(), nullptr};
 
@@ -195,14 +196,12 @@ TEST_F(ClientTest, NoEnvironmentVariable) {
   EXPECT_EQ(0u, read_count);
   EXPECT_EQ(0u, connect_count);
   EXPECT_EQ(0u, connections_created);
-
-  base::DeleteFile(test_file);
 }
 
 TEST_F(ClientTest, NoInputFile) {
   int argc = 3;
-  auto tmp_dir = base::CreateTempDir();
-  auto test_file = tmp_dir + "/test.cc";
+  base::TemporaryDir tmp_dir;
+  auto test_file = tmp_dir.GetPath() + "/test.cc";
   ASSERT_FALSE(base::FileExists(test_file))
       << "Looks like someone is trying to sabotage this test!";
   const char* argv[] = {"clang++", "-c", test_file.c_str(), nullptr};
@@ -221,8 +220,8 @@ TEST_F(ClientTest, CannotSendMessage) {
   };
 
   int argc = 3;
-  auto tmp_dir = base::CreateTempDir();
-  auto test_file = tmp_dir + "/test.cc";
+  base::TemporaryDir tmp_dir;
+  auto test_file = tmp_dir.GetPath() + "/test.cc";
   ASSERT_TRUE(base::WriteFile(test_file, "int main() { return 0; }"));
   const char* argv[] = {"clang++", "-c", test_file.c_str(), nullptr};
 
@@ -232,15 +231,13 @@ TEST_F(ClientTest, CannotSendMessage) {
   EXPECT_EQ(0u, read_count);
   EXPECT_EQ(1u, connect_count);
   EXPECT_EQ(1u, connections_created);
-
-  base::DeleteFile(test_file);
 }
 
 TEST_F(ClientTest, CannotReadMessage) {
-  auto tmp_dir = base::CreateTempDir();
+  base::TemporaryDir tmp_dir;
   std::string test_file_base = "test";
   auto test_file_name = test_file_base + ".cc";
-  auto test_file = tmp_dir + "/" + test_file_name;
+  auto test_file = tmp_dir.GetPath() + "/" + test_file_name;
 
   custom_callback = [&](net::TestConnection* connection) {
     connection->AbortOnRead();
@@ -325,14 +322,12 @@ TEST_F(ClientTest, CannotReadMessage) {
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, connect_count);
   EXPECT_EQ(1u, connections_created);
-
-  base::DeleteFile(test_file);
 }
 
 TEST_F(ClientTest, ReadMessageWithoutStatus) {
   int argc = 3;
-  auto tmp_dir = base::CreateTempDir();
-  auto test_file = tmp_dir + "/test.cc";
+  base::TemporaryDir tmp_dir;
+  auto test_file = tmp_dir.GetPath() + "/test.cc";
   ASSERT_TRUE(base::WriteFile(test_file, "int main() { return 0; }"));
   const char* argv[] = {"clang++", "-c", test_file.c_str(), nullptr};
 
@@ -342,8 +337,6 @@ TEST_F(ClientTest, ReadMessageWithoutStatus) {
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, connect_count);
   EXPECT_EQ(1u, connections_created);
-
-  base::DeleteFile(test_file);
 }
 
 TEST_F(ClientTest, ReadMessageWithBadStatus) {
@@ -355,8 +348,8 @@ TEST_F(ClientTest, ReadMessageWithBadStatus) {
   };
 
   int argc = 3;
-  auto tmp_dir = base::CreateTempDir();
-  auto test_file = tmp_dir + "/test.cc";
+  base::TemporaryDir tmp_dir;
+  auto test_file = tmp_dir.GetPath() + "/test.cc";
   ASSERT_TRUE(base::WriteFile(test_file, "int main() { return 0; }"));
   const char* argv[] = {"clang++", "-c", test_file.c_str(), nullptr};
 
@@ -366,8 +359,6 @@ TEST_F(ClientTest, ReadMessageWithBadStatus) {
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, connect_count);
   EXPECT_EQ(1u, connections_created);
-
-  base::DeleteFile(test_file);
 }
 
 TEST_F(ClientTest, SuccessfulCompilation) {
@@ -379,8 +370,8 @@ TEST_F(ClientTest, SuccessfulCompilation) {
   };
 
   int argc = 3;
-  auto tmp_dir = base::CreateTempDir();
-  auto test_file = tmp_dir + "/test.cc";
+  base::TemporaryDir tmp_dir;
+  auto test_file = tmp_dir.GetPath() + "/test.cc";
   ASSERT_TRUE(base::WriteFile(test_file, "int main() { return 0; }"));
   const char* argv[] = {"clang++", "-c", test_file.c_str(), nullptr};
 
@@ -390,8 +381,6 @@ TEST_F(ClientTest, SuccessfulCompilation) {
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, connect_count);
   EXPECT_EQ(1u, connections_created);
-
-  base::DeleteFile(test_file);
 }
 
 TEST_F(ClientTest, FailedCompilation) {
@@ -403,15 +392,13 @@ TEST_F(ClientTest, FailedCompilation) {
   };
 
   int argc = 3;
-  auto tmp_dir = base::CreateTempDir();
-  auto test_file = tmp_dir + "/test.cc";
+  base::TemporaryDir tmp_dir;
+  auto test_file = tmp_dir.GetPath() + "/test.cc";
   ASSERT_TRUE(base::WriteFile(test_file, "int main() { return 0; }"));
   const char* argv[] = {"clang++", "-c", test_file.c_str(), nullptr};
 
   EXPECT_EXIT(client::DoMain(argc, argv, std::string(), "clang++"),
               ::testing::ExitedWithCode(1), ".*");
-
-  base::DeleteFile(test_file);
 }
 
 }  // namespace client

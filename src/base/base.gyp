@@ -13,6 +13,8 @@
       'sources': [
         'file_utils.cc',
         'file_utils.h',
+        'temporary_dir.cc',
+        'temporary_dir.h',
         'thread_pool.cc',
         'thread_pool.h',
         'worker_pool.cc',

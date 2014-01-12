@@ -71,7 +71,7 @@ bool Daemon::Initialize(const Configuration &configuration) {
   }
 
   network_service_ = net::NetworkService::Create();
-  if (config.has_statistic()) {
+  if (config.has_statistic() && !config.statistic().disabled()) {
     stat_service_ = daemon::Statistic::Create();
     if (!stat_service_->Initialize(*network_service_, config.statistic())) {
       LOG(ERROR) << "Failed to start the statistic service";
@@ -156,37 +156,39 @@ bool Daemon::Initialize(const Configuration &configuration) {
     }
   }
 
-  base::Log::RangeSet ranges;
-  for (const auto& level: config.verbosity().levels()) {
-    if (level.has_left() && level.left() > level.right()) {
-      continue;
-    }
+  if (config.has_verbosity()) {
+    base::Log::RangeSet ranges;
+    for (const auto& level: config.verbosity().levels()) {
+      if (level.has_left() && level.left() > level.right()) {
+        continue;
+      }
 
-    if (!level.has_left()) {
-      ranges.insert(std::make_pair(level.right(), level.right()));
-    }
-    else {
-      ranges.insert(std::make_pair(level.left(), level.right()));
-    }
-  }
-
-  base::Log::RangeSet results;
-  if (!ranges.empty()) {
-    auto current = *ranges.begin();
-    if (ranges.size() > 1) {
-      for (auto it = std::next(ranges.begin()); it != ranges.end(); ++it) {
-        if (current.second + 1 >= it->first) {
-          current.second = std::max(it->second, current.second);
-        }
-        else {
-          results.insert(std::make_pair(current.second, current.first));
-          current = *it;
-        }
+      if (!level.has_left()) {
+        ranges.insert(std::make_pair(level.right(), level.right()));
+      }
+      else {
+        ranges.insert(std::make_pair(level.left(), level.right()));
       }
     }
-    results.insert(std::make_pair(current.second, current.first));
+
+    base::Log::RangeSet results;
+    if (!ranges.empty()) {
+      auto current = *ranges.begin();
+      if (ranges.size() > 1) {
+        for (auto it = std::next(ranges.begin()); it != ranges.end(); ++it) {
+          if (current.second + 1 >= it->first) {
+            current.second = std::max(it->second, current.second);
+          }
+          else {
+            results.insert(std::make_pair(current.second, current.first));
+            current = *it;
+          }
+        }
+      }
+      results.insert(std::make_pair(current.second, current.first));
+    }
+    base::Log::Reset(config.verbosity().error_mark(), std::move(results));
   }
-  base::Log::Reset(config.verbosity().error_mark(), std::move(results));
 
   return network_service_->Run();
 }
