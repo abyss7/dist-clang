@@ -150,7 +150,7 @@ class ClientTest: public ::testing::Test {
     }
 
   protected:
-    std::weak_ptr<net::Connection> weak_ptr;
+    net::ConnectionWeakPtr weak_ptr;
     uint send_count, read_count, connect_count, connections_created;
     std::function<void(net::TestConnection*)> custom_callback;
 };

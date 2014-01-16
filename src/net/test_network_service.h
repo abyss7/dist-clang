@@ -103,8 +103,8 @@ class TestNetworkService: public NetworkService {
       return true;
     }
 
-    virtual net::ConnectionPtr Connect(
-        net::EndPointPtr end_point,
+    virtual ConnectionPtr Connect(
+        EndPointPtr end_point,
         std::string* error) override {
       if (connect_attempts_) {
         (*connect_attempts_)++;
@@ -114,13 +114,30 @@ class TestNetworkService: public NetworkService {
         if (error) {
           error->assign("Test service rejects connection intentionally");
         }
-        return net::ConnectionPtr();
+        return ConnectionPtr();
       }
       else {
         auto new_connection = TestConnectionPtr(new TestConnection);
         on_connect_(new_connection.get());
         return new_connection;
       }
+    }
+
+    ConnectionPtr TriggerListen(const std::string& host, uint16_t port = 0,
+                                bool on_connect = true) {
+      auto it = listen_callbacks_.find(std::make_pair(host, port));
+      if (it != listen_callbacks_.end()) {
+        auto new_connection = TestConnectionPtr(new TestConnection);
+        if (on_connect) {
+          if (connect_attempts_) {
+            (*connect_attempts_)++;
+          }
+          on_connect_(new_connection.get());
+        }
+        it->second(new_connection);
+        return new_connection;
+      }
+      return ConnectionPtr();
     }
 
     void CallOnConnect(OnConnectCallback callback) {

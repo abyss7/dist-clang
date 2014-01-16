@@ -7,6 +7,7 @@ namespace net {
 
 class Connection;
 using ConnectionPtr = std::shared_ptr<Connection>;
+using ConnectionWeakPtr = std::weak_ptr<Connection>;
 
 class ConnectionImpl;
 using ConnectionImplPtr = std::shared_ptr<ConnectionImpl>;
