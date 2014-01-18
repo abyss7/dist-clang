@@ -19,6 +19,9 @@ class TestConnection: public Connection {
     void CallOnSend(std::function<void(const Message&)> callback);
     void CallOnRead(std::function<void(Message*)> callback);
 
+    bool TriggerReadAsync(std::unique_ptr<proto::Universal> message,
+                          const proto::Status& status);
+
   private:
     virtual bool SendAsyncImpl(SendCallback callback) override;
     virtual bool SendSyncImpl(Status *status) override;
@@ -28,6 +31,7 @@ class TestConnection: public Connection {
     uint* read_attempts_;
     std::function<void(const Message&)> on_send_;
     std::function<void(Message*)> on_read_;
+    ReadCallback read_callback_;
 };
 
 }  // namespace net

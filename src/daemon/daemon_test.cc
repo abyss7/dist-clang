@@ -19,6 +19,7 @@ class DaemonTest: public ::testing::Test {
       connections_created = 0;
       test_service = nullptr;
       listen_callback = [](const std::string&, uint16_t) {};
+      connect_callback = [](net::TestConnection*) {};
 
       factory = net::NetworkService::SetFactory<Service::Factory>();
       factory->CallOnCreate([this](Service* service) {
@@ -30,6 +31,7 @@ class DaemonTest: public ::testing::Test {
           connection->CountSendAttempts(&send_count);
           connection->CountReadAttempts(&read_count);
           ++connections_created;
+          connect_callback(connection);
         });
         service->CallOnListen(listen_callback);
       });
@@ -41,6 +43,7 @@ class DaemonTest: public ::testing::Test {
     Service::Factory* WEAK_PTR factory;
     Service* WEAK_PTR test_service;
     std::function<void(const std::string&, uint16_t)> listen_callback;
+    std::function<void(net::TestConnection*)> connect_callback;
 
     uint listen_count, connect_count, read_count, send_count;
     uint connections_created;
@@ -184,6 +187,123 @@ TEST_F(DaemonTest, LocalConnection) {
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(0u, send_count);
   EXPECT_TRUE(connection.expired())
+      << "Daemon must not store references to the connection";
+}
+
+TEST_F(DaemonTest, BadLocalMessage) {
+  const std::string socket_path = "/tmp/clangd.socket";
+  const proto::Status::Code expected_code = proto::Status::BAD_MESSAGE;
+  const std::string expected_description = "Test description";
+
+  config.set_socket_path(socket_path);
+  listen_callback = [&](const std::string& host, uint16_t port) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+  };
+  connect_callback = [&](net::TestConnection* connection) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(proto::Status::extension));
+      const auto& status = message.GetExtension(proto::Status::extension);
+      EXPECT_EQ(expected_code, status.code());
+      EXPECT_EQ(expected_description, status.description());
+    });
+  };
+
+  daemon::Configuration configuration(config);
+
+  EXPECT_TRUE(daemon.Initialize(configuration));
+
+  auto connection = test_service->TriggerListen(socket_path);
+  {
+    std::shared_ptr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+
+    net::Connection::ScopedMessage message;
+    proto::Status status;
+    status.set_code(expected_code);
+    status.set_description(expected_description);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+  }
+
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(1u, connect_count);
+  EXPECT_EQ(1u, connections_created);
+  EXPECT_EQ(1u, read_count);
+  EXPECT_EQ(1u, send_count);
+  EXPECT_EQ(1, connection.use_count())
+      << "Daemon must not store references to the connection";
+}
+
+TEST_F(DaemonTest, LocalMessageWithoutCommand) {
+  const std::string socket_path = "/tmp/clangd.socket";
+
+  config.set_socket_path(socket_path);
+  listen_callback = [&](const std::string& host, uint16_t port) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+  };
+
+  daemon::Configuration configuration(config);
+
+  EXPECT_TRUE(daemon.Initialize(configuration));
+
+  auto connection = test_service->TriggerListen(socket_path);
+  {
+    std::shared_ptr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    proto::Status status;
+    status.set_code(proto::Status::OK);
+
+    EXPECT_DEATH(test_connection->TriggerReadAsync(std::move(message), status),
+                 ".*");
+  }
+
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(1u, connect_count);
+  EXPECT_EQ(1u, connections_created);
+  EXPECT_EQ(1u, read_count);
+  EXPECT_EQ(0u, send_count);
+  EXPECT_EQ(1, connection.use_count())
+      << "Daemon must not store references to the connection";
+}
+
+TEST_F(DaemonTest, LocalMessageWithoutCurrentDir) {
+  const std::string socket_path = "/tmp/clangd.socket";
+
+  config.set_socket_path(socket_path);
+  listen_callback = [&](const std::string& host, uint16_t port) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+  };
+
+  daemon::Configuration configuration(config);
+
+  EXPECT_TRUE(daemon.Initialize(configuration));
+
+  auto connection = test_service->TriggerListen(socket_path);
+  {
+    std::shared_ptr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    message->MutableExtension(proto::Execute::extension)->set_remote(false);
+
+    proto::Status status;
+    status.set_code(proto::Status::OK);
+
+    EXPECT_DEATH(test_connection->TriggerReadAsync(std::move(message), status),
+                 ".*");
+  }
+
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(1u, connect_count);
+  EXPECT_EQ(1u, connections_created);
+  EXPECT_EQ(1u, read_count);
+  EXPECT_EQ(0u, send_count);
+  EXPECT_EQ(1, connection.use_count())
       << "Daemon must not store references to the connection";
 }
 

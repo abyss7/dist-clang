@@ -18,7 +18,7 @@ bool TestConnection::ReadAsync(ReadCallback callback) {
     return false;
   }
 
-  // TODO: implement this.
+  read_callback_ = callback;
   return true;
 }
 
@@ -60,6 +60,15 @@ void TestConnection::CallOnSend(std::function<void(const Message&)> callback) {
 
 void TestConnection::CallOnRead(std::function<void(Message*)> callback) {
   on_read_ = callback;
+}
+
+bool TestConnection::TriggerReadAsync(std::unique_ptr<proto::Universal> message,
+                                      const proto::Status &status) {
+  if (read_callback_) {
+    return read_callback_(shared_from_this(), std::move(message), status);
+  }
+
+  return false;
 }
 
 bool TestConnection::SendAsyncImpl(SendCallback callback) {
