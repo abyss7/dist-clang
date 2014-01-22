@@ -1,6 +1,5 @@
 {
   'variables': {
-    'clang%': 0,
     'profiler%': 0,
     'tcmalloc%': 1,
   },
@@ -11,11 +10,13 @@
 
   'target_defaults': {
     'cflags': [
-      '-std=c++11',
-      '-stdlib=libc++',
+      '-fno-exceptions',
+      '-fno-rtti',
+      '-fPIC',
+      '-nostdinc++',
       '-pipe',
       '-pthread',
-      '-fno-exceptions',
+      '-std=c++11',
       '-Wall',
       '-Wsign-compare',
       '-Werror',
@@ -23,15 +24,19 @@
     'dependencies': [
       '<(DEPTH)/third_party/libcxx/libcxx.gyp:c++',
     ],
-    'ldflags': [
-      '-lpthread',
-    ],
-    'xcode_settings': {
-      'ARCHS': ['x86_64'],
-    },
     'include_dirs': [
       '..',
     ],
+    'ldflags': [
+      '-fno-exceptions',
+      '-fno-rtti',
+      '--no-undefined',
+    ],
+    'link_settings': {
+      'libraries': [
+        '-lpthread',
+      ],
+    },
     'sources/': [
       ['exclude', '_(linux|mac)\\.cc$'],
     ],
@@ -54,33 +59,26 @@
         'sources/': [
           ['include', '_mac\\.cc$'],
         ],
+        'xcode_settings': {
+          'ARCHS': ['x86_64'],
+        },
       }],
       ['profiler==1 and OS=="linux"', {
         'defines': [
           'PROFILER',
         ],
-        'ldflags': [
-          '-lprofiler',
-        ],
-      }],
-      ['tcmalloc==1 and OS=="linux"', {
-        'ldflags': [
-          '-ltcmalloc',
-        ],
-      }],
-    ],
-    'target_conditions': [
-      ['_type!="static_library"', {
-        'xcode_settings': {
-          'OTHER_LDFLAGS': [
-            '-lc++',
+        'link_settings': {
+          'libraries': [
+            '-lprofiler',
           ],
         },
       }],
-      ['_type=="shared_library"', {
-        'cflags': [
-          '-fPIC',
-        ],
+      ['tcmalloc==1 and OS=="linux"', {
+        'link_settings': {
+          'libraries': [
+            '-ltcmalloc',
+          ],
+        },
       }],
     ],
   },

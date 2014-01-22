@@ -5,21 +5,31 @@
 
   'targets': [
     {
-      'target_name': 'c++abi',
-      'type': 'shared_library',
-      'dependencies': [
-        '../libcxx/bootstrap.gyp:c++-bootstrap',
-      ],
+      'target_name': 'c++abi_headers',
+      'type': 'none',
       'all_dependent_settings': {
         'include_dirs': [
           'include',
         ],
       },
+      'sources': [
+        'include/cxxabi.h',
+        'include/libunwind.h',
+        'include/mach-o/compact_unwind_encoding.h',
+        'include/unwind.h',
+      ],
+    },
+    {
+      'target_name': 'c++abi',
+      'type': 'shared_library',
+      'dependencies': [
+        'c++abi_headers',
+      ],
       'cflags': [
         '-std=c++11',
-        '-stdlib=libc++',
         '-fPIC',
         '-fstrict-aliasing',
+        '-nostdinc++',
         '-Wstrict-aliasing=2',
         '-Wsign-conversion',
         '-Wshadow',
@@ -35,16 +45,20 @@
         '-Wunused-parameter',
         '-Wnewline-eof',
       ],
+      'include_dirs': [
+        '../libcxx/include',
+      ],
       'ldflags': [
         '-nodefaultlibs',
-        '-lpthread',
-        '-lrt',
-        '-lc',
-        '-lstdc++',
+        '--no-undefined',
       ],
-      'include_dirs': [
-        'include',
-      ],
+      'link_settings': {
+        'libraries': [
+          '-lc',
+          '-lgcc_s',
+          '-lpthread',
+        ],
+      },
       'sources': [
         'src/abort_message.cpp',
         'src/abort_message.h',

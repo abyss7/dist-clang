@@ -29,12 +29,17 @@
       'type': 'shared_library',
       'cflags!': [
         '-fno-exceptions',
+        '-fno-rtti',
       ],
       'defines': [
         'GTEST_HAS_EXCEPTIONS=1',
       ],
       'include_dirs': [
         '..',
+      ],
+      'ldflags!': [
+        '-fno-exceptions',
+        '-fno-rtti',
       ],
       'sources': [
         'gtest-all.cc',

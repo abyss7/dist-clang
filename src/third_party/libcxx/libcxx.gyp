@@ -13,7 +13,6 @@
         ],
       },
       'defines': [
-        '_LIBCPP_NO_EXCEPTIONS',
         'cxx_EXPORTS',
       ],
       'cflags': [
@@ -21,10 +20,8 @@
         '-std=c++11',
         '-nostdinc++',
         '-fPIC',
-        '-fno-exceptions',
         '-pedantic',
         '-Wall',
-        '-W',
         '-Wno-unused-parameter',
         '-Wwrite-strings',
         '-Wno-long-long',
@@ -35,10 +32,15 @@
       ],
       'ldflags': [
         '-nodefaultlibs',
-        '-lpthread',
-        '-lc',
-        '-lm',
+        '--no-undefined',
       ],
+      'link_settings': {
+        'libraries': [
+          '-lc',
+          '-lm',
+          '-lpthread',
+        ],
+      },
       'include_dirs': [
         'include',
       ],
@@ -155,20 +157,18 @@
           'dependencies': [
             '../libcxxabi/libcxxabi.gyp:c++abi',
           ],
-          'ldflags': [
-            '-lrt',
-            '-lgcc_s',
-          ],
         }],
         ['OS=="mac"', {
-          'ldflags': [
-            '-lc++abi',
-          ],
+          'link_settings': {
+            'libraries': [
+              '-lc++abi',
+            ],
+          },
+          'xcode_settings': {
+            'ARCHS': ['x86_64'],
+          },
         }],
       ],
-      'xcode_settings': {
-        'ARCHS': ['x86_64'],
-      },
     },
   ],
 }

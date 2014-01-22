@@ -5,9 +5,12 @@
   'targets': [
     {
       'target_name': 'proto',
-      'type': 'static_library',
+      'type': 'shared_library',
       'dependencies': [
         '../third_party/protobuf/protobuf.gyp:protobuf',
+      ],
+      'cflags!': [
+        '-fno-rtti',
       ],
       'sources': [
         'base.pb.cc',

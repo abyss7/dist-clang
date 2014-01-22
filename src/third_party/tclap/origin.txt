@@ -1,1 +1,3 @@
-source: http://sourceforge.net/projects/tclap/files/tclap-1.2.1.tar.gz/download
+scm_type: git
+repo: git://git.code.sf.net/p/tclap/code
+rev: tclap-1-2-1-release-final

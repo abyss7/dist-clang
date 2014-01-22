@@ -17,7 +17,6 @@
         '../net/net.gyp:net',
         '../third_party/gmock/gmock.gyp:gmock',
         '../third_party/gtest/gtest.gyp:gtest',
-        '../third_party/protobuf/protobuf.gyp:protobuf',
       ],
       'cflags!': [
         '-fno-exceptions',  # catch failures with exceptions in tests.
