@@ -9,9 +9,6 @@
       'dependencies': [
         '../third_party/protobuf/protobuf.gyp:protobuf',
       ],
-      'cflags!': [
-        '-fno-rtti',
-      ],
       'sources': [
         'base.pb.cc',
         'base.pb.h',

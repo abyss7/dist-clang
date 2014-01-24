@@ -3,19 +3,17 @@
     'configurations': {
       'Debug': {
         'cflags': [
+          '-fno-exceptions',
           '-g',
           '-O0',
         ],
-        'conditions': [
-          ['OS=="linux"', {
-            'ldflags': [
-              '-rdynamic',  # for backtrace().
-            ],
-          }],
+        'ldflags': [
+          '-fno-exceptions',
         ],
       },
       'Release': {
         'cflags': [
+          '-fno-exceptions',
           '-fomit-frame-pointer',
           '-O3',
         ],
@@ -23,12 +21,17 @@
           'NDEBUG',
           '_DEBUG',  # for libc++
         ],
-        'conditions': [
-          ['OS=="linux"', {
-            'ldflags': [
-              '-rdynamic',  # for backtrace().
-            ],
-          }],
+        'ldflags': [
+          '-fno-exceptions',
+        ],
+      },
+      'Test': {
+        'inherit_from': ['Debug'],
+        'cflags!': [
+          '-fno-exceptions',
+        ],
+        'ldflags!': [
+          '-fno-exceptions',
         ],
       },
     },

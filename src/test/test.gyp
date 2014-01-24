@@ -11,15 +11,12 @@
         '../base/base.gyp:base',
         '../base/base.gyp:hash',
         '../base/base.gyp:process',
-        '../client/clang.gyp:clang_helpers',
+        '../client/clang.gyp:client',
         '../daemon/clangd.gyp:daemon',
         '../daemon/clangd.gyp:file_cache',
         '../net/net.gyp:net',
         '../third_party/gmock/gmock.gyp:gmock',
         '../third_party/gtest/gtest.gyp:gtest',
-      ],
-      'cflags!': [
-        '-fno-exceptions',  # catch failures with exceptions in tests.
       ],
       'sources': [
         '../base/assert_debug_test.cc',

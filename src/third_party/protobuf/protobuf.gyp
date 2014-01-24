@@ -74,6 +74,9 @@
       'cflags!': [
         '-fno-rtti',
       ],
+      'ldflags!': [
+        '-fno-rtti',
+      ],
       'sources': [
         'src/google/protobuf/extension_set.cc',
         'src/google/protobuf/generated_message_util.cc',
@@ -101,12 +104,23 @@
       'dependencies': [
         'protobuf_lite',
       ],
+      'direct_dependent_settings': {
+        'cflags!': [
+          '-fno-rtti',
+        ],
+        'ldflags!': [
+          '-fno-rtti',
+        ],
+      },
       'cflags': [
         '-Wno-sign-compare',
         '-Wno-unused-function',
         '-Wno-unused-variable',
       ],
       'cflags!': [
+        '-fno-rtti',
+      ],
+      'ldflags!': [
         '-fno-rtti',
       ],
       'link_settings': {

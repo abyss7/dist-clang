@@ -5,10 +5,9 @@
 
   'targets': [
     {
-      'target_name': 'clang_helpers',
-      'type': 'static_library',
+      'target_name': 'client',
+      'type': 'shared_library',
       'dependencies': [
-        '../base/base.gyp:constants',
         '../base/base.gyp:headers_only',
         '../base/base.gyp:logging',
         '../base/base.gyp:process',
@@ -26,7 +25,9 @@
       'target_name': 'clang',
       'type': 'executable',
       'dependencies': [
-        'clang_helpers',
+        '../base/base.gyp:constants',
+        '../base/base.gyp:logging',
+        'client',
       ],
       'sources': [
         'clang_main.cc',

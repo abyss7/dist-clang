@@ -5,9 +5,10 @@
   'targets': [
     {
       'target_name': 'net',
-      'type': 'static_library',
+      'type': 'shared_library',
       'dependencies': [
         '../base/base.gyp:base',
+        '../base/base.gyp:logging',
         '../proto/proto.gyp:proto',
         '../third_party/gtest/gtest.gyp:gtest_headers',
       ],

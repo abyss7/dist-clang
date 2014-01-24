@@ -10,7 +10,6 @@
 
   'target_defaults': {
     'cflags': [
-      '-fno-exceptions',
       '-fno-rtti',
       '-fPIC',
       '-nostdinc++',
@@ -28,7 +27,6 @@
       '..',
     ],
     'ldflags': [
-      '-fno-exceptions',
       '-fno-rtti',
       '--no-undefined',
     ],
@@ -47,6 +45,9 @@
         ],
         'dependencies': [
           '<(DEPTH)/third_party/libcxxabi/libcxxabi.gyp:c++abi',
+        ],
+        'ldflags': [
+          '-rdynamic',  # for backtrace().
         ],
         'sources/': [
           ['include', '_linux\\.cc$'],

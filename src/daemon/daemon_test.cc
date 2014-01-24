@@ -257,8 +257,9 @@ TEST_F(DaemonTest, LocalMessageWithoutCommand) {
     proto::Status status;
     status.set_code(proto::Status::OK);
 
-    EXPECT_DEATH(test_connection->TriggerReadAsync(std::move(message), status),
-                 ".*");
+    EXPECT_THROW_STD(
+        test_connection->TriggerReadAsync(std::move(message), status),
+        "Assertion failed: false");
   }
 
   EXPECT_EQ(1u, listen_count);
@@ -294,8 +295,9 @@ TEST_F(DaemonTest, LocalMessageWithoutCurrentDir) {
     proto::Status status;
     status.set_code(proto::Status::OK);
 
-    EXPECT_DEATH(test_connection->TriggerReadAsync(std::move(message), status),
-                 ".*");
+    EXPECT_THROW_STD(
+        test_connection->TriggerReadAsync(std::move(message), status),
+        "Assertion failed: false");
   }
 
   EXPECT_EQ(1u, listen_count);

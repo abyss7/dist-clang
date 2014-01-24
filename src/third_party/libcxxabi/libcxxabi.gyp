@@ -45,12 +45,18 @@
         '-Wunused-parameter',
         '-Wnewline-eof',
       ],
+      'cflags!': [
+        '-fno-exceptions',
+      ],
       'include_dirs': [
         '../libcxx/include',
       ],
       'ldflags': [
         '-nodefaultlibs',
         '--no-undefined',
+      ],
+      'ldflags!': [
+        '-fno-exceptions',
       ],
       'link_settings': {
         'libraries': [

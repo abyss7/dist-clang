@@ -5,7 +5,7 @@
   'targets': [
     {
       'target_name': 'base',
-      'type': 'static_library',
+      'type': 'shared_library',
       'dependencies': [
         'headers_only',
         'logging',
@@ -23,7 +23,7 @@
     },
     {
       'target_name': 'constants',
-      'type': 'static_library',
+      'type': 'shared_library',
       'sources': [
         'constants.cc',
         'constants.h',
@@ -31,7 +31,7 @@
     },
     {
       'target_name': 'hash',
-      'type': 'static_library',
+      'type': 'shared_library',
       'sources': [
         'hash.h',
         'hash/murmur_hash3.cc',
@@ -55,7 +55,7 @@
     },
     {
       'target_name': 'logging',
-      'type': 'static_library',
+      'type': 'shared_library',
       'sources': [
         'logging.cc',
         'logging.h',
@@ -64,7 +64,7 @@
     },
     {
       'target_name': 'process',
-      'type': 'static_library',
+      'type': 'shared_library',
       'dependencies': [
         '../proto/proto.gyp:proto',
       ],

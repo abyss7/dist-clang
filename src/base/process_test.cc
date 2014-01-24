@@ -84,7 +84,7 @@ TEST(ProcessTast, TooManyArgs) {
   for (int i = 0; i < Process::MAX_ARGS + 2; ++i) {
     process.AppendArg("yes");
   }
-  ASSERT_DEATH(process.Run(1), "Assertion failed: .* < MAX_ARGS");
+  ASSERT_THROW_STD(process.Run(1), "Assertion failed: .* < MAX_ARGS");
 }
 
 }  // namespace base

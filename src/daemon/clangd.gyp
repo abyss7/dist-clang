@@ -15,21 +15,34 @@
       ],
     },
     {
+      'target_name': 'configuration',
+      'type': 'shared_library',  # need to be shared - to use exceptions.
+      'dependencies': [
+        '../base/base.gyp:constants',
+        '../base/base.gyp:logging',
+        '../proto/proto.gyp:proto',
+        '../third_party/tclap/tclap.gyp:tclap',
+      ],
+      'sources': [
+        'configuration.cc',
+        'configuration.h',
+      ],
+    },
+    {
       'target_name': 'daemon',
       'type': 'static_library',
       'dependencies': [
         '../base/base.gyp:base',
         '../base/base.gyp:constants',
         '../base/base.gyp:hash',
+        '../base/base.gyp:logging',
         '../base/base.gyp:process',
         '../net/net.gyp:net',
         '../proto/proto.gyp:proto',
-        '../third_party/tclap/tclap.gyp:tclap',
+        'configuration',
         'file_cache',
       ],
       'sources': [
-        'configuration.cc',
-        'configuration.h',
         'daemon.cc',
         'daemon.h',
         'statistic.cc',
