@@ -15,6 +15,7 @@ class DaemonTest: public ::testing::Test {
     using Service = net::TestNetworkService<>;
 
     virtual void SetUp() override {
+      daemon.reset(new Daemon);
       listen_count = 0, send_count = 0, read_count = 0, connect_count = 0;
       connections_created = 0;
       test_service = nullptr;
@@ -38,7 +39,7 @@ class DaemonTest: public ::testing::Test {
     }
 
   protected:
-    Daemon daemon;
+    std::unique_ptr<Daemon> daemon;
     proto::Configuration config;
     Service::Factory* WEAK_PTR factory;
     Service* WEAK_PTR test_service;
@@ -52,7 +53,7 @@ class DaemonTest: public ::testing::Test {
 TEST_F(DaemonTest, EmptyConfig) {
   daemon::Configuration configuration(config);
 
-  ASSERT_FALSE(daemon.Initialize(configuration));
+  ASSERT_FALSE(daemon->Initialize(configuration));
   ASSERT_NE(nullptr, test_service);
   EXPECT_EQ(0u, listen_count);
   EXPECT_EQ(0u, connect_count);
@@ -63,7 +64,7 @@ TEST_F(DaemonTest, InvalidConfig) {
 
   daemon::Configuration configuration(config);
 
-  ASSERT_FALSE(daemon.Initialize(configuration));
+  ASSERT_FALSE(daemon->Initialize(configuration));
   ASSERT_EQ(nullptr, test_service);
 }
 
@@ -78,7 +79,46 @@ TEST_F(DaemonTest, ConfigWithSocketPath) {
 
   daemon::Configuration configuration(config);
 
-  EXPECT_TRUE(daemon.Initialize(configuration));
+  EXPECT_TRUE(daemon->Initialize(configuration));
+  ASSERT_NE(nullptr, test_service);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(0u, connect_count);
+}
+
+TEST_F(DaemonTest, ConfigWithBadCompiler) {
+  const std::string expected_socket_path = "/tmp/clangd.socket";
+
+  config.set_socket_path(expected_socket_path);
+  config.add_versions()->set_version("1.0");
+  listen_callback = [&](const std::string& host, uint16_t port) {
+    EXPECT_EQ(expected_socket_path, host);
+    EXPECT_EQ(0u, port);
+  };
+
+  daemon::Configuration configuration(config);
+
+  EXPECT_FALSE(daemon->Initialize(configuration));
+  ASSERT_NE(nullptr, test_service);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(0u, connect_count);
+}
+
+TEST_F(DaemonTest, ConfigWithBadPlugin) {
+  const std::string expected_socket_path = "/tmp/clangd.socket";
+
+  config.set_socket_path(expected_socket_path);
+  auto* version = config.add_versions();
+  version->set_version("1.0");
+  version->set_path("a");
+  version->add_plugins()->set_name("test_plugin");
+  listen_callback = [&](const std::string& host, uint16_t port) {
+    EXPECT_EQ(expected_socket_path, host);
+    EXPECT_EQ(0u, port);
+  };
+
+  daemon::Configuration configuration(config);
+
+  EXPECT_FALSE(daemon->Initialize(configuration));
   ASSERT_NE(nullptr, test_service);
   EXPECT_EQ(1u, listen_count);
   EXPECT_EQ(0u, connect_count);
@@ -92,7 +132,7 @@ TEST_F(DaemonTest, ConfigWithCachePath) {
 
   daemon::Configuration configuration(config);
 
-  EXPECT_FALSE(daemon.Initialize(configuration));
+  EXPECT_FALSE(daemon->Initialize(configuration));
   EXPECT_FALSE(base::FileExists(expected_cache_path));
   ASSERT_NE(nullptr, test_service);
   EXPECT_EQ(0u, listen_count);
@@ -112,7 +152,7 @@ TEST_F(DaemonTest, ConfigWithLocal) {
 
   daemon::Configuration configuration(config);
 
-  EXPECT_TRUE(daemon.Initialize(configuration));
+  EXPECT_TRUE(daemon->Initialize(configuration));
   ASSERT_NE(nullptr, test_service);
   EXPECT_EQ(1u, listen_count);
   EXPECT_EQ(0u, connect_count);
@@ -128,7 +168,7 @@ TEST_F(DaemonTest, ConfigWithDisabledLocal) {
 
   daemon::Configuration configuration(config);
 
-  EXPECT_FALSE(daemon.Initialize(configuration));
+  EXPECT_FALSE(daemon->Initialize(configuration));
   ASSERT_NE(nullptr, test_service);
   EXPECT_EQ(0u, listen_count);
   EXPECT_EQ(0u, connect_count);
@@ -147,7 +187,7 @@ TEST_F(DaemonTest, ConfigWithStatistic) {
 
   daemon::Configuration configuration(config);
 
-  EXPECT_FALSE(daemon.Initialize(configuration));
+  EXPECT_FALSE(daemon->Initialize(configuration));
   ASSERT_NE(nullptr, test_service);
   EXPECT_EQ(1u, listen_count);
   EXPECT_EQ(0u, connect_count);
@@ -160,7 +200,7 @@ TEST_F(DaemonTest, ConfigWithDisabledStatistic) {
 
   daemon::Configuration configuration(config);
 
-  EXPECT_FALSE(daemon.Initialize(configuration));
+  EXPECT_FALSE(daemon->Initialize(configuration));
   ASSERT_NE(nullptr, test_service);
   EXPECT_EQ(0u, listen_count);
   EXPECT_EQ(0u, connect_count);
@@ -177,7 +217,7 @@ TEST_F(DaemonTest, LocalConnection) {
 
   daemon::Configuration configuration(config);
 
-  EXPECT_TRUE(daemon.Initialize(configuration));
+  ASSERT_TRUE(daemon->Initialize(configuration));
 
   net::ConnectionWeakPtr connection = test_service->TriggerListen(socket_path);
 
@@ -211,14 +251,14 @@ TEST_F(DaemonTest, BadLocalMessage) {
 
   daemon::Configuration configuration(config);
 
-  EXPECT_TRUE(daemon.Initialize(configuration));
+  ASSERT_TRUE(daemon->Initialize(configuration));
 
   auto connection = test_service->TriggerListen(socket_path);
   {
     std::shared_ptr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
 
-    net::Connection::ScopedMessage message;
+    net::Connection::ScopedMessage message(new net::Connection::Message);
     proto::Status status;
     status.set_code(expected_code);
     status.set_description(expected_description);
@@ -246,7 +286,7 @@ TEST_F(DaemonTest, LocalMessageWithoutCommand) {
 
   daemon::Configuration configuration(config);
 
-  EXPECT_TRUE(daemon.Initialize(configuration));
+  ASSERT_TRUE(daemon->Initialize(configuration));
 
   auto connection = test_service->TriggerListen(socket_path);
   {
@@ -282,7 +322,7 @@ TEST_F(DaemonTest, LocalMessageWithoutCurrentDir) {
 
   daemon::Configuration configuration(config);
 
-  EXPECT_TRUE(daemon.Initialize(configuration));
+  ASSERT_TRUE(daemon->Initialize(configuration));
 
   auto connection = test_service->TriggerListen(socket_path);
   {
@@ -305,6 +345,227 @@ TEST_F(DaemonTest, LocalMessageWithoutCurrentDir) {
   EXPECT_EQ(1u, connections_created);
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(0u, send_count);
+  EXPECT_EQ(1, connection.use_count())
+      << "Daemon must not store references to the connection";
+}
+
+TEST_F(DaemonTest, LocalMessageWithNoCompiler) {
+  const std::string socket_path = "/tmp/clangd.socket";
+  const proto::Status::Code expected_code = proto::Status::NO_VERSION;
+
+  config.set_socket_path(socket_path);
+  auto* version = config.add_versions();
+  version->set_version("1.0");
+  version->set_path("a");
+  auto* plugin = version->add_plugins();
+  plugin->set_name("test_plugin");
+  plugin->set_path("b");
+
+  listen_callback = [&](const std::string& host, uint16_t port) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+  };
+  connect_callback = [&](net::TestConnection* connection) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(proto::Status::extension));
+      const auto& status = message.GetExtension(proto::Status::extension);
+      EXPECT_EQ(expected_code, status.code());
+    });
+  };
+
+  daemon::Configuration configuration(config);
+
+  ASSERT_TRUE(daemon->Initialize(configuration));
+
+  auto connection = test_service->TriggerListen(socket_path);
+  {
+    std::shared_ptr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    message->MutableExtension(proto::Execute::extension)->set_remote(false);
+    message->MutableExtension(proto::Execute::extension)->set_current_dir("a");
+
+    proto::Status status;
+    status.set_code(proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+    daemon.reset();
+  }
+
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(1u, connect_count);
+  EXPECT_EQ(1u, connections_created);
+  EXPECT_EQ(1u, read_count);
+  EXPECT_EQ(1u, send_count);
+  EXPECT_EQ(1, connection.use_count())
+      << "Daemon must not store references to the connection";
+}
+
+TEST_F(DaemonTest, LocalMessageWithBadCompiler) {
+  const std::string socket_path = "/tmp/clangd.socket";
+  const proto::Status::Code expected_code = proto::Status::NO_VERSION;
+
+  config.set_socket_path(socket_path);
+  auto* version = config.add_versions();
+  version->set_version("1.0");
+  version->set_path("a");
+  auto* plugin = version->add_plugins();
+  plugin->set_name("test_plugin");
+  plugin->set_path("b");
+
+  listen_callback = [&](const std::string& host, uint16_t port) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+  };
+  connect_callback = [&](net::TestConnection* connection) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(proto::Status::extension));
+      const auto& status = message.GetExtension(proto::Status::extension);
+      EXPECT_EQ(expected_code, status.code());
+    });
+  };
+
+  daemon::Configuration configuration(config);
+
+  ASSERT_TRUE(daemon->Initialize(configuration));
+
+  auto connection = test_service->TriggerListen(socket_path);
+  {
+    std::shared_ptr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(proto::Execute::extension);
+    extension->set_remote(false);
+    extension->set_current_dir("a");
+    extension->mutable_cc_flags()->mutable_compiler()->set_version("2.0");
+
+    proto::Status status;
+    status.set_code(proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+    daemon.reset();
+  }
+
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(1u, connect_count);
+  EXPECT_EQ(1u, connections_created);
+  EXPECT_EQ(1u, read_count);
+  EXPECT_EQ(1u, send_count);
+  EXPECT_EQ(1, connection.use_count())
+      << "Daemon must not store references to the connection";
+}
+
+TEST_F(DaemonTest, LocalMessageWithBadPlugin) {
+  const std::string socket_path = "/tmp/clangd.socket";
+  const proto::Status::Code expected_code = proto::Status::NO_VERSION;
+  const std::string compiler_version = "1.0";
+
+  config.set_socket_path(socket_path);
+  auto* version = config.add_versions();
+  version->set_version(compiler_version);
+  version->set_path("a");
+
+  listen_callback = [&](const std::string& host, uint16_t port) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+  };
+  connect_callback = [&](net::TestConnection* connection) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(proto::Status::extension));
+      const auto& status = message.GetExtension(proto::Status::extension);
+      EXPECT_EQ(expected_code, status.code());
+    });
+  };
+
+  daemon::Configuration configuration(config);
+
+  ASSERT_TRUE(daemon->Initialize(configuration));
+
+  auto connection = test_service->TriggerListen(socket_path);
+  {
+    std::shared_ptr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(proto::Execute::extension);
+    extension->set_remote(false);
+    extension->set_current_dir("a");
+    auto* compiler = extension->mutable_cc_flags()->mutable_compiler();
+    compiler->set_version(compiler_version);
+    compiler->add_plugins()->set_name("bad_plugin");
+
+    proto::Status status;
+    status.set_code(proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+    daemon.reset();
+  }
+
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(1u, connect_count);
+  EXPECT_EQ(1u, connections_created);
+  EXPECT_EQ(1u, read_count);
+  EXPECT_EQ(1u, send_count);
+  EXPECT_EQ(1, connection.use_count())
+      << "Daemon must not store references to the connection";
+}
+
+TEST_F(DaemonTest, LocalMessageWithBadPlugin2) {
+  const std::string socket_path = "/tmp/clangd.socket";
+  const proto::Status::Code expected_code = proto::Status::NO_VERSION;
+  const std::string compiler_version = "1.0";
+
+  config.set_socket_path(socket_path);
+  auto* version = config.add_versions();
+  version->set_version(compiler_version);
+  version->set_path("a");
+  auto* plugin = version->add_plugins();
+  plugin->set_name("test_plugin");
+  plugin->set_path("b");
+
+  listen_callback = [&](const std::string& host, uint16_t port) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+  };
+  connect_callback = [&](net::TestConnection* connection) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(proto::Status::extension));
+      const auto& status = message.GetExtension(proto::Status::extension);
+      EXPECT_EQ(expected_code, status.code());
+    });
+  };
+
+  daemon::Configuration configuration(config);
+
+  ASSERT_TRUE(daemon->Initialize(configuration));
+
+  auto connection = test_service->TriggerListen(socket_path);
+  {
+    std::shared_ptr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(proto::Execute::extension);
+    extension->set_remote(false);
+    extension->set_current_dir("a");
+    auto* compiler = extension->mutable_cc_flags()->mutable_compiler();
+    compiler->set_version(compiler_version);
+    compiler->add_plugins()->set_name("bad_plugin");
+
+    proto::Status status;
+    status.set_code(proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+    daemon.reset();
+  }
+
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(1u, connect_count);
+  EXPECT_EQ(1u, connections_created);
+  EXPECT_EQ(1u, read_count);
+  EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1, connection.use_count())
       << "Daemon must not store references to the connection";
 }

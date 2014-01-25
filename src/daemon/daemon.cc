@@ -146,12 +146,21 @@ bool Daemon::Initialize(const Configuration &configuration) {
   }
 
   for (const auto& version: config.versions()) {
+    if (!version.has_path() || version.path().empty()) {
+      LOG(ERROR) << "Compiler " << version.version() << " has no path.";
+      return false;
+    }
     compilers_.insert(std::make_pair(version.version(), version.path()));
 
     // Load plugins.
     auto value = std::make_pair(version.version(), PluginNameMap());
     auto& plugin_map = plugins_.insert(value).first->second;
     for (const auto& plugin: version.plugins()) {
+      if (!plugin.has_path() || plugin.path().empty()) {
+        LOG(ERROR) << "Plugin " << plugin.name() << " for compiler "
+                   << version.version() << " has no path.";
+        return false;
+      }
       plugin_map.insert(std::make_pair(plugin.name(), plugin.path()));
     }
   }
