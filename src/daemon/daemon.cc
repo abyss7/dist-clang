@@ -325,6 +325,31 @@ bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
   return false;
 }
 
+// static
+base::Process Daemon::CreateProcess(const proto::Flags& flags,
+                                    const std::string& cwd_path) {
+  base::Process process(flags.compiler().path(), cwd_path);
+
+  // |flags.other()| always must go first, since it contains the "-cc1" flag.
+  process.AppendArg(flags.other().begin(), flags.other().end());
+  process.AppendArg(flags.non_cached().begin(), flags.non_cached().end());
+  process.AppendArg(flags.dependenies().begin(), flags.dependenies().end());
+  for (const auto& plugin: flags.compiler().plugins()) {
+    process.AppendArg("-load").AppendArg(plugin.path());
+  }
+  if (flags.has_language()) {
+    process.AppendArg("-x").AppendArg(flags.language());
+  }
+  if (flags.has_output()) {
+    process.AppendArg("-o").AppendArg(flags.output());
+  }
+  if (flags.has_input()) {
+    process.AppendArg(flags.input());
+  }
+
+  return process;
+}
+
 void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
   while (!is_shutting_down) {
     ScopedTask task;
@@ -345,7 +370,8 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
       // Redirect output to stdin in |pp_flags|.
       message->mutable_pp_flags()->set_output("-");
 
-      base::Process process(message->pp_flags(), message->current_dir());
+      base::Process process = CreateProcess(message->pp_flags(),
+                                            message->current_dir());
       if (!process.Run(10)) {
         // It usually means, that there is an error in the source code.
         // We should skip a cache check and head to local compilation.
@@ -417,7 +443,8 @@ void Daemon::DoRemoteExecution(const std::atomic<bool>& is_shutting_down,
       // Redirect output to stdin in |pp_flags|.
       message->mutable_pp_flags()->set_output("-");
 
-      base::Process process(message->pp_flags(), message->current_dir());
+      base::Process process = CreateProcess(message->pp_flags(),
+                                            message->current_dir());
       if (!process.Run(10)) {
         // It usually means, that there is an error in the source code.
         // We should skip a cache check and head to local compilation.
@@ -504,8 +531,8 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
       }
 
       std::string error;
-      base::Process process(task.second->cc_flags(),
-                            task.second->current_dir());
+      base::Process process = CreateProcess(task.second->cc_flags(),
+                                            task.second->current_dir());
       if (!process.Run(base::Process::UNLIMITED, &error)) {
         status.set_code(proto::Status::EXECUTION);
         if (!process.stderr().empty()) {
@@ -556,7 +583,7 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
       // Do local compilation. Pipe the input file to the compiler and read
       // output file from the compiler's stdout.
       std::string error;
-      base::Process process(task.second->cc_flags());
+      base::Process process = CreateProcess(task.second->cc_flags());
       if (!process.Run(10, task.second->pp_source(), &error)) {
         std::stringstream arguments;
         arguments << "Arguments:";

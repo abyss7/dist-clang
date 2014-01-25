@@ -75,10 +75,6 @@ TEST(ProcessTest, ReadTimeout) {
   ASSERT_FALSE(process.Run(1));
 }
 
-TEST(ProcessTest, DISABLED_CreateWithFlags) {
-  // TODO: implement this.
-}
-
 TEST(ProcessTast, TooManyArgs) {
   Process process("/bin/sh");
   for (int i = 0; i < Process::MAX_ARGS + 2; ++i) {

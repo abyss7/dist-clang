@@ -10,7 +10,6 @@
       'dependencies': [
         '../base/base.gyp:base',
         '../base/base.gyp:hash',
-        '../base/base.gyp:process',
         '../client/clang.gyp:client',
         '../daemon/clangd.gyp:daemon',
         '../daemon/clangd.gyp:file_cache',

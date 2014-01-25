@@ -13,6 +13,10 @@
       'sources': [
         'file_utils.cc',
         'file_utils.h',
+        'process.cc',
+        'process.h',
+        'process_linux.cc',
+        'process_mac.cc',
         'temporary_dir.cc',
         'temporary_dir.h',
         'thread_pool.cc',
@@ -60,19 +64,6 @@
         'logging.cc',
         'logging.h',
         'using_log.h',
-      ],
-    },
-    {
-      'target_name': 'process',
-      'type': 'shared_library',
-      'dependencies': [
-        '../proto/proto.gyp:proto',
-      ],
-      'sources': [
-        'process.cc',
-        'process.h',
-        'process_linux.cc',
-        'process_mac.cc',
       ],
     },
   ],

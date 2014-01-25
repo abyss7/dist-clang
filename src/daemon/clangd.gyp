@@ -36,7 +36,6 @@
         '../base/base.gyp:constants',
         '../base/base.gyp:hash',
         '../base/base.gyp:logging',
-        '../base/base.gyp:process',
         '../net/net.gyp:net',
         '../proto/proto.gyp:proto',
         'configuration',

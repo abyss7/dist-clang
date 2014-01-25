@@ -12,6 +12,11 @@
 #include <unordered_map>
 
 namespace dist_clang {
+
+namespace base {
+class Process;
+}
+
 namespace daemon {
 
 class Daemon {
@@ -43,6 +48,10 @@ class Daemon {
     void HandleNewConnection(net::ConnectionPtr connection);
     bool HandleNewMessage(net::ConnectionPtr connection, ScopedMessage message,
                           const proto::Status& status);
+
+    static base::Process CreateProcess(
+        const proto::Flags& flags,
+        const std::string& cwd_path = std::string());
 
     // Workers
     void DoCheckCache(const std::atomic<bool>& is_shutting_down);

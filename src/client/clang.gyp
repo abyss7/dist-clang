@@ -8,9 +8,8 @@
       'target_name': 'client',
       'type': 'shared_library',
       'dependencies': [
-        '../base/base.gyp:headers_only',
+        '../base/base.gyp:base',
         '../base/base.gyp:logging',
-        '../base/base.gyp:process',
         '../net/net.gyp:net',
         '../proto/proto.gyp:proto',
       ],
