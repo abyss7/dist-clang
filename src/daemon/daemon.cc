@@ -3,7 +3,7 @@
 #include "base/assert.h"
 #include "base/file_utils.h"
 #include "base/logging.h"
-#include "base/process.h"
+#include "base/process_impl.h"
 #include "base/queue_aggregator_impl.h"
 #include "base/string_utils.h"
 #include "base/worker_pool.h"
@@ -326,28 +326,29 @@ bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
 }
 
 // static
-base::Process Daemon::CreateProcess(const proto::Flags& flags,
-                                    const std::string& cwd_path) {
-  base::Process process(flags.compiler().path(), cwd_path);
+base::ProcessPtr Daemon::CreateProcess(const proto::Flags& flags,
+                                       const std::string& cwd_path) {
+  base::ProcessPtr process =
+      base::Process::Create(flags.compiler().path(), cwd_path);
 
   // |flags.other()| always must go first, since it contains the "-cc1" flag.
-  process.AppendArg(flags.other().begin(), flags.other().end());
-  process.AppendArg(flags.non_cached().begin(), flags.non_cached().end());
-  process.AppendArg(flags.dependenies().begin(), flags.dependenies().end());
+  process->AppendArg(flags.other().begin(), flags.other().end());
+  process->AppendArg(flags.non_cached().begin(), flags.non_cached().end());
+  process->AppendArg(flags.dependenies().begin(), flags.dependenies().end());
   for (const auto& plugin: flags.compiler().plugins()) {
-    process.AppendArg("-load").AppendArg(plugin.path());
+    process->AppendArg("-load").AppendArg(plugin.path());
   }
   if (flags.has_language()) {
-    process.AppendArg("-x").AppendArg(flags.language());
+    process->AppendArg("-x").AppendArg(flags.language());
   }
   if (flags.has_output()) {
-    process.AppendArg("-o").AppendArg(flags.output());
+    process->AppendArg("-o").AppendArg(flags.output());
   }
   if (flags.has_input()) {
-    process.AppendArg(flags.input());
+    process->AppendArg(flags.input());
   }
 
-  return process;
+  return std::move(process);
 }
 
 void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
@@ -370,15 +371,15 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
       // Redirect output to stdin in |pp_flags|.
       message->mutable_pp_flags()->set_output("-");
 
-      base::Process process = CreateProcess(message->pp_flags(),
-                                            message->current_dir());
-      if (!process.Run(10)) {
+      base::ProcessPtr process = CreateProcess(message->pp_flags(),
+                                               message->current_dir());
+      if (!process->Run(10)) {
         // It usually means, that there is an error in the source code.
         // We should skip a cache check and head to local compilation.
         failed_tasks_->Push(std::move(task));
         continue;
       }
-      message->set_pp_source(process.stdout());
+      message->set_pp_source(process->stdout());
     }
 
     FileCache::Entry cache_entry;
@@ -443,15 +444,15 @@ void Daemon::DoRemoteExecution(const std::atomic<bool>& is_shutting_down,
       // Redirect output to stdin in |pp_flags|.
       message->mutable_pp_flags()->set_output("-");
 
-      base::Process process = CreateProcess(message->pp_flags(),
-                                            message->current_dir());
-      if (!process.Run(10)) {
+      base::ProcessPtr process = CreateProcess(message->pp_flags(),
+                                               message->current_dir());
+      if (!process->Run(10)) {
         // It usually means, that there is an error in the source code.
         // We should skip a cache check and head to local compilation.
         failed_tasks_->Push(std::move(task));
         continue;
       }
-      message->set_pp_source(process.stdout());
+      message->set_pp_source(process->stdout());
     }
 
     // TODO: cache connection before popping a task.
@@ -531,12 +532,12 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
       }
 
       std::string error;
-      base::Process process = CreateProcess(task.second->cc_flags(),
-                                            task.second->current_dir());
-      if (!process.Run(base::Process::UNLIMITED, &error)) {
+      base::ProcessPtr process = CreateProcess(task.second->cc_flags(),
+                                               task.second->current_dir());
+      if (!process->Run(base::Process::UNLIMITED, &error)) {
         status.set_code(proto::Status::EXECUTION);
-        if (!process.stderr().empty()) {
-          status.set_description(process.stderr());
+        if (!process->stderr().empty()) {
+          status.set_description(process->stderr());
         }
         else if (!error.empty()) {
           status.set_description(error);
@@ -546,7 +547,7 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
         }
       } else {
         status.set_code(proto::Status::OK);
-        status.set_description(process.stderr());
+        status.set_description(process->stderr());
         LOG(INFO) << "Local compilation successful:  "
                   << task.second->cc_flags().input();
         UpdateCache(task.second.get(), status);
@@ -583,8 +584,8 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
       // Do local compilation. Pipe the input file to the compiler and read
       // output file from the compiler's stdout.
       std::string error;
-      base::Process process = CreateProcess(task.second->cc_flags());
-      if (!process.Run(10, task.second->pp_source(), &error)) {
+      base::ProcessPtr process = CreateProcess(task.second->cc_flags());
+      if (!process->Run(10, task.second->pp_source(), &error)) {
         std::stringstream arguments;
         arguments << "Arguments:";
         for (const auto& flag: task.second->cc_flags().other()) {
@@ -598,11 +599,11 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
         arguments << std::endl;
 
         status.set_code(proto::Status::EXECUTION);
-        if (!process.stdout().empty() || !process.stderr().empty()) {
-          status.set_description(process.stderr());
+        if (!process->stdout().empty() || !process->stderr().empty()) {
+          status.set_description(process->stderr());
           LOG(WARNING) << "Compilation failed with error:" << std::endl
-                       << process.stderr() << std::endl
-                       << process.stdout();
+                       << process->stderr() << std::endl
+                       << process->stdout();
         }
         else if (!error.empty()) {
           status.set_description(error);
@@ -617,14 +618,14 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
       }
       else {
         status.set_code(proto::Status::OK);
-        status.set_description(process.stderr());
+        status.set_description(process->stderr());
         LOG(INFO) << "External compilation successful";
       }
 
       Daemon::ScopedMessage message(new proto::Universal);
       const auto& result = proto::RemoteResult::extension;
       message->MutableExtension(proto::Status::extension)->CopyFrom(status);
-      message->MutableExtension(result)->set_obj(process.stdout());
+      message->MutableExtension(result)->set_obj(process->stdout());
       task.first->SendAsync(std::move(message));
     }
   }

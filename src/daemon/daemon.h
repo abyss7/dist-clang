@@ -49,7 +49,7 @@ class Daemon {
     bool HandleNewMessage(net::ConnectionPtr connection, ScopedMessage message,
                           const proto::Status& status);
 
-    static base::Process CreateProcess(
+    static std::unique_ptr<base::Process> CreateProcess(
         const proto::Flags& flags,
         const std::string& cwd_path = std::string());
 

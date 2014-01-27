@@ -1,11 +1,8 @@
-#include "base/process.h"
+#include "base/process_impl.h"
 
 #include "base/assert.h"
 #include "base/c_utils.h"
 #include "net/base/utils.h"
-
-#include <list>
-#include <memory>
 
 #include <signal.h>
 #include <sys/event.h>
@@ -13,7 +10,7 @@
 namespace dist_clang {
 namespace base {
 
-bool Process::Run(unsigned sec_timeout, std::string* error) {
+bool ProcessImpl::Run(unsigned sec_timeout, std::string* error) {
   CHECK(args_.size() + 1 < MAX_ARGS);
 
   int out_pipe_fd[2];
@@ -139,8 +136,8 @@ bool Process::Run(unsigned sec_timeout, std::string* error) {
   }
 }
 
-bool Process::Run(unsigned sec_timeout, const std::string& input,
-                  std::string* error) {
+bool ProcessImpl::Run(unsigned sec_timeout, const std::string& input,
+                      std::string* error) {
   CHECK(args_.size() + 1 < MAX_ARGS);
 
   int in_pipe_fd[2];
