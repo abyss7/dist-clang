@@ -19,7 +19,9 @@ class DaemonTest: public ::testing::Test {
       listen_count = 0, send_count = 0, read_count = 0, connect_count = 0;
       connections_created = 0;
       test_service = nullptr;
-      listen_callback = [](const std::string&, uint16_t) {};
+      listen_callback = [](const std::string&, uint16_t, std::string*) {
+        return true;
+      };
       connect_callback = [](net::TestConnection*) {};
 
       factory = net::NetworkService::SetFactory<Service::Factory>();
@@ -39,11 +41,14 @@ class DaemonTest: public ::testing::Test {
     }
 
   protected:
+    using ListenCallback =
+        std::function<bool(const std::string&, uint16_t, std::string*)>;
+
     std::unique_ptr<Daemon> daemon;
     proto::Configuration config;
     Service::Factory* WEAK_PTR factory;
     Service* WEAK_PTR test_service;
-    std::function<void(const std::string&, uint16_t)> listen_callback;
+    ListenCallback listen_callback;
     std::function<void(net::TestConnection*)> connect_callback;
 
     uint listen_count, connect_count, read_count, send_count;
@@ -72,9 +77,10 @@ TEST_F(DaemonTest, ConfigWithSocketPath) {
   const std::string expected_socket_path = "/tmp/clangd.socket";
 
   config.set_socket_path(expected_socket_path);
-  listen_callback = [&](const std::string& host, uint16_t port) {
+  listen_callback = [&](const std::string& host, uint16_t port, std::string*) {
     EXPECT_EQ(expected_socket_path, host);
     EXPECT_EQ(0u, port);
+    return true;
   };
 
   daemon::Configuration configuration(config);
@@ -90,9 +96,10 @@ TEST_F(DaemonTest, ConfigWithBadCompiler) {
 
   config.set_socket_path(expected_socket_path);
   config.add_versions()->set_version("1.0");
-  listen_callback = [&](const std::string& host, uint16_t port) {
+  listen_callback = [&](const std::string& host, uint16_t port, std::string*) {
     EXPECT_EQ(expected_socket_path, host);
     EXPECT_EQ(0u, port);
+    return true;
   };
 
   daemon::Configuration configuration(config);
@@ -111,9 +118,10 @@ TEST_F(DaemonTest, ConfigWithBadPlugin) {
   version->set_version("1.0");
   version->set_path("a");
   version->add_plugins()->set_name("test_plugin");
-  listen_callback = [&](const std::string& host, uint16_t port) {
+  listen_callback = [&](const std::string& host, uint16_t port, std::string*) {
     EXPECT_EQ(expected_socket_path, host);
     EXPECT_EQ(0u, port);
+    return true;
   };
 
   daemon::Configuration configuration(config);
@@ -145,9 +153,10 @@ TEST_F(DaemonTest, ConfigWithLocal) {
 
   config.mutable_local()->set_host(expected_host);
   config.mutable_local()->set_port(expected_port);
-  listen_callback = [&](const std::string& host, uint16_t port) {
+  listen_callback = [&](const std::string& host, uint16_t port, std::string*) {
     EXPECT_EQ(expected_host, host);
     EXPECT_EQ(expected_port, port);
+    return true;
   };
 
   daemon::Configuration configuration(config);
@@ -180,9 +189,10 @@ TEST_F(DaemonTest, ConfigWithStatistic) {
 
   config.mutable_statistic()->set_host(expected_host);
   config.mutable_statistic()->set_port(expected_port);
-  listen_callback = [&](const std::string& host, uint16_t port) {
+  listen_callback = [&](const std::string& host, uint16_t port, std::string*) {
     EXPECT_EQ(expected_host, host);
     EXPECT_EQ(expected_port, port);
+    return true;
   };
 
   daemon::Configuration configuration(config);
@@ -210,9 +220,10 @@ TEST_F(DaemonTest, LocalConnection) {
   const std::string socket_path = "/tmp/clangd.socket";
 
   config.set_socket_path(socket_path);
-  listen_callback = [&](const std::string& host, uint16_t port) {
+  listen_callback = [&](const std::string& host, uint16_t port, std::string*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
+    return true;
   };
 
   daemon::Configuration configuration(config);
@@ -236,9 +247,10 @@ TEST_F(DaemonTest, BadLocalMessage) {
   const std::string expected_description = "Test description";
 
   config.set_socket_path(socket_path);
-  listen_callback = [&](const std::string& host, uint16_t port) {
+  listen_callback = [&](const std::string& host, uint16_t port, std::string*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
+    return true;
   };
   connect_callback = [&](net::TestConnection* connection) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
@@ -279,9 +291,10 @@ TEST_F(DaemonTest, LocalMessageWithoutCommand) {
   const std::string socket_path = "/tmp/clangd.socket";
 
   config.set_socket_path(socket_path);
-  listen_callback = [&](const std::string& host, uint16_t port) {
+  listen_callback = [&](const std::string& host, uint16_t port, std::string*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
+    return true;
   };
 
   daemon::Configuration configuration(config);
@@ -315,9 +328,10 @@ TEST_F(DaemonTest, LocalMessageWithoutCurrentDir) {
   const std::string socket_path = "/tmp/clangd.socket";
 
   config.set_socket_path(socket_path);
-  listen_callback = [&](const std::string& host, uint16_t port) {
+  listen_callback = [&](const std::string& host, uint16_t port, std::string*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
+    return true;
   };
 
   daemon::Configuration configuration(config);
@@ -361,9 +375,10 @@ TEST_F(DaemonTest, LocalMessageWithNoCompiler) {
   plugin->set_name("test_plugin");
   plugin->set_path("b");
 
-  listen_callback = [&](const std::string& host, uint16_t port) {
+  listen_callback = [&](const std::string& host, uint16_t port, std::string*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
+    return true;
   };
   connect_callback = [&](net::TestConnection* connection) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
@@ -414,9 +429,10 @@ TEST_F(DaemonTest, LocalMessageWithBadCompiler) {
   plugin->set_name("test_plugin");
   plugin->set_path("b");
 
-  listen_callback = [&](const std::string& host, uint16_t port) {
+  listen_callback = [&](const std::string& host, uint16_t port, std::string*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
+    return true;
   };
   connect_callback = [&](net::TestConnection* connection) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
@@ -467,9 +483,10 @@ TEST_F(DaemonTest, LocalMessageWithBadPlugin) {
   version->set_version(compiler_version);
   version->set_path("a");
 
-  listen_callback = [&](const std::string& host, uint16_t port) {
+  listen_callback = [&](const std::string& host, uint16_t port, std::string*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
+    return true;
   };
   connect_callback = [&](net::TestConnection* connection) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
@@ -525,9 +542,10 @@ TEST_F(DaemonTest, LocalMessageWithBadPlugin2) {
   plugin->set_name("test_plugin");
   plugin->set_path("b");
 
-  listen_callback = [&](const std::string& host, uint16_t port) {
+  listen_callback = [&](const std::string& host, uint16_t port, std::string*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
+    return true;
   };
   connect_callback = [&](net::TestConnection* connection) {
     connection->CallOnSend([&](const net::Connection::Message& message) {

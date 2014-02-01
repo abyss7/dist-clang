@@ -24,14 +24,14 @@ struct hash<pair<T, U>> {
 namespace dist_clang {
 namespace net {
 
-template <bool DoConnect = true, bool DoListen = true, bool DoRun = true>
+template <bool DoConnect = true>
 class TestNetworkService: public NetworkService {
   public:
     using TestConnectionPtr = std::shared_ptr<TestConnection>;
     using This = TestNetworkService<DoConnect>;
     using OnConnectCallback = std::function<void(TestConnection*)>;
     using OnListenCallback =
-        std::function<void(const std::string&, unsigned short)>;
+        std::function<bool(const std::string&, unsigned short, std::string*)>;
 
     class Factory: public NetworkService::Factory {
       public:
@@ -53,11 +53,13 @@ class TestNetworkService: public NetworkService {
 
     TestNetworkService()
       : on_connect_([](TestConnection*) {}),
-        on_listen_([](const std::string&, unsigned short) {}),
+        on_listen_([](const std::string&, unsigned short, std::string*) {
+          return false;
+        }),
         connect_attempts_(nullptr), listen_attempts_(nullptr) {}
 
     virtual bool Run() override {
-      return DoRun;
+      return true;
     }
 
     virtual bool Listen(
@@ -68,17 +70,9 @@ class TestNetworkService: public NetworkService {
         (*listen_attempts_)++;
       }
 
-      if (!DoListen) {
-        if (error) {
-          error->assign("Test service doesn't listen intentionally");
-        }
-        return false;
-      }
-
       listen_callbacks_[std::make_pair(path, 0)] = callback;
 
-      on_listen_(path, 0);
-      return true;
+      return on_listen_(path, 0, error);
     }
 
     virtual bool Listen(
@@ -90,17 +84,9 @@ class TestNetworkService: public NetworkService {
         (*listen_attempts_)++;
       }
 
-      if (!DoListen) {
-        if (error) {
-          error->assign("Test service doesn't listen intentionally");
-        }
-        return false;
-      }
-
       listen_callbacks_[std::make_pair(host, port)] = callback;
 
-      on_listen_(host, port);
-      return true;
+      return on_listen_(host, port, error);
     }
 
     virtual ConnectionPtr Connect(
