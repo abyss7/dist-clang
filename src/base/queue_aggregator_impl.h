@@ -24,6 +24,7 @@ void QueueAggregator<T>::Close() {
 
 template <class T>
 void QueueAggregator<T>::Aggregate(LockedQueue<T>* queue) {
+  queues_.push_back(queue);
   threads_.emplace_back(&QueueAggregator<T>::DoPop, this, queue);
 }
 
@@ -35,7 +36,12 @@ bool QueueAggregator<T>::Pop(T& obj) {
 
   done_condition_.wait(lock, [this]{ return closed_ || !orders_.empty(); });
   if (closed_ && orders_.empty()) {
-    // FIXME: we lose the tasks this way - I don't know, if it's okey.
+    for (auto queue: queues_) {
+      if (queue->Pop(obj)) {
+        return true;
+      }
+    }
+
     return false;
   }
   obj = std::move(orders_.front());

@@ -16,14 +16,15 @@ class QueueAggregator {
     QueueAggregator();
     void Close();
 
-    void Aggregate(LockedQueue<T>* queue WEAK_PTR) THREAD_UNSAFE;
+    void Aggregate(LockedQueue<T>* WEAK_PTR queue) THREAD_UNSAFE;
     bool Pop(T& obj) THREAD_SAFE;
 
   private:
-    void DoPop(LockedQueue<T>* queue WEAK_PTR);
+    void DoPop(LockedQueue<T>* WEAK_PTR queue);
 
-    bool closed_;
+    std::atomic<bool> closed_;
     std::list<std::thread> threads_;
+    std::list<LockedQueue<T>* WEAK_PTR> queues_;
 
     std::mutex orders_mutex_;
     size_t order_count_;
