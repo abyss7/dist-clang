@@ -51,6 +51,7 @@
         'assert.h',
         'attributes.h',
         'c_utils.h',
+        'empty_lambda.h',
         'locked_queue.h',
         'locked_queue_impl.h',
         'queue_aggregator.h',

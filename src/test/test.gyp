@@ -30,6 +30,7 @@
         '../daemon/file_cache_test.cc',
         '../net/test_connection.cc',
         '../net/test_connection.h',
+        '../net/test_network_service.cc',
         '../net/test_network_service.h',
         'run_all_tests.cc',
       ],

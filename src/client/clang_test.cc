@@ -130,51 +130,48 @@ TEST(ClangFlagSetTest, SimpleInput) {
 class ClientTest: public ::testing::Test {
   public:
     virtual void SetUp() override {
-      using Service = net::TestNetworkService<>;
+      using Service = net::TestNetworkService;
 
+      do_connect = true;
       send_count = 0, read_count = 0, connect_count = 0;
       connections_created = 0;
-      custom_callback = [](net::TestConnection*) {};
+      custom_callback = EmptyLambda<>();
 
       auto factory = net::NetworkService::SetFactory<Service::Factory>();
       factory->CallOnCreate([this](Service* service) {
         service->CountConnectAttempts(&connect_count);
-        service->CallOnConnect([this](net::TestConnection* connection) {
+        service->CallOnConnect([this](net::EndPointPtr, std::string* error) {
+          if (!do_connect) {
+            if (error) {
+              error->assign("Test service rejects connection intentionally");
+            }
+            return Service::TestConnectionPtr();
+          }
+
+          auto connection = Service::TestConnectionPtr(new net::TestConnection);
           connection->CountSendAttempts(&send_count);
           connection->CountReadAttempts(&read_count);
           weak_ptr = connection->shared_from_this();
           ++connections_created;
-          custom_callback(connection);
+          custom_callback(connection.get());
+
+          return connection;
         });
       });
     }
 
   protected:
+    bool do_connect;
     net::ConnectionWeakPtr weak_ptr;
     uint send_count, read_count, connect_count, connections_created;
     std::function<void(net::TestConnection*)> custom_callback;
 };
 
 TEST_F(ClientTest, NoConnection) {
-  using Service = net::TestNetworkService<false>;
-
-  std::weak_ptr<net::Connection> weak_ptr;
-  auto send_count = 0u, read_count = 0u, connect_count = 0u,
-      connections_created = 0u;
-  auto factory = net::NetworkService::SetFactory<Service::Factory>();
-  factory->CallOnCreate([&](Service* service) {
-    service->CountConnectAttempts(&connect_count);
-    service->CallOnConnect([&](net::TestConnection* connection) {
-      connection->CountSendAttempts(&send_count);
-      connection->CountReadAttempts(&read_count);
-      weak_ptr = connection->shared_from_this();
-      ++connections_created;
-    });
-  });
-
   int argc = 3;
   const char* argv[] = {"a", "b", "c", nullptr};
 
+  do_connect = false;
   EXPECT_TRUE(client::DoMain(argc, argv, "socket_path", "clang_path"));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);

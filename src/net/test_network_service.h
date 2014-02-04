@@ -1,6 +1,8 @@
 #pragma once
 
+#include "base/empty_lambda.h"
 #include "base/hash.h"
+#include "net/base/end_point.h"
 #include "net/network_service.h"
 #include "net/test_connection.h"
 
@@ -24,133 +26,82 @@ struct hash<pair<T, U>> {
 namespace dist_clang {
 namespace net {
 
-template <bool DoConnect = true>
 class TestNetworkService: public NetworkService {
   public:
     using TestConnectionPtr = std::shared_ptr<TestConnection>;
-    using This = TestNetworkService<DoConnect>;
-    using OnConnectCallback = std::function<void(TestConnection*)>;
+    using OnCreateCallback = std::function<void(TestNetworkService*)>;
+    using OnConnectCallback =
+        std::function<TestConnectionPtr(EndPointPtr, std::string*)>;
     using OnListenCallback =
         std::function<bool(const std::string&, unsigned short, std::string*)>;
 
     class Factory: public NetworkService::Factory {
       public:
-        Factory() : on_create_([](This*) {}) {}
+        virtual std::unique_ptr<NetworkService> Create() override;
 
-        virtual std::unique_ptr<NetworkService> Create() override {
-          auto new_t = new This;
-          on_create_(new_t);
-          return std::unique_ptr<NetworkService>(new_t);
-        }
-
-        void CallOnCreate(std::function<void(This*)> callback) {
-          on_create_ = callback;
-        }
+        inline void CallOnCreate(OnCreateCallback callback);
 
       private:
-        std::function<void(This*)> on_create_;
+        OnCreateCallback on_create_ = EmptyLambda<>();
     };
 
-    TestNetworkService()
-      : on_connect_([](TestConnection*) {}),
-        on_listen_([](const std::string&, unsigned short, std::string*) {
-          return false;
-        }),
-        connect_attempts_(nullptr), listen_attempts_(nullptr) {}
-
-    virtual bool Run() override {
-      return true;
-    }
+    inline virtual bool Run() override;
 
     virtual bool Listen(
         const std::string& path,
         ListenCallback callback,
-        std::string* error) override {
-      if (listen_attempts_) {
-        (*listen_attempts_)++;
-      }
-
-      listen_callbacks_[std::make_pair(path, 0)] = callback;
-
-      return on_listen_(path, 0, error);
-    }
+        std::string* error) override;
 
     virtual bool Listen(
         const std::string& host,
         unsigned short port,
         ListenCallback callback,
-        std::string* error) override {
-      if (listen_attempts_) {
-        (*listen_attempts_)++;
-      }
-
-      listen_callbacks_[std::make_pair(host, port)] = callback;
-
-      return on_listen_(host, port, error);
-    }
+        std::string* error) override;
 
     virtual ConnectionPtr Connect(
         EndPointPtr end_point,
-        std::string* error) override {
-      if (connect_attempts_) {
-        (*connect_attempts_)++;
-      }
+        std::string* error) override;
 
-      if (!DoConnect) {
-        if (error) {
-          error->assign("Test service rejects connection intentionally");
-        }
-        return ConnectionPtr();
-      }
-      else {
-        auto new_connection = TestConnectionPtr(new TestConnection);
-        on_connect_(new_connection.get());
-        return new_connection;
-      }
-    }
+    ConnectionPtr TriggerListen(const std::string& host, uint16_t port = 0);
 
-    ConnectionPtr TriggerListen(const std::string& host, uint16_t port = 0,
-                                bool on_connect = true) {
-      auto it = listen_callbacks_.find(std::make_pair(host, port));
-      if (it != listen_callbacks_.end()) {
-        auto new_connection = TestConnectionPtr(new TestConnection);
-        if (on_connect) {
-          if (connect_attempts_) {
-            (*connect_attempts_)++;
-          }
-          on_connect_(new_connection.get());
-        }
-        it->second(new_connection);
-        return new_connection;
-      }
-      return ConnectionPtr();
-    }
-
-    void CallOnConnect(OnConnectCallback callback) {
-      on_connect_ = callback;
-    }
-
-    void CallOnListen(OnListenCallback callback) {
-      on_listen_ = callback;
-    }
-
-    void CountConnectAttempts(uint* counter) {
-      connect_attempts_ = counter;
-    }
-
-    void CountListenAttempts(uint* counter) {
-      listen_attempts_ = counter;
-    }
+    inline void CallOnConnect(OnConnectCallback callback);
+    inline void CallOnListen(OnListenCallback callback);
+    inline void CountConnectAttempts(uint* counter);
+    inline void CountListenAttempts(uint* counter);
 
   private:
     using HostPortPair = std::pair<std::string, unsigned short>;
 
-    OnConnectCallback on_connect_;
-    OnListenCallback on_listen_;
-    uint* connect_attempts_;
-    uint* listen_attempts_;
+    OnConnectCallback on_connect_ = EmptyLambda<TestConnectionPtr>();
+    OnListenCallback on_listen_ = EmptyLambda<bool>(false);
+    uint* connect_attempts_ = nullptr;
+    uint* listen_attempts_ = nullptr;
     std::unordered_map<HostPortPair, ListenCallback> listen_callbacks_;
 };
+
+void TestNetworkService::Factory::CallOnCreate(OnCreateCallback callback) {
+  on_create_ = callback;
+}
+
+bool TestNetworkService::Run() {
+  return true;
+}
+
+void TestNetworkService::CallOnConnect(OnConnectCallback callback) {
+  on_connect_ = callback;
+}
+
+void TestNetworkService::CallOnListen(OnListenCallback callback) {
+  on_listen_ = callback;
+}
+
+void TestNetworkService::CountConnectAttempts(uint* counter) {
+  connect_attempts_ = counter;
+}
+
+void TestNetworkService::CountListenAttempts(uint* counter) {
+  listen_attempts_ = counter;
+}
 
 }  // namespace net
 }  // namespace dist_clang

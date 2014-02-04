@@ -12,17 +12,15 @@ namespace daemon {
 
 class DaemonTest: public ::testing::Test {
   public:
-    using Service = net::TestNetworkService<>;
+    using Service = net::TestNetworkService;
 
     virtual void SetUp() override {
       daemon.reset(new Daemon);
       listen_count = 0, send_count = 0, read_count = 0, connect_count = 0;
       connections_created = 0;
       test_service = nullptr;
-      listen_callback = [](const std::string&, uint16_t, std::string*) {
-        return true;
-      };
-      connect_callback = [](net::TestConnection*) {};
+      listen_callback = EmptyLambda<bool>(true);
+      connect_callback = EmptyLambda<>();
 
       factory = net::NetworkService::SetFactory<Service::Factory>();
       factory->CallOnCreate([this](Service* service) {
@@ -30,11 +28,14 @@ class DaemonTest: public ::testing::Test {
         test_service = service;
         service->CountConnectAttempts(&connect_count);
         service->CountListenAttempts(&listen_count);
-        service->CallOnConnect([this](net::TestConnection* connection) {
+        service->CallOnConnect([this](net::EndPointPtr, std::string*) {
+          auto connection = Service::TestConnectionPtr(new net::TestConnection);
           connection->CountSendAttempts(&send_count);
           connection->CountReadAttempts(&read_count);
           ++connections_created;
-          connect_callback(connection);
+          connect_callback(connection.get());
+
+          return connection;
         });
         service->CallOnListen(listen_callback);
       });
