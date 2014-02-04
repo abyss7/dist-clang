@@ -35,6 +35,7 @@ bool QueueAggregator<T>::Pop(T& obj) {
   pop_condition_.notify_all();
 
   done_condition_.wait(lock, [this]{ return closed_ || !orders_.empty(); });
+
   if (closed_ && orders_.empty()) {
     for (auto queue: queues_) {
       if (queue->Pop(obj)) {
@@ -57,7 +58,7 @@ void QueueAggregator<T>::DoPop(LockedQueue<T>* queue) {
       pop_condition_.wait(lock, [this]{ return order_count_ || closed_; });
     }
 
-    {
+    if (!closed_) {
       std::unique_lock<std::mutex> lock(queue->pop_mutex_);
       while(!queue->closed_ && queue->queue_.empty()) {
         queue->pop_condition_.wait(lock);
