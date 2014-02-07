@@ -8,7 +8,7 @@ namespace base {
 
 class ProcessImpl: public Process {
   public:
-    enum { MAX_ARGS = 1024 };
+    enum { MAX_ARGS = 4096 };
 
     virtual bool Run(unsigned sec_timeout,
                      std::string* error = nullptr) override;
