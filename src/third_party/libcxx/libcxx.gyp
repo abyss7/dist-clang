@@ -159,6 +159,9 @@
           ],
         }],
         ['OS=="mac"', {
+          'ldflags!': [
+            '--no-undefined',
+          ],
           'link_settings': {
             'libraries': [
               '-lc++abi',

@@ -89,6 +89,13 @@
         'src/stdexcept.cpp',
         'src/typeinfo.cpp',
       ],
+      'conditions': [
+        ['OS=="mac"', {
+          'ldflags!': [
+            '--no-undefined',
+          ],
+        }],
+      ],
     },
   ],
 }

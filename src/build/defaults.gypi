@@ -57,6 +57,9 @@
         'defines': [
           'OS_MACOSX',
         ],
+        'ldflags!': [
+          '--no-undefined',
+        ],
         'sources/': [
           ['include', '_mac\\.cc$'],
         ],
