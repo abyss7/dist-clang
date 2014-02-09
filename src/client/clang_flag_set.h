@@ -17,6 +17,10 @@ class ClangFlagSet {
     using StringList = std::list<std::string>;
 
     static Action ProcessFlags(StringList &flags, proto::Flags *message);
+    static bool ParseClangOutput(
+        const std::string& output,
+        std::string* version,
+        StringList& args);
 };
 
 }  // namespace client

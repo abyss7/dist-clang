@@ -9,6 +9,7 @@
       'dependencies': [
         'headers_only',
         'logging',
+        '../third_party/gtest/gtest.gyp:gtest_headers',
       ],
       'sources': [
         'file_utils.cc',

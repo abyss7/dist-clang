@@ -1,19 +1,31 @@
 #pragma once
 
 #include "base/testable.h"
+#include "gtest/gtest_prod.h"
 
 #include <list>
 #include <string>
 
 namespace dist_clang {
+
+namespace client {
+FORWARD_TEST(ClientTest, NoInputFile);
+FORWARD_TEST(ClientTest, CannotSendMessage);
+FORWARD_TEST(ClientTest, CannotReadMessage);
+FORWARD_TEST(ClientTest, ReadMessageWithoutStatus);
+FORWARD_TEST(ClientTest, ReadMessageWithBadStatus);
+FORWARD_TEST(ClientTest, SuccessfulCompilation);
+FORWARD_TEST(ClientTest, FailedCompilation);
+}  // namespace client
+
 namespace base {
 
 class Process;
 class ProcessImpl;
 using ProcessPtr = std::unique_ptr<Process>;
 
-class Process: public Testable<Process, ProcessImpl, const std::string&,
-                               const std::string&> {
+class Process: public Testable<Process, ProcessImpl,
+                               const std::string&, const std::string&> {
   public:
     enum { UNLIMITED = 0 };
 
@@ -37,6 +49,15 @@ class Process: public Testable<Process, ProcessImpl, const std::string&,
     const std::string exec_path_, cwd_path_;
     std::list<std::string> args_;
     std::string stdout_, stderr_;
+
+  private:
+    FRIEND_TEST(client::ClientTest, NoInputFile);
+    FRIEND_TEST(client::ClientTest, CannotSendMessage);
+    FRIEND_TEST(client::ClientTest, CannotReadMessage);
+    FRIEND_TEST(client::ClientTest, ReadMessageWithoutStatus);
+    FRIEND_TEST(client::ClientTest, ReadMessageWithBadStatus);
+    FRIEND_TEST(client::ClientTest, SuccessfulCompilation);
+    FRIEND_TEST(client::ClientTest, FailedCompilation);
 };
 
 template<class Iterator>

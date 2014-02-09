@@ -29,7 +29,6 @@ namespace net {
 class TestNetworkService: public NetworkService {
   public:
     using TestConnectionPtr = std::shared_ptr<TestConnection>;
-    using OnCreateCallback = std::function<void(TestNetworkService*)>;
     using OnConnectCallback =
         std::function<TestConnectionPtr(EndPointPtr, std::string*)>;
     using OnListenCallback =
@@ -37,6 +36,8 @@ class TestNetworkService: public NetworkService {
 
     class Factory: public NetworkService::Factory {
       public:
+        using OnCreateCallback = std::function<void(TestNetworkService*)>;
+
         virtual std::unique_ptr<NetworkService> Create() override;
 
         inline void CallOnCreate(OnCreateCallback callback);

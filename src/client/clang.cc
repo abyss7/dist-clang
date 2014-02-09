@@ -20,47 +20,7 @@ using namespace dist_clang;
 
 namespace {
 
-// The clang output has following format:
-//
-// clang version 3.4 (...)
-// Target: x86_64-unknown-linux-gnu
-// Thread model: posix
-//  "/path/to/clang" "-cc1" "-triple" ...
-//
-// Pay attention to the leading space in the fourth line.
-bool ParseClangOutput(const std::string& output,
-                      std::string* version,
-                      client::ClangFlagSet::StringList& args) {
-  client::ClangFlagSet::StringList lines;
-  base::SplitString<'\n'>(output, lines);
-  if (lines.size() != 4) {
-    // FIXME: we don't support composite tasks yet.
-    return false;
-  }
 
-  if (version) {
-    version->assign(lines.front());
-  }
-
-  args.clear();
-  base::SplitString(lines.back(), " \"", args);
-  if (!args.front().empty()) {
-    // Something went wrong.
-    return false;
-  }
-
-  // Escape from double-quotes.
-  for (auto& arg: args) {
-    if (!arg.empty()) {
-      DCHECK(arg[arg.size() - 1] == '"');
-      arg.erase(arg.size() - 1);
-      base::Replace(arg, "\\\\", "\\");
-      base::Replace(arg, "\\\"", "\"");
-    }
-  }
-
-  return true;
-}
 
 }  // namespace
 
@@ -98,8 +58,8 @@ bool DoMain(int argc, const char* const argv[], const std::string& socket_path,
     base::ProcessPtr process = base::Process::Create(clang_path, std::string());
     process->AppendArg("-###").AppendArg(argv + 1, argv + argc);
     if (!process->Run(10) ||
-        !ParseClangOutput(process->stderr(), version, args) ||
-        ClangFlagSet::ProcessFlags(args, flags) != ClangFlagSet::COMPILE) {
+        !ClangFlagSet::ParseClangOutput(process->stderr(), version, args) ||
+         ClangFlagSet::ProcessFlags(args, flags) != ClangFlagSet::COMPILE) {
       return true;
     }
   }
@@ -111,8 +71,8 @@ bool DoMain(int argc, const char* const argv[], const std::string& socket_path,
     base::ProcessPtr process = base::Process::Create(clang_path, std::string());
     process->AppendArg("-###").AppendArg("-E").AppendArg(argv + 1, argv + argc);
     if (!process->Run(10) ||
-        !ParseClangOutput(process->stderr(), version, args) ||
-        ClangFlagSet::ProcessFlags(args, flags) != ClangFlagSet::PREPROCESS) {
+        !ClangFlagSet::ParseClangOutput(process->stderr(), version, args) ||
+         ClangFlagSet::ProcessFlags(args, flags) != ClangFlagSet::PREPROCESS) {
       return true;
     }
     flags->clear_output();
