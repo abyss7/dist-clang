@@ -97,6 +97,7 @@ bool DoMain(int argc, const char* const argv[], const std::string& socket_path,
   status = top_message.GetExtension(proto::Status::extension);
   if (status.code() != proto::Status::EXECUTION &&
       status.code() != proto::Status::OK) {
+    LOG(VERBOSE) << "Failed to use daemon: " << status.description();
     return true;
   }
 

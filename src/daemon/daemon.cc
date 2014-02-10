@@ -290,6 +290,7 @@ bool Daemon::FillFlags(proto::Flags* flags, proto::Status* status) {
 void Daemon::HandleNewConnection(net::ConnectionPtr connection) {
   auto callback = std::bind(&Daemon::HandleNewMessage, this, _1, _2, _3);
   connection->ReadAsync(callback);
+  LOG(VERBOSE) << "New incoming connection";
 }
 
 bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
