@@ -39,6 +39,7 @@
           '-lc',
           '-lm',
           '-lpthread',
+          '-lrt',
         ],
       },
       'include_dirs': [
