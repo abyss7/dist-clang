@@ -2,6 +2,8 @@
 
 #include "net/connection.h"
 
+#include <sys/types.h>
+
 namespace dist_clang {
 namespace net {
 
