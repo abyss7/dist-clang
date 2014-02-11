@@ -365,7 +365,6 @@ TEST_F(ClientTest, CannotSendMessage) {
       EXPECT_TRUE(process->cwd_path_.empty());
       EXPECT_EQ("-###", *(it++));
       EXPECT_EQ("-E", *(it++));
-      EXPECT_EQ("-P", *(it++));
       for (size_t i = 1; i < argc; ++i, ++it) {
         EXPECT_EQ(argv[i], *it);
       }
@@ -481,7 +480,6 @@ TEST_F(ClientTest, CannotReadMessage) {
       EXPECT_TRUE(process->cwd_path_.empty());
       EXPECT_EQ("-###", *(it++));
       EXPECT_EQ("-E", *(it++));
-      EXPECT_EQ("-P", *(it++));
       for (size_t i = 1; i < argc; ++i, ++it) {
         EXPECT_EQ(argv[i], *it);
       }
@@ -520,7 +518,6 @@ TEST_F(ClientTest, ReadMessageWithoutStatus) {
       EXPECT_TRUE(process->cwd_path_.empty());
       EXPECT_EQ("-###", *(it++));
       EXPECT_EQ("-E", *(it++));
-      EXPECT_EQ("-P", *(it++));
       for (size_t i = 1; i < argc; ++i, ++it) {
         EXPECT_EQ(argv[i], *it);
       }
@@ -566,7 +563,6 @@ TEST_F(ClientTest, ReadMessageWithBadStatus) {
       EXPECT_TRUE(process->cwd_path_.empty());
       EXPECT_EQ("-###", *(it++));
       EXPECT_EQ("-E", *(it++));
-      EXPECT_EQ("-P", *(it++));
       for (size_t i = 1; i < argc; ++i, ++it) {
         EXPECT_EQ(argv[i], *it);
       }
@@ -612,7 +608,6 @@ TEST_F(ClientTest, SuccessfulCompilation) {
       EXPECT_TRUE(process->cwd_path_.empty());
       EXPECT_EQ("-###", *(it++));
       EXPECT_EQ("-E", *(it++));
-      EXPECT_EQ("-P", *(it++));
       for (size_t i = 1; i < argc; ++i, ++it) {
         EXPECT_EQ(argv[i], *it);
       }
@@ -658,7 +653,6 @@ TEST_F(ClientTest, FailedCompilation) {
       EXPECT_TRUE(process->cwd_path_.empty());
       EXPECT_EQ("-###", *(it++));
       EXPECT_EQ("-E", *(it++));
-      EXPECT_EQ("-P", *(it++));
       for (size_t i = 1; i < argc; ++i, ++it) {
         EXPECT_EQ(argv[i], *it);
       }

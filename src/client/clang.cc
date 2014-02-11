@@ -69,8 +69,7 @@ bool DoMain(int argc, const char* const argv[], const std::string& socket_path,
     auto version = flags->mutable_compiler()->mutable_version();
     ClangFlagSet::StringList args;
     base::ProcessPtr process = base::Process::Create(clang_path, std::string());
-    process->AppendArg("-###").AppendArg("-E").AppendArg("-P")
-            .AppendArg(argv + 1, argv + argc);
+    process->AppendArg("-###").AppendArg("-E").AppendArg(argv + 1, argv + argc);
     if (!process->Run(10) ||
         !ClangFlagSet::ParseClangOutput(process->stderr(), version, args) ||
          ClangFlagSet::ProcessFlags(args, flags) != ClangFlagSet::PREPROCESS) {
