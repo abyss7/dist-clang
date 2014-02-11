@@ -13,7 +13,6 @@ namespace base {
 template <class T>
 class QueueAggregator {
   public:
-    QueueAggregator();
     void Close();
 
     void Aggregate(LockedQueue<T>* WEAK_PTR queue) THREAD_UNSAFE;
@@ -22,12 +21,12 @@ class QueueAggregator {
   private:
     void DoPop(LockedQueue<T>* WEAK_PTR queue);
 
-    std::atomic<bool> closed_;
     std::list<std::thread> threads_;
     std::list<LockedQueue<T>* WEAK_PTR> queues_;
 
     std::mutex orders_mutex_;
-    size_t order_count_;
+    std::atomic<bool> closed_ = {false};
+    size_t order_count_ = 0;
     std::list<T> orders_;
     std::condition_variable pop_condition_;
     std::condition_variable done_condition_;

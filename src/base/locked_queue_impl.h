@@ -7,15 +7,14 @@ namespace base {
 
 template <class T>
 LockedQueue<T>::LockedQueue(size_t capacity)
-  : size_(0), capacity_(capacity), closed_(false) {
+  : capacity_(capacity) {
 }
 
 template <class T>
 void LockedQueue<T>::Close() {
-  bool old_closed = false;
-  if (closed_.compare_exchange_strong(old_closed, true)) {
-    pop_condition_.notify_all();
-  }
+  std::unique_lock<std::mutex> lock(pop_mutex_);
+  closed_ = true;
+  pop_condition_.notify_all();
 }
 
 template <class T>

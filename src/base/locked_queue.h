@@ -18,7 +18,8 @@ class LockedQueue {
   public:
     enum { UNLIMITED = 0 };
 
-    explicit LockedQueue(size_t capacity = UNLIMITED);
+    LockedQueue() = default;
+    explicit LockedQueue(size_t capacity);
     void Close() THREAD_SAFE;
 
     inline size_t Size() const THREAD_SAFE;
@@ -37,9 +38,9 @@ class LockedQueue {
     std::condition_variable pop_condition_;
     std::queue<T> queue_;
 
-    std::atomic<size_t> size_;
-    size_t capacity_;
-    std::atomic<bool> closed_;
+    std::atomic<size_t> size_ = {0};
+    const size_t capacity_ = UNLIMITED;
+    std::atomic<bool> closed_ = {false};
 };
 
 template <class T>
