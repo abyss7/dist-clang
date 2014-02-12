@@ -38,6 +38,9 @@ class NetworkServiceImpl: public NetworkService {
 
     std::unique_ptr<EventLoop> event_loop_;
     std::unordered_map<fd_t, ListenCallback> listen_callbacks_;
+
+    // FIXME: make this value configurable.
+    const int send_timeout_secs = 5;
 };
 
 }  // namespace net

@@ -137,6 +137,14 @@ ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point,
     return ConnectionPtr();
   }
 
+  struct timeval timeout = { send_timeout_secs, 0 };
+  constexpr auto timeout_size = sizeof(timeout);
+  if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, timeout_size) == -1) {
+    base::GetLastError(error);
+    close(fd);
+    return ConnectionPtr();
+  }
+
   return ConnectionImpl::Create(*event_loop_, fd, end_point);
 }
 
@@ -144,7 +152,15 @@ void NetworkServiceImpl::HandleNewConnection(fd_t fd,
                                              ConnectionPtr connection) {
   auto callback = listen_callbacks_.find(fd);
   DCHECK(callback != listen_callbacks_.end());
-  callback->second(connection);
+
+  struct timeval timeout = { send_timeout_secs, 0 };
+  constexpr auto timeout_size = sizeof(timeout);
+  if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, timeout_size) == -1) {
+    callback->second(ConnectionPtr());
+  }
+  else {
+    callback->second(connection);
+  }
 }
 
 }  // namespace net
