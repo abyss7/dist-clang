@@ -84,6 +84,7 @@ TEST(LockedQueueTest, MoveSemantics) {
 
 TEST(LockedQueueTest, DISABLED_BasicMultiThreadedUsage) {
   LockedQueue<int> queue;
+  // TODO: implement this.
 }
 
 }  // namespace base

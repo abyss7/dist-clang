@@ -16,8 +16,12 @@ namespace base {
 bool CopyFile(const std::string& src, const std::string& dst,
               bool overwrite = false, std::string* error = nullptr);
 
-inline void DeleteFile(const std::string& path) {
-  unlink(path.c_str());
+inline bool DeleteFile(const std::string& path, std::string* error = nullptr) {
+  if (unlink(path.c_str())) {
+    GetLastError(error);
+    return false;
+  }
+  return true;
 }
 
 inline bool FileExists(const std::string& path, std::string* error = nullptr) {
@@ -37,6 +41,31 @@ bool ReadFile(const std::string& path, std::string* output,
 
 bool WriteFile(const std::string& path, const std::string& input,
                std::string* error = nullptr);
+
+uint64_t CalculateDirectorySize(const std::string& path,
+                                std::string* error = nullptr);
+
+inline uint64_t FileSize(const std::string& path,
+                         std::string* error = nullptr) {
+  struct stat buffer;
+  if (stat(path.c_str(), &buffer)) {
+    GetLastError(error);
+    return 0;
+  }
+
+  return buffer.st_size;
+}
+
+// This function returns the path to an object with the least recent
+// modification time. It may be file, directory or any other kind of file.
+// The |path| should be a directory. If there is nothing inside the |path| or
+// error has occured, the return value is |false|.
+bool GetLeastRecentPath(const std::string& path, std::string& result,
+                        std::string* error = nullptr);
+
+inline bool RemoveDirectory(const std::string& path) {
+  return !rmdir(path.c_str());
+}
 
 }  // namespace base
 }  // namespace dist_clang

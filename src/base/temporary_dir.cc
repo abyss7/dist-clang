@@ -1,5 +1,6 @@
 #include "base/temporary_dir.h"
 
+#include "base/assert.h"
 #include "base/c_utils.h"
 
 #include <ftw.h>
@@ -35,7 +36,7 @@ TemporaryDir::TemporaryDir() {
 
 TemporaryDir::~TemporaryDir() {
   nftw(path_.c_str(), Remove, 4, FTW_DEPTH|FTW_MOUNT|FTW_PHYS);
-  rmdir(path_.c_str());
+  DCHECK_O_EVAL(!rmdir(path_.c_str()) || errno == ENOENT);
 }
 
 TemporaryDir::operator std::string() const {
