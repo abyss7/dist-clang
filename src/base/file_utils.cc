@@ -222,8 +222,16 @@ bool GetLeastRecentPath(const std::string& path, std::string& result,
     const std::string new_path = path + "/" + entry_name;
     struct stat buffer;
     if (!stat(new_path.c_str(), &buffer)) {
-      if (!modification_time || buffer.st_mtim.tv_sec < modification_time) {
-        modification_time = buffer.st_mtim.tv_sec;
+      struct timespec timespec;
+#if defined(OS_MACOSX)
+      timespec = buffer.st_mtimespec;
+#elif defined(OS_LINUX)
+      timespec = buffer.st_mtim;
+#else
+      NOTREACHED();
+#endif
+      if (!modification_time || timespec.tv_sec < modification_time) {
+        modification_time = timespec.tv_sec;
         result = new_path;
       }
     }
