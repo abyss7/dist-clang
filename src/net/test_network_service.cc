@@ -54,8 +54,7 @@ ConnectionPtr TestNetworkService::TriggerListen(
     if (connect_attempts_) {
       (*connect_attempts_)++;
     }
-    auto new_connection =
-        on_connect_(EndPoint::TcpHost(host, port), nullptr);
+    auto new_connection = on_connect_(EndPointPtr(), nullptr);
     it->second(new_connection);
     return new_connection;
   }
