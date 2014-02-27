@@ -4,6 +4,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <experimental/optional>
 #include <mutex>
 #include <queue>
 
@@ -16,6 +17,8 @@ class QueueAggregator;
 template <class T>
 class LockedQueue {
   public:
+    using Optional = std::experimental::optional<T>;
+
     enum { UNLIMITED = 0 };
 
     LockedQueue() = default;
@@ -28,8 +31,8 @@ class LockedQueue {
     // exceeded.
     bool Push(T obj) THREAD_SAFE;
 
-    // Returns |false| only when this queue is closed and empty.
-    bool Pop(T& obj) THREAD_SAFE;
+    // Returns disengaged object only when this queue is closed and empty.
+    Optional Pop() THREAD_SAFE;
 
   private:
     friend class QueueAggregator<T>;

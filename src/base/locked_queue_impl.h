@@ -37,16 +37,16 @@ bool LockedQueue<T>::Push(T obj) {
 }
 
 template <class T>
-bool LockedQueue<T>::Pop(T& obj) {
+typename LockedQueue<T>::Optional LockedQueue<T>::Pop() {
   std::unique_lock<std::mutex> lock(pop_mutex_);
   pop_condition_.wait(lock, [this]{ return closed_ || !queue_.empty(); });
   if (closed_ && queue_.empty()) {
-    return false;
+    return Optional();
   }
-  obj = std::move(queue_.front());
+  Optional obj = std::move(queue_.front());
   queue_.pop();
   size_.fetch_sub(1);
-  return true;
+  return obj;
 }
 
 }  // namespace base

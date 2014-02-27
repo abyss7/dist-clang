@@ -8,13 +8,13 @@ namespace base {
 TEST(LockedQueueTest, BasicUsage) {
   LockedQueue<int> queue;
   const int expected = 1;
-  int actual;
+  LockedQueue<int>::Optional actual;
 
   EXPECT_EQ(0u, queue.Size());
   ASSERT_TRUE(queue.Push(expected));
   EXPECT_EQ(1u, queue.Size());
-  ASSERT_TRUE(queue.Pop(actual));
-  EXPECT_EQ(expected, actual);
+  ASSERT_TRUE(!!(actual = queue.Pop()));
+  EXPECT_EQ(expected, *actual);
   EXPECT_EQ(0u, queue.Size());
 
   for (int i = 1; i < 10; ++i) {
@@ -22,34 +22,34 @@ TEST(LockedQueueTest, BasicUsage) {
     EXPECT_EQ(static_cast<unsigned>(i), queue.Size());
   }
   for (int i = 1; i < 10; ++i) {
-    ASSERT_TRUE(queue.Pop(actual));
-    EXPECT_EQ(i, actual);
+    ASSERT_TRUE(!!(actual = queue.Pop()));
+    EXPECT_EQ(i, *actual);
     EXPECT_EQ(static_cast<unsigned>(9 - i), queue.Size());
   }
 }
 
 TEST(LockedQueueTest, ExceedCapacity) {
   LockedQueue<int> queue(1);
-  int actual;
+  LockedQueue<int>::Optional actual;
 
   ASSERT_TRUE(queue.Push(1));
   ASSERT_FALSE(queue.Push(1));
   EXPECT_EQ(1u, queue.Size());
-  ASSERT_TRUE(queue.Pop(actual));
+  ASSERT_TRUE(!!(actual = queue.Pop()));
   EXPECT_EQ(0u, queue.Size());
 }
 
 TEST(LockedQueueTest, CloseQueue) {
   LockedQueue<int> queue;
-  int actual;
+  LockedQueue<int>::Optional actual;
 
   ASSERT_TRUE(queue.Push(1));
   queue.Close();
   ASSERT_FALSE(queue.Push(1));
-  ASSERT_TRUE(queue.Pop(actual));
+  ASSERT_TRUE(!!(actual = queue.Pop()));
   actual = 10;
-  ASSERT_FALSE(queue.Pop(actual));
-  EXPECT_EQ(10, actual);
+  ASSERT_FALSE(!!(actual = queue.Pop()));
+  EXPECT_EQ(10, *actual);
   EXPECT_EQ(0u, queue.Size());
 }
 
@@ -75,11 +75,12 @@ TEST(LockedQueueTest, MoveSemantics) {
   };
 
   LockedQueue<TestClass> queue;
-  TestClass expected, actual;
+  TestClass expected;
 
-  ASSERT_TRUE(queue.Push(expected));
-  ASSERT_TRUE(queue.Pop(actual));
-  EXPECT_EQ(3, actual.counter());
+  ASSERT_TRUE(queue.Push(std::move(expected)));
+  LockedQueue<TestClass>::Optional&& actual = queue.Pop();
+  ASSERT_TRUE(!!actual);
+  EXPECT_EQ(1, actual->counter());
 }
 
 TEST(LockedQueueTest, DISABLED_BasicMultiThreadedUsage) {

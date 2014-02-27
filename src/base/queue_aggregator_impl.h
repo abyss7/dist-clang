@@ -29,7 +29,7 @@ void QueueAggregator<T>::Aggregate(LockedQueue<T>* queue) {
 }
 
 template <class T>
-bool QueueAggregator<T>::Pop(T& obj) {
+typename QueueAggregator<T>::Optional QueueAggregator<T>::Pop() {
   std::unique_lock<std::mutex> lock(orders_mutex_);
   if (!closed_) {
     ++order_count_;
@@ -38,21 +38,24 @@ bool QueueAggregator<T>::Pop(T& obj) {
 
   done_condition_.wait(lock, [this]{ return closed_ || !orders_.empty(); });
 
+  Optional obj;
+
   if (closed_ && orders_.empty()) {
     lock.unlock();
 
     for (auto queue: queues_) {
-      if (queue->Pop(obj)) {
-        return true;
+      obj = std::move(queue->Pop());
+      if (obj) {
+        return obj;
       }
     }
 
-    return false;
+    return obj;
   }
 
   obj = std::move(orders_.front());
   orders_.pop_front();
-  return true;
+  return obj;
 }
 
 template <class T>

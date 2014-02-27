@@ -4,8 +4,6 @@
 #include "base/worker_pool.h"
 #include "net/base/types.h"
 
-#include <thread>
-
 namespace dist_clang {
 namespace base {
 
@@ -13,6 +11,7 @@ class ThreadPool {
   public:
     using Closure = std::function<void(void)>;
     using TaskQueue = LockedQueue<Closure>;
+    using Optional = TaskQueue::Optional;
 
     explicit ThreadPool(
         size_t capacity = TaskQueue::UNLIMITED,
@@ -21,6 +20,7 @@ class ThreadPool {
 
     void Run();
     bool Push(const Closure& task);
+    bool Push(Closure&& task);
     inline size_t QueueSize() const;
 
   private:

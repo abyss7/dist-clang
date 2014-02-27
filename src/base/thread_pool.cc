@@ -24,13 +24,17 @@ bool ThreadPool::Push(const Closure& task) {
   return tasks_.Push(task);
 }
 
+bool ThreadPool::Push(Closure&& task) {
+  return tasks_.Push(std::move(task));
+}
+
 void ThreadPool::DoWork(const std::atomic<bool>& is_shutting_down) {
   while (!is_shutting_down) {
-    Closure task;
-    if (!tasks_.Pop(task)) {
+    Optional task = std::move(tasks_.Pop());
+    if (!task) {
       break;
     }
-    task();
+    (*task)();
   }
 }
 

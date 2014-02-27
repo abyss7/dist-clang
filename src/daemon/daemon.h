@@ -34,6 +34,7 @@ class Daemon {
     using ScopedTask = std::pair<net::ConnectionPtr, ScopedExecute>;
     using Queue = base::LockedQueue<ScopedTask>;
     using QueueAggregator = base::QueueAggregator<ScopedTask>;
+    using Optional = Queue::Optional;
     using CompilerMap =
         std::unordered_map<std::string /* version */, std::string /* path */>;
     using PluginNameMap =

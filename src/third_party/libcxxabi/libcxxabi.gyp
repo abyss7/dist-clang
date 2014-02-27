@@ -26,7 +26,7 @@
         'c++abi_headers',
       ],
       'cflags': [
-        '-std=c++11',
+        '-std=c++1y',
         '-fPIC',
         '-fstrict-aliasing',
         '-nostdinc++',
