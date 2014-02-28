@@ -38,24 +38,22 @@ typename QueueAggregator<T>::Optional QueueAggregator<T>::Pop() {
 
   done_condition_.wait(lock, [this]{ return closed_ || !orders_.empty(); });
 
-  Optional obj;
-
   if (closed_ && orders_.empty()) {
     lock.unlock();
 
     for (auto queue: queues_) {
-      obj = std::move(queue->Pop());
+      Optional obj = queue->Pop();
       if (obj) {
-        return obj;
+        return std::move(obj);
       }
     }
 
-    return obj;
+    return Optional();
   }
 
-  obj = std::move(orders_.front());
+  Optional obj = std::move(orders_.front());
   orders_.pop_front();
-  return obj;
+  return std::move(obj);
 }
 
 template <class T>
@@ -78,7 +76,7 @@ void QueueAggregator<T>::DoPop(LockedQueue<T>* queue) {
       std::unique_lock<std::mutex> lock(orders_mutex_);
 
       if (order_count_) {
-        orders_.emplace_back(std::move(queue->queue_.front()));
+        orders_.push_back(std::move(queue->queue_.front()));
         queue->queue_.pop();
         queue->size_.fetch_sub(1);
         --order_count_;

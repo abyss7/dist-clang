@@ -24,6 +24,7 @@
         '../base/hash_test.cc',
         '../base/locked_queue_test.cc',
         '../base/process_test.cc',
+        '../base/queue_aggregator_test.cc',
         '../base/string_utils_test.cc',
         '../base/test_process.cc',
         '../base/test_process.h',

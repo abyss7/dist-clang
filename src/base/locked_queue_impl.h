@@ -43,10 +43,10 @@ typename LockedQueue<T>::Optional LockedQueue<T>::Pop() {
   if (closed_ && queue_.empty()) {
     return Optional();
   }
-  Optional obj = std::move(queue_.front());
+  Optional&& obj = std::move(queue_.front());
   queue_.pop();
   size_.fetch_sub(1);
-  return obj;
+  return std::move(obj);
 }
 
 }  // namespace base

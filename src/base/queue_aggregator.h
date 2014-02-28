@@ -15,6 +15,8 @@ class QueueAggregator {
   public:
     using Optional = typename LockedQueue<T>::Optional;
 
+    // All aggregated queues should be closed before aggregator do.
+    // Also should be explicitly closed before destruction.
     void Close();
 
     void Aggregate(LockedQueue<T>* WEAK_PTR queue) THREAD_UNSAFE;

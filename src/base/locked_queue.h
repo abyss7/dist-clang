@@ -23,6 +23,8 @@ class LockedQueue {
 
     LockedQueue() = default;
     explicit LockedQueue(size_t capacity);
+
+    // Should be explicitly closed before destruction.
     void Close() THREAD_SAFE;
 
     inline size_t Size() const THREAD_SAFE;
