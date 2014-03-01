@@ -83,6 +83,28 @@ TEST(LockedQueueTest, MoveSemantics) {
   EXPECT_EQ(1, actual->counter());
 }
 
+TEST(LockedQueueTest, UniquePtrFriendliness) {
+  class Observer {
+    public:
+      Observer(bool& exist) : exist_(exist) { exist_ = true; }
+      ~Observer() { exist_ = false; }
+    private:
+      bool& exist_;
+  };
+
+  bool observer_exists = true;
+  LockedQueue<std::unique_ptr<Observer>> queue;
+
+  std::unique_ptr<Observer> ptr(new Observer(observer_exists));
+  ASSERT_TRUE(queue.Push(std::move(ptr)));
+  EXPECT_FALSE(ptr);
+  EXPECT_TRUE(observer_exists);
+  auto&& actual = queue.Pop();
+  EXPECT_TRUE(observer_exists);
+  ASSERT_TRUE(!!actual);
+  ASSERT_TRUE(!!(*actual));
+}
+
 TEST(LockedQueueTest, DISABLED_BasicMultiThreadedUsage) {
   LockedQueue<int> queue;
   // TODO: implement this.

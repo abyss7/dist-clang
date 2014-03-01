@@ -31,7 +31,7 @@ class QueueAggregator {
     std::mutex orders_mutex_;
     std::atomic<bool> closed_ = {false};
     size_t order_count_ = 0;
-    std::list<Optional> orders_;
+    std::list<T> orders_;
     std::condition_variable pop_condition_;
     std::condition_variable done_condition_;
 };

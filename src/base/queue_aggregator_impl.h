@@ -42,7 +42,7 @@ typename QueueAggregator<T>::Optional QueueAggregator<T>::Pop() {
     lock.unlock();
 
     for (auto queue: queues_) {
-      Optional obj = queue->Pop();
+      Optional&& obj = queue->Pop();
       if (obj) {
         return std::move(obj);
       }
@@ -51,7 +51,7 @@ typename QueueAggregator<T>::Optional QueueAggregator<T>::Pop() {
     return Optional();
   }
 
-  Optional obj = std::move(orders_.front());
+  Optional&& obj = std::move(orders_.front());
   orders_.pop_front();
   return std::move(obj);
 }
