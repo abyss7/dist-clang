@@ -1,5 +1,6 @@
 #pragma once
 
+#include "base/future.h"
 #include "base/locked_queue.h"
 #include "base/worker_pool.h"
 #include "net/base/types.h"
@@ -10,8 +11,10 @@ namespace base {
 class ThreadPool {
   public:
     using Closure = std::function<void(void)>;
-    using TaskQueue = LockedQueue<Closure>;
-    using Optional = TaskQueue::Optional;
+    using Promise = Promise<bool>;
+    using Task = std::pair<Closure, Promise>;
+    using TaskQueue = LockedQueue<Task>;
+    using Optional = Promise::Optional;
 
     explicit ThreadPool(
         size_t capacity = TaskQueue::UNLIMITED,
@@ -19,8 +22,8 @@ class ThreadPool {
     ~ThreadPool();
 
     void Run();
-    bool Push(const Closure& task);
-    bool Push(Closure&& task);
+    Optional Push(const Closure& task);
+    Optional Push(Closure&& task);
     inline size_t QueueSize() const;
 
   private:

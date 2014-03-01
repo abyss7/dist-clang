@@ -54,15 +54,18 @@ bool FileCache::Find(const std::string& code, const std::string& command_line,
   return result;
 }
 
-void FileCache::Store(const std::string &code, const std::string &command_line,
-                      const std::string &version, const Entry &entry) {
+FileCache::Optional FileCache::Store(const std::string &code,
+                                     const std::string &command_line,
+                                     const std::string &version,
+                                     const Entry &entry) {
   std::string version_hash = base::Hexify(base::MakeHash(version));
   std::string args_hash = base::Hexify(base::MakeHash(command_line));
   std::string code_hash = base::Hexify(base::MakeHash(code));
   std::string path =
       path_ + "/" + version_hash + "/" + args_hash;
 
-  pool_.Push(std::bind(&FileCache::DoStore, this, path, code_hash, entry));
+  auto task = std::bind(&FileCache::DoStore, this, path, code_hash, entry);
+  return pool_.Push(task);
 }
 
 void FileCache::DoStore(const std::string &path, const std::string& code_hash,

@@ -75,7 +75,7 @@ TEST(ProcessTest, ReadTimeout) {
   ASSERT_FALSE(process->Run(1));
 }
 
-TEST(ProcessTast, TooManyArgs) {
+TEST(ProcessTest, TooManyArgs) {
   ProcessPtr process = Process::Create("/bin/sh", std::string());
   for (int i = 0; i < ProcessImpl::MAX_ARGS + 2; ++i) {
     process->AppendArg("yes");

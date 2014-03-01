@@ -11,13 +11,14 @@ class FileCache {
   public:
     enum { UNLIMITED = 0 };
     using Entry = std::pair<std::string /* path */, std::string /* stderr */>;
+    using Optional = base::ThreadPool::Optional;
 
     explicit FileCache(const std::string& path, uint64_t size_mb = UNLIMITED);
 
     bool Find(const std::string& code, const std::string& command_line,
               const std::string& version, Entry* entry) const;
-    void Store(const std::string& code, const std::string& command_line,
-               const std::string& version, const Entry& entry);
+    Optional Store(const std::string& code, const std::string& command_line,
+                   const std::string& version, const Entry& entry);
 
   private:
     const std::string path_;

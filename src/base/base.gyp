@@ -53,6 +53,8 @@
         'attributes.h',
         'c_utils.h',
         'empty_lambda.h',
+        'future.h',
+        'future_impl.h',
         'locked_queue.h',
         'locked_queue_impl.h',
         'queue_aggregator.h',

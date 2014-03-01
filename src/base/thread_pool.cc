@@ -1,5 +1,6 @@
 #include "base/thread_pool.h"
 
+#include "base/future_impl.h"
 #include "base/locked_queue_impl.h"
 
 using namespace std::placeholders;
@@ -20,21 +21,34 @@ void ThreadPool::Run() {
   pool_.AddWorker(worker, concurrency_);
 }
 
-bool ThreadPool::Push(const Closure& task) {
-  return tasks_.Push(task);
+ThreadPool::Optional ThreadPool::Push(const Closure& task) {
+  Promise promise(false);
+  auto future = promise.GetFuture();
+  if (tasks_.Push({task, std::move(promise)})) {
+    return future;
+  }
+
+  return Optional();
 }
 
-bool ThreadPool::Push(Closure&& task) {
-  return tasks_.Push(std::move(task));
+ThreadPool::Optional ThreadPool::Push(Closure&& task) {
+  Promise promise(false);
+  auto future = promise.GetFuture();
+  if (tasks_.Push({std::move(task), std::move(promise)})) {
+    return future;
+  }
+
+  return Optional();
 }
 
 void ThreadPool::DoWork(const std::atomic<bool>& is_shutting_down) {
   while (!is_shutting_down) {
-    Optional task = std::move(tasks_.Pop());
+    TaskQueue::Optional&& task = tasks_.Pop();
     if (!task) {
       break;
     }
-    (*task)();
+    task->first();
+    task->second.SetValue(true);
   }
 }
 

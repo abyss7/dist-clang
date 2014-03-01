@@ -1,6 +1,7 @@
 #include "daemon/file_cache.h"
 
 #include "base/file_utils.h"
+#include "base/future_impl.h"
 #include "base/temporary_dir.h"
 #include "gtest/gtest.h"
 
@@ -25,8 +26,10 @@ TEST(FileCacheTest, RestoreSingleEntry) {
   EXPECT_FALSE(cache.Find(code, cl, version, &entry));
   ASSERT_EQ(entry_path, entry.first);
   EXPECT_EQ(stderror, entry.second);
-  cache.Store(code, cl, version, entry);
-  std::this_thread::sleep_for(std::chrono::milliseconds(300));
+  auto future = cache.Store(code, cl, version, entry);
+  ASSERT_TRUE(!!future);
+  future->Wait();
+  ASSERT_TRUE(future->GetValue());
   ASSERT_TRUE(cache.Find(code, cl, version, &entry));
   ASSERT_TRUE(base::ReadFile(entry.first, &object_code));
   EXPECT_EQ(expected_object_code, object_code);
