@@ -361,7 +361,10 @@ TEST_F(ConnectionTest, Sync_ReadSplitMessage) {
 
   auto expected_message = test_message.GetTestMessage();
   std::thread read_thread(read_func);
+
+  // FIXME: replace with |Promise|.
   std::this_thread::sleep_for(std::chrono::seconds(1));
+
   ASSERT_TRUE(server.WriteByParts(expected_message->SerializeAsString()));
   read_thread.join();
 }
@@ -414,7 +417,10 @@ TEST_F(ConnectionTest, Sync_ReadIncompleteMessage) {
 
   auto expected_message = test_message.GetTestMessage();
   std::thread read_thread(read_func);
+
+  // FIXME: replace with |Promise|.
   std::this_thread::sleep_for(std::chrono::seconds(1));
+
   ASSERT_TRUE(server.WriteIncomplete(expected_message->SerializeAsString(),
                                      expected_message->ByteSize() / 2));
   connection->Close();
@@ -438,7 +444,9 @@ TEST_F(ConnectionTest, Sync_ReadAfterClosingConnectionOnServerSide) {
     net::Connection::Message message;
     proto::Status status;
 
+    // FIXME: replace with |Promise|.
     std::this_thread::sleep_for(std::chrono::seconds(1));
+
     ASSERT_TRUE(connection->ReadSync(&message, &status))
         << status.description();
 

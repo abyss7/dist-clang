@@ -18,8 +18,6 @@
         '../third_party/gtest/gtest.gyp:gtest',
       ],
       'sources': [
-        '../base/assert_debug_test.cc',
-        '../base/assert_release_test.cc',
         '../base/file_utils_test.cc',
         '../base/future_test.cc',
         '../base/hash_test.cc',
@@ -41,6 +39,10 @@
       'conditions': [
         ['OS=="linux"', {
           'sources': [
+            # Assert tests check a platform-specific stack-trace format.
+            '../base/assert_debug_test.cc',
+            '../base/assert_release_test.cc',
+
             # Connection tests use epoll right now.
             '../net/connection_test.cc',
             '../net/epoll_event_loop_test.cc',
