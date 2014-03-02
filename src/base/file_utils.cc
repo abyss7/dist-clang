@@ -18,9 +18,8 @@ bool CopyFile(const std::string& src, const std::string& dst, bool overwrite,
   if (link(src.c_str(), dst.c_str()) == 0) {
     // TODO: remove 'write' permissions from the destination file.
     return true;
-  }
-  else if (errno == EEXIST && overwrite &&
-           unlink(dst.c_str()) == 0 && link(src.c_str(), dst.c_str()) == 0) {
+  } else if (errno == EEXIST && overwrite && unlink(dst.c_str()) == 0 &&
+             link(src.c_str(), dst.c_str()) == 0) {
     // TODO: remove 'write' permissions from the destination file.
     return true;
   }
@@ -44,7 +43,7 @@ bool CopyFile(const std::string& src, const std::string& dst, bool overwrite,
   }
 #endif  // defined(OS_LINUX)
 
-  auto flags = O_CREAT|O_WRONLY|O_EXCL;
+  auto flags = O_CREAT | O_WRONLY | O_EXCL;
   // Force unlinking of |dst|, since it may be hard-linked with other places.
   if (overwrite && unlink(dst.c_str()) == -1) {
     GetLastError(error);
@@ -70,10 +69,10 @@ bool CopyFile(const std::string& src, const std::string& dst, bool overwrite,
   const size_t buffer_size = 1024;
   char buffer[buffer_size];
   int size = 0;
-  while((size = read(src_fd, buffer, buffer_size)) > 0) {
+  while ((size = read(src_fd, buffer, buffer_size)) > 0) {
     int total = 0;
     int bytes_written = 0;
-    while(total < size) {
+    while (total < size) {
       bytes_written = write(dst_fd, buffer + total, size - total);
       if (bytes_written <= 0)
         break;
@@ -113,7 +112,7 @@ bool ReadFile(const std::string& path, std::string* output,
   const size_t buffer_size = 1024;
   char buffer[buffer_size];
   int size = 0;
-  while((size = read(src_fd, buffer, buffer_size)) > 0) {
+  while ((size = read(src_fd, buffer, buffer_size)) > 0) {
     output->append(std::string(buffer, size));
   }
   if (size == -1) {
@@ -126,7 +125,8 @@ bool ReadFile(const std::string& path, std::string* output,
 
 bool WriteFile(const std::string& path, const std::string& input,
                std::string* error) {
-  auto src_fd = open((path + ".tmp").c_str(), O_WRONLY|O_TRUNC|O_CREAT, 0444);
+  auto src_fd =
+      open((path + ".tmp").c_str(), O_WRONLY | O_TRUNC | O_CREAT, 0444);
   if (src_fd == -1) {
     GetLastError(error);
     return false;
@@ -141,9 +141,9 @@ bool WriteFile(const std::string& path, const std::string& input,
 
   size_t total_bytes = 0;
   int size = 0;
-  while(total_bytes < input.size()) {
-    size = write(src_fd, input.data() + total_bytes,
-                 input.size() - total_bytes);
+  while (total_bytes < input.size()) {
+    size =
+        write(src_fd, input.data() + total_bytes, input.size() - total_bytes);
     if (size <= 0)
       break;
     total_bytes += size;
@@ -163,13 +163,12 @@ uint64_t CalculateDirectorySize(const std::string& path, std::string* error) {
   std::list<std::string> paths;
   paths.push_back(path);
 
-  while(!paths.empty()) {
+  while (!paths.empty()) {
     const std::string& path = paths.front();
     DIR* dir = opendir(path.c_str());
     if (dir == nullptr) {
       GetLastError(error);
-    }
-    else {
+    } else {
       struct dirent* entry = nullptr;
 
       while ((entry = readdir(dir))) {
@@ -181,12 +180,10 @@ uint64_t CalculateDirectorySize(const std::string& path, std::string* error) {
           if (!stat(new_path.c_str(), &buffer)) {
             if (S_ISDIR(buffer.st_mode)) {
               paths.push_back(new_path);
-            }
-            else if (S_ISREG(buffer.st_mode)) {
+            } else if (S_ISREG(buffer.st_mode)) {
               size += buffer.st_size;
             }
-          }
-          else {
+          } else {
             GetLastError(error);
           }
         }
@@ -207,8 +204,8 @@ bool GetLeastRecentPath(const std::string& path, std::string& result,
     return false;
   }
 
-  time_t modification_time = 0;
-  while(true) {
+  std::pair<time_t, time_t> mtime = {0, 0};
+  while (true) {
     const struct dirent* entry = readdir(dir);
     if (!entry) {
       break;
@@ -222,22 +219,25 @@ bool GetLeastRecentPath(const std::string& path, std::string& result,
     const std::string new_path = path + "/" + entry_name;
     struct stat buffer;
     if (!stat(new_path.c_str(), &buffer)) {
-      struct timespec timespec;
+      struct timespec time_spec;
 #if defined(OS_MACOSX)
-      timespec = buffer.st_mtimespec;
+      time_spec = buffer.st_mtimespec;
 #elif defined(OS_LINUX)
-      timespec = buffer.st_mtim;
+      time_spec = buffer.st_mtim;
 #else
       NOTREACHED();
 #endif
-      if (!modification_time || timespec.tv_sec < modification_time) {
-        modification_time = timespec.tv_sec;
+      if ((mtime.first == 0 && mtime.second == 0) ||
+          time_spec.tv_sec < mtime.first ||
+          (time_spec.tv_sec == mtime.first &&
+           time_spec.tv_nsec < mtime.second)) {
+        mtime = {time_spec.tv_sec, time_spec.tv_nsec};
         result = new_path;
       }
     }
   }
 
-  return modification_time;
+  return mtime.first || mtime.second;
 }
 
 }  // namespace base

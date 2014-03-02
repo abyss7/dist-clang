@@ -14,13 +14,25 @@
 namespace dist_clang {
 namespace daemon {
 
-FileCache::FileCache(const std::string &path, uint64_t size_mb)
-  : path_(path), size_mb_(size_mb) {
+FileCache::FileCache(const std::string &path) : FileCache(path, UNLIMITED) {}
+
+FileCache::FileCache(const std::string &path, uint64_t size)
+    : path_(path), max_size_(size), cached_size_(0) {
+
+  if (max_size_ != UNLIMITED) {
+    std::string error;
+    cached_size_ = base::CalculateDirectorySize(path, &error);
+    if (!error.empty()) {
+      LOG(CACHE_WARNING)
+          << "Error occured during calculation of the cache size: " << error;
+    }
+  }
+
   pool_.Run();
 }
 
-bool FileCache::Find(const std::string& code, const std::string& command_line,
-                     const std::string& version, Entry* entry) const {
+bool FileCache::Find(const std::string &code, const std::string &command_line,
+                     const std::string &version, Entry *entry) const {
   bool result = false;
   const std::string version_hash = base::Hexify(base::MakeHash(version));
   const std::string args_hash = base::Hexify(base::MakeHash(command_line));
@@ -61,15 +73,15 @@ FileCache::Optional FileCache::Store(const std::string &code,
   std::string version_hash = base::Hexify(base::MakeHash(version));
   std::string args_hash = base::Hexify(base::MakeHash(command_line));
   std::string code_hash = base::Hexify(base::MakeHash(code));
-  std::string path =
-      path_ + "/" + version_hash + "/" + args_hash;
+  std::string path = path_ + "/" + version_hash + "/" + args_hash;
 
   auto task = std::bind(&FileCache::DoStore, this, path, code_hash, entry);
   return pool_.Push(task);
 }
 
-void FileCache::DoStore(const std::string &path, const std::string& code_hash,
+void FileCache::DoStore(const std::string &path, const std::string &code_hash,
                         const Entry &entry) {
+  // FIXME: refactor to portable solution.
   if (system((std::string("mkdir -p ") + path).c_str()) == -1) {
     // "mkdir -p" doesn't fail if the path already exists.
     LOG(CACHE_ERROR) << "Failed to `mkdir -p` for " << path;
@@ -83,7 +95,7 @@ void FileCache::DoStore(const std::string &path, const std::string& code_hash,
     LOG(CACHE_ERROR) << "Failed to copy " << entry.first << " to object.tmp";
     return;
   }
-  if (!base::WriteFile(stderr_path, entry.second)) {
+  if (!entry.second.empty() && !base::WriteFile(stderr_path, entry.second)) {
     base::DeleteFile(object_path + ".tmp");
     LOG(CACHE_ERROR) << "Failed to write stderr to file";
     return;
@@ -95,11 +107,74 @@ void FileCache::DoStore(const std::string &path, const std::string& code_hash,
     return;
   }
 
+  cached_size_ += base::FileSize(object_path) + base::FileSize(stderr_path);
+  DCHECK_O_EVAL(utime(object_path.c_str(), nullptr) == 0);
+  if (!entry.second.empty()) {
+    DCHECK_O_EVAL(utime(stderr_path.c_str(), nullptr) == 0);
+  }
   LOG(CACHE_VERBOSE) << "File " << entry.first << " is cached on path " << path;
 
-  if (size_mb_ != UNLIMITED) {
-    // TODO: clean up cache, if it exceeds size limits.
-    // The most ancient files should be wiped out.
+  if (max_size_ != UNLIMITED) {
+    while (cached_size_ > max_size_) {
+      std::string version_path, args_path;
+
+      {
+        std::string error;
+        if (!base::GetLeastRecentPath(path_, version_path, &error)) {
+          LOG(CACHE_WARNING) << "Failed to get the recent path from " << path_
+                             << " : " << error;
+          LOG(CACHE_ERROR) << "Failed to clean the cache";
+          break;
+        }
+      }
+      {
+        std::string error;
+        if (!base::GetLeastRecentPath(version_path, args_path, &error)) {
+          if (!base::RemoveDirectory(version_path)) {
+            LOG(CACHE_WARNING) << "Failed to get the recent path from "
+                               << version_path << " : " << error;
+            LOG(CACHE_ERROR) << "Failed to clean the cache";
+            break;
+          }
+          continue;
+        }
+      }
+
+      bool should_break = false;
+      while (cached_size_ > max_size_) {
+        std::string file_path;
+
+        {
+          std::string error;
+          if (!base::GetLeastRecentPath(args_path, file_path, &error)) {
+            if (!base::RemoveDirectory(args_path)) {
+              LOG(CACHE_WARNING) << "Failed to get the recent path from "
+                                 << args_path << " : " << error;
+              LOG(CACHE_ERROR) << "Failed to clean the cache";
+              should_break = true;
+            }
+            break;
+          }
+        }
+        {
+          std::string error;
+          auto file_size = base::FileSize(file_path);
+          if (!base::DeleteFile(file_path, &error)) {
+            LOG(CACHE_WARNING) << "Failed to delete file " << file_path << " : "
+                               << error;
+            LOG(CACHE_ERROR) << "Failed to clean the cache";
+            should_break = true;
+            break;
+          }
+          CHECK(file_size <= cached_size_);
+          cached_size_ -= file_size;
+        }
+      }
+
+      if (should_break) {
+        break;
+      }
+    }
   }
 }
 

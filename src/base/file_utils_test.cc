@@ -106,9 +106,11 @@ TEST(FileUtilsTest, LeastRecentPath) {
   const std::string dir = std::string(temp_dir) + "/1";
   const std::string file1 = std::string(temp_dir) + "/2";
   const std::string file2 = dir + "/3";
+  const std::string file3 = dir + "/4";
 
   ASSERT_NE(-1, mkdir(dir.c_str(), 0777));
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(1));
   int fd = open(file1.c_str(), O_CREAT, 0777);
   ASSERT_NE(-1, fd);
   close(fd);
@@ -117,12 +119,21 @@ TEST(FileUtilsTest, LeastRecentPath) {
   EXPECT_TRUE(GetLeastRecentPath(temp_dir, path));
   EXPECT_EQ(dir, path);
 
+  std::this_thread::sleep_for(std::chrono::milliseconds(1));
   fd = open(file2.c_str(), O_CREAT, 0777);
   ASSERT_NE(-1, fd);
   close(fd);
 
   EXPECT_TRUE(GetLeastRecentPath(temp_dir, path));
   EXPECT_EQ(file1, path);
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  fd = open(file3.c_str(), O_CREAT, 0777);
+  ASSERT_NE(-1, fd);
+  close(fd);
+
+  EXPECT_TRUE(GetLeastRecentPath(dir, path));
+  EXPECT_EQ(file2, path);
 }
 
 }  // namespace base
