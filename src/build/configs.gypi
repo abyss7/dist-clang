@@ -23,6 +23,7 @@
         ],
         'ldflags': [
           '-fno-exceptions',
+          '-rpath', '/usr/\$$LIB/dist-clang',
         ],
       },
       'Test': {

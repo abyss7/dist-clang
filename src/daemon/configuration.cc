@@ -20,8 +20,7 @@ namespace daemon {
 
 Configuration::Configuration(int argc, char *argv[]) {
   try {
-    // TODO: use normal versioning.
-    CmdLine cmd("Daemon from Clang distributed system - Clangd.", ' ', "0.1");
+    CmdLine cmd("Daemon from Clang distributed system - Clangd.", ' ', VERSION);
     ValueArg<std::string> socket_arg("s", "socket",
         "Path to UNIX socket to listen for local connections.",
         false, base::kDefaultClangdSocket, "path", cmd);
@@ -102,8 +101,9 @@ Configuration::Configuration(const proto::Configuration &config)
 
 bool Configuration::LoadFromFile(const std::string &config_path) {
   auto fd = open(config_path.c_str(), O_RDONLY);
-  if (fd == -1)
+  if (fd == -1) {
     return false;
+  }
   google::protobuf::io::FileInputStream input(fd);
   input.SetCloseOnDelete(true);
   if (!google::protobuf::TextFormat::Parse(&input, &config_)) {

@@ -1,0 +1,7 @@
+Package: dist-clang
+Version: $VERSION
+Maintainer: Ivan Lezhankin <ilezhankin@yandex-team.ru>
+Description: Distributed clang-based compilation system.
+Architecture: amd64
+Bugs: https://code.google.com/p/dist-clang/issues/list
+Homepage: https://code.google.com/p/dist-clang/

@@ -20,6 +20,7 @@
       'dependencies': [
         '../base/base.gyp:constants',
         '../base/base.gyp:logging',
+        '../build/version.gyp:version',
         '../proto/proto.gyp:proto',
         '../third_party/tclap/tclap.gyp:tclap',
       ],
