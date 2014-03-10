@@ -1,3 +1,3 @@
-scm_type: svn
-repo: http://gyp.googlecode.com/svn/trunk/
+scm: svn
+url: http://gyp.googlecode.com/svn/trunk/
 rev: 1780
