@@ -1,7 +1,7 @@
 /* libunwind - a platform-independent unwind library
    Copyright (C) 2001-2005 Hewlett-Packard Co
    Copyright (C) 2007 David Mosberger-Tang
-	Contributed by David Mosberger-Tang <dmosberger@gmail.com>
+  Contributed by David Mosberger-Tang <dmosberger@gmail.com>
 
 This file is part of libunwind.
 

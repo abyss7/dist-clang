@@ -24,6 +24,7 @@
       'type': 'shared_library',
       'dependencies': [
         'c++abi_headers',
+        '../libunwind/libunwind.gyp:unwind',
       ],
       'cflags': [
         '-std=c++1y',
@@ -61,7 +62,6 @@
       'link_settings': {
         'libraries': [
           '-lc',
-          '-lgcc_s',
           '-lpthread',
         ],
       },

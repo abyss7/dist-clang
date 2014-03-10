@@ -27,6 +27,7 @@
       '..',
     ],
     'ldflags': [
+      '-nodefaultlibs',
       '-fno-rtti',
       '--no-undefined',
     ],

@@ -2431,17 +2431,6 @@ def ValidateSourcesInTarget(target, target_dict, build_file):
     basename = os.path.basename(name)  # Don't include extension.
     basenames.setdefault(basename, []).append(source)
 
-  error = ''
-  for basename, files in basenames.iteritems():
-    if len(files) > 1:
-      error += '  %s: %s\n' % (basename, ' '.join(files))
-
-  if error:
-    print('static library %s has several files with the same basename:\n' %
-          target + error + 'Some build systems, e.g. MSVC08, '
-          'cannot handle that.')
-    raise GypError('Duplicate basenames in sources section, see list above')
-
 
 def ValidateRulesInTarget(target, target_dict, extra_sources_for_rules):
   """Ensures that the rules sections in target_dict are valid and consistent,
