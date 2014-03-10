@@ -56,6 +56,8 @@ def GenerateOutput(target_list, target_dicts, data, params):
   old_dot_files_name = os.path.join(toplevel_build, project_name + ".files")
   files = []
   for root, dirnames, filenames in os.walk(options.toplevel_dir):
+    if 'gyp' in root:
+      continue
     for filename in fnmatch.filter(filenames, '*.gyp*'):
       files.append(os.path.join(root, filename))
   for target in target_dicts.iterkeys():
