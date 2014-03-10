@@ -63,6 +63,7 @@
             '<(PRODUCT_DIR)/deb/DEBIAN/control',
           ],
           'action': [
+            # TODO: use variable 'version' propagated from target 'version'.
             'env', 'VERSION=<!(git log --oneline | wc -l)',
             'sh', 'expand_env_vars.sh', 'deb_control.template',
             '<(PRODUCT_DIR)/deb/DEBIAN/control',
@@ -90,7 +91,7 @@
           ],
           'action': [
             'dpkg-deb', '-z9', '-Zxz', '-b', '<(PRODUCT_DIR)/deb',
-            '<(PRODUCT_DIR)/dist-clang.deb',
+            '<(PRODUCT_DIR)/dist-clang_<!(git log --oneline | wc -l)_amd64.deb',
           ],
         },
       ],
