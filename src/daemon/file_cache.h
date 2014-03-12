@@ -14,7 +14,7 @@ class FileCache {
     using Optional = base::ThreadPool::Optional;
 
     explicit FileCache(const std::string& path);
-    FileCache(const std::string& path, uint64_t size_mb);
+    FileCache(const std::string& path, uint64_t size);
 
     bool Find(const std::string& code, const std::string& command_line,
               const std::string& version, Entry* entry) const;

@@ -99,7 +99,7 @@ bool Daemon::Initialize(const Configuration &configuration) {
 
   cache_tasks_.reset(new Queue);
   if (config.has_cache_path()) {
-    cache_.reset(new FileCache(config.cache_path()));
+    cache_.reset(new FileCache(config.cache_path(), config.cache_size()));
     Worker worker = std::bind(&Daemon::DoCheckCache, this, _1);
     workers_->AddWorker(worker, std::thread::hardware_concurrency());
   }

@@ -484,12 +484,12 @@ class Configuration : public ::google::protobuf::Message {
   inline ::dist_clang::proto::Verbosity* release_verbosity();
   inline void set_allocated_verbosity(::dist_clang::proto::Verbosity* verbosity);
 
-  // optional uint64 cache_size_mb = 9;
-  inline bool has_cache_size_mb() const;
-  inline void clear_cache_size_mb();
-  static const int kCacheSizeMbFieldNumber = 9;
-  inline ::google::protobuf::uint64 cache_size_mb() const;
-  inline void set_cache_size_mb(::google::protobuf::uint64 value);
+  // optional uint64 cache_size = 9 [default = 0];
+  inline bool has_cache_size() const;
+  inline void clear_cache_size();
+  static const int kCacheSizeFieldNumber = 9;
+  inline ::google::protobuf::uint64 cache_size() const;
+  inline void set_cache_size(::google::protobuf::uint64 value);
 
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Configuration)
  private:
@@ -505,8 +505,8 @@ class Configuration : public ::google::protobuf::Message {
   inline void clear_has_statistic();
   inline void set_has_verbosity();
   inline void clear_has_verbosity();
-  inline void set_has_cache_size_mb();
-  inline void clear_has_cache_size_mb();
+  inline void set_has_cache_size();
+  inline void clear_has_cache_size();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -517,7 +517,7 @@ class Configuration : public ::google::protobuf::Message {
   ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Compiler > versions_;
   ::dist_clang::proto::Host* statistic_;
   ::dist_clang::proto::Verbosity* verbosity_;
-  ::google::protobuf::uint64 cache_size_mb_;
+  ::google::protobuf::uint64 cache_size_;
   ::google::protobuf::uint32 pool_capacity_;
 
   mutable int _cached_size_;
@@ -1102,26 +1102,26 @@ inline void Configuration::set_allocated_verbosity(::dist_clang::proto::Verbosit
   }
 }
 
-// optional uint64 cache_size_mb = 9;
-inline bool Configuration::has_cache_size_mb() const {
+// optional uint64 cache_size = 9 [default = 0];
+inline bool Configuration::has_cache_size() const {
   return (_has_bits_[0] & 0x00000100u) != 0;
 }
-inline void Configuration::set_has_cache_size_mb() {
+inline void Configuration::set_has_cache_size() {
   _has_bits_[0] |= 0x00000100u;
 }
-inline void Configuration::clear_has_cache_size_mb() {
+inline void Configuration::clear_has_cache_size() {
   _has_bits_[0] &= ~0x00000100u;
 }
-inline void Configuration::clear_cache_size_mb() {
-  cache_size_mb_ = GOOGLE_ULONGLONG(0);
-  clear_has_cache_size_mb();
+inline void Configuration::clear_cache_size() {
+  cache_size_ = GOOGLE_ULONGLONG(0);
+  clear_has_cache_size();
 }
-inline ::google::protobuf::uint64 Configuration::cache_size_mb() const {
-  return cache_size_mb_;
+inline ::google::protobuf::uint64 Configuration::cache_size() const {
+  return cache_size_;
 }
-inline void Configuration::set_cache_size_mb(::google::protobuf::uint64 value) {
-  set_has_cache_size_mb();
-  cache_size_mb_ = value;
+inline void Configuration::set_cache_size(::google::protobuf::uint64 value) {
+  set_has_cache_size();
+  cache_size_ = value;
 }
 
 
