@@ -116,10 +116,8 @@ TEST(FileUtilsTest, LeastRecentPath) {
   ASSERT_NE(-1, fd);
   close(fd);
 
-  bool has_nanosecs = true;
   if (GetLastModificationTime(dir) == GetLastModificationTime(file1)) {
     // File system doesn't support nano-seconds inside mtime - sleep longer.
-    has_nanosecs = false;
     std::this_thread::sleep_for(std::chrono::seconds(1));
     int fd = open(file1.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0777);
     ASSERT_NE(-1, fd);
@@ -134,14 +132,18 @@ TEST(FileUtilsTest, LeastRecentPath) {
                        << GetLastModificationTime(path).first << ":"
                        << GetLastModificationTime(path).second;
 
-  if (!has_nanosecs) {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-  } else {
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-  }
+  std::this_thread::sleep_for(std::chrono::milliseconds(1));
   fd = open(file2.c_str(), O_CREAT, 0777);
   ASSERT_NE(-1, fd);
   close(fd);
+
+  if (GetLastModificationTime(file2) == GetLastModificationTime(file1)) {
+    // File system doesn't support nano-seconds inside mtime - sleep longer.
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    int fd = open(file2.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0777);
+    ASSERT_NE(-1, fd);
+    close(fd);
+  }
 
   EXPECT_TRUE(GetLeastRecentPath(temp_dir, path));
   EXPECT_EQ(file1, path) << "file1 mtime is "
@@ -151,14 +153,18 @@ TEST(FileUtilsTest, LeastRecentPath) {
                          << GetLastModificationTime(path).first << ":"
                          << GetLastModificationTime(path).second;
 
-  if (!has_nanosecs) {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-  } else {
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-  }
+  std::this_thread::sleep_for(std::chrono::milliseconds(1));
   fd = open(file3.c_str(), O_CREAT, 0777);
   ASSERT_NE(-1, fd);
   close(fd);
+
+  if (GetLastModificationTime(file3) == GetLastModificationTime(file2)) {
+    // File system doesn't support nano-seconds inside mtime - sleep longer.
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    int fd = open(file3.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0777);
+    ASSERT_NE(-1, fd);
+    close(fd);
+  }
 
   EXPECT_TRUE(GetLeastRecentPath(dir, path));
   EXPECT_EQ(file2, path) << "file2 mtime is "
