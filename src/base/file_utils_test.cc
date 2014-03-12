@@ -116,6 +116,16 @@ TEST(FileUtilsTest, LeastRecentPath) {
   ASSERT_NE(-1, fd);
   close(fd);
 
+  bool has_nanosecs = true;
+  if (GetLastModificationTime(dir) == GetLastModificationTime(file1)) {
+    // File system doesn't support nano-seconds inside mtime - sleep longer.
+    has_nanosecs = false;
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    int fd = open(file1.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0777);
+    ASSERT_NE(-1, fd);
+    close(fd);
+  }
+
   std::string path;
   EXPECT_TRUE(GetLeastRecentPath(temp_dir, path));
   EXPECT_EQ(dir, path) << "dir mtime is " << GetLastModificationTime(dir).first
@@ -124,7 +134,11 @@ TEST(FileUtilsTest, LeastRecentPath) {
                        << GetLastModificationTime(path).first << ":"
                        << GetLastModificationTime(path).second;
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  if (!has_nanosecs) {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  } else {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
   fd = open(file2.c_str(), O_CREAT, 0777);
   ASSERT_NE(-1, fd);
   close(fd);
@@ -137,7 +151,11 @@ TEST(FileUtilsTest, LeastRecentPath) {
                          << GetLastModificationTime(path).first << ":"
                          << GetLastModificationTime(path).second;
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  if (!has_nanosecs) {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  } else {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
   fd = open(file3.c_str(), O_CREAT, 0777);
   ASSERT_NE(-1, fd);
   close(fd);
