@@ -63,7 +63,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
     EXPECT_EQ(2u, base::CalculateDirectorySize(cache_path));
   }
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  std::this_thread::sleep_for(std::chrono::seconds(1));
 
   {
     FileCache::Entry entry(obj_path[1], std::string());
@@ -74,7 +74,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
     EXPECT_EQ(4u, base::CalculateDirectorySize(cache_path));
   }
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  std::this_thread::sleep_for(std::chrono::seconds(1));
 
   {
     FileCache::Entry entry(obj_path[2], std::string());
