@@ -39,7 +39,6 @@
           '-lc',
           '-lm',
           '-lpthread',
-          '-lrt',
         ],
       },
       'include_dirs': [
@@ -158,6 +157,11 @@
           'dependencies': [
             '../libcxxabi/libcxxabi.gyp:c++abi',
           ],
+          'link_settings': {
+            'libraries': [
+              '-lrt',
+            ],
+          },
         }],
         ['OS=="mac"', {
           'ldflags!': [
