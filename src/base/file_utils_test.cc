@@ -27,7 +27,7 @@ TEST(FileUtilsTest, ReadFile) {
 
   base::TemporaryDir temp_dir;
   const std::string file_path = std::string(temp_dir) + "/file";
-  int fd = open(file_path.c_str(), O_CREAT|O_WRONLY, 0777);
+  int fd = open(file_path.c_str(), O_CREAT | O_WRONLY, 0777);
   ASSERT_NE(-1, fd);
   int size = write(fd, expected_content.data(), expected_content.size());
   ASSERT_EQ(expected_content.size(), static_cast<size_t>(size));
@@ -68,9 +68,9 @@ TEST(FileUtilsTest, CalculateDirectorySize) {
 
   ASSERT_NE(-1, mkdir(dir1.c_str(), 0777));
   ASSERT_NE(-1, mkdir(dir2.c_str(), 0777));
-  int fd1 = open(file1.c_str(), O_CREAT|O_WRONLY);
-  int fd2 = open(file2.c_str(), O_CREAT|O_WRONLY);
-  int fd3 = open(file3.c_str(), O_CREAT|O_WRONLY);
+  int fd1 = open(file1.c_str(), O_CREAT | O_WRONLY);
+  int fd2 = open(file2.c_str(), O_CREAT | O_WRONLY);
+  int fd3 = open(file3.c_str(), O_CREAT | O_WRONLY);
   ASSERT_TRUE(fd1 != -1 && fd2 != -1 && fd3 != -1);
   ASSERT_EQ(content1.size(),
             static_cast<size_t>(write(fd1, content1.data(), content1.size())));
@@ -84,7 +84,8 @@ TEST(FileUtilsTest, CalculateDirectorySize) {
 
   std::string error;
   EXPECT_EQ(content1.size() + content2.size() + content3.size(),
-            CalculateDirectorySize(temp_dir, &error)) << error;
+            CalculateDirectorySize(temp_dir, &error))
+      << error;
 }
 
 TEST(FileUtilsTest, FileSize) {
@@ -92,7 +93,7 @@ TEST(FileUtilsTest, FileSize) {
   const std::string file = std::string(temp_dir) + "/file";
   const std::string content = "1234567890";
 
-  int fd = open(file.c_str(), O_CREAT|O_WRONLY, 0777);
+  int fd = open(file.c_str(), O_CREAT | O_WRONLY, 0777);
   ASSERT_NE(-1, fd);
   ASSERT_EQ(content.size(),
             static_cast<size_t>(write(fd, content.data(), content.size())));
@@ -117,7 +118,11 @@ TEST(FileUtilsTest, LeastRecentPath) {
 
   std::string path;
   EXPECT_TRUE(GetLeastRecentPath(temp_dir, path));
-  EXPECT_EQ(dir, path);
+  EXPECT_EQ(dir, path) << "dir mtime is " << GetLastModificationTime(dir).first
+                       << ":" << GetLastModificationTime(dir).second
+                       << " ; path mtime is "
+                       << GetLastModificationTime(path).first << ":"
+                       << GetLastModificationTime(path).second;
 
   std::this_thread::sleep_for(std::chrono::milliseconds(1));
   fd = open(file2.c_str(), O_CREAT, 0777);
@@ -125,7 +130,12 @@ TEST(FileUtilsTest, LeastRecentPath) {
   close(fd);
 
   EXPECT_TRUE(GetLeastRecentPath(temp_dir, path));
-  EXPECT_EQ(file1, path);
+  EXPECT_EQ(file1, path) << "file1 mtime is "
+                         << GetLastModificationTime(file1).first << ":"
+                         << GetLastModificationTime(file1).second
+                         << " ; path mtime is "
+                         << GetLastModificationTime(path).first << ":"
+                         << GetLastModificationTime(path).second;
 
   std::this_thread::sleep_for(std::chrono::milliseconds(1));
   fd = open(file3.c_str(), O_CREAT, 0777);
@@ -133,7 +143,12 @@ TEST(FileUtilsTest, LeastRecentPath) {
   close(fd);
 
   EXPECT_TRUE(GetLeastRecentPath(dir, path));
-  EXPECT_EQ(file2, path);
+  EXPECT_EQ(file2, path) << "file2 mtime is "
+                         << GetLastModificationTime(file2).first << ":"
+                         << GetLastModificationTime(file2).second
+                         << " ; path mtime is "
+                         << GetLastModificationTime(path).first << ":"
+                         << GetLastModificationTime(path).second;
 }
 
 }  // namespace base

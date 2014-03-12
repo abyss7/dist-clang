@@ -74,12 +74,10 @@ bool CopyFile(const std::string& src, const std::string& dst, bool overwrite,
     int bytes_written = 0;
     while (total < size) {
       bytes_written = write(dst_fd, buffer + total, size - total);
-      if (bytes_written <= 0)
-        break;
+      if (bytes_written <= 0) break;
       total += bytes_written;
     }
-    if (total < size)
-      break;
+    if (total < size) break;
   }
   close(src_fd);
   close(dst_fd);
@@ -144,8 +142,7 @@ bool WriteFile(const std::string& path, const std::string& input,
   while (total_bytes < input.size()) {
     size =
         write(src_fd, input.data() + total_bytes, input.size() - total_bytes);
-    if (size <= 0)
-      break;
+    if (size <= 0) break;
     total_bytes += size;
   }
   close(src_fd);
@@ -196,6 +193,25 @@ uint64_t CalculateDirectorySize(const std::string& path, std::string* error) {
   return size;
 }
 
+std::pair<time_t, time_t> GetLastModificationTime(const std::string& path,
+                                                  std::string* error) {
+  struct stat buffer;
+  if (stat(path.c_str(), &buffer) == -1) {
+    GetLastError(error);
+    return {0, 0};
+  }
+
+  struct timespec time_spec;
+#if defined(OS_MACOSX)
+  time_spec = buffer.st_mtimespec;
+#elif defined(OS_LINUX)
+  time_spec = buffer.st_mtim;
+#else
+  NOTREACHED();
+#endif
+  return {time_spec.tv_sec, time_spec.tv_nsec};
+}
+
 bool GetLeastRecentPath(const std::string& path, std::string& result,
                         std::string* error) {
   DIR* dir = opendir(path.c_str());
@@ -204,7 +220,8 @@ bool GetLeastRecentPath(const std::string& path, std::string& result,
     return false;
   }
 
-  std::pair<time_t, time_t> mtime = {0, 0};
+  const std::pair<time_t, time_t> null_time = {0, 0};
+  std::pair<time_t, time_t> mtime = null_time;
   while (true) {
     const struct dirent* entry = readdir(dir);
     if (!entry) {
@@ -217,27 +234,15 @@ bool GetLeastRecentPath(const std::string& path, std::string& result,
     }
 
     const std::string new_path = path + "/" + entry_name;
-    struct stat buffer;
-    if (!stat(new_path.c_str(), &buffer)) {
-      struct timespec time_spec;
-#if defined(OS_MACOSX)
-      time_spec = buffer.st_mtimespec;
-#elif defined(OS_LINUX)
-      time_spec = buffer.st_mtim;
-#else
-      NOTREACHED();
-#endif
-      if ((mtime.first == 0 && mtime.second == 0) ||
-          time_spec.tv_sec < mtime.first ||
-          (time_spec.tv_sec == mtime.first &&
-           time_spec.tv_nsec < mtime.second)) {
-        mtime = {time_spec.tv_sec, time_spec.tv_nsec};
-        result = new_path;
-      }
+    auto current_mtime = GetLastModificationTime(new_path);
+    if (mtime == null_time ||
+        (current_mtime != null_time && current_mtime < mtime)) {
+      mtime = current_mtime;
+      result = new_path;
     }
   }
 
-  return mtime.first || mtime.second;
+  return mtime != null_time;
 }
 
 }  // namespace base

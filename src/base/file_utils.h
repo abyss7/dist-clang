@@ -56,6 +56,10 @@ inline uint64_t FileSize(const std::string& path,
   return buffer.st_size;
 }
 
+std::pair<time_t /* unix timestamp */, time_t /* nanoseconds */>
+    GetLastModificationTime(const std::string& path,
+                            std::string* error = nullptr);
+
 // This function returns the path to an object with the least recent
 // modification time. It may be file, directory or any other kind of file.
 // The |path| should be a directory. If there is nothing inside the |path| or
