@@ -1,5 +1,14 @@
 {
+
   'target_defaults': {
+    'xcode_settings': {
+      'DYLIB_INSTALL_NAME_BASE': '@rpath',
+      'LD_RUNPATH_SEARCH_PATHS': [
+        # For unbundled binaries.
+        '@loader_path/.',
+      ],
+    },
+
     'configurations': {
       'Debug': {
         'cflags': [
