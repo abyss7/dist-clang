@@ -186,6 +186,7 @@ uint64_t CalculateDirectorySize(const std::string& path, std::string* error) {
         }
       }
     }
+    closedir(dir);
 
     paths.pop_front();
   }
