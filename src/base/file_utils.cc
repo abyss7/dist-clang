@@ -241,6 +241,7 @@ bool GetLeastRecentPath(const std::string& path, std::string& result,
       result = new_path;
     }
   }
+  closedir(dir);
 
   return mtime != null_time;
 }
