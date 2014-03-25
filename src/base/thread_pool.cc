@@ -1,7 +1,6 @@
 #include "base/thread_pool.h"
 
 #include "base/future_impl.h"
-#include "base/locked_queue_impl.h"
 
 using namespace std::placeholders;
 
@@ -43,12 +42,13 @@ ThreadPool::Optional ThreadPool::Push(Closure&& task) {
 
 void ThreadPool::DoWork(const std::atomic<bool>& is_shutting_down) {
   while (!is_shutting_down) {
-    TaskQueue::Optional&& task = tasks_.Pop();
+    TaskQueue::Optional&& task = tasks_.Pop(active_task_count_);
     if (!task) {
       break;
     }
     task->first();
     task->second.SetValue(true);
+    --active_task_count_;
   }
 }
 

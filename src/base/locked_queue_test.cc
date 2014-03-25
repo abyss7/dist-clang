@@ -1,4 +1,4 @@
-#include "base/locked_queue_impl.h"
+#include "base/locked_queue.h"
 
 #include "gtest/gtest.h"
 

@@ -1,4 +1,4 @@
-#include "base/queue_aggregator_impl.h"
+#include "base/queue_aggregator.h"
 
 #include "gtest/gtest.h"
 

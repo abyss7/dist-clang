@@ -4,7 +4,6 @@
 #include "base/file_utils.h"
 #include "base/logging.h"
 #include "base/process_impl.h"
-#include "base/queue_aggregator_impl.h"
 #include "base/string_utils.h"
 #include "base/worker_pool.h"
 #include "daemon/statistic.h"
