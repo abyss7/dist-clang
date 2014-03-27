@@ -87,6 +87,8 @@ bool Daemon::Initialize(const Configuration &configuration) {
     workers_->AddWorker(worker, config.local().threads());
   }
   else {
+    // |remote_tasks_| will be always empty, since the daemon doesn't listen for
+    // remote connections.
     remote_tasks_.reset(new Queue);
     Worker worker = std::bind(&Daemon::DoLocalExecution, this, _1);
     workers_->AddWorker(worker, std::thread::hardware_concurrency());
