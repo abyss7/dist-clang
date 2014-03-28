@@ -1,0 +1,98 @@
+# =============================================================================
+# Command-line arguments, with default values.
+# =============================================================================
+
+declare_args() {
+  # Build with support for Google Performance Tools (gperftools).
+  profiler = 0
+
+  # Link with the tcmalloc library.
+  tcmalloc = 1
+
+  # Build for debugging.
+  config_for_debug = false
+
+  # Build for testing.
+  config_for_tests = false
+}
+
+# =============================================================================
+# Setup configurations.
+# =============================================================================
+
+default_configs = [ "//build:base" ]
+
+if (config_for_tests) {
+  default_configs += [ "//build:test", "//build:debug" ]
+}
+else {
+  default_configs += [ "//build:no_exceptions" ]
+
+  if (config_for_debug) {
+    default_configs += [ "//build:debug" ]
+  } else {
+    default_configs += [ "//build:release" ]
+  }
+}
+
+set_defaults("executable") {
+  configs = default_configs
+  deps = [ "//third_party/libcxx:c++" ]
+  ldflags = [
+    "-lpthread",
+  ]
+
+  if (os == "linux") {
+    deps += [ "//third_party/libcxxabi:c++abi" ]
+  }
+}
+
+set_defaults("shared_library") {
+  configs = default_configs
+  deps = [ "//third_party/libcxx:c++" ]
+  ldflags = [
+    "-lpthread",
+  ]
+
+  if (os == "linux") {
+    deps += [ "//third_party/libcxxabi:c++abi" ]
+  }
+}
+
+set_defaults("static_library") {
+  configs = default_configs
+}
+
+# =============================================================================
+# Filter platform-specific sources.
+# =============================================================================
+
+linux_sources_filters = [
+  "*_linux.h",
+  "*_linux.cc",
+  "*_linux_test.h",
+  "*_linux_test.cc",
+]
+
+mac_sources_filters = [
+  "*_mac.h",
+  "*_mac.cc",
+  "*_mac_test.h",
+  "*_mac_test.cc",
+]
+
+sources_assignment_filter = []
+if (os != "mac") {
+  sources_assignment_filter += mac_sources_filters
+}
+if (os != "linux") {
+  sources_assignment_filter += linux_sources_filters
+}
+
+set_sources_assignment_filter(sources_assignment_filter)
+
+# =============================================================================
+# Setup toolchain.
+# =============================================================================
+
+set_default_toolchain("//build:clang")
