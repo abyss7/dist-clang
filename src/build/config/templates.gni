@@ -1,0 +1,4 @@
+template("headers") {
+  source_set(target_name) {
+  }
+}

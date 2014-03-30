@@ -1,0 +1,23 @@
+executable("clang") {
+  sources = [ "clang_main.cc" ]
+  deps += [
+    "//base:constants",
+    "//base:logging",
+    ":client",
+  ]
+}
+
+shared_library("client") {
+  sources = [
+    "clang.cc",
+    "clang.h",
+    "clang_flag_set.cc",
+    "clang_flag_set.h",
+  ]
+  deps += [
+    "//base:base",
+    "//base:logging",
+    "//net:net",
+    "//proto:proto",
+  ]
+}

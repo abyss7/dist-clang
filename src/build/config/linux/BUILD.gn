@@ -1,6 +1,6 @@
 config("base") {
   ldflags = [
     "--no-undefined",
-    "-rdynamic",  # for |backtrace()|
+    "-rdynamic",      # for |backtrace()|
   ]
 }

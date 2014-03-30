@@ -1,0 +1,64 @@
+import("//build/config/templates.gni")
+
+shared_library("base") {
+  sources = [
+    "file_utils.cc",
+    "file_utils.h",
+    "process.cc",
+    "process.h",
+    "process_impl.cc",
+    "process_impl.h",
+    "process_impl_linux.cc",
+    "process_impl_mac.cc",
+    "temporary_dir.cc",
+    "temporary_dir.h",
+    "thread_pool.cc",
+    "thread_pool.h",
+    "worker_pool.cc",
+    "worker_pool.h",
+  ]
+
+  deps += [
+    ":headers",
+    ":logging",
+    "//third_party/gtest:headers",
+  ]
+}
+
+shared_library("constants") {
+  sources = [
+    "constants.cc",
+    "constants.h",
+  ]
+}
+
+shared_library("hash") {
+  sources = [
+    "hash.h",
+    "hash/murmur_hash3.cc",
+    "hash/murmur_hash3.h",
+  ]
+}
+
+shared_library("logging") {
+  sources = [
+    "logging.cc",
+    "logging.h",
+    "using_log.h",
+  ]
+}
+
+headers("headers") {
+  sources = [
+    "assert.h",
+    "attributes.h",
+    "c_utils.h",
+    "empty_lambda.h",
+    "future.h",
+    "future_impl.h",
+    "locked_queue.h",
+    "queue_aggregator.h",
+    "string_utils.h",
+    "testable.h",
+  ]
+}

@@ -4,10 +4,10 @@
 
 declare_args() {
   # Build with support for Google Performance Tools (gperftools).
-  profiler = 0
+  use_profiler = false
 
   # Link with the tcmalloc library.
-  tcmalloc = 1
+  use_tcmalloc = true
 
   # Build for debugging.
   config_for_debug = false
@@ -20,47 +20,66 @@ declare_args() {
 # Setup configurations.
 # =============================================================================
 
-default_configs = [ "//build:base" ]
+default_configs = [ "//build/config:base" ]
 
 if (config_for_tests) {
-  default_configs += [ "//build:test", "//build:debug" ]
+  default_configs += [ "//build/config:test", "//build/config:debug" ]
 }
 else {
-  default_configs += [ "//build:no_exceptions" ]
+  default_configs += [ "//build/config:no_exceptions" ]
 
   if (config_for_debug) {
-    default_configs += [ "//build:debug" ]
+    default_configs += [ "//build/config:debug" ]
   } else {
-    default_configs += [ "//build:release" ]
+    default_configs += [ "//build/config:release" ]
   }
 }
+
+if (os == "linux") {
+  default_configs += [ "//build/config/linux:base" ]
+}
+
+if (use_profiler) {
+  default_configs += [ "//build/config:profiler" ]
+}
+
+if (use_tcmalloc) {
+  default_configs += [ "//build/config:tcmalloc" ]
+}
+
+# =============================================================================
+# Setup dependencies.
+# =============================================================================
+
+default_deps = []
+default_deps += [ "//third_party/libcxx:c++" ]
+
+if (os == "linux") {
+  default_deps += [ "//third_party/libcxxabi:c++abi" ]
+}
+
+# =============================================================================
+# Set defaults.
+# =============================================================================
 
 set_defaults("executable") {
   configs = default_configs
-  deps = [ "//third_party/libcxx:c++" ]
-  ldflags = [
-    "-lpthread",
-  ]
-
-  if (os == "linux") {
-    deps += [ "//third_party/libcxxabi:c++abi" ]
-  }
+  deps = default_deps
 }
 
 set_defaults("shared_library") {
   configs = default_configs
-  deps = [ "//third_party/libcxx:c++" ]
-  ldflags = [
-    "-lpthread",
-  ]
+  deps = default_deps
+}
 
-  if (os == "linux") {
-    deps += [ "//third_party/libcxxabi:c++abi" ]
-  }
+set_defaults("source_set") {
+  configs = default_configs
+  deps = []
 }
 
 set_defaults("static_library") {
   configs = default_configs
+  deps = []
 }
 
 # =============================================================================
@@ -95,4 +114,5 @@ set_sources_assignment_filter(sources_assignment_filter)
 # Setup toolchain.
 # =============================================================================
 
-set_default_toolchain("//build:clang")
+set_default_toolchain("//build/toolchain:clang")
+

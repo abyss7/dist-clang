@@ -1,0 +1,31 @@
+shared_library("net") {
+  sources = [
+    "base/end_point.cc",
+    "base/end_point.h",
+    "base/types.h",
+    "base/utils.h",
+    "connection.cc",
+    "connection.h",
+    "connection_forward.h",
+    "connection_impl.cc",
+    "connection_impl.h",
+    "event_loop.cc",
+    "event_loop.h",
+    "event_loop_linux.cc",
+    "event_loop_linux.h",
+    "event_loop_mac.cc",
+    "event_loop_mac.h",
+    "network_service.h",
+    "network_service_impl.cc",
+    "network_service_impl.h",
+    "network_service_linux.cc",
+    "network_service_mac.cc",
+  ]
+  
+  deps += [
+    "//base:base",
+    "//base:logging",
+    "//proto:proto",
+    "//third_party/gtest:headers",
+  ]
+}

@@ -1,12 +1,3 @@
-import("//build/default_toolchain.gni")
-
-default_toolchain("clang") {
-  cc = "clang"
-  cxx = "clang++"
-  ar = "ar"
-  ld = cxx
-}
-
 config("base") {
   cflags = [
     "-fno-rtti",
@@ -19,13 +10,23 @@ config("base") {
     "-Wsign-compare",
     "-Werror",
   ]
-  includes = [
-    "../..",
-  ]
+  include_dirs = [ "//" ]
   ldflags = [
     "-nodefaultlibs",
     "-fno-rtti",
   ]
+  libs = [ "pthread" ]
+}
+
+config("default_library") {
+  cflags = [
+    "-std=c++11",
+    "-nostdinc++",
+    "-fPIC",
+  ]
+  include_dirs = [ "//third_party/libcxx/include" ]
+  ldflags = [ "-nodefaultlibs" ]
+  libs = [ "c" ]
 }
 
 config("debug") {
@@ -47,6 +48,7 @@ config("release") {
     "NDEBUG",
   ]
   ldflags = [
+    # TODO: check that rpath is correct.
     "-rpath", "/usr/\$LIB/dist-clang",
   ]
 }
@@ -61,16 +63,10 @@ config("no_exceptions") {
 }
 
 config("profiler") {
-  defines = [
-    "PROFILER",
-  ]
-  ldflags = [
-    "-lprofiler",
-  ]
+  defines = [ "PROFILER" ]
+  libs = [ "profiler" ]
 }
 
 config("tcmalloc") {
-  ldflags = [
-    "-ltcmalloc",
-  ]
+  libs = [ "tcmalloc" ]
 }

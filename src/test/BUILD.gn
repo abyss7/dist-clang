@@ -1,0 +1,36 @@
+test("unit_tests") {
+  sources = [
+    "//base/assert_debug_linux_test.cc",
+    "//base/assert_release_linux_test.cc",
+    "//base/file_utils_test.cc",
+    "//base/future_test.cc",
+    "//base/hash_test.cc",
+    "//base/locked_queue_test.cc",
+    "//base/process_test.cc",
+    "//base/queue_aggregator_test.cc",
+    "//base/string_utils_test.cc",
+    "//base/test_process.cc",
+    "//base/test_process.h",
+    "//client/clang_test.cc",
+    "//daemon/daemon_test.cc",
+    "//daemon/file_cache_test.cc",
+    "//net/connection_linux_test.cc",  # TODO: make this test cross-platform.
+    "//net/epoll_event_loop_linux_test.cc",
+    "//net/kqueue_event_loop_mac_test.cc",
+    "//net/test_connection.cc",
+    "//net/test_connection.h",
+    "//net/test_network_service.cc",
+    "//net/test_network_service.h",
+    "run_all_tests.cc",
+  ]
+  deps += [
+    "//base:base",
+    "//base:hash",
+    "//client:client",
+    "//daemon:daemon",
+    "//daemon:file_cache",
+    "//net:net",
+    "//third_party/gmock:gmock",
+    "//third_party/gtest:gtest",
+  ]
+}

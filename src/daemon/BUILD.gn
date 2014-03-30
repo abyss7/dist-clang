@@ -1,0 +1,48 @@
+executable("clangd") {
+  sources = [ "clangd.cc" ]
+  deps += [ ":daemon" ]
+}
+
+static_library("daemon") {
+  sources = [
+    "daemon.cc",
+    "daemon.h",
+    "statistic.cc",
+    "statistic.h",
+  ]
+  deps += [
+    "//base:base",
+    "//base:constants",
+    "//base:hash",
+    "//base:logging",
+    "//net:net",
+    "//proto:proto",
+    ":configuration",
+    ":file_cache",
+  ]
+}
+
+shared_library("configuration") {
+  sources = [
+    "configuration.cc",
+    "configuration.h",
+  ]
+  deps += [
+    "//:version",
+    "//base:constants",
+    "//base:logging",
+    "//proto:proto",
+    "//third_party/tclap:tclap",
+  ]
+}
+
+static_library("file_cache") {
+  sources = [
+    "file_cache.cc",
+    "file_cache.h",
+  ]
+  deps += [
+    "//base:base",
+  ]
+}
+
