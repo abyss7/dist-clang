@@ -1,4 +1,4 @@
-config("headers") {
+config("includes") {
   include_dirs = [ "include" ]
 }
 
@@ -49,11 +49,11 @@ shared_library("c++abi") {
     "-Wunused-parameter",
     "-Wnewline-eof",
   ]
- 
-  configs = [] 
-  configs += [ ":headers", "//build/config:default_library" ]
-  all_dependent_configs = [ ":headers" ]
+
+  configs = []
+  configs += [ ":includes", "//build/config:default_library" ]
+  all_dependent_configs = [ ":includes" ]
 
   deps = []
-  deps += [ "//third_party/libunwind:libunwind" ]
+  deps += [ "//third_party/libunwind:unwind" ]
 }

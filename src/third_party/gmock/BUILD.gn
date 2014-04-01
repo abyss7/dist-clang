@@ -4,7 +4,7 @@ config("includes") {
   include_dirs = [ ".." ]
 }
 
-headers("headers") {
+headers("gmock_headers") {
   sources = [
     "gmock-actions.h",
     "gmock-cardinalities.h",
@@ -18,7 +18,7 @@ headers("headers") {
     "gmock-more-matchers.h",
     "gmock-spec-builders.h",
   ]
-  
+
   all_dependent_configs = [ ":includes" ]
 }
 
@@ -29,8 +29,8 @@ shared_library("gmock") {
     "internal/gmock-internal-utils.h",
     "internal/gmock-port.h",
   ]
-  
+
   configs += [ ":includes" ]
-  
+
   deps += [ "//third_party/gtest:gtest" ]
 }

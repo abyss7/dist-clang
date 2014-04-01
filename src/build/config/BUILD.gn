@@ -1,11 +1,10 @@
 config("base") {
   cflags = [
-    "-fno-rtti",
     "-fPIC",
     "-nostdinc++",
     "-pipe",
     "-pthread",
-    "-std=c++11",
+    "-std=c++1y",
     "-Wall",
     "-Wsign-compare",
     "-Werror",
@@ -13,14 +12,13 @@ config("base") {
   include_dirs = [ "//" ]
   ldflags = [
     "-nodefaultlibs",
-    "-fno-rtti",
   ]
   libs = [ "pthread" ]
 }
 
 config("default_library") {
   cflags = [
-    "-std=c++11",
+    "-std=c++1y",
     "-nostdinc++",
     "-fPIC",
   ]
@@ -62,6 +60,15 @@ config("no_exceptions") {
   ]
 }
 
+config("no_rtti") {
+  cflags = [
+    "-fno-rtti",
+  ]
+  ldflags = [
+    "-fno-rtti",
+  ]
+}
+
 config("profiler") {
   defines = [ "PROFILER" ]
   libs = [ "profiler" ]
@@ -69,4 +76,8 @@ config("profiler") {
 
 config("tcmalloc") {
   libs = [ "tcmalloc" ]
+}
+
+config("version") {
+  defines = [ "VERSION=\"$version\"" ]
 }

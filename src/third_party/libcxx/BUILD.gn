@@ -1,4 +1,4 @@
-config("headers") {
+config("includes") {
   include_dirs = [ "include" ]
 }
 
@@ -111,7 +111,7 @@ shared_library("c++") {
     "src/utility.cpp",
     "src/valarray.cpp",
   ]
-  
+
   cflags = [
     "-O3",
     "-pedantic",
@@ -124,11 +124,11 @@ shared_library("c++") {
   libs = [ "m" ]
   if (os == "linux") { libs += [ "rt" ] }
   if (os == "mac") { libs += [ "c++abi" ] }
-  
+
   configs = []
   configs += [ "//build/config:default_library" ]
-  all_dependent_configs = [ ":headers" ]
-  
+  all_dependent_configs = [ ":includes" ]
+
   deps = []
   if (os == "linux") { deps += [ "//third_party/libcxxabi:c++abi" ] }
 }

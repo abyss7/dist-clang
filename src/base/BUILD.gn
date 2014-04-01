@@ -19,9 +19,9 @@ shared_library("base") {
   ]
 
   deps += [
-    ":headers",
+    ":base_headers",
     ":logging",
-    "//third_party/gtest:headers",
+    "//third_party/gtest:gtest_headers",
   ]
 }
 
@@ -48,7 +48,7 @@ shared_library("logging") {
   ]
 }
 
-headers("headers") {
+headers("base_headers") {
   sources = [
     "assert.h",
     "attributes.h",

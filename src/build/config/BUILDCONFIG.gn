@@ -14,6 +14,9 @@ declare_args() {
 
   # Build for testing.
   config_for_tests = false
+
+  # Build version.
+  version = exec_script("//build/version.py", [], "value")
 }
 
 # =============================================================================
@@ -23,10 +26,16 @@ declare_args() {
 default_configs = [ "//build/config:base" ]
 
 if (config_for_tests) {
-  default_configs += [ "//build/config:test", "//build/config:debug" ]
+  default_configs += [
+    "//build/config:test",
+    "//build/config:debug",
+  ]
 }
 else {
-  default_configs += [ "//build/config:no_exceptions" ]
+  default_configs += [
+    "//build/config:no_exceptions",
+    "//build/config:no_rtti",
+  ]
 
   if (config_for_debug) {
     default_configs += [ "//build/config:debug" ]

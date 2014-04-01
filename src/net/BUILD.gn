@@ -21,11 +21,11 @@ shared_library("net") {
     "network_service_linux.cc",
     "network_service_mac.cc",
   ]
-  
+
   deps += [
     "//base:base",
     "//base:logging",
     "//proto:proto",
-    "//third_party/gtest:headers",
+    "//third_party/gtest:gtest_headers",
   ]
 }

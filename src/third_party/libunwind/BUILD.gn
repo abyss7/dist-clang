@@ -10,8 +10,6 @@ static_library("unwind") {
     "src/mi/dyn-cancel.c",
     "src/mi/dyn-info-list.c",
     "src/mi/dyn-register.c",
-    "src/mi/flush_cache.c",
-    "src/mi/init.c",
     "src/mi/Ldestroy_addr_space.c",
     "src/mi/Ldyn-extract.c",
     "src/mi/Lfind_dynamic_proc_info.c",
@@ -24,9 +22,6 @@ static_library("unwind") {
     "src/mi/Lset_caching_policy.c",
     "src/mi/Lset_fpreg.c",
     "src/mi/Lset_reg.c",
-    "src/mi/mempool.c",
-    "src/mi/strerror.c",
-    "src/os-linux.c",
     "src/unwind/Backtrace.c",
     "src/unwind/DeleteException.c",
     "src/unwind/FindEnclosingFunction.c",
@@ -46,7 +41,6 @@ static_library("unwind") {
     "src/unwind/SetGR.c",
     "src/unwind/SetIP.c",
     "src/x86_64/getcontext.S",
-    "src/x86_64/is_fpreg.c",
     "src/x86_64/Lcreate_addr_space.c",
     "src/x86_64/Lget_proc_info.c",
     "src/x86_64/Lget_save_loc.c",
@@ -60,7 +54,6 @@ static_library("unwind") {
     "src/x86_64/Lstash_frame.c",
     "src/x86_64/Lstep.c",
     "src/x86_64/Ltrace.c",
-    "src/x86_64/regname.c",
     "src/x86_64/setcontext.S",
 
     # dwarf-generic + dwarf-common + dwarf-local
@@ -119,7 +112,7 @@ static_library("unwind") {
     "src/x86_64/is_fpreg.c",
     "src/x86_64/regname.c",
   ]
-  
+
   cflags = [
     "-fexceptions",
     "-fPIC",
@@ -127,7 +120,7 @@ static_library("unwind") {
     "-Wsign-compare",
     "-Wno-header-guard",
   ]
-  
+
   defines = [
     "_GNU_SOURCE",
     "CONSERVATIVE_CHECKS",
@@ -175,9 +168,17 @@ static_library("unwind") {
     "SIZEOF_OFF_T=8",
     "STDC_HEADERS",
   ]
-  
+
+  include_dirs = [
+    "include",
+    "include/tdep-x86_64",
+    "src",
+  ]
+
   ldflags = [ "-nostdlib" ]
-  
-  configs -= [ "//build/config:no_exceptions" ]
+
+  configs = []
   direct_dependent_configs = [ ":libraries" ]
+
+  deps = []
 }

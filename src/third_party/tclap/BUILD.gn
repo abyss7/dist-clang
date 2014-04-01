@@ -33,4 +33,6 @@ headers("tclap") {
     "include/tclap/XorHandler.h",
     "include/tclap/ZshCompletionOutput.h",
   ]
+
+  direct_dependent_configs = [ ":exceptions" ]
 }

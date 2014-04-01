@@ -1,5 +1,5 @@
 executable("clangd") {
-  sources = [ "clangd.cc" ]
+  sources = [ "clangd_main.cc" ]
   deps += [ ":daemon" ]
 }
 
@@ -27,8 +27,10 @@ shared_library("configuration") {
     "configuration.cc",
     "configuration.h",
   ]
+  
+  configs += [ "//build/config:version" ]
+
   deps += [
-    "//:version",
     "//base:constants",
     "//base:logging",
     "//proto:proto",

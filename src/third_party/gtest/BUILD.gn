@@ -4,7 +4,7 @@ config("includes") {
   include_dirs = [ ".." ]
 }
 
-headers("headers") {
+headers("gtest_headers") {
   sources = [
     "gtest-death-test.h",
     "gtest-message.h",
@@ -36,10 +36,10 @@ shared_library("gtest") {
     "internal/gtest-tuple.h",
     "internal/gtest-type-util.h",
   ]
-  
+
   if (config_for_tests) {
     defines = [ "GTEST_HAS_EXCEPTIONS=1" ]
   }
-  
+
   configs += [ ":includes" ]
 }
