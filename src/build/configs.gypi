@@ -32,7 +32,7 @@
         ],
         'ldflags': [
           '-fno-exceptions',
-          '-rpath', '/usr/\$$LIB/dist-clang',
+          '-rpath', '/usr/lib/dist-clang',
         ],
       },
       'Test': {

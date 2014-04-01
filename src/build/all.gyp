@@ -42,7 +42,7 @@
               ],
             },
             {
-              'destination': '<(PRODUCT_DIR)/deb/usr/lib64/dist-clang',
+              'destination': '<(PRODUCT_DIR)/deb/usr/lib/dist-clang',
               'files': [
                 '<(PRODUCT_DIR)/lib/libbase.so',
                 '<(PRODUCT_DIR)/lib/libc++.so',
@@ -58,6 +58,19 @@
             },
           ],
           'actions': [
+            {
+              'action_name': 'clang++_symlink',
+              'inputs': [
+                '<(PRODUCT_DIR)/deb/usr/bin/dist-clang/clang',
+              ],
+              'outputs': [
+                '<(PRODUCT_DIR)/deb/usr/bin/dist-clang/clang++',
+              ],
+              'action': [
+                'ln', '-fs', 'clang',
+                '<(PRODUCT_DIR)/deb/usr/bin/dist-clang/clang++',
+              ],
+            },
             {
               'action_name': 'expand_deb_control',
               'inputs': [
@@ -77,17 +90,18 @@
               'action_name': 'create_deb_package',
               'inputs': [
                 '<(PRODUCT_DIR)/deb/usr/bin/dist-clang/clang',
+                '<(PRODUCT_DIR)/deb/usr/bin/dist-clang/clang++',
                 '<(PRODUCT_DIR)/deb/usr/bin/dist-clang/clangd',
-                '<(PRODUCT_DIR)/deb/usr/lib64/dist-clang/libbase.so',
-                '<(PRODUCT_DIR)/deb/usr/lib64/dist-clang/libc++.so',
-                '<(PRODUCT_DIR)/deb/usr/lib64/dist-clang/libc++abi.so',
-                '<(PRODUCT_DIR)/deb/usr/lib64/dist-clang/libclient.so',
-                '<(PRODUCT_DIR)/deb/usr/lib64/dist-clang/libconfiguration.so',
-                '<(PRODUCT_DIR)/deb/usr/lib64/dist-clang/libconstants.so',
-                '<(PRODUCT_DIR)/deb/usr/lib64/dist-clang/libhash.so',
-                '<(PRODUCT_DIR)/deb/usr/lib64/dist-clang/liblogging.so',
-                '<(PRODUCT_DIR)/deb/usr/lib64/dist-clang/libnet.so',
-                '<(PRODUCT_DIR)/deb/usr/lib64/dist-clang/libproto.so',
+                '<(PRODUCT_DIR)/deb/usr/lib/dist-clang/libbase.so',
+                '<(PRODUCT_DIR)/deb/usr/lib/dist-clang/libc++.so',
+                '<(PRODUCT_DIR)/deb/usr/lib/dist-clang/libc++abi.so',
+                '<(PRODUCT_DIR)/deb/usr/lib/dist-clang/libclient.so',
+                '<(PRODUCT_DIR)/deb/usr/lib/dist-clang/libconfiguration.so',
+                '<(PRODUCT_DIR)/deb/usr/lib/dist-clang/libconstants.so',
+                '<(PRODUCT_DIR)/deb/usr/lib/dist-clang/libhash.so',
+                '<(PRODUCT_DIR)/deb/usr/lib/dist-clang/liblogging.so',
+                '<(PRODUCT_DIR)/deb/usr/lib/dist-clang/libnet.so',
+                '<(PRODUCT_DIR)/deb/usr/lib/dist-clang/libproto.so',
                 '<(PRODUCT_DIR)/deb/DEBIAN/control',
               ],
               'outputs': [
