@@ -52,6 +52,11 @@ class Daemon {
 
     static std::unique_ptr<base::Process> CreateProcess(
         const proto::Flags& flags,
+        uint32_t uid,
+        const std::string& cwd_path = std::string());
+
+    static std::unique_ptr<base::Process> CreateProcess(
+        const proto::Flags& flags,
         const std::string& cwd_path = std::string());
 
     // Workers

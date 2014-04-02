@@ -682,6 +682,13 @@ class Execute : public ::google::protobuf::Message {
   inline ::std::string* release_pp_source();
   inline void set_allocated_pp_source(::std::string* pp_source);
 
+  // optional uint32 user_id = 6;
+  inline bool has_user_id() const;
+  inline void clear_user_id();
+  static const int kUserIdFieldNumber = 6;
+  inline ::google::protobuf::uint32 user_id() const;
+  inline void set_user_id(::google::protobuf::uint32 value);
+
   static const int kExtensionFieldNumber = 3;
   static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
       ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::Execute >, 11, false >
@@ -698,17 +705,20 @@ class Execute : public ::google::protobuf::Message {
   inline void clear_has_current_dir();
   inline void set_has_pp_source();
   inline void clear_has_pp_source();
+  inline void set_has_user_id();
+  inline void clear_has_user_id();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
   ::dist_clang::proto::Flags* cc_flags_;
   ::dist_clang::proto::Flags* pp_flags_;
+  bool remote_;
+  ::google::protobuf::uint32 user_id_;
   ::std::string* current_dir_;
   ::std::string* pp_source_;
-  bool remote_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(5 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(6 + 31) / 32];
 
   friend void  protobuf_AddDesc_remote_2eproto();
   friend void protobuf_AssignDesc_remote_2eproto();
@@ -1724,6 +1734,28 @@ inline void Execute::set_allocated_pp_source(::std::string* pp_source) {
     clear_has_pp_source();
     pp_source_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   }
+}
+
+// optional uint32 user_id = 6;
+inline bool Execute::has_user_id() const {
+  return (_has_bits_[0] & 0x00000020u) != 0;
+}
+inline void Execute::set_has_user_id() {
+  _has_bits_[0] |= 0x00000020u;
+}
+inline void Execute::clear_has_user_id() {
+  _has_bits_[0] &= ~0x00000020u;
+}
+inline void Execute::clear_user_id() {
+  user_id_ = 0u;
+  clear_has_user_id();
+}
+inline ::google::protobuf::uint32 Execute::user_id() const {
+  return user_id_;
+}
+inline void Execute::set_user_id(::google::protobuf::uint32 value) {
+  set_has_user_id();
+  user_id_ = value;
 }
 
 // -------------------------------------------------------------------

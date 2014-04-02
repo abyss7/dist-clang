@@ -120,12 +120,13 @@ void protobuf_AssignDesc_remote_2eproto() {
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(Flags));
   Execute_descriptor_ = file->message_type(4);
-  static const int Execute_offsets_[5] = {
+  static const int Execute_offsets_[6] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Execute, remote_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Execute, cc_flags_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Execute, pp_flags_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Execute, current_dir_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Execute, pp_source_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Execute, user_id_),
   };
   Execute_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
@@ -219,16 +220,16 @@ void protobuf_AddDesc_remote_2eproto() {
     "Flags\022,\n\010compiler\030\001 \002(\0132\032.dist_clang.pro"
     "to.Compiler\022\016\n\006output\030\002 \001(\t\022\r\n\005input\030\003 \001"
     "(\t\022\r\n\005other\030\004 \003(\t\022\023\n\013dependenies\030\005 \003(\t\022\020"
-    "\n\010language\030\006 \001(\t\022\022\n\nnon_cached\030\007 \003(\t\"\342\001\n"
+    "\n\010language\030\006 \001(\t\022\022\n\nnon_cached\030\007 \003(\t\"\363\001\n"
     "\007Execute\022\016\n\006remote\030\001 \002(\010\022)\n\010cc_flags\030\002 \002"
     "(\0132\027.dist_clang.proto.Flags\022)\n\010pp_flags\030"
     "\003 \001(\0132\027.dist_clang.proto.Flags\022\023\n\013curren"
-    "t_dir\030\004 \001(\t\022\021\n\tpp_source\030\005 \001(\t2I\n\textens"
-    "ion\022\033.dist_clang.proto.Universal\030\003 \001(\0132\031"
-    ".dist_clang.proto.Execute\"k\n\014RemoteResul"
-    "t\022\013\n\003obj\030\001 \002(\0142N\n\textension\022\033.dist_clang"
-    ".proto.Universal\030\004 \001(\0132\036.dist_clang.prot"
-    "o.RemoteResult", 974);
+    "t_dir\030\004 \001(\t\022\021\n\tpp_source\030\005 \001(\t\022\017\n\007user_i"
+    "d\030\006 \001(\r2I\n\textension\022\033.dist_clang.proto."
+    "Universal\030\003 \001(\0132\031.dist_clang.proto.Execu"
+    "te\"k\n\014RemoteResult\022\013\n\003obj\030\001 \002(\0142N\n\texten"
+    "sion\022\033.dist_clang.proto.Universal\030\004 \001(\0132"
+    "\036.dist_clang.proto.RemoteResult", 991);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "remote.proto", &protobuf_RegisterTypes);
   Universal::default_instance_ = new Universal();
@@ -1632,6 +1633,7 @@ const int Execute::kCcFlagsFieldNumber;
 const int Execute::kPpFlagsFieldNumber;
 const int Execute::kCurrentDirFieldNumber;
 const int Execute::kPpSourceFieldNumber;
+const int Execute::kUserIdFieldNumber;
 #endif  // !_MSC_VER
 
 #ifndef _MSC_VER
@@ -1663,6 +1665,7 @@ void Execute::SharedCtor() {
   pp_flags_ = NULL;
   current_dir_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   pp_source_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  user_id_ = 0u;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -1723,6 +1726,7 @@ void Execute::Clear() {
         pp_source_->clear();
       }
     }
+    user_id_ = 0u;
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   mutable_unknown_fields()->Clear();
@@ -1807,6 +1811,22 @@ bool Execute::MergePartialFromCodedStream(
         } else {
           goto handle_uninterpreted;
         }
+        if (input->ExpectTag(48)) goto parse_user_id;
+        break;
+      }
+
+      // optional uint32 user_id = 6;
+      case 6: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
+         parse_user_id:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
+                 input, &user_id_)));
+          set_has_user_id();
+        } else {
+          goto handle_uninterpreted;
+        }
         if (input->ExpectAtEnd()) return true;
         break;
       }
@@ -1864,6 +1884,11 @@ void Execute::SerializeWithCachedSizes(
       5, this->pp_source(), output);
   }
 
+  // optional uint32 user_id = 6;
+  if (has_user_id()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(6, this->user_id(), output);
+  }
+
   if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
@@ -1911,6 +1936,11 @@ void Execute::SerializeWithCachedSizes(
         5, this->pp_source(), target);
   }
 
+  // optional uint32 user_id = 6;
+  if (has_user_id()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(6, this->user_id(), target);
+  }
+
   if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
@@ -1955,6 +1985,13 @@ int Execute::ByteSize() const {
           this->pp_source());
     }
 
+    // optional uint32 user_id = 6;
+    if (has_user_id()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt32Size(
+          this->user_id());
+    }
+
   }
   if (!unknown_fields().empty()) {
     total_size +=
@@ -1997,6 +2034,9 @@ void Execute::MergeFrom(const Execute& from) {
     if (from.has_pp_source()) {
       set_pp_source(from.pp_source());
     }
+    if (from.has_user_id()) {
+      set_user_id(from.user_id());
+    }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
@@ -2032,6 +2072,7 @@ void Execute::Swap(Execute* other) {
     std::swap(pp_flags_, other->pp_flags_);
     std::swap(current_dir_, other->current_dir_);
     std::swap(pp_source_, other->pp_source_);
+    std::swap(user_id_, other->user_id_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);

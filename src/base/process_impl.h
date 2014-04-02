@@ -31,7 +31,8 @@ class ProcessImpl: public Process {
     };
 
     explicit ProcessImpl(const std::string& exec_path,
-                         const std::string& cwd_path = std::string());
+                         const std::string& cwd_path = std::string(),
+                         uint32_t uid = SAME_UID);
 
     bool RunChild(int (&out_pipe)[2], int (&err_pipe)[2], int* in_pipe);
     void kill(int pid);

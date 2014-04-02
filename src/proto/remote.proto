@@ -56,6 +56,7 @@ message Execute {
   optional Flags pp_flags     = 3;  // Flags to run preprocessor.
   optional string current_dir = 4;  // Required for local execution.
   optional string pp_source   = 5;  // Required for remote execution.
+  optional uint32 user_id     = 6;  // Owner of local objects.
 
   extend Universal {
     optional Execute extension = 3;

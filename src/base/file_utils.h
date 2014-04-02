@@ -71,5 +71,14 @@ inline bool RemoveDirectory(const std::string& path) {
   return !rmdir(path.c_str());
 }
 
+inline bool ChangeOwner(const std::string& path, uint32_t uid,
+                        std::string* error = nullptr) {
+  if (lchown(path.c_str(), uid, getgid()) == -1) {
+    GetLastError(error);
+    return false;
+  }
+  return true;
+}
+
 }  // namespace base
 }  // namespace dist_clang

@@ -5,15 +5,17 @@ namespace base {
 
 std::unique_ptr<Process> TestProcess::Factory::Create(
     const std::string& exec_path,
-    const std::string& cwd_path) {
-  auto new_t = new TestProcess(exec_path, cwd_path);
+    const std::string& cwd_path,
+    uint32_t uid) {
+  auto new_t = new TestProcess(exec_path, cwd_path, uid);
   on_create_(new_t);
   return std::unique_ptr<Process>(new_t);
 }
 
 TestProcess::TestProcess(const std::string &exec_path,
-                         const std::string &cwd_path)
-  : Process(exec_path, cwd_path) {
+                         const std::string &cwd_path,
+                         uint32_t uid)
+  : Process(exec_path, cwd_path, uid) {
 }
 
 bool TestProcess::Run(unsigned sec_timeout, std::string *error) {

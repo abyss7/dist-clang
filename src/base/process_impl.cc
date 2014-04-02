@@ -30,8 +30,9 @@ net::fd_t ProcessImpl::ScopedDescriptor::Release() {
 }
 
 ProcessImpl::ProcessImpl(const std::string& exec_path,
-                         const std::string& cwd_path)
-  : Process(exec_path, cwd_path), killed_(false) {
+                         const std::string& cwd_path,
+                         uint32_t uid)
+  : Process(exec_path, cwd_path, uid), killed_(false) {
 }
 
 bool ProcessImpl::RunChild(int (&out_pipe)[2], int (&err_pipe)[2],
@@ -54,6 +55,11 @@ bool ProcessImpl::RunChild(int (&out_pipe)[2], int (&err_pipe)[2],
 
   if (!cwd_path_.empty() && !ChangeCurrentDir(cwd_path_)) {
     std::cerr << "Can't change current directory to " + cwd_path_ << std::endl;
+    exit(1);
+  }
+
+  if (uid_ != SAME_UID && setuid(uid_) == -1) {
+    std::cerr << "Can't set user ID to " + std::to_string(uid_) << std::endl;
     exit(1);
   }
 

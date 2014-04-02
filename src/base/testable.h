@@ -14,17 +14,17 @@ class Testable {
       public:
         virtual ~Factory() {}
 
-        virtual std::unique_ptr<T> Create(const Args& ...) = 0;
+        virtual std::unique_ptr<T> Create(Args ...) = 0;
     };
 
     class DefaultFactory: public Factory {
       public:
-        virtual std::unique_ptr<T> Create(const Args& ... args) override {
+        virtual std::unique_ptr<T> Create(Args ... args) override {
           return std::unique_ptr<T>(new Default(args ...));
         }
     };
 
-    static std::unique_ptr<T> Create(const Args& ... args) {
+    static std::unique_ptr<T> Create(Args ... args) {
       if (!factory_()) {
         return typename std::unique_ptr<T>();
       }

@@ -24,13 +24,15 @@ class Process;
 class ProcessImpl;
 using ProcessPtr = std::unique_ptr<Process>;
 
-class Process: public Testable<Process, ProcessImpl,
-                               const std::string&, const std::string&> {
+class Process:
+    public Testable<Process, ProcessImpl,
+                    const std::string&, const std::string&, uint32_t> {
   public:
-    enum { UNLIMITED = 0 };
+    enum { UNLIMITED = 0, SAME_UID = 0 };
 
     explicit Process(const std::string& exec_path,
-                     const std::string& cwd_path = std::string());
+                     const std::string& cwd_path = std::string(),
+                     uint32_t uid = SAME_UID);
     virtual ~Process() {}
 
     Process& AppendArg(const std::string& arg);
@@ -49,6 +51,7 @@ class Process: public Testable<Process, ProcessImpl,
     const std::string exec_path_, cwd_path_;
     std::list<std::string> args_;
     std::string stdout_, stderr_;
+    const uint32_t uid_;
 
   private:
     FRIEND_TEST(client::ClientTest, NoInputFile);

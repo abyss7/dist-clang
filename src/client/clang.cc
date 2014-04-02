@@ -44,6 +44,7 @@ bool DoMain(int argc, const char* const argv[], const std::string& socket_path,
 
   std::unique_ptr<proto::Execute> message(new proto::Execute);
   message->set_remote(false);
+  message->set_user_id(getuid());
 
   std::string current_dir = base::GetCurrentDir();
   if (current_dir.empty()) {
@@ -55,7 +56,8 @@ bool DoMain(int argc, const char* const argv[], const std::string& socket_path,
     auto flags = message->mutable_cc_flags();
     auto version = flags->mutable_compiler()->mutable_version();
     ClangFlagSet::StringList args;
-    base::ProcessPtr process = base::Process::Create(clang_path, std::string());
+    base::ProcessPtr process = base::Process::Create(clang_path, std::string(),
+                                                     base::Process::SAME_UID);
     process->AppendArg("-###").AppendArg(argv + 1, argv + argc);
     if (!process->Run(10) ||
         !ClangFlagSet::ParseClangOutput(process->stderr(), version, args) ||
@@ -68,7 +70,8 @@ bool DoMain(int argc, const char* const argv[], const std::string& socket_path,
     auto flags = message->mutable_pp_flags();
     auto version = flags->mutable_compiler()->mutable_version();
     ClangFlagSet::StringList args;
-    base::ProcessPtr process = base::Process::Create(clang_path, std::string());
+    base::ProcessPtr process = base::Process::Create(clang_path, std::string(),
+                                                     base::Process::SAME_UID);
     process->AppendArg("-###").AppendArg("-E").AppendArg(argv + 1, argv + argc);
     if (!process->Run(10) ||
         !ClangFlagSet::ParseClangOutput(process->stderr(), version, args) ||

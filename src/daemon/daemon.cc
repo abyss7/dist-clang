@@ -329,9 +329,37 @@ bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
 
 // static
 base::ProcessPtr Daemon::CreateProcess(const proto::Flags& flags,
+                                       uint32_t uid,
                                        const std::string& cwd_path) {
   base::ProcessPtr process =
-      base::Process::Create(flags.compiler().path(), cwd_path);
+      base::Process::Create(flags.compiler().path(), cwd_path, uid);
+
+  // |flags.other()| always must go first, since it contains the "-cc1" flag.
+  process->AppendArg(flags.other().begin(), flags.other().end());
+  process->AppendArg(flags.non_cached().begin(), flags.non_cached().end());
+  process->AppendArg(flags.dependenies().begin(), flags.dependenies().end());
+  for (const auto& plugin: flags.compiler().plugins()) {
+    process->AppendArg("-load").AppendArg(plugin.path());
+  }
+  if (flags.has_language()) {
+    process->AppendArg("-x").AppendArg(flags.language());
+  }
+  if (flags.has_output()) {
+    process->AppendArg("-o").AppendArg(flags.output());
+  }
+  if (flags.has_input()) {
+    process->AppendArg(flags.input());
+  }
+
+  return std::move(process);
+}
+
+// static
+base::ProcessPtr Daemon::CreateProcess(const proto::Flags& flags,
+                                       const std::string& cwd_path) {
+  base::ProcessPtr process =
+      base::Process::Create(flags.compiler().path(), cwd_path,
+                            base::Process::SAME_UID);
 
   // |flags.other()| always must go first, since it contains the "-cc1" flag.
   process->AppendArg(flags.other().begin(), flags.other().end());
@@ -390,6 +418,13 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
         std::string output_path =
             message->current_dir() + "/" + message->cc_flags().output();
         if (base::CopyFile(cache_entry.first, output_path, true)) {
+          std::string error;
+          if (message->has_user_id() &&
+              !base::ChangeOwner(output_path, message->user_id(), &error)) {
+            LOG(ERROR) << "Failed to change owner for " << output_path << ": "
+                       << error;
+          }
+
           proto::Status status;
           status.set_code(proto::Status::OK);
           status.set_description(cache_entry.second);
@@ -534,7 +569,9 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
       }
 
       std::string error;
-      base::ProcessPtr process = CreateProcess(task->second->cc_flags(),
+      uint32_t uid = task->second->has_user_id() ? task->second->user_id() :
+                                                 base::Process::SAME_UID;
+      base::ProcessPtr process = CreateProcess(task->second->cc_flags(), uid,
                                                task->second->current_dir());
       if (!process->Run(base::Process::UNLIMITED, &error)) {
         status.set_code(proto::Status::EXECUTION);

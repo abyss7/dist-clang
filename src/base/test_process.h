@@ -20,7 +20,8 @@ class TestProcess: public Process {
 
         virtual std::unique_ptr<Process> Create(
             const std::string& exec_path,
-            const std::string& cwd_path) override;
+            const std::string& cwd_path,
+            uint32_t uid) override;
 
         inline void CallOnCreate(OnCreateCallback callback);
 
@@ -36,7 +37,8 @@ class TestProcess: public Process {
     inline void CountRuns(uint* counter);
 
   private:
-    TestProcess(const std::string& exec_path, const std::string& cwd_path);
+    TestProcess(const std::string& exec_path, const std::string& cwd_path,
+                uint32_t uid);
 
     OnRunCallback on_run_ = EmptyLambda<bool>(false);
     uint* run_attempts_ = nullptr;
