@@ -83,7 +83,7 @@ set_defaults("shared_library") {
 
 set_defaults("source_set") {
   configs = default_configs
-  deps = []
+  deps = default_deps
 }
 
 set_defaults("static_library") {

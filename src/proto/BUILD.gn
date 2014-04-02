@@ -13,6 +13,8 @@ shared_library("proto") {
     "stats.pb.h",
     "stats.proto",
   ]
+
+  configs -= [ "//build/config:no_rtti" ]
   
   deps += [
     "//third_party/protobuf:protobuf",

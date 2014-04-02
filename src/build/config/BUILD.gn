@@ -13,7 +13,11 @@ config("base") {
   ldflags = [
     "-nodefaultlibs",
   ]
-  libs = [ "pthread" ]
+  libs = [
+    "c",
+    "m",
+    "pthread",
+  ]
 }
 
 config("default_library") {
@@ -52,21 +56,13 @@ config("release") {
 }
 
 config("no_exceptions") {
-  cflags = [
-    "-fno-exceptions",
-  ]
-  ldflags = [
-    "-fno-exceptions",
-  ]
+  cflags = [ "-fno-exceptions" ]
+  ldflags = [ "-fno-exceptions" ]
 }
 
 config("no_rtti") {
-  cflags = [
-    "-fno-rtti",
-  ]
-  ldflags = [
-    "-fno-rtti",
-  ]
+  cflags = [ "-fno-rtti" ]
+  ldflags = [ "-fno-rtti" ]
 }
 
 config("profiler") {

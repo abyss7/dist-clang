@@ -4,6 +4,14 @@ config("includes") {
   include_dirs = [ "src" ]
 }
 
+config("no_warnings") {
+  cflags = [
+    "-Wno-sign-compare",
+    "-Wno-unused-function",
+    "-Wno-unused-variable",
+  ]
+}
+
 headers("protobuf_headers") {
   sources = [
     # "src/google/protobuf/compiler/code_generator.h",
@@ -81,9 +89,8 @@ static_library("protobuf_lite") {
     "src/google/protobuf/wire_format_lite.cc",
   ]
 
-  cflags = [ "-Wno-sign-compare" ]
-
   configs -= [ "//build/config:no_rtti" ]
+  configs += [ ":no_warnings" ]
 
   deps += [ ":protobuf_headers" ]
 }
@@ -115,14 +122,10 @@ shared_library("protobuf") {
     "src/google/protobuf/wire_format.cc",
   ]
 
-  cflags = [
-    "-Wno-sign-compare",
-    "-Wno-unused-function",
-    "-Wno-unused-variable",
-  ]
   libs = [ "z" ]
 
   configs -= [ "//build/config:no_rtti" ]
+  configs += [ ":no_warnings" ]
 
   deps += [ ":protobuf_lite" ]
 }
