@@ -37,6 +37,7 @@
             {
               'destination': '<(PRODUCT_DIR)/deb/usr/bin/dist-clang',
               'files': [
+                'clangd_wrapper',
                 '<(PRODUCT_DIR)/clang',
                 '<(PRODUCT_DIR)/clangd',
               ],
@@ -56,8 +57,26 @@
                 '<(PRODUCT_DIR)/lib/libproto.so',
               ],
             },
+            {
+              'destination': '<(PRODUCT_DIR)/deb/etc',
+              'files': [
+                'clangd.conf',
+              ],
+            },
           ],
           'actions': [
+            {
+              'action_name': 'copy_init_d',
+              'inputs': [
+                'clangd_init_d',
+              ],
+              'outputs': [
+                '<(PRODUCT_DIR)/deb/etc/init.d/clangd',
+              ],
+              'action': [
+                'cp', '<@(_inputs)', '<@(_outputs)',
+              ],
+            },
             {
               'action_name': 'clang++_symlink',
               'inputs': [
@@ -83,15 +102,18 @@
               'action': [
                 'env', 'VERSION=<(version)',
                 'sh', 'expand_env_vars.sh', 'deb_control.template',
-                '<(PRODUCT_DIR)/deb/DEBIAN/control',
+                '<@(_outputs)',
               ],
             },
             {
               'action_name': 'create_deb_package',
               'inputs': [
+                '<(PRODUCT_DIR)/deb/etc/clangd.conf',
+                '<(PRODUCT_DIR)/deb/etc/init.d/clangd',
                 '<(PRODUCT_DIR)/deb/usr/bin/dist-clang/clang',
                 '<(PRODUCT_DIR)/deb/usr/bin/dist-clang/clang++',
                 '<(PRODUCT_DIR)/deb/usr/bin/dist-clang/clangd',
+                '<(PRODUCT_DIR)/deb/usr/bin/dist-clang/clangd_wrapper',
                 '<(PRODUCT_DIR)/deb/usr/lib/dist-clang/libbase.so',
                 '<(PRODUCT_DIR)/deb/usr/lib/dist-clang/libc++.so',
                 '<(PRODUCT_DIR)/deb/usr/lib/dist-clang/libc++abi.so',
