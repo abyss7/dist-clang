@@ -37,7 +37,7 @@
             {
               'destination': '<(PRODUCT_DIR)/deb/usr/bin/dist-clang',
               'files': [
-                'clangd_wrapper',
+                '<(DEPTH)/../dist/clangd_wrapper',
                 '<(PRODUCT_DIR)/clang',
                 '<(PRODUCT_DIR)/clangd',
               ],
@@ -60,7 +60,7 @@
             {
               'destination': '<(PRODUCT_DIR)/deb/etc',
               'files': [
-                'clangd.conf',
+                '<(DEPTH)/../dist/clangd.conf',
               ],
             },
           ],
@@ -68,7 +68,7 @@
             {
               'action_name': 'copy_init_d',
               'inputs': [
-                'clangd_init_d',
+                '<(DEPTH)/../dist/clangd_init_d',
               ],
               'outputs': [
                 '<(PRODUCT_DIR)/deb/etc/init.d/clangd',
