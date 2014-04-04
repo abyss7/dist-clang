@@ -491,6 +491,13 @@ class Configuration : public ::google::protobuf::Message {
   inline ::google::protobuf::uint64 cache_size() const;
   inline void set_cache_size(::google::protobuf::uint64 value);
 
+  // optional uint32 user_id = 10;
+  inline bool has_user_id() const;
+  inline void clear_user_id();
+  static const int kUserIdFieldNumber = 10;
+  inline ::google::protobuf::uint32 user_id() const;
+  inline void set_user_id(::google::protobuf::uint32 value);
+
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Configuration)
  private:
   inline void set_has_socket_path();
@@ -507,6 +514,8 @@ class Configuration : public ::google::protobuf::Message {
   inline void clear_has_verbosity();
   inline void set_has_cache_size();
   inline void clear_has_cache_size();
+  inline void set_has_user_id();
+  inline void clear_has_user_id();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -515,13 +524,14 @@ class Configuration : public ::google::protobuf::Message {
   ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Host > remotes_;
   ::dist_clang::proto::Host* local_;
   ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Compiler > versions_;
+  ::google::protobuf::uint32 pool_capacity_;
+  ::google::protobuf::uint32 user_id_;
   ::dist_clang::proto::Host* statistic_;
   ::dist_clang::proto::Verbosity* verbosity_;
   ::google::protobuf::uint64 cache_size_;
-  ::google::protobuf::uint32 pool_capacity_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(9 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(10 + 31) / 32];
 
   friend void  protobuf_AddDesc_config_2eproto();
   friend void protobuf_AssignDesc_config_2eproto();
@@ -1122,6 +1132,28 @@ inline ::google::protobuf::uint64 Configuration::cache_size() const {
 inline void Configuration::set_cache_size(::google::protobuf::uint64 value) {
   set_has_cache_size();
   cache_size_ = value;
+}
+
+// optional uint32 user_id = 10;
+inline bool Configuration::has_user_id() const {
+  return (_has_bits_[0] & 0x00000200u) != 0;
+}
+inline void Configuration::set_has_user_id() {
+  _has_bits_[0] |= 0x00000200u;
+}
+inline void Configuration::clear_has_user_id() {
+  _has_bits_[0] &= ~0x00000200u;
+}
+inline void Configuration::clear_user_id() {
+  user_id_ = 0u;
+  clear_has_user_id();
+}
+inline ::google::protobuf::uint32 Configuration::user_id() const {
+  return user_id_;
+}
+inline void Configuration::set_user_id(::google::protobuf::uint32 value) {
+  set_has_user_id();
+  user_id_ = value;
 }
 
 

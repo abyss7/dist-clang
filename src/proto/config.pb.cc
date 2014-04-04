@@ -94,7 +94,7 @@ void protobuf_AssignDesc_config_2eproto() {
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(Verbosity_Range));
   Configuration_descriptor_ = file->message_type(2);
-  static const int Configuration_offsets_[9] = {
+  static const int Configuration_offsets_[10] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, socket_path_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, pool_capacity_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, cache_path_),
@@ -104,6 +104,7 @@ void protobuf_AssignDesc_config_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, statistic_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, verbosity_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, cache_size_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, user_id_),
   };
   Configuration_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
@@ -165,7 +166,7 @@ void protobuf_AddDesc_config_2eproto() {
     " \001(\010:\005false\"|\n\tVerbosity\022\026\n\nerror_mark\030\001"
     " \001(\r:\00220\0221\n\006levels\030\002 \003(\0132!.dist_clang.pr"
     "oto.Verbosity.Range\032$\n\005Range\022\r\n\005right\030\001 "
-    "\002(\r\022\014\n\004left\030\002 \001(\r\"\303\002\n\rConfiguration\022\023\n\013s"
+    "\002(\r\022\014\n\004left\030\002 \001(\r\"\324\002\n\rConfiguration\022\023\n\013s"
     "ocket_path\030\001 \001(\t\022\031\n\rpool_capacity\030\002 \001(\r:"
     "\00216\022\022\n\ncache_path\030\003 \001(\t\022\'\n\007remotes\030\004 \003(\013"
     "2\026.dist_clang.proto.Host\022%\n\005local\030\005 \001(\0132"
@@ -173,7 +174,7 @@ void protobuf_AddDesc_config_2eproto() {
     "\0132\032.dist_clang.proto.Compiler\022)\n\tstatist"
     "ic\030\007 \001(\0132\026.dist_clang.proto.Host\022.\n\tverb"
     "osity\030\010 \001(\0132\033.dist_clang.proto.Verbosity"
-    "\022\025\n\ncache_size\030\t \001(\004:\0010", 583);
+    "\022\025\n\ncache_size\030\t \001(\004:\0010\022\017\n\007user_id\030\n \001(\r", 600);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "config.proto", &protobuf_RegisterTypes);
   Host::default_instance_ = new Host();
@@ -1050,6 +1051,7 @@ const int Configuration::kVersionsFieldNumber;
 const int Configuration::kStatisticFieldNumber;
 const int Configuration::kVerbosityFieldNumber;
 const int Configuration::kCacheSizeFieldNumber;
+const int Configuration::kUserIdFieldNumber;
 #endif  // !_MSC_VER
 
 Configuration::Configuration()
@@ -1078,6 +1080,7 @@ void Configuration::SharedCtor() {
   statistic_ = NULL;
   verbosity_ = NULL;
   cache_size_ = GOOGLE_ULONGLONG(0);
+  user_id_ = 0u;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -1145,6 +1148,7 @@ void Configuration::Clear() {
   }
   if (_has_bits_[8 / 32] & (0xffu << (8 % 32))) {
     cache_size_ = GOOGLE_ULONGLONG(0);
+    user_id_ = 0u;
   }
   remotes_.Clear();
   versions_.Clear();
@@ -1291,6 +1295,22 @@ bool Configuration::MergePartialFromCodedStream(
         } else {
           goto handle_uninterpreted;
         }
+        if (input->ExpectTag(80)) goto parse_user_id;
+        break;
+      }
+
+      // optional uint32 user_id = 10;
+      case 10: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
+         parse_user_id:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
+                 input, &user_id_)));
+          set_has_user_id();
+        } else {
+          goto handle_uninterpreted;
+        }
         if (input->ExpectAtEnd()) return true;
         break;
       }
@@ -1371,6 +1391,11 @@ void Configuration::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteUInt64(9, this->cache_size(), output);
   }
 
+  // optional uint32 user_id = 10;
+  if (has_user_id()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(10, this->user_id(), output);
+  }
+
   if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
@@ -1444,6 +1469,11 @@ void Configuration::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(9, this->cache_size(), target);
   }
 
+  // optional uint32 user_id = 10;
+  if (has_user_id()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(10, this->user_id(), target);
+  }
+
   if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
@@ -1504,6 +1534,13 @@ int Configuration::ByteSize() const {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::UInt64Size(
           this->cache_size());
+    }
+
+    // optional uint32 user_id = 10;
+    if (has_user_id()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt32Size(
+          this->user_id());
     }
 
   }
@@ -1574,6 +1611,9 @@ void Configuration::MergeFrom(const Configuration& from) {
     if (from.has_cache_size()) {
       set_cache_size(from.cache_size());
     }
+    if (from.has_user_id()) {
+      set_user_id(from.user_id());
+    }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
@@ -1621,6 +1661,7 @@ void Configuration::Swap(Configuration* other) {
     std::swap(statistic_, other->statistic_);
     std::swap(verbosity_, other->verbosity_);
     std::swap(cache_size_, other->cache_size_);
+    std::swap(user_id_, other->user_id_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);

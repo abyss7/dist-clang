@@ -32,4 +32,5 @@ message Configuration {
   optional Host statistic       = 7;
   optional Verbosity verbosity  = 8;
   optional uint64 cache_size    = 9 [default=0];  // 0 - is unlimited.
+  optional uint32 user_id       = 10;
 }

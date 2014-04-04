@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include <signal.h>
+#include <unistd.h>
 
 #include "base/using_log.h"
 
@@ -16,6 +17,12 @@ int main(int argc, char* argv[]) {
 
   daemon::Configuration configuration(argc, argv);
   daemon::Daemon daemon;
+
+  if (configuration.config().has_user_id() &&
+      setuid(configuration.config().user_id()) == -1) {
+    LOG(FATAL) << "Can't run as another user with id "
+               << configuration.config().user_id();
+  }
 
   if (!daemon.Initialize(configuration)) {
     LOG(FATAL) << "Daemon failed to initialize.";
