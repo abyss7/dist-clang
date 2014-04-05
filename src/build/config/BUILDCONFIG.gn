@@ -27,7 +27,6 @@ default_configs = [ "//build/config:base" ]
 
 if (config_for_tests) {
   default_configs += [
-    "//build/config:test",
     "//build/config:debug",
   ]
 }

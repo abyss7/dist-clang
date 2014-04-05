@@ -89,13 +89,15 @@ static_library("protobuf_lite") {
     "src/google/protobuf/wire_format_lite.cc",
   ]
 
-  configs -= [ "//build/config:no_rtti" ]
+  if (!config_for_tests) {
+    configs -= [ "//build/config:no_rtti" ]
+  }
   configs += [ ":no_warnings" ]
 
   deps += [ ":protobuf_headers" ]
 }
 
-shared_library("protobuf") {
+static_library("protobuf") {
   sources = [
     # "src/google/protobuf/compiler/importer.cc",
     # "src/google/protobuf/compiler/parser.cc",
@@ -124,7 +126,9 @@ shared_library("protobuf") {
 
   libs = [ "z" ]
 
-  configs -= [ "//build/config:no_rtti" ]
+  if (!config_for_tests) {
+    configs -= [ "//build/config:no_rtti" ]
+  }
   configs += [ ":no_warnings" ]
 
   deps += [ ":protobuf_lite" ]

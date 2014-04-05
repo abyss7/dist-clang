@@ -14,8 +14,10 @@ shared_library("proto") {
     "stats.proto",
   ]
 
-  configs -= [ "//build/config:no_rtti" ]
-  
+  if (!config_for_tests) {
+    configs -= [ "//build/config:no_rtti" ]
+  }
+
   deps += [
     "//third_party/protobuf:protobuf",
   ]

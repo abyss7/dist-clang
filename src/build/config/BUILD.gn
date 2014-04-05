@@ -36,8 +36,8 @@ config("debug") {
     "-g",
     "-O0",
   ]
-  defines = [
-    "_LIBCPP_DEBUG=1",
+  ldflags = [
+    "-rpath", rebase_path("$root_build_dir/lib"),
   ]
 }
 
@@ -50,8 +50,7 @@ config("release") {
     "NDEBUG",
   ]
   ldflags = [
-    # TODO: check that rpath is correct.
-    "-rpath", "/usr/\$LIB/dist-clang",
+    "-rpath", "/usr/lib/dist-clang",
   ]
 }
 

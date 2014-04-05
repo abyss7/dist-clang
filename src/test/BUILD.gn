@@ -15,8 +15,8 @@ test("unit_tests") {
     "//daemon/daemon_test.cc",
     "//daemon/file_cache_test.cc",
     "//net/connection_linux_test.cc",  # TODO: make this test cross-platform.
-    "//net/epoll_event_loop_linux_test.cc",
-    "//net/kqueue_event_loop_mac_test.cc",
+    "//net/event_loop_linux_test.cc",
+    "//net/event_loop_mac_test.cc",
     "//net/test_connection.cc",
     "//net/test_connection.h",
     "//net/test_network_service.cc",
