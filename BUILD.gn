@@ -10,3 +10,50 @@ group("Tests") {
     "//src/test:unit_tests",
   ]
 }
+
+if (os == "linux") {
+  action("deb_package") {
+    script = "//build/deb_package.py"
+    sources = [
+      "//build/deb_control.template",
+      "//build/expand_env_vars.sh",
+      "//install/clangd.conf",
+      "//install/clangd_init_d",
+      "//install/clangd_wrapper",
+      "$root_out_dir/clang",
+      "$root_out_dir/clangd",
+      "$root_out_dir/lib/libbase.so",
+      "$root_out_dir/lib/libc++.so",
+      "$root_out_dir/lib/libc++abi.so",
+      "$root_out_dir/lib/libconfiguration.so",
+      "$root_out_dir/lib/libconstants.so",
+      "$root_out_dir/lib/libhash.so",
+      "$root_out_dir/lib/liblogging.so",
+      "$root_out_dir/lib/libnet.so",
+      "$root_out_dir/lib/libproto.so",
+    ]
+    outputs = [
+      "$root_out_dir/deb/etc/clangd.conf",
+      "$root_out_dir/deb/etc/init.d/clangd",
+      "$root_out_dir/deb/usr/bin/dist-clang/clang",
+      "$root_out_dir/deb/usr/bin/dist-clang/clang++",
+      "$root_out_dir/deb/usr/bin/dist-clang/clangd",
+      "$root_out_dir/deb/usr/bin/dist-clang/clangd_wrapper",
+      "$root_out_dir/deb/usr/lib/dist-clang/libbase.so",
+      "$root_out_dir/deb/usr/lib/dist-clang/libc++.so",
+      "$root_out_dir/deb/usr/lib/dist-clang/libc++abi.so",
+      "$root_out_dir/deb/usr/lib/dist-clang/libconfiguration.so",
+      "$root_out_dir/deb/usr/lib/dist-clang/libconstants.so",
+      "$root_out_dir/deb/usr/lib/dist-clang/libhash.so",
+      "$root_out_dir/deb/usr/lib/dist-clang/liblogging.so",
+      "$root_out_dir/deb/usr/lib/dist-clang/libnet.so",
+      "$root_out_dir/deb/usr/lib/dist-clang/libproto.so",
+      "$root_out_dir/deb/DEBIAN/control",
+      "$root_out_dir/dist-clang_${version}_amd64.deb",
+    ]
+    args = [
+      rebase_path("$root_out_dir"),
+      "$version",
+    ]
+  }
+}
