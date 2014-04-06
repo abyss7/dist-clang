@@ -1,3 +1,0 @@
-scm: svn
-url: http://gyp.googlecode.com/svn/trunk/
-rev: 1780

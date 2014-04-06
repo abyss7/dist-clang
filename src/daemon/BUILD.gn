@@ -11,12 +11,12 @@ source_set("daemon") {
     "statistic.h",
   ]
   deps += [
-    "//base:base",
-    "//base:constants",
-    "//base:hash",
-    "//base:logging",
-    "//net:net",
-    "//proto:proto",
+    "//src/base:base",
+    "//src/base:constants",
+    "//src/base:hash",
+    "//src/base:logging",
+    "//src/net:net",
+    "//src/proto:proto",
     ":configuration",
     ":file_cache",
   ]
@@ -31,10 +31,10 @@ shared_library("configuration") {
   configs += [ "//build/config:version" ]
 
   deps += [
-    "//base:constants",
-    "//base:logging",
-    "//proto:proto",
-    "//third_party/tclap:tclap",
+    "//src/base:constants",
+    "//src/base:logging",
+    "//src/proto:proto",
+    "//src/third_party/tclap:tclap",
   ]
 }
 
@@ -44,6 +44,6 @@ source_set("file_cache") {
     "file_cache.h",
   ]
   deps += [
-    "//base:base",
+    "//src/base:base",
   ]
 }

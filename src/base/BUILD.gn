@@ -21,7 +21,7 @@ shared_library("base") {
   deps += [
     ":base_headers",
     ":logging",
-    "//third_party/gtest:gtest_headers",
+    "//src/third_party/gtest:gtest_headers",
   ]
 }
 

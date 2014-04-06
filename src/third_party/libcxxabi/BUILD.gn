@@ -55,5 +55,5 @@ shared_library("c++abi") {
   direct_dependent_configs = [ ":includes" ]
 
   deps = []
-  deps += [ "//third_party/libunwind:unwind" ]
+  deps += [ "//src/third_party/libunwind:unwind" ]
 }

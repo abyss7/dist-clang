@@ -1,8 +1,8 @@
 executable("clang") {
   sources = [ "clang_main.cc" ]
   deps += [
-    "//base:constants",
-    "//base:logging",
+    "//src/base:constants",
+    "//src/base:logging",
     ":client",
   ]
 }
@@ -15,9 +15,9 @@ source_set("client") {
     "clang_flag_set.h",
   ]
   deps += [
-    "//base:base",
-    "//base:logging",
-    "//net:net",
-    "//proto:proto",
+    "//src/base:base",
+    "//src/base:logging",
+    "//src/net:net",
+    "//src/proto:proto",
   ]
 }

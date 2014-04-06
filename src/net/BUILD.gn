@@ -23,9 +23,9 @@ shared_library("net") {
   ]
 
   deps += [
-    "//base:base",
-    "//base:logging",
-    "//proto:proto",
-    "//third_party/gtest:gtest_headers",
+    "//src/base:base",
+    "//src/base:logging",
+    "//src/proto:proto",
+    "//src/third_party/gtest:gtest_headers",
   ]
 }

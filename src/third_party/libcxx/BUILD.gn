@@ -130,5 +130,5 @@ shared_library("c++") {
   all_dependent_configs = [ ":includes" ]
 
   deps = []
-  if (os == "linux") { deps += [ "//third_party/libcxxabi:c++abi" ] }
+  if (os == "linux") { deps += [ "//src/third_party/libcxxabi:c++abi" ] }
 }

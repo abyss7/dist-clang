@@ -1,0 +1,12 @@
+group("All") {
+  deps = [
+    "//src/client:clang",
+    "//src/daemon:clangd",
+  ]
+}
+
+group("Tests") {
+  deps = [
+    "//src/test:unit_tests",
+  ]
+}
