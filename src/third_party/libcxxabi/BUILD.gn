@@ -52,7 +52,7 @@ shared_library("c++abi") {
 
   configs = []
   configs += [ ":includes", "//build/config:default_library" ]
-  all_dependent_configs = [ ":includes" ]
+  direct_dependent_configs = [ ":includes" ]
 
   deps = []
   deps += [ "//third_party/libunwind:unwind" ]

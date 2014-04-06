@@ -7,7 +7,7 @@ executable("clang") {
   ]
 }
 
-shared_library("client") {
+source_set("client") {
   sources = [
     "clang.cc",
     "clang.h",

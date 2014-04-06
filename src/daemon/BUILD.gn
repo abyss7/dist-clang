@@ -3,7 +3,7 @@ executable("clangd") {
   deps += [ ":daemon" ]
 }
 
-static_library("daemon") {
+source_set("daemon") {
   sources = [
     "daemon.cc",
     "daemon.h",
@@ -38,7 +38,7 @@ shared_library("configuration") {
   ]
 }
 
-static_library("file_cache") {
+source_set("file_cache") {
   sources = [
     "file_cache.cc",
     "file_cache.h",
@@ -47,4 +47,3 @@ static_library("file_cache") {
     "//base:base",
   ]
 }
-

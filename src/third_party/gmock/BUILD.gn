@@ -19,7 +19,7 @@ headers("gmock_headers") {
     "gmock-spec-builders.h",
   ]
 
-  all_dependent_configs = [ ":includes" ]
+  direct_dependent_configs = [ ":includes" ]
 }
 
 shared_library("gmock") {
