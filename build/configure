@@ -1,0 +1,5 @@
+#!/bin/sh
+
+gn --args="config_for_debug=true $@" gen //out/Debug.gn
+gn --args="$@" gen //out/Release.gn
+gn --args="config_for_tests=true $@" gen //out/Test.gn

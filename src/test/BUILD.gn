@@ -30,7 +30,6 @@ test("unit_tests") {
     "//src/daemon:daemon",
     "//src/daemon:file_cache",
     "//src/net:net",
-    "//src/third_party/gmock:gmock",
     "//src/third_party/gtest:gtest",
   ]
 }

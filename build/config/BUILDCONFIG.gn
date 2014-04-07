@@ -7,7 +7,7 @@ declare_args() {
   use_profiler = false
 
   # Link with the tcmalloc library.
-  use_tcmalloc = true
+  use_tcmalloc = false
 
   # Build for debugging.
   config_for_debug = false

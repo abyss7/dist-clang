@@ -1,3 +1,0 @@
-scm: svn
-url: http://googlemock.googlecode.com/svn/trunk/
-rev: 458
