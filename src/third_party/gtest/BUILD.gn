@@ -1,16 +1,8 @@
-import("//build/config/templates.gni")
-
 config("includes") {
   include_dirs = [ "public" ]
 }
 
-config("defines") {
-  defines = [
-    "GTEST_HAS_TR1_TUPLE=0",
-  ]
-}
-
-headers("gtest_headers") {
+source_set("gtest_headers") {
   sources = [
     "exported/gtest-death-test.h",
     "exported/gtest-message.h",
@@ -45,7 +37,6 @@ shared_library("gtest") {
 
   configs += [
     ":includes",
-    ":defines"
+    "//src/third_party/libcxxabi:includes",
   ]
-  direct_dependent_configs = [ ":defines" ]
 }

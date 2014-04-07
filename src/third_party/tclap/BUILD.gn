@@ -1,12 +1,10 @@
-import("//build/config/templates.gni")
-
 config("exceptions") {
   cflags = [ "-fexceptions" ]
   include_dirs = [ "include" ]
   ldflags = [ "-fexceptions" ]
 }
 
-headers("tclap") {
+source_set("tclap") {
   sources = [
     "include/tclap/Arg.h",
     "include/tclap/ArgException.h",

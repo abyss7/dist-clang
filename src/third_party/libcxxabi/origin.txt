@@ -1,3 +1,0 @@
-scm: svn
-url: http://llvm.org/svn/llvm-project/libcxxabi/trunk/
-rev: 194205

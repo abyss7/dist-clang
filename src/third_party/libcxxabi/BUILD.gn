@@ -1,35 +1,35 @@
 config("includes") {
-  include_dirs = [ "include" ]
+  include_dirs = [ "exported/include" ]
 }
 
-shared_library("c++abi") {
+static_library("c++abi") {
   sources = [
-    "include/cxxabi.h",
-    "include/libunwind.h",
-    "include/mach-o/compact_unwind_encoding.h",
-    "include/unwind.h",
-    "src/abort_message.cpp",
-    "src/abort_message.h",
-    "src/cxa_aux_runtime.cpp",
-    "src/cxa_default_handlers.cpp",
-    "src/cxa_demangle.cpp",
-    "src/cxa_exception.cpp",
-    "src/cxa_exception.hpp",
-    "src/cxa_exception_storage.cpp",
-    "src/cxa_guard.cpp",
-    "src/cxa_handlers.cpp",
-    "src/cxa_handlers.hpp",
-    "src/cxa_new_delete.cpp",
-    "src/cxa_personality.cpp",
-    "src/cxa_unexpected.cpp",
-    "src/cxa_vector.cpp",
-    "src/cxa_virtual.cpp",
-    "src/exception.cpp",
-    "src/fallback_malloc.ipp",
-    "src/private_typeinfo.cpp",
-    "src/private_typeinfo.h",
-    "src/stdexcept.cpp",
-    "src/typeinfo.cpp",
+    "exported/include/cxxabi.h",
+    "exported/include/libunwind.h",
+    "exported/include/mach-o/compact_unwind_encoding.h",
+    "exported/include/unwind.h",
+    "exported/src/abort_message.cpp",
+    "exported/src/abort_message.h",
+    "exported/src/cxa_aux_runtime.cpp",
+    "exported/src/cxa_default_handlers.cpp",
+    "exported/src/cxa_demangle.cpp",
+    "exported/src/cxa_exception.cpp",
+    "exported/src/cxa_exception.hpp",
+    "exported/src/cxa_exception_storage.cpp",
+    "exported/src/cxa_guard.cpp",
+    "exported/src/cxa_handlers.cpp",
+    "exported/src/cxa_handlers.hpp",
+    "exported/src/cxa_new_delete.cpp",
+    "exported/src/cxa_personality.cpp",
+    "exported/src/cxa_unexpected.cpp",
+    "exported/src/cxa_vector.cpp",
+    "exported/src/cxa_virtual.cpp",
+    "exported/src/exception.cpp",
+    "exported/src/fallback_malloc.ipp",
+    "exported/src/private_typeinfo.cpp",
+    "exported/src/private_typeinfo.h",
+    "exported/src/stdexcept.cpp",
+    "exported/src/typeinfo.cpp",
   ]
 
   cflags = [

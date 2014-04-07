@@ -1,5 +1,3 @@
-import("//build/config/templates.gni")
-
 shared_library("base") {
   sources = [
     "file_utils.cc",
@@ -46,9 +44,11 @@ shared_library("logging") {
     "logging.h",
     "using_log.h",
   ]
+
+  deps += [ ":base_headers" ]
 }
 
-headers("base_headers") {
+source_set("base_headers") {
   sources = [
     "assert.h",
     "attributes.h",
@@ -61,4 +61,6 @@ headers("base_headers") {
     "string_utils.h",
     "testable.h",
   ]
+
+  all_dependent_configs = [ "//src/third_party/libcxxabi:includes" ]
 }

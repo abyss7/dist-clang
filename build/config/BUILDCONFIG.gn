@@ -62,10 +62,6 @@ if (use_tcmalloc) {
 default_deps = []
 default_deps += [ "//src/third_party/libcxx:c++" ]
 
-if (os == "linux") {
-  default_deps += [ "//src/third_party/libcxxabi:c++abi" ]
-}
-
 # =============================================================================
 # Set defaults.
 # =============================================================================

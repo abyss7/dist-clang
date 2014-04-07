@@ -28,7 +28,6 @@ os.symlink("clang", os.path.join(bin_dir, "clang++"))
 # Copy libraries
 shutil.copy(os.path.join(product_dir, "lib", "libbase.so"), lib_dir)
 shutil.copy(os.path.join(product_dir, "lib", "libc++.so"), lib_dir)
-shutil.copy(os.path.join(product_dir, "lib", "libc++abi.so"), lib_dir)
 shutil.copy(os.path.join(product_dir, "lib", "libconfiguration.so"), lib_dir)
 shutil.copy(os.path.join(product_dir, "lib", "libconstants.so"), lib_dir)
 shutil.copy(os.path.join(product_dir, "lib", "libhash.so"), lib_dir)

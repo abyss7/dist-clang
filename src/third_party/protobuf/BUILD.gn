@@ -1,5 +1,3 @@
-import("//build/config/templates.gni")
-
 config("includes") {
   include_dirs = [ "src" ]
 }
@@ -12,7 +10,7 @@ config("no_warnings") {
   ]
 }
 
-headers("protobuf_headers") {
+source_set("protobuf_headers") {
   sources = [
     # "src/google/protobuf/compiler/code_generator.h",
     # "src/google/protobuf/compiler/command_line_interface.h",
