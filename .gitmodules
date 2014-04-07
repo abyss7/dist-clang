@@ -1,3 +1,6 @@
 [submodule "src/third_party/libcxxabi/exported"]
 	path = src/third_party/libcxxabi/exported
 	url = https://llvm.googlesource.com/libcxxabi
+[submodule "src/third_party/libcxx/exported"]
+	path = src/third_party/libcxx/exported
+	url = https://llvm.googlesource.com/libcxx

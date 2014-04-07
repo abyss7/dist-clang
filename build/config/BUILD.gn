@@ -26,7 +26,7 @@ config("default_library") {
     "-nostdinc++",
     "-fPIC",
   ]
-  include_dirs = [ "//src/third_party/libcxx/include" ]
+  include_dirs = [ "//src/third_party/libcxx/exported/include" ]
   ldflags = [ "-nodefaultlibs" ]
   libs = [ "c" ]
 }
