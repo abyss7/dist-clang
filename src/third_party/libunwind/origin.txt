@@ -1,3 +1,0 @@
-scm: git
-url: git://git.sv.gnu.org/libunwind.git
-rev: 2cb00c1eaca437e41556ad5512149508fcc7cb82

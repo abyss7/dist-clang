@@ -4,3 +4,6 @@
 [submodule "src/third_party/libcxx/exported"]
 	path = src/third_party/libcxx/exported
 	url = https://llvm.googlesource.com/libcxx
+[submodule "src/third_party/libunwind/exported"]
+	path = src/third_party/libunwind/exported
+	url = git://git.sv.gnu.org/libunwind.git
