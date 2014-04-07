@@ -1,21 +1,27 @@
 import("//build/config/templates.gni")
 
 config("includes") {
-  include_dirs = [ ".." ]
+  include_dirs = [ "public" ]
+}
+
+config("defines") {
+  defines = [
+    "GTEST_HAS_TR1_TUPLE=0",
+  ]
 }
 
 headers("gtest_headers") {
   sources = [
-    "gtest-death-test.h",
-    "gtest-message.h",
-    "gtest-param-test.h",
-    "gtest-printers.h",
-    "gtest-spi.h",
-    "gtest-test-part.h",
-    "gtest-typed-test.h",
-    "gtest.h",
-    "gtest_pred_impl.h",
-    "gtest_prod.h",
+    "exported/gtest-death-test.h",
+    "exported/gtest-message.h",
+    "exported/gtest-param-test.h",
+    "exported/gtest-printers.h",
+    "exported/gtest-spi.h",
+    "exported/gtest-test-part.h",
+    "exported/gtest-typed-test.h",
+    "exported/gtest.h",
+    "exported/gtest_pred_impl.h",
+    "exported/gtest_prod.h",
   ]
 
   all_dependent_configs = [ ":includes" ]
@@ -23,23 +29,23 @@ headers("gtest_headers") {
 
 shared_library("gtest") {
   sources = [
-    "gtest-all.cc",
-    "gtest-internal-inl.h",
-    "internal/gtest-death-test-internal.h",
-    "internal/gtest-filepath.h",
-    "internal/gtest-internal.h",
-    "internal/gtest-linked_ptr.h",
-    "internal/gtest-param-util-generated.h",
-    "internal/gtest-param-util.h",
-    "internal/gtest-port.h",
-    "internal/gtest-string.h",
-    "internal/gtest-tuple.h",
-    "internal/gtest-type-util.h",
+    "exported/gtest-all.cc",
+    "exported/gtest-internal-inl.h",
+    "exported/internal/gtest-death-test-internal.h",
+    "exported/internal/gtest-filepath.h",
+    "exported/internal/gtest-internal.h",
+    "exported/internal/gtest-linked_ptr.h",
+    "exported/internal/gtest-param-util-generated.h",
+    "exported/internal/gtest-param-util.h",
+    "exported/internal/gtest-port.h",
+    "exported/internal/gtest-string.h",
+    "exported/internal/gtest-tuple.h",
+    "exported/internal/gtest-type-util.h",
   ]
 
-  if (config_for_tests) {
-    defines = [ "GTEST_HAS_EXCEPTIONS=1" ]
-  }
-
-  configs += [ ":includes" ]
+  configs += [
+    ":includes",
+    ":defines"
+  ]
+  direct_dependent_configs = [ ":defines" ]
 }
