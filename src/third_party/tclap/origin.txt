@@ -1,3 +1,0 @@
-scm: git
-url: git://git.code.sf.net/p/tclap/code
-rev: tclap-1-2-1-release-final

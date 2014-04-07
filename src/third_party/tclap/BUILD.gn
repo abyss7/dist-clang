@@ -1,35 +1,35 @@
 config("exceptions") {
   cflags = [ "-fexceptions" ]
-  include_dirs = [ "include" ]
+  include_dirs = [ "exported/include" ]
   ldflags = [ "-fexceptions" ]
 }
 
 source_set("tclap") {
   sources = [
-    "include/tclap/Arg.h",
-    "include/tclap/ArgException.h",
-    "include/tclap/ArgTraits.h",
-    "include/tclap/CmdLine.h",
-    "include/tclap/CmdLineInterface.h",
-    "include/tclap/CmdLineOutput.h",
-    "include/tclap/Constraint.h",
-    "include/tclap/DocBookOutput.h",
-    "include/tclap/HelpVisitor.h",
-    "include/tclap/IgnoreRestVisitor.h",
-    "include/tclap/MultiArg.h",
-    "include/tclap/MultiSwitchArg.h",
-    "include/tclap/OptionalUnlabeledTracker.h",
-    "include/tclap/StandardTraits.h",
-    "include/tclap/StdOutput.h",
-    "include/tclap/SwitchArg.h",
-    "include/tclap/UnlabeledMultiArg.h",
-    "include/tclap/UnlabeledValueArg.h",
-    "include/tclap/ValueArg.h",
-    "include/tclap/ValuesConstraint.h",
-    "include/tclap/VersionVisitor.h",
-    "include/tclap/Visitor.h",
-    "include/tclap/XorHandler.h",
-    "include/tclap/ZshCompletionOutput.h",
+    "exported/include/tclap/Arg.h",
+    "exported/include/tclap/ArgException.h",
+    "exported/include/tclap/ArgTraits.h",
+    "exported/include/tclap/CmdLine.h",
+    "exported/include/tclap/CmdLineInterface.h",
+    "exported/include/tclap/CmdLineOutput.h",
+    "exported/include/tclap/Constraint.h",
+    "exported/include/tclap/DocBookOutput.h",
+    "exported/include/tclap/HelpVisitor.h",
+    "exported/include/tclap/IgnoreRestVisitor.h",
+    "exported/include/tclap/MultiArg.h",
+    "exported/include/tclap/MultiSwitchArg.h",
+    "exported/include/tclap/OptionalUnlabeledTracker.h",
+    "exported/include/tclap/StandardTraits.h",
+    "exported/include/tclap/StdOutput.h",
+    "exported/include/tclap/SwitchArg.h",
+    "exported/include/tclap/UnlabeledMultiArg.h",
+    "exported/include/tclap/UnlabeledValueArg.h",
+    "exported/include/tclap/ValueArg.h",
+    "exported/include/tclap/ValuesConstraint.h",
+    "exported/include/tclap/VersionVisitor.h",
+    "exported/include/tclap/Visitor.h",
+    "exported/include/tclap/XorHandler.h",
+    "exported/include/tclap/ZshCompletionOutput.h",
   ]
 
   direct_dependent_configs = [ ":exceptions" ]
