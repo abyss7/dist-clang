@@ -1,5 +1,10 @@
 template("default_toolchain") {
   toolchain(target_name) {
+    cc = invoker.cc
+    cxx = invoker.cxx
+    ar = invoker.ar
+    ld = invoker.ld
+
     lib_prefix = "-l"
     lib_dir_prefix = "-L"
 
