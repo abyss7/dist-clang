@@ -26,6 +26,8 @@ TEST(LockedQueueTest, BasicUsage) {
     EXPECT_EQ(i, *actual);
     EXPECT_EQ(static_cast<unsigned>(9 - i), queue.Size());
   }
+
+  queue.Close();
 }
 
 TEST(LockedQueueTest, ExceedCapacity) {
@@ -37,6 +39,8 @@ TEST(LockedQueueTest, ExceedCapacity) {
   EXPECT_EQ(1u, queue.Size());
   ASSERT_TRUE(!!(actual = queue.Pop()));
   EXPECT_EQ(0u, queue.Size());
+
+  queue.Close();
 }
 
 TEST(LockedQueueTest, CloseQueue) {
@@ -81,6 +85,8 @@ TEST(LockedQueueTest, MoveSemantics) {
   LockedQueue<TestClass>::Optional&& actual = queue.Pop();
   ASSERT_TRUE(!!actual);
   EXPECT_EQ(1, actual->counter());
+
+  queue.Close();
 }
 
 TEST(LockedQueueTest, UniquePtrFriendliness) {
@@ -103,6 +109,8 @@ TEST(LockedQueueTest, UniquePtrFriendliness) {
   EXPECT_TRUE(observer_exists);
   ASSERT_TRUE(!!actual);
   ASSERT_TRUE(!!(*actual));
+
+  queue.Close();
 }
 
 TEST(LockedQueueTest, DISABLED_BasicMultiThreadedUsage) {

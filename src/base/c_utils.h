@@ -6,6 +6,7 @@
 #include <cstring>
 #include <string>
 
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -53,6 +54,17 @@ inline std::string CreateTempDir(std::string* error = nullptr) {
     GetLastError(error);
     return std::string();
   }
+  return std::string(buf);
+}
+
+inline std::string CreateTempFile(std::string* error = nullptr) {
+  char buf[] = "/tmp/clangd-XXXXXX.files";
+  int fd = mkostemps(buf, 6, O_CLOEXEC);
+  if (fd == -1) {
+    GetLastError(error);
+    return std::string();
+  }
+  close(fd);
   return std::string(buf);
 }
 

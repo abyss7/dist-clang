@@ -18,6 +18,11 @@ FORWARD_TEST(ClientTest, SuccessfulCompilation);
 FORWARD_TEST(ClientTest, FailedCompilation);
 }  // namespace client
 
+namespace daemon {
+FORWARD_TEST(DaemonTest, StoreLocalCache);
+FORWARD_TEST(DaemonTest, StoreRemoteCache);
+}  // namespace daemon
+
 namespace base {
 
 class Process;
@@ -61,6 +66,8 @@ class Process:
     FRIEND_TEST(client::ClientTest, ReadMessageWithBadStatus);
     FRIEND_TEST(client::ClientTest, SuccessfulCompilation);
     FRIEND_TEST(client::ClientTest, FailedCompilation);
+    FRIEND_TEST(daemon::DaemonTest, StoreLocalCache);
+    FRIEND_TEST(daemon::DaemonTest, StoreRemoteCache);
 };
 
 template<class Iterator>

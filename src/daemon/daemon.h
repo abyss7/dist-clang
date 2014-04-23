@@ -43,7 +43,11 @@ class Daemon {
         std::unordered_map<std::string /* version */, PluginNameMap>;
 
     bool SearchCache(const proto::Execute* message, FileCache::Entry* entry);
+    void UpdateCacheFromFile(const proto::Execute* message,
+                             const std::string& file_path,
+                             const proto::Status& status);
     void UpdateCache(const proto::Execute* message,
+                     const std::string& object,
                      const proto::Status& status);
     bool FillFlags(proto::Flags* flags, proto::Status* status = nullptr);
     void HandleNewConnection(net::ConnectionPtr connection);
@@ -76,6 +80,8 @@ class Daemon {
     std::unique_ptr<Queue> cache_tasks_;
     std::unique_ptr<QueueAggregator> all_tasks_;
     std::unique_ptr<base::WorkerPool> workers_;
+    bool store_remote_cache_ = false;
+    bool sync_cache_ = false;
 };
 
 }  // namespace daemon

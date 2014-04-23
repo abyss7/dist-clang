@@ -79,6 +79,18 @@ FileCache::Optional FileCache::Store(const std::string &code,
   return pool_.Push(task);
 }
 
+void FileCache::SyncStore(const std::string &code,
+                          const std::string &command_line,
+                          const std::string &version,
+                          const Entry &entry) {
+  std::string version_hash = base::Hexify(base::MakeHash(version));
+  std::string args_hash = base::Hexify(base::MakeHash(command_line));
+  std::string code_hash = base::Hexify(base::MakeHash(code));
+  std::string path = path_ + "/" + version_hash + "/" + args_hash;
+
+  DoStore(path, code_hash, entry);
+}
+
 void FileCache::DoStore(const std::string &path, const std::string &code_hash,
                         const Entry &entry) {
   // FIXME: refactor to portable solution.

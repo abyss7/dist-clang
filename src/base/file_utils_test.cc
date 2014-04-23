@@ -151,5 +151,15 @@ TEST(FileUtilsTest, LeastRecentPath) {
                          << GetLastModificationTime(path).second;
 }
 
+TEST(FileUtilsTest, TempFile) {
+  std::string error;
+  std::string temp_file = CreateTempFile(&error);
+
+  ASSERT_FALSE(temp_file.empty()) << "Failed to create temporary file: "
+                                  << error;
+  ASSERT_TRUE(FileExists(temp_file));
+  ASSERT_TRUE(DeleteFile(temp_file));
+}
+
 }  // namespace base
 }  // namespace dist_clang

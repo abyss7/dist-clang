@@ -15,8 +15,8 @@ class QueueAggregator {
  public:
   using Optional = typename LockedQueue<T>::Optional;
 
-  // All aggregated queues should be closed before aggregator do.
-  // Also should be explicitly closed before destruction.
+  ~QueueAggregator() { DCHECK(closed_); }
+
   void Close() {
     {
       std::unique_lock<std::mutex> lock(orders_mutex_);
@@ -24,6 +24,12 @@ class QueueAggregator {
       order_count_ = 0;
       pop_condition_.notify_all();
       done_condition_.notify_all();
+    }
+
+    // All aggregated queues should be closed before aggregator do.
+    // Also should be explicitly closed before destruction.
+    for (const auto& queue : queues_) {
+      DCHECK(queue->closed_);
     }
 
     for (auto& thread : threads_) {

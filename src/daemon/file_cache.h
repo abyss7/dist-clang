@@ -20,6 +20,8 @@ class FileCache {
               const std::string& version, Entry* entry) const;
     Optional Store(const std::string& code, const std::string& command_line,
                    const std::string& version, const Entry& entry);
+    void SyncStore(const std::string& code, const std::string& command_line,
+                   const std::string& version, const Entry& entry);
 
   private:
     const std::string path_;

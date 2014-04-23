@@ -47,6 +47,7 @@
 #define GTEST_INCLUDE_GTEST_GTEST_MESSAGE_H_
 
 #include <limits>
+#include <list>
 
 #include "gtest/internal/gtest-port.h"
 
@@ -176,6 +177,15 @@ class GTEST_API_ Message {
   // using the UTF-8 encoding.
   Message& operator <<(const wchar_t* wide_c_str);
   Message& operator <<(wchar_t* wide_c_str);
+
+  // Stream some simple STL containers too.
+  template <typename T>
+  Message& operator <<(const ::std::list<T>& list) {
+    *ss_ << "[";
+    for (const auto& value: list) *this << " " << value << ",";
+    *ss_ << "]";
+    return *this;
+  }
 
 #if GTEST_HAS_STD_WSTRING
   // Converts the given wide string to a narrow string using the UTF-8

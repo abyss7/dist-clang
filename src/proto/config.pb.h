@@ -498,6 +498,20 @@ class Configuration : public ::google::protobuf::Message {
   inline ::google::protobuf::uint32 user_id() const;
   inline void set_user_id(::google::protobuf::uint32 value);
 
+  // optional bool remote_cache = 11 [default = true];
+  inline bool has_remote_cache() const;
+  inline void clear_remote_cache();
+  static const int kRemoteCacheFieldNumber = 11;
+  inline bool remote_cache() const;
+  inline void set_remote_cache(bool value);
+
+  // optional bool sync_cache = 12 [default = false];
+  inline bool has_sync_cache() const;
+  inline void clear_sync_cache();
+  static const int kSyncCacheFieldNumber = 12;
+  inline bool sync_cache() const;
+  inline void set_sync_cache(bool value);
+
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Configuration)
  private:
   inline void set_has_socket_path();
@@ -516,6 +530,10 @@ class Configuration : public ::google::protobuf::Message {
   inline void clear_has_cache_size();
   inline void set_has_user_id();
   inline void clear_has_user_id();
+  inline void set_has_remote_cache();
+  inline void clear_has_remote_cache();
+  inline void set_has_sync_cache();
+  inline void clear_has_sync_cache();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -529,9 +547,11 @@ class Configuration : public ::google::protobuf::Message {
   ::dist_clang::proto::Host* statistic_;
   ::dist_clang::proto::Verbosity* verbosity_;
   ::google::protobuf::uint64 cache_size_;
+  bool remote_cache_;
+  bool sync_cache_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(10 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(12 + 31) / 32];
 
   friend void  protobuf_AddDesc_config_2eproto();
   friend void protobuf_AssignDesc_config_2eproto();
@@ -1154,6 +1174,50 @@ inline ::google::protobuf::uint32 Configuration::user_id() const {
 inline void Configuration::set_user_id(::google::protobuf::uint32 value) {
   set_has_user_id();
   user_id_ = value;
+}
+
+// optional bool remote_cache = 11 [default = true];
+inline bool Configuration::has_remote_cache() const {
+  return (_has_bits_[0] & 0x00000400u) != 0;
+}
+inline void Configuration::set_has_remote_cache() {
+  _has_bits_[0] |= 0x00000400u;
+}
+inline void Configuration::clear_has_remote_cache() {
+  _has_bits_[0] &= ~0x00000400u;
+}
+inline void Configuration::clear_remote_cache() {
+  remote_cache_ = true;
+  clear_has_remote_cache();
+}
+inline bool Configuration::remote_cache() const {
+  return remote_cache_;
+}
+inline void Configuration::set_remote_cache(bool value) {
+  set_has_remote_cache();
+  remote_cache_ = value;
+}
+
+// optional bool sync_cache = 12 [default = false];
+inline bool Configuration::has_sync_cache() const {
+  return (_has_bits_[0] & 0x00000800u) != 0;
+}
+inline void Configuration::set_has_sync_cache() {
+  _has_bits_[0] |= 0x00000800u;
+}
+inline void Configuration::clear_has_sync_cache() {
+  _has_bits_[0] &= ~0x00000800u;
+}
+inline void Configuration::clear_sync_cache() {
+  sync_cache_ = false;
+  clear_has_sync_cache();
+}
+inline bool Configuration::sync_cache() const {
+  return sync_cache_;
+}
+inline void Configuration::set_sync_cache(bool value) {
+  set_has_sync_cache();
+  sync_cache_ = value;
 }
 
 

@@ -1,0 +1,11 @@
+-A2
+indent=spaces=2
+indent-modifiers
+indent-switches
+align-pointer=type
+align-reference=type
+break-closing-brackets
+add-brackets
+convert-tabs
+max-code-length=80
+break-after-logical

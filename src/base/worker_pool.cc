@@ -7,18 +7,24 @@
 namespace dist_clang {
 namespace base {
 
-WorkerPool::WorkerPool()
-  : is_shutting_down_(false) {
+WorkerPool::WorkerPool(bool force_shut_down)
+  : is_shutting_down_(false), force_shut_down_(force_shut_down) {
   // TODO: check somehow for error in the |pipe()| call.
   pipe(self_pipe_);
 }
 
 WorkerPool::~WorkerPool() {
-  is_shutting_down_ = true;
-  close(self_pipe_[1]);
+  if (force_shut_down_) {
+    is_shutting_down_ = true;
+    close(self_pipe_[1]);
+  }
   for (auto& thread: workers_) {
     DCHECK(thread.joinable());
     thread.join();
+  }
+  if (!force_shut_down_) {
+    is_shutting_down_ = true;
+    close(self_pipe_[1]);
   }
   close(self_pipe_[0]);
 }
