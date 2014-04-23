@@ -1042,5 +1042,9 @@ TEST_F(DaemonTest, StoreRemoteCache) {
       << "Daemon must not store references to the connection";
 }
 
+TEST_F(DaemonTest, DISABLED_DontStoreFailedRemoteCache) {
+  // TODO: implement this.
+}
+
 }  // namespace daemon
 }  // namespace dist_clang

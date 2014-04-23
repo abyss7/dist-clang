@@ -693,7 +693,7 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
         LOG(INFO) << "External compilation successful";
       }
 
-      if (store_remote_cache_) {
+      if (store_remote_cache_ && status.code() == proto::Status::OK) {
         UpdateCache(task->second.get(), process->stdout(), status);
       }
 
