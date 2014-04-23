@@ -29,7 +29,7 @@ class QueueAggregator {
     // All aggregated queues should be closed before aggregator do.
     // Also should be explicitly closed before destruction.
     for (const auto& queue : queues_) {
-      DCHECK(queue->closed_);
+      DCHECK_O_EVAL(queue->closed_);
     }
 
     for (auto& thread : threads_) {
