@@ -375,7 +375,10 @@ TEST_F(DaemonTest, LocalMessageWithoutCurrentDir) {
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    message->MutableExtension(proto::Execute::extension)->set_remote(false);
+    auto* extension = message->MutableExtension(proto::Execute::extension);
+    extension->set_remote(false);
+    extension->mutable_flags()->mutable_compiler()->set_version("fake_version");
+    extension->mutable_flags()->set_action("fake_action");
 
     proto::Status status;
     status.set_code(proto::Status::OK);
@@ -391,67 +394,6 @@ TEST_F(DaemonTest, LocalMessageWithoutCurrentDir) {
   EXPECT_EQ(1u, connections_created);
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(0u, send_count);
-  EXPECT_EQ(1, connection.use_count())
-      << "Daemon must not store references to the connection";
-}
-
-TEST_F(DaemonTest, LocalMessageWithNoCompiler) {
-  const std::string socket_path = "/tmp/clangd.socket";
-  const proto::Status::Code expected_code = proto::Status::NO_VERSION;
-  const std::string compiler_version = "fake_compiler_version";
-  const std::string compiler_path = "fake_compiler_path";
-  const std::string plugin_name = "test_plugin";
-  const std::string plugin_path = "fake_plugin_path";
-  const std::string current_dir = "fake_current_dir";
-
-  config.set_socket_path(socket_path);
-  auto* version = config.add_versions();
-  version->set_version(compiler_version);
-  version->set_path(compiler_path);
-  auto* plugin = version->add_plugins();
-  plugin->set_name(plugin_name);
-  plugin->set_path(plugin_path);
-
-  listen_callback = [&](const std::string& host, uint16_t port, std::string*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return true;
-  };
-  connect_callback = [&](net::TestConnection* connection) {
-    connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(proto::Status::extension));
-      const auto& status = message.GetExtension(proto::Status::extension);
-      EXPECT_EQ(expected_code, status.code());
-    });
-  };
-
-  daemon::Configuration configuration(config);
-
-  ASSERT_TRUE(daemon->Initialize(configuration));
-
-  auto connection = test_service->TriggerListen(socket_path);
-  {
-    std::shared_ptr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection);
-
-    net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(proto::Execute::extension);
-    extension->set_remote(false);
-    extension->set_current_dir(current_dir);
-
-    proto::Status status;
-    status.set_code(proto::Status::OK);
-
-    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
-    daemon.reset();
-  }
-
-  EXPECT_EQ(0u, run_count);
-  EXPECT_EQ(1u, listen_count);
-  EXPECT_EQ(1u, connect_count);
-  EXPECT_EQ(1u, connections_created);
-  EXPECT_EQ(1u, read_count);
-  EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1, connection.use_count())
       << "Daemon must not store references to the connection";
 }
@@ -500,7 +442,8 @@ TEST_F(DaemonTest, LocalMessageWithBadCompiler) {
     auto* extension = message->MutableExtension(proto::Execute::extension);
     extension->set_remote(false);
     extension->set_current_dir(current_dir);
-    extension->mutable_cc_flags()->mutable_compiler()->set_version(bad_version);
+    extension->mutable_flags()->mutable_compiler()->set_version(bad_version);
+    extension->mutable_flags()->set_action("fake_action");
 
     proto::Status status;
     status.set_code(proto::Status::OK);
@@ -558,9 +501,10 @@ TEST_F(DaemonTest, LocalMessageWithBadPlugin) {
     auto* extension = message->MutableExtension(proto::Execute::extension);
     extension->set_remote(false);
     extension->set_current_dir(current_dir);
-    auto* compiler = extension->mutable_cc_flags()->mutable_compiler();
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
     compiler->add_plugins()->set_name(bad_plugin_name);
+    extension->mutable_flags()->set_action("fake_action");
 
     proto::Status status;
     status.set_code(proto::Status::OK);
@@ -623,9 +567,10 @@ TEST_F(DaemonTest, LocalMessageWithBadPlugin2) {
     auto* extension = message->MutableExtension(proto::Execute::extension);
     extension->set_remote(false);
     extension->set_current_dir(current_dir);
-    auto* compiler = extension->mutable_cc_flags()->mutable_compiler();
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
     compiler->add_plugins()->set_name(bad_plugin_name);
+    extension->mutable_flags()->set_action("fake_action");
 
     proto::Status status;
     status.set_code(proto::Status::OK);
@@ -682,8 +627,9 @@ TEST_F(DaemonTest, LocalSuccessfulCompilation) {
     auto* extension = message->MutableExtension(proto::Execute::extension);
     extension->set_remote(false);
     extension->set_current_dir(current_dir);
-    auto* compiler = extension->mutable_cc_flags()->mutable_compiler();
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
+    extension->mutable_flags()->set_action("fake_action");
 
     proto::Status status;
     status.set_code(proto::Status::OK);
@@ -741,8 +687,9 @@ TEST_F(DaemonTest, LocalFailedCompilation) {
     auto* extension = message->MutableExtension(proto::Execute::extension);
     extension->set_remote(false);
     extension->set_current_dir(current_dir);
-    auto* compiler = extension->mutable_cc_flags()->mutable_compiler();
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
+    extension->mutable_flags()->set_action("fake_action");
 
     proto::Status status;
     status.set_code(proto::Status::OK);
@@ -790,7 +737,7 @@ TEST_F(DaemonTest, StoreLocalCache) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(proto::Status::extension));
       const auto& status = message.GetExtension(proto::Status::extension);
-      EXPECT_EQ(expected_code, status.code());
+      EXPECT_EQ(expected_code, status.code()) << status.description();
 
       send_condition.notify_all();
     });
@@ -825,14 +772,12 @@ TEST_F(DaemonTest, StoreLocalCache) {
     auto* extension = message->MutableExtension(proto::Execute::extension);
     extension->set_remote(false);
     extension->set_current_dir(temp_dir);
-    auto* compiler = extension->mutable_pp_flags()->mutable_compiler();
-    compiler->set_version(compiler_version);
-    compiler = extension->mutable_cc_flags()->mutable_compiler();
-    compiler->set_version(compiler_version);
 
-    extension->mutable_cc_flags()->set_input(input_path1);
-    extension->mutable_cc_flags()->set_output(output_path1);
-    extension->mutable_pp_flags()->set_input(input_path1);
+    extension->mutable_flags()->set_input(input_path1);
+    extension->mutable_flags()->set_output(output_path1);
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
+        compiler->set_version(compiler_version);
+    extension->mutable_flags()->set_action("fake_action");
 
     proto::Status status;
     status.set_code(proto::Status::OK);
@@ -854,14 +799,12 @@ TEST_F(DaemonTest, StoreLocalCache) {
     auto* extension = message->MutableExtension(proto::Execute::extension);
     extension->set_remote(false);
     extension->set_current_dir(temp_dir);
-    auto* compiler = extension->mutable_pp_flags()->mutable_compiler();
-    compiler->set_version(compiler_version);
-    compiler = extension->mutable_cc_flags()->mutable_compiler();
-    compiler->set_version(compiler_version);
 
-    extension->mutable_cc_flags()->set_input(input_path2);
-    extension->mutable_cc_flags()->set_output(output_path2);
-    extension->mutable_pp_flags()->set_input(input_path2);
+    extension->mutable_flags()->set_input(input_path2);
+    extension->mutable_flags()->set_output(output_path2);
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
+        compiler->set_version(compiler_version);
+    extension->mutable_flags()->set_action("fake_action");
 
     proto::Status status;
     status.set_code(proto::Status::OK);
@@ -986,8 +929,9 @@ TEST_F(DaemonTest, StoreRemoteCache) {
     auto* extension = message->MutableExtension(proto::Execute::extension);
     extension->set_remote(true);
     extension->set_pp_source(preprocessed_source);
-    auto* compiler = extension->mutable_cc_flags()->mutable_compiler();
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
+    extension->mutable_flags()->set_action("fake_action");
 
     proto::Status status;
     status.set_code(proto::Status::OK);
@@ -1009,14 +953,12 @@ TEST_F(DaemonTest, StoreRemoteCache) {
     auto* extension = message->MutableExtension(proto::Execute::extension);
     extension->set_remote(false);
     extension->set_current_dir(temp_dir);
-    auto* compiler = extension->mutable_pp_flags()->mutable_compiler();
-    compiler->set_version(compiler_version);
-    compiler = extension->mutable_cc_flags()->mutable_compiler();
-    compiler->set_version(compiler_version);
 
-    extension->mutable_cc_flags()->set_input(input_path);
-    extension->mutable_cc_flags()->set_output(output_path);
-    extension->mutable_pp_flags()->set_input(input_path);
+    extension->mutable_flags()->set_input(input_path);
+    extension->mutable_flags()->set_output(output_path);
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
+    compiler->set_version(compiler_version);
+    extension->mutable_flags()->set_action("fake_action");
 
     proto::Status status;
     status.set_code(proto::Status::OK);

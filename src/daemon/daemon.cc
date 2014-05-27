@@ -213,16 +213,20 @@ bool Daemon::SearchCache(const proto::Execute* message,
     return false;
   }
 
-  const auto& flags = message->cc_flags();
+  const auto& flags = message->flags();
   const auto& version = flags.compiler().version();
   std::string command_line = base::JoinString<' '>(flags.other().begin(),
                                                    flags.other().end());
   if (flags.has_language()) {
     command_line += " -x " + flags.language();
   }
+  if (flags.cc_only_size()) {
+    command_line += " " + base::JoinString<' '>(flags.cc_only().begin(),
+                                                flags.cc_only().end());
+  }
 
   if (!cache_->Find(message->pp_source(), command_line, version, entry)) {
-    LOG(CACHE_INFO) << "Cache miss: " << message->cc_flags().input();
+    LOG(CACHE_INFO) << "Cache miss: " << message->flags().input();
     return false;
   }
   return true;
@@ -237,7 +241,7 @@ void Daemon::UpdateCacheFromFile(const proto::Execute* message,
   }
   CHECK(status.code() == proto::Status::OK);
 
-  const auto& flags = message->cc_flags();
+  const auto& flags = message->flags();
   FileCache::Entry entry;
   entry.first = file_path;
   entry.second = status.description();
@@ -247,6 +251,11 @@ void Daemon::UpdateCacheFromFile(const proto::Execute* message,
   if (flags.has_language()) {
     command_line += " -x " + flags.language();
   }
+  if (flags.cc_only_size()) {
+    command_line += " " + base::JoinString<' '>(flags.cc_only().begin(),
+                                                flags.cc_only().end());
+  }
+
   if (sync_cache_) {
     cache_->SyncStore(message->pp_source(), command_line, version, entry);
   }
@@ -268,6 +277,17 @@ void Daemon::UpdateCache(const proto::Execute* message,
   else if (base::WriteFile(temp_file, object)) {
     UpdateCacheFromFile(message, temp_file, status);
   }
+}
+
+// static
+proto::Flags Daemon::ConvertFlags(const proto::Flags& flags) {
+  proto::Flags pp_flags;
+
+  pp_flags.CopyFrom(flags);
+  pp_flags.set_output("-");
+  pp_flags.set_action("-E");
+
+  return pp_flags;
 }
 
 bool Daemon::FillFlags(proto::Flags* flags, proto::Status* status) {
@@ -321,6 +341,7 @@ void Daemon::HandleNewConnection(net::ConnectionPtr connection) {
 bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
                               ScopedMessage message,
                               const proto::Status& status) {
+  message->CheckInitialized();
   if (status.code() != proto::Status::OK) {
     LOG(ERROR) << status.description();
     return connection->ReportStatus(status);
@@ -414,18 +435,16 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
     auto* message = task->second.get();
 
     if (!message->has_pp_source()) {
-      if (!message->has_pp_flags() ||
-          !FillFlags(message->mutable_pp_flags())) {
+      proto::Flags&& pp_flags = ConvertFlags(message->flags());
+
+      if (!FillFlags(&pp_flags)) {
         // Without preprocessing flags we can't neither check the cache, nor do
         // a remote compilation, nor put the result back in cache.
         failed_tasks_->Push(std::move(*task));
         continue;
       }
 
-      // Redirect output to stdin in |pp_flags|.
-      message->mutable_pp_flags()->set_output("-");
-
-      base::ProcessPtr process = CreateProcess(message->pp_flags(),
+      base::ProcessPtr process = CreateProcess(pp_flags,
                                                message->current_dir());
       if (!process->Run(10)) {
         // It usually means, that there is an error in the source code.
@@ -440,7 +459,7 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
     if (SearchCache(message, &cache_entry)) {
       if (!message->remote()) {
         std::string output_path =
-            message->current_dir() + "/" + message->cc_flags().output();
+            message->current_dir() + "/" + message->flags().output();
         if (base::CopyFile(cache_entry.first, output_path, true)) {
           std::string error;
           if (message->has_user_id() &&
@@ -497,18 +516,16 @@ void Daemon::DoRemoteExecution(const std::atomic<bool>& is_shutting_down,
     auto* message = task->second.get();
 
     if (!message->has_pp_source()) {
-      if (!message->has_pp_flags() ||
-          !FillFlags(message->mutable_pp_flags())) {
+      proto::Flags&& pp_flags = ConvertFlags(message->flags());
+
+      if (!FillFlags(&pp_flags)) {
         // Without preprocessing flags we can't neither check the cache, nor do
         // a remote compilation, nor put the result back in cache.
         failed_tasks_->Push(std::move(*task));
         continue;
       }
 
-      // Redirect output to stdin in |pp_flags|.
-      message->mutable_pp_flags()->set_output("-");
-
-      base::ProcessPtr process = CreateProcess(message->pp_flags(),
+      base::ProcessPtr process = CreateProcess(pp_flags,
                                                message->current_dir());
       if (!process->Run(10)) {
         // It usually means, that there is an error in the source code.
@@ -529,14 +546,14 @@ void Daemon::DoRemoteExecution(const std::atomic<bool>& is_shutting_down,
     ScopedExecute remote(new proto::Execute);
     remote->set_remote(true);
     remote->set_pp_source(message->pp_source());
-    remote->mutable_cc_flags()->CopyFrom(message->cc_flags());
+    remote->mutable_flags()->CopyFrom(message->flags());
 
     // Filter outgoing flags.
-    remote->mutable_cc_flags()->mutable_compiler()->clear_path();
-    remote->mutable_cc_flags()->clear_output();
-    remote->mutable_cc_flags()->clear_input();
-    remote->mutable_cc_flags()->clear_dependenies();
-    remote->mutable_cc_flags()->clear_non_cached();
+    remote->mutable_flags()->mutable_compiler()->clear_path();
+    remote->mutable_flags()->clear_output();
+    remote->mutable_flags()->clear_input();
+    remote->mutable_flags()->clear_dependenies();
+    remote->mutable_flags()->clear_non_cached();
 
     if (!connection->SendSync(std::move(remote))) {
       local_tasks_->Push(std::move(*task));
@@ -563,14 +580,14 @@ void Daemon::DoRemoteExecution(const std::atomic<bool>& is_shutting_down,
       const auto& extension =
           result->GetExtension(proto::RemoteResult::extension);
       std::string output_path =
-          message->current_dir() + "/" + message->cc_flags().output();
+          message->current_dir() + "/" + message->flags().output();
       if (base::WriteFile(output_path, extension.obj())) {
         proto::Status status;
         status.set_code(proto::Status::OK);
         LOG(INFO) << "Remote compilation successful: "
-                  << message->cc_flags().input();
+                  << message->flags().input();
         std::string output_file =
-            message->current_dir() + "/" + message->cc_flags().output();
+            message->current_dir() + "/" + message->flags().output();
         UpdateCacheFromFile(message, output_file, status);
         task->first->ReportStatus(status);
         continue;
@@ -592,7 +609,7 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
 
     if (!task->second->remote()) {
       proto::Status status;
-      if (!FillFlags(task->second->mutable_cc_flags(), &status)) {
+      if (!FillFlags(task->second->mutable_flags(), &status)) {
         task->first->ReportStatus(status);
         continue;
       }
@@ -600,7 +617,7 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
       std::string error;
       uint32_t uid = task->second->has_user_id() ? task->second->user_id() :
                                                    base::Process::SAME_UID;
-      base::ProcessPtr process = CreateProcess(task->second->cc_flags(), uid,
+      base::ProcessPtr process = CreateProcess(task->second->flags(), uid,
                                                task->second->current_dir());
       if (!process->Run(base::Process::UNLIMITED, &error)) {
         status.set_code(proto::Status::EXECUTION);
@@ -617,10 +634,10 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
         status.set_code(proto::Status::OK);
         status.set_description(process->stderr());
         LOG(INFO) << "Local compilation successful:  "
-                  << task->second->cc_flags().input();
+                  << task->second->flags().input();
         std::string output_file =
             task->second->current_dir() + "/" +
-            task->second->cc_flags().output();
+            task->second->flags().output();
         UpdateCacheFromFile(task->second.get(), output_file, status);
       }
 
@@ -629,25 +646,25 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
     else {
       // Check that we have a compiler of a requested version.
       proto::Status status;
-      if (!FillFlags(task->second->mutable_cc_flags(), &status)) {
+      if (!FillFlags(task->second->mutable_flags(), &status)) {
         task->first->ReportStatus(status);
         continue;
       }
 
-      task->second->mutable_cc_flags()->set_output("-");
-      task->second->mutable_cc_flags()->clear_input();
-      task->second->mutable_cc_flags()->clear_dependenies();
+      task->second->mutable_flags()->set_output("-");
+      task->second->mutable_flags()->clear_input();
+      task->second->mutable_flags()->clear_dependenies();
 
       // Optimize compilation for preprocessed code for some languages.
-      if (task->second->cc_flags().has_language()) {
-        if (task->second->cc_flags().language() == "c") {
-          task->second->mutable_cc_flags()->set_language("cpp-output");
+      if (task->second->flags().has_language()) {
+        if (task->second->flags().language() == "c") {
+          task->second->mutable_flags()->set_language("cpp-output");
         }
-        else if (task->second->cc_flags().language() == "c++") {
-          task->second->mutable_cc_flags()->set_language("c++-cpp-output");
+        else if (task->second->flags().language() == "c++") {
+          task->second->mutable_flags()->set_language("c++-cpp-output");
         }
-        else if (task->second->cc_flags().language() == "objective-c++") {
-          task->second->mutable_cc_flags()->
+        else if (task->second->flags().language() == "objective-c++") {
+          task->second->mutable_flags()->
               set_language("objective-c++-cpp-output");
         }
       }
@@ -655,17 +672,17 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
       // Do local compilation. Pipe the input file to the compiler and read
       // output file from the compiler's stdout.
       std::string error;
-      base::ProcessPtr process = CreateProcess(task->second->cc_flags());
+      base::ProcessPtr process = CreateProcess(task->second->flags());
       if (!process->Run(10, task->second->pp_source(), &error)) {
         std::stringstream arguments;
         arguments << "Arguments:";
-        for (const auto& flag: task->second->cc_flags().other()) {
+        for (const auto& flag: task->second->flags().other()) {
           arguments << " " << flag;
         }
         arguments << std::endl;
         arguments << "Input size: " << task->second->pp_source().size()
                   << std::endl;
-        arguments << "Language: " << task->second->cc_flags().language()
+        arguments << "Language: " << task->second->flags().language()
                   << std::endl;
         arguments << std::endl;
 

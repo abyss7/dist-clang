@@ -165,8 +165,6 @@ TEST(ClangFlagSetTest, SimpleInput) {
   expected_flags.add_other()->assign("-cc1");
   expected_flags.add_other()->assign("-triple");
   expected_flags.add_other()->assign("x86_64-unknown-linux-gnu");
-  expected_flags.add_other()->assign("-emit-obj");
-  expected_flags.add_other()->assign("-mrelax-all");
   expected_flags.add_other()->assign("-disable-free");
   expected_flags.add_other()->assign("-mrelocation-model");
   expected_flags.add_other()->assign("static");
@@ -210,6 +208,8 @@ TEST(ClangFlagSetTest, SimpleInput) {
   expected_flags.add_non_cached()->assign("/tmp");
   expected_flags.add_non_cached()->assign("-ferror-limit");
   expected_flags.add_non_cached()->assign("19");
+  expected_flags.add_cc_only()->assign("-mrelax-all");
+  expected_flags.set_action("-emit-obj");
 
   proto::Flags actual_flags;
   actual_flags.mutable_compiler()->set_version(version);
@@ -348,26 +348,13 @@ TEST_F(ClientTest, CannotSendMessage) {
   const char* argv[] = {expected_exec_path, "-c", "/tmp/test.cc", nullptr};
 
   run_callback = [&](base::TestProcess* process) {
-    if (run_count == 1) {
-      process->stderr_ = clang_cc_output;
-      auto it = process->args_.begin();
-      EXPECT_EQ(expected_exec_path, process->exec_path_);
-      EXPECT_TRUE(process->cwd_path_.empty());
-      EXPECT_EQ("-###", *(it++));
-      for (size_t i = 1; i < argc; ++i, ++it) {
-        EXPECT_EQ(argv[i], *it);
-      }
-    }
-    else if (run_count == 2) {
-      process->stderr_ = clang_pp_output;
-      auto it = process->args_.begin();
-      EXPECT_EQ(expected_exec_path, process->exec_path_);
-      EXPECT_TRUE(process->cwd_path_.empty());
-      EXPECT_EQ("-###", *(it++));
-      EXPECT_EQ("-E", *(it++));
-      for (size_t i = 1; i < argc; ++i, ++it) {
-        EXPECT_EQ(argv[i], *it);
-      }
+    process->stderr_ = clang_cc_output;
+    auto it = process->args_.begin();
+    EXPECT_EQ(expected_exec_path, process->exec_path_);
+    EXPECT_TRUE(process->cwd_path_.empty());
+    EXPECT_EQ("-###", *(it++));
+    for (size_t i = 1; i < argc; ++i, ++it) {
+      EXPECT_EQ(argv[i], *it);
     }
   };
 
@@ -377,7 +364,7 @@ TEST_F(ClientTest, CannotSendMessage) {
   EXPECT_EQ(0u, read_count);
   EXPECT_EQ(1u, connect_count);
   EXPECT_EQ(1u, connections_created);
-  EXPECT_EQ(2u, run_count);
+  EXPECT_EQ(1u, run_count);
 }
 
 TEST_F(ClientTest, CannotReadMessage) {
@@ -393,15 +380,15 @@ TEST_F(ClientTest, CannotReadMessage) {
       const auto& extension = message.GetExtension(proto::Execute::extension);
       EXPECT_FALSE(extension.remote());
       EXPECT_EQ(base::GetCurrentDir(), extension.current_dir());
-      ASSERT_TRUE(extension.has_cc_flags());
-      ASSERT_TRUE(extension.has_pp_flags());
+      ASSERT_TRUE(extension.has_flags());
 
-      const auto& cc_flags = extension.cc_flags();
+      const auto& cc_flags = extension.flags();
       ASSERT_TRUE(cc_flags.has_compiler());
       // TODO: check compiler version and path.
       EXPECT_EQ(test_file_base + ".o", cc_flags.output());
       EXPECT_EQ(test_file, cc_flags.input());
       EXPECT_EQ("c++", cc_flags.language());
+      EXPECT_EQ("-emit-obj", cc_flags.action());
 
       {
         const auto& other = cc_flags.other();
@@ -409,43 +396,12 @@ TEST_F(ClientTest, CannotReadMessage) {
         auto end = other.end();
         EXPECT_NE(end, std::find(begin, end, "-cc1"));
         EXPECT_NE(end, std::find(begin, end, "-triple"));
-        EXPECT_NE(end, std::find(begin, end, "-emit-obj"));
         EXPECT_NE(end, std::find(begin, end, "-target-cpu"));
         EXPECT_NE(end, std::find(begin, end, "-target-linker-version"));
       }
 
       {
         const auto& non_cached = cc_flags.non_cached();
-        auto begin = non_cached.begin();
-        auto end = non_cached.end();
-        EXPECT_NE(end, std::find(begin, end, "-main-file-name"));
-        EXPECT_NE(end, std::find(begin, end, test_file_name));
-        EXPECT_NE(end, std::find(begin, end, "-coverage-file"));
-        EXPECT_NE(end, std::find(begin, end, "-resource-dir"));
-        EXPECT_NE(end, std::find(begin, end, "-internal-isystem"));
-        EXPECT_NE(end, std::find(begin, end, "-internal-externc-isystem"));
-      }
-
-      const auto& pp_flags = extension.pp_flags();
-      ASSERT_TRUE(pp_flags.has_compiler());
-      // TODO: check compiler version and path.
-      EXPECT_FALSE(pp_flags.has_output());
-      EXPECT_EQ(test_file, pp_flags.input());
-      EXPECT_EQ("c++", pp_flags.language());
-
-      {
-        const auto& other = pp_flags.other();
-        auto begin = other.begin();
-        auto end = other.end();
-        EXPECT_NE(end, std::find(begin, end, "-cc1"));
-        EXPECT_NE(end, std::find(begin, end, "-triple"));
-        EXPECT_NE(end, std::find(begin, end, "-E"));
-        EXPECT_NE(end, std::find(begin, end, "-target-cpu"));
-        EXPECT_NE(end, std::find(begin, end, "-target-linker-version"));
-      }
-
-      {
-        const auto& non_cached = pp_flags.non_cached();
         auto begin = non_cached.begin();
         auto end = non_cached.end();
         EXPECT_NE(end, std::find(begin, end, "-main-file-name"));
@@ -463,26 +419,13 @@ TEST_F(ClientTest, CannotReadMessage) {
   const char* argv[] = {expected_exec_path, "-c", test_file.c_str(), nullptr};
 
   run_callback = [&](base::TestProcess* process) {
-    if (run_count == 1) {
-      process->stderr_ = clang_cc_output;
-      auto it = process->args_.begin();
-      EXPECT_EQ(expected_exec_path, process->exec_path_);
-      EXPECT_TRUE(process->cwd_path_.empty());
-      EXPECT_EQ("-###", *(it++));
-      for (size_t i = 1; i < argc; ++i, ++it) {
-        EXPECT_EQ(argv[i], *it);
-      }
-    }
-    else if (run_count == 2) {
-      process->stderr_ = clang_pp_output;
-      auto it = process->args_.begin();
-      EXPECT_EQ(expected_exec_path, process->exec_path_);
-      EXPECT_TRUE(process->cwd_path_.empty());
-      EXPECT_EQ("-###", *(it++));
-      EXPECT_EQ("-E", *(it++));
-      for (size_t i = 1; i < argc; ++i, ++it) {
-        EXPECT_EQ(argv[i], *it);
-      }
+    process->stderr_ = clang_cc_output;
+    auto it = process->args_.begin();
+    EXPECT_EQ(expected_exec_path, process->exec_path_);
+    EXPECT_TRUE(process->cwd_path_.empty());
+    EXPECT_EQ("-###", *(it++));
+    for (size_t i = 1; i < argc; ++i, ++it) {
+      EXPECT_EQ(argv[i], *it);
     }
   };
 
@@ -492,7 +435,7 @@ TEST_F(ClientTest, CannotReadMessage) {
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, connect_count);
   EXPECT_EQ(1u, connections_created);
-  EXPECT_EQ(2u, run_count);
+  EXPECT_EQ(1u, run_count);
 }
 
 TEST_F(ClientTest, ReadMessageWithoutStatus) {
@@ -501,26 +444,13 @@ TEST_F(ClientTest, ReadMessageWithoutStatus) {
   const char* argv[] = {expected_exec_path, "-c", "/tmp/test.cc", nullptr};
 
   run_callback = [&](base::TestProcess* process) {
-    if (run_count == 1) {
-      process->stderr_ = clang_cc_output;
-      auto it = process->args_.begin();
-      EXPECT_EQ(expected_exec_path, process->exec_path_);
-      EXPECT_TRUE(process->cwd_path_.empty());
-      EXPECT_EQ("-###", *(it++));
-      for (size_t i = 1; i < argc; ++i, ++it) {
-        EXPECT_EQ(argv[i], *it);
-      }
-    }
-    else if (run_count == 2) {
-      process->stderr_ = clang_pp_output;
-      auto it = process->args_.begin();
-      EXPECT_EQ(expected_exec_path, process->exec_path_);
-      EXPECT_TRUE(process->cwd_path_.empty());
-      EXPECT_EQ("-###", *(it++));
-      EXPECT_EQ("-E", *(it++));
-      for (size_t i = 1; i < argc; ++i, ++it) {
-        EXPECT_EQ(argv[i], *it);
-      }
+    process->stderr_ = clang_cc_output;
+    auto it = process->args_.begin();
+    EXPECT_EQ(expected_exec_path, process->exec_path_);
+    EXPECT_TRUE(process->cwd_path_.empty());
+    EXPECT_EQ("-###", *(it++));
+    for (size_t i = 1; i < argc; ++i, ++it) {
+      EXPECT_EQ(argv[i], *it);
     }
   };
 
@@ -530,7 +460,7 @@ TEST_F(ClientTest, ReadMessageWithoutStatus) {
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, connect_count);
   EXPECT_EQ(1u, connections_created);
-  EXPECT_EQ(2u, run_count);
+  EXPECT_EQ(1u, run_count);
 }
 
 TEST_F(ClientTest, ReadMessageWithBadStatus) {
@@ -546,26 +476,13 @@ TEST_F(ClientTest, ReadMessageWithBadStatus) {
   const char* argv[] = {expected_exec_path, "-c", "/tmp/test.cc", nullptr};
 
   run_callback = [&](base::TestProcess* process) {
-    if (run_count == 1) {
-      process->stderr_ = clang_cc_output;
-      auto it = process->args_.begin();
-      EXPECT_EQ(expected_exec_path, process->exec_path_);
-      EXPECT_TRUE(process->cwd_path_.empty());
-      EXPECT_EQ("-###", *(it++));
-      for (size_t i = 1; i < argc; ++i, ++it) {
-        EXPECT_EQ(argv[i], *it);
-      }
-    }
-    else if (run_count == 2) {
-      process->stderr_ = clang_pp_output;
-      auto it = process->args_.begin();
-      EXPECT_EQ(expected_exec_path, process->exec_path_);
-      EXPECT_TRUE(process->cwd_path_.empty());
-      EXPECT_EQ("-###", *(it++));
-      EXPECT_EQ("-E", *(it++));
-      for (size_t i = 1; i < argc; ++i, ++it) {
-        EXPECT_EQ(argv[i], *it);
-      }
+    process->stderr_ = clang_cc_output;
+    auto it = process->args_.begin();
+    EXPECT_EQ(expected_exec_path, process->exec_path_);
+    EXPECT_TRUE(process->cwd_path_.empty());
+    EXPECT_EQ("-###", *(it++));
+    for (size_t i = 1; i < argc; ++i, ++it) {
+      EXPECT_EQ(argv[i], *it);
     }
   };
 
@@ -575,7 +492,7 @@ TEST_F(ClientTest, ReadMessageWithBadStatus) {
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, connect_count);
   EXPECT_EQ(1u, connections_created);
-  EXPECT_EQ(2u, run_count);
+  EXPECT_EQ(1u, run_count);
 }
 
 TEST_F(ClientTest, SuccessfulCompilation) {
@@ -591,26 +508,13 @@ TEST_F(ClientTest, SuccessfulCompilation) {
   const char* argv[] = {expected_exec_path, "-c", "/tmp/test.cc", nullptr};
 
   run_callback = [&](base::TestProcess* process) {
-    if (run_count == 1) {
-      process->stderr_ = clang_cc_output;
-      auto it = process->args_.begin();
-      EXPECT_EQ(expected_exec_path, process->exec_path_);
-      EXPECT_TRUE(process->cwd_path_.empty());
-      EXPECT_EQ("-###", *(it++));
-      for (size_t i = 1; i < argc; ++i, ++it) {
-        EXPECT_EQ(argv[i], *it);
-      }
-    }
-    else if (run_count == 2) {
-      process->stderr_ = clang_pp_output;
-      auto it = process->args_.begin();
-      EXPECT_EQ(expected_exec_path, process->exec_path_);
-      EXPECT_TRUE(process->cwd_path_.empty());
-      EXPECT_EQ("-###", *(it++));
-      EXPECT_EQ("-E", *(it++));
-      for (size_t i = 1; i < argc; ++i, ++it) {
-        EXPECT_EQ(argv[i], *it);
-      }
+    process->stderr_ = clang_cc_output;
+    auto it = process->args_.begin();
+    EXPECT_EQ(expected_exec_path, process->exec_path_);
+    EXPECT_TRUE(process->cwd_path_.empty());
+    EXPECT_EQ("-###", *(it++));
+    for (size_t i = 1; i < argc; ++i, ++it) {
+      EXPECT_EQ(argv[i], *it);
     }
   };
 
@@ -620,7 +524,7 @@ TEST_F(ClientTest, SuccessfulCompilation) {
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, connect_count);
   EXPECT_EQ(1u, connections_created);
-  EXPECT_EQ(2u, run_count);
+  EXPECT_EQ(1u, run_count);
 }
 
 TEST_F(ClientTest, FailedCompilation) {
@@ -636,26 +540,13 @@ TEST_F(ClientTest, FailedCompilation) {
   const char* argv[] = {expected_exec_path, "-c", "/tmp/test.cc", nullptr};
 
   run_callback = [&](base::TestProcess* process) {
-    if (run_count == 1) {
-      process->stderr_ = clang_cc_output;
-      auto it = process->args_.begin();
-      EXPECT_EQ(expected_exec_path, process->exec_path_);
-      EXPECT_TRUE(process->cwd_path_.empty());
-      EXPECT_EQ("-###", *(it++));
-      for (size_t i = 1; i < argc; ++i, ++it) {
-        EXPECT_EQ(argv[i], *it);
-      }
-    }
-    else if (run_count == 2) {
-      process->stderr_ = clang_pp_output;
-      auto it = process->args_.begin();
-      EXPECT_EQ(expected_exec_path, process->exec_path_);
-      EXPECT_TRUE(process->cwd_path_.empty());
-      EXPECT_EQ("-###", *(it++));
-      EXPECT_EQ("-E", *(it++));
-      for (size_t i = 1; i < argc; ++i, ++it) {
-        EXPECT_EQ(argv[i], *it);
-      }
+    process->stderr_ = clang_cc_output;
+    auto it = process->args_.begin();
+    EXPECT_EQ(expected_exec_path, process->exec_path_);
+    EXPECT_TRUE(process->cwd_path_.empty());
+    EXPECT_EQ("-###", *(it++));
+    for (size_t i = 1; i < argc; ++i, ++it) {
+      EXPECT_EQ(argv[i], *it);
     }
   };
 

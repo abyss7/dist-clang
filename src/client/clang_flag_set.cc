@@ -96,11 +96,11 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(StringList& flags,
     }
     else if (flag == "-emit-obj") {
       action = COMPILE;
-      message->add_other(flag);
+      message->set_action(flag);
     }
     else if (flag == "-E") {
       action = PREPROCESS;
-      message->add_other(flag);
+      message->set_action(flag);
     }
     else if (flag == "-dependency-file") {
       message->add_dependenies(flag);
@@ -115,6 +115,9 @@ ClangFlagSet::Action ClangFlagSet::ProcessFlags(StringList& flags,
     }
     else if (flag == "-MMD") {
       message->add_dependenies(flag);
+    }
+    else if (flag == "-mrelax-all") {
+      message->add_cc_only(flag);
     }
     else if (flag == "-MT") {
       message->add_dependenies(flag);

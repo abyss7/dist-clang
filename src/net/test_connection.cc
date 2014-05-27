@@ -64,6 +64,7 @@ void TestConnection::CallOnRead(std::function<void(Message*)> callback) {
 
 bool TestConnection::TriggerReadAsync(std::unique_ptr<proto::Universal> message,
                                       const proto::Status &status) {
+  message->CheckInitialized();
   if (read_callback_) {
     return read_callback_(shared_from_this(), std::move(message), status);
   }

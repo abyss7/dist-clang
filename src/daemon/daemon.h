@@ -49,6 +49,10 @@ class Daemon {
     void UpdateCache(const proto::Execute* message,
                      const std::string& object,
                      const proto::Status& status);
+
+    // Convert CC to PP flags.
+    static proto::Flags ConvertFlags(const proto::Flags& flags);
+
     bool FillFlags(proto::Flags* flags, proto::Status* status = nullptr);
     void HandleNewConnection(net::ConnectionPtr connection);
     bool HandleNewMessage(net::ConnectionPtr connection, ScopedMessage message,

@@ -52,33 +52,16 @@ bool DoMain(int argc, const char* const argv[], const std::string& socket_path,
   }
   message->set_current_dir(current_dir);
 
-  {
-    auto flags = message->mutable_cc_flags();
-    auto version = flags->mutable_compiler()->mutable_version();
-    ClangFlagSet::StringList args;
-    base::ProcessPtr process = base::Process::Create(clang_path, std::string(),
-                                                     base::Process::SAME_UID);
-    process->AppendArg("-###").AppendArg(argv + 1, argv + argc);
-    if (!process->Run(10) ||
-        !ClangFlagSet::ParseClangOutput(process->stderr(), version, args) ||
-         ClangFlagSet::ProcessFlags(args, flags) != ClangFlagSet::COMPILE) {
-      return true;
-    }
-  }
-
-  {
-    auto flags = message->mutable_pp_flags();
-    auto version = flags->mutable_compiler()->mutable_version();
-    ClangFlagSet::StringList args;
-    base::ProcessPtr process = base::Process::Create(clang_path, std::string(),
-                                                     base::Process::SAME_UID);
-    process->AppendArg("-###").AppendArg("-E").AppendArg(argv + 1, argv + argc);
-    if (!process->Run(10) ||
-        !ClangFlagSet::ParseClangOutput(process->stderr(), version, args) ||
-         ClangFlagSet::ProcessFlags(args, flags) != ClangFlagSet::PREPROCESS) {
-      return true;
-    }
-    flags->clear_output();
+  auto flags = message->mutable_flags();
+  auto version = flags->mutable_compiler()->mutable_version();
+  ClangFlagSet::StringList args;
+  base::ProcessPtr process = base::Process::Create(clang_path, std::string(),
+                                                   base::Process::SAME_UID);
+  process->AppendArg("-###").AppendArg(argv + 1, argv + argc);
+  if (!process->Run(10) ||
+      !ClangFlagSet::ParseClangOutput(process->stderr(), version, args) ||
+       ClangFlagSet::ProcessFlags(args, flags) != ClangFlagSet::COMPILE) {
+    return true;
   }
 
   proto::Status status;

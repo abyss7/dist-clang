@@ -546,6 +546,34 @@ class Flags : public ::google::protobuf::Message {
   inline const ::google::protobuf::RepeatedPtrField< ::std::string>& non_cached() const;
   inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_non_cached();
 
+  // repeated string cc_only = 8;
+  inline int cc_only_size() const;
+  inline void clear_cc_only();
+  static const int kCcOnlyFieldNumber = 8;
+  inline const ::std::string& cc_only(int index) const;
+  inline ::std::string* mutable_cc_only(int index);
+  inline void set_cc_only(int index, const ::std::string& value);
+  inline void set_cc_only(int index, const char* value);
+  inline void set_cc_only(int index, const char* value, size_t size);
+  inline ::std::string* add_cc_only();
+  inline void add_cc_only(const ::std::string& value);
+  inline void add_cc_only(const char* value);
+  inline void add_cc_only(const char* value, size_t size);
+  inline const ::google::protobuf::RepeatedPtrField< ::std::string>& cc_only() const;
+  inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_cc_only();
+
+  // required string action = 9;
+  inline bool has_action() const;
+  inline void clear_action();
+  static const int kActionFieldNumber = 9;
+  inline const ::std::string& action() const;
+  inline void set_action(const ::std::string& value);
+  inline void set_action(const char* value);
+  inline void set_action(const char* value, size_t size);
+  inline ::std::string* mutable_action();
+  inline ::std::string* release_action();
+  inline void set_allocated_action(::std::string* action);
+
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Flags)
  private:
   inline void set_has_compiler();
@@ -556,6 +584,8 @@ class Flags : public ::google::protobuf::Message {
   inline void clear_has_input();
   inline void set_has_language();
   inline void clear_has_language();
+  inline void set_has_action();
+  inline void clear_has_action();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -566,9 +596,11 @@ class Flags : public ::google::protobuf::Message {
   ::google::protobuf::RepeatedPtrField< ::std::string> dependenies_;
   ::std::string* language_;
   ::google::protobuf::RepeatedPtrField< ::std::string> non_cached_;
+  ::google::protobuf::RepeatedPtrField< ::std::string> cc_only_;
+  ::std::string* action_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(7 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(9 + 31) / 32];
 
   friend void  protobuf_AddDesc_remote_2eproto();
   friend void protobuf_AssignDesc_remote_2eproto();
@@ -640,23 +672,14 @@ class Execute : public ::google::protobuf::Message {
   inline bool remote() const;
   inline void set_remote(bool value);
 
-  // required .dist_clang.proto.Flags cc_flags = 2;
-  inline bool has_cc_flags() const;
-  inline void clear_cc_flags();
-  static const int kCcFlagsFieldNumber = 2;
-  inline const ::dist_clang::proto::Flags& cc_flags() const;
-  inline ::dist_clang::proto::Flags* mutable_cc_flags();
-  inline ::dist_clang::proto::Flags* release_cc_flags();
-  inline void set_allocated_cc_flags(::dist_clang::proto::Flags* cc_flags);
-
-  // optional .dist_clang.proto.Flags pp_flags = 3;
-  inline bool has_pp_flags() const;
-  inline void clear_pp_flags();
-  static const int kPpFlagsFieldNumber = 3;
-  inline const ::dist_clang::proto::Flags& pp_flags() const;
-  inline ::dist_clang::proto::Flags* mutable_pp_flags();
-  inline ::dist_clang::proto::Flags* release_pp_flags();
-  inline void set_allocated_pp_flags(::dist_clang::proto::Flags* pp_flags);
+  // required .dist_clang.proto.Flags flags = 2;
+  inline bool has_flags() const;
+  inline void clear_flags();
+  static const int kFlagsFieldNumber = 2;
+  inline const ::dist_clang::proto::Flags& flags() const;
+  inline ::dist_clang::proto::Flags* mutable_flags();
+  inline ::dist_clang::proto::Flags* release_flags();
+  inline void set_allocated_flags(::dist_clang::proto::Flags* flags);
 
   // optional string current_dir = 4;
   inline bool has_current_dir() const;
@@ -697,10 +720,8 @@ class Execute : public ::google::protobuf::Message {
  private:
   inline void set_has_remote();
   inline void clear_has_remote();
-  inline void set_has_cc_flags();
-  inline void clear_has_cc_flags();
-  inline void set_has_pp_flags();
-  inline void clear_has_pp_flags();
+  inline void set_has_flags();
+  inline void clear_has_flags();
   inline void set_has_current_dir();
   inline void clear_has_current_dir();
   inline void set_has_pp_source();
@@ -710,15 +731,14 @@ class Execute : public ::google::protobuf::Message {
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
-  ::dist_clang::proto::Flags* cc_flags_;
-  ::dist_clang::proto::Flags* pp_flags_;
+  ::dist_clang::proto::Flags* flags_;
+  ::std::string* current_dir_;
   bool remote_;
   ::google::protobuf::uint32 user_id_;
-  ::std::string* current_dir_;
   ::std::string* pp_source_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(6 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(5 + 31) / 32];
 
   friend void  protobuf_AddDesc_remote_2eproto();
   friend void protobuf_AssignDesc_remote_2eproto();
@@ -1494,6 +1514,120 @@ Flags::mutable_non_cached() {
   return &non_cached_;
 }
 
+// repeated string cc_only = 8;
+inline int Flags::cc_only_size() const {
+  return cc_only_.size();
+}
+inline void Flags::clear_cc_only() {
+  cc_only_.Clear();
+}
+inline const ::std::string& Flags::cc_only(int index) const {
+  return cc_only_.Get(index);
+}
+inline ::std::string* Flags::mutable_cc_only(int index) {
+  return cc_only_.Mutable(index);
+}
+inline void Flags::set_cc_only(int index, const ::std::string& value) {
+  cc_only_.Mutable(index)->assign(value);
+}
+inline void Flags::set_cc_only(int index, const char* value) {
+  cc_only_.Mutable(index)->assign(value);
+}
+inline void Flags::set_cc_only(int index, const char* value, size_t size) {
+  cc_only_.Mutable(index)->assign(
+    reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* Flags::add_cc_only() {
+  return cc_only_.Add();
+}
+inline void Flags::add_cc_only(const ::std::string& value) {
+  cc_only_.Add()->assign(value);
+}
+inline void Flags::add_cc_only(const char* value) {
+  cc_only_.Add()->assign(value);
+}
+inline void Flags::add_cc_only(const char* value, size_t size) {
+  cc_only_.Add()->assign(reinterpret_cast<const char*>(value), size);
+}
+inline const ::google::protobuf::RepeatedPtrField< ::std::string>&
+Flags::cc_only() const {
+  return cc_only_;
+}
+inline ::google::protobuf::RepeatedPtrField< ::std::string>*
+Flags::mutable_cc_only() {
+  return &cc_only_;
+}
+
+// required string action = 9;
+inline bool Flags::has_action() const {
+  return (_has_bits_[0] & 0x00000100u) != 0;
+}
+inline void Flags::set_has_action() {
+  _has_bits_[0] |= 0x00000100u;
+}
+inline void Flags::clear_has_action() {
+  _has_bits_[0] &= ~0x00000100u;
+}
+inline void Flags::clear_action() {
+  if (action_ != &::google::protobuf::internal::kEmptyString) {
+    action_->clear();
+  }
+  clear_has_action();
+}
+inline const ::std::string& Flags::action() const {
+  return *action_;
+}
+inline void Flags::set_action(const ::std::string& value) {
+  set_has_action();
+  if (action_ == &::google::protobuf::internal::kEmptyString) {
+    action_ = new ::std::string;
+  }
+  action_->assign(value);
+}
+inline void Flags::set_action(const char* value) {
+  set_has_action();
+  if (action_ == &::google::protobuf::internal::kEmptyString) {
+    action_ = new ::std::string;
+  }
+  action_->assign(value);
+}
+inline void Flags::set_action(const char* value, size_t size) {
+  set_has_action();
+  if (action_ == &::google::protobuf::internal::kEmptyString) {
+    action_ = new ::std::string;
+  }
+  action_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* Flags::mutable_action() {
+  set_has_action();
+  if (action_ == &::google::protobuf::internal::kEmptyString) {
+    action_ = new ::std::string;
+  }
+  return action_;
+}
+inline ::std::string* Flags::release_action() {
+  clear_has_action();
+  if (action_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = action_;
+    action_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
+}
+inline void Flags::set_allocated_action(::std::string* action) {
+  if (action_ != &::google::protobuf::internal::kEmptyString) {
+    delete action_;
+  }
+  if (action) {
+    set_has_action();
+    action_ = action;
+  } else {
+    clear_has_action();
+    action_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
+}
+
 // -------------------------------------------------------------------
 
 // Execute
@@ -1520,91 +1654,53 @@ inline void Execute::set_remote(bool value) {
   remote_ = value;
 }
 
-// required .dist_clang.proto.Flags cc_flags = 2;
-inline bool Execute::has_cc_flags() const {
+// required .dist_clang.proto.Flags flags = 2;
+inline bool Execute::has_flags() const {
   return (_has_bits_[0] & 0x00000002u) != 0;
 }
-inline void Execute::set_has_cc_flags() {
+inline void Execute::set_has_flags() {
   _has_bits_[0] |= 0x00000002u;
 }
-inline void Execute::clear_has_cc_flags() {
+inline void Execute::clear_has_flags() {
   _has_bits_[0] &= ~0x00000002u;
 }
-inline void Execute::clear_cc_flags() {
-  if (cc_flags_ != NULL) cc_flags_->::dist_clang::proto::Flags::Clear();
-  clear_has_cc_flags();
+inline void Execute::clear_flags() {
+  if (flags_ != NULL) flags_->::dist_clang::proto::Flags::Clear();
+  clear_has_flags();
 }
-inline const ::dist_clang::proto::Flags& Execute::cc_flags() const {
-  return cc_flags_ != NULL ? *cc_flags_ : *default_instance_->cc_flags_;
+inline const ::dist_clang::proto::Flags& Execute::flags() const {
+  return flags_ != NULL ? *flags_ : *default_instance_->flags_;
 }
-inline ::dist_clang::proto::Flags* Execute::mutable_cc_flags() {
-  set_has_cc_flags();
-  if (cc_flags_ == NULL) cc_flags_ = new ::dist_clang::proto::Flags;
-  return cc_flags_;
+inline ::dist_clang::proto::Flags* Execute::mutable_flags() {
+  set_has_flags();
+  if (flags_ == NULL) flags_ = new ::dist_clang::proto::Flags;
+  return flags_;
 }
-inline ::dist_clang::proto::Flags* Execute::release_cc_flags() {
-  clear_has_cc_flags();
-  ::dist_clang::proto::Flags* temp = cc_flags_;
-  cc_flags_ = NULL;
+inline ::dist_clang::proto::Flags* Execute::release_flags() {
+  clear_has_flags();
+  ::dist_clang::proto::Flags* temp = flags_;
+  flags_ = NULL;
   return temp;
 }
-inline void Execute::set_allocated_cc_flags(::dist_clang::proto::Flags* cc_flags) {
-  delete cc_flags_;
-  cc_flags_ = cc_flags;
-  if (cc_flags) {
-    set_has_cc_flags();
+inline void Execute::set_allocated_flags(::dist_clang::proto::Flags* flags) {
+  delete flags_;
+  flags_ = flags;
+  if (flags) {
+    set_has_flags();
   } else {
-    clear_has_cc_flags();
-  }
-}
-
-// optional .dist_clang.proto.Flags pp_flags = 3;
-inline bool Execute::has_pp_flags() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
-}
-inline void Execute::set_has_pp_flags() {
-  _has_bits_[0] |= 0x00000004u;
-}
-inline void Execute::clear_has_pp_flags() {
-  _has_bits_[0] &= ~0x00000004u;
-}
-inline void Execute::clear_pp_flags() {
-  if (pp_flags_ != NULL) pp_flags_->::dist_clang::proto::Flags::Clear();
-  clear_has_pp_flags();
-}
-inline const ::dist_clang::proto::Flags& Execute::pp_flags() const {
-  return pp_flags_ != NULL ? *pp_flags_ : *default_instance_->pp_flags_;
-}
-inline ::dist_clang::proto::Flags* Execute::mutable_pp_flags() {
-  set_has_pp_flags();
-  if (pp_flags_ == NULL) pp_flags_ = new ::dist_clang::proto::Flags;
-  return pp_flags_;
-}
-inline ::dist_clang::proto::Flags* Execute::release_pp_flags() {
-  clear_has_pp_flags();
-  ::dist_clang::proto::Flags* temp = pp_flags_;
-  pp_flags_ = NULL;
-  return temp;
-}
-inline void Execute::set_allocated_pp_flags(::dist_clang::proto::Flags* pp_flags) {
-  delete pp_flags_;
-  pp_flags_ = pp_flags;
-  if (pp_flags) {
-    set_has_pp_flags();
-  } else {
-    clear_has_pp_flags();
+    clear_has_flags();
   }
 }
 
 // optional string current_dir = 4;
 inline bool Execute::has_current_dir() const {
-  return (_has_bits_[0] & 0x00000008u) != 0;
+  return (_has_bits_[0] & 0x00000004u) != 0;
 }
 inline void Execute::set_has_current_dir() {
-  _has_bits_[0] |= 0x00000008u;
+  _has_bits_[0] |= 0x00000004u;
 }
 inline void Execute::clear_has_current_dir() {
-  _has_bits_[0] &= ~0x00000008u;
+  _has_bits_[0] &= ~0x00000004u;
 }
 inline void Execute::clear_current_dir() {
   if (current_dir_ != &::google::protobuf::internal::kEmptyString) {
@@ -1668,13 +1764,13 @@ inline void Execute::set_allocated_current_dir(::std::string* current_dir) {
 
 // optional string pp_source = 5;
 inline bool Execute::has_pp_source() const {
-  return (_has_bits_[0] & 0x00000010u) != 0;
+  return (_has_bits_[0] & 0x00000008u) != 0;
 }
 inline void Execute::set_has_pp_source() {
-  _has_bits_[0] |= 0x00000010u;
+  _has_bits_[0] |= 0x00000008u;
 }
 inline void Execute::clear_has_pp_source() {
-  _has_bits_[0] &= ~0x00000010u;
+  _has_bits_[0] &= ~0x00000008u;
 }
 inline void Execute::clear_pp_source() {
   if (pp_source_ != &::google::protobuf::internal::kEmptyString) {
@@ -1738,13 +1834,13 @@ inline void Execute::set_allocated_pp_source(::std::string* pp_source) {
 
 // optional uint32 user_id = 6;
 inline bool Execute::has_user_id() const {
-  return (_has_bits_[0] & 0x00000020u) != 0;
+  return (_has_bits_[0] & 0x00000010u) != 0;
 }
 inline void Execute::set_has_user_id() {
-  _has_bits_[0] |= 0x00000020u;
+  _has_bits_[0] |= 0x00000010u;
 }
 inline void Execute::clear_has_user_id() {
-  _has_bits_[0] &= ~0x00000020u;
+  _has_bits_[0] &= ~0x00000010u;
 }
 inline void Execute::clear_user_id() {
   user_id_ = 0u;
