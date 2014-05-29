@@ -16,14 +16,6 @@
 
 #include "base/using_log.h"
 
-using namespace dist_clang;
-
-namespace {
-
-
-
-}  // namespace
-
 namespace dist_clang {
 namespace client {
 
@@ -42,54 +34,70 @@ bool DoMain(int argc, const char* const argv[], const std::string& socket_path,
     return true;
   }
 
-  std::unique_ptr<proto::Execute> message(new proto::Execute);
-  message->set_remote(false);
-  message->set_user_id(getuid());
-
   std::string current_dir = base::GetCurrentDir();
   if (current_dir.empty()) {
     return true;
   }
-  message->set_current_dir(current_dir);
 
-  auto flags = message->mutable_flags();
-  auto version = flags->mutable_compiler()->mutable_version();
-  ClangFlagSet::StringList args;
+  std::string version;
+  FlagSet::CommandList commands;
   base::ProcessPtr process = base::Process::Create(clang_path, std::string(),
                                                    base::Process::SAME_UID);
   process->AppendArg("-###").AppendArg(argv + 1, argv + argc);
   if (!process->Run(10) ||
-      !ClangFlagSet::ParseClangOutput(process->stderr(), version, args) ||
-       ClangFlagSet::ProcessFlags(args, flags) != ClangFlagSet::COMPILE) {
+      !FlagSet::ParseClangOutput(process->stderr(), &version, commands)) {
     return true;
   }
 
-  proto::Status status;
-  if (!connection->SendSync(std::move(message), &status)) {
-    LOG(ERROR) << "Failed to send message: " << status.description();
-    return true;
-  }
+  for (auto& args: commands) {
+    std::unique_ptr<proto::Execute> message(new proto::Execute);
+    message->set_remote(false);
+    message->set_user_id(getuid());
+    message->set_current_dir(current_dir);
 
-  net::Connection::Message top_message;
-  if (!connection->ReadSync(&top_message, &status)) {
-    LOG(ERROR) << "Failed to read message: " << status.description();
-    return true;
-  }
+    auto flags = message->mutable_flags();
+    flags->mutable_compiler()->set_version(version);
+    if (FlagSet::ProcessFlags(args, flags) != FlagSet::COMPILE) {
+      base::ProcessPtr command = base::Process::Create(args.front(),
+                                                       std::string(),
+                                                       base::Process::SAME_UID);
+      command->AppendArg(++args.begin(), args.end());
+      if (!command->Run(base::Process::UNLIMITED)) {
+        return true;
+      }
 
-  if (!top_message.HasExtension(proto::Status::extension)) {
-    return true;
-  }
+      continue;
+    }
 
-  status = top_message.GetExtension(proto::Status::extension);
-  if (status.code() != proto::Status::EXECUTION &&
-      status.code() != proto::Status::OK) {
-    LOG(VERBOSE) << "Failed to use daemon: " << status.description();
-    return true;
-  }
+    proto::Status status;
+    if (!connection->SendSync(std::move(message), &status)) {
+      LOG(ERROR) << "Failed to send message: " << status.description();
+      return true;
+    }
 
-  if (status.code() == proto::Status::EXECUTION) {
-    LOG(FATAL) << "Compilation on daemon failed:" << std::endl
-               << status.description();
+    net::Connection::Message top_message;
+    if (!connection->ReadSync(&top_message, &status)) {
+      LOG(ERROR) << "Failed to read message: " << status.description();
+      return true;
+    }
+
+    if (!top_message.HasExtension(proto::Status::extension)) {
+      return true;
+    }
+
+    status = top_message.GetExtension(proto::Status::extension);
+    if (status.code() != proto::Status::EXECUTION &&
+        status.code() != proto::Status::OK) {
+      LOG(VERBOSE) << "Failed to use daemon: " << status.description();
+      return true;
+    }
+
+    if (status.code() == proto::Status::EXECUTION) {
+      LOG(FATAL) << "Compilation on daemon failed:" << std::endl
+                 << status.description();
+    }
+
+    LOG(VERBOSE) << "Compilation on daemon successful" << std::endl;
   }
 
   return false;

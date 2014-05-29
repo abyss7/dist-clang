@@ -25,13 +25,12 @@ namespace client {
 // Pay attention to the leading space in the fourth line.
 
 // static
-bool ClangFlagSet::ParseClangOutput(const std::string& output,
-                                    std::string* version,
-                                    StringList& args) {
+bool FlagSet::ParseClangOutput(const std::string& output,
+                               std::string* version,
+                               CommandList& commands) {
   StringList lines;
   base::SplitString<'\n'>(output, lines);
-  if (lines.size() != 4) {
-    // FIXME: we don't support composite tasks yet.
+  if (lines.size() < 4) {
     return false;
   }
 
@@ -39,29 +38,36 @@ bool ClangFlagSet::ParseClangOutput(const std::string& output,
     version->assign(lines.front());
   }
 
-  args.clear();
-  base::SplitString(lines.back(), " \"", args);
-  if (!args.front().empty()) {
-    // Something went wrong.
-    return false;
-  }
-
-  // Escape from double-quotes.
-  for (auto& arg: args) {
-    if (!arg.empty()) {
-      DCHECK(arg[arg.size() - 1] == '"');
-      arg.erase(arg.size() - 1);
-      base::Replace(arg, "\\\\", "\\");
-      base::Replace(arg, "\\\"", "\"");
+  commands.clear();
+  lines.pop_front();
+  lines.pop_front();
+  lines.pop_front();
+  for (const auto& line: lines) {
+    StringList args;
+    base::SplitString(line, " \"", args);
+    if (!args.front().empty()) {
+      // Something went wrong.
+      return false;
     }
+
+    // Escape from double-quotes.
+    for (auto& arg: args) {
+      if (!arg.empty()) {
+        DCHECK(arg[arg.size() - 1] == '"');
+        arg.erase(arg.size() - 1);
+        base::Replace(arg, "\\\\", "\\");
+        base::Replace(arg, "\\\"", "\"");
+      }
+    }
+    commands.emplace_back(std::move(args));
   }
 
   return true;
 }
 
 // static
-ClangFlagSet::Action ClangFlagSet::ProcessFlags(StringList& flags,
-                                                proto::Flags* message) {
+FlagSet::Action FlagSet::ProcessFlags(StringList flags,
+                                      proto::Flags* message) {
   Action action(UNKNOWN);
   std::string temp_dir = base::GetEnv(kEnvTempDir, kDefaultTempDir);
 

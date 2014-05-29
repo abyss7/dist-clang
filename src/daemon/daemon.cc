@@ -284,6 +284,7 @@ proto::Flags Daemon::ConvertFlags(const proto::Flags& flags) {
   proto::Flags pp_flags;
 
   pp_flags.CopyFrom(flags);
+  pp_flags.clear_cc_only();
   pp_flags.set_output("-");
   pp_flags.set_action("-E");
 
@@ -381,6 +382,7 @@ base::ProcessPtr Daemon::CreateProcess(const proto::Flags& flags,
 
   // |flags.other()| always must go first, since it contains the "-cc1" flag.
   process->AppendArg(flags.other().begin(), flags.other().end());
+  process->AppendArg(flags.action());
   process->AppendArg(flags.non_cached().begin(), flags.non_cached().end());
   process->AppendArg(flags.dependenies().begin(), flags.dependenies().end());
   for (const auto& plugin: flags.compiler().plugins()) {
@@ -402,28 +404,7 @@ base::ProcessPtr Daemon::CreateProcess(const proto::Flags& flags,
 // static
 base::ProcessPtr Daemon::CreateProcess(const proto::Flags& flags,
                                        const std::string& cwd_path) {
-  base::ProcessPtr process =
-      base::Process::Create(flags.compiler().path(), cwd_path,
-                            base::Process::SAME_UID);
-
-  // |flags.other()| always must go first, since it contains the "-cc1" flag.
-  process->AppendArg(flags.other().begin(), flags.other().end());
-  process->AppendArg(flags.non_cached().begin(), flags.non_cached().end());
-  process->AppendArg(flags.dependenies().begin(), flags.dependenies().end());
-  for (const auto& plugin: flags.compiler().plugins()) {
-    process->AppendArg("-load").AppendArg(plugin.path());
-  }
-  if (flags.has_language()) {
-    process->AppendArg("-x").AppendArg(flags.language());
-  }
-  if (flags.has_output()) {
-    process->AppendArg("-o").AppendArg(flags.output());
-  }
-  if (flags.has_input()) {
-    process->AppendArg(flags.input());
-  }
-
-  return std::move(process);
+  return std::move(CreateProcess(flags, base::Process::SAME_UID, cwd_path));
 }
 
 void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {

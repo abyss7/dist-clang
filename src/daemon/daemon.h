@@ -5,6 +5,7 @@
 #include "daemon/configuration.h"
 #include "daemon/file_cache.h"
 #include "daemon/statistic.h"
+#include "gtest/gtest_prod.h"
 #include "net/connection_forward.h"
 #include "net/network_service.h"
 #include "proto/remote.pb.h"
@@ -19,6 +20,9 @@ class Process;
 
 namespace daemon {
 
+FORWARD_TEST(DaemonUtilTest, ConvertFlagsFromCC2PP);
+FORWARD_TEST(DaemonUtilTest, CreateProcessFromFlags);
+
 class Daemon {
   public:
 #if defined(PROFILER)
@@ -29,6 +33,9 @@ class Daemon {
     bool Initialize(const Configuration& configuration);
 
   private:
+    FRIEND_TEST(DaemonUtilTest, ConvertFlagsFromCC2PP);
+    FRIEND_TEST(DaemonUtilTest, CreateProcessFromFlags);
+
     using ScopedMessage = std::unique_ptr<proto::Universal>;
     using ScopedExecute = std::unique_ptr<proto::Execute>;
     using ScopedTask = std::pair<net::ConnectionPtr, ScopedExecute>;

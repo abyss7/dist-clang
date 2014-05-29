@@ -12,6 +12,90 @@
 namespace dist_clang {
 namespace daemon {
 
+TEST(DaemonUtilTest, ConvertFlagsFromCC2PP) {
+  proto::Flags expected_flags;
+  auto* compiler = expected_flags.mutable_compiler();
+  compiler->set_version("clang version 3.5");
+  compiler->set_path("/usr/bin/clang");
+  auto* plugin = compiler->add_plugins();
+  plugin->set_name("some_plugin");
+  plugin->set_path("/usr/lib/libplugin.so");
+  expected_flags.add_dependenies()->assign("-MT");
+  expected_flags.add_non_cached()->assign("-I.");
+  expected_flags.add_other()->assign("-cc1");
+  expected_flags.set_action("-E");
+  expected_flags.set_input("test.cc");
+  expected_flags.set_output("-");
+  expected_flags.set_language("c++");
+
+  proto::Flags flags;
+  flags.mutable_compiler()->set_version("clang version 3.5");
+  flags.mutable_compiler()->set_path("/usr/bin/clang");
+  plugin = flags.mutable_compiler()->add_plugins();
+  plugin->set_name("some_plugin");
+  plugin->set_path("/usr/lib/libplugin.so");
+  flags.add_cc_only()->assign("-mrelax-all");
+  flags.add_dependenies()->assign("-MT");
+  flags.add_non_cached()->assign("-I.");
+  flags.add_other()->assign("-cc1");
+  flags.set_action("-emit-obj");
+  flags.set_input("test.cc");
+  flags.set_output("test.o");
+  flags.set_language("c++");
+
+  proto::Flags actual_flags = Daemon::ConvertFlags(flags);
+  EXPECT_EQ(expected_flags.SerializeAsString(),
+            actual_flags.SerializeAsString());
+}
+
+TEST(DaemonUtilTest, CreateProcessFromFlags) {
+  const std::list<std::string> expected_args = {
+    "-cc1",
+    "-emit-obj",
+    "-I.",
+    "-MT",
+    "-load", "/usr/lib/libplugin.so",
+    "-x", "c++",
+    "-o", "test.o",
+    "test.cc",
+  };
+  const uint32_t expected_user_id = 1u;
+
+  proto::Flags flags;
+  flags.mutable_compiler()->set_path("/usr/bin/clang");
+  flags.mutable_compiler()->add_plugins()->set_path("/usr/lib/libplugin.so");
+  flags.add_cc_only()->assign("-mrelax-all");
+  flags.add_dependenies()->assign("-MT");
+  flags.add_non_cached()->assign("-I.");
+  flags.add_other()->assign("-cc1");
+  flags.set_action("-emit-obj");
+  flags.set_input("test.cc");
+  flags.set_output("test.o");
+  flags.set_language("c++");
+
+  {
+    base::ProcessPtr process = Daemon::CreateProcess(flags, expected_user_id);
+    auto it = expected_args.begin();
+    ASSERT_EQ(expected_args.size(), process->args_.size());
+    for (const auto& arg: process->args_) {
+      EXPECT_EQ(*(it++), arg);
+    }
+    EXPECT_EQ("/usr/bin/clang", process->exec_path_);
+    EXPECT_EQ(expected_user_id, process->uid_);
+  }
+
+  {
+    base::ProcessPtr process = Daemon::CreateProcess(flags);
+    auto it = expected_args.begin();
+    ASSERT_EQ(expected_args.size(), process->args_.size());
+    for (const auto& arg: process->args_) {
+      EXPECT_EQ(*(it++), arg);
+    }
+    EXPECT_EQ("/usr/bin/clang", process->exec_path_);
+    EXPECT_EQ(base::Process::SAME_UID, process->uid_);
+  }
+}
+
 class DaemonTest : public ::testing::Test {
  public:
   using Service = net::TestNetworkService;

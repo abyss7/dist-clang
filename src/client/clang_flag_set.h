@@ -11,16 +11,17 @@ class Flags;
 
 namespace client {
 
-class ClangFlagSet {
+class FlagSet {
   public:
     enum Action { COMPILE, LINK, PREPROCESS, UNKNOWN };
     using StringList = std::list<std::string>;
+    using CommandList = std::list<StringList>;
 
-    static Action ProcessFlags(StringList &flags, proto::Flags *message);
+    static Action ProcessFlags(StringList flags, proto::Flags *message);
     static bool ParseClangOutput(
         const std::string& output,
         std::string* version,
-        StringList& args);
+        CommandList& args);
 };
 
 }  // namespace client

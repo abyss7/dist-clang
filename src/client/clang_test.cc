@@ -60,56 +60,13 @@ const std::string clang_cc_output =
     " \"-o\" \"test.o\""
     " \"-x\" \"c++\""
     " \"/tmp/test.cc\"\n";
-
-// It's a possible output of the command:
-// `cd /tmp; clang++ -### -E -c /tmp/test.cc`
-const std::string clang_pp_output =
-    "clang version 3.4 (...) (...)\n"
-    "Target: x86_64-unknown-linux-gnu\n"
-    "Thread model: posix\n"
-    " \"/usr/bin/clang\" \"-cc1\""
-    " \"-triple\" \"x86_64-unknown-linux-gnu\""
-    " \"-E\""
-    " \"-disable-free\""
-    " \"-main-file-name\" \"test.cc\""
-    " \"-mrelocation-model\" \"static\""
-    " \"-mdisable-fp-elim\""
-    " \"-fmath-errno\""
-    " \"-masm-verbose\""
-    " \"-mconstructor-aliases\""
-    " \"-munwind-tables\""
-    " \"-fuse-init-array\""
-    " \"-target-cpu\" \"x86-64\""
-    " \"-target-linker-version\" \"2.23.2\""
-    " \"-coverage-file\" \"/tmp/-\""
-    " \"-resource-dir\" \"/usr/lib/clang/3.4\""
-    " \"-internal-isystem\" \"/usr/include/c++/4.8.2\""
-    " \"-internal-isystem\" \"/usr/local/include\""
-    " \"-internal-isystem\" \"/usr/lib/clang/3.4/include\""
-    " \"-internal-externc-isystem\" \"/include\""
-    " \"-internal-externc-isystem\" \"/usr/include\""
-    " \"-fdeprecated-macro\""
-    " \"-fdebug-compilation-dir\" \"/tmp\""
-    " \"-ferror-limit\" \"19\""
-    " \"-fmessage-length\" \"213\""
-    " \"-mstackrealign\""
-    " \"-fobjc-runtime=gcc\""
-    " \"-fcxx-exceptions\""
-    " \"-fexceptions\""
-    " \"-fdiagnostics-show-option\""
-    " \"-fcolor-diagnostics\""
-    " \"-vectorize-slp\""
-    " \"-o\" \"-\""
-    " \"-x\" \"c++\""
-    " \"/tmp/test.cc\"\n";
-
 }  // namespace
 
 TEST(ClangFlagSetTest, SimpleInput) {
   std::string version;
   const std::string expected_version = "clang version 3.4 (...) (...)";
-  ClangFlagSet::StringList input;
-  const ClangFlagSet::StringList expected_input = {
+  FlagSet::CommandList input;
+  const FlagSet::StringList expected_input = {
     "",
     "/usr/bin/clang", "-cc1",
     "-triple", "x86_64-unknown-linux-gnu",
@@ -150,9 +107,9 @@ TEST(ClangFlagSetTest, SimpleInput) {
   };
   auto it = expected_input.begin();
 
-  EXPECT_TRUE(ClangFlagSet::ParseClangOutput(clang_cc_output, &version, input));
+  EXPECT_TRUE(FlagSet::ParseClangOutput(clang_cc_output, &version, input));
   EXPECT_EQ(expected_version, version);
-  for (const auto& value: input) {
+  for (const auto& value: *input.begin()) {
     ASSERT_EQ(*(it++), value);
   }
 
@@ -213,10 +170,60 @@ TEST(ClangFlagSetTest, SimpleInput) {
 
   proto::Flags actual_flags;
   actual_flags.mutable_compiler()->set_version(version);
-  ASSERT_EQ(ClangFlagSet::COMPILE,
-            ClangFlagSet::ProcessFlags(input, &actual_flags));
+  ASSERT_EQ(FlagSet::COMPILE,
+            FlagSet::ProcessFlags(*input.begin(), &actual_flags));
   ASSERT_EQ(expected_flags.SerializeAsString(),
             actual_flags.SerializeAsString());
+}
+
+TEST(ClangFlagSetTest, MultipleCommands) {
+  std::string version;
+  const std::string expected_version = "clang version 3.4 (...) (...)";
+  FlagSet::CommandList input;
+  const std::string clang_multi_output =
+      "clang version 3.4 (...) (...)\n"
+      "Target: x86_64-unknown-linux-gnu\n"
+      "Thread model: posix\n"
+      " \"/usr/bin/clang\""
+      " \"-emit-obj\""
+      " \"test.cc\"\n"
+      " \"/usr/bin/objcopy\""
+      " \"something\""
+      " \"some_file\"\n";
+  const FlagSet::StringList expected_input1 = {
+    "",
+    "/usr/bin/clang",
+    "-emit-obj",
+    "test.cc",
+  };
+  const FlagSet::StringList expected_input2 = {
+    "",
+    "/usr/bin/objcopy",
+    "something",
+    "some_file",
+  };
+
+  EXPECT_TRUE(FlagSet::ParseClangOutput(clang_multi_output, &version, input));
+  EXPECT_EQ(expected_version, version);
+
+  ASSERT_EQ(2u, input.size());
+
+  auto it1 = expected_input1.begin();
+  for (const auto& value: input.front()) {
+    EXPECT_EQ(*(it1++), value);
+  }
+
+  auto it2 = expected_input2.begin();
+  for (const auto& value: input.back()) {
+    EXPECT_EQ(*(it2++), value);
+  }
+
+  proto::Flags actual_flags;
+  actual_flags.mutable_compiler()->set_version(version);
+  ASSERT_EQ(FlagSet::COMPILE,
+            FlagSet::ProcessFlags(input.front(), &actual_flags));
+  ASSERT_EQ(FlagSet::UNKNOWN,
+            FlagSet::ProcessFlags(input.back(), &actual_flags));
 }
 
 class ClientTest: public ::testing::Test {
@@ -552,6 +559,14 @@ TEST_F(ClientTest, FailedCompilation) {
 
   EXPECT_EXIT(client::DoMain(argc, argv, std::string(), "clang++"),
               ::testing::ExitedWithCode(1), ".*");
+}
+
+TEST_F(ClientTest, DISABLED_MultipleCommands_OneFails) {
+  // TODO: implement this.
+}
+
+TEST_F(ClientTest, DISABLED_MultipleCommands_Successful) {
+  // TODO: implement this.
 }
 
 }  // namespace client

@@ -19,6 +19,7 @@ FORWARD_TEST(ClientTest, FailedCompilation);
 }  // namespace client
 
 namespace daemon {
+FORWARD_TEST(DaemonUtilTest, CreateProcessFromFlags);
 FORWARD_TEST(DaemonTest, StoreLocalCache);
 FORWARD_TEST(DaemonTest, StoreRemoteCache);
 }  // namespace daemon
@@ -66,6 +67,7 @@ class Process:
     FRIEND_TEST(client::ClientTest, ReadMessageWithBadStatus);
     FRIEND_TEST(client::ClientTest, SuccessfulCompilation);
     FRIEND_TEST(client::ClientTest, FailedCompilation);
+    FRIEND_TEST(daemon::DaemonUtilTest, CreateProcessFromFlags);
     FRIEND_TEST(daemon::DaemonTest, StoreLocalCache);
     FRIEND_TEST(daemon::DaemonTest, StoreRemoteCache);
 };
