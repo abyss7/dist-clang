@@ -44,6 +44,7 @@ shutil.copy(os.path.join(top_dir, "install", "clangd_init_d"), os.path.join(init
 # Copy python bindings
 shutil.copy(os.path.join(top_dir, "src", "proto", "base_pb2.py"), pylib_dir)
 shutil.copy(os.path.join(top_dir, "src", "proto", "config_pb2.py"), pylib_dir)
+open(os.path.join(pylib_dir, "__init__.py"), 'a').close()
 
 # Create Debian-control file
 args = ['sh']
