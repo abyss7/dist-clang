@@ -13,11 +13,13 @@ bin_dir = os.path.join(product_dir, "deb", "usr", "bin", "dist-clang")
 lib_dir = os.path.join(product_dir, "deb", "usr", "lib", "dist-clang")
 etc_dir = os.path.join(product_dir, "deb", "etc")
 init_dir = os.path.join(etc_dir, "init.d")
+pylib_dir = os.path.join(product_dir, "deb", "usr", "lib", "python2.7", "dist_clang")
 shutil.rmtree(os.path.join(product_dir, "deb"))
 os.makedirs(bin_dir)
 os.makedirs(lib_dir)
 os.makedirs(etc_dir)
 os.makedirs(init_dir)
+os.makedirs(pylib_dir)
 
 # Copy executables
 shutil.copy(os.path.join(top_dir, "install", "clangd_wrapper"), bin_dir)
@@ -38,6 +40,10 @@ shutil.copy(os.path.join(product_dir, "lib", "libproto.so"), lib_dir)
 # Copy configs
 shutil.copy(os.path.join(top_dir, "install", "clangd.conf"), etc_dir)
 shutil.copy(os.path.join(top_dir, "install", "clangd_init_d"), os.path.join(init_dir, "clangd"))
+
+# Copy python bindings
+shutil.copy(os.path.join(top_dir, "src", "proto", "base_pb2.py"), pylib_dir)
+shutil.copy(os.path.join(top_dir, "src", "proto", "config_pb2.py"), pylib_dir)
 
 # Create Debian-control file
 args = ['sh']
