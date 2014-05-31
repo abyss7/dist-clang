@@ -829,15 +829,16 @@ TEST_F(DaemonTest, StoreLocalCache) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ((std::list<std::string>{"-o", "-", input_path1}),
+      EXPECT_EQ((std::list<std::string>{"-E", "-o", "-", input_path1}),
                 process->args_);
     } else if (run_count == 2) {
-      EXPECT_EQ((std::list<std::string>{"-o", output_path1, input_path1}),
+      EXPECT_EQ((std::list<std::string>{"fake_action", "-o",
+                                        output_path1,  input_path1}),
                 process->args_);
       EXPECT_TRUE(
           base::WriteFile(process->cwd_path_ + "/" + output_path1, "object"));
     } else if (run_count == 3) {
-      EXPECT_EQ((std::list<std::string>{"-o", "-", input_path2}),
+      EXPECT_EQ((std::list<std::string>{"-E", "-o", "-", input_path2}),
                 process->args_);
     }
   };
@@ -987,12 +988,13 @@ TEST_F(DaemonTest, StoreRemoteCache) {
   run_callback = [&](base::TestProcess* process) {
     switch (run_count) {
       case 1: {
-        EXPECT_EQ((std::list<std::string>{"-o", "-"}), process->args_);
+        EXPECT_EQ((std::list<std::string>{"fake_action", "-o", "-"}),
+                  process->args_);
         process->stdout_ = expected_object_code;
         break;
       }
       case 2: {
-        EXPECT_EQ((std::list<std::string>{"-o", "-", input_path}),
+        EXPECT_EQ((std::list<std::string>{"-E", "-o", "-", input_path}),
                   process->args_);
         break;
       }

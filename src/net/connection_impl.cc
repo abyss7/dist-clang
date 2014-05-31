@@ -26,7 +26,12 @@ ConnectionImpl::ConnectionImpl(EventLoop& event_loop, fd_t fd,
                                const EndPointPtr& end_point)
   : fd_(fd), event_loop_(event_loop), is_closed_(false), added_(false),
     end_point_(end_point), file_input_stream_(fd_, 1024),
+    gzip_input_stream_(&file_input_stream_, GzipInputStream::ZLIB),
     file_output_stream_(fd_, 1024) {
+  GzipOutputStream::Options options;
+  options.format = GzipOutputStream::ZLIB;
+  gzip_output_stream_.reset(new GzipOutputStream(&file_output_stream_,
+                                                 options));
 }
 
 ConnectionImpl::~ConnectionImpl() {
@@ -54,7 +59,7 @@ bool ConnectionImpl::ReadSync(Message *message, Status *status) {
 
   unsigned size;
   {
-    CodedInputStream coded_stream(&file_input_stream_);
+    CodedInputStream coded_stream(&gzip_input_stream_);
     if (!coded_stream.ReadVarint32(&size)) {
       if (status) {
         status->set_code(Status::NETWORK);
@@ -63,6 +68,11 @@ bool ConnectionImpl::ReadSync(Message *message, Status *status) {
           status->mutable_description()->append(": ");
           status->mutable_description()->append(
               strerror(file_input_stream_.GetErrno()));
+        }
+        else if (gzip_input_stream_.ZlibErrorMessage()) {
+          status->mutable_description()->append(": ");
+          status->mutable_description()->append(
+              gzip_input_stream_.ZlibErrorMessage());
         }
       }
       return false;
@@ -77,7 +87,7 @@ bool ConnectionImpl::ReadSync(Message *message, Status *status) {
     return false;
   }
 
-  if (!message->ParseFromBoundedZeroCopyStream(&file_input_stream_, size)) {
+  if (!message->ParseFromBoundedZeroCopyStream(&gzip_input_stream_, size)) {
     if (status) {
       status->set_code(Status::BAD_MESSAGE);
       status->set_description("Incoming message is malformed");
@@ -85,6 +95,11 @@ bool ConnectionImpl::ReadSync(Message *message, Status *status) {
         status->mutable_description()->append(": ");
         status->mutable_description()->append(
           strerror(file_input_stream_.GetErrno()));
+      }
+      else if (gzip_input_stream_.ZlibErrorMessage()) {
+        status->mutable_description()->append(": ");
+        status->mutable_description()->append(
+            gzip_input_stream_.ZlibErrorMessage());
       }
     }
     return false;
@@ -105,20 +120,39 @@ bool ConnectionImpl::SendAsyncImpl(SendCallback callback) {
 
 bool ConnectionImpl::SendSyncImpl(Status* status) {
   {
-    CodedOutputStream coded_stream(&file_output_stream_);
+    CodedOutputStream coded_stream(gzip_output_stream_.get());
     coded_stream.WriteVarint32(message_->ByteSize());
-    if (!message_->SerializeToCodedStream(&coded_stream)) {
-      if (status) {
-        status->set_code(Status::NETWORK);
-        status->set_description("Can't serialize message to coded stream");
-        if (coded_stream.HadError()) {
-          auto* description = status->mutable_description();
-          description->append(": ");
-          description->append(strerror(file_output_stream_.GetErrno()));
-        }
+  }
+
+  if (!message_->SerializeToZeroCopyStream(gzip_output_stream_.get())) {
+    if (status) {
+      status->set_code(Status::NETWORK);
+      status->set_description("Can't serialize message to GZip stream");
+      if (file_output_stream_.GetErrno()) {
+        status->mutable_description()->append(": ");
+        status->mutable_description()->append(
+            strerror(file_output_stream_.GetErrno()));
       }
-      return false;
+      else if (gzip_output_stream_->ZlibErrorMessage()) {
+        auto* description = status->mutable_description();
+        description->append(": ");
+        description->append(gzip_output_stream_->ZlibErrorMessage());
+      }
     }
+    return false;
+  }
+
+  if (!gzip_output_stream_->Flush()) {
+    if (status) {
+      status->set_code(Status::NETWORK);
+      status->set_description("Can't flush gzipped message");
+      if (gzip_output_stream_->ZlibErrorMessage()) {
+        auto* description = status->mutable_description();
+        description->append(": ");
+        description->append(gzip_output_stream_->ZlibErrorMessage());
+      }
+    }
+    return false;
   }
 
   // The method |Flush()| calls function |write()| and potentially can raise
@@ -127,6 +161,11 @@ bool ConnectionImpl::SendSyncImpl(Status* status) {
     if (status) {
       status->set_code(Status::NETWORK);
       status->set_description("Can't flush sent message to socket");
+      if (file_output_stream_.GetErrno()) {
+        status->mutable_description()->append(": ");
+        status->mutable_description()->append(
+            strerror(file_output_stream_.GetErrno()));
+      }
     }
     return false;
   }

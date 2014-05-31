@@ -39,6 +39,8 @@ class ConnectionImpl: public Connection {
     using CodedOutputStream = google::protobuf::io::CodedOutputStream;
     using FileInputStream = google::protobuf::io::FileInputStream;
     using FileOutputStream = google::protobuf::io::FileOutputStream;
+    using GzipInputStream = google::protobuf::io::GzipInputStream;
+    using GzipOutputStream = google::protobuf::io::GzipOutputStream;
     using BindedReadCallback = Fn<bool(ScopedMessage, const Status&)>;
     using BindedSendCallback = Fn<bool(const Status&)>;
 
@@ -62,10 +64,12 @@ class ConnectionImpl: public Connection {
 
     // Read members.
     FileInputStream file_input_stream_;
+    GzipInputStream gzip_input_stream_;
     BindedReadCallback read_callback_;
 
     // Send members.
     FileOutputStream file_output_stream_;
+    std::unique_ptr<GzipOutputStream> gzip_output_stream_;
     BindedSendCallback send_callback_;
 
     FRIEND_TEST(ConnectionTest, Sync_ReadFromClosedConnection);

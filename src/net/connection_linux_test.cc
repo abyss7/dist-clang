@@ -122,18 +122,25 @@ class TestServer: public EventLoop {
       close(server_fd_);
     }
 
-    bool WriteAtOnce(const std::string& data) {
-      if (data.size() > 127) {
-        LOG(ERROR) << "Use messages with size less then 127" << std::endl;
-        return false;
+    bool WriteAtOnce(const Connection::Message& message) {
+      std::string gzipped_string;
+      {
+        using namespace google::protobuf::io;
+
+        StringOutputStream string_stream(&gzipped_string);
+        GzipOutputStream::Options options;
+        options.format = GzipOutputStream::ZLIB;
+        GzipOutputStream gzip_stream(&string_stream, options);
+        {
+          CodedOutputStream coded_stream(&gzip_stream);
+          coded_stream.WriteVarint32(message.ByteSize());
+        }
+        message.SerializePartialToZeroCopyStream(&gzip_stream);
       }
-      unsigned char size = data.size();
-      if (send(server_fd_, &size, 1, 0) != 1) {
-        LOG(ERROR) << strerror(errno) << std::endl;
-        return false;
-      }
-      if (send(server_fd_, data.data(), data.size(), 0) !=
-          static_cast<int>(data.size())) {
+
+      CHECK(gzipped_string.size() < 128);
+      if (send(server_fd_, gzipped_string.data(), gzipped_string.size(), 0) !=
+          static_cast<int>(gzipped_string.size())) {
         LOG(ERROR) << strerror(errno) << std::endl;
         return false;
       }
@@ -141,18 +148,25 @@ class TestServer: public EventLoop {
       return true;
     }
 
-    bool WriteByParts(const std::string& data) {
-      if (data.size() > 127) {
-        LOG(ERROR) << "Use messages with size less then 127" << std::endl;
-        return false;
+    bool WriteByParts(const Connection::Message& message) {
+      std::string gzipped_string;
+      {
+        using namespace google::protobuf::io;
+
+        StringOutputStream string_stream(&gzipped_string);
+        GzipOutputStream::Options options;
+        options.format = GzipOutputStream::ZLIB;
+        GzipOutputStream gzip_stream(&string_stream, options);
+        {
+          CodedOutputStream coded_stream(&gzip_stream);
+          coded_stream.WriteVarint32(message.ByteSize());
+        }
+        message.SerializePartialToZeroCopyStream(&gzip_stream);
       }
-      unsigned char size = data.size();
-      if (send(server_fd_, &size, 1, 0) != 1) {
-        LOG(ERROR) << strerror(errno) << std::endl;
-        return false;
-      }
-      for (size_t i = 0; i < size; ++i) {
-        if (send(server_fd_, data.data() + i, 1, 0) != 1) {
+
+      CHECK(gzipped_string.size() < 128);
+      for (size_t i = 0; i < gzipped_string.size(); ++i) {
+        if (send(server_fd_, gzipped_string.data() + i, 1, 0) != 1) {
           LOG(ERROR) << strerror(errno) << std::endl;
           return false;
         }
@@ -161,19 +175,25 @@ class TestServer: public EventLoop {
       return true;
     }
 
-    bool WriteIncomplete(const std::string& data, size_t size) {
-      DCHECK(size < data.size());
-      if (data.size() > 127) {
-        LOG(ERROR) << "Use messages with size less then 127" << std::endl;
-        return false;
+    bool WriteIncomplete(const Connection::Message& message) {
+      std::string gzipped_string;
+      {
+        using namespace google::protobuf::io;
+
+        StringOutputStream string_stream(&gzipped_string);
+        GzipOutputStream::Options options;
+        options.format = GzipOutputStream::ZLIB;
+        GzipOutputStream gzip_stream(&string_stream, options);
+        {
+          CodedOutputStream coded_stream(&gzip_stream);
+          coded_stream.WriteVarint32(message.ByteSize());
+        }
+        message.SerializePartialToZeroCopyStream(&gzip_stream);
       }
 
-      unsigned char data_size = data.size();
-      if (send(server_fd_, &data_size, 1, 0) != 1) {
-        LOG(ERROR) << strerror(errno) << std::endl;
-        return false;
-      }
-      if (send(server_fd_, data.data(), size, 0) != static_cast<int>(size)) {
+      CHECK(gzipped_string.size() / 2 < 128);
+      if (send(server_fd_, gzipped_string.data(), gzipped_string.size() / 2, 0)
+          != static_cast<int>(gzipped_string.size() / 2)) {
         LOG(ERROR) << strerror(errno) << std::endl;
         return false;
       }
@@ -181,18 +201,24 @@ class TestServer: public EventLoop {
       return true;
     }
 
-    bool ReadAtOnce(std::string& data) {
-      unsigned char size = 0;
-      if (recv(server_fd_, &size, 1, 0) != 1) {
-        LOG(ERROR) << strerror(errno) << std::endl;
-        return false;
-      }
+    bool ReadAtOnce(Connection::Message& message) {
       char buf[128];
-      if (recv(server_fd_, buf, size, 0) != size) {
-        LOG(ERROR) << strerror(errno) << std::endl;
+      int size = recv(server_fd_, buf, 128, 0);
+      if (size == 128) {
+        LOG(ERROR) << "Incoming message is too big!" << std::endl;
         return false;
       }
-      data.assign(std::string(buf, size));
+
+      using namespace google::protobuf::io;
+
+      ArrayInputStream array_stream(buf, size);
+      GzipInputStream gzip_stream(&array_stream);
+      unsigned int message_size;
+      {
+        CodedInputStream coded_stream(&gzip_stream);
+        coded_stream.ReadVarint32(&message_size);
+      }
+      message.ParsePartialFromBoundedZeroCopyStream(&gzip_stream, message_size);
 
       return true;
     }
@@ -302,14 +328,15 @@ class ConnectionTest: public ::testing::Test {
     }
 
   protected:
-    net::ConnectionImplPtr connection;
+    ConnectionImplPtr connection;
     TestServer server;
 };
 
 TEST_F(ConnectionTest, Sync_ReadOneMessage) {
   TestMessage test_message;
+
   auto expected_message = test_message.GetTestMessage();
-  ASSERT_TRUE(server.WriteAtOnce(expected_message->SerializeAsString()));
+  ASSERT_TRUE(server.WriteAtOnce(*expected_message));
 
   Connection::Message message;
   proto::Status status;
@@ -323,12 +350,13 @@ TEST_F(ConnectionTest, Sync_ReadOneMessage) {
 
 TEST_F(ConnectionTest, Sync_ReadTwoMessages) {
   TestMessage test_message1, test_message2;
+
   auto expected_message1 = test_message1.GetTestMessage();
   auto expected_message2 = test_message2.GetTestMessage();
-  ASSERT_TRUE(server.WriteAtOnce(expected_message1->SerializeAsString()));
-  ASSERT_TRUE(server.WriteAtOnce(expected_message2->SerializeAsString()));
+  ASSERT_TRUE(server.WriteAtOnce(*expected_message1));
+  ASSERT_TRUE(server.WriteAtOnce(*expected_message2));
 
-  net::Connection::Message message;
+  Connection::Message message;
   proto::Status status;
 
   ASSERT_TRUE(connection->ReadSync(&message, &status)) << status.description();
@@ -348,7 +376,7 @@ TEST_F(ConnectionTest, Sync_ReadSplitMessage) {
   TestMessage test_message;
 
   auto read_func = [&] () {
-    net::Connection::Message message;
+    Connection::Message message;
     proto::Status status;
 
     ASSERT_TRUE(connection->ReadSync(&message, &status))
@@ -365,7 +393,7 @@ TEST_F(ConnectionTest, Sync_ReadSplitMessage) {
   // FIXME: replace with |Promise|.
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
-  ASSERT_TRUE(server.WriteByParts(expected_message->SerializeAsString()));
+  ASSERT_TRUE(server.WriteByParts(*expected_message));
   read_thread.join();
 }
 
@@ -373,15 +401,15 @@ TEST_F(ConnectionTest, Sync_ReadUninitializedMessage) {
   const std::string expected_field2 = "arg2";
   const std::string expected_field3 = "arg3";
 
-  net::Connection::Message expected_message;
+  Connection::Message expected_message;
   {
     auto message = expected_message.MutableExtension(proto::Test::extension);
     message->set_field2(expected_field2);
     message->add_field3()->assign(expected_field3);
   }
-  ASSERT_TRUE(server.WriteAtOnce(expected_message.SerializePartialAsString()));
+  ASSERT_TRUE(server.WriteAtOnce(expected_message));
 
-  net::Connection::Message message;
+  Connection::Message message;
   proto::Status status;
 
   ASSERT_FALSE(connection->ReadSync(&message, &status));
@@ -394,11 +422,8 @@ TEST_F(ConnectionTest, Sync_SendMessage) {
   proto::Status status;
   ASSERT_TRUE(connection->SendSync(std::move(expected_message), &status))
       << status.description();
-  std::string data;
-  ASSERT_TRUE(server.ReadAtOnce(data));
-
-  net::Connection::Message message;
-  message.ParseFromString(data);
+  Connection::Message message;
+  ASSERT_TRUE(server.ReadAtOnce(message));
   test_message.CheckTestMessage(message);
 }
 
@@ -406,7 +431,7 @@ TEST_F(ConnectionTest, Sync_ReadIncompleteMessage) {
   TestMessage test_message;
 
   auto read_func = [&] () {
-    net::Connection::Message message;
+    Connection::Message message;
     proto::Status status;
 
     ASSERT_FALSE(connection->ReadSync(&message, &status));
@@ -421,14 +446,13 @@ TEST_F(ConnectionTest, Sync_ReadIncompleteMessage) {
   // FIXME: replace with |Promise|.
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
-  ASSERT_TRUE(server.WriteIncomplete(expected_message->SerializeAsString(),
-                                     expected_message->ByteSize() / 2));
+  ASSERT_TRUE(server.WriteIncomplete(*expected_message));
   connection->Close();
   read_thread.join();
 }
 
 TEST_F(ConnectionTest, Sync_ReadFromClosedConnection) {
-  net::Connection::Message message;
+  Connection::Message message;
   proto::Status status;
 
   connection->Close();
@@ -441,7 +465,7 @@ TEST_F(ConnectionTest, Sync_ReadAfterClosingConnectionOnServerSide) {
   TestMessage test_message;
 
   auto read_func = [&] () {
-    net::Connection::Message message;
+    Connection::Message message;
     proto::Status status;
 
     // FIXME: replace with |Promise|.
@@ -457,7 +481,7 @@ TEST_F(ConnectionTest, Sync_ReadAfterClosingConnectionOnServerSide) {
 
   auto expected_message = test_message.GetTestMessage();
   std::thread read_thread(read_func);
-  ASSERT_TRUE(server.WriteAtOnce(expected_message->SerializeAsString()));
+  ASSERT_TRUE(server.WriteAtOnce(*expected_message));
   server.CloseServerConnection();
   read_thread.join();
 }
@@ -493,11 +517,8 @@ TEST_F(ConnectionTest, Sync_SendSubMessages) {
   proto::Status status;
   ASSERT_TRUE(connection->SendSync(std::move(expected_message), &status))
       << status.description();
-  std::string data;
-  ASSERT_TRUE(server.ReadAtOnce(data));
-
-  net::Connection::Message message;
-  message.ParseFromString(data);
+  Connection::Message message;
+  ASSERT_TRUE(server.ReadAtOnce(message));
   test_message.CheckTestMessage(message);
 }
 
