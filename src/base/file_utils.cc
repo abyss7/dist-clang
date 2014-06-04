@@ -12,27 +12,27 @@ namespace base {
 
 bool CopyFile(const std::string& src, const std::string& dst, bool overwrite,
               std::string* error) {
-  // TODO: check, that the source file is immutable.
+  struct stat src_stats;
+  if (stat(src.c_str(), &src_stats) == -1) {
+    GetLastError(error);
+    return false;
+  }
 
-  // Try to create hard-link at first.
-  if (link(src.c_str(), dst.c_str()) == 0) {
-    // TODO: remove 'write' permissions from the destination file.
-    return true;
-  } else if (errno == EEXIST && overwrite && unlink(dst.c_str()) == 0 &&
-             link(src.c_str(), dst.c_str()) == 0) {
-    // TODO: remove 'write' permissions from the destination file.
-    return true;
+  if (!(src_stats.st_mode & S_IWUSR & S_IWGRP & S_IWOTH)) {
+    // Try to create hard-link at first.
+    // TODO: use |linkat()| to be sure, that the hard-link is created for
+    //       the _regular_ file - instead of for the _sym-link_.
+    if (link(src.c_str(), dst.c_str()) == 0) {
+      return true;
+    } else if (errno == EEXIST && overwrite && unlink(dst.c_str()) == 0 &&
+               link(src.c_str(), dst.c_str()) == 0) {
+      return true;
+    }
   }
 
   auto src_fd = open(src.c_str(), O_RDONLY);
   if (src_fd == -1) {
     GetLastError(error);
-    return false;
-  }
-  struct stat src_stats;
-  if (fstat(src_fd, &src_stats) == -1) {
-    GetLastError(error);
-    close(src_fd);
     return false;
   }
 #if defined(OS_LINUX)
@@ -50,7 +50,7 @@ bool CopyFile(const std::string& src, const std::string& dst, bool overwrite,
     close(src_fd);
     return false;
   }
-  auto dst_fd = open(dst.c_str(), flags, src_stats.st_mode & 0777);
+  auto dst_fd = open(dst.c_str(), flags, src_stats.st_mode & 0555);
   if (dst_fd == -1) {
     GetLastError(error);
     close(src_fd);
@@ -81,8 +81,6 @@ bool CopyFile(const std::string& src, const std::string& dst, bool overwrite,
   }
   close(src_fd);
   close(dst_fd);
-
-  // TODO: make the destination file immutable.
 
   return !size;
 }
