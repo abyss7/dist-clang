@@ -1,0 +1,31 @@
+Name: dist-clang
+Summary: Distributed clang-based compilation system.
+Version: $VERSION
+Release: 1
+License: GPLv3
+URL: https://code.google.com/p/dist-clang/
+Packager: Ivan Lezhankin <ilezhankin@yandex-team.ru>
+
+%description
+Distributed clang-based compilation system.
+
+
+%files
+%defattr(-,root,root)
+/etc/clangd.conf
+/etc/init.d/clangd
+/usr/bin/dist-clang/clang
+/usr/bin/dist-clang/clang++
+/usr/bin/dist-clang/clangd
+/usr/bin/dist-clang/clangd_wrapper
+/usr/lib/dist-clang/libbase.so
+/usr/lib/dist-clang/libc++.so
+/usr/lib/dist-clang/libconfiguration.so
+/usr/lib/dist-clang/libconstants.so
+/usr/lib/dist-clang/libhash.so
+/usr/lib/dist-clang/liblogging.so
+/usr/lib/dist-clang/libnet.so
+/usr/lib/dist-clang/libproto.so
+/usr/lib/python2.7/dist_clang/__init__.py
+/usr/lib/python2.7/dist_clang/base_pb2.py
+/usr/lib/python2.7/dist_clang/config_pb2.py
