@@ -5,7 +5,9 @@ def MakeInstall(top_dir, product_dir, package_dir):
   etc_dir = os.path.join(product_dir, package_dir, "etc")
   init_dir = os.path.join(etc_dir, "init.d")
   pylib_dir = os.path.join(product_dir, package_dir, "usr", "lib", "python2.7", "dist_clang")
+
   shutil.rmtree(os.path.join(product_dir, package_dir))
+
   os.makedirs(bin_dir)
   os.makedirs(lib_dir)
   os.makedirs(etc_dir)

@@ -1,0 +1,5 @@
+dist-clang ($VERSION) unstable; urgency=low
+
+  * Bump to version $VERSION.
+
+ -- Ivan Lezhankin <ilezhankin@yandex-team.ru>  $DATE +0000
