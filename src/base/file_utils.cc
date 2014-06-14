@@ -188,10 +188,7 @@ ui64 CalculateDirectorySize(const String& path, String* error) {
 
   while (!paths.empty()) {
     const String& path = paths.front();
-    DIR* dir = opendir(path.c_str());
-    if (dir == nullptr) {
-      GetLastError(error);
-    } else {
+    if (DIR* dir = opendir(path.c_str())) {
       struct dirent* entry = nullptr;
 
       while ((entry = readdir(dir))) {
@@ -208,11 +205,15 @@ ui64 CalculateDirectorySize(const String& path, String* error) {
             }
           } else {
             GetLastError(error);
+            break;
           }
         }
       }
+      closedir(dir);
+    } else {
+      GetLastError(error);
+      break;
     }
-    closedir(dir);
 
     paths.pop_front();
   }
