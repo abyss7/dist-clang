@@ -30,11 +30,15 @@ shared_library("constants") {
   ]
 }
 
-shared_library("hash") {
+static_library("hash") {
   sources = [
+    "hash.cc",
     "hash.h",
-    "hash/murmur_hash3.cc",
-    "hash/murmur_hash3.h",
+  ]
+
+  deps += [
+    ":base_headers",
+    "//src/third_party/smhasher:murmur_hash3",
   ]
 }
 

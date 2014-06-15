@@ -1,6 +1,5 @@
-static_library("smhasher") {
+static_library("murmur_hash3") {
   sources = [
-    # No need for other sources yet.
     "exported/MurmurHash3.cpp",
     "exported/MurmurHash3.h",
   ]
