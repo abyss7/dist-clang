@@ -1,7 +1,7 @@
 #pragma once
 
-#include "base/types.h"
-#include "net/connection.h"
+#include <net/base/types.h>
+#include <net/connection.h>
 
 #include <sys/types.h>
 

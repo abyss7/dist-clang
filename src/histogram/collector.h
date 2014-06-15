@@ -1,6 +1,6 @@
 #pragma once
 
-#include "base/types.h"
+#include <base/aliases.h>
 
 namespace dist_clang {
 namespace histogram {

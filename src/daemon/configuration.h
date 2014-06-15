@@ -1,6 +1,6 @@
 #pragma once
 
-#include "proto/config.pb.h"
+#include <proto/config.pb.h>
 
 namespace dist_clang {
 namespace daemon {

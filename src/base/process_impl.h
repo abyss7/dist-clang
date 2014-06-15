@@ -1,7 +1,7 @@
 #pragma once
 
-#include "base/process.h"
-#include "net/base/types.h"
+#include <base/process.h>
+#include <net/base/types.h>
 
 namespace dist_clang {
 namespace base {

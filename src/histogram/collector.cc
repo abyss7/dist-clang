@@ -1,4 +1,4 @@
-#include "histogram/collector.h"
+#include <histogram/collector.h>
 
 namespace dist_clang {
 namespace histogram {

@@ -1,8 +1,9 @@
 #pragma once
 
-#include "base/types.h"
-#include "net/connection_forward.h"
-#include "proto/remote.pb.h"
+#include <base/aliases.h>
+#include <net/base/types.h>
+#include <net/connection_forward.h>
+#include <proto/remote.pb.h>
 
 namespace dist_clang {
 namespace net {

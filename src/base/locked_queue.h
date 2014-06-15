@@ -1,7 +1,7 @@
 #pragma once
 
-#include "base/assert.h"
-#include "base/attributes.h"
+#include <base/assert.h>
+#include <base/attributes.h>
 
 #include <atomic>
 #include <condition_variable>

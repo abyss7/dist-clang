@@ -1,13 +1,13 @@
-#include "daemon/daemon.h"
+#include <daemon/daemon.h>
 
-#include "base/file_utils.h"
-#include "base/process_impl.h"
-#include "base/temporary_dir.h"
-#include "base/test_process.h"
-#include "gtest/gtest.h"
-#include "net/network_service_impl.h"
-#include "net/test_network_service.h"
-#include "proto/config.pb.h"
+#include <base/file_utils.h>
+#include <base/process_impl.h>
+#include <base/temporary_dir.h>
+#include <base/test_process.h>
+#include <gtest/gtest.h>
+#include <net/network_service_impl.h>
+#include <net/test_network_service.h>
+#include <proto/config.pb.h>
 
 namespace dist_clang {
 namespace daemon {

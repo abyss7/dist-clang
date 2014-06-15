@@ -1,6 +1,7 @@
 #pragma once
 
-#include "net/base/types.h"
+#include <base/aliases.h>
+#include <net/base/types.h>
 
 #include <atomic>
 #include <thread>

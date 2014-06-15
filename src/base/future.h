@@ -1,5 +1,7 @@
 #pragma once
 
+#include <base/assert.h>
+
 #include <condition_variable>
 #include <experimental/optional>
 #include <mutex>
@@ -13,10 +15,14 @@ class Promise;
 template <class T>
 class Future {
  public:
-  void Wait();
-  const T& GetValue() const;
+  void Wait() {
+    std::unique_lock<std::mutex> lock(state_->mutex);
+    state_->condition.wait(lock, [this] { return state_->fulfilled; });
+  }
 
-  operator bool() const;
+  const T& GetValue() const { return state_->value; }
+
+  operator bool() const { return state_->fulfilled; }
 
  private:
   friend class Promise<T>;
@@ -28,7 +34,7 @@ class Future {
     T value;
   };
 
-  Future(std::shared_ptr<State> state);
+  Future(std::shared_ptr<State> state) : state_(state) { CHECK(state_); }
 
   std::shared_ptr<State> state_;
 };
@@ -40,12 +46,28 @@ class Promise {
 
   // The |default_value| is set on object's destruction, if no other value
   // was ever set.
-  Promise(const T& default_value);
+  Promise(const T& default_value)
+      : state_(new typename Future<T>::State), on_exit_value_(default_value) {}
   Promise(Promise<T>&& other) = default;
-  ~Promise();
+  ~Promise() { SetValue(on_exit_value_); }
 
-  Optional GetFuture();
-  void SetValue(const T& value);
+  Optional GetFuture() {
+    if (!state_) {
+      return Optional();
+    }
+
+    return Future<T>(state_);
+  }
+  void SetValue(const T& value) {
+    if (state_) {
+      std::unique_lock<std::mutex> lock(state_->mutex);
+      if (!state_->fulfilled) {
+        state_->value = value;
+        state_->fulfilled = true;
+        state_->condition.notify_all();
+      }
+    }
+  }
 
  private:
   std::shared_ptr<typename Future<T>::State> state_;

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "base/attributes.h"
-#include "base/types.h"
+#include <base/aliases.h>
+#include <base/attributes.h>
 
 namespace dist_clang {
 namespace base {

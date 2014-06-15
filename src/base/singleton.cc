@@ -1,6 +1,6 @@
-#include "base/singleton.h"
+#include <base/singleton.h>
 
-#include "histogram/collector.h"
+#include <histogram/collector.h>
 
 #define DEFINE_SINGLETON(Class)                            \
   template <>                                              \

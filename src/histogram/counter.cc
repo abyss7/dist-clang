@@ -1,8 +1,8 @@
-#include "histogram/counter.h"
+#include <histogram/counter.h>
 
-#include "base/assert.h"
-#include "base/singleton.h"
-#include "histogram/collector.h"
+#include <base/assert.h>
+#include <base/singleton.h>
+#include <histogram/collector.h>
 
 namespace dist_clang {
 namespace histogram {

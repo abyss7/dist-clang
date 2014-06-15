@@ -1,9 +1,9 @@
 #pragma once
 
-#include "base/attributes.h"
-#include "base/types.h"
-#include "net/connection_forward.h"
-#include "proto/config.pb.h"
+#include <base/aliases.h>
+#include <base/attributes.h>
+#include <net/connection_forward.h>
+#include <proto/config.pb.h>
 
 #include <atomic>
 #include <unordered_map>

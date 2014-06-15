@@ -1,20 +1,20 @@
-#include "client/clang.h"
+#include <client/clang.h>
 
-#include "base/assert.h"
-#include "base/c_utils.h"
-#include "base/constants.h"
-#include "base/logging.h"
-#include "base/process_impl.h"
-#include "base/string_utils.h"
-#include "client/clang_flag_set.h"
-#include "net/base/end_point.h"
-#include "net/connection.h"
-#include "net/network_service_impl.h"
-#include "proto/remote.pb.h"
+#include <base/assert.h>
+#include <base/c_utils.h>
+#include <base/constants.h>
+#include <base/logging.h>
+#include <base/process_impl.h>
+#include <base/string_utils.h>
+#include <client/clang_flag_set.h>
+#include <net/base/end_point.h>
+#include <net/connection.h>
+#include <net/network_service_impl.h>
+#include <proto/remote.pb.h>
 
 #include <list>
 
-#include "base/using_log.h"
+#include <base/using_log.h>
 
 namespace dist_clang {
 namespace client {
