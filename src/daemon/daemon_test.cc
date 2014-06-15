@@ -822,14 +822,21 @@ TEST_F(DaemonTest, StoreLocalCache) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ((List<String>{"-E", "-o", "-", input_path1}), process->args_);
+      EXPECT_EQ(
+          (List<String>{"-E", "-x", "fake_language", "-o", "-", input_path1}),
+          process->args_);
+      process->stdout_ = "fake_source";
     } else if (run_count == 2) {
-      EXPECT_EQ((List<String>{"fake_action", "-o", output_path1, input_path1}),
+      EXPECT_EQ((List<String>{"fake_action", "-x",         "fake_language",
+                              "-o",          output_path1, input_path1}),
                 process->args_);
       EXPECT_TRUE(
           base::WriteFile(process->cwd_path_ + "/" + output_path1, "object"));
     } else if (run_count == 3) {
-      EXPECT_EQ((List<String>{"-E", "-o", "-", input_path2}), process->args_);
+      EXPECT_EQ(
+          (List<String>{"-E", "-x", "fake_language", "-o", "-", input_path2}),
+          process->args_);
+      process->stdout_ = "fake_source";
     }
   };
 
@@ -853,6 +860,8 @@ TEST_F(DaemonTest, StoreLocalCache) {
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
     extension->mutable_flags()->set_action("fake_action");
+    extension->mutable_flags()->set_language("fake_language");
+    //    extension->set_pp_source("fake_source");
 
     proto::Status status;
     status.set_code(proto::Status::OK);
@@ -880,6 +889,8 @@ TEST_F(DaemonTest, StoreLocalCache) {
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
     extension->mutable_flags()->set_action("fake_action");
+    extension->mutable_flags()->set_language("fake_language");
+    //    extension->set_pp_source("fake_source");
 
     proto::Status status;
     status.set_code(proto::Status::OK);
@@ -915,7 +926,7 @@ TEST_F(DaemonTest, StoreRemoteCache) {
   const String compiler_path = "fake_compiler_path";
   const String input_path = "test.cc";
   const String output_path = "test.o";
-  const String preprocessed_source = String();
+  const String preprocessed_source = "fake_source";
   const String expected_object_code = "object_code";
 
   config.set_socket_path(socket_path);
@@ -978,12 +989,17 @@ TEST_F(DaemonTest, StoreRemoteCache) {
   run_callback = [&](base::TestProcess* process) {
     switch (run_count) {
       case 1: {
-        EXPECT_EQ((List<String>{"fake_action", "-o", "-"}), process->args_);
+        EXPECT_EQ(
+            (List<String>{"fake_action", "-x", "fake_language", "-o", "-"}),
+            process->args_);
         process->stdout_ = expected_object_code;
         break;
       }
       case 2: {
-        EXPECT_EQ((List<String>{"-E", "-o", "-", input_path}), process->args_);
+        EXPECT_EQ(
+            (List<String>{"-E", "-x", "fake_language", "-o", "-", input_path}),
+            process->args_);
+        process->stdout_ = preprocessed_source;
         break;
       }
       default:
@@ -1006,6 +1022,7 @@ TEST_F(DaemonTest, StoreRemoteCache) {
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
     extension->mutable_flags()->set_action("fake_action");
+    extension->mutable_flags()->set_language("fake_language");
 
     proto::Status status;
     status.set_code(proto::Status::OK);
@@ -1033,6 +1050,7 @@ TEST_F(DaemonTest, StoreRemoteCache) {
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
     extension->mutable_flags()->set_action("fake_action");
+    extension->mutable_flags()->set_language("fake_language");
 
     proto::Status status;
     status.set_code(proto::Status::OK);
