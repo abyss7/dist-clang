@@ -3,11 +3,11 @@
 #include <base/assert.h>
 #include <base/attributes.h>
 
-#include <atomic>
-#include <condition_variable>
-#include <experimental/optional>
-#include <mutex>
-#include <queue>
+#include <third_party/libcxx/exported/include/atomic>
+#include <third_party/libcxx/exported/include/condition_variable>
+#include <third_party/libcxx/exported/include/experimental/optional>
+#include <third_party/libcxx/exported/include/mutex>
+#include <third_party/libcxx/exported/include/queue>
 
 namespace dist_clang {
 namespace base {

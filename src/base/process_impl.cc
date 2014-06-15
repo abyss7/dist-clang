@@ -25,8 +25,8 @@ net::fd_t ProcessImpl::ScopedDescriptor::Release() {
   return old_fd;
 }
 
-ProcessImpl::ProcessImpl(const std::string& exec_path,
-                         const std::string& cwd_path, ui32 uid)
+ProcessImpl::ProcessImpl(const String& exec_path, const String& cwd_path,
+                         ui32 uid)
     : Process(exec_path, cwd_path, uid), killed_(false) {}
 
 bool ProcessImpl::RunChild(int (&out_pipe)[2], int (&err_pipe)[2],

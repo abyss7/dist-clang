@@ -12,8 +12,8 @@ namespace net {
 
 class EndPoint : public std::enable_shared_from_this<EndPoint> {
  public:
-  static EndPointPtr TcpHost(const std::string& host, ui16 port);
-  static EndPointPtr UnixSocket(const std::string& path);
+  static EndPointPtr TcpHost(const String& host, ui16 port);
+  static EndPointPtr UnixSocket(const String& path);
 
   operator const sockaddr*() const {
     return reinterpret_cast<const sockaddr*>(&address_);

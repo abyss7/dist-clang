@@ -12,7 +12,7 @@ class ThreadPool {
  public:
   using Closure = Fn<void(void)>;
   using Promise = Promise<bool>;
-  using Task = std::pair<Closure, Promise>;
+  using Task = Pair<Closure, Promise>;
   using TaskQueue = LockedQueue<Task>;
   using Optional = Promise::Optional;
 

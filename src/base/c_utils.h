@@ -1,10 +1,9 @@
 #pragma once
 
-#include <cerrno>
-#include <climits>
-#include <cstdlib>
-#include <cstring>
-#include <string>
+#include <third_party/libcxx/exported/include/cerrno>
+#include <third_party/libcxx/exported/include/climits>
+#include <third_party/libcxx/exported/include/cstdlib>
+#include <third_party/libcxx/exported/include/cstring>
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -13,61 +12,61 @@
 namespace dist_clang {
 namespace base {
 
-inline std::string GetEnv(const char* env_name,
-                          const char* default_env = nullptr) {
+inline String GetEnv(const char* env_name, const char* default_env = nullptr) {
   const char* env_value = getenv(env_name);
   if (!env_value) {
-    if (default_env) return std::string(default_env);
-    return std::string();
+    if (default_env) {
+      return String(default_env);
+    }
+    return String();
   }
-  return std::string(env_value);
+  return String(env_value);
 }
 
-inline void GetLastError(std::string* error) {
+inline void GetLastError(String* error) {
   if (error) error->assign(strerror(errno));
 }
 
-inline std::string SetEnv(const char* env_name, const std::string& value,
-                          std::string* error = nullptr) {
-  std::string old_value = GetEnv(env_name);
+inline String SetEnv(const char* env_name, const String& value,
+                     String* error = nullptr) {
+  String old_value = GetEnv(env_name);
   if (setenv(env_name, value.c_str(), 1) == -1) {
     GetLastError(error);
-    return std::string();
+    return String();
   }
   return old_value;
 }
 
-inline std::string GetCurrentDir(std::string* error = nullptr) {
+inline String GetCurrentDir(String* error = nullptr) {
   char buf[PATH_MAX];
   if (!getcwd(buf, sizeof(buf))) {
     GetLastError(error);
-    return std::string();
+    return String();
   }
-  return std::string(buf);
+  return String(buf);
 }
 
-inline std::string CreateTempDir(std::string* error = nullptr) {
+inline String CreateTempDir(String* error = nullptr) {
   char buf[] = "/tmp/clangd-XXXXXX";
   if (!mkdtemp(buf)) {
     GetLastError(error);
-    return std::string();
+    return String();
   }
-  return std::string(buf);
+  return String(buf);
 }
 
-inline std::string CreateTempFile(std::string* error = nullptr) {
+inline String CreateTempFile(String* error = nullptr) {
   char buf[] = "/tmp/clangd-XXXXXX.files";
   int fd = mkostemps(buf, 6, O_CLOEXEC);
   if (fd == -1) {
     GetLastError(error);
-    return std::string();
+    return String();
   }
   close(fd);
-  return std::string(buf);
+  return String(buf);
 }
 
-inline bool ChangeCurrentDir(const std::string& path,
-                             std::string* error = nullptr) {
+inline bool ChangeCurrentDir(const String& path, String* error = nullptr) {
   if (chdir(path.c_str()) == -1) {
     GetLastError(error);
     return false;
@@ -75,8 +74,8 @@ inline bool ChangeCurrentDir(const std::string& path,
   return true;
 }
 
-inline bool SetPermissions(const std::string& path, int mask,
-                           std::string* error = nullptr) {
+inline bool SetPermissions(const String& path, int mask,
+                           String* error = nullptr) {
   if (chmod(path.c_str(), mask) == -1) {
     GetLastError(error);
     return false;

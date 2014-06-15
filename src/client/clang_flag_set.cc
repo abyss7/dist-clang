@@ -25,9 +25,9 @@ namespace client {
 // Pay attention to the leading space in the fourth line.
 
 // static
-bool FlagSet::ParseClangOutput(const std::string& output, std::string* version,
+bool FlagSet::ParseClangOutput(const String& output, String* version,
                                CommandList& commands) {
-  StringList lines;
+  List<String> lines;
   base::SplitString<'\n'>(output, lines);
   if (lines.size() < 4) {
     return false;
@@ -42,7 +42,7 @@ bool FlagSet::ParseClangOutput(const std::string& output, std::string* version,
   lines.pop_front();
   lines.pop_front();
   for (const auto& line : lines) {
-    StringList args;
+    List<String> args;
     base::SplitString(line, " \"", args);
     if (!args.front().empty()) {
       // Something went wrong.
@@ -65,9 +65,10 @@ bool FlagSet::ParseClangOutput(const std::string& output, std::string* version,
 }
 
 // static
-FlagSet::Action FlagSet::ProcessFlags(StringList flags, proto::Flags* message) {
+FlagSet::Action FlagSet::ProcessFlags(List<String> flags,
+                                      proto::Flags* message) {
   Action action(UNKNOWN);
-  std::string temp_dir = base::GetEnv(kEnvTempDir, kDefaultTempDir);
+  String temp_dir = base::GetEnv(kEnvTempDir, kDefaultTempDir);
 
   for (auto it = flags.begin(); it != flags.end();) {
     if (it->empty()) {
@@ -86,7 +87,7 @@ FlagSet::Action FlagSet::ProcessFlags(StringList flags, proto::Flags* message) {
   flags.pop_back();
 
   for (auto it = flags.begin(); it != flags.end(); ++it) {
-    std::string& flag = *it;
+    String& flag = *it;
 
     if (flag == "-add-plugin") {
       message->add_other(flag);
@@ -118,7 +119,7 @@ FlagSet::Action FlagSet::ProcessFlags(StringList flags, proto::Flags* message) {
       message->add_dependenies(*(++it));
     } else if (flag == "-o") {
       ++it;
-      if (it->find(temp_dir) != std::string::npos) {
+      if (it->find(temp_dir) != String::npos) {
         action = UNKNOWN;
         break;
       } else {

@@ -5,10 +5,11 @@
 #include <base/temporary_dir.h>
 #include <client/clang.h>
 #include <client/clang_flag_set.h>
-#include <gtest/gtest.h>
 #include <net/network_service_impl.h>
 #include <net/test_network_service.h>
 #include <proto/remote.pb.h>
+
+#include <third_party/gtest/public/gtest/gtest.h>
 
 namespace dist_clang {
 namespace client {
@@ -20,7 +21,7 @@ namespace {
 
 // It's a possible output of the command:
 // `cd /tmp; clang++ -### -c /tmp/test.cc`
-const std::string clang_cc_output =
+const String clang_cc_output =
     "clang version 3.4 (...) (...)\n"
     "Target: x86_64-unknown-linux-gnu\n"
     "Thread model: posix\n"
@@ -63,10 +64,10 @@ const std::string clang_cc_output =
 }  // namespace
 
 TEST(ClangFlagSetTest, SimpleInput) {
-  std::string version;
-  const std::string expected_version = "clang version 3.4 (...) (...)";
+  String version;
+  const String expected_version = "clang version 3.4 (...) (...)";
   FlagSet::CommandList input;
-  const FlagSet::StringList expected_input = {
+  const List<String> expected_input = {
       "",                          "/usr/bin/clang",
       "-cc1",                      "-triple",
       "x86_64-unknown-linux-gnu",  "-emit-obj",
@@ -167,10 +168,10 @@ TEST(ClangFlagSetTest, SimpleInput) {
 }
 
 TEST(ClangFlagSetTest, MultipleCommands) {
-  std::string version;
-  const std::string expected_version = "clang version 3.4 (...) (...)";
+  String version;
+  const String expected_version = "clang version 3.4 (...) (...)";
   FlagSet::CommandList input;
-  const std::string clang_multi_output =
+  const String clang_multi_output =
       "clang version 3.4 (...) (...)\n"
       "Target: x86_64-unknown-linux-gnu\n"
       "Thread model: posix\n"
@@ -180,10 +181,10 @@ TEST(ClangFlagSetTest, MultipleCommands) {
       " \"/usr/bin/objcopy\""
       " \"something\""
       " \"some_file\"\n";
-  const FlagSet::StringList expected_input1 = {"",          "/usr/bin/clang",
-                                               "-emit-obj", "test.cc", };
-  const FlagSet::StringList expected_input2 = {"",          "/usr/bin/objcopy",
-                                               "something", "some_file", };
+  const List<String> expected_input1 = {"",          "/usr/bin/clang",
+                                        "-emit-obj", "test.cc", };
+  const List<String> expected_input2 = {"",          "/usr/bin/objcopy",
+                                        "something", "some_file", };
 
   EXPECT_TRUE(FlagSet::ParseClangOutput(clang_multi_output, &version, input));
   EXPECT_EQ(expected_version, version);
@@ -217,7 +218,7 @@ class ClientTest : public ::testing::Test {
       auto factory = net::NetworkService::SetFactory<Service::Factory>();
       factory->CallOnCreate([this](Service* service) {
         service->CountConnectAttempts(&connect_count);
-        service->CallOnConnect([this](net::EndPointPtr, std::string* error) {
+        service->CallOnConnect([this](net::EndPointPtr, String* error) {
           if (!do_connect) {
             if (error) {
               error->assign("Test service rejects connection intentionally");
@@ -241,8 +242,8 @@ class ClientTest : public ::testing::Test {
       auto factory = base::Process::SetFactory<base::TestProcess::Factory>();
       factory->CallOnCreate([this](base::TestProcess* process) {
         process->CountRuns(&run_count);
-        process->CallOnRun([this, process](
-            ui32 timeout, const std::string& input, std::string* error) {
+        process->CallOnRun([this, process](ui32 timeout, const String& input,
+                                           String* error) {
           run_callback(process);
 
           if (!do_run) {
@@ -285,7 +286,7 @@ TEST_F(ClientTest, NoEnvironmentVariable) {
   const int argc = 3;
   const char* argv[] = {"clang++", "-c", "/tmp/test.cc", nullptr};
 
-  EXPECT_TRUE(client::DoMain(argc, argv, std::string(), std::string()));
+  EXPECT_TRUE(client::DoMain(argc, argv, String(), String()));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -344,7 +345,7 @@ TEST_F(ClientTest, CannotSendMessage) {
     }
   };
 
-  EXPECT_TRUE(client::DoMain(argc, argv, std::string(), "clang++"));
+  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++"));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -354,7 +355,7 @@ TEST_F(ClientTest, CannotSendMessage) {
 }
 
 TEST_F(ClientTest, CannotReadMessage) {
-  const std::string test_file_base = "test";
+  const String test_file_base = "test";
   const auto test_file_name = test_file_base + ".cc";
   const auto test_file = "/tmp/" + test_file_name;
 
@@ -415,7 +416,7 @@ TEST_F(ClientTest, CannotReadMessage) {
     }
   };
 
-  EXPECT_TRUE(client::DoMain(argc, argv, std::string(), "clang++"));
+  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++"));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -440,7 +441,7 @@ TEST_F(ClientTest, ReadMessageWithoutStatus) {
     }
   };
 
-  EXPECT_TRUE(client::DoMain(argc, argv, std::string(), "clang++"));
+  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++"));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -472,7 +473,7 @@ TEST_F(ClientTest, ReadMessageWithBadStatus) {
     }
   };
 
-  EXPECT_TRUE(client::DoMain(argc, argv, std::string(), "clang++"));
+  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++"));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -504,7 +505,7 @@ TEST_F(ClientTest, SuccessfulCompilation) {
     }
   };
 
-  EXPECT_FALSE(client::DoMain(argc, argv, std::string(), "clang++"));
+  EXPECT_FALSE(client::DoMain(argc, argv, String(), "clang++"));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -536,7 +537,7 @@ TEST_F(ClientTest, FailedCompilation) {
     }
   };
 
-  EXPECT_EXIT(client::DoMain(argc, argv, std::string(), "clang++"),
+  EXPECT_EXIT(client::DoMain(argc, argv, String(), "clang++"),
               ::testing::ExitedWithCode(1), ".*");
 }
 

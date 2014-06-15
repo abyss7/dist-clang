@@ -5,8 +5,6 @@
 #include <net/base/types.h>
 #include <net/connection_forward.h>
 
-#include <string>
-
 namespace dist_clang {
 namespace net {
 
@@ -21,14 +19,13 @@ class NetworkService
 
   virtual bool Run() THREAD_UNSAFE = 0;
 
-  virtual bool Listen(const std::string& path, ListenCallback callback,
-                      std::string* error = nullptr) THREAD_UNSAFE = 0;
-  virtual bool Listen(const std::string& host, ui16 port,
-                      ListenCallback callback,
-                      std::string* error = nullptr) THREAD_UNSAFE = 0;
+  virtual bool Listen(const String& path, ListenCallback callback,
+                      String* error = nullptr) THREAD_UNSAFE = 0;
+  virtual bool Listen(const String& host, ui16 port, ListenCallback callback,
+                      String* error = nullptr) THREAD_UNSAFE = 0;
 
   virtual ConnectionPtr Connect(EndPointPtr end_point,
-                                std::string* error = nullptr) THREAD_SAFE = 0;
+                                String* error = nullptr) THREAD_SAFE = 0;
 };
 
 }  // namespace net

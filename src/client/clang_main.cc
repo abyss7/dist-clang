@@ -14,7 +14,7 @@ using namespace dist_clang;
 namespace {
 
 int ExecuteLocally(char* argv[]) {
-  std::string clangd_cxx_path = base::GetEnv(base::kEnvClangdCxx);
+  String clangd_cxx_path = base::GetEnv(base::kEnvClangdCxx);
   if (clangd_cxx_path.empty()) {
     LOG(FATAL) << "Provide real clang++ compiler path via "
                << base::kEnvClangdCxx;
@@ -36,9 +36,9 @@ int main(int argc, char* argv[]) {
 
   // It's safe to use |base::Log|, since its internal static objects don't need
   // special destruction on |exec|.
-  std::string clangd_log_levels = base::GetEnv(base::kEnvClangdLogLevels);
-  std::string clangd_log_mark = base::GetEnv(base::kEnvClangdLogMark);
-  std::list<std::string> numbers;
+  String clangd_log_levels = base::GetEnv(base::kEnvClangdLogLevels);
+  String clangd_log_mark = base::GetEnv(base::kEnvClangdLogMark);
+  List<String> numbers;
 
   base::SplitString<' '>(clangd_log_levels, numbers);
   if (numbers.size() % 2 == 0) {
@@ -54,8 +54,8 @@ int main(int argc, char* argv[]) {
   // NOTICE: Use separate |DoMain| function to make sure that all local objects
   //         get destructed before the invokation of |exec|. Do not use global
   //         objects!
-  std::string clang_path = base::GetEnv(base::kEnvClangdCxx);
-  std::string socket_path =
+  String clang_path = base::GetEnv(base::kEnvClangdCxx);
+  String socket_path =
       base::GetEnv(base::kEnvClangdSocket, base::kDefaultClangdSocket);
   if (client::DoMain(argc, argv, socket_path, clang_path)) {
     return ExecuteLocally(argv);

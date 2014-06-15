@@ -1,6 +1,6 @@
 #pragma once
 
-#include <string>
+#include <base/aliases.h>
 
 namespace dist_clang {
 namespace base {
@@ -10,18 +10,18 @@ class TemporaryDir {
   TemporaryDir();
   ~TemporaryDir();
 
-  inline const std::string& GetPath() const;
-  inline const std::string& GetError() const;
+  inline const String& GetPath() const;
+  inline const String& GetError() const;
 
-  operator std::string() const;
+  operator String() const;
 
  private:
-  std::string path_, error_;
+  String path_, error_;
 };
 
-const std::string& TemporaryDir::GetPath() const { return path_; }
+const String& TemporaryDir::GetPath() const { return path_; }
 
-const std::string& TemporaryDir::GetError() const { return error_; }
+const String& TemporaryDir::GetError() const { return error_; }
 
 }  // namespace base
 }  // namespace dist_clang

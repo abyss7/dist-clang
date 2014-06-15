@@ -1,6 +1,6 @@
 #pragma once
 
-#include <memory>
+#include <third_party/libcxx/exported/include/memory>
 
 namespace dist_clang {
 namespace net {

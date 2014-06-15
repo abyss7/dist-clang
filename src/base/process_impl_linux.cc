@@ -11,7 +11,7 @@
 namespace dist_clang {
 namespace base {
 
-bool ProcessImpl::Run(ui16 sec_timeout, std::string* error) {
+bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
   CHECK(args_.size() + 1 < MAX_ARGS);
 
   int out_pipe_fd[2];
@@ -65,7 +65,7 @@ bool ProcessImpl::Run(ui16 sec_timeout, std::string* error) {
     }
 
     size_t stdout_size = 0, stderr_size = 0;
-    std::list<std::pair<UniquePtr<char[]>, int>> stdout, stderr;
+    List<Pair<UniquePtr<char[]>, int>> stdout, stderr;
     const int MAX_EVENTS = 2;
     struct epoll_event events[MAX_EVENTS];
 
@@ -131,12 +131,12 @@ bool ProcessImpl::Run(ui16 sec_timeout, std::string* error) {
 
     stdout_.reserve(stdout_size);
     for (const auto& piece : stdout) {
-      stdout_.append(std::string(piece.first.get(), piece.second));
+      stdout_.append(String(piece.first.get(), piece.second));
     }
 
     stderr_.reserve(stderr_size);
     for (const auto& piece : stderr) {
-      stderr_.append(std::string(piece.first.get(), piece.second));
+      stderr_.append(String(piece.first.get(), piece.second));
     }
 
     int status;
@@ -148,8 +148,7 @@ bool ProcessImpl::Run(ui16 sec_timeout, std::string* error) {
   }
 }
 
-bool ProcessImpl::Run(ui16 sec_timeout, const std::string& input,
-                      std::string* error) {
+bool ProcessImpl::Run(ui16 sec_timeout, const String& input, String* error) {
   CHECK(args_.size() + 1 < MAX_ARGS);
 
   int in_pipe_fd[2];
@@ -226,7 +225,7 @@ bool ProcessImpl::Run(ui16 sec_timeout, const std::string& input,
     }
 
     size_t stdin_size = 0, stdout_size = 0, stderr_size = 0;
-    std::list<std::pair<UniquePtr<char[]>, int>> stdout, stderr;
+    List<Pair<UniquePtr<char[]>, int>> stdout, stderr;
     const int MAX_EVENTS = 3;
     struct epoll_event events[MAX_EVENTS];
 
@@ -308,12 +307,12 @@ bool ProcessImpl::Run(ui16 sec_timeout, const std::string& input,
 
     stdout_.reserve(stdout_size);
     for (const auto& piece : stdout) {
-      stdout_.append(std::string(piece.first.get(), piece.second));
+      stdout_.append(String(piece.first.get(), piece.second));
     }
 
     stderr_.reserve(stderr_size);
     for (const auto& piece : stderr) {
-      stderr_.append(std::string(piece.first.get(), piece.second));
+      stderr_.append(String(piece.first.get(), piece.second));
     }
 
     int status;

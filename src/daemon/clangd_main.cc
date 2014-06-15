@@ -3,7 +3,7 @@
 #include <daemon/daemon.h>
 #include <net/network_service.h>
 
-#include <iostream>
+#include <third_party/libcxx/exported/include/iostream>
 
 #include <signal.h>
 #include <unistd.h>

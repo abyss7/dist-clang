@@ -1,7 +1,6 @@
 #include <base/file_utils.h>
 
-#include <list>
-#include <map>
+#include <third_party/libcxx/exported/include/map>
 
 #include <dirent.h>
 #include <fcntl.h>
@@ -10,8 +9,8 @@
 namespace dist_clang {
 namespace base {
 
-bool CopyFile(const std::string& src, const std::string& dst, bool overwrite,
-              std::string* error) {
+bool CopyFile(const String& src, const String& dst, bool overwrite,
+              String* error) {
   struct stat src_stats;
   if (stat(src.c_str(), &src_stats) == -1) {
     GetLastError(error);
@@ -85,8 +84,7 @@ bool CopyFile(const std::string& src, const std::string& dst, bool overwrite,
   return !size;
 }
 
-bool ReadFile(const std::string& path, std::string* output,
-              std::string* error) {
+bool ReadFile(const String& path, String* output, String* error) {
   if (!output) {
     return false;
   }
@@ -109,7 +107,7 @@ bool ReadFile(const std::string& path, std::string* output,
   char buffer[buffer_size];
   int size = 0;
   while ((size = read(src_fd, buffer, buffer_size)) > 0) {
-    output->append(std::string(buffer, size));
+    output->append(String(buffer, size));
   }
   if (size == -1) {
     GetLastError(error);
@@ -119,8 +117,7 @@ bool ReadFile(const std::string& path, std::string* output,
   return !size;
 }
 
-bool WriteFile(const std::string& path, const std::string& input,
-               std::string* error) {
+bool WriteFile(const String& path, const String& input, String* error) {
   auto src_fd =
       open((path + ".tmp").c_str(), O_WRONLY | O_TRUNC | O_CREAT, 0444);
   if (src_fd == -1) {
@@ -153,13 +150,13 @@ bool WriteFile(const std::string& path, const std::string& input,
   return total_bytes == input.size();
 }
 
-ui64 CalculateDirectorySize(const std::string& path, std::string* error) {
+ui64 CalculateDirectorySize(const String& path, String* error) {
   ui64 size = 0u;
-  std::list<std::string> paths;
+  List<String> paths;
   paths.push_back(path);
 
   while (!paths.empty()) {
-    const std::string& path = paths.front();
+    const String& path = paths.front();
     DIR* dir = opendir(path.c_str());
     if (dir == nullptr) {
       GetLastError(error);
@@ -167,8 +164,8 @@ ui64 CalculateDirectorySize(const std::string& path, std::string* error) {
       struct dirent* entry = nullptr;
 
       while ((entry = readdir(dir))) {
-        const std::string entry_name = entry->d_name;
-        const std::string new_path = path + "/" + entry_name;
+        const String entry_name = entry->d_name;
+        const String new_path = path + "/" + entry_name;
 
         if (entry_name != "." && entry_name != "..") {
           struct stat buffer;
@@ -192,8 +189,7 @@ ui64 CalculateDirectorySize(const std::string& path, std::string* error) {
   return size;
 }
 
-std::pair<time_t, time_t> GetLastModificationTime(const std::string& path,
-                                                  std::string* error) {
+Pair<time_t> GetLastModificationTime(const String& path, String* error) {
   struct stat buffer;
   if (stat(path.c_str(), &buffer) == -1) {
     GetLastError(error);
@@ -211,28 +207,27 @@ std::pair<time_t, time_t> GetLastModificationTime(const std::string& path,
   return {time_spec.tv_sec, time_spec.tv_nsec};
 }
 
-bool GetLeastRecentPath(const std::string& path, std::string& result,
-                        std::string* error) {
+bool GetLeastRecentPath(const String& path, String& result, String* error) {
   DIR* dir = opendir(path.c_str());
   if (dir == nullptr) {
     GetLastError(error);
     return false;
   }
 
-  const std::pair<time_t, time_t> null_time = {0, 0};
-  std::pair<time_t, time_t> mtime = null_time;
+  const Pair<time_t> null_time = {0, 0};
+  Pair<time_t> mtime = null_time;
   while (true) {
     const struct dirent* entry = readdir(dir);
     if (!entry) {
       break;
     }
 
-    const std::string entry_name = entry->d_name;
+    const String entry_name = entry->d_name;
     if (entry_name == "." || entry_name == "..") {
       continue;
     }
 
-    const std::string new_path = path + "/" + entry_name;
+    const String new_path = path + "/" + entry_name;
     auto current_mtime = GetLastModificationTime(new_path);
     if (mtime == null_time ||
         (current_mtime != null_time && current_mtime < mtime)) {

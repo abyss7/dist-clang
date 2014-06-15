@@ -3,9 +3,6 @@
 #include <base/attributes.h>
 #include <net/event_loop.h>
 
-#include <unordered_map>
-#include <unordered_set>
-
 namespace dist_clang {
 namespace net {
 
@@ -33,7 +30,7 @@ class KqueueEventLoop : public EventLoop {
   ConnectionCallback callback_;
 
   // We need to store listening fds - to be able to close them at shutdown.
-  std::unordered_set<fd_t> listening_fds_;
+  HashSet<fd_t> listening_fds_;
 };
 
 }  // namespace net

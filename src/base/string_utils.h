@@ -2,20 +2,17 @@
 
 #include <base/aliases.h>
 
-#include <iomanip>
-#include <list>
-#include <sstream>
-#include <string>
+#include <third_party/libcxx/exported/include/iomanip>
+#include <third_party/libcxx/exported/include/sstream>
 
 namespace dist_clang {
 namespace base {
 
 template <char delimiter>
-inline void SplitString(const std::string& input,
-                        std::list<std::string>& tokens) {
+inline void SplitString(const String& input, List<String>& tokens) {
   size_t prev = 0;
   size_t i = input.find(delimiter);
-  while (i != std::string::npos) {
+  while (i != String::npos) {
     tokens.push_back(input.substr(prev, i - prev));
     prev = i + sizeof(delimiter);
     i = input.find(delimiter, prev);
@@ -24,18 +21,17 @@ inline void SplitString(const std::string& input,
 }
 
 template <>
-inline void SplitString<'\n'>(const std::string& input,
-                              std::list<std::string>& tokens) {
+inline void SplitString<'\n'>(const String& input, List<String>& tokens) {
   std::istringstream ss(input);
-  std::string line;
+  String line;
   while (std::getline(ss, line)) tokens.push_back(line);
 }
 
-inline void SplitString(const std::string& input, const std::string& delimiter,
-                        std::list<std::string>& tokens) {
+inline void SplitString(const String& input, const String& delimiter,
+                        List<String>& tokens) {
   size_t prev = 0;
   size_t i = input.find(delimiter);
-  while (i != std::string::npos) {
+  while (i != String::npos) {
     tokens.push_back(input.substr(prev, i - prev));
     prev = i + delimiter.size();
     i = input.find(delimiter, prev);
@@ -44,8 +40,8 @@ inline void SplitString(const std::string& input, const std::string& delimiter,
 }
 
 template <char delimiter, class T>
-inline std::string JoinString(const T& begin, const T& end) {
-  std::string output;
+inline String JoinString(const T& begin, const T& end) {
+  String output;
 
   for (auto it = begin; it != end; ++it) {
     if (it != begin) output += delimiter;
@@ -55,7 +51,7 @@ inline std::string JoinString(const T& begin, const T& end) {
   return output;
 }
 
-inline std::string Hexify(const std::string& binary) {
+inline String Hexify(const String& binary) {
   std::stringstream ss;
   ss << std::hex << std::setfill('0');
   for (size_t i = 0, s = binary.size(); i < s; ++i) {
@@ -64,17 +60,17 @@ inline std::string Hexify(const std::string& binary) {
   return ss.str();
 }
 
-inline void Replace(std::string& input, const std::string& replacee,
-                    const std::string& replacer) {
+inline void Replace(String& input, const String& replacee,
+                    const String& replacer) {
   size_t pos = 0;
-  while ((pos = input.find(replacee, pos)) != std::string::npos) {
+  while ((pos = input.find(replacee, pos)) != String::npos) {
     input.replace(pos, replacee.length(), replacer);
     pos += replacer.length();
   }
 }
 
 template <typename T>
-inline T StringTo(const std::string& str) {
+inline T StringTo(const String& str) {
   T result;
   std::stringstream ss(str);
   ss >> result;

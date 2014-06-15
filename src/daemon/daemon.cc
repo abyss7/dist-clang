@@ -12,12 +12,12 @@
 #include <net/network_service_impl.h>
 #include <proto/config.pb.h>
 
-#include <atomic>
-#include <condition_variable>
+#include <third_party/libcxx/exported/include/atomic>
+#include <third_party/libcxx/exported/include/condition_variable>
 #if defined(PROFILER)
 #include <gperftools/profiler.h>
 #endif
-#include <mutex>
+#include <third_party/libcxx/exported/include/mutex>
 
 #include <base/using_log.h>
 
@@ -106,7 +106,7 @@ bool Daemon::Initialize(const Configuration& configuration) {
 
   bool is_listening = false;
   if (config.has_local() && !config.local().disabled()) {
-    std::string error;
+    String error;
     auto callback = std::bind(&Daemon::HandleNewConnection, this, _1);
     if (!network_service_->Listen(config.local().host(), config.local().port(),
                                   callback, &error)) {
@@ -118,7 +118,7 @@ bool Daemon::Initialize(const Configuration& configuration) {
   }
 
   if (config.has_socket_path()) {
-    std::string error;
+    String error;
     auto callback = std::bind(&Daemon::HandleNewConnection, this, _1);
     if (!network_service_->Listen(config.socket_path(), callback, &error)) {
       LOG(ERROR) << "Failed to listen on " << config.socket_path() << " : "
@@ -206,7 +206,7 @@ bool Daemon::SearchCache(const proto::Execute* message,
 
   const auto& flags = message->flags();
   const auto& version = flags.compiler().version();
-  std::string command_line =
+  String command_line =
       base::JoinString<' '>(flags.other().begin(), flags.other().end());
   if (flags.has_language()) {
     command_line += " -x " + flags.language();
@@ -224,7 +224,7 @@ bool Daemon::SearchCache(const proto::Execute* message,
 }
 
 void Daemon::UpdateCacheFromFile(const proto::Execute* message,
-                                 const std::string& file_path,
+                                 const String& file_path,
                                  const proto::Status& status) {
   if (!cache_ || !message || !message->has_pp_source()) {
     LOG(CACHE_WARNING) << "Failed to update the cache";
@@ -237,7 +237,7 @@ void Daemon::UpdateCacheFromFile(const proto::Execute* message,
   entry.first = file_path;
   entry.second = status.description();
   const auto& version = flags.compiler().version();
-  std::string command_line =
+  String command_line =
       base::JoinString<' '>(flags.other().begin(), flags.other().end());
   if (flags.has_language()) {
     command_line += " -x " + flags.language();
@@ -254,11 +254,10 @@ void Daemon::UpdateCacheFromFile(const proto::Execute* message,
   }
 }
 
-void Daemon::UpdateCache(const proto::Execute* message,
-                         const std::string& object,
+void Daemon::UpdateCache(const proto::Execute* message, const String& object,
                          const proto::Status& status) {
-  std::string error;
-  std::string temp_file = base::CreateTempFile(&error);
+  String error;
+  String temp_file = base::CreateTempFile(&error);
 
   if (temp_file.empty()) {
     LOG(CACHE_ERROR) << "Failed to create temporary file to cache object: "
@@ -362,7 +361,7 @@ bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
 
 // static
 base::ProcessPtr Daemon::CreateProcess(const proto::Flags& flags, ui32 uid,
-                                       const std::string& cwd_path) {
+                                       const String& cwd_path) {
   base::ProcessPtr process =
       base::Process::Create(flags.compiler().path(), cwd_path, uid);
 
@@ -389,7 +388,7 @@ base::ProcessPtr Daemon::CreateProcess(const proto::Flags& flags, ui32 uid,
 
 // static
 base::ProcessPtr Daemon::CreateProcess(const proto::Flags& flags,
-                                       const std::string& cwd_path) {
+                                       const String& cwd_path) {
   return std::move(CreateProcess(flags, base::Process::SAME_UID, cwd_path));
 }
 
@@ -425,10 +424,10 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
     FileCache::Entry cache_entry;
     if (SearchCache(message, &cache_entry)) {
       if (!message->remote()) {
-        std::string output_path =
+        String output_path =
             message->current_dir() + "/" + message->flags().output();
         if (base::CopyFile(cache_entry.first, output_path, true)) {
-          std::string error;
+          String error;
           if (message->has_user_id() &&
               !base::ChangeOwner(output_path, message->user_id(), &error)) {
             LOG(ERROR) << "Failed to change owner for " << output_path << ": "
@@ -543,14 +542,14 @@ void Daemon::DoRemoteExecution(const std::atomic<bool>& is_shutting_down,
     if (result->HasExtension(proto::RemoteResult::extension)) {
       const auto& extension =
           result->GetExtension(proto::RemoteResult::extension);
-      std::string output_path =
+      String output_path =
           message->current_dir() + "/" + message->flags().output();
       if (base::WriteFile(output_path, extension.obj())) {
         proto::Status status;
         status.set_code(proto::Status::OK);
         LOG(INFO) << "Remote compilation successful: "
                   << message->flags().input();
-        std::string output_file =
+        String output_file =
             message->current_dir() + "/" + message->flags().output();
         UpdateCacheFromFile(message, output_file, status);
         task->first->ReportStatus(status);
@@ -578,7 +577,7 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
         continue;
       }
 
-      std::string error;
+      String error;
       ui32 uid = task->second->has_user_id() ? task->second->user_id()
                                              : base::Process::SAME_UID;
       base::ProcessPtr process = CreateProcess(task->second->flags(), uid,
@@ -597,7 +596,7 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
         status.set_description(process->stderr());
         LOG(INFO) << "Local compilation successful:  "
                   << task->second->flags().input();
-        std::string output_file =
+        String output_file =
             task->second->current_dir() + "/" + task->second->flags().output();
         UpdateCacheFromFile(task->second.get(), output_file, status);
       }
@@ -629,7 +628,7 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
 
       // Do local compilation. Pipe the input file to the compiler and read
       // output file from the compiler's stdout.
-      std::string error;
+      String error;
       base::ProcessPtr process = CreateProcess(task->second->flags());
       if (!process->Run(10, task->second->pp_source(), &error)) {
         std::stringstream arguments;

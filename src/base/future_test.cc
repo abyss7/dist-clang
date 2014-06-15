@@ -1,8 +1,7 @@
 #include <base/future.h>
 
-#include <gtest/gtest.h>
-
-#include <thread>
+#include <third_party/gtest/public/gtest/gtest.h>
+#include <third_party/libcxx/exported/include/thread>
 
 namespace dist_clang {
 namespace base {

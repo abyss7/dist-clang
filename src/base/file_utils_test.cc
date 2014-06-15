@@ -1,9 +1,9 @@
 #include <base/file_utils.h>
 
 #include <base/temporary_dir.h>
-#include <gtest/gtest.h>
 
-#include <thread>
+#include <third_party/gtest/public/gtest/gtest.h>
+#include <third_party/libcxx/exported/include/thread>
 
 #include <fcntl.h>
 
@@ -23,27 +23,27 @@ TEST(FileUtilsTest, DISABLED_FileExists) {
 }
 
 TEST(FileUtilsTest, ReadFile) {
-  const std::string expected_content = "All your base are belong to us";
+  const String expected_content = "All your base are belong to us";
 
   base::TemporaryDir temp_dir;
-  const std::string file_path = std::string(temp_dir) + "/file";
+  const String file_path = String(temp_dir) + "/file";
   int fd = open(file_path.c_str(), O_CREAT | O_WRONLY, 0777);
   ASSERT_NE(-1, fd);
   int size = write(fd, expected_content.data(), expected_content.size());
   ASSERT_EQ(expected_content.size(), static_cast<size_t>(size));
   close(fd);
 
-  std::string content;
-  std::string error;
+  String content;
+  String error;
   EXPECT_TRUE(ReadFile(file_path, &content, &error)) << error;
   EXPECT_EQ(expected_content, content);
 }
 
 TEST(FileUtilsTest, WriteFile) {
-  const std::string expected_content = "All your base are belong to us";
+  const String expected_content = "All your base are belong to us";
 
   base::TemporaryDir temp_dir;
-  const std::string file_path = std::string(temp_dir) + "/file";
+  const String file_path = String(temp_dir) + "/file";
   EXPECT_TRUE(WriteFile(file_path, expected_content));
 
   char content[expected_content.size()];
@@ -52,19 +52,19 @@ TEST(FileUtilsTest, WriteFile) {
   int size = read(fd, content, expected_content.size());
   ASSERT_EQ(expected_content.size(), static_cast<size_t>(size));
   close(fd);
-  EXPECT_EQ(expected_content, std::string(content));
+  EXPECT_EQ(expected_content, String(content));
 }
 
 TEST(FileUtilsTest, CalculateDirectorySize) {
   base::TemporaryDir temp_dir;
-  const std::string dir1 = std::string(temp_dir) + "/1";
-  const std::string dir2 = std::string(temp_dir) + "/2";
-  const std::string file1 = std::string(temp_dir) + "/file1";
-  const std::string file2 = dir1 + "/file2";
-  const std::string file3 = dir2 + "/file3";
-  const std::string content1 = "a";
-  const std::string content2 = "ab";
-  const std::string content3 = "abc";
+  const String dir1 = String(temp_dir) + "/1";
+  const String dir2 = String(temp_dir) + "/2";
+  const String file1 = String(temp_dir) + "/file1";
+  const String file2 = dir1 + "/file2";
+  const String file3 = dir2 + "/file3";
+  const String content1 = "a";
+  const String content2 = "ab";
+  const String content3 = "abc";
 
   ASSERT_NE(-1, mkdir(dir1.c_str(), 0777));
   ASSERT_NE(-1, mkdir(dir2.c_str(), 0777));
@@ -82,7 +82,7 @@ TEST(FileUtilsTest, CalculateDirectorySize) {
   close(fd2);
   close(fd3);
 
-  std::string error;
+  String error;
   EXPECT_EQ(content1.size() + content2.size() + content3.size(),
             CalculateDirectorySize(temp_dir, &error))
       << error;
@@ -90,8 +90,8 @@ TEST(FileUtilsTest, CalculateDirectorySize) {
 
 TEST(FileUtilsTest, FileSize) {
   base::TemporaryDir temp_dir;
-  const std::string file = std::string(temp_dir) + "/file";
-  const std::string content = "1234567890";
+  const String file = String(temp_dir) + "/file";
+  const String content = "1234567890";
 
   int fd = open(file.c_str(), O_CREAT | O_WRONLY, 0777);
   ASSERT_NE(-1, fd);
@@ -104,10 +104,10 @@ TEST(FileUtilsTest, FileSize) {
 
 TEST(FileUtilsTest, LeastRecentPath) {
   base::TemporaryDir temp_dir;
-  const std::string dir = std::string(temp_dir) + "/1";
-  const std::string file1 = std::string(temp_dir) + "/2";
-  const std::string file2 = dir + "/3";
-  const std::string file3 = dir + "/4";
+  const String dir = String(temp_dir) + "/1";
+  const String file1 = String(temp_dir) + "/2";
+  const String file2 = dir + "/3";
+  const String file3 = dir + "/4";
 
   ASSERT_NE(-1, mkdir(dir.c_str(), 0777));
 
@@ -116,7 +116,7 @@ TEST(FileUtilsTest, LeastRecentPath) {
   ASSERT_NE(-1, fd);
   close(fd);
 
-  std::string path;
+  String path;
   EXPECT_TRUE(GetLeastRecentPath(temp_dir, path));
   EXPECT_EQ(dir, path) << "dir mtime is " << GetLastModificationTime(dir).first
                        << ":" << GetLastModificationTime(dir).second
@@ -152,8 +152,8 @@ TEST(FileUtilsTest, LeastRecentPath) {
 }
 
 TEST(FileUtilsTest, TempFile) {
-  std::string error;
-  std::string temp_file = CreateTempFile(&error);
+  String error;
+  String temp_file = CreateTempFile(&error);
 
   ASSERT_FALSE(temp_file.empty()) << "Failed to create temporary file: "
                                   << error;

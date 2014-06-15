@@ -6,8 +6,7 @@
 #include <net/connection.h>
 #include <net/network_service.h>
 
-#include <iostream>
-#include <string>
+#include <third_party/libcxx/exported/include/iostream>
 
 namespace dist_clang {
 namespace daemon {
@@ -24,7 +23,7 @@ void Balancer::AddRemote(const proto::Host& remote) {
   }
 }
 
-bool Balancer::Decide(const ConnectCallback& callback, std::string* error) {
+bool Balancer::Decide(const ConnectCallback& callback, String* error) {
   do {
     auto remote_index = index_.fetch_add(1) % (remotes_.size() + 1);
     if (remote_index == remotes_.size()) {

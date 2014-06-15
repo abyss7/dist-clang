@@ -1,6 +1,6 @@
 #include <base/locked_queue.h>
 
-#include <gtest/gtest.h>
+#include <third_party/gtest/public/gtest/gtest.h>
 
 namespace dist_clang {
 namespace base {

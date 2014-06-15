@@ -12,37 +12,35 @@
 #include <net/network_service_impl.h>
 #include <proto/remote.pb.h>
 
-#include <list>
-
 #include <base/using_log.h>
 
 namespace dist_clang {
 namespace client {
 
-bool DoMain(int argc, const char* const argv[], const std::string& socket_path,
-            const std::string& clang_path) {
+bool DoMain(int argc, const char* const argv[], const String& socket_path,
+            const String& clang_path) {
   if (clang_path.empty()) {
     return true;
   }
 
   auto service = net::NetworkService::Create();
   auto end_point = net::EndPoint::UnixSocket(socket_path);
-  std::string error;
+  String error;
   auto connection = service->Connect(end_point, &error);
   if (!connection) {
     LOG(WARNING) << "Failed to connect to daemon: " << error;
     return true;
   }
 
-  std::string current_dir = base::GetCurrentDir();
+  String current_dir = base::GetCurrentDir();
   if (current_dir.empty()) {
     return true;
   }
 
-  std::string version;
+  String version;
   FlagSet::CommandList commands;
   base::ProcessPtr process =
-      base::Process::Create(clang_path, std::string(), base::Process::SAME_UID);
+      base::Process::Create(clang_path, String(), base::Process::SAME_UID);
   process->AppendArg("-###").AppendArg(argv + 1, argv + argc);
   if (!process->Run(10) ||
       !FlagSet::ParseClangOutput(process->stderr(), &version, commands)) {
@@ -58,8 +56,8 @@ bool DoMain(int argc, const char* const argv[], const std::string& socket_path,
     auto flags = message->mutable_flags();
     flags->mutable_compiler()->set_version(version);
     if (FlagSet::ProcessFlags(args, flags) != FlagSet::COMPILE) {
-      base::ProcessPtr command = base::Process::Create(
-          args.front(), std::string(), base::Process::SAME_UID);
+      base::ProcessPtr command = base::Process::Create(args.front(), String(),
+                                                       base::Process::SAME_UID);
       command->AppendArg(++args.begin(), args.end());
       if (!command->Run(base::Process::UNLIMITED)) {
         return true;

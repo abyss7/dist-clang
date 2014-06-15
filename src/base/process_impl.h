@@ -12,9 +12,9 @@ class ProcessImpl : public Process {
     MAX_ARGS = 4096
   };
 
-  virtual bool Run(ui16 sec_timeout, std::string* error = nullptr) override;
-  virtual bool Run(ui16 sec_timeout, const std::string& input,
-                   std::string* error = nullptr) override;
+  virtual bool Run(ui16 sec_timeout, String* error = nullptr) override;
+  virtual bool Run(ui16 sec_timeout, const String& input,
+                   String* error = nullptr) override;
 
  private:
   friend class DefaultFactory;
@@ -31,9 +31,8 @@ class ProcessImpl : public Process {
     net::fd_t fd_;
   };
 
-  explicit ProcessImpl(const std::string& exec_path,
-                       const std::string& cwd_path = std::string(),
-                       ui32 uid = SAME_UID);
+  explicit ProcessImpl(const String& exec_path,
+                       const String& cwd_path = String(), ui32 uid = SAME_UID);
 
   bool RunChild(int (&out_pipe)[2], int (&err_pipe)[2], int* in_pipe);
   void kill(int pid);

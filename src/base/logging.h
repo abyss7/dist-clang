@@ -2,8 +2,8 @@
 
 #include <base/aliases.h>
 
-#include <set>
-#include <sstream>
+#include <third_party/libcxx/exported/include/set>
+#include <third_party/libcxx/exported/include/sstream>
 
 namespace dist_clang {
 namespace base {
@@ -37,7 +37,7 @@ enum {
 class Log {
  public:
   // First value is a right edge of interval, the second - a left edge.
-  using RangeSet = std::set<std::pair<ui32, ui32>>;
+  using RangeSet = std::set<Pair<ui32>>;
 
   // Expects, that ranges are already filtered.
   static void Reset(ui32 error_mark, RangeSet&& ranges);

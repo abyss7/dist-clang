@@ -2,38 +2,38 @@
 
 #include <base/aliases.h>
 
-#include <cxxabi.h>
-
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <vector>
+#include <third_party/libcxx/exported/include/iostream>
+#include <third_party/libcxx/exported/include/sstream>
+#include <third_party/libcxx/exported/include/vector>
+#include <third_party/libcxxabi/exported/include/cxxabi.h>
 
 #include <execinfo.h>
 
 namespace {
 
-std::string Demangle(const char* backtrace_symbol) {
-  std::string string = backtrace_symbol;
+using dist_clang::String;
+
+String Demangle(const char* backtrace_symbol) {
+  String string = backtrace_symbol;
 
   auto begin_name = string.find('(');
-  if (begin_name == std::string::npos) {
+  if (begin_name == String::npos) {
     return string;
   }
   begin_name++;
 
   auto end_name = string.find('+', begin_name);
-  if (end_name == std::string::npos) {
+  if (end_name == String::npos) {
     return string;
   }
 
-  std::string mangled_name = string.substr(begin_name, end_name - begin_name);
+  String mangled_name = string.substr(begin_name, end_name - begin_name);
   size_t size = 256;
   int status;
   char* demangled_name =
       abi::__cxa_demangle(mangled_name.c_str(), nullptr, &size, &status);
   if (status == 0) {
-    auto result = std::string(demangled_name);
+    auto result = String(demangled_name);
     free(demangled_name);
     return result;
   } else {
@@ -49,7 +49,7 @@ std::string Demangle(const char* backtrace_symbol) {
 namespace dist_clang {
 namespace base {
 
-inline void GetStackTrace(ui8 depth, std::vector<std::string>& strings) {
+inline void GetStackTrace(ui8 depth, std::vector<String>& strings) {
   using void_ptr = void*;
   UniquePtr<void_ptr[]> buffer(new void_ptr[depth + 1]);
 
@@ -72,7 +72,7 @@ inline void GetStackTrace(ui8 depth, std::vector<std::string>& strings) {
 #define CHECK(expr)                                   \
   if (!(expr)) {                                      \
     std::stringstream ss;                             \
-    std::vector<std::string> strings;                 \
+    std::vector<String> strings;                      \
     dist_clang::base::GetStackTrace(62, strings);     \
     ss << "Assertion failed: " << #expr << std::endl; \
     for (const auto& str : strings) {                 \
@@ -84,7 +84,7 @@ inline void GetStackTrace(ui8 depth, std::vector<std::string>& strings) {
 #define CHECK(expr)                                   \
   if (!(expr)) {                                      \
     std::stringstream ss;                             \
-    std::vector<std::string> strings;                 \
+    std::vector<String> strings;                      \
     dist_clang::base::GetStackTrace(62, strings);     \
     ss << "Assertion failed: " << #expr << std::endl; \
     for (const auto& str : strings) {                 \

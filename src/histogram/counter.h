@@ -2,8 +2,7 @@
 
 #include <base/aliases.h>
 
-#include <chrono>
-#include <string>
+#include <third_party/libcxx/exported/include/chrono>
 
 namespace dist_clang {
 namespace histogram {

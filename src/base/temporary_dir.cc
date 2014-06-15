@@ -37,7 +37,7 @@ TemporaryDir::~TemporaryDir() {
   DCHECK_O_EVAL(!rmdir(path_.c_str()) || errno == ENOENT);
 }
 
-TemporaryDir::operator std::string() const { return path_; }
+TemporaryDir::operator String() const { return path_; }
 
 }  // namespace base
 }  // namespace dist_clang

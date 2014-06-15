@@ -1,10 +1,8 @@
 #pragma once
 
 #include <base/testable.h>
-#include <gtest/gtest_prod.h>
 
-#include <list>
-#include <string>
+#include <third_party/gtest/public/gtest/gtest_prod.h>
 
 namespace dist_clang {
 
@@ -30,36 +28,35 @@ class Process;
 class ProcessImpl;
 using ProcessPtr = UniquePtr<Process>;
 
-class Process : public Testable<Process, ProcessImpl, const std::string&,
-                                const std::string&, ui32> {
+class Process : public Testable<Process, ProcessImpl, const String&,
+                                const String&, ui32> {
  public:
   enum {
     UNLIMITED = 0,
     SAME_UID = 0
   };
 
-  explicit Process(const std::string& exec_path,
-                   const std::string& cwd_path = std::string(),
+  explicit Process(const String& exec_path, const String& cwd_path = String(),
                    ui32 uid = SAME_UID);
   virtual ~Process() {}
 
-  Process& AppendArg(const std::string& arg);
+  Process& AppendArg(const String& arg);
   template <class Iterator>
   Process& AppendArg(Iterator begin, Iterator end);
 
-  inline const std::string& stdout() const;
-  inline const std::string& stderr() const;
+  inline const String& stdout() const;
+  inline const String& stderr() const;
 
   // |sec_timeout| specifies the timeout in seconds - for how long we should
   // wait for another portion of the output from a child process.
-  virtual bool Run(ui16 sec_timeout, std::string* error = nullptr) = 0;
-  virtual bool Run(ui16 sec_timeout, const std::string& input,
-                   std::string* error = nullptr) = 0;
+  virtual bool Run(ui16 sec_timeout, String* error = nullptr) = 0;
+  virtual bool Run(ui16 sec_timeout, const String& input,
+                   String* error = nullptr) = 0;
 
  protected:
-  const std::string exec_path_, cwd_path_;
-  std::list<std::string> args_;
-  std::string stdout_, stderr_;
+  const String exec_path_, cwd_path_;
+  List<String> args_;
+  String stdout_, stderr_;
   const ui32 uid_;
 
  private:
@@ -81,9 +78,9 @@ Process& Process::AppendArg(Iterator begin, Iterator end) {
   return *this;
 }
 
-const std::string& Process::stdout() const { return stdout_; }
+const String& Process::stdout() const { return stdout_; }
 
-const std::string& Process::stderr() const { return stderr_; }
+const String& Process::stderr() const { return stderr_; }
 
 }  // namespace base
 }  // namespace dist_clang

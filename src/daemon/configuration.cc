@@ -3,11 +3,10 @@
 #include <base/constants.h>
 #include <base/logging.h>
 #include <base/string_utils.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
-#include <google/protobuf/text_format.h>
-#include <tclap/CmdLine.h>
 
-#include <string>
+#include <third_party/protobuf/src/google/protobuf/io/zero_copy_stream_impl.h>
+#include <third_party/protobuf/src/google/protobuf/text_format.h>
+#include <third_party/tclap/exported/include/tclap/CmdLine.h>
 
 #include <fcntl.h>
 
@@ -21,21 +20,20 @@ namespace daemon {
 Configuration::Configuration(int argc, char *argv[]) {
   try {
     CmdLine cmd("Daemon from Clang distributed system - Clangd.", ' ', VERSION);
-    ValueArg<std::string> socket_arg(
+    ValueArg<String> socket_arg(
         "s", "socket", "Path to UNIX socket to listen for local connections.",
         false, base::kDefaultClangdSocket, "path", cmd);
-    ValueArg<std::string> cache_arg(
+    ValueArg<String> cache_arg(
         "c", "cache", "Path, where the daemon will cache compilation results.",
-        false, std::string(), "path", cmd);
-    MultiArg<std::string> hosts_arg(
-        "", "host", "Remote host to use for remote compilation.", false,
-        "host[:port[:cpus]]", cmd);
-    ValueArg<std::string> local_arg(
-        "l", "listen", "Local host to listen for remote connections.", false,
-        std::string(), "host[:port[:cpus]]", cmd);
-    ValueArg<std::string> config_arg("", "config",
-                                     "Path to the configuration file.", false,
-                                     std::string(), "path", cmd);
+        false, String(), "path", cmd);
+    MultiArg<String> hosts_arg("", "host",
+                               "Remote host to use for remote compilation.",
+                               false, "host[:port[:cpus]]", cmd);
+    ValueArg<String> local_arg("l", "listen",
+                               "Local host to listen for remote connections.",
+                               false, String(), "host[:port[:cpus]]", cmd);
+    ValueArg<String> config_arg("", "config", "Path to the configuration file.",
+                                false, String(), "path", cmd);
     cmd.parse(argc, argv);
 
     // Configuration file, if provided, has lower priority then command-line
@@ -53,7 +51,7 @@ Configuration::Configuration(int argc, char *argv[]) {
     }
 
     for (auto host : hosts_arg) {
-      std::list<std::string> strs;
+      List<String> strs;
       base::SplitString<':'>(host, strs);
       if (strs.size() <= 3) {
         auto remote = config_.add_remotes();
@@ -73,7 +71,7 @@ Configuration::Configuration(int argc, char *argv[]) {
     }
 
     if (local_arg.isSet()) {
-      std::list<std::string> strs;
+      List<String> strs;
       base::SplitString<':'>(local_arg.getValue(), strs);
       if (strs.size() <= 3) {
         auto local = config_.mutable_local();
@@ -99,7 +97,7 @@ Configuration::Configuration(int argc, char *argv[]) {
 Configuration::Configuration(const proto::Configuration &config)
     : config_(config) {}
 
-bool Configuration::LoadFromFile(const std::string &config_path) {
+bool Configuration::LoadFromFile(const String &config_path) {
   auto fd = open(config_path.c_str(), O_RDONLY);
   if (fd == -1) {
     return false;

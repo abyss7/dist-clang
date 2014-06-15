@@ -5,7 +5,8 @@
 #include <base/logging.h>
 #include <base/string_utils.h>
 
-#include <fstream>
+#include <third_party/libcxx/exported/include/fstream>
+
 #include <sys/types.h>
 #include <utime.h>
 
@@ -14,13 +15,13 @@
 namespace dist_clang {
 namespace daemon {
 
-FileCache::FileCache(const std::string &path) : FileCache(path, UNLIMITED) {}
+FileCache::FileCache(const String &path) : FileCache(path, UNLIMITED) {}
 
-FileCache::FileCache(const std::string &path, ui64 size)
+FileCache::FileCache(const String &path, ui64 size)
     : path_(path), max_size_(size), cached_size_(0) {
 
   if (max_size_ != UNLIMITED) {
-    std::string error;
+    String error;
     cached_size_ = base::CalculateDirectorySize(path, &error);
     if (!error.empty()) {
       LOG(CACHE_WARNING)
@@ -31,17 +32,17 @@ FileCache::FileCache(const std::string &path, ui64 size)
   pool_.Run();
 }
 
-bool FileCache::Find(const std::string &code, const std::string &command_line,
-                     const std::string &version, Entry *entry) const {
+bool FileCache::Find(const String &code, const String &command_line,
+                     const String &version, Entry *entry) const {
   bool result = false;
-  const std::string version_hash = base::Hexify(base::MakeHash(version));
-  const std::string args_hash = base::Hexify(base::MakeHash(command_line));
-  const std::string code_hash = base::Hexify(base::MakeHash(code));
+  const String version_hash = base::Hexify(base::MakeHash(version));
+  const String args_hash = base::Hexify(base::MakeHash(command_line));
+  const String code_hash = base::Hexify(base::MakeHash(code));
 
-  const std::string version_path = path_ + "/" + version_hash;
-  const std::string args_path = version_path + "/" + args_hash;
-  const std::string object_path = args_path + "/" + code_hash + "-object";
-  const std::string stderr_path = args_path + "/" + code_hash + "-stderr";
+  const String version_path = path_ + "/" + version_hash;
+  const String args_path = version_path + "/" + args_hash;
+  const String object_path = args_path + "/" + code_hash + "-object";
+  const String stderr_path = args_path + "/" + code_hash + "-stderr";
 
   std::ifstream obj(object_path);
   if (obj.is_open()) {
@@ -64,41 +65,40 @@ bool FileCache::Find(const std::string &code, const std::string &command_line,
   return result;
 }
 
-FileCache::Optional FileCache::Store(const std::string &code,
-                                     const std::string &command_line,
-                                     const std::string &version,
+FileCache::Optional FileCache::Store(const String &code,
+                                     const String &command_line,
+                                     const String &version,
                                      const Entry &entry) {
-  std::string version_hash = base::Hexify(base::MakeHash(version));
-  std::string args_hash = base::Hexify(base::MakeHash(command_line));
-  std::string code_hash = base::Hexify(base::MakeHash(code));
-  std::string path = path_ + "/" + version_hash + "/" + args_hash;
+  String version_hash = base::Hexify(base::MakeHash(version));
+  String args_hash = base::Hexify(base::MakeHash(command_line));
+  String code_hash = base::Hexify(base::MakeHash(code));
+  String path = path_ + "/" + version_hash + "/" + args_hash;
 
   auto task = std::bind(&FileCache::DoStore, this, path, code_hash, entry);
   return pool_.Push(task);
 }
 
-void FileCache::SyncStore(const std::string &code,
-                          const std::string &command_line,
-                          const std::string &version, const Entry &entry) {
-  std::string version_hash = base::Hexify(base::MakeHash(version));
-  std::string args_hash = base::Hexify(base::MakeHash(command_line));
-  std::string code_hash = base::Hexify(base::MakeHash(code));
-  std::string path = path_ + "/" + version_hash + "/" + args_hash;
+void FileCache::SyncStore(const String &code, const String &command_line,
+                          const String &version, const Entry &entry) {
+  String version_hash = base::Hexify(base::MakeHash(version));
+  String args_hash = base::Hexify(base::MakeHash(command_line));
+  String code_hash = base::Hexify(base::MakeHash(code));
+  String path = path_ + "/" + version_hash + "/" + args_hash;
 
   DoStore(path, code_hash, entry);
 }
 
-void FileCache::DoStore(const std::string &path, const std::string &code_hash,
+void FileCache::DoStore(const String &path, const String &code_hash,
                         const Entry &entry) {
   // FIXME: refactor to portable solution.
-  if (system((std::string("mkdir -p ") + path).c_str()) == -1) {
+  if (system((String("mkdir -p ") + path).c_str()) == -1) {
     // "mkdir -p" doesn't fail if the path already exists.
     LOG(CACHE_ERROR) << "Failed to `mkdir -p` for " << path;
     return;
   }
 
-  const std::string object_path = path + "/" + code_hash + "-object";
-  const std::string stderr_path = path + "/" + code_hash + "-stderr";
+  const String object_path = path + "/" + code_hash + "-object";
+  const String stderr_path = path + "/" + code_hash + "-stderr";
 
   if (!base::CopyFile(entry.first, object_path + ".tmp")) {
     LOG(CACHE_ERROR) << "Failed to copy " << entry.first << " to object.tmp";
@@ -125,10 +125,10 @@ void FileCache::DoStore(const std::string &path, const std::string &code_hash,
 
   if (max_size_ != UNLIMITED) {
     while (cached_size_ > max_size_) {
-      std::string version_path, args_path;
+      String version_path, args_path;
 
       {
-        std::string error;
+        String error;
         if (!base::GetLeastRecentPath(path_, version_path, &error)) {
           LOG(CACHE_WARNING) << "Failed to get the recent path from " << path_
                              << " : " << error;
@@ -137,7 +137,7 @@ void FileCache::DoStore(const std::string &path, const std::string &code_hash,
         }
       }
       {
-        std::string error;
+        String error;
         if (!base::GetLeastRecentPath(version_path, args_path, &error)) {
           if (!base::RemoveDirectory(version_path)) {
             LOG(CACHE_WARNING) << "Failed to get the recent path from "
@@ -151,10 +151,10 @@ void FileCache::DoStore(const std::string &path, const std::string &code_hash,
 
       bool should_break = false;
       while (cached_size_ > max_size_) {
-        std::string file_path;
+        String file_path;
 
         {
-          std::string error;
+          String error;
           if (!base::GetLeastRecentPath(args_path, file_path, &error)) {
             if (!base::RemoveDirectory(args_path)) {
               LOG(CACHE_WARNING) << "Failed to get the recent path from "
@@ -166,7 +166,7 @@ void FileCache::DoStore(const std::string &path, const std::string &code_hash,
           }
         }
         {
-          std::string error;
+          String error;
           auto file_size = base::FileSize(file_path);
           if (!base::DeleteFile(file_path, &error)) {
             LOG(CACHE_WARNING) << "Failed to delete file " << file_path << " : "

@@ -2,7 +2,7 @@
 
 #include <base/assert.h>
 
-#include <iostream>
+#include <third_party/libcxx/exported/include/iostream>
 
 namespace dist_clang {
 namespace base {

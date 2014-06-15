@@ -3,9 +3,9 @@
 #include <base/aliases.h>
 #include <net/base/types.h>
 
-#include <atomic>
-#include <thread>
-#include <vector>
+#include <third_party/libcxx/exported/include/atomic>
+#include <third_party/libcxx/exported/include/thread>
+#include <third_party/libcxx/exported/include/vector>
 
 namespace dist_clang {
 namespace base {

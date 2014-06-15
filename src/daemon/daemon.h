@@ -5,12 +5,11 @@
 #include <daemon/configuration.h>
 #include <daemon/file_cache.h>
 #include <daemon/statistic.h>
-#include <gtest/gtest_prod.h>
 #include <net/connection_forward.h>
 #include <net/network_service.h>
 #include <proto/remote.pb.h>
 
-#include <unordered_map>
+#include <third_party/gtest/public/gtest/gtest_prod.h>
 
 namespace dist_clang {
 
@@ -38,22 +37,19 @@ class Daemon {
 
   using ScopedMessage = UniquePtr<proto::Universal>;
   using ScopedExecute = UniquePtr<proto::Execute>;
-  using ScopedTask = std::pair<net::ConnectionPtr, ScopedExecute>;
+  using ScopedTask = Pair<net::ConnectionPtr, ScopedExecute>;
   using Queue = base::LockedQueue<ScopedTask>;
   using QueueAggregator = base::QueueAggregator<ScopedTask>;
   using Optional = Queue::Optional;
-  using CompilerMap =
-      std::unordered_map<std::string /* version */, std::string /* path */>;
-  using PluginNameMap =
-      std::unordered_map<std::string /* name */, std::string /* path */>;
-  using PluginMap =
-      std::unordered_map<std::string /* version */, PluginNameMap>;
+  using CompilerMap = HashMap<String /* version */, String /* path */>;
+  using PluginNameMap = HashMap<String /* name */, String /* path */>;
+  using PluginMap = HashMap<String /* version */, PluginNameMap>;
 
   bool SearchCache(const proto::Execute* message, FileCache::Entry* entry);
   void UpdateCacheFromFile(const proto::Execute* message,
-                           const std::string& file_path,
+                           const String& file_path,
                            const proto::Status& status);
-  void UpdateCache(const proto::Execute* message, const std::string& object,
+  void UpdateCache(const proto::Execute* message, const String& object,
                    const proto::Status& status);
 
   // Convert CC to PP flags.
@@ -66,12 +62,12 @@ class Daemon {
 
   static UniquePtr<base::Process> CreateProcess(const proto::Flags& flags,
                                                 ui32 uid,
-                                                const std::string& cwd_path =
-                                                    std::string());
+                                                const String& cwd_path =
+                                                    String());
 
   static UniquePtr<base::Process> CreateProcess(const proto::Flags& flags,
-                                                const std::string& cwd_path =
-                                                    std::string());
+                                                const String& cwd_path =
+                                                    String());
 
   // Workers
   void DoCheckCache(const std::atomic<bool>& is_shutting_down);

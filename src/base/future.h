@@ -2,9 +2,9 @@
 
 #include <base/assert.h>
 
-#include <condition_variable>
-#include <experimental/optional>
-#include <mutex>
+#include <third_party/libcxx/exported/include/condition_variable>
+#include <third_party/libcxx/exported/include/experimental/optional>
+#include <third_party/libcxx/exported/include/mutex>
 
 namespace dist_clang {
 namespace base {

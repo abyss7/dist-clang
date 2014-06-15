@@ -4,8 +4,8 @@
 #include <base/worker_pool.h>
 #include <net/connection_impl.h>
 
-#include <thread>
-#include <vector>
+#include <third_party/libcxx/exported/include/thread>
+#include <third_party/libcxx/exported/include/vector>
 
 namespace dist_clang {
 namespace net {

@@ -1,7 +1,5 @@
 #include <net/base/end_point.h>
 
-#include <string>
-
 #include <netdb.h>
 #include <sys/un.h>
 
@@ -9,7 +7,7 @@ namespace dist_clang {
 namespace net {
 
 // static
-EndPointPtr EndPoint::TcpHost(const std::string& host, ui16 port) {
+EndPointPtr EndPoint::TcpHost(const String& host, ui16 port) {
   hostent* host_entry;
   in_addr** address_list;
 
@@ -29,7 +27,7 @@ EndPointPtr EndPoint::TcpHost(const std::string& host, ui16 port) {
 }
 
 // static
-EndPointPtr EndPoint::UnixSocket(const std::string& path) {
+EndPointPtr EndPoint::UnixSocket(const String& path) {
   EndPointPtr end_point(new EndPoint);
   sockaddr_un* address = reinterpret_cast<sockaddr_un*>(&end_point->address_);
   address->sun_family = AF_UNIX;

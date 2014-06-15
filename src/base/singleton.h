@@ -2,7 +2,7 @@
 
 #include <base/testable.h>
 
-#include <mutex>
+#include <third_party/libcxx/exported/include/mutex>
 
 namespace dist_clang {
 namespace base {

@@ -6,8 +6,6 @@
 #include <net/network_service.h>
 #include <net/test_connection.h>
 
-#include <unordered_map>
-
 namespace std {
 
 template <class T, class U>
@@ -29,8 +27,8 @@ namespace net {
 class TestNetworkService : public NetworkService {
  public:
   using TestConnectionPtr = std::shared_ptr<TestConnection>;
-  using OnConnectCallback = Fn<TestConnectionPtr(EndPointPtr, std::string*)>;
-  using OnListenCallback = Fn<bool(const std::string&, ui16, std::string*)>;
+  using OnConnectCallback = Fn<TestConnectionPtr(EndPointPtr, String*)>;
+  using OnListenCallback = Fn<bool(const String&, ui16, String*)>;
 
   class Factory : public NetworkService::Factory {
    public:
@@ -46,16 +44,15 @@ class TestNetworkService : public NetworkService {
 
   inline virtual bool Run() override;
 
-  virtual bool Listen(const std::string& path, ListenCallback callback,
-                      std::string* error) override;
+  virtual bool Listen(const String& path, ListenCallback callback,
+                      String* error) override;
 
-  virtual bool Listen(const std::string& host, ui16 port,
-                      ListenCallback callback, std::string* error) override;
+  virtual bool Listen(const String& host, ui16 port, ListenCallback callback,
+                      String* error) override;
 
-  virtual ConnectionPtr Connect(EndPointPtr end_point,
-                                std::string* error) override;
+  virtual ConnectionPtr Connect(EndPointPtr end_point, String* error) override;
 
-  ConnectionPtr TriggerListen(const std::string& host, ui16 port = 0);
+  ConnectionPtr TriggerListen(const String& host, ui16 port = 0);
 
   inline void CallOnConnect(OnConnectCallback callback);
   inline void CallOnListen(OnListenCallback callback);
@@ -63,13 +60,13 @@ class TestNetworkService : public NetworkService {
   inline void CountListenAttempts(ui32* counter);
 
  private:
-  using HostPortPair = std::pair<std::string, ui16>;
+  using HostPortPair = Pair<String, ui16>;
 
   OnConnectCallback on_connect_ = EmptyLambda<TestConnectionPtr>();
   OnListenCallback on_listen_ = EmptyLambda<bool>(false);
   ui32* connect_attempts_ = nullptr;
   ui32* listen_attempts_ = nullptr;
-  std::unordered_map<HostPortPair, ListenCallback> listen_callbacks_;
+  HashMap<HostPortPair, ListenCallback> listen_callbacks_;
 };
 
 void TestNetworkService::Factory::CallOnCreate(OnCreateCallback callback) {

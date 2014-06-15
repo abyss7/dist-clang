@@ -11,7 +11,6 @@
 #include <sys/types.h>
 #include <sys/un.h>
 
-using ::std::string;
 using namespace ::std::placeholders;
 
 namespace dist_clang {
@@ -19,8 +18,8 @@ namespace net {
 
 bool NetworkServiceImpl::Run() { return event_loop_->Run(); }
 
-bool NetworkServiceImpl::Listen(const string& path, ListenCallback callback,
-                                string* error) {
+bool NetworkServiceImpl::Listen(const String& path, ListenCallback callback,
+                                String* error) {
   sockaddr_un address;
   address.sun_family = AF_UNIX;
   strcpy(address.sun_path, path.c_str());
@@ -61,8 +60,8 @@ bool NetworkServiceImpl::Listen(const string& path, ListenCallback callback,
   return true;
 }
 
-bool NetworkServiceImpl::Listen(const string& host, ui16 port,
-                                ListenCallback callback, string* error) {
+bool NetworkServiceImpl::Listen(const String& host, ui16 port,
+                                ListenCallback callback, String* error) {
   struct hostent* host_entry;
   struct in_addr** address_list;
 
@@ -120,7 +119,7 @@ bool NetworkServiceImpl::Listen(const string& host, ui16 port,
 }
 
 ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point,
-                                          string* error) {
+                                          String* error) {
   auto fd = socket(end_point->domain(), SOCK_STREAM, 0);
   if (fd == -1) {
     base::GetLastError(error);

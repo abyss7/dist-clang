@@ -1,7 +1,6 @@
 #pragma once
 
-#include <list>
-#include <string>
+#include <base/aliases.h>
 
 namespace dist_clang {
 
@@ -19,11 +18,10 @@ class FlagSet {
     PREPROCESS,
     UNKNOWN
   };
-  using StringList = std::list<std::string>;
-  using CommandList = std::list<StringList>;
+  using CommandList = List<List<String>>;
 
-  static Action ProcessFlags(StringList flags, proto::Flags* message);
-  static bool ParseClangOutput(const std::string& output, std::string* version,
+  static Action ProcessFlags(List<String> flags, proto::Flags* message);
+  static bool ParseClangOutput(const String& output, String* version,
                                CommandList& args);
 };
 

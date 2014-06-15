@@ -3,27 +3,27 @@
 namespace dist_clang {
 namespace base {
 
-UniquePtr<Process> TestProcess::Factory::Create(
-    const std::string &exec_path, const std::string &cwd_path, ui32 uid) {
+UniquePtr<Process> TestProcess::Factory::Create(const String &exec_path,
+                                                const String &cwd_path,
+                                                ui32 uid) {
   auto new_t = new TestProcess(exec_path, cwd_path, uid);
   on_create_(new_t);
   return UniquePtr<Process>(new_t);
 }
 
-TestProcess::TestProcess(const std::string &exec_path,
-                         const std::string &cwd_path, ui32 uid)
+TestProcess::TestProcess(const String &exec_path, const String &cwd_path,
+                         ui32 uid)
     : Process(exec_path, cwd_path, uid) {}
 
-bool TestProcess::Run(ui16 sec_timeout, std::string *error) {
+bool TestProcess::Run(ui16 sec_timeout, String *error) {
   if (run_attempts_) {
     (*run_attempts_)++;
   }
 
-  return on_run_(sec_timeout, std::string(), error);
+  return on_run_(sec_timeout, String(), error);
 }
 
-bool TestProcess::Run(ui16 sec_timeout, const std::string &input,
-                      std::string *error) {
+bool TestProcess::Run(ui16 sec_timeout, const String &input, String *error) {
   if (run_attempts_) {
     (*run_attempts_)++;
   }

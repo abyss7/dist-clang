@@ -4,10 +4,11 @@
 #include <base/process_impl.h>
 #include <base/temporary_dir.h>
 #include <base/test_process.h>
-#include <gtest/gtest.h>
 #include <net/network_service_impl.h>
 #include <net/test_network_service.h>
 #include <proto/config.pb.h>
+
+#include <third_party/gtest/public/gtest/gtest.h>
 
 namespace dist_clang {
 namespace daemon {
@@ -49,7 +50,7 @@ TEST(DaemonUtilTest, ConvertFlagsFromCC2PP) {
 }
 
 TEST(DaemonUtilTest, CreateProcessFromFlags) {
-  const std::list<std::string> expected_args = {
+  const List<String> expected_args = {
       "-cc1", "-emit-obj", "-I.", "-MT",    "-load",   "/usr/lib/libplugin.so",
       "-x",   "c++",       "-o",  "test.o", "test.cc", };
   const ui32 expected_user_id = 1u;
@@ -101,7 +102,7 @@ class DaemonTest : public ::testing::Test {
         test_service = service;
         service->CountConnectAttempts(&connect_count);
         service->CountListenAttempts(&listen_count);
-        service->CallOnConnect([this](net::EndPointPtr, std::string*) {
+        service->CallOnConnect([this](net::EndPointPtr, String*) {
           auto connection = Service::TestConnectionPtr(new net::TestConnection);
           connection->CountSendAttempts(&send_count);
           connection->CountReadAttempts(&read_count);
@@ -118,8 +119,8 @@ class DaemonTest : public ::testing::Test {
       auto factory = base::Process::SetFactory<base::TestProcess::Factory>();
       factory->CallOnCreate([this](base::TestProcess* process) {
         process->CountRuns(&run_count);
-        process->CallOnRun([this, process](
-            ui32 timeout, const std::string& input, std::string* error) {
+        process->CallOnRun([this, process](ui32 timeout, const String& input,
+                                           String* error) {
           run_callback(process);
 
           if (!do_run) {
@@ -136,7 +137,7 @@ class DaemonTest : public ::testing::Test {
   }
 
  protected:
-  using ListenCallback = Fn<bool(const std::string&, ui16, std::string*)>;
+  using ListenCallback = Fn<bool(const String&, ui16, String*)>;
   using ConnectCallback = Fn<void(net::TestConnection*)>;
   using RunCallback = Fn<void(base::TestProcess*)>;
 
@@ -174,10 +175,10 @@ TEST_F(DaemonTest, InvalidConfig) {
 }
 
 TEST_F(DaemonTest, ConfigWithSocketPath) {
-  const std::string expected_socket_path = "/tmp/clangd.socket";
+  const String expected_socket_path = "/tmp/clangd.socket";
 
   config.set_socket_path(expected_socket_path);
-  listen_callback = [&](const std::string& host, ui16 port, std::string*) {
+  listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(expected_socket_path, host);
     EXPECT_EQ(0u, port);
     return true;
@@ -192,12 +193,12 @@ TEST_F(DaemonTest, ConfigWithSocketPath) {
 }
 
 TEST_F(DaemonTest, ConfigWithBadCompiler) {
-  const std::string expected_socket_path = "/tmp/clangd.socket";
-  const std::string compiler_version = "fake_compiler_version";
+  const String expected_socket_path = "/tmp/clangd.socket";
+  const String compiler_version = "fake_compiler_version";
 
   config.set_socket_path(expected_socket_path);
   config.add_versions()->set_version(compiler_version);
-  listen_callback = [&](const std::string& host, ui16 port, std::string*) {
+  listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(expected_socket_path, host);
     EXPECT_EQ(0u, port);
     return true;
@@ -212,17 +213,17 @@ TEST_F(DaemonTest, ConfigWithBadCompiler) {
 }
 
 TEST_F(DaemonTest, ConfigWithBadPlugin) {
-  const std::string expected_socket_path = "/tmp/clangd.socket";
-  const std::string compiler_version = "fake_compiler_version";
-  const std::string compiler_path = "fake_compiler_path";
-  const std::string plugin_name = "test_plugin";
+  const String expected_socket_path = "/tmp/clangd.socket";
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const String plugin_name = "test_plugin";
 
   config.set_socket_path(expected_socket_path);
   auto* version = config.add_versions();
   version->set_version(compiler_version);
   version->set_path(compiler_path);
   version->add_plugins()->set_name(plugin_name);
-  listen_callback = [&](const std::string& host, ui16 port, std::string*) {
+  listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(expected_socket_path, host);
     EXPECT_EQ(0u, port);
     return true;
@@ -238,7 +239,7 @@ TEST_F(DaemonTest, ConfigWithBadPlugin) {
 
 TEST_F(DaemonTest, ConfigWithCachePath) {
   base::TemporaryDir tmp_dir;
-  const std::string expected_cache_path = tmp_dir.GetPath() + "/cache";
+  const String expected_cache_path = tmp_dir.GetPath() + "/cache";
 
   config.set_cache_path(expected_cache_path);
 
@@ -252,12 +253,12 @@ TEST_F(DaemonTest, ConfigWithCachePath) {
 }
 
 TEST_F(DaemonTest, ConfigWithLocal) {
-  const std::string expected_host = "localhost";
+  const String expected_host = "localhost";
   const ui16 expected_port = 7777;
 
   config.mutable_local()->set_host(expected_host);
   config.mutable_local()->set_port(expected_port);
-  listen_callback = [&](const std::string& host, ui16 port, std::string*) {
+  listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(expected_host, host);
     EXPECT_EQ(expected_port, port);
     return true;
@@ -272,7 +273,7 @@ TEST_F(DaemonTest, ConfigWithLocal) {
 }
 
 TEST_F(DaemonTest, ConfigWithDisabledLocal) {
-  const std::string expected_host = "localhost";
+  const String expected_host = "localhost";
   const ui16 expected_port = 7777;
 
   config.mutable_local()->set_host(expected_host);
@@ -288,12 +289,12 @@ TEST_F(DaemonTest, ConfigWithDisabledLocal) {
 }
 
 TEST_F(DaemonTest, ConfigWithStatistic) {
-  const std::string expected_host = "localhost";
+  const String expected_host = "localhost";
   const ui16 expected_port = 7777;
 
   config.mutable_statistic()->set_host(expected_host);
   config.mutable_statistic()->set_port(expected_port);
-  listen_callback = [&](const std::string& host, ui16 port, std::string*) {
+  listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(expected_host, host);
     EXPECT_EQ(expected_port, port);
     return true;
@@ -321,10 +322,10 @@ TEST_F(DaemonTest, ConfigWithDisabledStatistic) {
 }
 
 TEST_F(DaemonTest, LocalConnection) {
-  const std::string socket_path = "/tmp/clangd.socket";
+  const String socket_path = "/tmp/clangd.socket";
 
   config.set_socket_path(socket_path);
-  listen_callback = [&](const std::string& host, ui16 port, std::string*) {
+  listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
     return true;
@@ -347,12 +348,12 @@ TEST_F(DaemonTest, LocalConnection) {
 }
 
 TEST_F(DaemonTest, BadLocalMessage) {
-  const std::string socket_path = "/tmp/clangd.socket";
+  const String socket_path = "/tmp/clangd.socket";
   const proto::Status::Code expected_code = proto::Status::BAD_MESSAGE;
-  const std::string expected_description = "Test description";
+  const String expected_description = "Test description";
 
   config.set_socket_path(socket_path);
-  listen_callback = [&](const std::string& host, ui16 port, std::string*) {
+  listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
     return true;
@@ -394,10 +395,10 @@ TEST_F(DaemonTest, BadLocalMessage) {
 }
 
 TEST_F(DaemonTest, LocalMessageWithoutCommand) {
-  const std::string socket_path = "/tmp/clangd.socket";
+  const String socket_path = "/tmp/clangd.socket";
 
   config.set_socket_path(socket_path);
-  listen_callback = [&](const std::string& host, ui16 port, std::string*) {
+  listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
     return true;
@@ -432,10 +433,10 @@ TEST_F(DaemonTest, LocalMessageWithoutCommand) {
 }
 
 TEST_F(DaemonTest, LocalMessageWithoutCurrentDir) {
-  const std::string socket_path = "/tmp/clangd.socket";
+  const String socket_path = "/tmp/clangd.socket";
 
   config.set_socket_path(socket_path);
-  listen_callback = [&](const std::string& host, ui16 port, std::string*) {
+  listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
     return true;
@@ -475,14 +476,14 @@ TEST_F(DaemonTest, LocalMessageWithoutCurrentDir) {
 }
 
 TEST_F(DaemonTest, LocalMessageWithBadCompiler) {
-  const std::string socket_path = "/tmp/clangd.socket";
+  const String socket_path = "/tmp/clangd.socket";
   const proto::Status::Code expected_code = proto::Status::NO_VERSION;
-  const std::string compiler_version = "fake_compiler_version";
-  const std::string bad_version = "another_compiler_version";
-  const std::string compiler_path = "fake_compiler_path";
-  const std::string plugin_name = "test_plugin";
-  const std::string plugin_path = "fake_plugin_path";
-  const std::string current_dir = "fake_current_dir";
+  const String compiler_version = "fake_compiler_version";
+  const String bad_version = "another_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const String plugin_name = "test_plugin";
+  const String plugin_path = "fake_plugin_path";
+  const String current_dir = "fake_current_dir";
 
   config.set_socket_path(socket_path);
   auto* version = config.add_versions();
@@ -492,7 +493,7 @@ TEST_F(DaemonTest, LocalMessageWithBadCompiler) {
   plugin->set_name(plugin_name);
   plugin->set_path(plugin_path);
 
-  listen_callback = [&](const std::string& host, ui16 port, std::string*) {
+  listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
     return true;
@@ -539,19 +540,19 @@ TEST_F(DaemonTest, LocalMessageWithBadCompiler) {
 }
 
 TEST_F(DaemonTest, LocalMessageWithBadPlugin) {
-  const std::string socket_path = "/tmp/clangd.socket";
+  const String socket_path = "/tmp/clangd.socket";
   const proto::Status::Code expected_code = proto::Status::NO_VERSION;
-  const std::string compiler_version = "1.0";
-  const std::string compiler_path = "fake_compiler_path";
-  const std::string current_dir = "fake_current_dir";
-  const std::string bad_plugin_name = "bad_plugin_name";
+  const String compiler_version = "1.0";
+  const String compiler_path = "fake_compiler_path";
+  const String current_dir = "fake_current_dir";
+  const String bad_plugin_name = "bad_plugin_name";
 
   config.set_socket_path(socket_path);
   auto* version = config.add_versions();
   version->set_version(compiler_version);
   version->set_path(compiler_path);
 
-  listen_callback = [&](const std::string& host, ui16 port, std::string*) {
+  listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
     return true;
@@ -600,14 +601,14 @@ TEST_F(DaemonTest, LocalMessageWithBadPlugin) {
 }
 
 TEST_F(DaemonTest, LocalMessageWithBadPlugin2) {
-  const std::string socket_path = "/tmp/clangd.socket";
+  const String socket_path = "/tmp/clangd.socket";
   const proto::Status::Code expected_code = proto::Status::NO_VERSION;
-  const std::string compiler_version = "fake_compiler_version";
-  const std::string compiler_path = "fake_compiler_path";
-  const std::string plugin_name = "test_plugin";
-  const std::string plugin_path = "fake_plugin_path";
-  const std::string current_dir = "fake_current_dir";
-  const std::string bad_plugin_name = "another_plugin_name";
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const String plugin_name = "test_plugin";
+  const String plugin_path = "fake_plugin_path";
+  const String current_dir = "fake_current_dir";
+  const String bad_plugin_name = "another_plugin_name";
 
   config.set_socket_path(socket_path);
   auto* version = config.add_versions();
@@ -617,7 +618,7 @@ TEST_F(DaemonTest, LocalMessageWithBadPlugin2) {
   plugin->set_name(plugin_name);
   plugin->set_path(plugin_path);
 
-  listen_callback = [&](const std::string& host, ui16 port, std::string*) {
+  listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
     return true;
@@ -666,18 +667,18 @@ TEST_F(DaemonTest, LocalMessageWithBadPlugin2) {
 }
 
 TEST_F(DaemonTest, LocalSuccessfulCompilation) {
-  const std::string socket_path = "/tmp/clangd.socket";
+  const String socket_path = "/tmp/clangd.socket";
   const proto::Status::Code expected_code = proto::Status::OK;
-  const std::string compiler_version = "fake_compiler_version";
-  const std::string compiler_path = "fake_compiler_path";
-  const std::string current_dir = "fake_current_dir";
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const String current_dir = "fake_current_dir";
 
   config.set_socket_path(socket_path);
   auto* version = config.add_versions();
   version->set_version(compiler_version);
   version->set_path(compiler_path);
 
-  listen_callback = [&](const std::string& host, ui16 port, std::string*) {
+  listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
     return true;
@@ -725,18 +726,18 @@ TEST_F(DaemonTest, LocalSuccessfulCompilation) {
 }
 
 TEST_F(DaemonTest, LocalFailedCompilation) {
-  const std::string socket_path = "/tmp/clangd.socket";
+  const String socket_path = "/tmp/clangd.socket";
   const proto::Status::Code expected_code = proto::Status::EXECUTION;
-  const std::string compiler_version = "fake_compiler_version";
-  const std::string compiler_path = "fake_compiler_path";
-  const std::string current_dir = "fake_current_dir";
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const String current_dir = "fake_current_dir";
 
   config.set_socket_path(socket_path);
   auto* version = config.add_versions();
   version->set_version(compiler_version);
   version->set_path(compiler_path);
 
-  listen_callback = [&](const std::string& host, ui16 port, std::string*) {
+  listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
     return true;
@@ -785,14 +786,14 @@ TEST_F(DaemonTest, LocalFailedCompilation) {
 }
 
 TEST_F(DaemonTest, StoreLocalCache) {
-  const std::string socket_path = "/tmp/clangd.socket";
+  const String socket_path = "/tmp/clangd.socket";
   const proto::Status::Code expected_code = proto::Status::OK;
-  const std::string compiler_version = "fake_compiler_version";
-  const std::string compiler_path = "fake_compiler_path";
-  const std::string input_path1 = "test1.cc";
-  const std::string input_path2 = "test2.cc";
-  const std::string output_path1 = "test1.o";
-  const std::string output_path2 = "test2.o";
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const String input_path1 = "test1.cc";
+  const String input_path2 = "test2.cc";
+  const String output_path1 = "test1.o";
+  const String output_path2 = "test2.o";
 
   const base::TemporaryDir temp_dir;
   config.set_socket_path(socket_path);
@@ -803,7 +804,7 @@ TEST_F(DaemonTest, StoreLocalCache) {
   version->set_version(compiler_version);
   version->set_path(compiler_path);
 
-  listen_callback = [&](const std::string& host, ui16 port, std::string*) {
+  listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
     return true;
@@ -821,17 +822,14 @@ TEST_F(DaemonTest, StoreLocalCache) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ((std::list<std::string>{"-E", "-o", "-", input_path1}),
-                process->args_);
+      EXPECT_EQ((List<String>{"-E", "-o", "-", input_path1}), process->args_);
     } else if (run_count == 2) {
-      EXPECT_EQ((std::list<std::string>{"fake_action", "-o",
-                                        output_path1,  input_path1}),
+      EXPECT_EQ((List<String>{"fake_action", "-o", output_path1, input_path1}),
                 process->args_);
       EXPECT_TRUE(
           base::WriteFile(process->cwd_path_ + "/" + output_path1, "object"));
     } else if (run_count == 3) {
-      EXPECT_EQ((std::list<std::string>{"-E", "-o", "-", input_path2}),
-                process->args_);
+      EXPECT_EQ((List<String>{"-E", "-o", "-", input_path2}), process->args_);
     }
   };
 
@@ -909,16 +907,16 @@ TEST_F(DaemonTest, StoreLocalCache) {
 
 TEST_F(DaemonTest, StoreRemoteCache) {
   const base::TemporaryDir temp_dir;
-  const std::string socket_path = "/tmp/clangd.socket";
-  const std::string expected_host = "tmp_host";
+  const String socket_path = "/tmp/clangd.socket";
+  const String expected_host = "tmp_host";
   const ui16 expected_port = 6002u;
   const proto::Status::Code expected_code = proto::Status::OK;
-  const std::string compiler_version = "fake_compiler_version";
-  const std::string compiler_path = "fake_compiler_path";
-  const std::string input_path = "test.cc";
-  const std::string output_path = "test.o";
-  const std::string preprocessed_source = std::string();
-  const std::string expected_object_code = "object_code";
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const String input_path = "test.cc";
+  const String output_path = "test.o";
+  const String preprocessed_source = String();
+  const String expected_object_code = "object_code";
 
   config.set_socket_path(socket_path);
   config.mutable_local()->set_host(expected_host);
@@ -930,7 +928,7 @@ TEST_F(DaemonTest, StoreRemoteCache) {
   version->set_version(compiler_version);
   version->set_path(compiler_path);
 
-  listen_callback = [&](const std::string& host, ui16 port, std::string*) {
+  listen_callback = [&](const String& host, ui16 port, String*) {
     switch (listen_count) {
       case 1: {
         EXPECT_EQ(expected_host, host);
@@ -980,14 +978,12 @@ TEST_F(DaemonTest, StoreRemoteCache) {
   run_callback = [&](base::TestProcess* process) {
     switch (run_count) {
       case 1: {
-        EXPECT_EQ((std::list<std::string>{"fake_action", "-o", "-"}),
-                  process->args_);
+        EXPECT_EQ((List<String>{"fake_action", "-o", "-"}), process->args_);
         process->stdout_ = expected_object_code;
         break;
       }
       case 2: {
-        EXPECT_EQ((std::list<std::string>{"-E", "-o", "-", input_path}),
-                  process->args_);
+        EXPECT_EQ((List<String>{"-E", "-o", "-", input_path}), process->args_);
         break;
       }
       default:

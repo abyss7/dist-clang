@@ -5,8 +5,7 @@
 #include <net/connection_forward.h>
 #include <proto/config.pb.h>
 
-#include <atomic>
-#include <unordered_map>
+#include <third_party/libcxx/exported/include/atomic>
 
 namespace std {
 
@@ -50,15 +49,15 @@ namespace daemon {
 
 class Balancer {
  public:
-  using ConnectCallback = Fn<void(net::ConnectionPtr, const std::string&)>;
+  using ConnectCallback = Fn<void(net::ConnectionPtr, const String&)>;
 
   explicit Balancer(net::NetworkService& network_service);
 
   void AddRemote(const proto::Host& remote) THREAD_UNSAFE;
-  bool Decide(const ConnectCallback& callback, std::string* error = nullptr);
+  bool Decide(const ConnectCallback& callback, String* error = nullptr);
 
  private:
-  using RemoteMap = std::unordered_map<proto::Host, net::EndPointPtr>;
+  using RemoteMap = HashMap<proto::Host, net::EndPointPtr>;
 
   static std::atomic<size_t> index_;
 

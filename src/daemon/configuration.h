@@ -1,5 +1,7 @@
 #pragma once
 
+#include <base/aliases.h>
+
 #include <proto/config.pb.h>
 
 namespace dist_clang {
@@ -13,7 +15,7 @@ class Configuration {
   const proto::Configuration& config() const;
 
  private:
-  bool LoadFromFile(const std::string& config_path);
+  bool LoadFromFile(const String& config_path);
 
   proto::Configuration config_;
 };

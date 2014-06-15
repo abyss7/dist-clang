@@ -10,14 +10,14 @@ namespace base {
 
 class TestProcess : public Process {
  public:
-  using OnRunCallback = Fn<bool(ui16, const std::string&, std::string*)>;
+  using OnRunCallback = Fn<bool(ui16, const String&, String*)>;
 
   class Factory : public Process::Factory {
    public:
     using OnCreateCallback = Fn<void(TestProcess*)>;
 
-    virtual UniquePtr<Process> Create(const std::string& exec_path,
-                                      const std::string& cwd_path,
+    virtual UniquePtr<Process> Create(const String& exec_path,
+                                      const String& cwd_path,
                                       ui32 uid) override;
 
     inline void CallOnCreate(OnCreateCallback callback);
@@ -26,16 +26,15 @@ class TestProcess : public Process {
     OnCreateCallback on_create_ = EmptyLambda<>();
   };
 
-  virtual bool Run(ui16 sec_timeout, std::string* error) override;
-  virtual bool Run(ui16 sec_timeout, const std::string& input,
-                   std::string* error) override;
+  virtual bool Run(ui16 sec_timeout, String* error) override;
+  virtual bool Run(ui16 sec_timeout, const String& input,
+                   String* error) override;
 
   inline void CallOnRun(OnRunCallback callback);
   inline void CountRuns(ui32* counter);
 
  private:
-  TestProcess(const std::string& exec_path, const std::string& cwd_path,
-              ui32 uid);
+  TestProcess(const String& exec_path, const String& cwd_path, ui32 uid);
 
   OnRunCallback on_run_ = EmptyLambda<bool>(false);
   ui32* run_attempts_ = nullptr;

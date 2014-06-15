@@ -9,8 +9,8 @@ UniquePtr<NetworkService> TestNetworkService::Factory::Create() {
   return UniquePtr<NetworkService>(new_t);
 }
 
-bool TestNetworkService::Listen(const std::string& path,
-                                ListenCallback callback, std::string* error) {
+bool TestNetworkService::Listen(const String& path, ListenCallback callback,
+                                String* error) {
   if (listen_attempts_) {
     (*listen_attempts_)++;
   }
@@ -20,8 +20,8 @@ bool TestNetworkService::Listen(const std::string& path,
   return on_listen_(path, 0, error);
 }
 
-bool TestNetworkService::Listen(const std::string& host, ui16 port,
-                                ListenCallback callback, std::string* error) {
+bool TestNetworkService::Listen(const String& host, ui16 port,
+                                ListenCallback callback, String* error) {
   if (listen_attempts_) {
     (*listen_attempts_)++;
   }
@@ -32,7 +32,7 @@ bool TestNetworkService::Listen(const std::string& host, ui16 port,
 }
 
 ConnectionPtr TestNetworkService::Connect(EndPointPtr end_point,
-                                          std::string* error) {
+                                          String* error) {
   if (connect_attempts_) {
     (*connect_attempts_)++;
   }
@@ -40,8 +40,7 @@ ConnectionPtr TestNetworkService::Connect(EndPointPtr end_point,
   return on_connect_(end_point, error);
 }
 
-ConnectionPtr TestNetworkService::TriggerListen(const std::string& host,
-                                                ui16 port) {
+ConnectionPtr TestNetworkService::TriggerListen(const String& host, ui16 port) {
   auto it = listen_callbacks_.find(std::make_pair(host, port));
   if (it != listen_callbacks_.end()) {
     if (connect_attempts_) {

@@ -2,10 +2,9 @@
 
 #include <base/locked_queue.h>
 
-#include <condition_variable>
-#include <list>
-#include <mutex>
-#include <thread>
+#include <third_party/libcxx/exported/include/condition_variable>
+#include <third_party/libcxx/exported/include/mutex>
+#include <third_party/libcxx/exported/include/thread>
 
 namespace dist_clang {
 namespace base {
@@ -99,13 +98,13 @@ class QueueAggregator {
     }
   }
 
-  std::list<std::thread> threads_;
-  std::list<LockedQueue<T>* WEAK_PTR> queues_;
+  List<std::thread> threads_;
+  List<LockedQueue<T>* WEAK_PTR> queues_;
 
   std::mutex orders_mutex_;
   std::atomic<bool> closed_ = {false};
   size_t order_count_ = 0;
-  std::list<T> orders_;
+  List<T> orders_;
   std::condition_variable pop_condition_;
   std::condition_variable done_condition_;
 };

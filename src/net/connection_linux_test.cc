@@ -2,12 +2,11 @@
 #include <base/logging.h>
 #include <base/string_utils.h>
 #include <base/temporary_dir.h>
-#include <gtest/gtest.h>
 #include <net/base/utils.h>
 #include <net/connection.h>
 #include <net/event_loop.h>
 
-#include <memory>
+#include <third_party/gtest/public/gtest/gtest.h>
 
 #include <sys/epoll.h>
 #include <sys/socket.h>
@@ -48,7 +47,7 @@ class TestMessage {
 
  private:
   static int number_;
-  const std::string expected_field1_, expected_field2_, expected_field3_;
+  const String expected_field1_, expected_field2_, expected_field3_;
   Connection::ScopedMessage message_;
 };
 
@@ -117,7 +116,7 @@ class TestServer : public EventLoop {
   void CloseServerConnection() { close(server_fd_); }
 
   bool WriteAtOnce(const Connection::Message& message) {
-    std::string gzipped_string;
+    String gzipped_string;
     {
       using namespace google::protobuf::io;
 
@@ -143,7 +142,7 @@ class TestServer : public EventLoop {
   }
 
   bool WriteByParts(const Connection::Message& message) {
-    std::string gzipped_string;
+    String gzipped_string;
     {
       using namespace google::protobuf::io;
 
@@ -170,7 +169,7 @@ class TestServer : public EventLoop {
   }
 
   bool WriteIncomplete(const Connection::Message& message) {
-    std::string gzipped_string;
+    String gzipped_string;
     {
       using namespace google::protobuf::io;
 
@@ -305,7 +304,7 @@ class TestServer : public EventLoop {
 
   int listen_fd_, server_fd_, epoll_fd_;
   base::TemporaryDir tmp_dir_;
-  std::string socket_path_;
+  String socket_path_;
 };
 
 class ConnectionTest : public ::testing::Test {
@@ -388,8 +387,8 @@ TEST_F(ConnectionTest, Sync_ReadSplitMessage) {
 }
 
 TEST_F(ConnectionTest, Sync_ReadUninitializedMessage) {
-  const std::string expected_field2 = "arg2";
-  const std::string expected_field3 = "arg3";
+  const String expected_field2 = "arg2";
+  const String expected_field3 = "arg3";
 
   Connection::Message expected_message;
   {
