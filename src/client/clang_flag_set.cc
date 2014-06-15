@@ -25,8 +25,7 @@ namespace client {
 // Pay attention to the leading space in the fourth line.
 
 // static
-bool FlagSet::ParseClangOutput(const std::string& output,
-                               std::string* version,
+bool FlagSet::ParseClangOutput(const std::string& output, std::string* version,
                                CommandList& commands) {
   StringList lines;
   base::SplitString<'\n'>(output, lines);
@@ -42,7 +41,7 @@ bool FlagSet::ParseClangOutput(const std::string& output,
   lines.pop_front();
   lines.pop_front();
   lines.pop_front();
-  for (const auto& line: lines) {
+  for (const auto& line : lines) {
     StringList args;
     base::SplitString(line, " \"", args);
     if (!args.front().empty()) {
@@ -51,7 +50,7 @@ bool FlagSet::ParseClangOutput(const std::string& output,
     }
 
     // Escape from double-quotes.
-    for (auto& arg: args) {
+    for (auto& arg : args) {
       if (!arg.empty()) {
         DCHECK(arg[arg.size() - 1] == '"');
         arg.erase(arg.size() - 1);
@@ -66,16 +65,14 @@ bool FlagSet::ParseClangOutput(const std::string& output,
 }
 
 // static
-FlagSet::Action FlagSet::ProcessFlags(StringList flags,
-                                      proto::Flags* message) {
+FlagSet::Action FlagSet::ProcessFlags(StringList flags, proto::Flags* message) {
   Action action(UNKNOWN);
   std::string temp_dir = base::GetEnv(kEnvTempDir, kDefaultTempDir);
 
-  for(auto it = flags.begin(); it != flags.end();) {
+  for (auto it = flags.begin(); it != flags.end();) {
     if (it->empty()) {
       it = flags.erase(it);
-    }
-    else {
+    } else {
       ++it;
     }
   }
@@ -95,51 +92,39 @@ FlagSet::Action FlagSet::ProcessFlags(StringList flags,
       message->add_other(flag);
       message->add_other(*(++it));
       message->mutable_compiler()->add_plugins()->set_name(*it);
-    }
-    else if (flag == "-dynamic-linker") {
+    } else if (flag == "-dynamic-linker") {
       action = LINK;
       message->add_other(flag);
-    }
-    else if (flag == "-emit-obj") {
+    } else if (flag == "-emit-obj") {
       action = COMPILE;
       message->set_action(flag);
-    }
-    else if (flag == "-E") {
+    } else if (flag == "-E") {
       action = PREPROCESS;
       message->set_action(flag);
-    }
-    else if (flag == "-dependency-file") {
+    } else if (flag == "-dependency-file") {
       message->add_dependenies(flag);
       message->add_dependenies(*(++it));
-    }
-    else if (flag == "-load") {
+    } else if (flag == "-load") {
       ++it;
-    }
-    else if (flag == "-MF") {
+    } else if (flag == "-MF") {
       message->add_dependenies(flag);
       message->add_dependenies(*(++it));
-    }
-    else if (flag == "-MMD") {
+    } else if (flag == "-MMD") {
       message->add_dependenies(flag);
-    }
-    else if (flag == "-mrelax-all") {
+    } else if (flag == "-mrelax-all") {
       message->add_cc_only(flag);
-    }
-    else if (flag == "-MT") {
+    } else if (flag == "-MT") {
       message->add_dependenies(flag);
       message->add_dependenies(*(++it));
-    }
-    else if (flag == "-o") {
+    } else if (flag == "-o") {
       ++it;
       if (it->find(temp_dir) != std::string::npos) {
         action = UNKNOWN;
         break;
-      }
-      else {
+      } else {
         message->set_output(*it);
       }
-    }
-    else if (flag == "-x") {
+    } else if (flag == "-x") {
       message->set_language(*(++it));
     }
 
@@ -150,36 +135,28 @@ FlagSet::Action FlagSet::ProcessFlags(StringList flags,
     else if (flag == "-coverage-file") {
       message->add_non_cached(flag);
       message->add_non_cached(*(++it));
-    }
-    else if (flag == "-fdebug-compilation-dir") {
+    } else if (flag == "-fdebug-compilation-dir") {
       message->add_non_cached(flag);
       message->add_non_cached(*(++it));
-    }
-    else if (flag == "-ferror-limit") {
+    } else if (flag == "-ferror-limit") {
       message->add_non_cached(flag);
       message->add_non_cached(*(++it));
-    }
-    else if (flag == "-include") {
+    } else if (flag == "-include") {
       message->add_non_cached(flag);
       message->add_non_cached(*(++it));
-    }
-    else if (flag == "-internal-externc-isystem") {
+    } else if (flag == "-internal-externc-isystem") {
       message->add_non_cached(flag);
       message->add_non_cached(*(++it));
-    }
-    else if (flag == "-internal-isystem") {
+    } else if (flag == "-internal-isystem") {
       message->add_non_cached(flag);
       message->add_non_cached(*(++it));
-    }
-    else if (flag == "-isysroot") {
+    } else if (flag == "-isysroot") {
       message->add_non_cached(flag);
       message->add_non_cached(*(++it));
-    }
-    else if (flag == "-main-file-name") {
+    } else if (flag == "-main-file-name") {
       message->add_non_cached(flag);
       message->add_non_cached(*(++it));
-    }
-    else if (flag == "-resource-dir") {
+    } else if (flag == "-resource-dir") {
       message->add_non_cached(flag);
       message->add_non_cached(*(++it));
     }

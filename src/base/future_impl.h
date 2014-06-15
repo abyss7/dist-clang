@@ -10,7 +10,7 @@ namespace base {
 template <class T>
 void Future<T>::Wait() {
   std::unique_lock<std::mutex> lock(state_->mutex);
-  state_->condition.wait(lock, [this]{ return state_->fulfilled; });
+  state_->condition.wait(lock, [this] { return state_->fulfilled; });
 }
 
 template <class T>
@@ -25,14 +25,13 @@ Future<T>::operator bool() const {
 
 template <class T>
 Future<T>::Future(std::shared_ptr<State> state)
-  : state_(state) {
+    : state_(state) {
   CHECK(state_);
 }
 
 template <class T>
 Promise<T>::Promise(const T& default_value)
-  : state_(new typename Future<T>::State), on_exit_value_(default_value) {
-}
+    : state_(new typename Future<T>::State), on_exit_value_(default_value) {}
 
 template <class T>
 Promise<T>::~Promise() {

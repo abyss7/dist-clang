@@ -41,11 +41,13 @@ TEST(AssertReleaseTest, FailureStackTrace) {
 
 TEST(AssertReleaseTest, ExpressionEvaluation) {
   int i = 0;
-  auto expr = [](int& a) -> bool { ++a; return false; };
+  auto expr = [](int & a)->bool {
+    ++a;
+    return false;
+  };
   ASSERT_NO_THROW(DCHECK_O_EVAL(expr(i)));
   ASSERT_EQ(1, i);
 }
 
 }  // namespace base
 }  // namespace dist_clang
-

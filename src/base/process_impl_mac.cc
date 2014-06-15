@@ -10,7 +10,7 @@
 namespace dist_clang {
 namespace base {
 
-bool ProcessImpl::Run(unsigned sec_timeout, std::string* error) {
+bool ProcessImpl::Run(ui16 sec_timeout, std::string* error) {
   CHECK(args_.size() + 1 < MAX_ARGS);
 
   int out_pipe_fd[2];
@@ -29,8 +29,7 @@ bool ProcessImpl::Run(unsigned sec_timeout, std::string* error) {
   int child_pid;
   if ((child_pid = fork()) == 0) {  // Child process.
     return RunChild(out_pipe_fd, err_pipe_fd, nullptr);
-  }
-  else if (child_pid != -1) {  // Main process.
+  } else if (child_pid != -1) {  // Main process.
     close(out_pipe_fd[1]);
     close(err_pipe_fd[1]);
     ScopedDescriptor out_fd(out_pipe_fd[0]);
@@ -53,24 +52,23 @@ bool ProcessImpl::Run(unsigned sec_timeout, std::string* error) {
       return false;
     }
 
-    struct timespec timeout = { sec_timeout, 0 };
+    struct timespec timeout = {sec_timeout, 0};
     struct timespec* timeout_ptr = nullptr;
     if (sec_timeout != UNLIMITED) {
       timeout_ptr = &timeout;
     }
     size_t stdout_size = 0, stderr_size = 0;
-    std::list<std::pair<std::unique_ptr<char[]>, int>> stdout, stderr;
+    std::list<std::pair<UniquePtr<char[]>, int>> stdout, stderr;
 
     int exhausted_fds = 0;
-    while(exhausted_fds < 2 && !killed_) {
+    while (exhausted_fds < 2 && !killed_) {
       auto event_count =
           kevent(kq_fd, nullptr, 0, events, MAX_EVENTS, timeout_ptr);
 
       if (event_count == -1) {
         if (errno == EINTR) {
           continue;
-        }
-        else {
+        } else {
           ::kill(child_pid, SIGTERM);
           return false;
         }
@@ -85,30 +83,27 @@ bool ProcessImpl::Run(unsigned sec_timeout, std::string* error) {
         net::fd_t fd = events[i].ident;
         if (events[i].filter == EVFILT_READ && events[i].data) {
           auto buffer_size = events[i].data;
-          auto buffer = std::unique_ptr<char[]>(new char[buffer_size]);
+          auto buffer = UniquePtr<char[]>(new char[buffer_size]);
           auto bytes_read = read(fd, buffer.get(), buffer_size);
           if (!bytes_read) {
             EV_SET(events + i, fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
             kevent(kq_fd, events + i, 1, nullptr, 0, nullptr);
             exhausted_fds++;
-          }
-          else if (bytes_read == -1) {
+          } else if (bytes_read == -1) {
             GetLastError(error);
             kill(child_pid);
             break;
-          }
-          else {
+          } else {
             if (fd == out_fd) {
               stdout.push_back(std::make_pair(std::move(buffer), bytes_read));
               stdout_size += bytes_read;
-            }
-            else {
+            } else {
               stderr.push_back(std::make_pair(std::move(buffer), bytes_read));
               stderr_size += bytes_read;
             }
           }
-        }
-        else if (events[i].filter == EVFILT_READ && events[i].flags & EV_EOF) {
+        } else if (events[i].filter == EVFILT_READ &&
+                   events[i].flags & EV_EOF) {
           EV_SET(events + i, fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
           kevent(kq_fd, events + i, 1, nullptr, 0, nullptr);
           exhausted_fds++;
@@ -117,26 +112,25 @@ bool ProcessImpl::Run(unsigned sec_timeout, std::string* error) {
     }
 
     stdout_.reserve(stdout_size);
-    for (const auto& piece: stdout) {
+    for (const auto& piece : stdout) {
       stdout_.append(std::string(piece.first.get(), piece.second));
     }
 
     stderr_.reserve(stderr_size);
-    for (const auto& piece: stderr) {
+    for (const auto& piece : stderr) {
       stderr_.append(std::string(piece.first.get(), piece.second));
     }
 
     int status;
     CHECK(waitpid(child_pid, &status, 0) == child_pid);
     return !WEXITSTATUS(status) && !killed_;
-  }
-  else {  // Failed to fork.
+  } else {  // Failed to fork.
     GetLastError(error);
     return false;
   }
 }
 
-bool ProcessImpl::Run(unsigned sec_timeout, const std::string& input,
+bool ProcessImpl::Run(ui16 sec_timeout, const std::string& input,
                       std::string* error) {
   CHECK(args_.size() + 1 < MAX_ARGS);
 
@@ -165,8 +159,7 @@ bool ProcessImpl::Run(unsigned sec_timeout, const std::string& input,
   int child_pid;
   if ((child_pid = fork()) == 0) {  // Child process.
     return RunChild(out_pipe_fd, err_pipe_fd, in_pipe_fd);
-  }
-  else if (child_pid != -1) {  // Main process.
+  } else if (child_pid != -1) {  // Main process.
     close(in_pipe_fd[0]);
     close(out_pipe_fd[1]);
     close(err_pipe_fd[1]);
@@ -194,24 +187,23 @@ bool ProcessImpl::Run(unsigned sec_timeout, const std::string& input,
       return false;
     }
 
-    struct timespec timeout = { sec_timeout, 0 };
+    struct timespec timeout = {sec_timeout, 0};
     struct timespec* timeout_ptr = nullptr;
     if (sec_timeout != UNLIMITED) {
       timeout_ptr = &timeout;
     }
     size_t stdin_size = 0, stdout_size = 0, stderr_size = 0;
-    std::list<std::pair<std::unique_ptr<char[]>, int>> stdout, stderr;
+    std::list<std::pair<UniquePtr<char[]>, int>> stdout, stderr;
 
     int exhausted_fds = 0;
-    while(exhausted_fds < 3 && !killed_) {
+    while (exhausted_fds < 3 && !killed_) {
       auto event_count =
           kevent(kq_fd, nullptr, 0, events, MAX_EVENTS, timeout_ptr);
 
       if (event_count == -1) {
         if (errno == EINTR) {
           continue;
-        }
-        else {
+        } else {
           GetLastError(error);
           ::kill(child_pid, SIGTERM);
           return false;
@@ -231,40 +223,35 @@ bool ProcessImpl::Run(unsigned sec_timeout, const std::string& input,
 
         if (events[i].filter == EVFILT_READ && events[i].data) {
           auto buffer_size = events[i].data;
-          auto buffer = std::unique_ptr<char[]>(new char[buffer_size]);
+          auto buffer = UniquePtr<char[]>(new char[buffer_size]);
           auto bytes_read = read(fd, buffer.get(), buffer_size);
           if (!bytes_read) {
             EV_SET(events + i, fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
             kevent(kq_fd, events + i, 1, nullptr, 0, nullptr);
             exhausted_fds++;
-          }
-          else if (bytes_read == -1) {
+          } else if (bytes_read == -1) {
             GetLastError(error);
             kill(child_pid);
             break;
-          }
-          else {
+          } else {
             if (fd == out_fd) {
               stdout.push_back(std::make_pair(std::move(buffer), bytes_read));
               stdout_size += bytes_read;
-            }
-            else {
+            } else {
               stderr.push_back(std::make_pair(std::move(buffer), bytes_read));
               stderr_size += bytes_read;
             }
           }
-        }
-        else if (events[i].filter == EVFILT_WRITE && events[i].data) {
+        } else if (events[i].filter == EVFILT_WRITE && events[i].data) {
           DCHECK(fd == in_fd);
 
-          auto bytes_sent = write(fd, input.data() + stdin_size,
-                                  input.size() - stdin_size);
+          auto bytes_sent =
+              write(fd, input.data() + stdin_size, input.size() - stdin_size);
           if (bytes_sent < 1) {
             EV_SET(events + i, fd, EVFILT_WRITE, EV_DELETE, 0, 0, 0);
             kevent(kq_fd, events + i, 1, nullptr, 0, nullptr);
             exhausted_fds++;
-          }
-          else {
+          } else {
             stdin_size += bytes_sent;
             if (stdin_size == input.size()) {
               EV_SET(events + i, fd, EVFILT_WRITE, EV_DELETE, 0, 0, 0);
@@ -273,8 +260,7 @@ bool ProcessImpl::Run(unsigned sec_timeout, const std::string& input,
               exhausted_fds++;
             }
           }
-        }
-        else if (events[i].flags & EV_EOF) {
+        } else if (events[i].flags & EV_EOF) {
           EV_SET(events + i, fd, events[i].filter, EV_DELETE, 0, 0, 0);
           kevent(kq_fd, events + i, 1, nullptr, 0, nullptr);
           exhausted_fds++;
@@ -283,20 +269,19 @@ bool ProcessImpl::Run(unsigned sec_timeout, const std::string& input,
     }
 
     stdout_.reserve(stdout_size);
-    for (const auto& piece: stdout) {
+    for (const auto& piece : stdout) {
       stdout_.append(std::string(piece.first.get(), piece.second));
     }
 
     stderr_.reserve(stderr_size);
-    for (const auto& piece: stderr) {
+    for (const auto& piece : stderr) {
       stderr_.append(std::string(piece.first.get(), piece.second));
     }
 
     int status;
     CHECK(waitpid(child_pid, &status, 0) == child_pid);
     return !WEXITSTATUS(status) && !killed_;
-  }
-  else {  // Failed to fork.
+  } else {  // Failed to fork.
     GetLastError(error);
     return false;
   }

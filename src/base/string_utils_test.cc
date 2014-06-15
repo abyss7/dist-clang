@@ -56,9 +56,10 @@ TEST(StringUtilsTest, JoinString) {
 
 TEST(StringUtilsTest, Hexify) {
   const std::string expected = "000102030405060708090a0b0c0d0e0f10";
-  const std::string input =
-      std::string("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e"
-                  "\x0f\x10", 17);
+  const std::string input = std::string(
+      "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e"
+      "\x0f\x10",
+      17);
   ASSERT_EQ(expected, Hexify(input));
 }
 
@@ -67,10 +68,10 @@ TEST(StringUtilsTest, StringTo) {
   const std::string to_int = "-123456";
   const std::string bad_to_int = "abc";
 
-  EXPECT_EQ(123456u, StringTo<unsigned>(to_uint));
-  EXPECT_EQ(-123456, StringTo<int>(to_int));
-  EXPECT_EQ(0u, StringTo<unsigned>(to_int));
-  EXPECT_EQ(0u, StringTo<unsigned>(bad_to_int));
+  EXPECT_EQ(123456u, StringTo<ui32>(to_uint));
+  EXPECT_EQ(-123456, StringTo<i32>(to_int));
+  EXPECT_EQ(0u, StringTo<ui32>(to_int));
+  EXPECT_EQ(0u, StringTo<ui32>(bad_to_int));
 }
 
 TEST(StringUtilsTest, DISABLED_Replace) {

@@ -15,8 +15,7 @@ namespace daemon {
 std::atomic<size_t> Balancer::index_(0);
 
 Balancer::Balancer(net::NetworkService& network_service)
-  : service_(network_service) {
-}
+    : service_(network_service) {}
 
 void Balancer::AddRemote(const proto::Host& remote) {
   auto end_point = net::EndPoint::TcpHost(remote.host(), remote.port());
@@ -35,7 +34,7 @@ bool Balancer::Decide(const ConnectCallback& callback, std::string* error) {
 
     auto remote = remotes_.cbegin();
     std::advance(remote, remote_index);
-    if (static_cast<unsigned long>(remote->second.use_count()) >
+    if (static_cast<ui32>(remote->second.use_count()) >
         remote->first.threads()) {
       continue;
     }
@@ -45,8 +44,7 @@ bool Balancer::Decide(const ConnectCallback& callback, std::string* error) {
     }
     Statistic::Accumulate(proto::Statistic::TASK_COUNT, remote_index);
     return true;
-  }
-  while(true);
+  } while (true);
 
   return true;
 }

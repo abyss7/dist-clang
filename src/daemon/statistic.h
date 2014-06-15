@@ -15,13 +15,13 @@ class Host;
 
 namespace daemon {
 
-class Statistic: public base::Testable<Statistic> {
-  public:
-    bool Initialize(net::NetworkService& network_service,
-                    const proto::Host& host);
+class Statistic : public base::Testable<Statistic> {
+ public:
+  bool Initialize(net::NetworkService& network_service,
+                  const proto::Host& host);
 
-  private:
-    void HandleNewConnection(net::ConnectionPtr connection);
+ private:
+  void HandleNewConnection(net::ConnectionPtr connection);
 };
 
 }  // namespace daemon

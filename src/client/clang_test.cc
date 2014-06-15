@@ -67,49 +67,39 @@ TEST(ClangFlagSetTest, SimpleInput) {
   const std::string expected_version = "clang version 3.4 (...) (...)";
   FlagSet::CommandList input;
   const FlagSet::StringList expected_input = {
-    "",
-    "/usr/bin/clang", "-cc1",
-    "-triple", "x86_64-unknown-linux-gnu",
-    "-emit-obj",
-    "-mrelax-all",
-    "-disable-free",
-    "-main-file-name", "test.cc",
-    "-mrelocation-model", "static",
-    "-mdisable-fp-elim",
-    "-fmath-errno",
-    "-masm-verbose",
-    "-mconstructor-aliases",
-    "-munwind-tables",
-    "-fuse-init-array",
-    "-target-cpu", "x86-64",
-    "-target-linker-version", "2.23.2",
-    "-coverage-file", "/tmp/test.o",
-    "-resource-dir", "/usr/lib/clang/3.4",
-    "-internal-isystem", "/usr/include/c++/4.8.2",
-    "-internal-isystem", "/usr/local/include",
-    "-internal-isystem", "/usr/lib/clang/3.4/include",
-    "-internal-externc-isystem", "/include",
-    "-internal-externc-isystem", "/usr/include",
-    "-fdeprecated-macro",
-    "-fdebug-compilation-dir", "/tmp",
-    "-ferror-limit", "19",
-    "-fmessage-length", "213",
-    "-mstackrealign",
-    "-fobjc-runtime=gcc",
-    "-fcxx-exceptions",
-    "-fexceptions",
-    "-fdiagnostics-show-option",
-    "-fcolor-diagnostics",
-    "-vectorize-slp",
-    "-o", "test.o",
-    "-x", "c++",
-    "/tmp/test.cc"
-  };
+      "",                          "/usr/bin/clang",
+      "-cc1",                      "-triple",
+      "x86_64-unknown-linux-gnu",  "-emit-obj",
+      "-mrelax-all",               "-disable-free",
+      "-main-file-name",           "test.cc",
+      "-mrelocation-model",        "static",
+      "-mdisable-fp-elim",         "-fmath-errno",
+      "-masm-verbose",             "-mconstructor-aliases",
+      "-munwind-tables",           "-fuse-init-array",
+      "-target-cpu",               "x86-64",
+      "-target-linker-version",    "2.23.2",
+      "-coverage-file",            "/tmp/test.o",
+      "-resource-dir",             "/usr/lib/clang/3.4",
+      "-internal-isystem",         "/usr/include/c++/4.8.2",
+      "-internal-isystem",         "/usr/local/include",
+      "-internal-isystem",         "/usr/lib/clang/3.4/include",
+      "-internal-externc-isystem", "/include",
+      "-internal-externc-isystem", "/usr/include",
+      "-fdeprecated-macro",        "-fdebug-compilation-dir",
+      "/tmp",                      "-ferror-limit",
+      "19",                        "-fmessage-length",
+      "213",                       "-mstackrealign",
+      "-fobjc-runtime=gcc",        "-fcxx-exceptions",
+      "-fexceptions",              "-fdiagnostics-show-option",
+      "-fcolor-diagnostics",       "-vectorize-slp",
+      "-o",                        "test.o",
+      "-x",                        "c++",
+      "/tmp/test.cc"};
   auto it = expected_input.begin();
 
   EXPECT_TRUE(FlagSet::ParseClangOutput(clang_cc_output, &version, input));
   EXPECT_EQ(expected_version, version);
-  for (const auto& value: *input.begin()) {
+  for (const auto& value : *input.begin()) {
     ASSERT_EQ(*(it++), value);
   }
 
@@ -190,18 +180,10 @@ TEST(ClangFlagSetTest, MultipleCommands) {
       " \"/usr/bin/objcopy\""
       " \"something\""
       " \"some_file\"\n";
-  const FlagSet::StringList expected_input1 = {
-    "",
-    "/usr/bin/clang",
-    "-emit-obj",
-    "test.cc",
-  };
-  const FlagSet::StringList expected_input2 = {
-    "",
-    "/usr/bin/objcopy",
-    "something",
-    "some_file",
-  };
+  const FlagSet::StringList expected_input1 = {"",          "/usr/bin/clang",
+                                               "-emit-obj", "test.cc", };
+  const FlagSet::StringList expected_input2 = {"",          "/usr/bin/objcopy",
+                                               "something", "some_file", };
 
   EXPECT_TRUE(FlagSet::ParseClangOutput(clang_multi_output, &version, input));
   EXPECT_EQ(expected_version, version);
@@ -209,12 +191,12 @@ TEST(ClangFlagSetTest, MultipleCommands) {
   ASSERT_EQ(2u, input.size());
 
   auto it1 = expected_input1.begin();
-  for (const auto& value: input.front()) {
+  for (const auto& value : input.front()) {
     EXPECT_EQ(*(it1++), value);
   }
 
   auto it2 = expected_input2.begin();
-  for (const auto& value: input.back()) {
+  for (const auto& value : input.back()) {
     EXPECT_EQ(*(it2++), value);
   }
 
@@ -226,66 +208,63 @@ TEST(ClangFlagSetTest, MultipleCommands) {
             FlagSet::ProcessFlags(input.back(), &actual_flags));
 }
 
-class ClientTest: public ::testing::Test {
-  public:
-    virtual void SetUp() override {
-      using Service = net::TestNetworkService;
+class ClientTest : public ::testing::Test {
+ public:
+  virtual void SetUp() override {
+    using Service = net::TestNetworkService;
 
-      {
-        auto factory = net::NetworkService::SetFactory<Service::Factory>();
-        factory->CallOnCreate([this](Service* service) {
-          service->CountConnectAttempts(&connect_count);
-          service->CallOnConnect([this](net::EndPointPtr, std::string* error) {
-            if (!do_connect) {
-              if (error) {
-                error->assign("Test service rejects connection intentionally");
-              }
-              return Service::TestConnectionPtr();
+    {
+      auto factory = net::NetworkService::SetFactory<Service::Factory>();
+      factory->CallOnCreate([this](Service* service) {
+        service->CountConnectAttempts(&connect_count);
+        service->CallOnConnect([this](net::EndPointPtr, std::string* error) {
+          if (!do_connect) {
+            if (error) {
+              error->assign("Test service rejects connection intentionally");
             }
+            return Service::TestConnectionPtr();
+          }
 
-            auto connection =
-                Service::TestConnectionPtr(new net::TestConnection);
-            connection->CountSendAttempts(&send_count);
-            connection->CountReadAttempts(&read_count);
-            weak_ptr = connection->shared_from_this();
-            ++connections_created;
-            connect_callback(connection.get());
+          auto connection = Service::TestConnectionPtr(new net::TestConnection);
+          connection->CountSendAttempts(&send_count);
+          connection->CountReadAttempts(&read_count);
+          weak_ptr = connection->shared_from_this();
+          ++connections_created;
+          connect_callback(connection.get());
 
-            return connection;
-          });
+          return connection;
         });
-      }
-
-      {
-        auto factory = base::Process::SetFactory<base::TestProcess::Factory>();
-        factory->CallOnCreate([this](base::TestProcess* process) {
-          process->CountRuns(&run_count);
-          process->CallOnRun([this, process](unsigned timeout,
-                                             const std::string& input,
-                                             std::string* error) {
-            run_callback(process);
-
-            if (!do_run) {
-              if (error) {
-                error->assign("Test process fails to run intentionally");
-              }
-              return false;
-            }
-
-            return true;
-          });
-        });
-      }
+      });
     }
 
-  protected:
-    bool do_connect = true, do_run = true;
-    net::ConnectionWeakPtr weak_ptr;
-    uint send_count = 0, read_count = 0, connect_count = 0,
-        connections_created = 0, run_count = 0;
-    std::function<void(net::TestConnection*)> connect_callback =
-        EmptyLambda<>();
-    std::function<void(base::TestProcess*)> run_callback = EmptyLambda<>();
+    {
+      auto factory = base::Process::SetFactory<base::TestProcess::Factory>();
+      factory->CallOnCreate([this](base::TestProcess* process) {
+        process->CountRuns(&run_count);
+        process->CallOnRun([this, process](
+            ui32 timeout, const std::string& input, std::string* error) {
+          run_callback(process);
+
+          if (!do_run) {
+            if (error) {
+              error->assign("Test process fails to run intentionally");
+            }
+            return false;
+          }
+
+          return true;
+        });
+      });
+    }
+  }
+
+ protected:
+  bool do_connect = true, do_run = true;
+  net::ConnectionWeakPtr weak_ptr;
+  ui32 send_count = 0, read_count = 0, connect_count = 0,
+       connections_created = 0, run_count = 0;
+  Fn<void(net::TestConnection*)> connect_callback = EmptyLambda<>();
+  Fn<void(base::TestProcess*)> run_callback = EmptyLambda<>();
 };
 
 TEST_F(ClientTest, NoConnection) {
@@ -331,7 +310,7 @@ TEST_F(ClientTest, NoInputFile) {
     EXPECT_EQ(expected_exec_path, process->exec_path_);
     EXPECT_TRUE(process->cwd_path_.empty());
     EXPECT_EQ("-###", *(it++));
-    for (size_t i = 1; i < argc; ++i, ++it) {
+    for (int i = 1; i < argc; ++i, ++it) {
       EXPECT_EQ(argv[i], *it);
     }
   };
@@ -360,7 +339,7 @@ TEST_F(ClientTest, CannotSendMessage) {
     EXPECT_EQ(expected_exec_path, process->exec_path_);
     EXPECT_TRUE(process->cwd_path_.empty());
     EXPECT_EQ("-###", *(it++));
-    for (size_t i = 1; i < argc; ++i, ++it) {
+    for (int i = 1; i < argc; ++i, ++it) {
       EXPECT_EQ(argv[i], *it);
     }
   };
@@ -431,7 +410,7 @@ TEST_F(ClientTest, CannotReadMessage) {
     EXPECT_EQ(expected_exec_path, process->exec_path_);
     EXPECT_TRUE(process->cwd_path_.empty());
     EXPECT_EQ("-###", *(it++));
-    for (size_t i = 1; i < argc; ++i, ++it) {
+    for (int i = 1; i < argc; ++i, ++it) {
       EXPECT_EQ(argv[i], *it);
     }
   };
@@ -456,7 +435,7 @@ TEST_F(ClientTest, ReadMessageWithoutStatus) {
     EXPECT_EQ(expected_exec_path, process->exec_path_);
     EXPECT_TRUE(process->cwd_path_.empty());
     EXPECT_EQ("-###", *(it++));
-    for (size_t i = 1; i < argc; ++i, ++it) {
+    for (int i = 1; i < argc; ++i, ++it) {
       EXPECT_EQ(argv[i], *it);
     }
   };
@@ -488,7 +467,7 @@ TEST_F(ClientTest, ReadMessageWithBadStatus) {
     EXPECT_EQ(expected_exec_path, process->exec_path_);
     EXPECT_TRUE(process->cwd_path_.empty());
     EXPECT_EQ("-###", *(it++));
-    for (size_t i = 1; i < argc; ++i, ++it) {
+    for (int i = 1; i < argc; ++i, ++it) {
       EXPECT_EQ(argv[i], *it);
     }
   };
@@ -520,7 +499,7 @@ TEST_F(ClientTest, SuccessfulCompilation) {
     EXPECT_EQ(expected_exec_path, process->exec_path_);
     EXPECT_TRUE(process->cwd_path_.empty());
     EXPECT_EQ("-###", *(it++));
-    for (size_t i = 1; i < argc; ++i, ++it) {
+    for (int i = 1; i < argc; ++i, ++it) {
       EXPECT_EQ(argv[i], *it);
     }
   };
@@ -552,7 +531,7 @@ TEST_F(ClientTest, FailedCompilation) {
     EXPECT_EQ(expected_exec_path, process->exec_path_);
     EXPECT_TRUE(process->cwd_path_.empty());
     EXPECT_EQ("-###", *(it++));
-    for (size_t i = 1; i < argc; ++i, ++it) {
+    for (int i = 1; i < argc; ++i, ++it) {
       EXPECT_EQ(argv[i], *it);
     }
   };

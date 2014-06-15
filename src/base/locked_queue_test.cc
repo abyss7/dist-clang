@@ -19,12 +19,12 @@ TEST(LockedQueueTest, BasicUsage) {
 
   for (int i = 1; i < 10; ++i) {
     ASSERT_TRUE(queue.Push(i));
-    EXPECT_EQ(static_cast<unsigned>(i), queue.Size());
+    EXPECT_EQ(static_cast<ui32>(i), queue.Size());
   }
   for (int i = 1; i < 10; ++i) {
     ASSERT_TRUE(!!(actual = queue.Pop()));
     EXPECT_EQ(i, *actual);
-    EXPECT_EQ(static_cast<unsigned>(9 - i), queue.Size());
+    EXPECT_EQ(static_cast<ui32>(9 - i), queue.Size());
   }
 
   queue.Close();
@@ -59,18 +59,12 @@ TEST(LockedQueueTest, CloseQueue) {
 
 TEST(LockedQueueTest, MoveSemantics) {
   struct TestClass {
-    TestClass() {
-      ++counter();
-    }
-    TestClass(const TestClass& t) {
-      ++counter();
-    }
+    TestClass() { ++counter(); }
+    TestClass(const TestClass& t) { ++counter(); }
     TestClass(TestClass&& t) {
       // Do nothing.
     }
-    TestClass& operator= (TestClass&& t) {
-      return *this;
-    }
+    TestClass& operator=(TestClass&& t) { return *this; }
 
     static int& counter() {
       static int counter_ = 0;
@@ -91,17 +85,18 @@ TEST(LockedQueueTest, MoveSemantics) {
 
 TEST(LockedQueueTest, UniquePtrFriendliness) {
   class Observer {
-    public:
-      Observer(bool& exist) : exist_(exist) { exist_ = true; }
-      ~Observer() { exist_ = false; }
-    private:
-      bool& exist_;
+   public:
+    Observer(bool& exist) : exist_(exist) { exist_ = true; }
+    ~Observer() { exist_ = false; }
+
+   private:
+    bool& exist_;
   };
 
   bool observer_exists = true;
-  LockedQueue<std::unique_ptr<Observer>> queue;
+  LockedQueue<UniquePtr<Observer>> queue;
 
-  std::unique_ptr<Observer> ptr(new Observer(observer_exists));
+  UniquePtr<Observer> ptr(new Observer(observer_exists));
   ASSERT_TRUE(queue.Push(std::move(ptr)));
   EXPECT_FALSE(ptr);
   EXPECT_TRUE(observer_exists);

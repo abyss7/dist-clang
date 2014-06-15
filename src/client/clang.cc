@@ -41,16 +41,16 @@ bool DoMain(int argc, const char* const argv[], const std::string& socket_path,
 
   std::string version;
   FlagSet::CommandList commands;
-  base::ProcessPtr process = base::Process::Create(clang_path, std::string(),
-                                                   base::Process::SAME_UID);
+  base::ProcessPtr process =
+      base::Process::Create(clang_path, std::string(), base::Process::SAME_UID);
   process->AppendArg("-###").AppendArg(argv + 1, argv + argc);
   if (!process->Run(10) ||
       !FlagSet::ParseClangOutput(process->stderr(), &version, commands)) {
     return true;
   }
 
-  for (auto& args: commands) {
-    std::unique_ptr<proto::Execute> message(new proto::Execute);
+  for (auto& args : commands) {
+    UniquePtr<proto::Execute> message(new proto::Execute);
     message->set_remote(false);
     message->set_user_id(getuid());
     message->set_current_dir(current_dir);
@@ -58,9 +58,8 @@ bool DoMain(int argc, const char* const argv[], const std::string& socket_path,
     auto flags = message->mutable_flags();
     flags->mutable_compiler()->set_version(version);
     if (FlagSet::ProcessFlags(args, flags) != FlagSet::COMPILE) {
-      base::ProcessPtr command = base::Process::Create(args.front(),
-                                                       std::string(),
-                                                       base::Process::SAME_UID);
+      base::ProcessPtr command = base::Process::Create(
+          args.front(), std::string(), base::Process::SAME_UID);
       command->AppendArg(++args.begin(), args.end());
       if (!command->Run(base::Process::UNLIMITED)) {
         return true;

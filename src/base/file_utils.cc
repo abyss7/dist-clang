@@ -153,8 +153,8 @@ bool WriteFile(const std::string& path, const std::string& input,
   return total_bytes == input.size();
 }
 
-uint64_t CalculateDirectorySize(const std::string& path, std::string* error) {
-  uint64_t size = 0u;
+ui64 CalculateDirectorySize(const std::string& path, std::string* error) {
+  ui64 size = 0u;
   std::list<std::string> paths;
   paths.push_back(path);
 

@@ -11,7 +11,7 @@
 namespace dist_clang {
 namespace base {
 
-bool ProcessImpl::Run(unsigned sec_timeout, std::string* error) {
+bool ProcessImpl::Run(ui16 sec_timeout, std::string* error) {
   CHECK(args_.size() + 1 < MAX_ARGS);
 
   int out_pipe_fd[2];
@@ -30,8 +30,7 @@ bool ProcessImpl::Run(unsigned sec_timeout, std::string* error) {
   int child_pid;
   if ((child_pid = fork()) == 0) {  // Child process.
     return RunChild(out_pipe_fd, err_pipe_fd, nullptr);
-  }
-  else if (child_pid != -1) {  // Main process.
+  } else if (child_pid != -1) {  // Main process.
     close(out_pipe_fd[1]);
     close(err_pipe_fd[1]);
     ScopedDescriptor out_fd(out_pipe_fd[0]);
@@ -66,21 +65,20 @@ bool ProcessImpl::Run(unsigned sec_timeout, std::string* error) {
     }
 
     size_t stdout_size = 0, stderr_size = 0;
-    std::list<std::pair<std::unique_ptr<char[]>, int>> stdout, stderr;
+    std::list<std::pair<UniquePtr<char[]>, int>> stdout, stderr;
     const int MAX_EVENTS = 2;
     struct epoll_event events[MAX_EVENTS];
 
     int epoll_timeout = sec_timeout == UNLIMITED ? -1 : sec_timeout * 1000;
     int exhausted_fds = 0;
-    while(exhausted_fds < 2 && !killed_) {
+    while (exhausted_fds < 2 && !killed_) {
       auto event_count =
           epoll_wait(epoll_fd, events, MAX_EVENTS, epoll_timeout);
 
       if (event_count == -1) {
         if (errno == EINTR) {
           continue;
-        }
-        else {
+        } else {
           GetLastError(error);
           ::kill(child_pid, SIGTERM);
           return false;
@@ -106,29 +104,25 @@ bool ProcessImpl::Run(unsigned sec_timeout, std::string* error) {
             break;
           }
 
-          auto buffer = std::unique_ptr<char[]>(new char[bytes_available]);
+          auto buffer = UniquePtr<char[]>(new char[bytes_available]);
           auto bytes_read = read(fd, buffer.get(), bytes_available);
           if (!bytes_read) {
             epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
             exhausted_fds++;
-          }
-          else if (bytes_read == -1) {
+          } else if (bytes_read == -1) {
             GetLastError(error);
             kill(child_pid);
             break;
-          }
-          else {
+          } else {
             if (fd == out_fd) {
               stdout.push_back(std::make_pair(std::move(buffer), bytes_read));
               stdout_size += bytes_read;
-            }
-            else {
+            } else {
               stderr.push_back(std::make_pair(std::move(buffer), bytes_read));
               stderr_size += bytes_read;
             }
           }
-        }
-        else {
+        } else {
           epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
           exhausted_fds++;
         }
@@ -136,26 +130,25 @@ bool ProcessImpl::Run(unsigned sec_timeout, std::string* error) {
     }
 
     stdout_.reserve(stdout_size);
-    for (const auto& piece: stdout) {
+    for (const auto& piece : stdout) {
       stdout_.append(std::string(piece.first.get(), piece.second));
     }
 
     stderr_.reserve(stderr_size);
-    for (const auto& piece: stderr) {
+    for (const auto& piece : stderr) {
       stderr_.append(std::string(piece.first.get(), piece.second));
     }
 
     int status;
     CHECK(waitpid(child_pid, &status, 0) == child_pid);
     return !WEXITSTATUS(status) && !killed_;
-  }
-  else {  // Failed to fork.
+  } else {  // Failed to fork.
     GetLastError(error);
     return false;
   }
 }
 
-bool ProcessImpl::Run(unsigned sec_timeout, const std::string& input,
+bool ProcessImpl::Run(ui16 sec_timeout, const std::string& input,
                       std::string* error) {
   CHECK(args_.size() + 1 < MAX_ARGS);
 
@@ -184,8 +177,7 @@ bool ProcessImpl::Run(unsigned sec_timeout, const std::string& input,
   int child_pid;
   if ((child_pid = fork()) == 0) {  // Child process.
     return RunChild(out_pipe_fd, err_pipe_fd, in_pipe_fd);
-  }
-  else if (child_pid != -1) {  // Main process.
+  } else if (child_pid != -1) {  // Main process.
     close(in_pipe_fd[0]);
     close(out_pipe_fd[1]);
     close(err_pipe_fd[1]);
@@ -234,21 +226,20 @@ bool ProcessImpl::Run(unsigned sec_timeout, const std::string& input,
     }
 
     size_t stdin_size = 0, stdout_size = 0, stderr_size = 0;
-    std::list<std::pair<std::unique_ptr<char[]>, int>> stdout, stderr;
+    std::list<std::pair<UniquePtr<char[]>, int>> stdout, stderr;
     const int MAX_EVENTS = 3;
     struct epoll_event events[MAX_EVENTS];
 
     int epoll_timeout = sec_timeout == UNLIMITED ? -1 : sec_timeout * 1000;
     int exhausted_fds = 0;
-    while(exhausted_fds < 3 && !killed_) {
+    while (exhausted_fds < 3 && !killed_) {
       auto event_count =
           epoll_wait(epoll_fd, events, MAX_EVENTS, epoll_timeout);
 
       if (event_count == -1) {
         if (errno == EINTR) {
           continue;
-        }
-        else {
+        } else {
           GetLastError(error);
           ::kill(child_pid, SIGTERM);
           return false;
@@ -274,29 +265,25 @@ bool ProcessImpl::Run(unsigned sec_timeout, const std::string& input,
             break;
           }
 
-          auto buffer = std::unique_ptr<char[]>(new char[bytes_available]);
+          auto buffer = UniquePtr<char[]>(new char[bytes_available]);
           auto bytes_read = read(fd, buffer.get(), bytes_available);
           if (!bytes_read) {
             epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
             exhausted_fds++;
-          }
-          else if (bytes_read == -1) {
+          } else if (bytes_read == -1) {
             GetLastError(error);
             kill(child_pid);
             break;
-          }
-          else {
+          } else {
             if (fd == out_fd) {
               stdout.push_back(std::make_pair(std::move(buffer), bytes_read));
               stdout_size += bytes_read;
-            }
-            else if (fd == err_fd) {
+            } else if (fd == err_fd) {
               stderr.push_back(std::make_pair(std::move(buffer), bytes_read));
               stderr_size += bytes_read;
             }
           }
-        }
-        else if (events[i].events & EPOLLOUT) {
+        } else if (events[i].events & EPOLLOUT) {
           DCHECK(fd == in_fd);
 
           auto bytes_sent = write(in_fd, input.data() + stdin_size,
@@ -304,8 +291,7 @@ bool ProcessImpl::Run(unsigned sec_timeout, const std::string& input,
           if (bytes_sent < 1) {
             epoll_ctl(epoll_fd, EPOLL_CTL_DEL, in_fd, nullptr);
             exhausted_fds++;
-          }
-          else {
+          } else {
             stdin_size += bytes_sent;
             if (stdin_size == input.size()) {
               epoll_ctl(epoll_fd, EPOLL_CTL_DEL, in_fd, nullptr);
@@ -313,8 +299,7 @@ bool ProcessImpl::Run(unsigned sec_timeout, const std::string& input,
               exhausted_fds++;
             }
           }
-        }
-        else {
+        } else {
           epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
           exhausted_fds++;
         }
@@ -322,20 +307,19 @@ bool ProcessImpl::Run(unsigned sec_timeout, const std::string& input,
     }
 
     stdout_.reserve(stdout_size);
-    for (const auto& piece: stdout) {
+    for (const auto& piece : stdout) {
       stdout_.append(std::string(piece.first.get(), piece.second));
     }
 
     stderr_.reserve(stderr_size);
-    for (const auto& piece: stderr) {
+    for (const auto& piece : stderr) {
       stderr_.append(std::string(piece.first.get(), piece.second));
     }
 
     int status;
     CHECK(waitpid(child_pid, &status, 0) == child_pid);
     return !WEXITSTATUS(status) && !killed_;
-  }
-  else {  // Failed to fork.
+  } else {  // Failed to fork.
     GetLastError(error);
     return false;
   }

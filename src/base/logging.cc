@@ -8,9 +8,9 @@ namespace dist_clang {
 namespace base {
 
 // static
-void Log::Reset(unsigned error_mark, RangeSet&& ranges) {
-  unsigned prev = 0;
-  for (const auto& range: ranges) {
+void Log::Reset(ui32 error_mark, RangeSet&& ranges) {
+  ui32 prev = 0;
+  for (const auto& range : ranges) {
     if ((prev > 0 && range.second <= prev) || range.second > range.first) {
       NOTREACHED();
       return;
@@ -22,9 +22,8 @@ void Log::Reset(unsigned error_mark, RangeSet&& ranges) {
   Log::ranges().reset(new RangeSet(std::move(ranges)));
 }
 
-Log::Log(unsigned level)
-  : level_(level), error_mark_(error_mark()), ranges_(ranges()) {
-}
+Log::Log(ui32 level)
+    : level_(level), error_mark_(error_mark()), ranges_(ranges()) {}
 
 Log::~Log() {
   auto& output_stream = (level_ <= error_mark_) ? std::cerr : std::cout;
@@ -39,14 +38,14 @@ Log::~Log() {
   }
 }
 
-Log& Log::operator<< (std::ostream& (*func)(std::ostream&)) {
+Log& Log::operator<<(std::ostream& (*func)(std::ostream&)) {
   stream_ << func;
   return *this;
 }
 
 // static
-unsigned& Log::error_mark() {
-  static unsigned error_mark = 0;
+ui32& Log::error_mark() {
+  static ui32 error_mark = 0;
   return error_mark;
 }
 
@@ -57,7 +56,7 @@ std::shared_ptr<Log::RangeSet>& Log::ranges() {
   return ranges;
 }
 
-DLog::DLog(unsigned level) {
+DLog::DLog(ui32 level) {
 #if !defined(NDEBUG)
   log_.reset(new Log(level));
 #endif

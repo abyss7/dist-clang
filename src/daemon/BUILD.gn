@@ -15,6 +15,7 @@ source_set("daemon") {
     "//src/base:constants",
     "//src/base:hash",
     "//src/base:logging",
+    "//src/histogram:histogram",
     "//src/net:net",
     "//src/proto:proto",
     ":configuration",
@@ -27,7 +28,7 @@ shared_library("configuration") {
     "configuration.cc",
     "configuration.h",
   ]
-  
+
   configs += [ "//build/config:version" ]
 
   deps += [

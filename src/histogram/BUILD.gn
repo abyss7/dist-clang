@@ -1,0 +1,12 @@
+shared_library("histogram") {
+  sources = [
+    "collector.cc",
+    "collector.h",
+    "counter.cc",
+    "counter.h",
+  ]
+
+  deps += [
+    "//src/base:singleton",
+  ]
+}

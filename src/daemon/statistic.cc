@@ -15,9 +15,7 @@ bool Statistic::Initialize(net::NetworkService& network_service,
   return network_service.Listen(host.host(), host.port(), callback);
 }
 
-void Statistic::HandleNewConnection(net::ConnectionPtr connection) {
-
-}
+void Statistic::HandleNewConnection(net::ConnectionPtr connection) {}
 
 }  // namespace daemon
 }  // namespace dist_clang

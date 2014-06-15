@@ -25,7 +25,7 @@ class LockedQueue {
   };
 
   LockedQueue() = default;
-  explicit LockedQueue(size_t capacity) : capacity_(capacity) {}
+  explicit LockedQueue(ui32 capacity) : capacity_(capacity) {}
   ~LockedQueue() { DCHECK(closed_); }
 
   // Should be explicitly closed before destruction.
@@ -35,7 +35,7 @@ class LockedQueue {
     pop_condition_.notify_all();
   }
 
-  inline size_t Size() const THREAD_SAFE { return size_; }
+  inline ui32 Size() const THREAD_SAFE { return size_; }
 
   // Returns |false| only when this queue is closed or when the capacity is
   // exceeded.
@@ -70,7 +70,7 @@ class LockedQueue {
     return std::move(obj);
   }
 
-  Optional Pop(std::atomic<size_t>& external_counter) THREAD_SAFE {
+  Optional Pop(std::atomic<ui64>& external_counter) THREAD_SAFE {
     std::unique_lock<std::mutex> lock(pop_mutex_);
     pop_condition_.wait(lock, [this] { return closed_ || !queue_.empty(); });
     if (closed_ && queue_.empty()) {
@@ -90,8 +90,8 @@ class LockedQueue {
   std::condition_variable pop_condition_;
   std::queue<T> queue_;
 
-  std::atomic<size_t> size_ = {0};
-  const size_t capacity_ = UNLIMITED;
+  std::atomic<ui64> size_ = {0};
+  const ui64 capacity_ = UNLIMITED;
   std::atomic<bool> closed_ = {false};
 };
 

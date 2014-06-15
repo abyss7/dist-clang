@@ -12,44 +12,44 @@ class Promise;
 
 template <class T>
 class Future {
-  public:
-    void Wait();
-    const T& GetValue() const;
+ public:
+  void Wait();
+  const T& GetValue() const;
 
-    operator bool() const;
+  operator bool() const;
 
-  private:
-    friend class Promise<T>;
+ private:
+  friend class Promise<T>;
 
-    struct State {
-      std::mutex mutex;
-      std::condition_variable condition;
-      bool fulfilled = false;
-      T value;
-    };
+  struct State {
+    std::mutex mutex;
+    std::condition_variable condition;
+    bool fulfilled = false;
+    T value;
+  };
 
-    Future(std::shared_ptr<State> state);
+  Future(std::shared_ptr<State> state);
 
-    std::shared_ptr<State> state_;
+  std::shared_ptr<State> state_;
 };
 
 template <class T>
 class Promise {
-  public:
-    using Optional = std::experimental::optional<Future<T>>;
+ public:
+  using Optional = std::experimental::optional<Future<T>>;
 
-    // The |default_value| is set on object's destruction, if no other value
-    // was ever set.
-    Promise(const T& default_value);
-    Promise(Promise<T>&& other) = default;
-    ~Promise();
+  // The |default_value| is set on object's destruction, if no other value
+  // was ever set.
+  Promise(const T& default_value);
+  Promise(Promise<T>&& other) = default;
+  ~Promise();
 
-    Optional GetFuture();
-    void SetValue(const T& value);
+  Optional GetFuture();
+  void SetValue(const T& value);
 
-  private:
-    std::shared_ptr<typename Future<T>::State> state_;
-    T on_exit_value_;
+ private:
+  std::shared_ptr<typename Future<T>::State> state_;
+  T on_exit_value_;
 };
 
 }  // namespace base

@@ -7,20 +7,21 @@ namespace base {
 
 TEST(QueueAggregatorTest, UniquePtrFriendliness) {
   class Observer {
-    public:
-      Observer(bool& exist) : exist_(exist) { exist_ = true; }
-      ~Observer() { exist_ = false; }
-    private:
-      bool& exist_;
+   public:
+    Observer(bool& exist) : exist_(exist) { exist_ = true; }
+    ~Observer() { exist_ = false; }
+
+   private:
+    bool& exist_;
   };
 
-  QueueAggregator<std::unique_ptr<Observer>> aggregator;
-  LockedQueue<std::unique_ptr<Observer>> queue;
+  QueueAggregator<UniquePtr<Observer>> aggregator;
+  LockedQueue<UniquePtr<Observer>> queue;
   aggregator.Aggregate(&queue);
 
   {
     bool observer_exists = true;
-    std::unique_ptr<Observer> ptr(new Observer(observer_exists));
+    UniquePtr<Observer> ptr(new Observer(observer_exists));
 
     ASSERT_TRUE(queue.Push(std::move(ptr)));
     EXPECT_FALSE(ptr);
@@ -34,7 +35,7 @@ TEST(QueueAggregatorTest, UniquePtrFriendliness) {
 
   {
     bool observer_exists = true;
-    std::unique_ptr<Observer> ptr(new Observer(observer_exists));
+    UniquePtr<Observer> ptr(new Observer(observer_exists));
 
     ASSERT_TRUE(queue.Push(std::move(ptr)));
     EXPECT_FALSE(ptr);
@@ -77,6 +78,5 @@ TEST(QueueAggregatorTest, SharedPtrFriendliness) {
     EXPECT_EQ(2, actual->use_count());
   }
 }
-
 }
 }

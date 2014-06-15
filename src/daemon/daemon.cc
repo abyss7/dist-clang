@@ -14,9 +14,8 @@
 
 #include <atomic>
 #include <condition_variable>
-#include <functional>
 #if defined(PROFILER)
-#  include <gperftools/profiler.h>
+#include <gperftools/profiler.h>
 #endif
 #include <mutex>
 
@@ -28,9 +27,7 @@ namespace dist_clang {
 namespace daemon {
 
 #if defined(PROFILER)
-Daemon::Daemon() {
-  ProfilerStart("clangd.prof");
-}
+Daemon::Daemon() { ProfilerStart("clangd.prof"); }
 #endif  // PROFILER
 
 Daemon::~Daemon() {
@@ -59,7 +56,7 @@ Daemon::~Daemon() {
   stat_service_.reset();
 }
 
-bool Daemon::Initialize(const Configuration &configuration) {
+bool Daemon::Initialize(const Configuration& configuration) {
   using Worker = base::WorkerPool::SimpleWorker;
 
   const auto& config = configuration.config();
@@ -88,8 +85,7 @@ bool Daemon::Initialize(const Configuration &configuration) {
     remote_tasks_.reset(new Queue(config.pool_capacity()));
     Worker worker = std::bind(&Daemon::DoLocalExecution, this, _1);
     workers_->AddWorker(worker, config.local().threads());
-  }
-  else {
+  } else {
     // |remote_tasks_| will be always empty, since the daemon doesn't listen for
     // remote connections.
     remote_tasks_.reset(new Queue);
@@ -112,13 +108,11 @@ bool Daemon::Initialize(const Configuration &configuration) {
   if (config.has_local() && !config.local().disabled()) {
     std::string error;
     auto callback = std::bind(&Daemon::HandleNewConnection, this, _1);
-    if (!network_service_->Listen(config.local().host(),
-                                  config.local().port(),
+    if (!network_service_->Listen(config.local().host(), config.local().port(),
                                   callback, &error)) {
       LOG(ERROR) << "Failed to listen on " << config.local().host() << ":"
                  << config.local().port() << " : " << error;
-    }
-    else {
+    } else {
       is_listening = true;
     }
   }
@@ -129,8 +123,7 @@ bool Daemon::Initialize(const Configuration &configuration) {
     if (!network_service_->Listen(config.socket_path(), callback, &error)) {
       LOG(ERROR) << "Failed to listen on " << config.socket_path() << " : "
                  << error;
-    }
-    else {
+    } else {
       is_listening = true;
     }
   }
@@ -140,7 +133,7 @@ bool Daemon::Initialize(const Configuration &configuration) {
     return false;
   }
 
-  for (const auto& remote: config.remotes()) {
+  for (const auto& remote : config.remotes()) {
     if (!remote.disabled()) {
       auto end_point = net::EndPoint::TcpHost(remote.host(), remote.port());
       Worker worker =
@@ -149,7 +142,7 @@ bool Daemon::Initialize(const Configuration &configuration) {
     }
   }
 
-  for (const auto& version: config.versions()) {
+  for (const auto& version : config.versions()) {
     if (!version.has_path() || version.path().empty()) {
       LOG(ERROR) << "Compiler " << version.version() << " has no path.";
       return false;
@@ -159,7 +152,7 @@ bool Daemon::Initialize(const Configuration &configuration) {
     // Load plugins.
     auto value = std::make_pair(version.version(), PluginNameMap());
     auto& plugin_map = plugins_.insert(value).first->second;
-    for (const auto& plugin: version.plugins()) {
+    for (const auto& plugin : version.plugins()) {
       if (!plugin.has_path() || plugin.path().empty()) {
         LOG(ERROR) << "Plugin " << plugin.name() << " for compiler "
                    << version.version() << " has no path.";
@@ -171,15 +164,14 @@ bool Daemon::Initialize(const Configuration &configuration) {
 
   if (config.has_verbosity()) {
     base::Log::RangeSet ranges;
-    for (const auto& level: config.verbosity().levels()) {
+    for (const auto& level : config.verbosity().levels()) {
       if (level.has_left() && level.left() > level.right()) {
         continue;
       }
 
       if (!level.has_left()) {
         ranges.insert(std::make_pair(level.right(), level.right()));
-      }
-      else {
+      } else {
         ranges.insert(std::make_pair(level.left(), level.right()));
       }
     }
@@ -191,8 +183,7 @@ bool Daemon::Initialize(const Configuration &configuration) {
         for (auto it = std::next(ranges.begin()); it != ranges.end(); ++it) {
           if (current.second + 1 >= it->first) {
             current.second = std::max(it->second, current.second);
-          }
-          else {
+          } else {
             results.insert(std::make_pair(current.second, current.first));
             current = *it;
           }
@@ -207,7 +198,7 @@ bool Daemon::Initialize(const Configuration &configuration) {
 }
 
 bool Daemon::SearchCache(const proto::Execute* message,
-                         FileCache::Entry *entry) {
+                         FileCache::Entry* entry) {
   if (!cache_ || !message || !entry) {
     LOG(CACHE_WARNING) << "Failed to check the cache";
     return false;
@@ -215,8 +206,8 @@ bool Daemon::SearchCache(const proto::Execute* message,
 
   const auto& flags = message->flags();
   const auto& version = flags.compiler().version();
-  std::string command_line = base::JoinString<' '>(flags.other().begin(),
-                                                   flags.other().end());
+  std::string command_line =
+      base::JoinString<' '>(flags.other().begin(), flags.other().end());
   if (flags.has_language()) {
     command_line += " -x " + flags.language();
   }
@@ -246,8 +237,8 @@ void Daemon::UpdateCacheFromFile(const proto::Execute* message,
   entry.first = file_path;
   entry.second = status.description();
   const auto& version = flags.compiler().version();
-  std::string command_line = base::JoinString<' '>(flags.other().begin(),
-                                                   flags.other().end());
+  std::string command_line =
+      base::JoinString<' '>(flags.other().begin(), flags.other().end());
   if (flags.has_language()) {
     command_line += " -x " + flags.language();
   }
@@ -258,8 +249,7 @@ void Daemon::UpdateCacheFromFile(const proto::Execute* message,
 
   if (sync_cache_) {
     cache_->SyncStore(message->pp_source(), command_line, version, entry);
-  }
-  else {
+  } else {
     cache_->Store(message->pp_source(), command_line, version, entry);
   }
 }
@@ -273,8 +263,7 @@ void Daemon::UpdateCache(const proto::Execute* message,
   if (temp_file.empty()) {
     LOG(CACHE_ERROR) << "Failed to create temporary file to cache object: "
                      << error;
-  }
-  else if (base::WriteFile(temp_file, object)) {
+  } else if (base::WriteFile(temp_file, object)) {
     UpdateCacheFromFile(message, temp_file, status);
   }
 }
@@ -311,7 +300,7 @@ bool Daemon::FillFlags(proto::Flags* flags, proto::Status* status) {
 
   auto plugin_map = plugins_.find(flags->compiler().version());
   auto& plugins = *flags->mutable_compiler()->mutable_plugins();
-  for (auto& plugin: plugins) {
+  for (auto& plugin : plugins) {
     if (!plugin.has_path() && plugin_map == plugins_.end()) {
       if (status) {
         status->set_code(proto::Status::NO_VERSION);
@@ -354,18 +343,16 @@ bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
     return false;
   }
   auto* extension = message->ReleaseExtension(proto::Execute::extension);
-  std::unique_ptr<proto::Execute> execute(extension);
+  UniquePtr<proto::Execute> execute(extension);
 
   if (cache_) {
-    if (( execute->remote() && execute->has_pp_source()) ||
+    if ((execute->remote() && execute->has_pp_source()) ||
         (!execute->remote() && execute->has_current_dir())) {
       return cache_tasks_->Push(std::make_pair(connection, std::move(execute)));
     }
-  }
-  else if (execute->remote() && execute->has_pp_source()) {
+  } else if (execute->remote() && execute->has_pp_source()) {
     return remote_tasks_->Push(std::make_pair(connection, std::move(execute)));
-  }
-  else if (!execute->remote() && execute->has_current_dir()) {
+  } else if (!execute->remote() && execute->has_current_dir()) {
     return local_tasks_->Push(std::make_pair(connection, std::move(execute)));
   }
 
@@ -374,8 +361,7 @@ bool Daemon::HandleNewMessage(net::ConnectionPtr connection,
 }
 
 // static
-base::ProcessPtr Daemon::CreateProcess(const proto::Flags& flags,
-                                       uint32_t uid,
+base::ProcessPtr Daemon::CreateProcess(const proto::Flags& flags, ui32 uid,
                                        const std::string& cwd_path) {
   base::ProcessPtr process =
       base::Process::Create(flags.compiler().path(), cwd_path, uid);
@@ -385,7 +371,7 @@ base::ProcessPtr Daemon::CreateProcess(const proto::Flags& flags,
   process->AppendArg(flags.action());
   process->AppendArg(flags.non_cached().begin(), flags.non_cached().end());
   process->AppendArg(flags.dependenies().begin(), flags.dependenies().end());
-  for (const auto& plugin: flags.compiler().plugins()) {
+  for (const auto& plugin : flags.compiler().plugins()) {
     process->AppendArg("-load").AppendArg(plugin.path());
   }
   if (flags.has_language()) {
@@ -425,8 +411,8 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
         continue;
       }
 
-      base::ProcessPtr process = CreateProcess(pp_flags,
-                                               message->current_dir());
+      base::ProcessPtr process =
+          CreateProcess(pp_flags, message->current_dir());
       if (!process->Run(10)) {
         // It usually means, that there is an error in the source code.
         // We should skip a cache check and head to local compilation.
@@ -454,12 +440,10 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
           status.set_description(cache_entry.second);
           task->first->ReportStatus(status);
           continue;
-        }
-        else {
+        } else {
           LOG(ERROR) << "Failed to restore file from cache: " << output_path;
         }
-      }
-      else {
+      } else {
         Daemon::ScopedMessage message(new proto::Universal);
         auto result = message->MutableExtension(proto::RemoteResult::extension);
         if (base::ReadFile(cache_entry.first, result->mutable_obj())) {
@@ -474,8 +458,7 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
 
     if (!message->remote()) {
       local_tasks_->Push(std::move(*task));
-    }
-    else {
+    } else {
       remote_tasks_->Push(std::move(*task));
     }
   }
@@ -506,8 +489,8 @@ void Daemon::DoRemoteExecution(const std::atomic<bool>& is_shutting_down,
         continue;
       }
 
-      base::ProcessPtr process = CreateProcess(pp_flags,
-                                               message->current_dir());
+      base::ProcessPtr process =
+          CreateProcess(pp_flags, message->current_dir());
       if (!process->Run(10)) {
         // It usually means, that there is an error in the source code.
         // We should skip a cache check and head to local compilation.
@@ -596,19 +579,17 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
       }
 
       std::string error;
-      uint32_t uid = task->second->has_user_id() ? task->second->user_id() :
-                                                   base::Process::SAME_UID;
+      ui32 uid = task->second->has_user_id() ? task->second->user_id()
+                                             : base::Process::SAME_UID;
       base::ProcessPtr process = CreateProcess(task->second->flags(), uid,
                                                task->second->current_dir());
       if (!process->Run(base::Process::UNLIMITED, &error)) {
         status.set_code(proto::Status::EXECUTION);
         if (!process->stderr().empty()) {
           status.set_description(process->stderr());
-        }
-        else if (!error.empty()) {
+        } else if (!error.empty()) {
           status.set_description(error);
-        }
-        else {
+        } else {
           status.set_description("without errors");
         }
       } else {
@@ -617,14 +598,12 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
         LOG(INFO) << "Local compilation successful:  "
                   << task->second->flags().input();
         std::string output_file =
-            task->second->current_dir() + "/" +
-            task->second->flags().output();
+            task->second->current_dir() + "/" + task->second->flags().output();
         UpdateCacheFromFile(task->second.get(), output_file, status);
       }
 
       task->first->ReportStatus(status);
-    }
-    else {
+    } else {
       // Check that we have a compiler of a requested version.
       proto::Status status;
       if (!FillFlags(task->second->mutable_flags(), &status)) {
@@ -640,13 +619,11 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
       if (task->second->flags().has_language()) {
         if (task->second->flags().language() == "c") {
           task->second->mutable_flags()->set_language("cpp-output");
-        }
-        else if (task->second->flags().language() == "c++") {
+        } else if (task->second->flags().language() == "c++") {
           task->second->mutable_flags()->set_language("c++-cpp-output");
-        }
-        else if (task->second->flags().language() == "objective-c++") {
-          task->second->mutable_flags()->
-              set_language("objective-c++-cpp-output");
+        } else if (task->second->flags().language() == "objective-c++") {
+          task->second->mutable_flags()->set_language(
+              "objective-c++-cpp-output");
         }
       }
 
@@ -657,7 +634,7 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
       if (!process->Run(10, task->second->pp_source(), &error)) {
         std::stringstream arguments;
         arguments << "Arguments:";
-        for (const auto& flag: task->second->flags().other()) {
+        for (const auto& flag : task->second->flags().other()) {
           arguments << " " << flag;
         }
         arguments << std::endl;
@@ -671,21 +648,17 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
         if (!process->stdout().empty() || !process->stderr().empty()) {
           status.set_description(process->stderr());
           LOG(WARNING) << "Compilation failed with error:" << std::endl
-                       << process->stderr() << std::endl
-                       << process->stdout();
-        }
-        else if (!error.empty()) {
+                       << process->stderr() << std::endl << process->stdout();
+        } else if (!error.empty()) {
           status.set_description(error);
           LOG(WARNING) << "Compilation failed with error: " << error;
-        }
-        else {
+        } else {
           status.set_description("without errors");
           LOG(WARNING) << "Compilation failed without errors";
         }
         // We lose atomicity, but the WARNING level will be less verbose.
         LOG(VERBOSE) << arguments.str();
-      }
-      else {
+      } else {
         status.set_code(proto::Status::OK);
         status.set_description(process->stderr());
         LOG(INFO) << "External compilation successful";

@@ -9,7 +9,7 @@ namespace dist_clang {
 namespace net {
 
 // static
-EndPointPtr EndPoint::TcpHost(const std::string& host, unsigned short port) {
+EndPointPtr EndPoint::TcpHost(const std::string& host, ui16 port) {
   hostent* host_entry;
   in_addr** address_list;
 

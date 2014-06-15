@@ -17,12 +17,10 @@ using namespace ::std::placeholders;
 namespace dist_clang {
 namespace net {
 
-bool NetworkServiceImpl::Run() {
-  return event_loop_->Run();
-}
+bool NetworkServiceImpl::Run() { return event_loop_->Run(); }
 
 bool NetworkServiceImpl::Listen(const string& path, ListenCallback callback,
-                            string* error) {
+                                string* error) {
   sockaddr_un address;
   address.sun_family = AF_UNIX;
   strcpy(address.sun_path, path.c_str());
@@ -63,8 +61,8 @@ bool NetworkServiceImpl::Listen(const string& path, ListenCallback callback,
   return true;
 }
 
-bool NetworkServiceImpl::Listen(const string &host, unsigned short port,
-                            ListenCallback callback, string* error) {
+bool NetworkServiceImpl::Listen(const string& host, ui16 port,
+                                ListenCallback callback, string* error) {
   struct hostent* host_entry;
   struct in_addr** address_list;
 
@@ -73,8 +71,7 @@ bool NetworkServiceImpl::Listen(const string &host, unsigned short port,
     return false;
   }
 
-  address_list =
-      reinterpret_cast<struct in_addr**>(host_entry->h_addr_list);
+  address_list = reinterpret_cast<struct in_addr**>(host_entry->h_addr_list);
 
   sockaddr_in address;
   address.sin_family = AF_INET;
@@ -123,7 +120,7 @@ bool NetworkServiceImpl::Listen(const string &host, unsigned short port,
 }
 
 ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point,
-                                          string *error) {
+                                          string* error) {
   auto fd = socket(end_point->domain(), SOCK_STREAM, 0);
   if (fd == -1) {
     base::GetLastError(error);
@@ -137,7 +134,7 @@ ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point,
     return ConnectionPtr();
   }
 
-  struct timeval timeout = { send_timeout_secs, 0 };
+  struct timeval timeout = {send_timeout_secs, 0};
   constexpr auto timeout_size = sizeof(timeout);
   if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, timeout_size) == -1) {
     base::GetLastError(error);
@@ -153,12 +150,11 @@ void NetworkServiceImpl::HandleNewConnection(fd_t fd,
   auto callback = listen_callbacks_.find(fd);
   DCHECK(callback != listen_callbacks_.end());
 
-  struct timeval timeout = { send_timeout_secs, 0 };
+  struct timeval timeout = {send_timeout_secs, 0};
   constexpr auto timeout_size = sizeof(timeout);
   if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, timeout_size) == -1) {
     callback->second(ConnectionPtr());
-  }
-  else {
+  } else {
     callback->second(connection);
   }
 }

@@ -44,20 +44,19 @@ int main(int argc, char* argv[]) {
   if (numbers.size() % 2 == 0) {
     base::Log::RangeSet ranges;
     for (auto number = numbers.begin(); number != numbers.end(); ++number) {
-      unsigned left = base::StringTo<unsigned>(*number++);
-      unsigned right = base::StringTo<unsigned>(*number);
+      ui32 left = base::StringTo<ui32>(*number++);
+      ui32 right = base::StringTo<ui32>(*number);
       ranges.emplace(right, left);
     }
-    base::Log::Reset(base::StringTo<unsigned>(clangd_log_mark),
-                     std::move(ranges));
+    base::Log::Reset(base::StringTo<ui32>(clangd_log_mark), std::move(ranges));
   }
 
   // NOTICE: Use separate |DoMain| function to make sure that all local objects
   //         get destructed before the invokation of |exec|. Do not use global
   //         objects!
   std::string clang_path = base::GetEnv(base::kEnvClangdCxx);
-  std::string socket_path = base::GetEnv(base::kEnvClangdSocket,
-                                         base::kDefaultClangdSocket);
+  std::string socket_path =
+      base::GetEnv(base::kEnvClangdSocket, base::kDefaultClangdSocket);
   if (client::DoMain(argc, argv, socket_path, clang_path)) {
     return ExecuteLocally(argv);
   }

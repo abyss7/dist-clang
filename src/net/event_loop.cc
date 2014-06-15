@@ -3,24 +3,19 @@
 #include "base/assert.h"
 #include "net/base/utils.h"
 
-#include <functional>
-
 namespace dist_clang {
 namespace net {
 
-EventLoop::EventLoop(size_t concurrency)
-  : is_running_(0), concurrency_(concurrency) {
-}
+EventLoop::EventLoop(ui32 concurrency)
+    : is_running_(IDLE), concurrency_(concurrency) {}
 
-EventLoop::~EventLoop() {
-  DCHECK(!pool_);
-}
+EventLoop::~EventLoop() { DCHECK(!pool_); }
 
 bool EventLoop::Run() {
   using namespace std::placeholders;
 
-  int old_running = 0;
-  if (!is_running_.compare_exchange_strong(old_running, 1)) {
+  Status old_running = IDLE;
+  if (!is_running_.compare_exchange_strong(old_running, RUNNING)) {
     return false;
   }
 
@@ -36,8 +31,8 @@ bool EventLoop::Run() {
 }
 
 void EventLoop::Stop() {
-  int old_running = 1;
-  if (is_running_.compare_exchange_strong(old_running, 2)) {
+  Status old_running = RUNNING;
+  if (is_running_.compare_exchange_strong(old_running, STOPPED)) {
     pool_.reset();
   }
 }

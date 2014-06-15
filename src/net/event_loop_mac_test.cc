@@ -68,7 +68,7 @@ TEST(KqueueTest, OneShot) {
   EXPECT_EQ(static_cast<int>(sizeof(a)), event.data);
 
   // Triggering an one-shot event should disable it.
-  struct timespec time_spec = { 1, 0 };
+  struct timespec time_spec = {1, 0};
   ASSERT_EQ(0, kevent(kq_fd, nullptr, 0, &event, 1, &time_spec));
 
   EV_SET(&event, test_pipe[0], EVFILT_READ, EV_ENABLE | EV_ONESHOT, 0, 0, 0);

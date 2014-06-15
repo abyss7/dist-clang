@@ -1,9 +1,10 @@
 #pragma once
 
+#include "base/types.h"
+
 #include "cxxabi.h"
 
 #include <iostream>
-#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -12,18 +13,18 @@
 
 namespace {
 
-std::pair<std::string, uint64_t> Demangle(const char* backtrace_symbol) {
+std::string Demangle(const char* backtrace_symbol) {
   std::string string = backtrace_symbol;
 
   auto begin_name = string.find('(');
   if (begin_name == std::string::npos) {
-    return std::make_pair(string, 0);
+    return string;
   }
   begin_name++;
 
   auto end_name = string.find('+', begin_name);
   if (end_name == std::string::npos) {
-    return std::make_pair(string, 0);
+    return string;
   }
 
   std::string mangled_name = string.substr(begin_name, end_name - begin_name);
@@ -32,15 +33,14 @@ std::pair<std::string, uint64_t> Demangle(const char* backtrace_symbol) {
   char* demangled_name =
       abi::__cxa_demangle(mangled_name.c_str(), nullptr, &size, &status);
   if (status == 0) {
-    auto result = std::make_pair(std::string(demangled_name), 0);
+    auto result = std::string(demangled_name);
     free(demangled_name);
     return result;
-  }
-  else {
+  } else {
     if (demangled_name) {
       free(demangled_name);
     }
-    return std::make_pair(mangled_name, 0);
+    return mangled_name;
   }
 }
 
@@ -49,15 +49,15 @@ std::pair<std::string, uint64_t> Demangle(const char* backtrace_symbol) {
 namespace dist_clang {
 namespace base {
 
-inline void GetStackTrace(size_t depth, std::vector<std::string>& strings) {
+inline void GetStackTrace(ui8 depth, std::vector<std::string>& strings) {
   using void_ptr = void*;
-  std::unique_ptr<void_ptr[]> buffer(new void_ptr[depth + 1]);
+  UniquePtr<void_ptr[]> buffer(new void_ptr[depth + 1]);
 
   auto size = backtrace(buffer.get(), depth + 1);
   auto symbols = backtrace_symbols(buffer.get(), size);
   strings.resize(size - 1);
   for (int i = 1; i < size; ++i) {
-    strings[i-1] = Demangle(symbols[i]).first;
+    strings[i - 1] = Demangle(symbols[i]);
   }
   free(symbols);
 }
@@ -69,38 +69,38 @@ inline void GetStackTrace(size_t depth, std::vector<std::string>& strings) {
 // In tests it's better to throw unhandled exception - not to crash the whole
 // binary, but catch the failure.
 #if __has_feature(cxx_exceptions)
-#  define CHECK(expr) \
-  if (!(expr)) { \
-    std::stringstream ss; \
-    std::vector<std::string> strings; \
-    dist_clang::base::GetStackTrace(62, strings); \
+#define CHECK(expr)                                   \
+  if (!(expr)) {                                      \
+    std::stringstream ss;                             \
+    std::vector<std::string> strings;                 \
+    dist_clang::base::GetStackTrace(62, strings);     \
     ss << "Assertion failed: " << #expr << std::endl; \
-    for (const auto& str: strings) { \
-      ss << "  " << str << std::endl; \
-    } \
-    throw std::runtime_error(ss.str()); \
+    for (const auto& str : strings) {                 \
+      ss << "  " << str << std::endl;                 \
+    }                                                 \
+    throw std::runtime_error(ss.str());               \
   }
 #else  // !__has_feature(cxx_exceptions)
-#  define CHECK(expr) \
-  if (!(expr)) { \
-    std::stringstream ss; \
-    std::vector<std::string> strings; \
-    dist_clang::base::GetStackTrace(62, strings); \
+#define CHECK(expr)                                   \
+  if (!(expr)) {                                      \
+    std::stringstream ss;                             \
+    std::vector<std::string> strings;                 \
+    dist_clang::base::GetStackTrace(62, strings);     \
     ss << "Assertion failed: " << #expr << std::endl; \
-    for (const auto& str: strings) { \
-      ss << "  " << str << std::endl; \
-    } \
-    std::cerr << ss.str(); \
-    std::abort(); \
+    for (const auto& str : strings) {                 \
+      ss << "  " << str << std::endl;                 \
+    }                                                 \
+    std::cerr << ss.str();                            \
+    std::abort();                                     \
   }
 #endif  // __has_feature(cxx_exceptions)
 
 #if defined(NDEBUG)
-#  define DCHECK_O_EVAL(expr) (void)(expr)
-#  define DCHECK(expr)
+#define DCHECK_O_EVAL(expr) (void)(expr)
+#define DCHECK(expr)
 #else
-#  define DCHECK_O_EVAL(expr) CHECK(expr)
-#  define DCHECK(expr) CHECK(expr)
+#define DCHECK_O_EVAL(expr) CHECK(expr)
+#define DCHECK(expr) CHECK(expr)
 #endif
 #define NOTREACHED() DCHECK(false)
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "base/attributes.h"
+#include "base/types.h"
 #include "net/connection_forward.h"
 #include "proto/config.pb.h"
 
@@ -9,26 +10,30 @@
 
 namespace std {
 
-template<>
+template <>
 struct hash<dist_clang::proto::Host> {
-  size_t operator() (const dist_clang::proto::Host& host) const {
+  size_t operator()(const dist_clang::proto::Host& host) const {
     return hash<string>()(host.host()) * 29 +
-           hash<unsigned short>()(host.port());
+           hash<dist_clang::ui16>()(host.port());
   }
 };
 
-template<>
+template <>
 struct equal_to<dist_clang::proto::Host> {
-  bool operator() (const dist_clang::proto::Host& host1,
-                   const dist_clang::proto::Host& host2) const {
-    if (host1.has_host() != host2.has_host())
+  bool operator()(const dist_clang::proto::Host& host1,
+                  const dist_clang::proto::Host& host2) const {
+    if (host1.has_host() != host2.has_host()) {
       return false;
-    if (host1.host() != host2.host())
+    }
+    if (host1.host() != host2.host()) {
       return false;
-    if (host1.has_port() != host2.has_port())
+    }
+    if (host1.has_port() != host2.has_port()) {
       return false;
-    if (host1.port() != host2.port())
+    }
+    if (host1.port() != host2.port()) {
       return false;
+    }
     return true;
   }
 };
@@ -44,22 +49,21 @@ class NetworkService;
 namespace daemon {
 
 class Balancer {
-  public:
-    using ConnectCallback =
-        std::function<void(net::ConnectionPtr, const std::string&)>;
+ public:
+  using ConnectCallback = Fn<void(net::ConnectionPtr, const std::string&)>;
 
-    explicit Balancer(net::NetworkService& network_service);
+  explicit Balancer(net::NetworkService& network_service);
 
-    void AddRemote(const proto::Host& remote) THREAD_UNSAFE;
-    bool Decide(const ConnectCallback& callback, std::string* error = nullptr);
+  void AddRemote(const proto::Host& remote) THREAD_UNSAFE;
+  bool Decide(const ConnectCallback& callback, std::string* error = nullptr);
 
-  private:
-    using RemoteMap = std::unordered_map<proto::Host, net::EndPointPtr>;
+ private:
+  using RemoteMap = std::unordered_map<proto::Host, net::EndPointPtr>;
 
-    static std::atomic<size_t> index_;
+  static std::atomic<size_t> index_;
 
-    net::NetworkService& service_;
-    RemoteMap remotes_;
+  net::NetworkService& service_;
+  RemoteMap remotes_;
 };
 
 }  // namespace daemon

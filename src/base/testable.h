@@ -1,47 +1,46 @@
 #pragma once
 
 #include "base/attributes.h"
-
-#include <memory>
+#include "base/types.h"
 
 namespace dist_clang {
 namespace base {
 
-template <class T, class Default = T, class ... Args>
+template <class Base, class Default = Base, class... Args>
 class Testable {
-  public:
-    class Factory {
-      public:
-        virtual ~Factory() {}
+ public:
+  class Factory {
+   public:
+    virtual ~Factory() {}
 
-        virtual std::unique_ptr<T> Create(Args ...) = 0;
-    };
+    virtual UniquePtr<Base> Create(Args...) = 0;
+  };
 
-    class DefaultFactory: public Factory {
-      public:
-        virtual std::unique_ptr<T> Create(Args ... args) override {
-          return std::unique_ptr<T>(new Default(args ...));
-        }
-    };
-
-    static std::unique_ptr<T> Create(Args ... args) {
-      if (!factory_()) {
-        return typename std::unique_ptr<T>();
-      }
-      return factory_()->Create(args ...);
+  class DefaultFactory : public Factory {
+   public:
+    virtual UniquePtr<Base> Create(Args... args) override {
+      return UniquePtr<Base>(new Default(args...));
     }
+  };
 
-    template <class F>
-    static F* WEAK_PTR SetFactory() {
-      factory_().reset(new F());
-      return static_cast<F*>(factory_().get());
+  static UniquePtr<Base> Create(Args... args) {
+    if (!factory_()) {
+      return typename dist_clang::UniquePtr<Base>();
     }
+    return factory_()->Create(args...);
+  }
 
-  private:
-    static std::unique_ptr<Factory>& factory_() {
-      static std::unique_ptr<Factory> factory(new DefaultFactory());
-      return factory;
-    }
+  template <class F>
+  static F* WEAK_PTR SetFactory() {
+    factory_().reset(new F());
+    return static_cast<F*>(factory_().get());
+  }
+
+ private:
+  static UniquePtr<Factory>& factory_() {
+    static UniquePtr<Factory> factory(new DefaultFactory());
+    return factory;
+  }
 };
 
 }  // namespace base

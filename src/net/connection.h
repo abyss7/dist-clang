@@ -1,46 +1,43 @@
 #pragma once
 
+#include "base/types.h"
 #include "net/connection_forward.h"
 #include "proto/remote.pb.h"
-
-#include <functional>
 
 namespace dist_clang {
 namespace net {
 
-class Connection: public std::enable_shared_from_this<Connection> {
-  public:
-    template <typename S> using Fn = std::function<S>;
-    template <class T> using UniquePtr = std::unique_ptr<T>;
-    using Status = proto::Status;
-    using Message = proto::Universal;
-    using ScopedMessage = UniquePtr<Message>;
-    using ReadCallback = Fn<bool(ConnectionPtr, ScopedMessage, const Status&)>;
-    using SendCallback = Fn<bool(ConnectionPtr, const Status&)>;
+class Connection : public std::enable_shared_from_this<Connection> {
+ public:
+  using Status = proto::Status;
+  using Message = proto::Universal;
+  using ScopedMessage = UniquePtr<Message>;
+  using ReadCallback = Fn<bool(ConnectionPtr, ScopedMessage, const Status&)>;
+  using SendCallback = Fn<bool(ConnectionPtr, const Status&)>;
 
-    virtual ~Connection() {}
+  virtual ~Connection() {}
 
-    virtual bool ReadAsync(ReadCallback callback) = 0;
-    virtual bool ReadSync(Message* message, Status* status = nullptr) = 0;
+  virtual bool ReadAsync(ReadCallback callback) = 0;
+  virtual bool ReadSync(Message* message, Status* status = nullptr) = 0;
 
-    template <class M>
-    bool SendAsync(
-        UniquePtr<M> message, SendCallback callback = CloseAfterSend());
+  template <class M>
+  bool SendAsync(UniquePtr<M> message,
+                 SendCallback callback = CloseAfterSend());
 
-    template <class M>
-    bool SendSync(UniquePtr<M> message, Status* status = nullptr);
+  template <class M>
+  bool SendSync(UniquePtr<M> message, Status* status = nullptr);
 
-    static SendCallback CloseAfterSend();
+  static SendCallback CloseAfterSend();
 
-    bool ReportStatus(
-        const Status& message, SendCallback callback = CloseAfterSend());
+  bool ReportStatus(const Status& message,
+                    SendCallback callback = CloseAfterSend());
 
-  protected:
-    ScopedMessage message_;
+ protected:
+  ScopedMessage message_;
 
-  private:
-    virtual bool SendAsyncImpl(SendCallback callback) = 0;
-    virtual bool SendSyncImpl(Status* status) = 0;
+ private:
+  virtual bool SendAsyncImpl(SendCallback callback) = 0;
+  virtual bool SendSyncImpl(Status* status) = 0;
 };
 
 template <class M>

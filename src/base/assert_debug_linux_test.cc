@@ -40,7 +40,10 @@ TEST(AssertDebugTest, FailureStackTrace) {
 
 TEST(AssertDebugTest, ExpressionEvaluation) {
   int i = 0;
-  auto expr = [](int& a) -> bool { ++a; return true; };
+  auto expr = [](int & a)->bool {
+    ++a;
+    return true;
+  };
   ASSERT_NO_THROW(DCHECK_O_EVAL(expr(i)));
   ASSERT_EQ(1, i);
 }

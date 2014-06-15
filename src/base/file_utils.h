@@ -2,6 +2,7 @@
 
 #include "base/assert.h"
 #include "base/c_utils.h"
+#include "base/types.h"
 
 #include <string>
 
@@ -42,11 +43,10 @@ bool ReadFile(const std::string& path, std::string* output,
 bool WriteFile(const std::string& path, const std::string& input,
                std::string* error = nullptr);
 
-uint64_t CalculateDirectorySize(const std::string& path,
-                                std::string* error = nullptr);
+ui64 CalculateDirectorySize(const std::string& path,
+                            std::string* error = nullptr);
 
-inline uint64_t FileSize(const std::string& path,
-                         std::string* error = nullptr) {
+inline ui64 FileSize(const std::string& path, std::string* error = nullptr) {
   struct stat buffer;
   if (stat(path.c_str(), &buffer)) {
     GetLastError(error);
@@ -71,7 +71,7 @@ inline bool RemoveDirectory(const std::string& path) {
   return !rmdir(path.c_str());
 }
 
-inline bool ChangeOwner(const std::string& path, uint32_t uid,
+inline bool ChangeOwner(const std::string& path, ui32 uid,
                         std::string* error = nullptr) {
   if (lchown(path.c_str(), uid, getgid()) == -1) {
     GetLastError(error);

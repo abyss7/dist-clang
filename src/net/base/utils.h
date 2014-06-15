@@ -24,8 +24,7 @@ inline bool MakeNonBlocking(fd_t fd, bool blocking = false) {
 
   if (!blocking) {
     flags |= O_NONBLOCK;
-  }
-  else {
+  } else {
     flags &= ~O_NONBLOCK;
   }
   s = fcntl(fd, F_SETFL, flags);
@@ -40,8 +39,7 @@ inline bool IsNonBlocking(fd_t fd) {
   int flags;
 
   flags = fcntl(fd, F_GETFL, 0);
-  if (flags == -1)
-    return false;
+  if (flags == -1) return false;
 
   return flags & O_NONBLOCK;
 }

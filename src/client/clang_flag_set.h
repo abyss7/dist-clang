@@ -12,16 +12,19 @@ class Flags;
 namespace client {
 
 class FlagSet {
-  public:
-    enum Action { COMPILE, LINK, PREPROCESS, UNKNOWN };
-    using StringList = std::list<std::string>;
-    using CommandList = std::list<StringList>;
+ public:
+  enum Action {
+    COMPILE,
+    LINK,
+    PREPROCESS,
+    UNKNOWN
+  };
+  using StringList = std::list<std::string>;
+  using CommandList = std::list<StringList>;
 
-    static Action ProcessFlags(StringList flags, proto::Flags *message);
-    static bool ParseClangOutput(
-        const std::string& output,
-        std::string* version,
-        CommandList& args);
+  static Action ProcessFlags(StringList flags, proto::Flags* message);
+  static bool ParseClangOutput(const std::string& output, std::string* version,
+                               CommandList& args);
 };
 
 }  // namespace client

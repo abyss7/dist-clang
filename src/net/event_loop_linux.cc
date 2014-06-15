@@ -13,10 +13,9 @@ namespace dist_clang {
 namespace net {
 
 EpollEventLoop::EpollEventLoop(ConnectionCallback callback)
-  : listen_fd_(epoll_create1(EPOLL_CLOEXEC)),
-    io_fd_(epoll_create1(EPOLL_CLOEXEC)),
-    callback_(callback) {
-}
+    : listen_fd_(epoll_create1(EPOLL_CLOEXEC)),
+      io_fd_(epoll_create1(EPOLL_CLOEXEC)),
+      callback_(callback) {}
 
 EpollEventLoop::~EpollEventLoop() {
   Stop();
@@ -51,7 +50,7 @@ void EpollEventLoop::DoListenWork(const std::atomic<bool>& is_shutting_down,
     epoll_ctl(listen_fd_, EPOLL_CTL_ADD, self_pipe, &event);
   }
 
-  while(!is_shutting_down) {
+  while (!is_shutting_down) {
     auto events_count = epoll_wait(listen_fd_, events, MAX_EVENTS, -1);
     if (events_count == -1 && errno != EINTR) {
       break;
@@ -64,7 +63,7 @@ void EpollEventLoop::DoListenWork(const std::atomic<bool>& is_shutting_down,
 
       DCHECK(events[i].events & EPOLLIN);
       auto fd = events[i].data.fd;
-      while(true) {
+      while (true) {
         auto new_fd = accept4(fd, nullptr, nullptr, SOCK_CLOEXEC);
         if (new_fd == -1) {
           CHECK(errno == EAGAIN || errno == EWOULDBLOCK);
@@ -76,7 +75,7 @@ void EpollEventLoop::DoListenWork(const std::atomic<bool>& is_shutting_down,
     }
   }
 
-  for (auto fd: listening_fds_) {
+  for (auto fd : listening_fds_) {
     close(fd);
   }
 }
@@ -88,13 +87,12 @@ void EpollEventLoop::DoIOWork(const std::atomic<bool>& is_shutting_down,
   event.data.fd = self_pipe;
   epoll_ctl(io_fd_, EPOLL_CTL_ADD, self_pipe, &event);
 
-  while(!is_shutting_down) {
+  while (!is_shutting_down) {
     auto events_count = epoll_wait(io_fd_, &event, 1, -1);
     if (events_count == -1) {
       if (errno != EINTR) {
         break;
-      }
-      else {
+      } else {
         continue;
       }
     }
@@ -116,14 +114,11 @@ void EpollEventLoop::DoIOWork(const std::atomic<bool>& is_shutting_down,
     if (event.events & EPOLLERR || ioctl(fd, FIONREAD, &data) == -1 ||
         (event.events & EPOLLHUP && data == 0)) {
       ConnectionClose(connection);
-    }
-    else if (event.events & EPOLLIN) {
+    } else if (event.events & EPOLLIN) {
       ConnectionDoRead(connection);
-    }
-    else if (event.events & EPOLLOUT) {
+    } else if (event.events & EPOLLOUT) {
       ConnectionDoSend(connection);
-    }
-    else {
+    } else {
       NOTREACHED();
     }
   }
@@ -142,7 +137,7 @@ bool EpollEventLoop::ReadyForListen(fd_t fd) {
   return true;
 }
 
-bool EpollEventLoop::ReadyFor(ConnectionImplPtr connection, unsigned events) {
+bool EpollEventLoop::ReadyFor(ConnectionImplPtr connection, ui32 events) {
   DCHECK(connection->IsOnEventLoop(this));
 
   auto fd = GetConnectionDescriptor(connection);
@@ -150,7 +145,8 @@ bool EpollEventLoop::ReadyFor(ConnectionImplPtr connection, unsigned events) {
   event.events = events | EPOLLONESHOT;
   event.data.ptr = connection.get();
   return epoll_ctl(io_fd_, EPOLL_CTL_MOD, fd, &event) != -1 ||
-      (errno == ENOENT && epoll_ctl(io_fd_, EPOLL_CTL_ADD, fd, &event) != -1);
+         (errno == ENOENT &&
+          epoll_ctl(io_fd_, EPOLL_CTL_ADD, fd, &event) != -1);
 }
 
 }  // namespace net

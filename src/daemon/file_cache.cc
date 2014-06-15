@@ -16,7 +16,7 @@ namespace daemon {
 
 FileCache::FileCache(const std::string &path) : FileCache(path, UNLIMITED) {}
 
-FileCache::FileCache(const std::string &path, uint64_t size)
+FileCache::FileCache(const std::string &path, ui64 size)
     : path_(path), max_size_(size), cached_size_(0) {
 
   if (max_size_ != UNLIMITED) {
@@ -48,8 +48,7 @@ bool FileCache::Find(const std::string &code, const std::string &command_line,
     DCHECK_O_EVAL(utime(object_path.c_str(), nullptr) == 0);
     DCHECK_O_EVAL(utime(args_path.c_str(), nullptr) == 0);
     DCHECK_O_EVAL(utime(version_path.c_str(), nullptr) == 0);
-    if (!entry)
-      return true;
+    if (!entry) return true;
     result = true;
     entry->first = object_path;
   }
@@ -58,8 +57,7 @@ bool FileCache::Find(const std::string &code, const std::string &command_line,
     DCHECK_O_EVAL(utime(stderr_path.c_str(), nullptr) == 0);
     DCHECK_O_EVAL(utime(args_path.c_str(), nullptr) == 0);
     DCHECK_O_EVAL(utime(version_path.c_str(), nullptr) == 0);
-    if (!entry)
-      return true;
+    if (!entry) return true;
     result = base::ReadFile(stderr_path, &entry->second);
   }
 
@@ -81,8 +79,7 @@ FileCache::Optional FileCache::Store(const std::string &code,
 
 void FileCache::SyncStore(const std::string &code,
                           const std::string &command_line,
-                          const std::string &version,
-                          const Entry &entry) {
+                          const std::string &version, const Entry &entry) {
   std::string version_hash = base::Hexify(base::MakeHash(version));
   std::string args_hash = base::Hexify(base::MakeHash(command_line));
   std::string code_hash = base::Hexify(base::MakeHash(code));

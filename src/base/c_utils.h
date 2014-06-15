@@ -17,16 +17,14 @@ inline std::string GetEnv(const char* env_name,
                           const char* default_env = nullptr) {
   const char* env_value = getenv(env_name);
   if (!env_value) {
-    if (default_env)
-      return std::string(default_env);
+    if (default_env) return std::string(default_env);
     return std::string();
   }
   return std::string(env_value);
 }
 
 inline void GetLastError(std::string* error) {
-  if (error)
-    error->assign(strerror(errno));
+  if (error) error->assign(strerror(errno));
 }
 
 inline std::string SetEnv(const char* env_name, const std::string& value,

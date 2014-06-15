@@ -1,6 +1,7 @@
 #pragma once
 
-#include <memory>
+#include "base/types.h"
+
 #include <set>
 #include <sstream>
 
@@ -20,61 +21,59 @@ namespace named_levels {
 // The |FATAL| is a special value: after LOG(FATAL) the program terminates with
 // |exit(1)|.
 enum {
-  FATAL         =  0u,
-
-  ERROR         = 10u,
-  WARNING       = 20u,
-  INFO          = 30u,
-  VERBOSE       = 40u,
-
-  CACHE_ERROR   = 41u,
+  FATAL = 0u,
+  ERROR = 10u,
+  WARNING = 20u,
+  INFO = 30u,
+  VERBOSE = 40u,
+  CACHE_ERROR = 41u,
   CACHE_WARNING = 42u,
-  CACHE_INFO    = 43u,
+  CACHE_INFO = 43u,
   CACHE_VERBOSE = 44u,
 };
 
 }  // namespace NamedLevels
 
 class Log {
-  public:
-    // First value is a right edge of interval, the second - a left edge.
-    using RangeSet = std::set<std::pair<unsigned, unsigned>>;
+ public:
+  // First value is a right edge of interval, the second - a left edge.
+  using RangeSet = std::set<std::pair<ui32, ui32>>;
 
-    // Expects, that ranges are already filtered.
-    static void Reset(unsigned error_mark, RangeSet&& ranges);
+  // Expects, that ranges are already filtered.
+  static void Reset(ui32 error_mark, RangeSet&& ranges);
 
-    Log(unsigned level);
-    ~Log();
+  Log(ui32 level);
+  ~Log();
 
-    Log(const Log&) = delete;
-    Log(Log&&) = delete;
-    Log& operator= (const Log&) = delete;
+  Log(const Log&) = delete;
+  Log(Log&&) = delete;
+  Log& operator=(const Log&) = delete;
 
-    template <class T>
-    Log& operator<< (const T& info);
-    Log& operator<< (std::ostream& (*func)(std::ostream&));  // for |std::endl|
+  template <class T>
+  Log& operator<<(const T& info);
+  Log& operator<<(std::ostream& (*func)(std::ostream&));  // for |std::endl|
 
-  private:
-    static unsigned& error_mark();
-    static std::shared_ptr<RangeSet>& ranges();
+ private:
+  static ui32& error_mark();
+  static std::shared_ptr<RangeSet>& ranges();
 
-    unsigned level_;
-    unsigned error_mark_;
-    std::shared_ptr<RangeSet> ranges_;
-    std::stringstream stream_;
+  ui32 level_;
+  ui32 error_mark_;
+  std::shared_ptr<RangeSet> ranges_;
+  std::stringstream stream_;
 };
 
 // Use this class, if for some reason you can't include "using_log.h".
 class DLog {
-  public:
-    DLog(unsigned level);
+ public:
+  DLog(ui32 level);
 
-  private:
-    std::unique_ptr<Log> log_;
+ private:
+  UniquePtr<Log> log_;
 };
 
 template <class T>
-Log& Log::operator<< (const T& info) {
+Log& Log::operator<<(const T& info) {
   stream_ << info;
   return *this;
 }

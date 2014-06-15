@@ -23,7 +23,7 @@ bool Connection::SendSync(ScopedMessage message, Status* status) {
 Connection::SendCallback Connection::CloseAfterSend() {
   using namespace std::placeholders;
 
-  auto callback = [](ConnectionPtr, const Status& status) -> bool {
+  auto callback = [](ConnectionPtr, const Status & status)->bool {
     if (status.code() != Status::OK) {
       LOG(ERROR) << "Failed to send message: " << status.description();
     }

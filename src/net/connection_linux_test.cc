@@ -19,317 +19,307 @@ namespace dist_clang {
 namespace net {
 
 class TestMessage {
-  public:
-    TestMessage()
+ public:
+  TestMessage()
       : expected_field1_("arg" + std::to_string(number_++)),
         expected_field2_("arg" + std::to_string(number_++)),
         expected_field3_("arg" + std::to_string(number_++)) {
-      message_.reset(new Connection::Message);
-      auto message = message_->MutableExtension(proto::Test::extension);
-      message->set_field1(expected_field1_);
-      message->set_field2(expected_field2_);
-      message->add_field3()->assign(expected_field3_);
-    }
+    message_.reset(new Connection::Message);
+    auto message = message_->MutableExtension(proto::Test::extension);
+    message->set_field1(expected_field1_);
+    message->set_field2(expected_field2_);
+    message->add_field3()->assign(expected_field3_);
+  }
 
-    std::unique_ptr<Connection::Message> GetTestMessage() {
-      return std::move(message_);
-    }
+  UniquePtr<Connection::Message> GetTestMessage() {
+    return std::move(message_);
+  }
 
-    void CheckTestMessage(const Connection::Message& message) {
-      ASSERT_TRUE(message.HasExtension(proto::Test::extension));
-      auto test = message.GetExtension(proto::Test::extension);
-      ASSERT_TRUE(test.has_field1());
-      ASSERT_TRUE(test.has_field2());
-      ASSERT_EQ(1, test.field3_size());
-      EXPECT_EQ(expected_field1_, test.field1());
-      EXPECT_EQ(expected_field2_, test.field2());
-      EXPECT_EQ(expected_field3_, test.field3(0));
-    }
+  void CheckTestMessage(const Connection::Message& message) {
+    ASSERT_TRUE(message.HasExtension(proto::Test::extension));
+    auto test = message.GetExtension(proto::Test::extension);
+    ASSERT_TRUE(test.has_field1());
+    ASSERT_TRUE(test.has_field2());
+    ASSERT_EQ(1, test.field3_size());
+    EXPECT_EQ(expected_field1_, test.field1());
+    EXPECT_EQ(expected_field2_, test.field2());
+    EXPECT_EQ(expected_field3_, test.field3(0));
+  }
 
-  private:
-    static int number_;
-    const std::string expected_field1_, expected_field2_, expected_field3_;
-    Connection::ScopedMessage message_;
+ private:
+  static int number_;
+  const std::string expected_field1_, expected_field2_, expected_field3_;
+  Connection::ScopedMessage message_;
 };
 
 int TestMessage::number_ = 1;
 
-class TestServer: public EventLoop {
-  public:
-    bool Init() {
-      if (tmp_dir_.GetPath().empty()) {
-        return false;
-      }
-      socket_path_ = tmp_dir_.GetPath() + "/socket";
-
-      sockaddr_un address;
-      address.sun_family = AF_UNIX;
-      strcpy(address.sun_path, socket_path_.c_str());
-
-      listen_fd_ =
-          socket(AF_UNIX, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
-      if (-1 == listen_fd_)
-        return false;
-      if (-1 == bind(listen_fd_, reinterpret_cast<sockaddr*>(&address),
-                     sizeof(address)))
-        return false;
-      if (-1 == listen(listen_fd_, 5))
-        return false;
-
-      return true;
+class TestServer : public EventLoop {
+ public:
+  bool Init() {
+    if (tmp_dir_.GetPath().empty()) {
+      return false;
     }
-    TestServer()
-      : listen_fd_(-1), server_fd_(-1),
-        epoll_fd_(epoll_create1(EPOLL_CLOEXEC)) {
-    }
-    ~TestServer() {
-      if (listen_fd_ != -1)
-        close(listen_fd_);
-      if (server_fd_ != -1)
-        close(server_fd_);
-      Stop();
-    }
+    socket_path_ = tmp_dir_.GetPath() + "/socket";
 
-    ConnectionImplPtr GetConnection() {
-      sockaddr_un address;
-      address.sun_family = AF_UNIX;
-      strcpy(address.sun_path, socket_path_.c_str());
+    sockaddr_un address;
+    address.sun_family = AF_UNIX;
+    strcpy(address.sun_path, socket_path_.c_str());
 
-      int fd = socket(AF_UNIX, SOCK_STREAM|SOCK_CLOEXEC, 0);
-      if (-1 == fd) {
-        LOG(ERROR) << strerror(errno) << std::endl;
-        return ConnectionImplPtr();
-      }
+    listen_fd_ = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+    if (-1 == listen_fd_) return false;
+    if (-1 == bind(listen_fd_, reinterpret_cast<sockaddr*>(&address),
+                   sizeof(address)))
+      return false;
+    if (-1 == listen(listen_fd_, 5)) return false;
 
-      auto connection = ConnectionImpl::Create(*this, fd);
+    return true;
+  }
+  TestServer()
+      : listen_fd_(-1),
+        server_fd_(-1),
+        epoll_fd_(epoll_create1(EPOLL_CLOEXEC)) {}
+  ~TestServer() {
+    if (listen_fd_ != -1) close(listen_fd_);
+    if (server_fd_ != -1) close(server_fd_);
+    Stop();
+  }
 
-      if (connect(fd, reinterpret_cast<sockaddr*>(&address),
-                  sizeof(address)) == -1 && errno != EINPROGRESS) {
-        LOG(ERROR) << strerror(errno) << std::endl;
-        return ConnectionImplPtr();
-      }
+  ConnectionImplPtr GetConnection() {
+    sockaddr_un address;
+    address.sun_family = AF_UNIX;
+    strcpy(address.sun_path, socket_path_.c_str());
 
-      server_fd_ = accept(listen_fd_, nullptr, nullptr);
-      if (server_fd_ == -1) {
-        LOG(ERROR) << strerror(errno) << std::endl;
-        return ConnectionImplPtr();
-      }
-
-      return connection;
+    int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    if (-1 == fd) {
+      LOG(ERROR) << strerror(errno) << std::endl;
+      return ConnectionImplPtr();
     }
 
-    void CloseServerConnection() {
-      close(server_fd_);
+    auto connection = ConnectionImpl::Create(*this, fd);
+
+    if (connect(fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) ==
+            -1 &&
+        errno != EINPROGRESS) {
+      LOG(ERROR) << strerror(errno) << std::endl;
+      return ConnectionImplPtr();
     }
 
-    bool WriteAtOnce(const Connection::Message& message) {
-      std::string gzipped_string;
-      {
-        using namespace google::protobuf::io;
-
-        StringOutputStream string_stream(&gzipped_string);
-        GzipOutputStream::Options options;
-        options.format = GzipOutputStream::ZLIB;
-        GzipOutputStream gzip_stream(&string_stream, options);
-        {
-          CodedOutputStream coded_stream(&gzip_stream);
-          coded_stream.WriteVarint32(message.ByteSize());
-        }
-        message.SerializePartialToZeroCopyStream(&gzip_stream);
-      }
-
-      CHECK(gzipped_string.size() < 128);
-      if (send(server_fd_, gzipped_string.data(), gzipped_string.size(), 0) !=
-          static_cast<int>(gzipped_string.size())) {
-        LOG(ERROR) << strerror(errno) << std::endl;
-        return false;
-      }
-
-      return true;
+    server_fd_ = accept(listen_fd_, nullptr, nullptr);
+    if (server_fd_ == -1) {
+      LOG(ERROR) << strerror(errno) << std::endl;
+      return ConnectionImplPtr();
     }
 
-    bool WriteByParts(const Connection::Message& message) {
-      std::string gzipped_string;
-      {
-        using namespace google::protobuf::io;
+    return connection;
+  }
 
-        StringOutputStream string_stream(&gzipped_string);
-        GzipOutputStream::Options options;
-        options.format = GzipOutputStream::ZLIB;
-        GzipOutputStream gzip_stream(&string_stream, options);
-        {
-          CodedOutputStream coded_stream(&gzip_stream);
-          coded_stream.WriteVarint32(message.ByteSize());
-        }
-        message.SerializePartialToZeroCopyStream(&gzip_stream);
-      }
+  void CloseServerConnection() { close(server_fd_); }
 
-      CHECK(gzipped_string.size() < 128);
-      for (size_t i = 0; i < gzipped_string.size(); ++i) {
-        if (send(server_fd_, gzipped_string.data() + i, 1, 0) != 1) {
-          LOG(ERROR) << strerror(errno) << std::endl;
-          return false;
-        }
-      }
-
-      return true;
-    }
-
-    bool WriteIncomplete(const Connection::Message& message) {
-      std::string gzipped_string;
-      {
-        using namespace google::protobuf::io;
-
-        StringOutputStream string_stream(&gzipped_string);
-        GzipOutputStream::Options options;
-        options.format = GzipOutputStream::ZLIB;
-        GzipOutputStream gzip_stream(&string_stream, options);
-        {
-          CodedOutputStream coded_stream(&gzip_stream);
-          coded_stream.WriteVarint32(message.ByteSize());
-        }
-        message.SerializePartialToZeroCopyStream(&gzip_stream);
-      }
-
-      CHECK(gzipped_string.size() / 2 < 128);
-      if (send(server_fd_, gzipped_string.data(), gzipped_string.size() / 2, 0)
-          != static_cast<int>(gzipped_string.size() / 2)) {
-        LOG(ERROR) << strerror(errno) << std::endl;
-        return false;
-      }
-
-      return true;
-    }
-
-    bool ReadAtOnce(Connection::Message& message) {
-      char buf[128];
-      int size = recv(server_fd_, buf, 128, 0);
-      if (size == 128) {
-        LOG(ERROR) << "Incoming message is too big!" << std::endl;
-        return false;
-      }
-
+  bool WriteAtOnce(const Connection::Message& message) {
+    std::string gzipped_string;
+    {
       using namespace google::protobuf::io;
 
-      ArrayInputStream array_stream(buf, size);
-      GzipInputStream gzip_stream(&array_stream);
-      unsigned int message_size;
+      StringOutputStream string_stream(&gzipped_string);
+      GzipOutputStream::Options options;
+      options.format = GzipOutputStream::ZLIB;
+      GzipOutputStream gzip_stream(&string_stream, options);
       {
-        CodedInputStream coded_stream(&gzip_stream);
-        coded_stream.ReadVarint32(&message_size);
+        CodedOutputStream coded_stream(&gzip_stream);
+        coded_stream.WriteVarint32(message.ByteSize());
       }
-      message.ParsePartialFromBoundedZeroCopyStream(&gzip_stream, message_size);
-
-      return true;
+      message.SerializePartialToZeroCopyStream(&gzip_stream);
     }
 
-  private:
-    virtual bool HandlePassive(fd_t fd) override {
-      // TODO: implement this.
+    CHECK(gzipped_string.size() < 128);
+    if (send(server_fd_, gzipped_string.data(), gzipped_string.size(), 0) !=
+        static_cast<int>(gzipped_string.size())) {
+      LOG(ERROR) << strerror(errno) << std::endl;
       return false;
     }
 
-    virtual bool ReadyForRead(ConnectionImplPtr connection) override {
-      struct epoll_event event;
-      event.events = EPOLLIN | EPOLLONESHOT;
-      event.data.ptr = connection.get();
-      auto fd = GetConnectionDescriptor(connection);
-      if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
-        DCHECK(errno == ENOENT);
-        if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
-          return false;
-        }
+    return true;
+  }
+
+  bool WriteByParts(const Connection::Message& message) {
+    std::string gzipped_string;
+    {
+      using namespace google::protobuf::io;
+
+      StringOutputStream string_stream(&gzipped_string);
+      GzipOutputStream::Options options;
+      options.format = GzipOutputStream::ZLIB;
+      GzipOutputStream gzip_stream(&string_stream, options);
+      {
+        CodedOutputStream coded_stream(&gzip_stream);
+        coded_stream.WriteVarint32(message.ByteSize());
       }
-      return true;
+      message.SerializePartialToZeroCopyStream(&gzip_stream);
     }
 
-    virtual bool ReadyForSend(ConnectionImplPtr connection) override {
-      struct epoll_event event;
-      event.events = EPOLLOUT | EPOLLONESHOT;
-      event.data.ptr = connection.get();
-      auto fd = GetConnectionDescriptor(connection);
-      if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
-        DCHECK(errno == ENOENT);
-        if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
-          return false;
-        }
+    CHECK(gzipped_string.size() < 128);
+    for (size_t i = 0; i < gzipped_string.size(); ++i) {
+      if (send(server_fd_, gzipped_string.data() + i, 1, 0) != 1) {
+        LOG(ERROR) << strerror(errno) << std::endl;
+        return false;
       }
-      return true;
     }
 
-    virtual void RemoveConnection(fd_t fd) {
-      // Do nothing.
+    return true;
+  }
+
+  bool WriteIncomplete(const Connection::Message& message) {
+    std::string gzipped_string;
+    {
+      using namespace google::protobuf::io;
+
+      StringOutputStream string_stream(&gzipped_string);
+      GzipOutputStream::Options options;
+      options.format = GzipOutputStream::ZLIB;
+      GzipOutputStream gzip_stream(&string_stream, options);
+      {
+        CodedOutputStream coded_stream(&gzip_stream);
+        coded_stream.WriteVarint32(message.ByteSize());
+      }
+      message.SerializePartialToZeroCopyStream(&gzip_stream);
     }
 
-    virtual void DoListenWork(const std::atomic<bool>& is_shutting_down,
-                              fd_t self_pipe) override {
-      // Test server doesn't do listening work.
+    CHECK(gzipped_string.size() / 2 < 128);
+    if (send(server_fd_, gzipped_string.data(), gzipped_string.size() / 2, 0) !=
+        static_cast<int>(gzipped_string.size() / 2)) {
+      LOG(ERROR) << strerror(errno) << std::endl;
+      return false;
     }
 
-    virtual void DoIOWork(const std::atomic<bool>& is_shutting_down,
-                          fd_t self_pipe) override {
-      const int TIMEOUT = 1 * 1000;  // In milliseconds.
-      struct epoll_event event;
-      event.events = EPOLLIN;
-      event.data.fd = self_pipe;
-      epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, self_pipe, &event);
+    return true;
+  }
 
-      while(!is_shutting_down) {
-        auto events_count = epoll_wait(epoll_fd_, &event, 1, TIMEOUT);
-        if (events_count == -1) {
-          if (errno != EINTR) {
-            break;
-          }
-          else {
-            continue;
-          }
-        }
+  bool ReadAtOnce(Connection::Message& message) {
+    char buf[128];
+    int size = recv(server_fd_, buf, 128, 0);
+    if (size == 128) {
+      LOG(ERROR) << "Incoming message is too big!" << std::endl;
+      return false;
+    }
 
-        DCHECK(events_count == 1);
-        fd_t fd = event.data.fd;
+    using namespace google::protobuf::io;
 
-        // FIXME: it's a little bit hacky, but should work almost always.
-        if (fd == self_pipe) {
+    ArrayInputStream array_stream(buf, size);
+    GzipInputStream gzip_stream(&array_stream);
+    ui32 message_size;
+    {
+      CodedInputStream coded_stream(&gzip_stream);
+      coded_stream.ReadVarint32(&message_size);
+    }
+    message.ParsePartialFromBoundedZeroCopyStream(&gzip_stream, message_size);
+
+    return true;
+  }
+
+ private:
+  virtual bool HandlePassive(fd_t fd) override {
+    // TODO: implement this.
+    return false;
+  }
+
+  virtual bool ReadyForRead(ConnectionImplPtr connection) override {
+    struct epoll_event event;
+    event.events = EPOLLIN | EPOLLONESHOT;
+    event.data.ptr = connection.get();
+    auto fd = GetConnectionDescriptor(connection);
+    if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
+      DCHECK(errno == ENOENT);
+      if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  virtual bool ReadyForSend(ConnectionImplPtr connection) override {
+    struct epoll_event event;
+    event.events = EPOLLOUT | EPOLLONESHOT;
+    event.data.ptr = connection.get();
+    auto fd = GetConnectionDescriptor(connection);
+    if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
+      DCHECK(errno == ENOENT);
+      if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  virtual void RemoveConnection(fd_t fd) {
+    // Do nothing.
+  }
+
+  virtual void DoListenWork(const std::atomic<bool>& is_shutting_down,
+                            fd_t self_pipe) override {
+    // Test server doesn't do listening work.
+  }
+
+  virtual void DoIOWork(const std::atomic<bool>& is_shutting_down,
+                        fd_t self_pipe) override {
+    const int TIMEOUT = 1 * 1000;  // In milliseconds.
+    struct epoll_event event;
+    event.events = EPOLLIN;
+    event.data.fd = self_pipe;
+    epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, self_pipe, &event);
+
+    while (!is_shutting_down) {
+      auto events_count = epoll_wait(epoll_fd_, &event, 1, TIMEOUT);
+      if (events_count == -1) {
+        if (errno != EINTR) {
+          break;
+        } else {
           continue;
         }
+      }
 
-        auto ptr = reinterpret_cast<Connection*>(event.data.ptr);
-        auto connection =
-            std::static_pointer_cast<ConnectionImpl>(ptr->shared_from_this());
+      DCHECK(events_count == 1);
+      fd_t fd = event.data.fd;
 
-        if (event.events & (EPOLLHUP|EPOLLERR)) {
-          auto fd = GetConnectionDescriptor(connection);
-          DCHECK_O_EVAL(!epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr));
-        }
+      // FIXME: it's a little bit hacky, but should work almost always.
+      if (fd == self_pipe) {
+        continue;
+      }
 
-        if (event.events & EPOLLIN) {
-          ConnectionDoRead(connection);
-        }
-        else if (event.events & EPOLLOUT) {
-          ConnectionDoSend(connection);
-        }
+      auto ptr = reinterpret_cast<Connection*>(event.data.ptr);
+      auto connection =
+          std::static_pointer_cast<ConnectionImpl>(ptr->shared_from_this());
+
+      if (event.events & (EPOLLHUP | EPOLLERR)) {
+        auto fd = GetConnectionDescriptor(connection);
+        DCHECK_O_EVAL(!epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr));
+      }
+
+      if (event.events & EPOLLIN) {
+        ConnectionDoRead(connection);
+      } else if (event.events & EPOLLOUT) {
+        ConnectionDoSend(connection);
       }
     }
+  }
 
-    int listen_fd_, server_fd_, epoll_fd_;
-    base::TemporaryDir tmp_dir_;
-    std::string socket_path_;
+  int listen_fd_, server_fd_, epoll_fd_;
+  base::TemporaryDir tmp_dir_;
+  std::string socket_path_;
 };
 
-class ConnectionTest: public ::testing::Test {
-  public:
-    void SetUp() override {
-      ASSERT_TRUE(server.Init());
-      connection = server.GetConnection();
-      ASSERT_TRUE(!!connection);
-    }
-    void TearDown() override {
-      connection.reset();
-    }
+class ConnectionTest : public ::testing::Test {
+ public:
+  void SetUp() override {
+    ASSERT_TRUE(server.Init());
+    connection = server.GetConnection();
+    ASSERT_TRUE(!!connection);
+  }
+  void TearDown() override { connection.reset(); }
 
-  protected:
-    ConnectionImplPtr connection;
-    TestServer server;
+ protected:
+  ConnectionImplPtr connection;
+  TestServer server;
 };
 
 TEST_F(ConnectionTest, Sync_ReadOneMessage) {
@@ -375,7 +365,7 @@ TEST_F(ConnectionTest, Sync_ReadTwoMessages) {
 TEST_F(ConnectionTest, Sync_ReadSplitMessage) {
   TestMessage test_message;
 
-  auto read_func = [&] () {
+  auto read_func = [&]() {
     Connection::Message message;
     proto::Status status;
 
@@ -430,7 +420,7 @@ TEST_F(ConnectionTest, Sync_SendMessage) {
 TEST_F(ConnectionTest, Sync_ReadIncompleteMessage) {
   TestMessage test_message;
 
-  auto read_func = [&] () {
+  auto read_func = [&]() {
     Connection::Message message;
     proto::Status status;
 
@@ -464,7 +454,7 @@ TEST_F(ConnectionTest, Sync_ReadFromClosedConnection) {
 TEST_F(ConnectionTest, Sync_ReadAfterClosingConnectionOnServerSide) {
   TestMessage test_message;
 
-  auto read_func = [&] () {
+  auto read_func = [&]() {
     Connection::Message message;
     proto::Status status;
 
@@ -510,7 +500,7 @@ TEST_F(ConnectionTest, Sync_SendAfterClosingConnectionOnServerSide) {
 
 TEST_F(ConnectionTest, Sync_SendSubMessages) {
   TestMessage test_message;
-  std::unique_ptr<proto::Test> expected_message;
+  UniquePtr<proto::Test> expected_message;
   auto test_extension =
       test_message.GetTestMessage()->GetExtension(proto::Test::extension);
   expected_message.reset(new proto::Test(test_extension));

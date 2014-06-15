@@ -9,8 +9,7 @@ namespace dist_clang {
 namespace net {
 
 KqueueEventLoop::KqueueEventLoop(ConnectionCallback callback)
-  : listen_fd_(kqueue()), io_fd_(kqueue()), callback_(callback) {
-}
+    : listen_fd_(kqueue()), io_fd_(kqueue()), callback_(callback) {}
 
 KqueueEventLoop::~KqueueEventLoop() {
   Stop();
@@ -47,7 +46,7 @@ void KqueueEventLoop::DoListenWork(const std::atomic<bool>& is_shutting_down,
     kevent(listen_fd_, &event, 1, nullptr, 0, nullptr);
   }
 
-  while(!is_shutting_down) {
+  while (!is_shutting_down) {
     auto events_count =
         kevent(listen_fd_, nullptr, 0, events, MAX_EVENTS, nullptr);
     if (events_count == -1 && errno != EINTR) {
@@ -61,7 +60,7 @@ void KqueueEventLoop::DoListenWork(const std::atomic<bool>& is_shutting_down,
       }
 
       DCHECK(events[i].filter == EVFILT_READ);
-      while(true) {
+      while (true) {
         auto new_fd = accept(fd, nullptr, nullptr);
         if (new_fd == -1) {
           DCHECK(errno == EAGAIN || errno == EWOULDBLOCK);
@@ -75,8 +74,7 @@ void KqueueEventLoop::DoListenWork(const std::atomic<bool>& is_shutting_down,
     }
   }
 
-  for (auto fd: listening_fds_)
-    close(fd);
+  for (auto fd : listening_fds_) close(fd);
 }
 
 void KqueueEventLoop::DoIOWork(const std::atomic<bool>& is_shutting_down,
@@ -85,13 +83,12 @@ void KqueueEventLoop::DoIOWork(const std::atomic<bool>& is_shutting_down,
   EV_SET(&event, self_pipe, EVFILT_READ, EV_ADD, 0, 0, 0);
   kevent(io_fd_, &event, 1, nullptr, 0, nullptr);
 
-  while(!is_shutting_down) {
+  while (!is_shutting_down) {
     auto events_count = kevent(io_fd_, nullptr, 0, &event, 1, nullptr);
     if (events_count == -1) {
       if (errno != EINTR) {
         break;
-      }
-      else {
+      } else {
         continue;
       }
     }
@@ -109,14 +106,11 @@ void KqueueEventLoop::DoIOWork(const std::atomic<bool>& is_shutting_down,
 
     if (event.flags & EV_ERROR || (event.flags & EV_EOF && event.data == 0)) {
       ConnectionClose(connection);
-    }
-    else if (event.filter == EVFILT_READ) {
+    } else if (event.filter == EVFILT_READ) {
       ConnectionDoRead(connection);
-    }
-    else if (event.filter == EVFILT_WRITE) {
+    } else if (event.filter == EVFILT_WRITE) {
       ConnectionDoSend(connection);
-    }
-    else {
+    } else {
       NOTREACHED();
     }
   }

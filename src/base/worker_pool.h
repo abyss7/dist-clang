@@ -3,7 +3,6 @@
 #include "net/base/types.h"
 
 #include <atomic>
-#include <functional>
 #include <thread>
 #include <vector>
 
@@ -12,14 +11,14 @@ namespace base {
 
 class WorkerPool {
  public:
-  using NetWorker = std::function<void(const std::atomic<bool>&, net::fd_t)>;
-  using SimpleWorker = std::function<void(const std::atomic<bool>&)>;
+  using NetWorker = Fn<void(const std::atomic<bool>&, net::fd_t)>;
+  using SimpleWorker = Fn<void(const std::atomic<bool>&)>;
 
   explicit WorkerPool(bool force_shut_down = false);
   ~WorkerPool();
 
-  void AddWorker(const NetWorker& worker, unsigned count = 1);
-  void AddWorker(const SimpleWorker& worker, unsigned count = 1);
+  void AddWorker(const NetWorker& worker, ui32 count = 1);
+  void AddWorker(const SimpleWorker& worker, ui32 count = 1);
 
  private:
   std::vector<std::thread> workers_;

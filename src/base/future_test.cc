@@ -20,7 +20,7 @@ TEST(FutureTest, SimpleUsage) {
   EXPECT_EQ(0, future->GetValue().a);
 
   bool joined = false;
-  std::thread thread([&future, &joined]{
+  std::thread thread([&future, &joined] {
     future->Wait();
     joined = true;
   });
@@ -52,7 +52,7 @@ TEST(FutureTest, BadPromise) {
 }
 
 TEST(FutureTest, FulfillOnExit) {
-  std::unique_ptr<Future<int>> future;
+  UniquePtr<Future<int>> future;
   {
     Promise<int> promise(1);
     future.reset(new Future<int>(*promise.GetFuture()));

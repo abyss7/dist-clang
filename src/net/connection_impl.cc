@@ -13,7 +13,7 @@ namespace dist_clang {
 namespace net {
 
 // static
-ConnectionImplPtr ConnectionImpl::Create(EventLoop &event_loop, fd_t fd,
+ConnectionImplPtr ConnectionImpl::Create(EventLoop& event_loop, fd_t fd,
                                          const EndPointPtr& end_point) {
 #if !defined(OS_MACOSX)
   DCHECK(!IsListening(fd));
@@ -24,19 +24,21 @@ ConnectionImplPtr ConnectionImpl::Create(EventLoop &event_loop, fd_t fd,
 
 ConnectionImpl::ConnectionImpl(EventLoop& event_loop, fd_t fd,
                                const EndPointPtr& end_point)
-  : fd_(fd), event_loop_(event_loop), is_closed_(false), added_(false),
-    end_point_(end_point), file_input_stream_(fd_, 1024),
-    gzip_input_stream_(&file_input_stream_, GzipInputStream::ZLIB),
-    file_output_stream_(fd_, 1024) {
+    : fd_(fd),
+      event_loop_(event_loop),
+      is_closed_(false),
+      added_(false),
+      end_point_(end_point),
+      file_input_stream_(fd_, 1024),
+      gzip_input_stream_(&file_input_stream_, GzipInputStream::ZLIB),
+      file_output_stream_(fd_, 1024) {
   GzipOutputStream::Options options;
   options.format = GzipOutputStream::ZLIB;
-  gzip_output_stream_.reset(new GzipOutputStream(&file_output_stream_,
-                                                 options));
+  gzip_output_stream_.reset(
+      new GzipOutputStream(&file_output_stream_, options));
 }
 
-ConnectionImpl::~ConnectionImpl() {
-  Close();
-}
+ConnectionImpl::~ConnectionImpl() { Close(); }
 
 bool ConnectionImpl::ReadAsync(ReadCallback callback) {
   auto shared = std::static_pointer_cast<ConnectionImpl>(shared_from_this());
@@ -48,7 +50,7 @@ bool ConnectionImpl::ReadAsync(ReadCallback callback) {
   return true;
 }
 
-bool ConnectionImpl::ReadSync(Message *message, Status *status) {
+bool ConnectionImpl::ReadSync(Message* message, Status* status) {
   if (!message) {
     if (status) {
       status->set_code(Status::EMPTY_MESSAGE);
@@ -57,7 +59,7 @@ bool ConnectionImpl::ReadSync(Message *message, Status *status) {
     return false;
   }
 
-  unsigned size;
+  ui32 size;
   {
     CodedInputStream coded_stream(&gzip_input_stream_);
     if (!coded_stream.ReadVarint32(&size)) {
@@ -68,8 +70,7 @@ bool ConnectionImpl::ReadSync(Message *message, Status *status) {
           status->mutable_description()->append(": ");
           status->mutable_description()->append(
               strerror(file_input_stream_.GetErrno()));
-        }
-        else if (gzip_input_stream_.ZlibErrorMessage()) {
+        } else if (gzip_input_stream_.ZlibErrorMessage()) {
           status->mutable_description()->append(": ");
           status->mutable_description()->append(
               gzip_input_stream_.ZlibErrorMessage());
@@ -94,9 +95,8 @@ bool ConnectionImpl::ReadSync(Message *message, Status *status) {
       if (file_input_stream_.GetErrno()) {
         status->mutable_description()->append(": ");
         status->mutable_description()->append(
-          strerror(file_input_stream_.GetErrno()));
-      }
-      else if (gzip_input_stream_.ZlibErrorMessage()) {
+            strerror(file_input_stream_.GetErrno()));
+      } else if (gzip_input_stream_.ZlibErrorMessage()) {
         status->mutable_description()->append(": ");
         status->mutable_description()->append(
             gzip_input_stream_.ZlibErrorMessage());
@@ -132,8 +132,7 @@ bool ConnectionImpl::SendSyncImpl(Status* status) {
         status->mutable_description()->append(": ");
         status->mutable_description()->append(
             strerror(file_output_stream_.GetErrno()));
-      }
-      else if (gzip_output_stream_->ZlibErrorMessage()) {
+      } else if (gzip_output_stream_->ZlibErrorMessage()) {
         auto* description = status->mutable_description();
         description->append(": ");
         description->append(gzip_output_stream_->ZlibErrorMessage());
