@@ -18,7 +18,7 @@ execfile(os.path.join(top_dir, "build", "common_package.include"))
 MakeInstall(top_dir, product_dir, os.path.join("deb", "debian", "tmp"))
 
 # Debian specific install.
-init_dir = os.path.join(product_dir, package_dir, "etc", "init.d")
+init_dir = os.path.join(product_dir, "deb", "debian", "tmp", "etc", "init.d")
 os.makedirs(init_dir)
 shutil.copy(os.path.join(top_dir, "install", "clangd_init_d"), os.path.join(init_dir, "clangd"))
 

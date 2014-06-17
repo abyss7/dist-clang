@@ -17,7 +17,7 @@ Counter::Counter(const char* label, ui64 value)
 
 Counter::~Counter() {
   if (value_) {
-    base::Singleton<Collector>::Get().Report(value_);
+    base::Singleton<Collector>::Get().Report(id_, value_);
   }
   base::Singleton<Collector>::Get().Stop(id_);
 }

@@ -12,9 +12,9 @@ execfile(os.path.join(top_dir, "build", "common_package.include"))
 MakeInstall(top_dir, product_dir, "rpm")
 
 # RPM specific install.
-systemd_dir = os.path.join(product_dir, package_dir, "usr", "lib", "systemd", "system")
+systemd_dir = os.path.join(product_dir, "rpm", "usr", "lib", "systemd", "system")
 os.makedirs(systemd_dir)
-shutil.copy(os.path.join(top_dir, "install", "clangd.service"), systemd_dir))
+shutil.copy(os.path.join(top_dir, "install", "clangd.service"), systemd_dir)
 
 # Create RPM-spec file
 args = ['sh']
