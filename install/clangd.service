@@ -4,7 +4,7 @@ Requires=network.target
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/dist-clang/clangd --config /etc/clangd.conf 1>/var/log/clangd-out.log 2>/var/log/clangd-err.log
+ExecStart=/usr/bin/dist-clang/clangd --config /etc/clangd.conf
 
 [Install]
 WantedBy=multi-user.target
