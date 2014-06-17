@@ -13,7 +13,6 @@ Distributed clang-based compilation system.
 %files
 %defattr(-,root,root)
 /etc/clangd.conf
-/etc/init.d/clangd
 /usr/bin/dist-clang/clang
 /usr/bin/dist-clang/clang++
 /usr/bin/dist-clang/clangd
@@ -29,3 +28,4 @@ Distributed clang-based compilation system.
 /usr/lib/python2.7/dist_clang/__init__.py
 /usr/lib/python2.7/dist_clang/base_pb2.py
 /usr/lib/python2.7/dist_clang/config_pb2.py
+/usr/lib/systemd/system/clangd.service

@@ -17,6 +17,11 @@ env_vars = {'VERSION': version, 'DATE': date, 'PACKAGE_NAME': package_name + '.d
 execfile(os.path.join(top_dir, "build", "common_package.include"))
 MakeInstall(top_dir, product_dir, os.path.join("deb", "debian", "tmp"))
 
+# Debian specific install.
+init_dir = os.path.join(product_dir, package_dir, "etc", "init.d")
+os.makedirs(init_dir)
+shutil.copy(os.path.join(top_dir, "install", "clangd_init_d"), os.path.join(init_dir, "clangd"))
+
 # Create 'control' file
 deb_control = os.path.join(product_dir, "deb", "debian", "control")
 if os.path.isfile(deb_control) and os.access(deb_control, os.R_OK):
