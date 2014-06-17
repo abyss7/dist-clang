@@ -141,6 +141,13 @@ ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point,
     return ConnectionPtr();
   }
 
+  timeout = {read_timeout_secs, 0};
+  if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, timeout_size) == -1) {
+    base::GetLastError(error);
+    close(fd);
+    return ConnectionPtr();
+  }
+
   return ConnectionImpl::Create(*event_loop_, fd, end_point);
 }
 
@@ -153,9 +160,14 @@ void NetworkServiceImpl::HandleNewConnection(fd_t fd,
   constexpr auto timeout_size = sizeof(timeout);
   if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, timeout_size) == -1) {
     callback->second(ConnectionPtr());
-  } else {
-    callback->second(connection);
   }
+
+  timeout = {read_timeout_secs, 0};
+  if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, timeout_size) == -1) {
+    callback->second(ConnectionPtr());
+  }
+
+  callback->second(connection);
 }
 
 }  // namespace net

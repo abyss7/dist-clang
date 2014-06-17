@@ -31,7 +31,8 @@ class NetworkServiceImpl : public NetworkService {
   UniquePtr<EventLoop> event_loop_;
   HashMap<fd_t, ListenCallback> listen_callbacks_;
 
-  // FIXME: make this value configurable.
+  // FIXME: make these values configurable.
+  const int read_timeout_secs = 5;
   const int send_timeout_secs = 5;
 };
 
