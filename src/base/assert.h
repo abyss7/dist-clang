@@ -1,6 +1,7 @@
 #pragma once
 
 #include <base/aliases.h>
+#include <base/string_utils.h>
 
 #include <third_party/libcxx/exported/include/iostream>
 #include <third_party/libcxx/exported/include/sstream>
@@ -58,6 +59,10 @@ inline void GetStackTrace(ui8 depth, std::vector<String>& strings) {
   strings.resize(size - 1);
   for (int i = 1; i < size; ++i) {
     strings[i - 1] = Demangle(symbols[i]);
+    Replace(strings[i - 1],
+            "std::__1::basic_string<char, std::__1::char_traits<char>, "
+            "std::__1::allocator<char> >",
+            "std::string");
   }
   free(symbols);
 }
