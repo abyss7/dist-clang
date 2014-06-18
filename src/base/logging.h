@@ -50,7 +50,22 @@ class Log {
   Log& operator=(const Log&) = delete;
 
   template <class T>
-  Log& operator<<(const T& info);
+  Log& operator<<(const T& info) {
+    stream_ << info;
+    return *this;
+  }
+
+  template <class T>
+  Log& operator<<(const List<T>& info) {
+    auto it = info.begin();
+    stream_ << *it;
+    ++it;
+    for (; it != info.end(); ++it) {
+      stream_ << " " << *it;
+    }
+    return *this;
+  }
+
   Log& operator<<(std::ostream& (*func)(std::ostream&));  // for |std::endl|
 
  private:
@@ -71,12 +86,6 @@ class DLog {
  private:
   UniquePtr<Log> log_;
 };
-
-template <class T>
-Log& Log::operator<<(const T& info) {
-  stream_ << info;
-  return *this;
-}
 
 }  // namespace base
 }  // namespace dist_clang
