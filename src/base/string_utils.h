@@ -60,12 +60,12 @@ inline String Hexify(const String& binary) {
   return ss.str();
 }
 
-inline void Replace(String& input, const String& replacee,
-                    const String& replacer) {
+inline void Replace(String& input, const char* replacee,
+                    const char* replacer) {
   size_t pos = 0;
   while ((pos = input.find(replacee, pos)) != String::npos) {
-    input.replace(pos, replacee.length(), replacer);
-    pos += replacer.length();
+    input.replace(pos, std::strlen(replacee), replacer);
+    pos += std::strlen(replacer);
   }
 }
 

@@ -2,17 +2,22 @@
 
 #include <base/assert.h>
 #include <base/c_utils.h>
+#include <base/logging.h>
 #include <net/base/utils.h>
 
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 
+#include <base/using_log.h>
+
 namespace dist_clang {
 namespace base {
 
 bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
   CHECK(args_.size() + 1 < MAX_ARGS);
+
+  LOG(VERBOSE) << "Running " << exec_path_ << " " << args_;
 
   int out_pipe_fd[2];
   int err_pipe_fd[2];
@@ -150,6 +155,8 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
 
 bool ProcessImpl::Run(ui16 sec_timeout, const String& input, String* error) {
   CHECK(args_.size() + 1 < MAX_ARGS);
+
+  LOG(VERBOSE) << "Running " << exec_path_ << " " << args_;
 
   int in_pipe_fd[2];
   int out_pipe_fd[2];
