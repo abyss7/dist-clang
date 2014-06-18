@@ -67,20 +67,6 @@ bool DoMain(int argc, const char* const argv[], const String& socket_path,
       continue;
     }
 
-#ifndef NDEBUG
-    // FIXME: refactor this in a better way.
-    String object_file = flags->output(), deps_file;
-    bool next = false;
-    for (const auto& flag : flags->dependenies()) {
-      if (flag == "-dependency-file") {
-        next = true;
-      } else if (next) {
-        deps_file = flag;
-        break;
-      }
-    }
-#endif
-
     proto::Status status;
     if (!connection->SendSync(std::move(message), &status)) {
       LOG(ERROR) << "Failed to send message: " << status.description();
@@ -108,9 +94,6 @@ bool DoMain(int argc, const char* const argv[], const String& socket_path,
       LOG(FATAL) << "Compilation on daemon failed:" << std::endl
                  << status.description();
     }
-
-    DCHECK(base::FileExists(object_file));
-    DCHECK(base::FileExists(deps_file));
 
     LOG(VERBOSE) << "Compilation on daemon successful" << std::endl;
   }
