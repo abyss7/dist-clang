@@ -32,8 +32,9 @@ class NetworkServiceImpl : public NetworkService {
   HashMap<fd_t, ListenCallback> listen_callbacks_;
 
   // FIXME: make these values configurable.
-  const int read_timeout_secs = 5;
+  const int read_timeout_secs = 30;
   const int send_timeout_secs = 5;
+  const int read_min_bytes = 32;
 };
 
 }  // namespace net

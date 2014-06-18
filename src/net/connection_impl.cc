@@ -65,7 +65,9 @@ bool ConnectionImpl::ReadSync(Message* message, Status* status) {
     if (!coded_stream.ReadVarint32(&size)) {
       if (status) {
         status->set_code(Status::NETWORK);
-        status->set_description("Can't read incoming message size");
+        status->set_description("Can't read incoming message size (read " +
+                                std::to_string(file_input_stream_.ByteCount()) +
+                                " raw bytes)");
         if (file_input_stream_.GetErrno()) {
           status->mutable_description()->append(": ");
           status->mutable_description()->append(

@@ -148,6 +148,13 @@ ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point,
     return ConnectionPtr();
   }
 
+  if (setsockopt(fd, SOL_SOCKET, SO_RCVLOWAT, &read_min_bytes,
+                 sizeof(read_min_bytes))) {
+    base::GetLastError(error);
+    close(fd);
+    return ConnectionPtr();
+  }
+
   return ConnectionImpl::Create(*event_loop_, fd, end_point);
 }
 
