@@ -29,9 +29,9 @@ ConnectionImpl::ConnectionImpl(EventLoop& event_loop, fd_t fd,
       is_closed_(false),
       added_(false),
       end_point_(end_point),
-      file_input_stream_(fd_, 1024),
+      file_input_stream_(fd_, buffer_size),
       gzip_input_stream_(&file_input_stream_, GzipInputStream::ZLIB),
-      file_output_stream_(fd_, 1024) {
+      file_output_stream_(fd_, buffer_size) {
   GzipOutputStream::Options options;
   options.format = GzipOutputStream::ZLIB;
   gzip_output_stream_.reset(
@@ -203,8 +203,8 @@ void ConnectionImpl::Close() {
     read_callback_ = BindedReadCallback();
     send_callback_ = BindedSendCallback();
     shutdown(fd_, SHUT_RDWR);
-    char discard[1024];
-    while(read(fd_, discard, 1024) > 0) {}
+    char discard[buffer_size];
+    while(read(fd_, discard, buffer_size) > 0) {}
     close(fd_);
   }
 }

@@ -148,8 +148,9 @@ ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point,
     return ConnectionPtr();
   }
 
-  if (setsockopt(fd, SOL_SOCKET, SO_RCVLOWAT, &read_min_bytes,
-                 sizeof(read_min_bytes))) {
+  auto low_watermark = read_min_bytes;
+  if (setsockopt(fd, SOL_SOCKET, SO_RCVLOWAT, &low_watermark,
+                 sizeof(low_watermark))) {
     base::GetLastError(error);
     close(fd);
     return ConnectionPtr();

@@ -52,6 +52,11 @@ class ConnectionImpl : public Connection {
     READING,
   };
 
+  // FIXME: make this value configurable.
+  enum : ui32 {
+    buffer_size = 1024
+  };
+
   ConnectionImpl(EventLoop& event_loop, fd_t fd, const EndPointPtr& end_point);
 
   virtual bool SendAsyncImpl(SendCallback callback) override;

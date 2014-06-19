@@ -23,6 +23,13 @@ class NetworkServiceImpl : public NetworkService {
  private:
   friend class DefaultFactory;
 
+  // FIXME: make these values configurable.
+  enum : int {
+    read_timeout_secs = 30,
+    send_timeout_secs = 5,
+    read_min_bytes = 32
+  };
+
   NetworkServiceImpl();
 
   // |fd| is a descriptor of a listening socket, which accepts new connection.
@@ -30,11 +37,6 @@ class NetworkServiceImpl : public NetworkService {
 
   UniquePtr<EventLoop> event_loop_;
   HashMap<fd_t, ListenCallback> listen_callbacks_;
-
-  // FIXME: make these values configurable.
-  const int read_timeout_secs = 30;
-  const int send_timeout_secs = 5;
-  const int read_min_bytes = 32;
 };
 
 }  // namespace net
