@@ -202,7 +202,9 @@ void ConnectionImpl::Close() {
   if (is_closed_.compare_exchange_strong(old_closed, true)) {
     read_callback_ = BindedReadCallback();
     send_callback_ = BindedSendCallback();
-    // TODO: do the "polite" shutdown.
+    shutdown(fd_, SHUT_RDWR);
+    char discard[1024];
+    while(read(fd_, discard, 1024) > 0) {}
     close(fd_);
   }
 }
