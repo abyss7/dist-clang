@@ -1,0 +1,3 @@
+scm: none
+url: http://fallabs.com/kyotocabinet/pkg/kyotocabinet-1.2.76.tar.gz
+rev: none

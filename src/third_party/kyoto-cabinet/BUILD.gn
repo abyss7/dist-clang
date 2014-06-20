@@ -1,0 +1,61 @@
+config("includes") {
+  include_dirs = [ "exported" ]
+}
+
+config("flags") {
+  cflags = [
+    "-fsigned-char",
+    "-Wno-unused-const-variable",
+  ]
+
+  defines = [
+    "_MYZLIB",
+  ]
+}
+
+shared_library("kyotocabinet") {
+  sources = [
+    "exported/kccommon.h",
+    "exported/kcutil.cc",
+    "exported/kcutil.h",
+    "exported/kcthread.cc",
+    "exported/kcthread.h",
+    "exported/kcfile.cc",
+    "exported/kcfile.h",
+    "exported/kccompress.cc",
+    "exported/kccompress.h",
+    "exported/kccompare.cc",
+    "exported/kccompare.h",
+    "exported/kcmap.cc",
+    "exported/kcmap.h",
+    "exported/kcregex.cc",
+    "exported/kcregex.h",
+    "exported/kcdb.cc",
+    "exported/kcdb.h",
+    "exported/kcplantdb.cc",
+    "exported/kcplantdb.h",
+    "exported/kcprotodb.cc",
+    "exported/kcprotodb.h",
+    "exported/kcstashdb.cc",
+    "exported/kcstashdb.h",
+    "exported/kccachedb.cc",
+    "exported/kccachedb.h",
+    "exported/kchashdb.cc",
+    "exported/kchashdb.h",
+    "exported/kcdirdb.cc",
+    "exported/kcdirdb.h",
+    "exported/kctextdb.cc",
+    "exported/kctextdb.h",
+    "exported/kcpolydb.cc",
+    "exported/kcpolydb.h",
+    "exported/kcdbext.cc",
+    "exported/kcdbext.h",
+    "exported/kclangc.cc",
+    "exported/kclangc.h",
+  ]
+
+  configs += [
+    ":includes",
+    ":flags",
+  ]
+}
