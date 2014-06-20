@@ -30,7 +30,8 @@ ConnectionImpl::ConnectionImpl(EventLoop& event_loop, fd_t fd,
       added_(false),
       end_point_(end_point),
       file_input_stream_(fd_, buffer_size),
-      gzip_input_stream_(&file_input_stream_, GzipInputStream::ZLIB),
+      gzip_input_stream_(
+          new GzipInputStream(&file_input_stream_, GzipInputStream::ZLIB)),
       file_output_stream_(fd_, buffer_size) {
   GzipOutputStream::Options options;
   options.format = GzipOutputStream::ZLIB;
@@ -61,7 +62,7 @@ bool ConnectionImpl::ReadSync(Message* message, Status* status) {
 
   ui32 size;
   {
-    CodedInputStream coded_stream(&gzip_input_stream_);
+    CodedInputStream coded_stream(gzip_input_stream_.get());
     if (!coded_stream.ReadVarint32(&size)) {
       if (status) {
         status->set_code(Status::NETWORK);
@@ -72,10 +73,10 @@ bool ConnectionImpl::ReadSync(Message* message, Status* status) {
           status->mutable_description()->append(": ");
           status->mutable_description()->append(
               strerror(file_input_stream_.GetErrno()));
-        } else if (gzip_input_stream_.ZlibErrorMessage()) {
+        } else if (gzip_input_stream_->ZlibErrorMessage()) {
           status->mutable_description()->append(": ");
           status->mutable_description()->append(
-              gzip_input_stream_.ZlibErrorMessage());
+              gzip_input_stream_->ZlibErrorMessage());
         }
       }
       return false;
@@ -90,7 +91,8 @@ bool ConnectionImpl::ReadSync(Message* message, Status* status) {
     return false;
   }
 
-  if (!message->ParseFromBoundedZeroCopyStream(&gzip_input_stream_, size)) {
+  if (!message->ParseFromBoundedZeroCopyStream(gzip_input_stream_.get(),
+                                               size)) {
     if (status) {
       status->set_code(Status::BAD_MESSAGE);
       status->set_description("Incoming message is malformed");
@@ -98,10 +100,10 @@ bool ConnectionImpl::ReadSync(Message* message, Status* status) {
         status->mutable_description()->append(": ");
         status->mutable_description()->append(
             strerror(file_input_stream_.GetErrno()));
-      } else if (gzip_input_stream_.ZlibErrorMessage()) {
+      } else if (gzip_input_stream_->ZlibErrorMessage()) {
         status->mutable_description()->append(": ");
         status->mutable_description()->append(
-            gzip_input_stream_.ZlibErrorMessage());
+            gzip_input_stream_->ZlibErrorMessage());
       }
     }
     return false;
@@ -202,9 +204,13 @@ void ConnectionImpl::Close() {
   if (is_closed_.compare_exchange_strong(old_closed, true)) {
     read_callback_ = BindedReadCallback();
     send_callback_ = BindedSendCallback();
+    gzip_output_stream_.reset();
+    gzip_input_stream_.reset();
+    file_output_stream_.Flush();
     shutdown(fd_, SHUT_RDWR);
     char discard[buffer_size];
-    while(read(fd_, discard, buffer_size) > 0) {}
+    while (read(fd_, discard, buffer_size) > 0) {
+    }
     close(fd_);
   }
 }

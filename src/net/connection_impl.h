@@ -74,7 +74,7 @@ class ConnectionImpl : public Connection {
 
   // Read members.
   FileInputStream file_input_stream_;
-  GzipInputStream gzip_input_stream_;
+  UniquePtr<GzipInputStream> gzip_input_stream_;
   BindedReadCallback read_callback_;
 
   // Send members.
