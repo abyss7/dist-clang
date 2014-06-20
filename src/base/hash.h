@@ -5,7 +5,7 @@
 namespace dist_clang {
 namespace base {
 
-String MakeHash(const String& input);
+String MakeHash(const String& input, ui8 size = 16);
 
 template <class T, class Hash = std::hash<T>>
 inline void HashCombine(std::size_t& seed, const T& value) {

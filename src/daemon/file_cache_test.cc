@@ -55,7 +55,7 @@ TEST(FileCacheTest, RestoreSingleEntry_Sync) {
   EXPECT_FALSE(cache.Find(code, cl, version, &entry));
   ASSERT_EQ(entry_path, entry.first);
   EXPECT_EQ(stderror, entry.second);
-  cache.SyncStore(code, cl, version, entry);
+  cache.StoreNow(code, cl, version, entry);
   ASSERT_TRUE(cache.Find(code, cl, version, &entry));
   ASSERT_TRUE(base::ReadFile(entry.first, &object_code));
   EXPECT_EQ(expected_object_code, object_code);

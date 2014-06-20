@@ -32,33 +32,43 @@ FileCache::FileCache(const String &path, ui64 size)
   pool_.Run();
 }
 
+String FileCache::Hash(const String &code, const String &command_line,
+                       const String &version) const {
+  return base::Hexify(base::MakeHash(code)) + "-" +
+         base::Hexify(base::MakeHash(command_line, 4)) + "-" +
+         base::Hexify(base::MakeHash(version, 4));
+}
+
 bool FileCache::Find(const String &code, const String &command_line,
                      const String &version, Entry *entry) const {
   bool result = false;
-  const String version_hash = base::Hexify(base::MakeHash(version));
-  const String args_hash = base::Hexify(base::MakeHash(command_line));
-  const String code_hash = base::Hexify(base::MakeHash(code));
 
-  const String version_path = path_ + "/" + version_hash;
-  const String args_path = version_path + "/" + args_hash;
-  const String object_path = args_path + "/" + code_hash + "-object";
-  const String stderr_path = args_path + "/" + code_hash + "-stderr";
+  String &&hash = Hash(code, command_line, version);
+  const String first_path = path_ + "/" + hash[0];
+  const String second_path = first_path + "/" + hash[1];
+  const String common_path = second_path + "/" + hash.substr(2);
+  const String object_path = common_path + ".o";
+  const String stderr_path = common_path + ".stderr";
 
   std::ifstream obj(object_path);
   if (obj.is_open()) {
     DCHECK_O_EVAL(utime(object_path.c_str(), nullptr) == 0);
-    DCHECK_O_EVAL(utime(args_path.c_str(), nullptr) == 0);
-    DCHECK_O_EVAL(utime(version_path.c_str(), nullptr) == 0);
-    if (!entry) return true;
+    DCHECK_O_EVAL(utime(second_path.c_str(), nullptr) == 0);
+    DCHECK_O_EVAL(utime(first_path.c_str(), nullptr) == 0);
+    if (!entry) {
+      return true;
+    }
     result = true;
     entry->first = object_path;
   }
 
   if (base::FileExists(stderr_path)) {
     DCHECK_O_EVAL(utime(stderr_path.c_str(), nullptr) == 0);
-    DCHECK_O_EVAL(utime(args_path.c_str(), nullptr) == 0);
-    DCHECK_O_EVAL(utime(version_path.c_str(), nullptr) == 0);
-    if (!entry) return true;
+    DCHECK_O_EVAL(utime(second_path.c_str(), nullptr) == 0);
+    DCHECK_O_EVAL(utime(first_path.c_str(), nullptr) == 0);
+    if (!entry) {
+      return true;
+    }
     result = base::ReadFile(stderr_path, &entry->second);
   }
 
@@ -69,36 +79,29 @@ FileCache::Optional FileCache::Store(const String &code,
                                      const String &command_line,
                                      const String &version,
                                      const Entry &entry) {
-  String version_hash = base::Hexify(base::MakeHash(version));
-  String args_hash = base::Hexify(base::MakeHash(command_line));
-  String code_hash = base::Hexify(base::MakeHash(code));
-  String path = path_ + "/" + version_hash + "/" + args_hash;
-
-  auto task = std::bind(&FileCache::DoStore, this, path, code_hash, entry);
+  auto task = std::bind(&FileCache::DoStore, this,
+                        Hash(code, command_line, version), entry);
   return pool_.Push(task);
 }
 
-void FileCache::SyncStore(const String &code, const String &command_line,
-                          const String &version, const Entry &entry) {
-  String version_hash = base::Hexify(base::MakeHash(version));
-  String args_hash = base::Hexify(base::MakeHash(command_line));
-  String code_hash = base::Hexify(base::MakeHash(code));
-  String path = path_ + "/" + version_hash + "/" + args_hash;
-
-  DoStore(path, code_hash, entry);
+void FileCache::StoreNow(const String &code, const String &command_line,
+                         const String &version, const Entry &entry) {
+  DoStore(Hash(code, command_line, version), entry);
 }
 
-void FileCache::DoStore(const String &path, const String &code_hash,
-                        const Entry &entry) {
+void FileCache::DoStore(const String &hash, const Entry &entry) {
+  const String first_path = path_ + "/" + hash[0];
+  const String second_path = first_path + "/" + hash[1];
+  const String common_path = second_path + "/" + hash.substr(2);
+  const String object_path = common_path + ".o";
+  const String stderr_path = common_path + ".stderr";
+
   // FIXME: refactor to portable solution.
-  if (system((String("mkdir -p ") + path).c_str()) == -1) {
+  if (system((String("mkdir -p ") + second_path).c_str()) == -1) {
     // "mkdir -p" doesn't fail if the path already exists.
-    LOG(CACHE_ERROR) << "Failed to `mkdir -p` for " << path;
+    LOG(CACHE_ERROR) << "Failed to `mkdir -p` for " << second_path;
     return;
   }
-
-  const String object_path = path + "/" + code_hash + "-object";
-  const String stderr_path = path + "/" + code_hash + "-stderr";
 
   if (!base::CopyFile(entry.first, object_path + ".tmp")) {
     LOG(CACHE_ERROR) << "Failed to copy " << entry.first << " to object.tmp";
@@ -121,15 +124,16 @@ void FileCache::DoStore(const String &path, const String &code_hash,
   if (!entry.second.empty()) {
     DCHECK_O_EVAL(utime(stderr_path.c_str(), nullptr) == 0);
   }
-  LOG(CACHE_VERBOSE) << "File " << entry.first << " is cached on path " << path;
+  LOG(CACHE_VERBOSE) << "File " << entry.first << " is cached on path "
+                     << object_path;
 
   if (max_size_ != UNLIMITED) {
     while (cached_size_ > max_size_) {
-      String version_path, args_path;
+      String first_path, second_path;
 
       {
         String error;
-        if (!base::GetLeastRecentPath(path_, version_path, &error)) {
+        if (!base::GetLeastRecentPath(path_, first_path, &error)) {
           LOG(CACHE_WARNING) << "Failed to get the recent path from " << path_
                              << " : " << error;
           LOG(CACHE_ERROR) << "Failed to clean the cache";
@@ -138,10 +142,10 @@ void FileCache::DoStore(const String &path, const String &code_hash,
       }
       {
         String error;
-        if (!base::GetLeastRecentPath(version_path, args_path, &error)) {
-          if (!base::RemoveDirectory(version_path)) {
+        if (!base::GetLeastRecentPath(first_path, second_path, &error)) {
+          if (!base::RemoveDirectory(first_path)) {
             LOG(CACHE_WARNING) << "Failed to get the recent path from "
-                               << version_path << " : " << error;
+                               << first_path << " : " << error;
             LOG(CACHE_ERROR) << "Failed to clean the cache";
             break;
           }
@@ -155,10 +159,10 @@ void FileCache::DoStore(const String &path, const String &code_hash,
 
         {
           String error;
-          if (!base::GetLeastRecentPath(args_path, file_path, &error)) {
-            if (!base::RemoveDirectory(args_path)) {
+          if (!base::GetLeastRecentPath(second_path, file_path, &error)) {
+            if (!base::RemoveDirectory(second_path)) {
               LOG(CACHE_WARNING) << "Failed to get the recent path from "
-                                 << args_path << " : " << error;
+                                 << second_path << " : " << error;
               LOG(CACHE_ERROR) << "Failed to clean the cache";
               should_break = true;
             }

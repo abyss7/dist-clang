@@ -7,8 +7,8 @@ namespace daemon {
 
 class FileCache {
  public:
-  enum {
-    UNLIMITED = 0
+  enum : ui64 {
+    UNLIMITED = 0,
   };
   using Entry = Pair<String /* path, stderr */>;
   using Optional = base::ThreadPool::Optional;
@@ -16,11 +16,13 @@ class FileCache {
   explicit FileCache(const String& path);
   FileCache(const String& path, ui64 size);
 
+  String Hash(const String& code, const String& command_line,
+              const String& version) const;
   bool Find(const String& code, const String& command_line,
             const String& version, Entry* entry) const;
   Optional Store(const String& code, const String& command_line,
                  const String& version, const Entry& entry);
-  void SyncStore(const String& code, const String& command_line,
+  void StoreNow(const String& code, const String& command_line,
                  const String& version, const Entry& entry);
 
  private:
@@ -28,7 +30,7 @@ class FileCache {
   base::ThreadPool pool_;
   ui64 max_size_, cached_size_;
 
-  void DoStore(const String& path, const String& code_hash, const Entry& entry);
+  void DoStore(const String& hash, const Entry& entry);
 };
 
 }  // namespace daemon

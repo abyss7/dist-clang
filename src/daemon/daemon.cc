@@ -250,7 +250,7 @@ void Daemon::UpdateCacheFromFile(const proto::Execute* message,
   }
 
   if (sync_cache_) {
-    cache_->SyncStore(message->pp_source(), command_line, version, entry);
+    cache_->StoreNow(message->pp_source(), command_line, version, entry);
   } else {
     cache_->Store(message->pp_source(), command_line, version, entry);
   }
