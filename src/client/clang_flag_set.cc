@@ -103,20 +103,11 @@ FlagSet::Action FlagSet::ProcessFlags(List<String> flags,
       action = PREPROCESS;
       message->set_action(flag);
     } else if (flag == "-dependency-file") {
-      message->add_dependenies(flag);
-      message->add_dependenies(*(++it));
+      message->set_deps_file(*(++it));
     } else if (flag == "-load") {
       ++it;
-    } else if (flag == "-MF") {
-      message->add_dependenies(flag);
-      message->add_dependenies(*(++it));
-    } else if (flag == "-MMD") {
-      message->add_dependenies(flag);
     } else if (flag == "-mrelax-all") {
       message->add_cc_only(flag);
-    } else if (flag == "-MT") {
-      message->add_dependenies(flag);
-      message->add_dependenies(*(++it));
     } else if (flag == "-o") {
       ++it;
       if (it->find(temp_dir) != String::npos) {
@@ -155,6 +146,14 @@ FlagSet::Action FlagSet::ProcessFlags(List<String> flags,
       message->add_non_cached(flag);
       message->add_non_cached(*(++it));
     } else if (flag == "-main-file-name") {
+      message->add_non_cached(flag);
+      message->add_non_cached(*(++it));
+    } else if (flag == "-MF") {
+      message->add_non_cached(flag);
+      message->add_non_cached(*(++it));
+    } else if (flag == "-MMD") {
+      message->add_non_cached(flag);
+    } else if (flag == "-MT") {
       message->add_non_cached(flag);
       message->add_non_cached(*(++it));
     } else if (flag == "-resource-dir") {

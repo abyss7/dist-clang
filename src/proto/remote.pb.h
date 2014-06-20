@@ -502,21 +502,17 @@ class Flags : public ::google::protobuf::Message {
   inline const ::google::protobuf::RepeatedPtrField< ::std::string>& other() const;
   inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_other();
 
-  // repeated string dependenies = 5;
-  inline int dependenies_size() const;
-  inline void clear_dependenies();
-  static const int kDependeniesFieldNumber = 5;
-  inline const ::std::string& dependenies(int index) const;
-  inline ::std::string* mutable_dependenies(int index);
-  inline void set_dependenies(int index, const ::std::string& value);
-  inline void set_dependenies(int index, const char* value);
-  inline void set_dependenies(int index, const char* value, size_t size);
-  inline ::std::string* add_dependenies();
-  inline void add_dependenies(const ::std::string& value);
-  inline void add_dependenies(const char* value);
-  inline void add_dependenies(const char* value, size_t size);
-  inline const ::google::protobuf::RepeatedPtrField< ::std::string>& dependenies() const;
-  inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_dependenies();
+  // optional string deps_file = 5;
+  inline bool has_deps_file() const;
+  inline void clear_deps_file();
+  static const int kDepsFileFieldNumber = 5;
+  inline const ::std::string& deps_file() const;
+  inline void set_deps_file(const ::std::string& value);
+  inline void set_deps_file(const char* value);
+  inline void set_deps_file(const char* value, size_t size);
+  inline ::std::string* mutable_deps_file();
+  inline ::std::string* release_deps_file();
+  inline void set_allocated_deps_file(::std::string* deps_file);
 
   // optional string language = 6;
   inline bool has_language() const;
@@ -582,6 +578,8 @@ class Flags : public ::google::protobuf::Message {
   inline void clear_has_output();
   inline void set_has_input();
   inline void clear_has_input();
+  inline void set_has_deps_file();
+  inline void clear_has_deps_file();
   inline void set_has_language();
   inline void clear_has_language();
   inline void set_has_action();
@@ -593,7 +591,7 @@ class Flags : public ::google::protobuf::Message {
   ::std::string* output_;
   ::std::string* input_;
   ::google::protobuf::RepeatedPtrField< ::std::string> other_;
-  ::google::protobuf::RepeatedPtrField< ::std::string> dependenies_;
+  ::std::string* deps_file_;
   ::std::string* language_;
   ::google::protobuf::RepeatedPtrField< ::std::string> non_cached_;
   ::google::protobuf::RepeatedPtrField< ::std::string> cc_only_;
@@ -1356,48 +1354,74 @@ Flags::mutable_other() {
   return &other_;
 }
 
-// repeated string dependenies = 5;
-inline int Flags::dependenies_size() const {
-  return dependenies_.size();
+// optional string deps_file = 5;
+inline bool Flags::has_deps_file() const {
+  return (_has_bits_[0] & 0x00000010u) != 0;
 }
-inline void Flags::clear_dependenies() {
-  dependenies_.Clear();
+inline void Flags::set_has_deps_file() {
+  _has_bits_[0] |= 0x00000010u;
 }
-inline const ::std::string& Flags::dependenies(int index) const {
-  return dependenies_.Get(index);
+inline void Flags::clear_has_deps_file() {
+  _has_bits_[0] &= ~0x00000010u;
 }
-inline ::std::string* Flags::mutable_dependenies(int index) {
-  return dependenies_.Mutable(index);
+inline void Flags::clear_deps_file() {
+  if (deps_file_ != &::google::protobuf::internal::kEmptyString) {
+    deps_file_->clear();
+  }
+  clear_has_deps_file();
 }
-inline void Flags::set_dependenies(int index, const ::std::string& value) {
-  dependenies_.Mutable(index)->assign(value);
+inline const ::std::string& Flags::deps_file() const {
+  return *deps_file_;
 }
-inline void Flags::set_dependenies(int index, const char* value) {
-  dependenies_.Mutable(index)->assign(value);
+inline void Flags::set_deps_file(const ::std::string& value) {
+  set_has_deps_file();
+  if (deps_file_ == &::google::protobuf::internal::kEmptyString) {
+    deps_file_ = new ::std::string;
+  }
+  deps_file_->assign(value);
 }
-inline void Flags::set_dependenies(int index, const char* value, size_t size) {
-  dependenies_.Mutable(index)->assign(
-    reinterpret_cast<const char*>(value), size);
+inline void Flags::set_deps_file(const char* value) {
+  set_has_deps_file();
+  if (deps_file_ == &::google::protobuf::internal::kEmptyString) {
+    deps_file_ = new ::std::string;
+  }
+  deps_file_->assign(value);
 }
-inline ::std::string* Flags::add_dependenies() {
-  return dependenies_.Add();
+inline void Flags::set_deps_file(const char* value, size_t size) {
+  set_has_deps_file();
+  if (deps_file_ == &::google::protobuf::internal::kEmptyString) {
+    deps_file_ = new ::std::string;
+  }
+  deps_file_->assign(reinterpret_cast<const char*>(value), size);
 }
-inline void Flags::add_dependenies(const ::std::string& value) {
-  dependenies_.Add()->assign(value);
+inline ::std::string* Flags::mutable_deps_file() {
+  set_has_deps_file();
+  if (deps_file_ == &::google::protobuf::internal::kEmptyString) {
+    deps_file_ = new ::std::string;
+  }
+  return deps_file_;
 }
-inline void Flags::add_dependenies(const char* value) {
-  dependenies_.Add()->assign(value);
+inline ::std::string* Flags::release_deps_file() {
+  clear_has_deps_file();
+  if (deps_file_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = deps_file_;
+    deps_file_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
 }
-inline void Flags::add_dependenies(const char* value, size_t size) {
-  dependenies_.Add()->assign(reinterpret_cast<const char*>(value), size);
-}
-inline const ::google::protobuf::RepeatedPtrField< ::std::string>&
-Flags::dependenies() const {
-  return dependenies_;
-}
-inline ::google::protobuf::RepeatedPtrField< ::std::string>*
-Flags::mutable_dependenies() {
-  return &dependenies_;
+inline void Flags::set_allocated_deps_file(::std::string* deps_file) {
+  if (deps_file_ != &::google::protobuf::internal::kEmptyString) {
+    delete deps_file_;
+  }
+  if (deps_file) {
+    set_has_deps_file();
+    deps_file_ = deps_file;
+  } else {
+    clear_has_deps_file();
+    deps_file_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
 }
 
 // optional string language = 6;

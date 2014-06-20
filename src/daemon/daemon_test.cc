@@ -21,13 +21,13 @@ TEST(DaemonUtilTest, ConvertFlagsFromCC2PP) {
   auto* plugin = compiler->add_plugins();
   plugin->set_name("some_plugin");
   plugin->set_path("/usr/lib/libplugin.so");
-  expected_flags.add_dependenies()->assign("-MT");
   expected_flags.add_non_cached()->assign("-I.");
   expected_flags.add_other()->assign("-cc1");
   expected_flags.set_action("-E");
   expected_flags.set_input("test.cc");
   expected_flags.set_output("-");
   expected_flags.set_language("c++");
+  expected_flags.set_deps_file("some_deps_file");
 
   proto::Flags flags;
   flags.mutable_compiler()->set_version("clang version 3.5");
@@ -36,13 +36,13 @@ TEST(DaemonUtilTest, ConvertFlagsFromCC2PP) {
   plugin->set_name("some_plugin");
   plugin->set_path("/usr/lib/libplugin.so");
   flags.add_cc_only()->assign("-mrelax-all");
-  flags.add_dependenies()->assign("-MT");
   flags.add_non_cached()->assign("-I.");
   flags.add_other()->assign("-cc1");
   flags.set_action("-emit-obj");
   flags.set_input("test.cc");
   flags.set_output("test.o");
   flags.set_language("c++");
+  flags.set_deps_file("some_deps_file");
 
   proto::Flags actual_flags = Daemon::ConvertFlags(flags);
   EXPECT_EQ(expected_flags.SerializeAsString(),
@@ -50,22 +50,25 @@ TEST(DaemonUtilTest, ConvertFlagsFromCC2PP) {
 }
 
 TEST(DaemonUtilTest, CreateProcessFromFlags) {
-  const List<String> expected_args = {
-      "-cc1", "-emit-obj", "-I.", "-MT",    "-load",   "/usr/lib/libplugin.so",
-      "-x",   "c++",       "-o",  "test.o", "test.cc", };
+  const List<String> expected_args =
+      {
+          "-cc1",           "-emit-obj",             "-I.",
+          "-load",          "/usr/lib/libplugin.so", "-dependency-file",
+          "some_deps_file", "-x",                    "c++",
+          "-o",             "test.o",                "test.cc", };
   const ui32 expected_user_id = 1u;
 
   proto::Flags flags;
   flags.mutable_compiler()->set_path("/usr/bin/clang");
   flags.mutable_compiler()->add_plugins()->set_path("/usr/lib/libplugin.so");
   flags.add_cc_only()->assign("-mrelax-all");
-  flags.add_dependenies()->assign("-MT");
   flags.add_non_cached()->assign("-I.");
   flags.add_other()->assign("-cc1");
   flags.set_action("-emit-obj");
   flags.set_input("test.cc");
   flags.set_output("test.o");
   flags.set_language("c++");
+  flags.set_deps_file("some_deps_file");
 
   {
     base::ProcessPtr process = Daemon::CreateProcess(flags, expected_user_id);

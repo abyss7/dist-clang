@@ -371,9 +371,11 @@ base::ProcessPtr Daemon::CreateProcess(const proto::Flags& flags, ui32 uid,
   process->AppendArg(flags.other().begin(), flags.other().end());
   process->AppendArg(flags.action());
   process->AppendArg(flags.non_cached().begin(), flags.non_cached().end());
-  process->AppendArg(flags.dependenies().begin(), flags.dependenies().end());
   for (const auto& plugin : flags.compiler().plugins()) {
     process->AppendArg("-load").AppendArg(plugin.path());
+  }
+  if (flags.has_deps_file()) {
+    process->AppendArg("-dependency-file").AppendArg(flags.deps_file());
   }
   if (flags.has_language()) {
     process->AppendArg("-x").AppendArg(flags.language());
@@ -517,8 +519,8 @@ void Daemon::DoRemoteExecution(const std::atomic<bool>& is_shutting_down,
     remote->mutable_flags()->mutable_compiler()->clear_path();
     remote->mutable_flags()->clear_output();
     remote->mutable_flags()->clear_input();
-    remote->mutable_flags()->clear_dependenies();
     remote->mutable_flags()->clear_non_cached();
+    remote->mutable_flags()->clear_deps_file();
 
     if (!connection->SendSync(std::move(remote))) {
       local_tasks_->Push(std::move(*task));
@@ -614,7 +616,7 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
 
       task->second->mutable_flags()->set_output("-");
       task->second->mutable_flags()->clear_input();
-      task->second->mutable_flags()->clear_dependenies();
+      task->second->mutable_flags()->clear_deps_file();
 
       // Optimize compilation for preprocessed code for some languages.
       if (task->second->flags().has_language()) {

@@ -31,8 +31,8 @@ message Status {
     NO_VERSION    = 7;
   }
 
-  required Code code = 1 [default=OK];
-  optional string description = 2;
+  required Code code           = 1 [default=OK];
+  optional string description  = 2;
 
   extend Universal {
     optional Status extension = 2;
@@ -40,23 +40,23 @@ message Status {
 }
 
 message Flags {
-  required Compiler compiler  = 1;  // original compiler executable.
-  optional string output      = 2;  // "-o" flag and it's param.
-  optional string input       = 3;  // relative path in the last argument.
-  repeated string other       = 4;  // all unsorted flags.
-  repeated string dependenies = 5;  // "-MMD", "-MF", etc.
-  optional string language    = 6;  // absorbs "-x" flag and stores it's param.
-  repeated string non_cached  = 7;  // flags, that shouldn't be cached.
-  repeated string cc_only     = 8;  // flags for compilation only.
-  required string action      = 9;  // "-emit-obj", "-E", etc.
+  required Compiler compiler   = 1;  // original compiler executable.
+  optional string output       = 2;  // "-o" flag and it's param.
+  optional string input        = 3;  // relative path in the last argument.
+  repeated string other        = 4;  // all unsorted flags.
+  optional string deps_file    = 5;
+  optional string language     = 6;  // absorbs "-x" flag and stores it's param.
+  repeated string non_cached   = 7;  // flags, that shouldn't be cached.
+  repeated string cc_only      = 8;  // flags for compilation only.
+  required string action       = 9;  // "-emit-obj", "-E", etc.
 }
 
 message Execute {
-  required bool remote        = 1;
-  required Flags flags        = 2;  // Flags to run compilation/preprocessing.
-  optional string current_dir = 4;  // Required for local execution.
-  optional string pp_source   = 5;  // Required for remote execution.
-  optional uint32 user_id     = 6;  // Owner of local objects.
+  required bool remote         = 1;
+  required Flags flags         = 2;  // Flags to run compilation/preprocessing.
+  optional string current_dir  = 4;  // Required for local execution.
+  optional string pp_source    = 5;  // Required for remote execution.
+  optional uint32 user_id      = 6;  // Owner of local objects.
 
   extend Universal {
     optional Execute extension = 3;
@@ -64,7 +64,7 @@ message Execute {
 }
 
 message RemoteResult {
-  required bytes obj          = 1;
+  required bytes obj           = 1;
 
   extend Universal {
     optional RemoteResult extension = 4;
