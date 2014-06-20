@@ -12,7 +12,8 @@ namespace net {
 
 class EventLoop {
  public:
-  explicit EventLoop(ui32 concurrency = std::thread::hardware_concurrency());
+  explicit EventLoop(ui32 concurrency =
+                         std::thread::hardware_concurrency() * 2);
   virtual ~EventLoop();
 
   virtual bool HandlePassive(fd_t fd) = 0;

@@ -18,6 +18,7 @@ source_set("daemon") {
     "//src/histogram:histogram",
     "//src/net:net",
     "//src/proto:proto",
+    "//src/third_party/kyoto-cabinet:kyotocabinet",
     ":configuration",
     ":file_cache",
   ]

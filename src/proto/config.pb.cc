@@ -44,11 +44,12 @@ void protobuf_AssignDesc_config_2eproto() {
       "config.proto");
   GOOGLE_CHECK(file != NULL);
   Host_descriptor_ = file->message_type(0);
-  static const int Host_offsets_[4] = {
+  static const int Host_offsets_[5] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Host, host_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Host, port_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Host, threads_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Host, disabled_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Host, only_failed_),
   };
   Host_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
@@ -163,22 +164,23 @@ void protobuf_AddDesc_config_2eproto() {
   ::dist_clang::proto::protobuf_AddDesc_base_2eproto();
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
     "\n\014config.proto\022\020dist_clang.proto\032\nbase.p"
-    "roto\"U\n\004Host\022\014\n\004host\030\001 \002(\t\022\022\n\004port\030\002 \001(\r"
+    "roto\"q\n\004Host\022\014\n\004host\030\001 \002(\t\022\022\n\004port\030\002 \001(\r"
     ":\0046000\022\022\n\007threads\030\003 \001(\r:\0012\022\027\n\010disabled\030\004"
-    " \001(\010:\005false\"|\n\tVerbosity\022\026\n\nerror_mark\030\001"
-    " \001(\r:\00220\0221\n\006levels\030\002 \003(\0132!.dist_clang.pr"
-    "oto.Verbosity.Range\032$\n\005Range\022\r\n\005right\030\001 "
-    "\002(\r\022\014\n\004left\030\002 \001(\r\"\213\003\n\rConfiguration\022\023\n\013s"
-    "ocket_path\030\001 \001(\t\022\031\n\rpool_capacity\030\002 \001(\r:"
-    "\00216\022\022\n\ncache_path\030\003 \001(\t\022\'\n\007remotes\030\004 \003(\013"
-    "2\026.dist_clang.proto.Host\022%\n\005local\030\005 \001(\0132"
-    "\026.dist_clang.proto.Host\022,\n\010versions\030\006 \003("
-    "\0132\032.dist_clang.proto.Compiler\022)\n\tstatist"
-    "ic\030\007 \001(\0132\026.dist_clang.proto.Host\022.\n\tverb"
-    "osity\030\010 \001(\0132\033.dist_clang.proto.Verbosity"
-    "\022\025\n\ncache_size\030\t \001(\004:\0010\022\017\n\007user_id\030\n \001(\r"
-    "\022\032\n\014remote_cache\030\013 \001(\010:\004true\022\031\n\nsync_cac"
-    "he\030\014 \001(\010:\005false", 655);
+    " \001(\010:\005false\022\032\n\013only_failed\030\005 \001(\010:\005false\""
+    "|\n\tVerbosity\022\026\n\nerror_mark\030\001 \001(\r:\00220\0221\n\006"
+    "levels\030\002 \003(\0132!.dist_clang.proto.Verbosit"
+    "y.Range\032$\n\005Range\022\r\n\005right\030\001 \002(\r\022\014\n\004left\030"
+    "\002 \001(\r\"\213\003\n\rConfiguration\022\023\n\013socket_path\030\001"
+    " \001(\t\022\031\n\rpool_capacity\030\002 \001(\r:\00216\022\022\n\ncache"
+    "_path\030\003 \001(\t\022\'\n\007remotes\030\004 \003(\0132\026.dist_clan"
+    "g.proto.Host\022%\n\005local\030\005 \001(\0132\026.dist_clang"
+    ".proto.Host\022,\n\010versions\030\006 \003(\0132\032.dist_cla"
+    "ng.proto.Compiler\022)\n\tstatistic\030\007 \001(\0132\026.d"
+    "ist_clang.proto.Host\022.\n\tverbosity\030\010 \001(\0132"
+    "\033.dist_clang.proto.Verbosity\022\025\n\ncache_si"
+    "ze\030\t \001(\004:\0010\022\017\n\007user_id\030\n \001(\r\022\032\n\014remote_c"
+    "ache\030\013 \001(\010:\004true\022\031\n\nsync_cache\030\014 \001(\010:\005fa"
+    "lse", 683);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "config.proto", &protobuf_RegisterTypes);
   Host::default_instance_ = new Host();
@@ -206,6 +208,7 @@ const int Host::kHostFieldNumber;
 const int Host::kPortFieldNumber;
 const int Host::kThreadsFieldNumber;
 const int Host::kDisabledFieldNumber;
+const int Host::kOnlyFailedFieldNumber;
 #endif  // !_MSC_VER
 
 Host::Host()
@@ -228,6 +231,7 @@ void Host::SharedCtor() {
   port_ = 6000u;
   threads_ = 2u;
   disabled_ = false;
+  only_failed_ = false;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -274,6 +278,7 @@ void Host::Clear() {
     port_ = 6000u;
     threads_ = 2u;
     disabled_ = false;
+    only_failed_ = false;
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   mutable_unknown_fields()->Clear();
@@ -345,6 +350,22 @@ bool Host::MergePartialFromCodedStream(
         } else {
           goto handle_uninterpreted;
         }
+        if (input->ExpectTag(40)) goto parse_only_failed;
+        break;
+      }
+
+      // optional bool only_failed = 5 [default = false];
+      case 5: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
+         parse_only_failed:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   bool, ::google::protobuf::internal::WireFormatLite::TYPE_BOOL>(
+                 input, &only_failed_)));
+          set_has_only_failed();
+        } else {
+          goto handle_uninterpreted;
+        }
         if (input->ExpectAtEnd()) return true;
         break;
       }
@@ -391,6 +412,11 @@ void Host::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteBool(4, this->disabled(), output);
   }
 
+  // optional bool only_failed = 5 [default = false];
+  if (has_only_failed()) {
+    ::google::protobuf::internal::WireFormatLite::WriteBool(5, this->only_failed(), output);
+  }
+
   if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
@@ -422,6 +448,11 @@ void Host::SerializeWithCachedSizes(
   // optional bool disabled = 4 [default = false];
   if (has_disabled()) {
     target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(4, this->disabled(), target);
+  }
+
+  // optional bool only_failed = 5 [default = false];
+  if (has_only_failed()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(5, this->only_failed(), target);
   }
 
   if (!unknown_fields().empty()) {
@@ -458,6 +489,11 @@ int Host::ByteSize() const {
 
     // optional bool disabled = 4 [default = false];
     if (has_disabled()) {
+      total_size += 1 + 1;
+    }
+
+    // optional bool only_failed = 5 [default = false];
+    if (has_only_failed()) {
       total_size += 1 + 1;
     }
 
@@ -500,6 +536,9 @@ void Host::MergeFrom(const Host& from) {
     if (from.has_disabled()) {
       set_disabled(from.disabled());
     }
+    if (from.has_only_failed()) {
+      set_only_failed(from.only_failed());
+    }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
@@ -528,6 +567,7 @@ void Host::Swap(Host* other) {
     std::swap(port_, other->port_);
     std::swap(threads_, other->threads_);
     std::swap(disabled_, other->disabled_);
+    std::swap(only_failed_, other->only_failed_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);

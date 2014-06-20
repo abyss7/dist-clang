@@ -7,12 +7,13 @@ message Host {
   optional uint32 port          = 2 [default=6000];
   optional uint32 threads       = 3 [default=2];
   optional bool disabled        = 4 [default=false];
+  optional bool only_failed     = 5 [default=false];
 }
 
 message Verbosity {
   message Range {
     required uint32 right = 1;
-    optional uint32 left  = 2;  // if omitted, then range contains one number.
+    optional uint32 left  = 2;  // if omitted: [default=right];
   }
 
   // less'o'equal to |error_mark| levels go to stderr.

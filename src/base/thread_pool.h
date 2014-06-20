@@ -17,7 +17,8 @@ class ThreadPool {
   using Optional = Promise::Optional;
 
   explicit ThreadPool(ui64 capacity = TaskQueue::UNLIMITED,
-                      ui32 concurrency = std::thread::hardware_concurrency());
+                      ui32 concurrency =
+                          std::thread::hardware_concurrency() * 2);
   ~ThreadPool();
 
   void Run();

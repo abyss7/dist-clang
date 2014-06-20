@@ -129,6 +129,13 @@ class Host : public ::google::protobuf::Message {
   inline bool disabled() const;
   inline void set_disabled(bool value);
 
+  // optional bool only_failed = 5 [default = false];
+  inline bool has_only_failed() const;
+  inline void clear_only_failed();
+  static const int kOnlyFailedFieldNumber = 5;
+  inline bool only_failed() const;
+  inline void set_only_failed(bool value);
+
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Host)
  private:
   inline void set_has_host();
@@ -139,6 +146,8 @@ class Host : public ::google::protobuf::Message {
   inline void clear_has_threads();
   inline void set_has_disabled();
   inline void clear_has_disabled();
+  inline void set_has_only_failed();
+  inline void clear_has_only_failed();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -146,9 +155,10 @@ class Host : public ::google::protobuf::Message {
   ::google::protobuf::uint32 port_;
   ::google::protobuf::uint32 threads_;
   bool disabled_;
+  bool only_failed_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(4 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(5 + 31) / 32];
 
   friend void  protobuf_AddDesc_config_2eproto();
   friend void protobuf_AssignDesc_config_2eproto();
@@ -701,6 +711,28 @@ inline bool Host::disabled() const {
 inline void Host::set_disabled(bool value) {
   set_has_disabled();
   disabled_ = value;
+}
+
+// optional bool only_failed = 5 [default = false];
+inline bool Host::has_only_failed() const {
+  return (_has_bits_[0] & 0x00000010u) != 0;
+}
+inline void Host::set_has_only_failed() {
+  _has_bits_[0] |= 0x00000010u;
+}
+inline void Host::clear_has_only_failed() {
+  _has_bits_[0] &= ~0x00000010u;
+}
+inline void Host::clear_only_failed() {
+  only_failed_ = false;
+  clear_has_only_failed();
+}
+inline bool Host::only_failed() const {
+  return only_failed_;
+}
+inline void Host::set_only_failed(bool value) {
+  set_has_only_failed();
+  only_failed_ = value;
 }
 
 // -------------------------------------------------------------------

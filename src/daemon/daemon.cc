@@ -90,10 +90,12 @@ bool Daemon::Initialize(const Configuration& configuration) {
     // remote connections.
     remote_tasks_.reset(new Queue);
     Worker worker = std::bind(&Daemon::DoLocalExecution, this, _1);
-    workers_->AddWorker(worker, std::thread::hardware_concurrency());
+    workers_->AddWorker(worker, std::thread::hardware_concurrency() * 2);
   }
   // FIXME: need to improve |QueueAggregator| to prioritize queues.
-  all_tasks_->Aggregate(local_tasks_.get());
+  if (!config.has_local() || !config.local().only_failed()) {
+    all_tasks_->Aggregate(local_tasks_.get());
+  }
   all_tasks_->Aggregate(failed_tasks_.get());
   all_tasks_->Aggregate(remote_tasks_.get());
 
@@ -101,7 +103,7 @@ bool Daemon::Initialize(const Configuration& configuration) {
   if (config.has_cache_path()) {
     cache_.reset(new FileCache(config.cache_path(), config.cache_size()));
     Worker worker = std::bind(&Daemon::DoCheckCache, this, _1);
-    workers_->AddWorker(worker, std::thread::hardware_concurrency());
+    workers_->AddWorker(worker, std::thread::hardware_concurrency() * 2);
   }
 
   bool is_listening = false;
