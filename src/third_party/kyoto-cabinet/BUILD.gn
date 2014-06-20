@@ -11,6 +11,10 @@ config("flags") {
   defines = [
     "_MYZLIB",
   ]
+
+  libs = [
+    "z",
+  ]
 }
 
 shared_library("kyotocabinet") {
