@@ -60,6 +60,14 @@ bool ConnectionImpl::ReadSync(Message* message, Status* status) {
     return false;
   }
 
+  if (is_closed_) {
+    if (status) {
+      status->set_code(Status::INCONSEQUENT);
+      status->set_description("Reading after close");
+    }
+    return false;
+  }
+
   ui32 size;
   {
     CodedInputStream coded_stream(gzip_input_stream_.get());
@@ -123,6 +131,14 @@ bool ConnectionImpl::SendAsyncImpl(SendCallback callback) {
 }
 
 bool ConnectionImpl::SendSyncImpl(Status* status) {
+  if (is_closed_) {
+    if (status) {
+      status->set_code(Status::INCONSEQUENT);
+      status->set_description("Reading after close");
+    }
+    return false;
+  }
+
   {
     CodedOutputStream coded_stream(gzip_output_stream_.get());
     coded_stream.WriteVarint32(message_->ByteSize());

@@ -436,7 +436,7 @@ TEST_F(ConnectionTest, Sync_ReadIncompleteMessage) {
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
   ASSERT_TRUE(server.WriteIncomplete(*expected_message));
-  connection->Close();
+  server.CloseServerConnection();
   read_thread.join();
 }
 
@@ -446,7 +446,7 @@ TEST_F(ConnectionTest, Sync_ReadFromClosedConnection) {
 
   connection->Close();
   ASSERT_FALSE(connection->ReadSync(&message, &status));
-  EXPECT_EQ(proto::Status::NETWORK, status.code());
+  EXPECT_EQ(proto::Status::INCONSEQUENT, status.code());
   EXPECT_TRUE(status.has_description());
 }
 
@@ -482,7 +482,7 @@ TEST_F(ConnectionTest, Sync_SendToClosedConnection) {
 
   connection->Close();
   ASSERT_FALSE(connection->SendSync(std::move(expected_message), &status));
-  EXPECT_EQ(proto::Status::NETWORK, status.code());
+  EXPECT_EQ(proto::Status::INCONSEQUENT, status.code());
   EXPECT_TRUE(status.has_description());
 }
 
