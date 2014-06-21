@@ -60,6 +60,8 @@ Pair<time_t /* unix timestamp, nanoseconds */> GetLastModificationTime(
 // error has occured, the return value is |false|.
 bool GetLeastRecentPath(const String& path, String& result,
                         String* error = nullptr);
+bool GetLeastRecentPath(const String& path, String& result, const char* regex,
+                        String* error = nullptr);
 
 inline bool RemoveDirectory(const String& path) { return !rmdir(path.c_str()); }
 

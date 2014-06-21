@@ -41,38 +41,44 @@ String FileCache::Hash(const String &code, const String &command_line,
 
 bool FileCache::Find(const String &code, const String &command_line,
                      const String &version, Entry *entry) const {
-  bool result = false;
-
   String &&hash = Hash(code, command_line, version);
   const String first_path = path_ + "/" + hash[0];
   const String second_path = first_path + "/" + hash[1];
   const String common_path = second_path + "/" + hash.substr(2);
   const String object_path = common_path + ".o";
+  const String deps_path = common_path + ".d";
   const String stderr_path = common_path + ".stderr";
 
-  std::ifstream obj(object_path);
-  if (obj.is_open()) {
-    DCHECK_O_EVAL(utime(object_path.c_str(), nullptr) == 0);
-    DCHECK_O_EVAL(utime(second_path.c_str(), nullptr) == 0);
-    DCHECK_O_EVAL(utime(first_path.c_str(), nullptr) == 0);
-    if (!entry) {
-      return true;
-    }
-    result = true;
-    entry->first = object_path;
+  if (!base::FileExists(object_path)) {
+    return false;
   }
 
-  if (base::FileExists(stderr_path)) {
-    DCHECK_O_EVAL(utime(stderr_path.c_str(), nullptr) == 0);
-    DCHECK_O_EVAL(utime(second_path.c_str(), nullptr) == 0);
-    DCHECK_O_EVAL(utime(first_path.c_str(), nullptr) == 0);
-    if (!entry) {
-      return true;
+  utime(object_path.c_str(), nullptr);
+  utime(second_path.c_str(), nullptr);
+  utime(first_path.c_str(), nullptr);
+
+  if (entry) {
+    entry->object_path = object_path;
+
+    if (base::FileExists(deps_path)) {
+      utime(deps_path.c_str(), nullptr);
+      utime(second_path.c_str(), nullptr);
+      utime(first_path.c_str(), nullptr);
+
+      entry->deps_path = deps_path;
     }
-    result = base::ReadFile(stderr_path, &entry->second);
+
+    if (base::FileExists(stderr_path)) {
+      utime(stderr_path.c_str(), nullptr);
+      utime(second_path.c_str(), nullptr);
+      utime(first_path.c_str(), nullptr);
+      if (!base::ReadFile(stderr_path, &entry->stderr)) {
+        return false;
+      }
+    }
   }
 
-  return result;
+  return true;
 }
 
 FileCache::Optional FileCache::Store(const String &code,
@@ -94,6 +100,7 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
   const String second_path = first_path + "/" + hash[1];
   const String common_path = second_path + "/" + hash.substr(2);
   const String object_path = common_path + ".o";
+  const String deps_path = common_path + ".d";
   const String stderr_path = common_path + ".stderr";
 
   // FIXME: refactor to portable solution.
@@ -103,28 +110,42 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
     return;
   }
 
-  if (!base::CopyFile(entry.first, object_path + ".tmp")) {
-    LOG(CACHE_ERROR) << "Failed to copy " << entry.first << " to object.tmp";
+  if (!base::CopyFile(entry.object_path, object_path + ".tmp")) {
+    LOG(CACHE_ERROR) << "Failed to copy " << entry.object_path << " to "
+                     << object_path << ".tmp";
     return;
   }
-  if (!entry.second.empty() && !base::WriteFile(stderr_path, entry.second)) {
+  if (!entry.deps_path.empty() && !base::CopyFile(entry.deps_path, deps_path)) {
     base::DeleteFile(object_path + ".tmp");
+    LOG(CACHE_ERROR) << "Failed to copy " << entry.deps_path << " to "
+                     << deps_path;
+    return;
+  }
+  if (!entry.stderr.empty() && !base::WriteFile(stderr_path, entry.stderr)) {
+    base::DeleteFile(object_path + ".tmp");
+    base::DeleteFile(deps_path);
     LOG(CACHE_ERROR) << "Failed to write stderr to file";
     return;
   }
   if (!base::MoveFile(object_path + ".tmp", object_path)) {
     base::DeleteFile(object_path + ".tmp");
+    base::DeleteFile(deps_path);
     base::DeleteFile(stderr_path);
-    LOG(CACHE_ERROR) << "Failed to move object.tmp to object";
+    LOG(CACHE_ERROR) << "Failed to move " << object_path << ".tmp to "
+                     << object_path;
     return;
   }
 
-  cached_size_ += base::FileSize(object_path) + base::FileSize(stderr_path);
+  cached_size_ += base::FileSize(object_path) + base::FileSize(deps_path) +
+                  base::FileSize(stderr_path);
   DCHECK_O_EVAL(utime(object_path.c_str(), nullptr) == 0);
-  if (!entry.second.empty()) {
+  if (!entry.deps_path.empty()) {
+    DCHECK_O_EVAL(utime(deps_path.c_str(), nullptr) == 0);
+  }
+  if (!entry.stderr.empty()) {
     DCHECK_O_EVAL(utime(stderr_path.c_str(), nullptr) == 0);
   }
-  LOG(CACHE_VERBOSE) << "File " << entry.first << " is cached on path "
+  LOG(CACHE_VERBOSE) << "File " << entry.object_path << " is cached on path "
                      << object_path;
 
   if (max_size_ != UNLIMITED) {
@@ -159,7 +180,8 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
 
         {
           String error;
-          if (!base::GetLeastRecentPath(second_path, file_path, &error)) {
+          if (!base::GetLeastRecentPath(second_path, file_path, ".*\\.o",
+                                        &error)) {
             if (!base::RemoveDirectory(second_path)) {
               LOG(CACHE_WARNING) << "Failed to get the recent path from "
                                  << second_path << " : " << error;

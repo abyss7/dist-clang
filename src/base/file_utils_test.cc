@@ -151,6 +151,25 @@ TEST(FileUtilsTest, LeastRecentPath) {
                          << GetLastModificationTime(path).second;
 }
 
+TEST(FileUtilsTest, LeastRecentPathWithRegex) {
+  base::TemporaryDir temp_dir;
+  const String file1 = String(temp_dir) + "/1";
+  const String file2 = String(temp_dir) + "/2";
+
+  int fd = open(file1.c_str(), O_CREAT, 0777);
+  ASSERT_NE(-1, fd);
+  close(fd);
+
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+  fd = open(file2.c_str(), O_CREAT, 0777);
+  ASSERT_NE(-1, fd);
+  close(fd);
+
+  String path;
+  EXPECT_TRUE(GetLeastRecentPath(temp_dir, path, "2"));
+  EXPECT_EQ(file2, path);
+}
+
 TEST(FileUtilsTest, TempFile) {
   String error;
   String temp_file = CreateTempFile(&error);

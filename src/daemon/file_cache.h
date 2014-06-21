@@ -10,7 +10,13 @@ class FileCache {
   enum : ui64 {
     UNLIMITED = 0,
   };
-  using Entry = Pair<String /* path, stderr */>;
+
+  struct Entry {
+    String object_path;
+    String deps_path;
+    String stderr;
+  };
+
   using Optional = base::ThreadPool::Optional;
 
   explicit FileCache(const String& path);
@@ -23,7 +29,7 @@ class FileCache {
   Optional Store(const String& code, const String& command_line,
                  const String& version, const Entry& entry);
   void StoreNow(const String& code, const String& command_line,
-                 const String& version, const Entry& entry);
+                const String& version, const Entry& entry);
 
  private:
   const String path_;

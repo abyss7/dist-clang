@@ -1,10 +1,13 @@
 #include <base/file_utils.h>
 
 #include <third_party/libcxx/exported/include/map>
+#include <third_party/libcxx/exported/include/regex>
 
 #include <dirent.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
 
 namespace dist_clang {
 namespace base {
@@ -65,7 +68,7 @@ bool CopyFile(const String& src, const String& dst, bool overwrite,
   }
 #endif  // defined(OS_LINUX)
 
-  const size_t buffer_size = 1024;
+  const size_t buffer_size = 8192;
   char buffer[buffer_size];
   int size = 0;
   while ((size = read(src_fd, buffer, buffer_size)) > 0) {
@@ -207,7 +210,8 @@ Pair<time_t> GetLastModificationTime(const String& path, String* error) {
   return {time_spec.tv_sec, time_spec.tv_nsec};
 }
 
-bool GetLeastRecentPath(const String& path, String& result, String* error) {
+bool GetLeastRecentPath(const String& path, String& result, const char* regex,
+                        String* error) {
   DIR* dir = opendir(path.c_str());
   if (dir == nullptr) {
     GetLastError(error);
@@ -220,6 +224,10 @@ bool GetLeastRecentPath(const String& path, String& result, String* error) {
     const struct dirent* entry = readdir(dir);
     if (!entry) {
       break;
+    }
+
+    if (!std::regex_match(entry->d_name, std::regex(regex))) {
+      continue;
     }
 
     const String entry_name = entry->d_name;
@@ -238,6 +246,10 @@ bool GetLeastRecentPath(const String& path, String& result, String* error) {
   closedir(dir);
 
   return mtime != null_time;
+}
+
+bool GetLeastRecentPath(const String& path, String& result, String* error) {
+  return GetLeastRecentPath(path, result, ".*", error);
 }
 
 }  // namespace base

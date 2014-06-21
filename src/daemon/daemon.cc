@@ -236,8 +236,8 @@ void Daemon::UpdateCacheFromFile(const proto::Execute* message,
 
   const auto& flags = message->flags();
   FileCache::Entry entry;
-  entry.first = file_path;
-  entry.second = status.description();
+  entry.object_path = file_path;
+  entry.stderr = status.description();
   const auto& version = flags.compiler().version();
   String command_line =
       base::JoinString<' '>(flags.other().begin(), flags.other().end());
@@ -430,7 +430,7 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
       if (!message->remote()) {
         String output_path =
             message->current_dir() + "/" + message->flags().output();
-        if (base::CopyFile(cache_entry.first, output_path, true)) {
+        if (base::CopyFile(cache_entry.object_path, output_path, true)) {
           String error;
           if (message->has_user_id() &&
               !base::ChangeOwner(output_path, message->user_id(), &error)) {
@@ -440,7 +440,7 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
 
           proto::Status status;
           status.set_code(proto::Status::OK);
-          status.set_description(cache_entry.second);
+          status.set_description(cache_entry.stderr);
           task->first->ReportStatus(status);
           continue;
         } else {
@@ -449,10 +449,10 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
       } else {
         Daemon::ScopedMessage message(new proto::Universal);
         auto result = message->MutableExtension(proto::RemoteResult::extension);
-        if (base::ReadFile(cache_entry.first, result->mutable_obj())) {
+        if (base::ReadFile(cache_entry.object_path, result->mutable_obj())) {
           auto status = message->MutableExtension(proto::Status::extension);
           status->set_code(proto::Status::OK);
-          status->set_description(cache_entry.second);
+          status->set_description(cache_entry.stderr);
           task->first->SendAsync(std::move(message));
           continue;
         }
