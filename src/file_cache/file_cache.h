@@ -22,8 +22,8 @@ class FileCache {
   explicit FileCache(const String& path);
   FileCache(const String& path, ui64 size);
 
-  String Hash(const String& code, const String& command_line,
-              const String& version) const;
+  static String Hash(const String& code, const String& command_line,
+                     const String& version);
   bool Find(const String& code, const String& command_line,
             const String& version, Entry* entry) const;
   Optional Store(const String& code, const String& command_line,
@@ -36,7 +36,18 @@ class FileCache {
   base::ThreadPool pool_;
   ui64 max_size_, cached_size_;
 
+  inline String FirstPath(const String& hash) const {
+    return path_ + "/" + hash[0];
+  }
+  inline String SecondPath(const String& hash) const {
+    return FirstPath(hash) + "/" + hash[1];
+  }
+  inline String CommonPath(const String& hash) const {
+    return SecondPath(hash) + "/" + hash.substr(2);
+  }
+
   void DoStore(const String& hash, const Entry& entry);
+  void Clean();
 };
 
 }  // namespace daemon

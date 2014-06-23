@@ -32,8 +32,9 @@ FileCache::FileCache(const String &path, ui64 size)
   pool_.Run();
 }
 
+// static
 String FileCache::Hash(const String &code, const String &command_line,
-                       const String &version) const {
+                       const String &version) {
   return base::Hexify(base::MakeHash(code)) + "-" +
          base::Hexify(base::MakeHash(command_line, 4)) + "-" +
          base::Hexify(base::MakeHash(version, 4));
@@ -41,13 +42,12 @@ String FileCache::Hash(const String &code, const String &command_line,
 
 bool FileCache::Find(const String &code, const String &command_line,
                      const String &version, Entry *entry) const {
-  String &&hash = Hash(code, command_line, version);
-  const String first_path = path_ + "/" + hash[0];
-  const String second_path = first_path + "/" + hash[1];
-  const String common_path = second_path + "/" + hash.substr(2);
-  const String object_path = common_path + ".o";
-  const String deps_path = common_path + ".d";
-  const String stderr_path = common_path + ".stderr";
+  const String hash = Hash(code, command_line, version);
+  const String first_path = FirstPath(hash);
+  const String second_path = SecondPath(hash);
+  const String object_path = CommonPath(hash) + ".o";
+  const String deps_path = CommonPath(hash) + ".d";
+  const String stderr_path = CommonPath(hash) + ".stderr";
 
   if (!base::FileExists(object_path)) {
     return false;
@@ -96,17 +96,14 @@ void FileCache::StoreNow(const String &code, const String &command_line,
 }
 
 void FileCache::DoStore(const String &hash, const Entry &entry) {
-  const String first_path = path_ + "/" + hash[0];
-  const String second_path = first_path + "/" + hash[1];
-  const String common_path = second_path + "/" + hash.substr(2);
-  const String object_path = common_path + ".o";
-  const String deps_path = common_path + ".d";
-  const String stderr_path = common_path + ".stderr";
+  const String object_path = CommonPath(hash) + ".o";
+  const String deps_path = CommonPath(hash) + ".d";
+  const String stderr_path = CommonPath(hash) + ".stderr";
 
   // FIXME: refactor to portable solution.
-  if (system((String("mkdir -p ") + second_path).c_str()) == -1) {
+  if (system((String("mkdir -p ") + SecondPath(hash)).c_str()) == -1) {
     // "mkdir -p" doesn't fail if the path already exists.
-    LOG(CACHE_ERROR) << "Failed to `mkdir -p` for " << second_path;
+    LOG(CACHE_ERROR) << "Failed to `mkdir -p` for " << SecondPath(hash);
     return;
   }
 
@@ -148,6 +145,10 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
   LOG(CACHE_VERBOSE) << "File " << entry.object_path << " is cached on path "
                      << object_path;
 
+  Clean();
+}
+
+void FileCache::Clean() {
   if (max_size_ != UNLIMITED) {
     while (cached_size_ > max_size_) {
       String first_path, second_path;

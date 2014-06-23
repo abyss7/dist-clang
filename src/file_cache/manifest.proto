@@ -1,0 +1,8 @@
+package dist_clang.proto;
+
+message Manifest {
+  optional bool stderr = 100 [default=false];
+
+  optional bool object = 101 [default=false];
+  optional bool deps   = 102 [default=false];
+}
