@@ -11,5 +11,10 @@ Process& Process::AppendArg(const String& arg) {
   return *this;
 }
 
+Process& Process::AddEnv(const char* name, const String& value) {
+  envs_.push_back(String(name) + "=" + value);
+  return *this;
+}
+
 }  // namespace base
 }  // namespace dist_clang

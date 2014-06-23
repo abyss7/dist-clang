@@ -84,5 +84,15 @@ TEST(ProcessTest, TooManyArgs) {
   ASSERT_THROW_STD(process->Run(1), "Assertion failed: .* < MAX_ARGS");
 }
 
+TEST(ProcessTest, RunWithEnvironment) {
+  const String expected_value = "some_value";
+  ProcessPtr process = Process::Create("/bin/sh", String(), Process::SAME_UID);
+  process->AddEnv("ENV", expected_value).AppendArg("-c").AppendArg(
+      "echo -n $ENV");
+  ASSERT_TRUE(process->Run(1));
+  EXPECT_EQ(expected_value, process->stdout());
+  EXPECT_TRUE(process->stderr().empty());
+}
+
 }  // namespace base
 }  // namespace dist_clang

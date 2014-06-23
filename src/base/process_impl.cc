@@ -66,8 +66,17 @@ bool ProcessImpl::RunChild(int (&out_pipe)[2], int (&err_pipe)[2],
   DCHECK(arg_it == args_.end());
   argv[args_.size() + 1] = nullptr;
 
-  if (execvp(exec_path_.c_str(), const_cast<char* const*>(argv)) == -1) {
-    std::cerr << "execvp: " << strerror(errno) << std::endl;
+  const char* env[MAX_ARGS];
+  auto env_it = envs_.begin();
+  for (size_t i = 0, s = envs_.size(); i < s; ++i, ++env_it) {
+    env[i] = env_it->c_str();
+  }
+  DCHECK(env_it == envs_.end());
+  env[envs_.size()] = nullptr;
+
+  if (execvpe(exec_path_.c_str(), const_cast<char* const*>(argv),
+              const_cast<char* const*>(env)) == -1) {
+    std::cerr << "execvpe: " << strerror(errno) << std::endl;
     exit(1);
   }
 

@@ -43,6 +43,7 @@ class Process : public Testable<Process, ProcessImpl, const String&,
   Process& AppendArg(const String& arg);
   template <class Iterator>
   Process& AppendArg(Iterator begin, Iterator end);
+  Process& AddEnv(const char* name, const String& value);
 
   inline const String& stdout() const;
   inline const String& stderr() const;
@@ -56,6 +57,7 @@ class Process : public Testable<Process, ProcessImpl, const String&,
  protected:
   const String exec_path_, cwd_path_;
   List<String> args_;
+  List<String> envs_;
   String stdout_, stderr_;
   const ui32 uid_;
 
