@@ -1,13 +1,15 @@
 config("base") {
   cflags = [
     "-fPIC",
-    "-nostdinc++",
     "-pipe",
     "-pthread",
-    "-std=c++1y",
     "-Wall",
     "-Wsign-compare",
-    "-Werror",
+    "-Werror",    
+  ]
+  cflags_cc = [
+    "-nostdinc++",
+    "-std=c++1y",
   ]
   include_dirs = [ "//src" ]
   ldflags = [
@@ -22,9 +24,11 @@ config("base") {
 
 config("default_library") {
   cflags = [
+    "-fPIC",   
+  ]
+  cflags_cc = [
     "-std=c++1y",
     "-nostdinc++",
-    "-fPIC",
   ]
   include_dirs = [ "//src/third_party/libcxx/exported/include" ]
   ldflags = [ "-nodefaultlibs" ]
@@ -55,12 +59,12 @@ config("release") {
 }
 
 config("no_exceptions") {
-  cflags = [ "-fno-exceptions" ]
+  cflags_cc = [ "-fno-exceptions" ]
   ldflags = [ "-fno-exceptions" ]
 }
 
 config("no_rtti") {
-  cflags = [ "-fno-rtti" ]
+  cflags_cc = [ "-fno-rtti" ]
   ldflags = [ "-fno-rtti" ]
 }
 
