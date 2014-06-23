@@ -3,8 +3,8 @@
 #include <base/attributes.h>
 #include <base/queue_aggregator.h>
 #include <daemon/configuration.h>
-#include <daemon/file_cache.h>
 #include <daemon/statistic.h>
+#include <file_cache/file_cache.h>
 #include <net/connection_forward.h>
 #include <net/network_service.h>
 #include <proto/remote.pb.h>

@@ -13,7 +13,7 @@ test("unit_tests") {
     "//src/base/test_process.h",
     "//src/client/clang_test.cc",
     "//src/daemon/daemon_test.cc",
-    "//src/daemon/file_cache_test.cc",
+    "//src/file_cache/file_cache_test.cc",
     "//src/net/connection_linux_test.cc",  # TODO: make this test cross-platform.
     "//src/net/event_loop_linux_test.cc",
     "//src/net/event_loop_mac_test.cc",
@@ -28,7 +28,7 @@ test("unit_tests") {
     "//src/base:hash",
     "//src/client:client",
     "//src/daemon:daemon",
-    "//src/daemon:file_cache",
+    "//src/file_cache:file_cache",
     "//src/net:net",
     "//src/third_party/gtest:gtest",
   ]

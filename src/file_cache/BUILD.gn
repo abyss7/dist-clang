@@ -1,0 +1,10 @@
+static_library("file_cache") {
+  sources = [
+    "file_cache.cc",
+    "file_cache.h",
+  ]
+
+  deps += [
+    "//src/base:base",
+  ]
+}
