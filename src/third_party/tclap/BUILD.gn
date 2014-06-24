@@ -1,5 +1,5 @@
 config("exceptions") {
-  cflags = [ "-fexceptions" ]
+  cflags_cc = [ "-fexceptions" ]
   include_dirs = [ "exported/include" ]
   ldflags = [ "-fexceptions" ]
 }

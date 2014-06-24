@@ -81,9 +81,9 @@ void protobuf_AddDesc_manifest_2eproto() {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-    "\n\016manifest.proto\022\020dist_clang.proto\"M\n\010Ma"
-    "nifest\022\025\n\006stderr\030d \001(\010:\005false\022\025\n\006object\030"
-    "e \001(\010:\005false\022\023\n\004deps\030f \001(\010:\005false", 113);
+    "\n\016manifest.proto\022\020dist_clang.proto\"K\n\010Ma"
+    "nifest\022\025\n\006stderr\030d \001(\010:\005false\022\024\n\006object\030"
+    "e \001(\010:\004true\022\022\n\004deps\030f \001(\010:\004true", 111);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "manifest.proto", &protobuf_RegisterTypes);
   Manifest::default_instance_ = new Manifest();
@@ -123,8 +123,8 @@ Manifest::Manifest(const Manifest& from)
 void Manifest::SharedCtor() {
   _cached_size_ = 0;
   stderr_ = false;
-  object_ = false;
-  deps_ = false;
+  object_ = true;
+  deps_ = true;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -161,8 +161,8 @@ Manifest* Manifest::New() const {
 void Manifest::Clear() {
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     stderr_ = false;
-    object_ = false;
-    deps_ = false;
+    object_ = true;
+    deps_ = true;
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   mutable_unknown_fields()->Clear();
@@ -189,7 +189,7 @@ bool Manifest::MergePartialFromCodedStream(
         break;
       }
 
-      // optional bool object = 101 [default = false];
+      // optional bool object = 101 [default = true];
       case 101: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
@@ -205,7 +205,7 @@ bool Manifest::MergePartialFromCodedStream(
         break;
       }
 
-      // optional bool deps = 102 [default = false];
+      // optional bool deps = 102 [default = true];
       case 102: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
@@ -244,12 +244,12 @@ void Manifest::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteBool(100, this->stderr(), output);
   }
 
-  // optional bool object = 101 [default = false];
+  // optional bool object = 101 [default = true];
   if (has_object()) {
     ::google::protobuf::internal::WireFormatLite::WriteBool(101, this->object(), output);
   }
 
-  // optional bool deps = 102 [default = false];
+  // optional bool deps = 102 [default = true];
   if (has_deps()) {
     ::google::protobuf::internal::WireFormatLite::WriteBool(102, this->deps(), output);
   }
@@ -267,12 +267,12 @@ void Manifest::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(100, this->stderr(), target);
   }
 
-  // optional bool object = 101 [default = false];
+  // optional bool object = 101 [default = true];
   if (has_object()) {
     target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(101, this->object(), target);
   }
 
-  // optional bool deps = 102 [default = false];
+  // optional bool deps = 102 [default = true];
   if (has_deps()) {
     target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(102, this->deps(), target);
   }
@@ -293,12 +293,12 @@ int Manifest::ByteSize() const {
       total_size += 2 + 1;
     }
 
-    // optional bool object = 101 [default = false];
+    // optional bool object = 101 [default = true];
     if (has_object()) {
       total_size += 2 + 1;
     }
 
-    // optional bool deps = 102 [default = false];
+    // optional bool deps = 102 [default = true];
     if (has_deps()) {
       total_size += 2 + 1;
     }

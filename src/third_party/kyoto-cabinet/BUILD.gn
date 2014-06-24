@@ -4,10 +4,12 @@ config("includes") {
 
 config("flags") {
   cflags = [
-    "-fexceptions",
-    "-frtti",
     "-fsigned-char",
     "-Wno-unused-const-variable",
+  ]
+  cflags_cc = [
+    "-fexceptions",
+    "-frtti",
   ]
 
   defines = [

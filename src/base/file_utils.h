@@ -63,7 +63,9 @@ bool GetLeastRecentPath(const String& path, String& result,
 bool GetLeastRecentPath(const String& path, String& result, const char* regex,
                         String* error = nullptr);
 
-inline bool RemoveDirectory(const String& path) { return !rmdir(path.c_str()); }
+inline bool RemoveEmptyDirectory(const String& path) {
+  return !rmdir(path.c_str());
+}
 
 inline bool ChangeOwner(const String& path, ui32 uid, String* error = nullptr) {
   if (lchown(path.c_str(), uid, getgid()) == -1) {

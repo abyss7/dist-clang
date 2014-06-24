@@ -1,15 +1,16 @@
-static_library("file_cache") {
+shared_library("file_cache") {
   sources = [
     "file_cache.cc",
     "file_cache.h",
-    "manifest.pb.cc",
-    "manifest.pb.h",
-    "manifest.proto",
   ]
 
   deps += [
     "//src/base:base",
+    "//src/base:hash",
+    "//src/base:logging",
+    "//src/histogram:histogram",
     ":hook",
+    ":manifest",
   ]
 }
 
@@ -27,4 +28,22 @@ shared_library("hook") {
   ]
 
   hard_dep = true
+}
+
+shared_library("manifest") {
+  sources = [
+    "manifest.pb.cc",
+    "manifest.pb.h",
+    "manifest.proto",
+    "manifest_utils.cc",
+    "manifest_utils.h",
+  ]
+
+  if (!config_for_tests) {
+    configs -= [ "//build/config:no_rtti" ]
+  }
+
+  deps += [
+    "//src/third_party/protobuf:protobuf",
+  ]
 }

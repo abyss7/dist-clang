@@ -99,14 +99,14 @@ class Manifest : public ::google::protobuf::Message {
   inline bool stderr() const;
   inline void set_stderr(bool value);
 
-  // optional bool object = 101 [default = false];
+  // optional bool object = 101 [default = true];
   inline bool has_object() const;
   inline void clear_object();
   static const int kObjectFieldNumber = 101;
   inline bool object() const;
   inline void set_object(bool value);
 
-  // optional bool deps = 102 [default = false];
+  // optional bool deps = 102 [default = true];
   inline bool has_deps() const;
   inline void clear_deps();
   static const int kDepsFieldNumber = 102;
@@ -167,7 +167,7 @@ inline void Manifest::set_stderr(bool value) {
   stderr_ = value;
 }
 
-// optional bool object = 101 [default = false];
+// optional bool object = 101 [default = true];
 inline bool Manifest::has_object() const {
   return (_has_bits_[0] & 0x00000002u) != 0;
 }
@@ -178,7 +178,7 @@ inline void Manifest::clear_has_object() {
   _has_bits_[0] &= ~0x00000002u;
 }
 inline void Manifest::clear_object() {
-  object_ = false;
+  object_ = true;
   clear_has_object();
 }
 inline bool Manifest::object() const {
@@ -189,7 +189,7 @@ inline void Manifest::set_object(bool value) {
   object_ = value;
 }
 
-// optional bool deps = 102 [default = false];
+// optional bool deps = 102 [default = true];
 inline bool Manifest::has_deps() const {
   return (_has_bits_[0] & 0x00000004u) != 0;
 }
@@ -200,7 +200,7 @@ inline void Manifest::clear_has_deps() {
   _has_bits_[0] &= ~0x00000004u;
 }
 inline void Manifest::clear_deps() {
-  deps_ = false;
+  deps_ = true;
   clear_has_deps();
 }
 inline bool Manifest::deps() const {
