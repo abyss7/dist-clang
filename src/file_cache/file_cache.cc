@@ -23,6 +23,10 @@ FileCache::FileCache(const String &path, ui64 size)
       cached_size_(0) {
   if (max_size_ != UNLIMITED) {
     String error;
+
+    // FIXME: refactor to portable solution.
+    system((String("mkdir -p ") + path).c_str());
+
     cached_size_ = base::CalculateDirectorySize(path, &error);
     if (!error.empty()) {
       max_size_ = UNLIMITED;
@@ -109,7 +113,6 @@ void FileCache::StoreNow(const String &code, const String &command_line,
   DoStore(Hash(code, command_line, version), entry);
 }
 
-// static
 bool FileCache::RemoveEntry(const String &manifest_path) {
   const String common_path =
       manifest_path.substr(0, manifest_path.size() - sizeof(".manifest") + 1);
@@ -119,26 +122,46 @@ bool FileCache::RemoveEntry(const String &manifest_path) {
   bool result = true;
 
   if (base::FileExists(object_path)) {
+    auto size = base::FileSize(object_path);
     if (!base::DeleteFile(object_path)) {
       result = false;
+    }
+    else {
+      DCHECK(size <= cached_size_);
+      cached_size_ -= size;
     }
   }
 
   if (base::FileExists(deps_path)) {
+    auto size = base::FileSize(deps_path);
     if (!base::DeleteFile(deps_path)) {
       result = false;
+    }
+    else {
+      DCHECK(size <= cached_size_);
+      cached_size_ -= size;
     }
   }
 
   if (base::FileExists(stderr_path)) {
+    auto size = base::FileSize(stderr_path);
     if (!base::DeleteFile(stderr_path)) {
       result = false;
+    }
+    else {
+      DCHECK(size <= cached_size_);
+      cached_size_ -= size;
     }
   }
 
   DCHECK(base::FileExists(manifest_path));
+  auto size = base::FileSize(manifest_path);
   if (!base::DeleteFile(manifest_path)) {
     result = false;
+  }
+  else {
+    DCHECK(size <= cached_size_);
+    cached_size_ -= size;
   }
 
   return result;
@@ -200,6 +223,8 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
     UnlockForWriting(manifest_path);
     return;
   }
+  cached_size_ += base::FileSize(manifest_path);
+  DCHECK_O_EVAL(utime(manifest_path.c_str(), nullptr) == 0);
 
   LOG(CACHE_VERBOSE) << "File " << entry.object_path << " is cached on path "
                      << CommonPath(hash);

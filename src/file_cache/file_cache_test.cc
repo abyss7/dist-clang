@@ -53,17 +53,25 @@ TEST(FileCacheTest, RemoveEntry) {
   const String deps_path = String(tmp_dir) + "/123.d";
   const String stderr_path = String(tmp_dir) + "/123.stderr";
 
-  ASSERT_TRUE(base::WriteFile(manifest_path, "1"));
-  ASSERT_TRUE(base::WriteFile(object_path, "1"));
-  ASSERT_TRUE(base::WriteFile(deps_path, "1"));
-  ASSERT_TRUE(base::WriteFile(stderr_path, "1"));
-  EXPECT_TRUE(FileCache::RemoveEntry(manifest_path));
-  ASSERT_EQ(0u, base::CalculateDirectorySize(tmp_dir));
+  {
+    ASSERT_TRUE(base::WriteFile(manifest_path, "1"));
+    ASSERT_TRUE(base::WriteFile(object_path, "1"));
+    ASSERT_TRUE(base::WriteFile(deps_path, "1"));
+    ASSERT_TRUE(base::WriteFile(stderr_path, "1"));
+    FileCache cache(tmp_dir, 100);
+    EXPECT_TRUE(cache.RemoveEntry(manifest_path));
+    ASSERT_EQ(0u, base::CalculateDirectorySize(tmp_dir));
+    EXPECT_EQ(0u, cache.cached_size_);
+  }
 
-  ASSERT_TRUE(base::WriteFile(manifest_path, "1"));
-  ASSERT_TRUE(base::WriteFile(object_path, "1"));
-  EXPECT_TRUE(FileCache::RemoveEntry(manifest_path));
-  ASSERT_EQ(0u, base::CalculateDirectorySize(tmp_dir));
+  {
+    ASSERT_TRUE(base::WriteFile(manifest_path, "1"));
+    ASSERT_TRUE(base::WriteFile(object_path, "1"));
+    FileCache cache(tmp_dir, 100);
+    EXPECT_TRUE(cache.RemoveEntry(manifest_path));
+    ASSERT_EQ(0u, base::CalculateDirectorySize(tmp_dir));
+    EXPECT_EQ(0u, cache.cached_size_);
+  }
 
   // TODO: check that |RemoveEntry()| fails, if at least one file can't be
   //       removed.
@@ -180,15 +188,13 @@ TEST(FileCacheTest, DISABLED_BadInitialCacheSize) {
   //    cache directory size.
 }
 
-TEST(FileCacheTest, DISABLED_ExceedCacheSize) {
-  // TODO: fix this test.
-
+TEST(FileCacheTest, ExceedCacheSize) {
   const base::TemporaryDir tmp_dir;
   const String path = tmp_dir;
   const String cache_path = path + "/cache";
   const String obj_path[] = {path + "/obj1.o", path + "/obj2.o",
                              path + "/obj3.o"};
-  const String obj_content[] = {"22", "22", "4444"};
+  const String obj_content[] = {"22", "333", "4444"};
   const String code[] = {"int main() { return 0; }", "int main() { return 1; }",
                          "int main() { return 2; }"};
   const String cl = "-c";
@@ -197,7 +203,7 @@ TEST(FileCacheTest, DISABLED_ExceedCacheSize) {
     ASSERT_TRUE(base::WriteFile(obj_path[i], obj_content[i]));
   }
 
-  FileCache cache(cache_path, 5);
+  FileCache cache(cache_path, 30);
 
   {
     FileCache::Entry entry{obj_path[0], String(), String()};
@@ -216,7 +222,7 @@ TEST(FileCacheTest, DISABLED_ExceedCacheSize) {
     ASSERT_TRUE(!!future);
     future->Wait();
     ASSERT_TRUE(future->GetValue());
-    EXPECT_EQ(28u, base::CalculateDirectorySize(cache_path));
+    EXPECT_EQ(29u, base::CalculateDirectorySize(cache_path));
   }
 
   std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -227,7 +233,7 @@ TEST(FileCacheTest, DISABLED_ExceedCacheSize) {
     ASSERT_TRUE(!!future);
     future->Wait();
     ASSERT_TRUE(future->GetValue());
-    EXPECT_EQ(4u, base::CalculateDirectorySize(cache_path));
+    EXPECT_EQ(16u, base::CalculateDirectorySize(cache_path));
   }
 
   FileCache::Entry entry;

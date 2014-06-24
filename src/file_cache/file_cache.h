@@ -53,7 +53,7 @@ class FileCache {
     return SecondPath(hash) + "/" + hash.substr(2);
   }
 
-  static bool RemoveEntry(const String& manifest_path);
+  bool RemoveEntry(const String& manifest_path);
   void DoStore(const String& hash, const Entry& entry);
   void Clean();
 
@@ -65,7 +65,8 @@ class FileCache {
 
   const String path_;
   base::ThreadPool pool_;
-  ui64 max_size_, cached_size_;
+  ui64 max_size_;
+  std::atomic<ui64> cached_size_;
 
   mutable std::mutex locks_mutex_;
   mutable HashMap<String, ui32> read_locks_;
