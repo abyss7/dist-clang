@@ -125,8 +125,7 @@ bool FileCache::RemoveEntry(const String &manifest_path) {
     auto size = base::FileSize(object_path);
     if (!base::DeleteFile(object_path)) {
       result = false;
-    }
-    else {
+    } else {
       DCHECK(size <= cached_size_);
       cached_size_ -= size;
     }
@@ -136,8 +135,7 @@ bool FileCache::RemoveEntry(const String &manifest_path) {
     auto size = base::FileSize(deps_path);
     if (!base::DeleteFile(deps_path)) {
       result = false;
-    }
-    else {
+    } else {
       DCHECK(size <= cached_size_);
       cached_size_ -= size;
     }
@@ -147,8 +145,7 @@ bool FileCache::RemoveEntry(const String &manifest_path) {
     auto size = base::FileSize(stderr_path);
     if (!base::DeleteFile(stderr_path)) {
       result = false;
-    }
-    else {
+    } else {
       DCHECK(size <= cached_size_);
       cached_size_ -= size;
     }
@@ -158,8 +155,7 @@ bool FileCache::RemoveEntry(const String &manifest_path) {
   auto size = base::FileSize(manifest_path);
   if (!base::DeleteFile(manifest_path)) {
     result = false;
-  }
-  else {
+  } else {
     DCHECK(size <= cached_size_);
     cached_size_ -= size;
   }
@@ -177,8 +173,8 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
   // FIXME: refactor to portable solution.
   if (system((String("mkdir -p ") + SecondPath(hash)).c_str()) == -1) {
     // "mkdir -p" doesn't fail if the path already exists.
-    LOG(CACHE_ERROR) << "Failed to `mkdir -p` for " << SecondPath(hash);
     UnlockForWriting(manifest_path);
+    LOG(CACHE_ERROR) << "Failed to `mkdir -p` for " << SecondPath(hash);
     return;
   }
 
@@ -188,6 +184,7 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
     if (!base::WriteFile(stderr_path, entry.stderr)) {
       RemoveEntry(manifest_path);
       UnlockForWriting(manifest_path);
+      LOG(CACHE_ERROR) << "Failed to save stderr to " << stderr_path;
       return;
     }
     manifest.set_stderr(true);
@@ -196,9 +193,11 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
 
   if (!entry.object_path.empty()) {
     const String object_path = CommonPath(hash) + ".o";
-    if (!base::CopyFile(entry.object_path, object_path)) {
+    String error;
+    if (!base::CopyFile(entry.object_path, object_path, true, &error)) {
       RemoveEntry(manifest_path);
       UnlockForWriting(manifest_path);
+      LOG(CACHE_ERROR) << "Failed to copy object file with error: " << error;
       return;
     }
     cached_size_ += base::FileSize(object_path);
@@ -208,9 +207,12 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
 
   if (!entry.deps_path.empty()) {
     const String deps_path = CommonPath(hash) + ".d";
-    if (!base::CopyFile(entry.deps_path, deps_path)) {
+    String error;
+    if (!base::CopyFile(entry.deps_path, deps_path, true, &error)) {
       RemoveEntry(manifest_path);
       UnlockForWriting(manifest_path);
+      LOG(CACHE_ERROR) << "Failed to copy " << entry.deps_path
+                       << " with error: " << error;
       return;
     }
     cached_size_ += base::FileSize(deps_path);
@@ -221,10 +223,13 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
   if (!file_cache::SaveManifest(manifest_path, manifest)) {
     RemoveEntry(manifest_path);
     UnlockForWriting(manifest_path);
+    LOG(CACHE_ERROR) << "Failed to save manifest to " << manifest_path;
     return;
   }
   cached_size_ += base::FileSize(manifest_path);
   DCHECK_O_EVAL(utime(manifest_path.c_str(), nullptr) == 0);
+  DCHECK_O_EVAL(utime(SecondPath(hash).c_str(), nullptr) == 0);
+  DCHECK_O_EVAL(utime(FirstPath(hash).c_str(), nullptr) == 0);
 
   LOG(CACHE_VERBOSE) << "File " << entry.object_path << " is cached on path "
                      << CommonPath(hash);

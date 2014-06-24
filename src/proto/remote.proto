@@ -64,7 +64,8 @@ message Execute {
 }
 
 message RemoteResult {
-  required bytes obj           = 1;
+  required bytes obj           = 1;  // Doesn't comply with file cache manifest.
+  optional bytes deps          = 2;
 
   extend Universal {
     optional RemoteResult extension = 4;

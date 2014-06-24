@@ -46,11 +46,13 @@ class Daemon {
   using PluginMap = HashMap<String /* version */, PluginNameMap>;
 
   bool SearchCache(const proto::Execute* message, FileCache::Entry* entry);
-  void UpdateCacheFromFile(const proto::Execute* message,
-                           const String& file_path,
-                           const proto::Status& status);
-  void UpdateCache(const proto::Execute* message, const String& object,
-                   const proto::Status& status);
+  void UpdateCacheFromFlags(const proto::Execute* message,
+                            const proto::Status& status);
+  void UpdateCacheFromRemote(const proto::Execute* message,
+                             const proto::RemoteResult& result,
+                             const proto::Status& status);
+  void UpdateCache(const String& pp_source, const FileCache::Entry& entry,
+                   const proto::Flags& flags);
 
   // Convert CC to PP flags.
   static proto::Flags ConvertFlags(const proto::Flags& flags);

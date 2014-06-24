@@ -225,19 +225,72 @@ bool Daemon::SearchCache(const proto::Execute* message,
   return true;
 }
 
-void Daemon::UpdateCacheFromFile(const proto::Execute* message,
-                                 const String& file_path,
-                                 const proto::Status& status) {
+void Daemon::UpdateCacheFromFlags(const proto::Execute* message,
+                                  const proto::Status& status) {
   if (!cache_ || !message || !message->has_pp_source()) {
     LOG(CACHE_WARNING) << "Failed to update the cache";
     return;
   }
   CHECK(status.code() == proto::Status::OK);
 
-  const auto& flags = message->flags();
   FileCache::Entry entry;
-  entry.object_path = file_path;
+  const auto& flags = message->flags();
+
+  entry.object_path = message->current_dir() + "/" + flags.output();
+  if (flags.has_deps_file()) {
+    entry.deps_path = message->current_dir() + "/" + flags.deps_file();
+  }
   entry.stderr = status.description();
+
+  UpdateCache(message->pp_source(), entry, message->flags());
+}
+
+void Daemon::UpdateCacheFromRemote(const proto::Execute* message,
+                                   const proto::RemoteResult& result,
+                                   const proto::Status& status) {
+  if (!cache_ || !message || !message->has_pp_source()) {
+    LOG(CACHE_WARNING) << "Failed to update the cache";
+    return;
+  }
+  CHECK(status.code() == proto::Status::OK);
+
+  String error;
+  FileCache::Entry entry;
+
+  if (result.has_obj()) {
+    entry.object_path = base::CreateTempFile(&error);
+    if (entry.object_path.empty()) {
+      LOG(CACHE_ERROR) << "Failed to create temporary file to cache object: "
+                       << error;
+      return;
+    }
+
+    if (!base::WriteFile(entry.object_path, result.obj())) {
+      return;
+    }
+  }
+  if (result.has_deps()) {
+    entry.deps_path = base::CreateTempFile(&error);
+    if (entry.deps_path.empty()) {
+      LOG(CACHE_ERROR) << "Failed to create temporary file to cache deps: "
+                       << error;
+      return;
+    }
+
+    if (!base::WriteFile(entry.deps_path, result.deps())) {
+      return;
+    }
+  } else if (message->flags().has_deps_file()) {
+    entry.deps_path =
+        message->current_dir() + "/" + message->flags().deps_file();
+  }
+  entry.stderr = status.description();
+
+  UpdateCache(message->pp_source(), entry, message->flags());
+}
+
+void Daemon::UpdateCache(const String& pp_source, const FileCache::Entry& entry,
+                         const proto::Flags& flags) {
   const auto& version = flags.compiler().version();
   String command_line =
       base::JoinString<' '>(flags.other().begin(), flags.other().end());
@@ -250,22 +303,9 @@ void Daemon::UpdateCacheFromFile(const proto::Execute* message,
   }
 
   if (sync_cache_) {
-    cache_->StoreNow(message->pp_source(), command_line, version, entry);
+    cache_->StoreNow(pp_source, command_line, version, entry);
   } else {
-    cache_->Store(message->pp_source(), command_line, version, entry);
-  }
-}
-
-void Daemon::UpdateCache(const proto::Execute* message, const String& object,
-                         const proto::Status& status) {
-  String error;
-  String temp_file = base::CreateTempFile(&error);
-
-  if (temp_file.empty()) {
-    LOG(CACHE_ERROR) << "Failed to create temporary file to cache object: "
-                     << error;
-  } else if (base::WriteFile(temp_file, object)) {
-    UpdateCacheFromFile(message, temp_file, status);
+    cache_->Store(pp_source, command_line, version, entry);
   }
 }
 
@@ -553,9 +593,7 @@ void Daemon::DoRemoteExecution(const std::atomic<bool>& is_shutting_down,
         status.set_code(proto::Status::OK);
         LOG(INFO) << "Remote compilation successful: "
                   << message->flags().input();
-        String output_file =
-            message->current_dir() + "/" + message->flags().output();
-        UpdateCacheFromFile(message, output_file, status);
+        UpdateCacheFromRemote(message, extension, status);
         task->first->ReportStatus(status);
         continue;
       }
@@ -600,9 +638,7 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
         status.set_description(process->stderr());
         LOG(INFO) << "Local compilation successful:  "
                   << task->second->flags().input();
-        String output_file =
-            task->second->current_dir() + "/" + task->second->flags().output();
-        UpdateCacheFromFile(task->second.get(), output_file, status);
+        UpdateCacheFromFlags(task->second.get(), status);
       }
 
       task->first->ReportStatus(status);
@@ -667,14 +703,16 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
         LOG(INFO) << "External compilation successful";
       }
 
-      if (store_remote_cache_ && status.code() == proto::Status::OK) {
-        UpdateCache(task->second.get(), process->stdout(), status);
-      }
-
       Daemon::ScopedMessage message(new proto::Universal);
       const auto& result = proto::RemoteResult::extension;
       message->MutableExtension(proto::Status::extension)->CopyFrom(status);
       message->MutableExtension(result)->set_obj(process->stdout());
+
+      if (store_remote_cache_ && status.code() == proto::Status::OK) {
+        UpdateCacheFromRemote(task->second.get(), message->GetExtension(result),
+                              status);
+      }
+
       task->first->SendAsync(std::move(message));
     }
   }

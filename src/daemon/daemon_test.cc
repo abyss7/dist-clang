@@ -917,6 +917,8 @@ TEST_F(DaemonTest, StoreLocalCache) {
       << "Daemon must not store references to the connection";
   EXPECT_EQ(1, connection2.use_count())
       << "Daemon must not store references to the connection";
+
+  // TODO: check with deps file.
 }
 
 TEST_F(DaemonTest, StoreRemoteCache) {

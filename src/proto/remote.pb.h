@@ -813,6 +813,18 @@ class RemoteResult : public ::google::protobuf::Message {
   inline ::std::string* release_obj();
   inline void set_allocated_obj(::std::string* obj);
 
+  // optional bytes deps = 2;
+  inline bool has_deps() const;
+  inline void clear_deps();
+  static const int kDepsFieldNumber = 2;
+  inline const ::std::string& deps() const;
+  inline void set_deps(const ::std::string& value);
+  inline void set_deps(const char* value);
+  inline void set_deps(const void* value, size_t size);
+  inline ::std::string* mutable_deps();
+  inline ::std::string* release_deps();
+  inline void set_allocated_deps(::std::string* deps);
+
   static const int kExtensionFieldNumber = 4;
   static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
       ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::RemoteResult >, 11, false >
@@ -821,13 +833,16 @@ class RemoteResult : public ::google::protobuf::Message {
  private:
   inline void set_has_obj();
   inline void clear_has_obj();
+  inline void set_has_deps();
+  inline void clear_has_deps();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
   ::std::string* obj_;
+  ::std::string* deps_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(1 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(2 + 31) / 32];
 
   friend void  protobuf_AddDesc_remote_2eproto();
   friend void protobuf_AssignDesc_remote_2eproto();
@@ -1949,6 +1964,76 @@ inline void RemoteResult::set_allocated_obj(::std::string* obj) {
   } else {
     clear_has_obj();
     obj_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
+}
+
+// optional bytes deps = 2;
+inline bool RemoteResult::has_deps() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+inline void RemoteResult::set_has_deps() {
+  _has_bits_[0] |= 0x00000002u;
+}
+inline void RemoteResult::clear_has_deps() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+inline void RemoteResult::clear_deps() {
+  if (deps_ != &::google::protobuf::internal::kEmptyString) {
+    deps_->clear();
+  }
+  clear_has_deps();
+}
+inline const ::std::string& RemoteResult::deps() const {
+  return *deps_;
+}
+inline void RemoteResult::set_deps(const ::std::string& value) {
+  set_has_deps();
+  if (deps_ == &::google::protobuf::internal::kEmptyString) {
+    deps_ = new ::std::string;
+  }
+  deps_->assign(value);
+}
+inline void RemoteResult::set_deps(const char* value) {
+  set_has_deps();
+  if (deps_ == &::google::protobuf::internal::kEmptyString) {
+    deps_ = new ::std::string;
+  }
+  deps_->assign(value);
+}
+inline void RemoteResult::set_deps(const void* value, size_t size) {
+  set_has_deps();
+  if (deps_ == &::google::protobuf::internal::kEmptyString) {
+    deps_ = new ::std::string;
+  }
+  deps_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* RemoteResult::mutable_deps() {
+  set_has_deps();
+  if (deps_ == &::google::protobuf::internal::kEmptyString) {
+    deps_ = new ::std::string;
+  }
+  return deps_;
+}
+inline ::std::string* RemoteResult::release_deps() {
+  clear_has_deps();
+  if (deps_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = deps_;
+    deps_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
+}
+inline void RemoteResult::set_allocated_deps(::std::string* deps) {
+  if (deps_ != &::google::protobuf::internal::kEmptyString) {
+    delete deps_;
+  }
+  if (deps) {
+    set_has_deps();
+    deps_ = deps;
+  } else {
+    clear_has_deps();
+    deps_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   }
 }
 

@@ -141,8 +141,9 @@ void protobuf_AssignDesc_remote_2eproto() {
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(Execute));
   RemoteResult_descriptor_ = file->message_type(5);
-  static const int RemoteResult_offsets_[1] = {
+  static const int RemoteResult_offsets_[2] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(RemoteResult, obj_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(RemoteResult, deps_),
   };
   RemoteResult_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
@@ -227,10 +228,10 @@ void protobuf_AddDesc_remote_2eproto() {
     "ang.proto.Flags\022\023\n\013current_dir\030\004 \001(\t\022\021\n\t"
     "pp_source\030\005 \001(\t\022\017\n\007user_id\030\006 \001(\r2I\n\texte"
     "nsion\022\033.dist_clang.proto.Universal\030\003 \001(\013"
-    "2\031.dist_clang.proto.Execute\"k\n\014RemoteRes"
-    "ult\022\013\n\003obj\030\001 \002(\0142N\n\textension\022\033.dist_cla"
-    "ng.proto.Universal\030\004 \001(\0132\036.dist_clang.pr"
-    "oto.RemoteResult", 976);
+    "2\031.dist_clang.proto.Execute\"y\n\014RemoteRes"
+    "ult\022\013\n\003obj\030\001 \002(\014\022\014\n\004deps\030\002 \001(\0142N\n\textens"
+    "ion\022\033.dist_clang.proto.Universal\030\004 \001(\0132\036"
+    ".dist_clang.proto.RemoteResult", 990);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "remote.proto", &protobuf_RegisterTypes);
   Universal::default_instance_ = new Universal();
@@ -2165,6 +2166,7 @@ void Execute::Swap(Execute* other) {
 
 #ifndef _MSC_VER
 const int RemoteResult::kObjFieldNumber;
+const int RemoteResult::kDepsFieldNumber;
 #endif  // !_MSC_VER
 
 #ifndef _MSC_VER
@@ -2190,6 +2192,7 @@ RemoteResult::RemoteResult(const RemoteResult& from)
 void RemoteResult::SharedCtor() {
   _cached_size_ = 0;
   obj_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  deps_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -2200,6 +2203,9 @@ RemoteResult::~RemoteResult() {
 void RemoteResult::SharedDtor() {
   if (obj_ != &::google::protobuf::internal::kEmptyString) {
     delete obj_;
+  }
+  if (deps_ != &::google::protobuf::internal::kEmptyString) {
+    delete deps_;
   }
   if (this != default_instance_) {
   }
@@ -2233,6 +2239,11 @@ void RemoteResult::Clear() {
         obj_->clear();
       }
     }
+    if (has_deps()) {
+      if (deps_ != &::google::protobuf::internal::kEmptyString) {
+        deps_->clear();
+      }
+    }
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   mutable_unknown_fields()->Clear();
@@ -2250,6 +2261,20 @@ bool RemoteResult::MergePartialFromCodedStream(
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
           DO_(::google::protobuf::internal::WireFormatLite::ReadBytes(
                 input, this->mutable_obj()));
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(18)) goto parse_deps;
+        break;
+      }
+
+      // optional bytes deps = 2;
+      case 2: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
+         parse_deps:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadBytes(
+                input, this->mutable_deps()));
         } else {
           goto handle_uninterpreted;
         }
@@ -2281,6 +2306,12 @@ void RemoteResult::SerializeWithCachedSizes(
       1, this->obj(), output);
   }
 
+  // optional bytes deps = 2;
+  if (has_deps()) {
+    ::google::protobuf::internal::WireFormatLite::WriteBytes(
+      2, this->deps(), output);
+  }
+
   if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
@@ -2294,6 +2325,13 @@ void RemoteResult::SerializeWithCachedSizes(
     target =
       ::google::protobuf::internal::WireFormatLite::WriteBytesToArray(
         1, this->obj(), target);
+  }
+
+  // optional bytes deps = 2;
+  if (has_deps()) {
+    target =
+      ::google::protobuf::internal::WireFormatLite::WriteBytesToArray(
+        2, this->deps(), target);
   }
 
   if (!unknown_fields().empty()) {
@@ -2312,6 +2350,13 @@ int RemoteResult::ByteSize() const {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::BytesSize(
           this->obj());
+    }
+
+    // optional bytes deps = 2;
+    if (has_deps()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::BytesSize(
+          this->deps());
     }
 
   }
@@ -2344,6 +2389,9 @@ void RemoteResult::MergeFrom(const RemoteResult& from) {
     if (from.has_obj()) {
       set_obj(from.obj());
     }
+    if (from.has_deps()) {
+      set_deps(from.deps());
+    }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
@@ -2369,6 +2417,7 @@ bool RemoteResult::IsInitialized() const {
 void RemoteResult::Swap(RemoteResult* other) {
   if (other != this) {
     std::swap(obj_, other->obj_);
+    std::swap(deps_, other->deps_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);
