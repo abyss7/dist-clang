@@ -194,7 +194,11 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
   if (!entry.object_path.empty()) {
     const String object_path = CommonPath(hash) + ".o";
     String error;
-    if (!base::CopyFile(entry.object_path, object_path, true, &error)) {
+    bool result = base::CopyFile(entry.object_path, object_path, true, &error);
+    if (entry.move_object) {
+      base::DeleteFile(entry.object_path);
+    }
+    if (!result) {
       RemoveEntry(manifest_path);
       UnlockForWriting(manifest_path);
       LOG(CACHE_ERROR) << "Failed to copy object file with error: " << error;
@@ -208,7 +212,11 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
   if (!entry.deps_path.empty()) {
     const String deps_path = CommonPath(hash) + ".d";
     String error;
-    if (!base::CopyFile(entry.deps_path, deps_path, true, &error)) {
+    bool result = base::CopyFile(entry.deps_path, deps_path, true, &error);
+    if (entry.move_deps) {
+      base::DeleteFile(entry.deps_path);
+    }
+    if (!result) {
       RemoveEntry(manifest_path);
       UnlockForWriting(manifest_path);
       LOG(CACHE_ERROR) << "Failed to copy " << entry.deps_path

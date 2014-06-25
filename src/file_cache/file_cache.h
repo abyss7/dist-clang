@@ -22,6 +22,8 @@ class FileCache {
     String object_path;
     String deps_path;
     String stderr;
+    bool move_object = false;
+    bool move_deps = false;
   };
 
   using Optional = base::ThreadPool::Optional;

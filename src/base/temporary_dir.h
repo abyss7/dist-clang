@@ -10,18 +10,15 @@ class TemporaryDir {
   TemporaryDir();
   ~TemporaryDir();
 
-  inline const String& GetPath() const;
-  inline const String& GetError() const;
+  inline const String& GetPath() const { return path_; }
+  inline const String& GetError() const { return error_; }
 
-  operator String() const;
+  inline operator bool() const { return !path_.empty(); }
+  inline operator String() const { return path_; }
 
  private:
   String path_, error_;
 };
-
-const String& TemporaryDir::GetPath() const { return path_; }
-
-const String& TemporaryDir::GetError() const { return error_; }
 
 }  // namespace base
 }  // namespace dist_clang

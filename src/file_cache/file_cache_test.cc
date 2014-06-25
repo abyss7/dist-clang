@@ -242,5 +242,11 @@ TEST(FileCacheTest, ExceedCacheSize) {
   EXPECT_TRUE(cache.Find(code[2], cl, version, &entry));
 }
 
+TEST(FileCacheTest, DISABLED_DeleteOriginals) {
+  // TODO: implement this test.
+  //  - Check that original object and deps get deleted, if |entry.move_*| is
+  //    true.
+}
+
 }  // namespace file_cache
 }  // namespace dist_clang

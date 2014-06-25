@@ -30,14 +30,19 @@ int Remove(const char* path, const struct stat* sb, int type, struct FTW*) {
 namespace dist_clang {
 namespace base {
 
-TemporaryDir::TemporaryDir() { path_ = CreateTempDir(&error_); }
+TemporaryDir::TemporaryDir() {
+  char buf[] = "/tmp/clangd-XXXXXX";
+  if (!mkdtemp(buf)) {
+    GetLastError(&error_);
+    return;
+  }
+  path_ = buf;
+}
 
 TemporaryDir::~TemporaryDir() {
   nftw(path_.c_str(), Remove, 4, FTW_DEPTH | FTW_MOUNT | FTW_PHYS);
   DCHECK_O_EVAL(!rmdir(path_.c_str()) || errno == ENOENT);
 }
-
-TemporaryDir::operator String() const { return path_; }
 
 }  // namespace base
 }  // namespace dist_clang

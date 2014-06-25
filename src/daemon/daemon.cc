@@ -259,6 +259,7 @@ void Daemon::UpdateCacheFromRemote(const proto::Execute* message,
 
   if (result.has_obj()) {
     entry.object_path = base::CreateTempFile(&error);
+    entry.move_object = true;
     if (entry.object_path.empty()) {
       LOG(CACHE_ERROR) << "Failed to create temporary file to cache object: "
                        << error;
@@ -271,6 +272,7 @@ void Daemon::UpdateCacheFromRemote(const proto::Execute* message,
   }
   if (result.has_deps()) {
     entry.deps_path = base::CreateTempFile(&error);
+    entry.move_deps = true;
     if (entry.deps_path.empty()) {
       LOG(CACHE_ERROR) << "Failed to create temporary file to cache deps: "
                        << error;

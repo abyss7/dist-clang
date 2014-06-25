@@ -24,7 +24,9 @@ inline String GetEnv(const char* env_name, const char* default_env = nullptr) {
 }
 
 inline void GetLastError(String* error) {
-  if (error) error->assign(strerror(errno));
+  if (error) {
+    error->assign(strerror(errno));
+  }
 }
 
 inline String SetEnv(const char* env_name, const String& value,
@@ -40,15 +42,6 @@ inline String SetEnv(const char* env_name, const String& value,
 inline String GetCurrentDir(String* error = nullptr) {
   char buf[PATH_MAX];
   if (!getcwd(buf, sizeof(buf))) {
-    GetLastError(error);
-    return String();
-  }
-  return String(buf);
-}
-
-inline String CreateTempDir(String* error = nullptr) {
-  char buf[] = "/tmp/clangd-XXXXXX";
-  if (!mkdtemp(buf)) {
     GetLastError(error);
     return String();
   }
