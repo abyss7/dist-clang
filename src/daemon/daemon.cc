@@ -261,12 +261,12 @@ void Daemon::UpdateCacheFromRemote(const proto::Execute* message,
     entry.object_path = base::CreateTempFile(&error);
     entry.move_object = true;
     if (entry.object_path.empty()) {
-      LOG(CACHE_ERROR) << "Failed to create temporary file to cache object: "
-                       << error;
+      LOG(CACHE_ERROR) << "Failed to create temporary file: " << error;
       return;
     }
 
     if (!base::WriteFile(entry.object_path, result.obj())) {
+      LOG(CACHE_ERROR) << "Failed to write object to " << entry.object_path;
       return;
     }
   }
@@ -274,12 +274,12 @@ void Daemon::UpdateCacheFromRemote(const proto::Execute* message,
     entry.deps_path = base::CreateTempFile(&error);
     entry.move_deps = true;
     if (entry.deps_path.empty()) {
-      LOG(CACHE_ERROR) << "Failed to create temporary file to cache deps: "
-                       << error;
+      LOG(CACHE_ERROR) << "Failed to create temporary file: " << error;
       return;
     }
 
     if (!base::WriteFile(entry.deps_path, result.deps())) {
+      LOG(CACHE_ERROR) << "Failed to write deps to " << entry.deps_path;
       return;
     }
   } else if (message->flags().has_deps_file()) {

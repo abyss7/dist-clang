@@ -13,7 +13,7 @@ namespace base {
 TEST(FileUtilsTest, DISABLED_CopyFile) {
   // TODO: implement this.
   //  - Check hard-links.
-  //  - Check raw copying.
+  //  - Check raw copying (with and without overwriting).
   //  - Check file permissions.
   //  - Check contents.
 }

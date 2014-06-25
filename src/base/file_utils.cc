@@ -47,7 +47,7 @@ bool CopyFile(const String& src, const String& dst, bool overwrite,
 
   auto flags = O_CREAT | O_WRONLY | O_EXCL;
   // Force unlinking of |dst|, since it may be hard-linked with other places.
-  if (overwrite && unlink(dst.c_str()) == -1) {
+  if (overwrite && unlink(dst.c_str()) == -1 && errno != ENOENT) {
     GetLastError(error);
     close(src_fd);
     return false;

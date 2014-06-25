@@ -201,7 +201,8 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
     if (!result) {
       RemoveEntry(manifest_path);
       UnlockForWriting(manifest_path);
-      LOG(CACHE_ERROR) << "Failed to copy object file with error: " << error;
+      LOG(CACHE_ERROR) << "Failed to copy " << entry.object_path
+                       << " with error: " << error;
       return;
     }
     cached_size_ += base::FileSize(object_path);
