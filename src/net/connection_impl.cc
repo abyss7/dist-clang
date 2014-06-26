@@ -32,12 +32,7 @@ ConnectionImpl::ConnectionImpl(EventLoop& event_loop, fd_t fd,
       file_input_stream_(fd_, buffer_size),
       gzip_input_stream_(
           new GzipInputStream(&file_input_stream_, GzipInputStream::ZLIB)),
-      file_output_stream_(fd_, buffer_size) {
-  GzipOutputStream::Options options;
-  options.format = GzipOutputStream::ZLIB;
-  gzip_output_stream_.reset(
-      new GzipOutputStream(&file_output_stream_, options));
-}
+      file_output_stream_(fd_, buffer_size) {}
 
 ConnectionImpl::~ConnectionImpl() { Close(); }
 
@@ -137,6 +132,13 @@ bool ConnectionImpl::SendSyncImpl(Status* status) {
       status->set_description("Reading after close");
     }
     return false;
+  }
+
+  if (!gzip_output_stream_) {
+    GzipOutputStream::Options options;
+    options.format = GzipOutputStream::ZLIB;
+    gzip_output_stream_.reset(
+        new GzipOutputStream(&file_output_stream_, options));
   }
 
   {

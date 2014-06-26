@@ -21,8 +21,10 @@ namespace client {
 // Target: x86_64-unknown-linux-gnu
 // Thread model: posix
 //  "/path/to/clang" "-cc1" "-triple" ...
+//  "/path/to/clang" "-cc1" "-triple" ...
+//  ...
 //
-// Pay attention to the leading space in the fourth line.
+// Pay attention to the leading space in the fourth and further lines.
 
 // static
 bool FlagSet::ParseClangOutput(const String& output, String* version,
