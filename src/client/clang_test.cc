@@ -4,7 +4,7 @@
 #include <base/test_process.h>
 #include <base/temporary_dir.h>
 #include <client/clang.h>
-#include <client/clang_flag_set.h>
+#include <client/flag_set.h>
 #include <net/network_service_impl.h>
 #include <net/test_network_service.h>
 #include <proto/remote.pb.h>

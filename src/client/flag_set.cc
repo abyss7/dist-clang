@@ -1,4 +1,4 @@
-#include <client/clang_flag_set.h>
+#include <client/flag_set.h>
 
 #include <base/assert.h>
 #include <base/c_utils.h>

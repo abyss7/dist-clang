@@ -11,8 +11,8 @@ source_set("client") {
   sources = [
     "clang.cc",
     "clang.h",
-    "clang_flag_set.cc",
-    "clang_flag_set.h",
+    "flag_set.cc",
+    "flag_set.h",
   ]
   deps += [
     "//src/base:base",

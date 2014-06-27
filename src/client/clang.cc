@@ -7,7 +7,7 @@
 #include <base/logging.h>
 #include <base/process_impl.h>
 #include <base/string_utils.h>
-#include <client/clang_flag_set.h>
+#include <client/flag_set.h>
 #include <net/base/end_point.h>
 #include <net/connection.h>
 #include <net/network_service_impl.h>
