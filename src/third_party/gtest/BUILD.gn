@@ -39,4 +39,8 @@ shared_library("gtest") {
     ":includes",
     "//src/third_party/libcxxabi:includes",
   ]
+
+  deps += [
+    "//src/base:logging",
+  ]
 }

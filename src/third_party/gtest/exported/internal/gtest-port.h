@@ -193,6 +193,9 @@
 //   Int32FromGTestEnv()  - parses an Int32 environment variable.
 //   StringFromGTestEnv() - parses a string environment variable.
 
+#include <base/logging.h>
+#include <base/using_log.h>
+
 #include <ctype.h>   // for isspace, etc
 #include <stddef.h>  // for ptrdiff_t
 #include <stdlib.h>
@@ -1005,6 +1008,7 @@ GTEST_API_ ::std::string FormatFileLocation(const char* file, int line);
 GTEST_API_ ::std::string FormatCompilerIndependentFileLocation(const char* file,
                                                                int line);
 
+#ifndef GTEST_USE_EXTERNAL_LOG_FACILITY
 // Defines logging utilities:
 //   GTEST_LOG_(severity) - logs messages at the specified severity level. The
 //                          message itself is streamed into the macro.
@@ -1039,6 +1043,7 @@ class GTEST_API_ GTestLog {
 #define GTEST_LOG_(severity) \
     ::testing::internal::GTestLog(::testing::internal::GTEST_##severity, \
                                   __FILE__, __LINE__).GetStream()
+#endif  // GTEST_USE_EXTERNAL_LOG_FACILITY
 
 inline void LogToStderr() {}
 inline void FlushInfoLog() { fflush(NULL); }

@@ -285,6 +285,8 @@ GTEST_DEFINE_bool_(
 
 namespace internal {
 
+static const UInt32 kMaxRange = 1u << 31;
+
 // Generates a random number from [0, range), using a Linear
 // Congruential Generator (LCG).  Crashes if 'range' is 0 or greater
 // than kMaxRange.

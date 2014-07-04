@@ -481,7 +481,7 @@ GTEST_API_ ::std::string FormatCompilerIndependentFileLocation(
     return file_name + ":" + StreamableToString(line);
 }
 
-
+#ifndef GTEST_USE_EXTERNAL_LOG_FACILITY
 GTestLog::GTestLog(GTestLogSeverity severity, const char* file, int line)
     : severity_(severity) {
   const char* const marker =
@@ -506,6 +506,7 @@ GTestLog::~GTestLog() {
 # pragma warning(push)
 # pragma warning(disable: 4996)
 #endif  // _MSC_VER
+#endif  // GTEST_USE_EXTERNAL_LOG_FACILITY
 
 #if GTEST_HAS_STREAM_REDIRECTION
 

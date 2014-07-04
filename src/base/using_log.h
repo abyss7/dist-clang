@@ -23,3 +23,7 @@ using namespace dist_clang::base::named_levels;
 #else
 #define DLOG(level) LOG(level)
 #endif
+
+// My luck, the gtest severity names are the same.
+#define GTEST_LOG_(severity) LOG(severity) << "Google Test " #severity ": "
+#define GTEST_USE_EXTERNAL_LOG_FACILITY

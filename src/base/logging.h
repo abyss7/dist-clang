@@ -5,6 +5,9 @@
 #include <third_party/libcxx/exported/include/set>
 #include <third_party/libcxx/exported/include/sstream>
 
+// The whole log facility should be minimalistic, since it may be used in a
+// third-party libraries, like gtest.
+
 namespace dist_clang {
 namespace base {
 

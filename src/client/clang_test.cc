@@ -269,8 +269,9 @@ class ClientTest : public ::testing::Test {
 };
 
 TEST_F(ClientTest, NoConnection) {
+  const String temp_input = base::CreateTempFile(".cc");
+  const char* argv[] = {"clang++", "-c", temp_input.c_str(), nullptr};
   const int argc = 3;
-  const char* argv[] = {"a", "b", "c", nullptr};
 
   do_connect = false;
   EXPECT_TRUE(client::DoMain(argc, argv, "socket_path", "clang_path"));
