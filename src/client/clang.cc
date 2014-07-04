@@ -1,15 +1,10 @@
 #include <client/clang.h>
 
-#include <base/assert.h>
 #include <base/c_utils.h>
 #include <base/constants.h>
-#include <base/file_utils.h>
 #include <base/logging.h>
-#include <base/process_impl.h>
-#include <base/string_utils.h>
-#include <client/flag_set.h>
+#include <client/command.h>
 #include <net/base/end_point.h>
-#include <net/connection.h>
 #include <net/network_service_impl.h>
 #include <proto/remote.pb.h>
 
@@ -18,14 +13,23 @@
 namespace dist_clang {
 namespace client {
 
-bool DoMain(int argc, const char* const argv[], const String& socket_path,
-            const String& clang_path) {
-  if (clang_path.empty()) {
+bool DoMain(int argc, const char* const argv[], const String& socket_path) {
+  auto service = net::NetworkService::Create();
+  auto end_point = net::EndPoint::UnixSocket(socket_path);
+
+  String current_dir = base::GetCurrentDir();
+  if (current_dir.empty()) {
     return true;
   }
 
-  auto service = net::NetworkService::Create();
-  auto end_point = net::EndPoint::UnixSocket(socket_path);
+  String version = base::GetEnv(base::kEnvClangVersion);
+  List<Command> commands;
+
+  if (!Command::GenerateFromArgs(argc, argv, commands)) {
+    LOG(WARNING) << "Failed to parse driver arguments - see errors above";
+    return true;
+  }
+
   String error;
   auto connection = service->Connect(end_point, &error);
   if (!connection) {
@@ -33,39 +37,18 @@ bool DoMain(int argc, const char* const argv[], const String& socket_path,
     return true;
   }
 
-  String current_dir = base::GetCurrentDir();
-  if (current_dir.empty()) {
-    return true;
-  }
-
-  String version;
-  FlagSet::CommandList commands;
-  base::ProcessPtr process =
-      base::Process::Create(clang_path, String(), base::Process::SAME_UID);
-  process->AppendArg("-###").AppendArg(argv + 1, argv + argc);
-  if (!process->Run(10) ||
-      !FlagSet::ParseClangOutput(process->stderr(), &version, commands)) {
-    return true;
-  }
-
-  for (auto& args : commands) {
+  for (const auto& command : commands) {
     UniquePtr<proto::Execute> message(new proto::Execute);
     message->set_remote(false);
     message->set_user_id(getuid());
     message->set_current_dir(current_dir);
 
-    auto flags = message->mutable_flags();
-    flags->mutable_compiler()->set_version(version);
-    if (FlagSet::ProcessFlags(args, flags) != FlagSet::COMPILE) {
-      base::ProcessPtr command = base::Process::Create(args.front(), String(),
-                                                       base::Process::SAME_UID);
-      command->AppendArg(++args.begin(), args.end());
-      if (!command->Run(base::Process::UNLIMITED)) {
-        return true;
-      }
-
-      continue;
+    auto* args = message->mutable_args();
+    if (!version.empty()) {
+      args->mutable_compiler()->set_version(version);
     }
+
+    command.FillArgs(args);
 
     proto::Status status;
     if (!connection->SendSync(std::move(message), &status)) {

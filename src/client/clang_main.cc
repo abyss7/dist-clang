@@ -1,5 +1,6 @@
 #include <client/clang.h>
 
+#include <base/assert.h>
 #include <base/c_utils.h>
 #include <base/constants.h>
 #include <base/logging.h>
@@ -15,8 +16,8 @@ namespace {
 
 int ExecuteLocally(char* argv[], const String& clangd_cxx_path) {
   if (clangd_cxx_path.empty()) {
-    LOG(FATAL) << "Provide real clang++ compiler path via "
-               << base::kEnvClangdCxx;
+    LOG(FATAL) << "Provide real clang driver path via "
+               << base::kEnvClangPath;
   }
 
   LOG(INFO) << "Running locally.";
@@ -25,7 +26,8 @@ int ExecuteLocally(char* argv[], const String& clangd_cxx_path) {
     LOG(FATAL) << "Local execution failed: " << strerror(errno);
   }
 
-  return 0;
+  NOTREACHED();
+  return 1;
 }
 
 }  // namespace
@@ -35,10 +37,10 @@ int main(int argc, char* argv[]) {
 
   // It's safe to use |base::Log|, since its internal static objects don't need
   // special destruction on |exec|.
-  String clangd_log_levels = base::GetEnv(base::kEnvClangdLogLevels);
+  String clangd_log_levels = base::GetEnv(base::kEnvLogLevels);
 
   if (!clangd_log_levels.empty()) {
-    String clangd_log_mark = base::GetEnv(base::kEnvClangdLogMark);
+    String clangd_log_mark = base::GetEnv(base::kEnvLogErrorMark);
     List<String> numbers;
 
     base::SplitString<' '>(clangd_log_levels, numbers);
@@ -54,14 +56,16 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  // FIXME: Make default socket path the build param - for consistent packaging.
+  String socket_path =
+      base::GetEnv(base::kEnvSocketPath, base::kDefaultSocketPath);
+
   // NOTICE: Use separate |DoMain| function to make sure that all local objects
   //         get destructed before the invokation of |exec|. Do not use global
   //         objects!
-  String clang_path = base::GetEnv(base::kEnvClangdCxx);
-  String socket_path =
-      base::GetEnv(base::kEnvClangdSocket, base::kDefaultClangdSocket);
-  if (client::DoMain(argc, argv, socket_path, clang_path)) {
-    return ExecuteLocally(argv, clang_path);
+  if (client::DoMain(argc, argv, socket_path)) {
+    return ExecuteLocally(argv, base::GetEnv(base::kEnvClangPath));
   }
+
   return 0;
 }

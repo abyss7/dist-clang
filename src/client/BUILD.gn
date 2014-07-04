@@ -19,5 +19,25 @@ source_set("client") {
     "//src/base:logging",
     "//src/net:net",
     "//src/proto:proto",
+    ":command",
   ]
+}
+
+shared_library("command") {
+  sources = [
+    "command.cc",
+    "command.h",
+  ]
+  configs += [
+    "//build/config:libclang",
+  ]
+  if (config_for_tests) {
+    configs += [ "//build/config:no_rtti" ]
+  }
+  deps += [
+    "//src/base:base_headers",
+    "//src/proto:proto",
+  ]
+
+  direct_dependent_configs = [ "//build/config:libclang_includes" ]
 }

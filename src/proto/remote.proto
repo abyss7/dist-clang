@@ -21,7 +21,7 @@ message Test {
 
 message Status {
   enum Code {
-    OK = 0;
+    OK            = 0;
     INCONSEQUENT  = 1;
     NETWORK       = 2;
     BAD_MESSAGE   = 3;
@@ -37,6 +37,16 @@ message Status {
   extend Universal {
     optional Status extension = 2;
   }
+}
+
+message Arg {
+  required uint32 option_id    = 1;
+  repeated string values       = 2;
+}
+
+message ArgList {
+  required Compiler compiler   = 1;
+  repeated Arg args            = 2;
 }
 
 message Flags {
@@ -57,6 +67,7 @@ message Execute {
   optional string current_dir  = 4;  // Required for local execution.
   optional string pp_source    = 5;  // Required for remote execution.
   optional uint32 user_id      = 6;  // Owner of local objects.
+  optional ArgList args        = 7;
 
   extend Universal {
     optional Execute extension = 3;

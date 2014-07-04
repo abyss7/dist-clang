@@ -4,12 +4,14 @@
 #include <base/test_process.h>
 #include <base/temporary_dir.h>
 #include <client/clang.h>
+#include <client/command.h>
 #include <client/flag_set.h>
 #include <net/network_service_impl.h>
 #include <net/test_network_service.h>
 #include <proto/remote.pb.h>
 
 #include <third_party/gtest/public/gtest/gtest.h>
+#include <third_party/libcxx/exported/include/regex>
 
 namespace dist_clang {
 namespace client {
@@ -63,7 +65,7 @@ const String clang_cc_output =
     " \"/tmp/test.cc\"\n";
 }  // namespace
 
-TEST(ClangFlagSetTest, SimpleInput) {
+TEST(FlagSetTest, SimpleInput) {
   String version;
   const String expected_version = "clang version 3.4 (...) (...)";
   FlagSet::CommandList input;
@@ -167,7 +169,7 @@ TEST(ClangFlagSetTest, SimpleInput) {
             actual_flags.SerializeAsString());
 }
 
-TEST(ClangFlagSetTest, MultipleCommands) {
+TEST(FlagSetTest, MultipleCommands) {
   String version;
   const String expected_version = "clang version 3.4 (...) (...)";
   FlagSet::CommandList input;
@@ -209,6 +211,105 @@ TEST(ClangFlagSetTest, MultipleCommands) {
             FlagSet::ProcessFlags(input.back(), &actual_flags));
 }
 
+TEST(CommandTest, NonExistentInput) {
+  const int argc = 3;
+  const char* argv[] = {"clang++", "-c", "/tmp/some_random.cc", nullptr};
+
+  List<Command> commands;
+  ASSERT_FALSE(Command::GenerateFromArgs(argc, argv, commands));
+  ASSERT_TRUE(commands.empty());
+}
+
+TEST(CommandTest, MissingArgument) {
+  const int argc = 4;
+  const char* argv[] = {"clang++", "-I", "-c", "/tmp/some_random.cc", nullptr};
+
+  List<Command> commands;
+  ASSERT_FALSE(Command::GenerateFromArgs(argc, argv, commands));
+  ASSERT_TRUE(commands.empty());
+}
+
+TEST(CommandTest, UnknownArgument) {
+  const int argc = 4;
+  const char* argv[] = {"clang++", "-12", "-c", "/tmp/some_random.cc", nullptr};
+
+  List<Command> commands;
+  ASSERT_FALSE(Command::GenerateFromArgs(argc, argv, commands));
+  ASSERT_TRUE(commands.empty());
+}
+
+TEST(CommandTest, ParseSimpleArgs) {
+  const String temp_input = base::CreateTempFile(".cc");
+  const String expected_output = "/tmp/output.o";
+  std::list<std::regex> expected_regex;
+  expected_regex.emplace_back("-cc1");
+  expected_regex.emplace_back("-triple [a-z0-9_]+-[a-z0-9_]+-[a-z0-9]+");
+  expected_regex.emplace_back("-emit-obj");
+  expected_regex.emplace_back("-mrelax-all");
+  expected_regex.emplace_back("-disable-free");
+  expected_regex.emplace_back("-main-file-name clangd-[a-zA-Z0-9]+\\.cc");
+  expected_regex.emplace_back("-mrelocation-model static");
+  expected_regex.emplace_back("-mdisable-fp-elim");
+  expected_regex.emplace_back("-fmath-errno");
+  expected_regex.emplace_back("-masm-verbose");
+  expected_regex.emplace_back("-mconstructor-aliases");
+  expected_regex.emplace_back("-munwind-tables");
+  expected_regex.emplace_back("-fuse-init-array");
+  expected_regex.emplace_back("-target-cpu [a-z0-9_]+");
+  expected_regex.emplace_back("-target-linker-version [0-9.]+");
+  expected_regex.emplace_back("-coverage-file " + expected_output);
+  expected_regex.emplace_back("-resource-dir");
+  expected_regex.emplace_back("-internal-isystem");
+  expected_regex.emplace_back("-internal-externc-isystem");
+  expected_regex.emplace_back("-fdeprecated-macro");
+  expected_regex.emplace_back("-fdebug-compilation-dir");
+  expected_regex.emplace_back("-ferror-limit [0-9]+");
+  expected_regex.emplace_back("-fmessage-length [0-9]+");
+  expected_regex.emplace_back("-mstackrealign");
+  expected_regex.emplace_back("-fobjc-runtime=");
+  expected_regex.emplace_back("-fcxx-exceptions");
+  expected_regex.emplace_back("-fexceptions");
+  expected_regex.emplace_back("-fdiagnostics-show-option");
+  expected_regex.emplace_back("-vectorize-slp");
+  expected_regex.emplace_back("-o " + expected_output);
+  expected_regex.emplace_back("-x c++");
+  expected_regex.emplace_back(temp_input);
+
+  const char* argv[] = {"clang++", "-c",                    temp_input.c_str(),
+                        "-o",      expected_output.c_str(), nullptr};
+  const int argc = 5;
+
+  List<Command> commands;
+  ASSERT_TRUE(Command::GenerateFromArgs(argc, argv, commands));
+  ASSERT_EQ(1u, commands.size());
+
+  const auto& command = commands.front();
+  for (const auto& regex : expected_regex) {
+    EXPECT_TRUE(std::regex_search(command.RenderAllArgs(), regex));
+  }
+
+  // TODO: check |FillArgs()|.
+}
+
+TEST(CommandTest, RenderFromProtoArgList) {
+  const String temp_input = base::CreateTempFile(".cc");
+  const String expected_output = "/tmp/output.o";
+  const char* argv[] = {"clang++", "-c",                    temp_input.c_str(),
+                        "-o",      expected_output.c_str(), nullptr};
+  const int argc = 5;
+
+  List<Command> commands;
+  ASSERT_TRUE(Command::GenerateFromArgs(argc, argv, commands));
+  ASSERT_EQ(1u, commands.size());
+
+  const auto& command = commands.front();
+  proto::ArgList* arg_list = new proto::ArgList;
+  command.FillArgs(arg_list);
+
+  Command command2(arg_list);
+  EXPECT_EQ(command.RenderAllArgs(), command2.RenderAllArgs());
+}
+
 class ClientTest : public ::testing::Test {
  public:
   virtual void SetUp() override {
@@ -241,29 +342,20 @@ class ClientTest : public ::testing::Test {
     {
       auto factory = base::Process::SetFactory<base::TestProcess::Factory>();
       factory->CallOnCreate([this](base::TestProcess* process) {
-        process->CountRuns(&run_count);
         process->CallOnRun([this, process](ui32 timeout, const String& input,
                                            String* error) {
-          run_callback(process);
-
-          if (!do_run) {
-            if (error) {
-              error->assign("Test process fails to run intentionally");
-            }
-            return false;
-          }
-
-          return true;
+          // Client shouldn't run external processes.
+          return false;
         });
       });
     }
   }
 
  protected:
-  bool do_connect = true, do_run = true;
+  bool do_connect = true;
   net::ConnectionWeakPtr weak_ptr;
   ui32 send_count = 0, read_count = 0, connect_count = 0,
-       connections_created = 0, run_count = 0;
+       connections_created = 0;
   Fn<void(net::TestConnection*)> connect_callback = EmptyLambda<>();
   Fn<void(base::TestProcess*)> run_callback = EmptyLambda<>();
 };
@@ -274,26 +366,24 @@ TEST_F(ClientTest, NoConnection) {
   const int argc = 3;
 
   do_connect = false;
-  EXPECT_TRUE(client::DoMain(argc, argv, "socket_path", "clang_path"));
+  EXPECT_TRUE(client::DoMain(argc, argv, "socket_path"));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
   EXPECT_EQ(1u, connect_count);
   EXPECT_EQ(0u, connections_created);
-  EXPECT_EQ(0u, run_count);
 }
 
 TEST_F(ClientTest, NoEnvironmentVariable) {
   const int argc = 3;
   const char* argv[] = {"clang++", "-c", "/tmp/test.cc", nullptr};
 
-  EXPECT_TRUE(client::DoMain(argc, argv, String(), String()));
+  EXPECT_TRUE(client::DoMain(argc, argv, String()));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
   EXPECT_EQ(0u, connect_count);
   EXPECT_EQ(0u, connections_created);
-  EXPECT_EQ(0u, run_count);
 }
 
 TEST_F(ClientTest, NoInputFile) {
@@ -317,13 +407,12 @@ TEST_F(ClientTest, NoInputFile) {
     }
   };
 
-  EXPECT_TRUE(client::DoMain(argc, argv, "socket_path", expected_exec_path));
+  EXPECT_TRUE(client::DoMain(argc, argv, "socket_path"));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
   EXPECT_EQ(1u, connect_count);
   EXPECT_EQ(1u, connections_created);
-  EXPECT_EQ(1u, run_count);
 }
 
 TEST_F(ClientTest, CannotSendMessage) {
@@ -346,13 +435,12 @@ TEST_F(ClientTest, CannotSendMessage) {
     }
   };
 
-  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++"));
+  EXPECT_TRUE(client::DoMain(argc, argv, String()));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(0u, read_count);
   EXPECT_EQ(1u, connect_count);
   EXPECT_EQ(1u, connections_created);
-  EXPECT_EQ(1u, run_count);
 }
 
 TEST_F(ClientTest, CannotReadMessage) {
@@ -417,13 +505,12 @@ TEST_F(ClientTest, CannotReadMessage) {
     }
   };
 
-  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++"));
+  EXPECT_TRUE(client::DoMain(argc, argv, String()));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, connect_count);
   EXPECT_EQ(1u, connections_created);
-  EXPECT_EQ(1u, run_count);
 }
 
 TEST_F(ClientTest, ReadMessageWithoutStatus) {
@@ -442,13 +529,12 @@ TEST_F(ClientTest, ReadMessageWithoutStatus) {
     }
   };
 
-  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++"));
+  EXPECT_TRUE(client::DoMain(argc, argv, String()));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, connect_count);
   EXPECT_EQ(1u, connections_created);
-  EXPECT_EQ(1u, run_count);
 }
 
 TEST_F(ClientTest, ReadMessageWithBadStatus) {
@@ -474,13 +560,12 @@ TEST_F(ClientTest, ReadMessageWithBadStatus) {
     }
   };
 
-  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++"));
+  EXPECT_TRUE(client::DoMain(argc, argv, String()));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, connect_count);
   EXPECT_EQ(1u, connections_created);
-  EXPECT_EQ(1u, run_count);
 }
 
 TEST_F(ClientTest, SuccessfulCompilation) {
@@ -506,13 +591,12 @@ TEST_F(ClientTest, SuccessfulCompilation) {
     }
   };
 
-  EXPECT_FALSE(client::DoMain(argc, argv, String(), "clang++"));
+  EXPECT_FALSE(client::DoMain(argc, argv, String()));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, connect_count);
   EXPECT_EQ(1u, connections_created);
-  EXPECT_EQ(1u, run_count);
 }
 
 TEST_F(ClientTest, FailedCompilation) {
@@ -538,7 +622,7 @@ TEST_F(ClientTest, FailedCompilation) {
     }
   };
 
-  EXPECT_EXIT(client::DoMain(argc, argv, String(), "clang++"),
+  EXPECT_EXIT(client::DoMain(argc, argv, String()),
               ::testing::ExitedWithCode(1), ".*");
 }
 

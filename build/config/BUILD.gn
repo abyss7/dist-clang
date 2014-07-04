@@ -8,18 +8,9 @@ config("base") {
     "-Werror",    
   ]
   cflags_cc = [
-    "-nostdinc++",
     "-std=c++1y",
   ]
   include_dirs = [ "//src" ]
-  ldflags = [
-    "-nodefaultlibs",
-  ]
-  libs = [
-    "c",
-    "m",
-    "pthread",
-  ]
 }
 
 config("default_library") {
@@ -59,6 +50,20 @@ config("release") {
   ]
 }
 
+config("no_stdlibs") {
+  cflags_cc = [
+    "-nostdinc++",
+  ]
+  ldflags = [
+    "-nodefaultlibs",
+  ]
+  libs = [
+    "c",
+    "m",
+    "pthread",
+  ]
+}
+
 config("no_exceptions") {
   cflags_cc = [ "-fno-exceptions" ]
   ldflags = [ "-fno-exceptions" ]
@@ -76,6 +81,45 @@ config("profiler") {
 
 config("tcmalloc") {
   libs = [ "tcmalloc" ]
+}
+
+config("libclang_includes") {
+  defines = exec_script("//build/llvm.py", [ "defines" ], "list lines")
+  include_dirs = exec_script("//build/llvm.py", [ "includedir" ], "list lines")
+}
+
+config("libclang") {
+  defines = exec_script("//build/llvm.py", [ "defines" ], "list lines")
+  include_dirs = exec_script("//build/llvm.py", [ "includedir" ], "list lines")
+  ldflags = exec_script("//build/llvm.py", [ "ldflags" ], "list lines")
+
+  libs = [
+    "c",
+    "stdc++",
+    "tinfo",
+
+    # libclang parts:
+    "clangTooling",
+    "clangFrontendTool",
+    "clangFrontend",
+    "clangDriver",
+    "clangSerialization",
+    "clangCodeGen",
+    "clangParse",
+    "clangSema",
+    "clangStaticAnalyzerFrontend",
+    "clangStaticAnalyzerCheckers",
+    "clangStaticAnalyzerCore",
+    "clangAnalysis",
+    "clangARCMigrate",
+    "clangRewriteFrontend",
+    "clangRewriteCore",
+    "clangEdit",
+    "clangAST",
+    "clangLex",
+    "clangBasic"
+  ]
+  libs += exec_script("//build/llvm.py", [ "libs" ], "list lines")
 }
 
 config("version") {

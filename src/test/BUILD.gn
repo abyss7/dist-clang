@@ -27,6 +27,7 @@ test("unit_tests") {
     "//src/base:base",
     "//src/base:hash",
     "//src/client:client",
+    "//src/client:command",
     "//src/daemon:daemon",
     "//src/file_cache:file_cache",
     "//src/net:net",

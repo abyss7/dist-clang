@@ -7,6 +7,7 @@
 #include <third_party/libcxx/exported/include/string>
 #include <third_party/libcxx/exported/include/unordered_map>
 #include <third_party/libcxx/exported/include/unordered_set>
+#include <third_party/libcxx/exported/include/vector>
 
 namespace dist_clang {
 
@@ -28,6 +29,9 @@ using List = std::list<T>;
 template <class T>
 using UniquePtr = std::unique_ptr<T>;
 
+template <class T>
+using SharedPtr = std::shared_ptr<T>;
+
 using String = std::string;
 
 template <class U, class V = U>
@@ -38,5 +42,8 @@ using HashMap = std::unordered_map<U, V>;
 
 template <class U>
 using HashSet = std::unordered_set<U>;
+
+template <class T>
+using Vector = std::vector<T>;
 
 }  // namespace dist_clang

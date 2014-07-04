@@ -59,6 +59,25 @@ inline String CreateTempFile(String* error = nullptr) {
   return String(buf);
 }
 
+inline String CreateTempFile(const char suffix[], String* error = nullptr) {
+  const char prefix[] = "/tmp/clangd-XXXXXX";
+  const size_t prefix_size = sizeof(prefix) - 1;
+  char* buf = new char[prefix_size + strlen(suffix)];
+  memcpy(&buf[0], prefix, prefix_size);
+  memcpy(&buf[prefix_size], suffix, strlen(suffix));
+
+  int fd = mkostemps(buf, strlen(suffix), O_CLOEXEC);
+  if (fd == -1) {
+    GetLastError(error);
+    delete[] buf;
+    return String();
+  }
+  close(fd);
+  auto result = String(buf);
+  delete[] buf;
+  return result;
+}
+
 inline bool ChangeCurrentDir(const String& path, String* error = nullptr) {
   if (chdir(path.c_str()) == -1) {
     GetLastError(error);

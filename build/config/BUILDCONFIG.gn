@@ -23,7 +23,10 @@ declare_args() {
 # Setup configurations.
 # =============================================================================
 
-default_configs = [ "//build/config:base" ]
+default_configs = [
+  "//build/config:base",
+  "//build/config:no_stdlibs",
+]
 
 if (config_for_tests) {
   default_configs += [

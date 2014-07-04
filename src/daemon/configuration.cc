@@ -22,7 +22,7 @@ Configuration::Configuration(int argc, char *argv[]) {
     CmdLine cmd("Daemon from Clang distributed system - Clangd.", ' ', VERSION);
     ValueArg<String> socket_arg(
         "s", "socket", "Path to UNIX socket to listen for local connections.",
-        false, base::kDefaultClangdSocket, "path", cmd);
+        false, base::kDefaultSocketPath, "path", cmd);
     ValueArg<String> cache_arg(
         "c", "cache", "Path, where the daemon will cache compilation results.",
         false, String(), "path", cmd);
