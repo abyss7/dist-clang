@@ -1,5 +1,6 @@
 #include <client/command.h>
 
+#include <base/logging.h>
 #include <proto/remote.pb.h>
 
 #include <clang/Basic/Diagnostic.h>
@@ -7,12 +8,32 @@
 #include <clang/Driver/Driver.h>
 #include <clang/Driver/DriverDiagnostic.h>
 #include <clang/Driver/Options.h>
-#include <clang/Frontend/TextDiagnosticPrinter.h>
+#include <clang/Frontend/TextDiagnosticBuffer.h>
 #include <llvm/Option/Arg.h>
 #include <llvm/Support/Host.h>
 #include <llvm/Support/Process.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/raw_ostream.h>
+
+#include <base/using_log.h>
+
+namespace {
+
+void DumpDiagnosticBuffer(const clang::TextDiagnosticBuffer* buffer) {
+  for (auto it = buffer->note_begin(); it != buffer->note_end(); ++it) {
+    LOG(INFO) << "Clang parser note: " << it->second;
+  }
+
+  for (auto it = buffer->warn_begin(); it != buffer->warn_end(); ++it) {
+    LOG(WARNING) << "Clang parser warning: " << it->second;
+  }
+
+  for (auto it = buffer->err_begin(); it != buffer->err_end(); ++it) {
+    LOG(WARNING) << "Clang parser error: " << it->second;
+  }
+}
+
+}  // namespace
 
 namespace dist_clang {
 namespace client {
@@ -23,7 +44,6 @@ bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
   using namespace clang;
   using namespace clang::driver;
   using namespace llvm;
-  using DiagPrinter = TextDiagnosticPrinter;
 
   SmallVector<const char*, 256> argv;
   SpecificBumpPtrAllocator<char> arg_allocator;
@@ -33,7 +53,7 @@ bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
   llvm::InitializeAllTargets();  // Multiple calls per program are allowed.
 
   IntrusiveRefCntPtr<DiagnosticOptions> diag_opts = new DiagnosticOptions;
-  DiagPrinter* diag_client = new DiagPrinter(llvm::errs(), &*diag_opts);
+  TextDiagnosticBuffer* diag_client = new TextDiagnosticBuffer;
   IntrusiveRefCntPtr<DiagnosticIDs> diag_id(new DiagnosticIDs());
   IntrusiveRefCntPtr<clang::DiagnosticsEngine> diags;
   SharedPtr<clang::driver::Compilation> compilation;
@@ -43,6 +63,7 @@ bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
   std::string path = argv[0];
   Driver driver(path, llvm::sys::getDefaultTargetTriple(), "a.out", *diags);
   compilation.reset(driver.BuildCompilation(argv));
+  DumpDiagnosticBuffer(diag_client);
 
   if (!compilation) {
     return false;

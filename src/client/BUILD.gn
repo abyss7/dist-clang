@@ -36,6 +36,7 @@ shared_library("command") {
   }
   deps += [
     "//src/base:base_headers",
+    "//src/base:logging",
     "//src/proto:proto",
   ]
 
