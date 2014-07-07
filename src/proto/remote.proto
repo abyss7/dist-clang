@@ -39,16 +39,6 @@ message Status {
   }
 }
 
-message Arg {
-  required uint32 option_id    = 1;
-  repeated string values       = 2;
-}
-
-message ArgList {
-  required Compiler compiler   = 1;
-  repeated Arg args            = 2;
-}
-
 message Flags {
   required Compiler compiler   = 1;  // original compiler executable.
   optional string output       = 2;  // "-o" flag and it's param.
@@ -67,7 +57,6 @@ message Execute {
   optional string current_dir  = 4;  // Required for local execution.
   optional string pp_source    = 5;  // Required for remote execution.
   optional uint32 user_id      = 6;  // Owner of local objects.
-  optional ArgList args        = 7;
 
   extend Universal {
     optional Execute extension = 3;

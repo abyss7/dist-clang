@@ -39,8 +39,6 @@ void protobuf_ShutdownFile_remote_2eproto();
 class Universal;
 class Test;
 class Status;
-class Arg;
-class ArgList;
 class Flags;
 class Execute;
 class RemoteResult;
@@ -401,202 +399,6 @@ class Status : public ::google::protobuf::Message {
 };
 // -------------------------------------------------------------------
 
-class Arg : public ::google::protobuf::Message {
- public:
-  Arg();
-  virtual ~Arg();
-
-  Arg(const Arg& from);
-
-  inline Arg& operator=(const Arg& from) {
-    CopyFrom(from);
-    return *this;
-  }
-
-  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
-    return _unknown_fields_;
-  }
-
-  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
-    return &_unknown_fields_;
-  }
-
-  static const ::google::protobuf::Descriptor* descriptor();
-  static const Arg& default_instance();
-
-  void Swap(Arg* other);
-
-  // implements Message ----------------------------------------------
-
-  Arg* New() const;
-  void CopyFrom(const ::google::protobuf::Message& from);
-  void MergeFrom(const ::google::protobuf::Message& from);
-  void CopyFrom(const Arg& from);
-  void MergeFrom(const Arg& from);
-  void Clear();
-  bool IsInitialized() const;
-
-  int ByteSize() const;
-  bool MergePartialFromCodedStream(
-      ::google::protobuf::io::CodedInputStream* input);
-  void SerializeWithCachedSizes(
-      ::google::protobuf::io::CodedOutputStream* output) const;
-  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
-  int GetCachedSize() const { return _cached_size_; }
-  private:
-  void SharedCtor();
-  void SharedDtor();
-  void SetCachedSize(int size) const;
-  public:
-
-  ::google::protobuf::Metadata GetMetadata() const;
-
-  // nested types ----------------------------------------------------
-
-  // accessors -------------------------------------------------------
-
-  // required uint32 option_id = 1;
-  inline bool has_option_id() const;
-  inline void clear_option_id();
-  static const int kOptionIdFieldNumber = 1;
-  inline ::google::protobuf::uint32 option_id() const;
-  inline void set_option_id(::google::protobuf::uint32 value);
-
-  // repeated string values = 2;
-  inline int values_size() const;
-  inline void clear_values();
-  static const int kValuesFieldNumber = 2;
-  inline const ::std::string& values(int index) const;
-  inline ::std::string* mutable_values(int index);
-  inline void set_values(int index, const ::std::string& value);
-  inline void set_values(int index, const char* value);
-  inline void set_values(int index, const char* value, size_t size);
-  inline ::std::string* add_values();
-  inline void add_values(const ::std::string& value);
-  inline void add_values(const char* value);
-  inline void add_values(const char* value, size_t size);
-  inline const ::google::protobuf::RepeatedPtrField< ::std::string>& values() const;
-  inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_values();
-
-  // @@protoc_insertion_point(class_scope:dist_clang.proto.Arg)
- private:
-  inline void set_has_option_id();
-  inline void clear_has_option_id();
-
-  ::google::protobuf::UnknownFieldSet _unknown_fields_;
-
-  ::google::protobuf::RepeatedPtrField< ::std::string> values_;
-  ::google::protobuf::uint32 option_id_;
-
-  mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(2 + 31) / 32];
-
-  friend void  protobuf_AddDesc_remote_2eproto();
-  friend void protobuf_AssignDesc_remote_2eproto();
-  friend void protobuf_ShutdownFile_remote_2eproto();
-
-  void InitAsDefaultInstance();
-  static Arg* default_instance_;
-};
-// -------------------------------------------------------------------
-
-class ArgList : public ::google::protobuf::Message {
- public:
-  ArgList();
-  virtual ~ArgList();
-
-  ArgList(const ArgList& from);
-
-  inline ArgList& operator=(const ArgList& from) {
-    CopyFrom(from);
-    return *this;
-  }
-
-  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
-    return _unknown_fields_;
-  }
-
-  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
-    return &_unknown_fields_;
-  }
-
-  static const ::google::protobuf::Descriptor* descriptor();
-  static const ArgList& default_instance();
-
-  void Swap(ArgList* other);
-
-  // implements Message ----------------------------------------------
-
-  ArgList* New() const;
-  void CopyFrom(const ::google::protobuf::Message& from);
-  void MergeFrom(const ::google::protobuf::Message& from);
-  void CopyFrom(const ArgList& from);
-  void MergeFrom(const ArgList& from);
-  void Clear();
-  bool IsInitialized() const;
-
-  int ByteSize() const;
-  bool MergePartialFromCodedStream(
-      ::google::protobuf::io::CodedInputStream* input);
-  void SerializeWithCachedSizes(
-      ::google::protobuf::io::CodedOutputStream* output) const;
-  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
-  int GetCachedSize() const { return _cached_size_; }
-  private:
-  void SharedCtor();
-  void SharedDtor();
-  void SetCachedSize(int size) const;
-  public:
-
-  ::google::protobuf::Metadata GetMetadata() const;
-
-  // nested types ----------------------------------------------------
-
-  // accessors -------------------------------------------------------
-
-  // required .dist_clang.proto.Compiler compiler = 1;
-  inline bool has_compiler() const;
-  inline void clear_compiler();
-  static const int kCompilerFieldNumber = 1;
-  inline const ::dist_clang::proto::Compiler& compiler() const;
-  inline ::dist_clang::proto::Compiler* mutable_compiler();
-  inline ::dist_clang::proto::Compiler* release_compiler();
-  inline void set_allocated_compiler(::dist_clang::proto::Compiler* compiler);
-
-  // repeated .dist_clang.proto.Arg args = 2;
-  inline int args_size() const;
-  inline void clear_args();
-  static const int kArgsFieldNumber = 2;
-  inline const ::dist_clang::proto::Arg& args(int index) const;
-  inline ::dist_clang::proto::Arg* mutable_args(int index);
-  inline ::dist_clang::proto::Arg* add_args();
-  inline const ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Arg >&
-      args() const;
-  inline ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Arg >*
-      mutable_args();
-
-  // @@protoc_insertion_point(class_scope:dist_clang.proto.ArgList)
- private:
-  inline void set_has_compiler();
-  inline void clear_has_compiler();
-
-  ::google::protobuf::UnknownFieldSet _unknown_fields_;
-
-  ::dist_clang::proto::Compiler* compiler_;
-  ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Arg > args_;
-
-  mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(2 + 31) / 32];
-
-  friend void  protobuf_AddDesc_remote_2eproto();
-  friend void protobuf_AssignDesc_remote_2eproto();
-  friend void protobuf_ShutdownFile_remote_2eproto();
-
-  void InitAsDefaultInstance();
-  static ArgList* default_instance_;
-};
-// -------------------------------------------------------------------
-
 class Flags : public ::google::protobuf::Message {
  public:
   Flags();
@@ -908,15 +710,6 @@ class Execute : public ::google::protobuf::Message {
   inline ::google::protobuf::uint32 user_id() const;
   inline void set_user_id(::google::protobuf::uint32 value);
 
-  // optional .dist_clang.proto.ArgList args = 7;
-  inline bool has_args() const;
-  inline void clear_args();
-  static const int kArgsFieldNumber = 7;
-  inline const ::dist_clang::proto::ArgList& args() const;
-  inline ::dist_clang::proto::ArgList* mutable_args();
-  inline ::dist_clang::proto::ArgList* release_args();
-  inline void set_allocated_args(::dist_clang::proto::ArgList* args);
-
   static const int kExtensionFieldNumber = 3;
   static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
       ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::Execute >, 11, false >
@@ -933,8 +726,6 @@ class Execute : public ::google::protobuf::Message {
   inline void clear_has_pp_source();
   inline void set_has_user_id();
   inline void clear_has_user_id();
-  inline void set_has_args();
-  inline void clear_has_args();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -943,10 +734,9 @@ class Execute : public ::google::protobuf::Message {
   bool remote_;
   ::google::protobuf::uint32 user_id_;
   ::std::string* pp_source_;
-  ::dist_clang::proto::ArgList* args_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(6 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(5 + 31) / 32];
 
   friend void  protobuf_AddDesc_remote_2eproto();
   friend void protobuf_AssignDesc_remote_2eproto();
@@ -1351,143 +1141,6 @@ inline void Status::set_allocated_description(::std::string* description) {
     clear_has_description();
     description_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   }
-}
-
-// -------------------------------------------------------------------
-
-// Arg
-
-// required uint32 option_id = 1;
-inline bool Arg::has_option_id() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-inline void Arg::set_has_option_id() {
-  _has_bits_[0] |= 0x00000001u;
-}
-inline void Arg::clear_has_option_id() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-inline void Arg::clear_option_id() {
-  option_id_ = 0u;
-  clear_has_option_id();
-}
-inline ::google::protobuf::uint32 Arg::option_id() const {
-  return option_id_;
-}
-inline void Arg::set_option_id(::google::protobuf::uint32 value) {
-  set_has_option_id();
-  option_id_ = value;
-}
-
-// repeated string values = 2;
-inline int Arg::values_size() const {
-  return values_.size();
-}
-inline void Arg::clear_values() {
-  values_.Clear();
-}
-inline const ::std::string& Arg::values(int index) const {
-  return values_.Get(index);
-}
-inline ::std::string* Arg::mutable_values(int index) {
-  return values_.Mutable(index);
-}
-inline void Arg::set_values(int index, const ::std::string& value) {
-  values_.Mutable(index)->assign(value);
-}
-inline void Arg::set_values(int index, const char* value) {
-  values_.Mutable(index)->assign(value);
-}
-inline void Arg::set_values(int index, const char* value, size_t size) {
-  values_.Mutable(index)->assign(
-    reinterpret_cast<const char*>(value), size);
-}
-inline ::std::string* Arg::add_values() {
-  return values_.Add();
-}
-inline void Arg::add_values(const ::std::string& value) {
-  values_.Add()->assign(value);
-}
-inline void Arg::add_values(const char* value) {
-  values_.Add()->assign(value);
-}
-inline void Arg::add_values(const char* value, size_t size) {
-  values_.Add()->assign(reinterpret_cast<const char*>(value), size);
-}
-inline const ::google::protobuf::RepeatedPtrField< ::std::string>&
-Arg::values() const {
-  return values_;
-}
-inline ::google::protobuf::RepeatedPtrField< ::std::string>*
-Arg::mutable_values() {
-  return &values_;
-}
-
-// -------------------------------------------------------------------
-
-// ArgList
-
-// required .dist_clang.proto.Compiler compiler = 1;
-inline bool ArgList::has_compiler() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-inline void ArgList::set_has_compiler() {
-  _has_bits_[0] |= 0x00000001u;
-}
-inline void ArgList::clear_has_compiler() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-inline void ArgList::clear_compiler() {
-  if (compiler_ != NULL) compiler_->::dist_clang::proto::Compiler::Clear();
-  clear_has_compiler();
-}
-inline const ::dist_clang::proto::Compiler& ArgList::compiler() const {
-  return compiler_ != NULL ? *compiler_ : *default_instance_->compiler_;
-}
-inline ::dist_clang::proto::Compiler* ArgList::mutable_compiler() {
-  set_has_compiler();
-  if (compiler_ == NULL) compiler_ = new ::dist_clang::proto::Compiler;
-  return compiler_;
-}
-inline ::dist_clang::proto::Compiler* ArgList::release_compiler() {
-  clear_has_compiler();
-  ::dist_clang::proto::Compiler* temp = compiler_;
-  compiler_ = NULL;
-  return temp;
-}
-inline void ArgList::set_allocated_compiler(::dist_clang::proto::Compiler* compiler) {
-  delete compiler_;
-  compiler_ = compiler;
-  if (compiler) {
-    set_has_compiler();
-  } else {
-    clear_has_compiler();
-  }
-}
-
-// repeated .dist_clang.proto.Arg args = 2;
-inline int ArgList::args_size() const {
-  return args_.size();
-}
-inline void ArgList::clear_args() {
-  args_.Clear();
-}
-inline const ::dist_clang::proto::Arg& ArgList::args(int index) const {
-  return args_.Get(index);
-}
-inline ::dist_clang::proto::Arg* ArgList::mutable_args(int index) {
-  return args_.Mutable(index);
-}
-inline ::dist_clang::proto::Arg* ArgList::add_args() {
-  return args_.Add();
-}
-inline const ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Arg >&
-ArgList::args() const {
-  return args_;
-}
-inline ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Arg >*
-ArgList::mutable_args() {
-  return &args_;
 }
 
 // -------------------------------------------------------------------
@@ -2238,44 +1891,6 @@ inline ::google::protobuf::uint32 Execute::user_id() const {
 inline void Execute::set_user_id(::google::protobuf::uint32 value) {
   set_has_user_id();
   user_id_ = value;
-}
-
-// optional .dist_clang.proto.ArgList args = 7;
-inline bool Execute::has_args() const {
-  return (_has_bits_[0] & 0x00000020u) != 0;
-}
-inline void Execute::set_has_args() {
-  _has_bits_[0] |= 0x00000020u;
-}
-inline void Execute::clear_has_args() {
-  _has_bits_[0] &= ~0x00000020u;
-}
-inline void Execute::clear_args() {
-  if (args_ != NULL) args_->::dist_clang::proto::ArgList::Clear();
-  clear_has_args();
-}
-inline const ::dist_clang::proto::ArgList& Execute::args() const {
-  return args_ != NULL ? *args_ : *default_instance_->args_;
-}
-inline ::dist_clang::proto::ArgList* Execute::mutable_args() {
-  set_has_args();
-  if (args_ == NULL) args_ = new ::dist_clang::proto::ArgList;
-  return args_;
-}
-inline ::dist_clang::proto::ArgList* Execute::release_args() {
-  clear_has_args();
-  ::dist_clang::proto::ArgList* temp = args_;
-  args_ = NULL;
-  return temp;
-}
-inline void Execute::set_allocated_args(::dist_clang::proto::ArgList* args) {
-  delete args_;
-  args_ = args;
-  if (args) {
-    set_has_args();
-  } else {
-    clear_has_args();
-  }
 }
 
 // -------------------------------------------------------------------

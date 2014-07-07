@@ -17,29 +17,6 @@
 namespace dist_clang {
 namespace client {
 
-Command::Command(proto::ArgList* arg_list)
-    : arg_list_(new SimpleArgList), proto_(arg_list) {
-  // Multiple calls per program are allowed.
-  llvm::InitializeAllTargets();
-
-  UniquePtr<llvm::opt::OptTable> opts(clang::driver::createDriverOptTable());
-
-  // Assume incoming arguments are ordered by their original index.
-  for (const auto& arg : arg_list->args()) {
-    // FIXME: not sure if I have to restore the indicies inside |ArgList| -
-    //        if not, then remove ugly casting below.
-    auto&& option = opts->getOption(arg.option_id());
-    auto* option_name = arg_list_->MakeArgString(option.getPrefixedName());
-    auto* new_arg = new llvm::opt::Arg(option, option_name,
-                                       arg_list_->getNumInputArgStrings());
-    for (const auto& value : arg.values()) {
-      new_arg->getValues().push_back(value.c_str());
-      static_cast<SimpleArgList*>(arg_list_.get())->PutString(value.c_str());
-    }
-    arg_list_->append(new_arg);
-  }
-}
-
 // static
 bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
                                List<Command>& commands) {
@@ -53,8 +30,7 @@ bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
   auto&& arg_array = ArrayRef<const char*>(raw_argv, argc);
   llvm::sys::Process::GetArgumentVector(argv, arg_array, arg_allocator);
 
-  // Multiple calls per program are allowed.
-  llvm::InitializeAllTargets();
+  llvm::InitializeAllTargets();  // Multiple calls per program are allowed.
 
   IntrusiveRefCntPtr<DiagnosticOptions> diag_opts = new DiagnosticOptions;
   DiagPrinter* diag_client = new DiagPrinter(llvm::errs(), &*diag_opts);
@@ -72,7 +48,7 @@ bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
     return false;
   }
 
-  UniquePtr<opt::OptTable> opts(createDriverOptTable());
+  SharedPtr<opt::OptTable> opts(createDriverOptTable());
   bool result = false;
   const auto& jobs = compilation->getJobs();
   for (auto& job : jobs) {
@@ -88,7 +64,7 @@ bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
       commands.emplace_back(std::move(
           Command(opts->ParseArgs(arg_begin, arg_end, missing_arg_index,
                                   missing_arg_count, included_flags_bitmask),
-                  compilation)));
+                  compilation, opts)));
       const auto& arg_list = commands.back().arg_list_;
 
       // Check for missing argument error.
@@ -112,15 +88,69 @@ bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
   return result;
 }
 
-void Command::FillArgs(proto::ArgList* arg_list) const {
-  if (arg_list) {
-    arg_list->Clear();
+void Command::FillFlags(proto::Flags* flags) const {
+  if (flags) {
+    flags->Clear();
+
+    llvm::opt::ArgStringList non_cached_list, other_list;
+
     for (const auto& arg : *arg_list_) {
-      auto* new_arg = arg_list->add_args();
-      new_arg->set_option_id(arg->getOption().getID());
-      for (const auto& value : arg->getValues()) {
-        new_arg->add_values()->assign(value);
+      using namespace clang::driver::options;
+
+      if (arg->getOption().getKind() == llvm::opt::Option::InputClass) {
+        flags->set_input(arg->getValue());
+      } else if (arg->getOption().matches(OPT_add_plugin)) {
+        flags->add_other(arg->getSpelling());
+        flags->add_other(arg->getValue());
+        flags->mutable_compiler()->add_plugins()->set_name(arg->getValue());
+      } else if (arg->getOption().matches(OPT_emit_obj)) {
+        flags->set_action(arg->getSpelling());
+      } else if (arg->getOption().matches(OPT_E)) {
+        flags->set_action(arg->getSpelling());
+      } else if (arg->getOption().matches(OPT_dependency_file)) {
+        flags->set_deps_file(arg->getValue());
+      } else if (arg->getOption().matches(OPT_load)) {
+        // FIXME: maybe claim this type of args right after generation?
+        continue;
+      } else if (arg->getOption().matches(OPT_mrelax_all)) {
+        flags->add_cc_only(arg->getSpelling());
+      } else if (arg->getOption().matches(OPT_o)) {
+        flags->set_output(arg->getValue());
+      } else if (arg->getOption().matches(OPT_x)) {
+        flags->set_language(arg->getValue());
       }
+
+      // Non-cacheable flags.
+      // NOTICE: we should be very cautious here, since the local compilations
+      // are
+      //         performed on a non-preprocessed file, but the result is saved
+      //         using the hash from a preprocessed file.
+      else if (arg->getOption().matches(OPT_coverage_file) ||
+               arg->getOption().matches(OPT_fdebug_compilation_dir) ||
+               arg->getOption().matches(OPT_ferror_limit) ||
+               arg->getOption().matches(OPT_include) ||
+               arg->getOption().matches(OPT_internal_externc_isystem) ||
+               arg->getOption().matches(OPT_internal_isystem) ||
+               arg->getOption().matches(OPT_isysroot) ||
+               arg->getOption().matches(OPT_main_file_name) ||
+               arg->getOption().matches(OPT_MF) ||
+               arg->getOption().matches(OPT_MMD) ||
+               arg->getOption().matches(OPT_MT) ||
+               arg->getOption().matches(OPT_resource_dir)) {
+        arg->render(*arg_list_, non_cached_list);
+      }
+
+      // By default all other flags are cacheable.
+      else {
+        arg->render(*arg_list_, other_list);
+      }
+    }
+
+    for (const auto& value : non_cached_list) {
+      flags->add_non_cached(value);
+    }
+    for (const auto& value : other_list) {
+      flags->add_other(value);
     }
   }
 }

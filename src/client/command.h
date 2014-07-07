@@ -1,25 +1,26 @@
 #pragma once
 
 #include <base/aliases.h>
-#include <proto/remote.pb.h>
 
 #include <clang/Driver/Compilation.h>
 #include <llvm/Option/ArgList.h>
 
 namespace dist_clang {
+
+namespace proto {
+class Flags;
+}
+
 namespace client {
 
 class Command {
  public:
-  // Since the Protobuf doesn't support move-semantics, we use pointer to
-  // consume an object.
-  Command(proto::ArgList* arg_list);
-
   static bool GenerateFromArgs(int argc, const char* const raw_argv[],
                                List<Command>& commands);
 
-  void FillArgs(proto::ArgList* arg_list) const;
-  String RenderAllArgs() const;
+  void FillFlags(proto::Flags* flags) const;
+
+  String RenderAllArgs() const;  // For testing.
 
  private:
   class SimpleArgList : public llvm::opt::ArgList {
@@ -50,12 +51,13 @@ class Command {
   };
 
   Command(llvm::opt::ArgList* arg_list,
-          SharedPtr<clang::driver::Compilation> compilation)
-      : arg_list_(arg_list), compilation_(compilation) {}
+          SharedPtr<clang::driver::Compilation> compilation,
+          SharedPtr<llvm::opt::OptTable> opt_table)
+      : arg_list_(arg_list), compilation_(compilation), opt_table_(opt_table) {}
 
   UniquePtr<llvm::opt::ArgList> arg_list_;
-  UniquePtr<proto::ArgList> proto_;
   SharedPtr<clang::driver::Compilation> compilation_;
+  SharedPtr<llvm::opt::OptTable> opt_table_;
 };
 
 }  // namespace client

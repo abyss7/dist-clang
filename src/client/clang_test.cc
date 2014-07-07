@@ -291,25 +291,6 @@ TEST(CommandTest, ParseSimpleArgs) {
   // TODO: check |FillArgs()|.
 }
 
-TEST(CommandTest, RenderFromProtoArgList) {
-  const String temp_input = base::CreateTempFile(".cc");
-  const String expected_output = "/tmp/output.o";
-  const char* argv[] = {"clang++", "-c",                    temp_input.c_str(),
-                        "-o",      expected_output.c_str(), nullptr};
-  const int argc = 5;
-
-  List<Command> commands;
-  ASSERT_TRUE(Command::GenerateFromArgs(argc, argv, commands));
-  ASSERT_EQ(1u, commands.size());
-
-  const auto& command = commands.front();
-  proto::ArgList* arg_list = new proto::ArgList;
-  command.FillArgs(arg_list);
-
-  Command command2(arg_list);
-  EXPECT_EQ(command.RenderAllArgs(), command2.RenderAllArgs());
-}
-
 class ClientTest : public ::testing::Test {
  public:
   virtual void SetUp() override {
@@ -357,7 +338,6 @@ class ClientTest : public ::testing::Test {
   ui32 send_count = 0, read_count = 0, connect_count = 0,
        connections_created = 0;
   Fn<void(net::TestConnection*)> connect_callback = EmptyLambda<>();
-  Fn<void(base::TestProcess*)> run_callback = EmptyLambda<>();
 };
 
 TEST_F(ClientTest, NoConnection) {
@@ -366,7 +346,7 @@ TEST_F(ClientTest, NoConnection) {
   const int argc = 3;
 
   do_connect = false;
-  EXPECT_TRUE(client::DoMain(argc, argv, "socket_path"));
+  EXPECT_TRUE(client::DoMain(argc, argv, "socket_path", "clang_path"));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -375,10 +355,11 @@ TEST_F(ClientTest, NoConnection) {
 }
 
 TEST_F(ClientTest, NoEnvironmentVariable) {
+  const String temp_input = base::CreateTempFile(".cc");
+  const char* argv[] = {"clang++", "-c", temp_input.c_str(), nullptr};
   const int argc = 3;
-  const char* argv[] = {"clang++", "-c", "/tmp/test.cc", nullptr};
 
-  EXPECT_TRUE(client::DoMain(argc, argv, String()));
+  EXPECT_TRUE(client::DoMain(argc, argv, String(), String()));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -387,55 +368,27 @@ TEST_F(ClientTest, NoEnvironmentVariable) {
 }
 
 TEST_F(ClientTest, NoInputFile) {
+  const char* argv[] = {"clang++", "-c", "/tmp/qwerty", nullptr};
   const int argc = 3;
-  const char* expected_exec_path = "clang++";
-  const char* argv[] = {expected_exec_path, "-c", "/tmp/qwerty", nullptr};
 
-  run_callback = [&](base::TestProcess* process) {
-    process->stderr_ =
-        "clang version 3.4 (...) (...)\n"
-        "Target: x86_64-unknown-linux-gnu\n"
-        "Thread model: posix\n"
-        "clang: error: no such file or directory: '/tmp/qwerty'\n";
-
-    auto it = process->args_.begin();
-    EXPECT_EQ(expected_exec_path, process->exec_path_);
-    EXPECT_TRUE(process->cwd_path_.empty());
-    EXPECT_EQ("-###", *(it++));
-    for (int i = 1; i < argc; ++i, ++it) {
-      EXPECT_EQ(argv[i], *it);
-    }
-  };
-
-  EXPECT_TRUE(client::DoMain(argc, argv, "socket_path"));
+  EXPECT_TRUE(client::DoMain(argc, argv, "socket_path", "clang++"));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
-  EXPECT_EQ(1u, connect_count);
-  EXPECT_EQ(1u, connections_created);
+  EXPECT_EQ(0u, connect_count);
+  EXPECT_EQ(0u, connections_created);
 }
 
 TEST_F(ClientTest, CannotSendMessage) {
+  const String temp_input = base::CreateTempFile(".cc");
+  const char* argv[] = {"clang++", "-c", temp_input.c_str(), nullptr};
+  const int argc = 3;
+
   connect_callback = [](net::TestConnection* connection) {
     connection->AbortOnSend();
   };
 
-  const int argc = 3;
-  const char* expected_exec_path = "clang++";
-  const char* argv[] = {expected_exec_path, "-c", "/tmp/test.cc", nullptr};
-
-  run_callback = [&](base::TestProcess* process) {
-    process->stderr_ = clang_cc_output;
-    auto it = process->args_.begin();
-    EXPECT_EQ(expected_exec_path, process->exec_path_);
-    EXPECT_TRUE(process->cwd_path_.empty());
-    EXPECT_EQ("-###", *(it++));
-    for (int i = 1; i < argc; ++i, ++it) {
-      EXPECT_EQ(argv[i], *it);
-    }
-  };
-
-  EXPECT_TRUE(client::DoMain(argc, argv, String()));
+  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++"));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -444,9 +397,9 @@ TEST_F(ClientTest, CannotSendMessage) {
 }
 
 TEST_F(ClientTest, CannotReadMessage) {
-  const String test_file_base = "test";
-  const auto test_file_name = test_file_base + ".cc";
-  const auto test_file = "/tmp/" + test_file_name;
+  const String temp_input = base::CreateTempFile(".cc");
+  const char* argv[] = {"clang++", "-c", temp_input.c_str(), nullptr};
+  const int argc = 3;
 
   connect_callback = [&](net::TestConnection* connection) {
     connection->AbortOnRead();
@@ -461,8 +414,7 @@ TEST_F(ClientTest, CannotReadMessage) {
       const auto& cc_flags = extension.flags();
       ASSERT_TRUE(cc_flags.has_compiler());
       // TODO: check compiler version and path.
-      EXPECT_EQ(test_file_base + ".o", cc_flags.output());
-      EXPECT_EQ(test_file, cc_flags.input());
+      EXPECT_EQ(temp_input, cc_flags.input());
       EXPECT_EQ("c++", cc_flags.language());
       EXPECT_EQ("-emit-obj", cc_flags.action());
 
@@ -481,7 +433,6 @@ TEST_F(ClientTest, CannotReadMessage) {
         auto begin = non_cached.begin();
         auto end = non_cached.end();
         EXPECT_NE(end, std::find(begin, end, "-main-file-name"));
-        EXPECT_NE(end, std::find(begin, end, test_file_name));
         EXPECT_NE(end, std::find(begin, end, "-coverage-file"));
         EXPECT_NE(end, std::find(begin, end, "-resource-dir"));
         EXPECT_NE(end, std::find(begin, end, "-internal-isystem"));
@@ -490,22 +441,7 @@ TEST_F(ClientTest, CannotReadMessage) {
     });
   };
 
-  const int argc = 3;
-  const char* expected_exec_path = "clang++";
-  const char* argv[] = {expected_exec_path, "-c", test_file.c_str(), nullptr};
-
-  run_callback = [&](base::TestProcess* process) {
-    process->stderr_ = clang_cc_output;
-    auto it = process->args_.begin();
-    EXPECT_EQ(expected_exec_path, process->exec_path_);
-    EXPECT_TRUE(process->cwd_path_.empty());
-    EXPECT_EQ("-###", *(it++));
-    for (int i = 1; i < argc; ++i, ++it) {
-      EXPECT_EQ(argv[i], *it);
-    }
-  };
-
-  EXPECT_TRUE(client::DoMain(argc, argv, String()));
+  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++"));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -514,22 +450,11 @@ TEST_F(ClientTest, CannotReadMessage) {
 }
 
 TEST_F(ClientTest, ReadMessageWithoutStatus) {
+  const String temp_input = base::CreateTempFile(".cc");
+  const char* argv[] = {"clang++", "-c", temp_input.c_str(), nullptr};
   const int argc = 3;
-  const char* expected_exec_path = "clang++";
-  const char* argv[] = {expected_exec_path, "-c", "/tmp/test.cc", nullptr};
 
-  run_callback = [&](base::TestProcess* process) {
-    process->stderr_ = clang_cc_output;
-    auto it = process->args_.begin();
-    EXPECT_EQ(expected_exec_path, process->exec_path_);
-    EXPECT_TRUE(process->cwd_path_.empty());
-    EXPECT_EQ("-###", *(it++));
-    for (int i = 1; i < argc; ++i, ++it) {
-      EXPECT_EQ(argv[i], *it);
-    }
-  };
-
-  EXPECT_TRUE(client::DoMain(argc, argv, String()));
+  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++"));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -538,6 +463,10 @@ TEST_F(ClientTest, ReadMessageWithoutStatus) {
 }
 
 TEST_F(ClientTest, ReadMessageWithBadStatus) {
+  const String temp_input = base::CreateTempFile(".cc");
+  const char* argv[] = {"clang++", "-c", temp_input.c_str(), nullptr};
+  const int argc = 3;
+
   connect_callback = [](net::TestConnection* connection) {
     connection->CallOnRead([](net::Connection::Message* message) {
       auto extension = message->MutableExtension(proto::Status::extension);
@@ -545,22 +474,7 @@ TEST_F(ClientTest, ReadMessageWithBadStatus) {
     });
   };
 
-  const int argc = 3;
-  const char* expected_exec_path = "clang++";
-  const char* argv[] = {expected_exec_path, "-c", "/tmp/test.cc", nullptr};
-
-  run_callback = [&](base::TestProcess* process) {
-    process->stderr_ = clang_cc_output;
-    auto it = process->args_.begin();
-    EXPECT_EQ(expected_exec_path, process->exec_path_);
-    EXPECT_TRUE(process->cwd_path_.empty());
-    EXPECT_EQ("-###", *(it++));
-    for (int i = 1; i < argc; ++i, ++it) {
-      EXPECT_EQ(argv[i], *it);
-    }
-  };
-
-  EXPECT_TRUE(client::DoMain(argc, argv, String()));
+  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++"));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -569,6 +483,10 @@ TEST_F(ClientTest, ReadMessageWithBadStatus) {
 }
 
 TEST_F(ClientTest, SuccessfulCompilation) {
+  const String temp_input = base::CreateTempFile(".cc");
+  const char* argv[] = {"clang++", "-c", temp_input.c_str(), nullptr};
+  const int argc = 3;
+
   connect_callback = [](net::TestConnection* connection) {
     connection->CallOnRead([](net::Connection::Message* message) {
       auto extension = message->MutableExtension(proto::Status::extension);
@@ -576,22 +494,7 @@ TEST_F(ClientTest, SuccessfulCompilation) {
     });
   };
 
-  const int argc = 3;
-  const char* expected_exec_path = "clang++";
-  const char* argv[] = {expected_exec_path, "-c", "/tmp/test.cc", nullptr};
-
-  run_callback = [&](base::TestProcess* process) {
-    process->stderr_ = clang_cc_output;
-    auto it = process->args_.begin();
-    EXPECT_EQ(expected_exec_path, process->exec_path_);
-    EXPECT_TRUE(process->cwd_path_.empty());
-    EXPECT_EQ("-###", *(it++));
-    for (int i = 1; i < argc; ++i, ++it) {
-      EXPECT_EQ(argv[i], *it);
-    }
-  };
-
-  EXPECT_FALSE(client::DoMain(argc, argv, String()));
+  EXPECT_FALSE(client::DoMain(argc, argv, String(), "clang++"));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -600,6 +503,10 @@ TEST_F(ClientTest, SuccessfulCompilation) {
 }
 
 TEST_F(ClientTest, FailedCompilation) {
+  const String temp_input = base::CreateTempFile(".cc");
+  const char* argv[] = {"clang++", "-c", temp_input.c_str(), nullptr};
+  const int argc = 3;
+
   connect_callback = [](net::TestConnection* connection) {
     connection->CallOnRead([](net::Connection::Message* message) {
       auto extension = message->MutableExtension(proto::Status::extension);
@@ -607,22 +514,7 @@ TEST_F(ClientTest, FailedCompilation) {
     });
   };
 
-  const int argc = 3;
-  const char* expected_exec_path = "clang++";
-  const char* argv[] = {expected_exec_path, "-c", "/tmp/test.cc", nullptr};
-
-  run_callback = [&](base::TestProcess* process) {
-    process->stderr_ = clang_cc_output;
-    auto it = process->args_.begin();
-    EXPECT_EQ(expected_exec_path, process->exec_path_);
-    EXPECT_TRUE(process->cwd_path_.empty());
-    EXPECT_EQ("-###", *(it++));
-    for (int i = 1; i < argc; ++i, ++it) {
-      EXPECT_EQ(argv[i], *it);
-    }
-  };
-
-  EXPECT_EXIT(client::DoMain(argc, argv, String()),
+  EXPECT_EXIT(client::DoMain(argc, argv, String(), "clang++"),
               ::testing::ExitedWithCode(1), ".*");
 }
 

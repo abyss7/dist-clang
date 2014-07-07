@@ -13,7 +13,12 @@
 namespace dist_clang {
 namespace client {
 
-bool DoMain(int argc, const char* const argv[], const String& socket_path) {
+bool DoMain(int argc, const char* const argv[], const String& socket_path,
+            const String& clang_path) {
+  if (clang_path.empty()) {
+    return true;
+  }
+
   auto service = net::NetworkService::Create();
   auto end_point = net::EndPoint::UnixSocket(socket_path);
 
@@ -43,12 +48,14 @@ bool DoMain(int argc, const char* const argv[], const String& socket_path) {
     message->set_user_id(getuid());
     message->set_current_dir(current_dir);
 
-    auto* args = message->mutable_args();
-    if (!version.empty()) {
-      args->mutable_compiler()->set_version(version);
-    }
+    auto* flags = message->mutable_flags();
+    command.FillFlags(flags);
 
-    command.FillArgs(args);
+    if (version.empty()) {
+      // TODO: extract version from |clang_path|.
+    }
+    flags->mutable_compiler()->set_version(version);
+    flags->mutable_compiler()->set_path(clang_path);
 
     proto::Status status;
     if (!connection->SendSync(std::move(message), &status)) {

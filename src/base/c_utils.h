@@ -62,9 +62,10 @@ inline String CreateTempFile(String* error = nullptr) {
 inline String CreateTempFile(const char suffix[], String* error = nullptr) {
   const char prefix[] = "/tmp/clangd-XXXXXX";
   const size_t prefix_size = sizeof(prefix) - 1;
-  char* buf = new char[prefix_size + strlen(suffix)];
+  char* buf = new char[prefix_size + strlen(suffix) + 1];
   memcpy(&buf[0], prefix, prefix_size);
   memcpy(&buf[prefix_size], suffix, strlen(suffix));
+  buf[prefix_size + strlen(suffix)] = 0;
 
   int fd = mkostemps(buf, strlen(suffix), O_CLOEXEC);
   if (fd == -1) {
