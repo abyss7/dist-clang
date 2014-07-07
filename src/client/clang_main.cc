@@ -63,8 +63,9 @@ int main(int argc, char* argv[]) {
   // NOTICE: Use separate |DoMain| function to make sure that all local objects
   //         get destructed before the invokation of |exec|. Do not use global
   //         objects!
-  if (client::DoMain(argc, argv, socket_path)) {
-    return ExecuteLocally(argv, base::GetEnv(base::kEnvClangPath));
+  String&& clang_path = base::GetEnv(base::kEnvClangPath);
+  if (client::DoMain(argc, argv, socket_path, clang_path)) {
+    return ExecuteLocally(argv, clang_path);
   }
 
   return 0;
