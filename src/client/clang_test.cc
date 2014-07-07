@@ -95,6 +95,27 @@ TEST(CommandTest, ParseSimpleArgs) {
   // TODO: check |FillArgs()|.
 }
 
+TEST(CommandTest, FillFlags) {
+  const String temp_input = base::CreateTempFile(".cc");
+  const char* argv[] = {"clang++", "-c",            temp_input.c_str(),
+                        "-o",      "/tmp/output.o", nullptr};
+  const int argc = 5;
+
+  List<Command> commands;
+  ASSERT_TRUE(Command::GenerateFromArgs(argc, argv, commands));
+  ASSERT_EQ(1u, commands.size());
+
+  auto& command = commands.front();
+  proto::Flags flags;
+  command.FillFlags(&flags);
+
+  EXPECT_EQ(temp_input, flags.input());
+  EXPECT_EQ("/tmp/output.o", flags.output());
+  EXPECT_EQ("-emit-obj", flags.action());
+  EXPECT_EQ("c++", flags.language());
+  // TODO: add more expectations on flags.
+}
+
 class ClientTest : public ::testing::Test {
  public:
   virtual void SetUp() override {
