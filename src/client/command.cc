@@ -61,7 +61,7 @@ bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
   diags = new DiagnosticsEngine(diag_id, &*diag_opts, diag_client);
 
   std::string path = argv[0];
-  Driver driver(path, llvm::sys::getDefaultTargetTriple(), "a.out", *diags);
+  Driver driver(path, llvm::sys::getDefaultTargetTriple(), *diags);
   compilation.reset(driver.BuildCompilation(argv));
   DumpDiagnosticBuffer(diag_client);
 

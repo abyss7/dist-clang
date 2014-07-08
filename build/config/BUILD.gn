@@ -96,7 +96,6 @@ config("libclang") {
   libs = [
     "c",
     "stdc++",
-    "tinfo",
 
     # libclang parts:
     "clangTooling",
@@ -120,6 +119,7 @@ config("libclang") {
     "clangBasic"
   ]
   libs += exec_script("//build/llvm.py", [ "libs" ], "list lines")
+  libs += exec_script("//build/llvm.py", [ "system-libs" ], "list lines")
 }
 
 config("version") {

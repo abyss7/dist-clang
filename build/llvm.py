@@ -15,6 +15,12 @@ elif argv[0] == "libs":
     if flag.startswith('-l'):
       print flag[2:]
 
+elif argv[0] == "system-libs":
+  flags = subprocess.check_output(['llvm-config', '--system-libs']).strip().split()
+  for flag in flags:
+    if flag.startswith('-l'):
+      print flag[2:]
+
 else:
   flags = subprocess.check_output(['llvm-config', '--' + argv[0]]).strip().split()
   for flag in flags:

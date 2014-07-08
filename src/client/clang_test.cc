@@ -43,41 +43,48 @@ TEST(CommandTest, UnknownArgument) {
 }
 
 TEST(CommandTest, ParseSimpleArgs) {
+  auto rep = [](const char* str) {
+    return std::make_pair(std::regex(str), String(str));
+  };
+
+  auto rep2 = [](const String& str) {
+    return std::make_pair(std::regex(str), str);
+  };
+
   const String temp_input = base::CreateTempFile(".cc");
   const String expected_output = "/tmp/output.o";
-  std::list<std::regex> expected_regex;
-  expected_regex.emplace_back("-cc1");
-  expected_regex.emplace_back("-triple [a-z0-9_]+-[a-z0-9_]+-[a-z0-9]+");
-  expected_regex.emplace_back("-emit-obj");
-  expected_regex.emplace_back("-mrelax-all");
-  expected_regex.emplace_back("-disable-free");
-  expected_regex.emplace_back("-main-file-name clangd-[a-zA-Z0-9]+\\.cc");
-  expected_regex.emplace_back("-mrelocation-model static");
-  expected_regex.emplace_back("-mdisable-fp-elim");
-  expected_regex.emplace_back("-fmath-errno");
-  expected_regex.emplace_back("-masm-verbose");
-  expected_regex.emplace_back("-mconstructor-aliases");
-  expected_regex.emplace_back("-munwind-tables");
-  expected_regex.emplace_back("-fuse-init-array");
-  expected_regex.emplace_back("-target-cpu [a-z0-9_]+");
-  expected_regex.emplace_back("-target-linker-version [0-9.]+");
-  expected_regex.emplace_back("-coverage-file " + expected_output);
-  expected_regex.emplace_back("-resource-dir");
-  expected_regex.emplace_back("-internal-isystem");
-  expected_regex.emplace_back("-internal-externc-isystem");
-  expected_regex.emplace_back("-fdeprecated-macro");
-  expected_regex.emplace_back("-fdebug-compilation-dir");
-  expected_regex.emplace_back("-ferror-limit [0-9]+");
-  expected_regex.emplace_back("-fmessage-length [0-9]+");
-  expected_regex.emplace_back("-mstackrealign");
-  expected_regex.emplace_back("-fobjc-runtime=");
-  expected_regex.emplace_back("-fcxx-exceptions");
-  expected_regex.emplace_back("-fexceptions");
-  expected_regex.emplace_back("-fdiagnostics-show-option");
-  expected_regex.emplace_back("-vectorize-slp");
-  expected_regex.emplace_back("-o " + expected_output);
-  expected_regex.emplace_back("-x c++");
-  expected_regex.emplace_back(temp_input);
+  List<Pair<std::regex, String>> expected_regex;
+  expected_regex.push_back(rep("-cc1"));
+  expected_regex.push_back(rep("-triple [a-z0-9_]+-[a-z0-9_]+-[a-z0-9]+"));
+  expected_regex.push_back(rep("-emit-obj"));
+  expected_regex.push_back(rep("-mrelax-all"));
+  expected_regex.push_back(rep("-disable-free"));
+  expected_regex.push_back(rep("-main-file-name clangd-[a-zA-Z0-9]+\\.cc"));
+  expected_regex.push_back(rep("-mrelocation-model static"));
+  expected_regex.push_back(rep("-mdisable-fp-elim"));
+  expected_regex.push_back(rep("-fmath-errno"));
+  expected_regex.push_back(rep("-masm-verbose"));
+  expected_regex.push_back(rep("-mconstructor-aliases"));
+  expected_regex.push_back(rep("-munwind-tables"));
+  expected_regex.push_back(rep("-fuse-init-array"));
+  expected_regex.push_back(rep("-target-cpu [a-z0-9_]+"));
+  expected_regex.push_back(rep("-target-linker-version [0-9.]+"));
+  expected_regex.push_back(rep2("-coverage-file " + expected_output));
+  expected_regex.push_back(rep("-resource-dir"));
+  expected_regex.push_back(rep("-internal-isystem"));
+  expected_regex.push_back(rep("-internal-externc-isystem"));
+  expected_regex.push_back(rep("-fdeprecated-macro"));
+  expected_regex.push_back(rep("-fdebug-compilation-dir"));
+  expected_regex.push_back(rep("-ferror-limit [0-9]+"));
+  expected_regex.push_back(rep("-fmessage-length [0-9]+"));
+  expected_regex.push_back(rep("-mstackrealign"));
+  expected_regex.push_back(rep("-fobjc-runtime="));
+  expected_regex.push_back(rep("-fcxx-exceptions"));
+  expected_regex.push_back(rep("-fexceptions"));
+  expected_regex.push_back(rep("-fdiagnostics-show-option"));
+  expected_regex.push_back(rep2("-o " + expected_output));
+  expected_regex.push_back(rep("-x c++"));
+  expected_regex.push_back(rep2(temp_input));
 
   const char* argv[] = {"clang++", "-c",                    temp_input.c_str(),
                         "-o",      expected_output.c_str(), nullptr};
@@ -89,10 +96,9 @@ TEST(CommandTest, ParseSimpleArgs) {
 
   const auto& command = commands.front();
   for (const auto& regex : expected_regex) {
-    EXPECT_TRUE(std::regex_search(command.RenderAllArgs(), regex));
+    EXPECT_TRUE(std::regex_search(command.RenderAllArgs(), regex.first))
+        << "Regex " << regex.second << " failed";
   }
-
-  // TODO: check |FillArgs()|.
 }
 
 TEST(CommandTest, FillFlags) {
