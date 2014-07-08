@@ -113,12 +113,13 @@ TEST(CommandTest, FillFlags) {
 
   auto& command = commands.front();
   proto::Flags flags;
-  command.FillFlags(&flags);
+  command.FillFlags(&flags, "/some/clang/path");
 
   EXPECT_EQ(temp_input, flags.input());
   EXPECT_EQ("/tmp/output.o", flags.output());
   EXPECT_EQ("-emit-obj", flags.action());
   EXPECT_EQ("c++", flags.language());
+  EXPECT_EQ("-cc1", *flags.other().begin());
   // TODO: add more expectations on flags.
 }
 

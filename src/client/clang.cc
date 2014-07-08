@@ -43,13 +43,22 @@ bool DoMain(int argc, const char* const argv[], const String& socket_path,
   }
 
   for (const auto& command : commands) {
+    if (!command.IsClang()) {
+      auto process = command.CreateProcess(current_dir, getuid());
+      if (!process->Run(base::Process::UNLIMITED)) {
+        LOG(WARNING) << "Subcommand failed";
+        return true;
+      }
+      continue;
+    }
+
     UniquePtr<proto::Execute> message(new proto::Execute);
     message->set_remote(false);
     message->set_user_id(getuid());
     message->set_current_dir(current_dir);
 
     auto* flags = message->mutable_flags();
-    command.FillFlags(flags);
+    command.FillFlags(flags, clang_path);
 
     if (version.empty()) {
       // TODO: extract version from |clang_path|.

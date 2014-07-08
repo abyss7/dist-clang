@@ -33,7 +33,7 @@ shared_library("command") {
     configs += [ "//build/config:no_rtti" ]
   }
   deps += [
-    "//src/base:base_headers",
+    "//src/base:base",
     "//src/base:logging",
     "//src/proto:proto",
   ]

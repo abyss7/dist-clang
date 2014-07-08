@@ -96,5 +96,21 @@ inline bool SetPermissions(const String& path, int mask,
   return true;
 }
 
+inline String GetSelfPath(String* error = nullptr) {
+  // FIXME: insert MAX_PATH constant.
+  char path[1024];
+  ssize_t r;
+
+  r = readlink("/proc/self/exe", path, 1024);
+  if (r == -1) {
+    GetLastError(error);
+    return String();
+  }
+
+  path[r] = '\0';
+  String&& result = String(path);
+  return result.substr(0, result.find_last_of('/'));
+}
+
 }  // namespace base
 }  // namespace dist_clang
