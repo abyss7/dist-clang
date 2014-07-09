@@ -67,7 +67,14 @@ inline String CreateTempFile(const char suffix[], String* error = nullptr) {
   memcpy(&buf[prefix_size], suffix, strlen(suffix));
   buf[prefix_size + strlen(suffix)] = 0;
 
+#if defined(OS_LINUX)
   int fd = mkostemps(buf, strlen(suffix), O_CLOEXEC);
+#elif defined(OS_MACOSX)
+  // FIXME: On MacOSX the temp file isn't closed on exec.
+  int fd = mkstemps(buf, strlen(suffix));
+#else
+#error Don't know, how to create a temp file: this platform is unsupported!
+#endif
   if (fd == -1) {
     GetLastError(error);
     delete[] buf;
