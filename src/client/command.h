@@ -26,6 +26,7 @@ class Command {
   void FillFlags(proto::Flags* flags, const String& clang_path) const;
   base::ProcessPtr CreateProcess(const String& current_dir, ui32 user_id) const;
 
+  String GetExecutable() const;
   String RenderAllArgs() const;  // For testing.
 
  private:
@@ -39,15 +40,16 @@ class Command {
         driver_(driver) {}
 
   Command(const clang::driver::Command* WEAK_PTR driver_command,
-          SharedPtr<clang::driver::Compilation> compilation)
-      : command_(driver_command), compilation_(compilation) {}
+          SharedPtr<clang::driver::Compilation> compilation,
+          SharedPtr<clang::driver::Driver> driver)
+      : command_(driver_command), compilation_(compilation), driver_(driver) {}
 
   const clang::driver::Command* WEAK_PTR command_ = nullptr;
   UniquePtr<llvm::opt::InputArgList> arg_list_;
   SharedPtr<clang::driver::Compilation> compilation_;
   SharedPtr<llvm::opt::OptTable> opt_table_;
 
-  // For "--resource-dir"
+  // For "--resource-dir" and |clang::driver::Command::getExecutable()|.
   SharedPtr<clang::driver::Driver> driver_;
 };
 

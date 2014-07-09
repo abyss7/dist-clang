@@ -92,7 +92,8 @@ bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
            command->getSource().getKind() != Action::PreprocessJobClass) ||
           !std::regex_match(command->getExecutable(),
                             std::regex(".*/?clang(\\+\\+)?"))) {
-        commands.emplace_back(std::move(Command(command, compilation)));
+        std::cout << command->getExecutable() << std::endl;
+        commands.emplace_back(std::move(Command(command, compilation, driver)));
         continue;
       }
 
@@ -225,11 +226,30 @@ base::ProcessPtr Command::CreateProcess(const String& current_dir,
   return process;
 }
 
+String Command::GetExecutable() const {
+  if (command_) {
+    return command_->getExecutable();
+  } else if (arg_list_) {
+    return base::GetSelfPath() + "/clang";
+  } else {
+    NOTREACHED();
+    return String();
+  }
+}
+
 String Command::RenderAllArgs() const {
   String result;
 
-  for (const auto& arg : *arg_list_) {
-    result += String(" ") + arg->getAsString(*arg_list_);
+  if (arg_list_) {
+    for (const auto& arg : *arg_list_) {
+      result += String(" ") + arg->getAsString(*arg_list_);
+    }
+  } else if (command_) {
+    for (const auto& arg : command_->getArguments()) {
+      result += String(" ") + arg;
+    }
+  } else {
+    NOTREACHED();
   }
 
   return result.substr(1);
