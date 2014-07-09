@@ -25,7 +25,7 @@ class NetworkServiceImpl : public NetworkService {
 
   // FIXME: make these values configurable.
   enum : int {
-    read_timeout_secs = 30,
+    read_timeout_secs = 60,
     send_timeout_secs = 5,
     read_min_bytes = 32
   };

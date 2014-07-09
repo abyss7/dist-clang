@@ -125,7 +125,6 @@ bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
            it != end; ++it) {
         diags->Report(diag::err_drv_unknown_argument)
             << (*it)->getAsString(*arg_list);
-        LOG(WARNING) << command->getExecutable();
         DumpDiagnosticBuffer(diag_client);
         return false;
       }
@@ -133,6 +132,9 @@ bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
   }
 
   DumpDiagnosticBuffer(diag_client);
+  if (!result) {
+    LOG(WARNING) << "No Clang commands found";
+  }
   return result;
 }
 
