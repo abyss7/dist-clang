@@ -52,7 +52,11 @@ bool CopyFile(const String& src, const String& dst, bool overwrite,
     close(src_fd);
     return false;
   }
-  auto dst_fd = open(dst.c_str(), flags, src_stats.st_mode & 0555);
+
+  // We need write-access even on object files after introduction of the
+  // "split-dwarf" option, see
+  // https://sourceware.org/bugzilla/show_bug.cgi?id=971
+  auto dst_fd = open(dst.c_str(), flags, src_stats.st_mode);
   if (dst_fd == -1) {
     GetLastError(error);
     close(src_fd);
@@ -121,8 +125,11 @@ bool ReadFile(const String& path, String* output, String* error) {
 }
 
 bool WriteFile(const String& path, const String& input, String* error) {
+  // We need write-access even on object files after introduction of the
+  // "split-dwarf" option, see
+  // https://sourceware.org/bugzilla/show_bug.cgi?id=971
   auto src_fd =
-      open((path + ".tmp").c_str(), O_WRONLY | O_TRUNC | O_CREAT, 0444);
+      open((path + ".tmp").c_str(), O_WRONLY | O_TRUNC | O_CREAT, 0664);
   if (src_fd == -1) {
     GetLastError(error);
     return false;

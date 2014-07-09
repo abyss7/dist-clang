@@ -92,7 +92,6 @@ bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
            command->getSource().getKind() != Action::PreprocessJobClass) ||
           !std::regex_match(command->getExecutable(),
                             std::regex(".*/?clang(\\+\\+)?"))) {
-        std::cout << command->getExecutable() << std::endl;
         commands.emplace_back(std::move(Command(command, compilation, driver)));
         continue;
       }

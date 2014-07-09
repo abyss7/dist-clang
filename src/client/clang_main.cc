@@ -16,8 +16,7 @@ namespace {
 
 int ExecuteLocally(char* argv[], const String& clangd_cxx_path) {
   if (clangd_cxx_path.empty()) {
-    LOG(FATAL) << "Provide real clang driver path via "
-               << base::kEnvClangPath;
+    LOG(FATAL) << "Provide real clang driver path via " << base::kEnvClangPath;
   }
 
   LOG(INFO) << "Running locally.";

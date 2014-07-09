@@ -46,7 +46,8 @@ bool DoMain(int argc, const char* const argv[], const String& socket_path,
     if (!command.IsClang()) {
       auto process = command.CreateProcess(current_dir, getuid());
       if (!process->Run(base::Process::UNLIMITED)) {
-        LOG(WARNING) << "Subcommand failed: " << command.GetExecutable();
+        LOG(WARNING) << "Subcommand failed: " << command.GetExecutable()
+                     << std::endl << process->stderr();
         LOG(VERBOSE) << "Arguments: " << command.RenderAllArgs();
         return true;
       }
