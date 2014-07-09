@@ -50,7 +50,14 @@ inline String GetCurrentDir(String* error = nullptr) {
 
 inline String CreateTempFile(String* error = nullptr) {
   char buf[] = "/tmp/clangd-XXXXXX.files";
+#if defined(OS_LINUX)
   int fd = mkostemps(buf, 6, O_CLOEXEC);
+#elif defined(OS_MACOSX)
+  // FIXME: On MacOSX the temp file isn't closed on exec.
+  int fd = mkstemps(buf, 6;
+#else
+#error Don't know, how to create a temp file: this platform is unsupported!
+#endif
   if (fd == -1) {
     GetLastError(error);
     return String();
