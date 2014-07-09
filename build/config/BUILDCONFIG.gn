@@ -49,6 +49,9 @@ else {
 if (os == "linux") {
   default_configs += [ "//build/config/linux:base" ]
 }
+if (os == "mac") {
+  default_configs += [ "//build/config/mac:base" ]
+}
 
 if (use_profiler) {
   default_configs += [ "//build/config:profiler" ]

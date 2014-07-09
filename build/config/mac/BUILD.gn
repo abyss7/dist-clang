@@ -1,0 +1,5 @@
+config("base") {
+  defines = [
+    "OS_MACOSX",
+  ]
+}
