@@ -81,8 +81,6 @@ bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
   const auto& jobs = compilation->getJobs();
   for (auto& job : jobs) {
     if (job->getKind() == Job::CommandClass) {
-      result = true;
-
       auto command = static_cast<clang::driver::Command*>(job);
 
       // It's a kind of heuristics to skip non-Clang commands.
@@ -95,6 +93,12 @@ bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
         commands.emplace_back(std::move(Command(command, compilation, driver)));
         continue;
       }
+
+      // TODO: we fallback to original Clang, if there is no Clang commands,
+      //       since we have a problem with linking step:
+      //       "no such file or directory: '@lib/libxxx.so.rsp'".
+      //       We should fix this problem.
+      result = true;
 
       auto arg_begin = command->getArguments().begin();
       auto arg_end = command->getArguments().end();
