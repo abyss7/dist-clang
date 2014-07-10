@@ -74,8 +74,8 @@ bool ProcessImpl::RunChild(int (&out_pipe)[2], int (&err_pipe)[2],
   DCHECK(env_it == envs_.end());
   env[envs_.size()] = nullptr;
 
-  if (execvpe(exec_path_.c_str(), const_cast<char* const*>(argv),
-              const_cast<char* const*>(env)) == -1) {
+  if (execve(exec_path_.c_str(), const_cast<char* const*>(argv),
+             const_cast<char* const*>(env)) == -1) {
     std::cerr << "execvpe: " << strerror(errno) << std::endl;
     exit(1);
   }

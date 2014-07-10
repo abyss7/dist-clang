@@ -124,5 +124,9 @@ set_sources_assignment_filter(sources_assignment_filter)
 # Setup toolchain.
 # =============================================================================
 
-set_default_toolchain("//build/toolchain:clang")
-
+if (os == "linux") {
+  set_default_toolchain("//build/toolchain/linux:clang")
+}
+if (os == "mac") {
+  set_default_toolchain("//build/toolchain/mac:clang")
+}

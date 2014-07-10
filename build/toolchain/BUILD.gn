@@ -1,8 +1,0 @@
-import("//build/toolchain/default.gni")
-
-default_toolchain("clang") {
-  cc = "clang"
-  cxx = "clang++"
-  ar = "ar"
-  ld = cxx
-}
