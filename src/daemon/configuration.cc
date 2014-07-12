@@ -47,7 +47,7 @@ Configuration::Configuration(int argc, char *argv[]) {
     }
 
     if (cache_arg.isSet()) {
-      config_.set_cache_path(cache_arg.getValue());
+      config_.mutable_cache()->set_path(cache_arg.getValue());
     }
 
     for (auto host : hosts_arg) {

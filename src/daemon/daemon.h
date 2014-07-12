@@ -88,8 +88,7 @@ class Daemon {
   UniquePtr<Queue> cache_tasks_;
   UniquePtr<QueueAggregator> all_tasks_;
   UniquePtr<base::WorkerPool> workers_;
-  bool store_remote_cache_ = false;
-  bool sync_cache_ = false;
+  UniquePtr<proto::Configuration::Cache> cache_config_;
 };
 
 }  // namespace daemon

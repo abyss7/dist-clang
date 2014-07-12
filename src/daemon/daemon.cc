@@ -61,9 +61,6 @@ bool Daemon::Initialize(const Configuration& configuration) {
 
   const auto& config = configuration.config();
 
-  store_remote_cache_ = config.remote_cache();
-  sync_cache_ = config.sync_cache();
-
   if (!config.IsInitialized()) {
     LOG(ERROR) << config.InitializationErrorString();
     return false;
@@ -100,10 +97,12 @@ bool Daemon::Initialize(const Configuration& configuration) {
   all_tasks_->Aggregate(remote_tasks_.get());
 
   cache_tasks_.reset(new Queue);
-  if (config.has_cache_path()) {
-    cache_.reset(new FileCache(config.cache_path(), config.cache_size()));
+  if (config.has_cache()) {
+    cache_.reset(new FileCache(config.cache().path(), config.cache().size()));
     Worker worker = std::bind(&Daemon::DoCheckCache, this, _1);
     workers_->AddWorker(worker, std::thread::hardware_concurrency() * 2);
+    cache_config_.reset(config.cache().New());
+    cache_config_->CopyFrom(config.cache());
   }
 
   bool is_listening = false;
@@ -304,7 +303,8 @@ void Daemon::UpdateCache(const String& pp_source, const FileCache::Entry& entry,
                                                 flags.cc_only().end());
   }
 
-  if (sync_cache_) {
+  DCHECK(!!cache_config_);
+  if (cache_config_->sync()) {
     cache_->StoreNow(pp_source, command_line, version, entry);
   } else {
     cache_->Store(pp_source, command_line, version, entry);
@@ -710,7 +710,8 @@ void Daemon::DoLocalExecution(const std::atomic<bool>& is_shutting_down) {
       message->MutableExtension(proto::Status::extension)->CopyFrom(status);
       message->MutableExtension(result)->set_obj(process->stdout());
 
-      if (store_remote_cache_ && status.code() == proto::Status::OK) {
+      if (cache_config_ && cache_config_->remote() &&
+          status.code() == proto::Status::OK) {
         UpdateCacheFromRemote(task->second.get(), message->GetExtension(result),
                               status);
       }

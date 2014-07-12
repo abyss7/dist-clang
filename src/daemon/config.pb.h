@@ -39,6 +39,7 @@ class Host;
 class Verbosity;
 class Verbosity_Range;
 class Configuration;
+class Configuration_Cache;
 
 // ===================================================================
 
@@ -358,6 +359,143 @@ class Verbosity : public ::google::protobuf::Message {
 };
 // -------------------------------------------------------------------
 
+class Configuration_Cache : public ::google::protobuf::Message {
+ public:
+  Configuration_Cache();
+  virtual ~Configuration_Cache();
+
+  Configuration_Cache(const Configuration_Cache& from);
+
+  inline Configuration_Cache& operator=(const Configuration_Cache& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
+    return _unknown_fields_;
+  }
+
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
+    return &_unknown_fields_;
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const Configuration_Cache& default_instance();
+
+  void Swap(Configuration_Cache* other);
+
+  // implements Message ----------------------------------------------
+
+  Configuration_Cache* New() const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const Configuration_Cache& from);
+  void MergeFrom(const Configuration_Cache& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // required string path = 1;
+  inline bool has_path() const;
+  inline void clear_path();
+  static const int kPathFieldNumber = 1;
+  inline const ::std::string& path() const;
+  inline void set_path(const ::std::string& value);
+  inline void set_path(const char* value);
+  inline void set_path(const char* value, size_t size);
+  inline ::std::string* mutable_path();
+  inline ::std::string* release_path();
+  inline void set_allocated_path(::std::string* path);
+
+  // optional uint64 size = 2 [default = 0];
+  inline bool has_size() const;
+  inline void clear_size();
+  static const int kSizeFieldNumber = 2;
+  inline ::google::protobuf::uint64 size() const;
+  inline void set_size(::google::protobuf::uint64 value);
+
+  // optional bool remote = 3 [default = true];
+  inline bool has_remote() const;
+  inline void clear_remote();
+  static const int kRemoteFieldNumber = 3;
+  inline bool remote() const;
+  inline void set_remote(bool value);
+
+  // optional bool sync = 4 [default = false];
+  inline bool has_sync() const;
+  inline void clear_sync();
+  static const int kSyncFieldNumber = 4;
+  inline bool sync() const;
+  inline void set_sync(bool value);
+
+  // optional bool direct = 5 [default = false];
+  inline bool has_direct() const;
+  inline void clear_direct();
+  static const int kDirectFieldNumber = 5;
+  inline bool direct() const;
+  inline void set_direct(bool value);
+
+  // optional bool mtime = 6 [default = false];
+  inline bool has_mtime() const;
+  inline void clear_mtime();
+  static const int kMtimeFieldNumber = 6;
+  inline bool mtime() const;
+  inline void set_mtime(bool value);
+
+  // @@protoc_insertion_point(class_scope:dist_clang.proto.Configuration.Cache)
+ private:
+  inline void set_has_path();
+  inline void clear_has_path();
+  inline void set_has_size();
+  inline void clear_has_size();
+  inline void set_has_remote();
+  inline void clear_has_remote();
+  inline void set_has_sync();
+  inline void clear_has_sync();
+  inline void set_has_direct();
+  inline void clear_has_direct();
+  inline void set_has_mtime();
+  inline void clear_has_mtime();
+
+  ::google::protobuf::UnknownFieldSet _unknown_fields_;
+
+  ::std::string* path_;
+  ::google::protobuf::uint64 size_;
+  bool remote_;
+  bool sync_;
+  bool direct_;
+  bool mtime_;
+
+  mutable int _cached_size_;
+  ::google::protobuf::uint32 _has_bits_[(6 + 31) / 32];
+
+  friend void  protobuf_AddDesc_daemon_2fconfig_2eproto();
+  friend void protobuf_AssignDesc_daemon_2fconfig_2eproto();
+  friend void protobuf_ShutdownFile_daemon_2fconfig_2eproto();
+
+  void InitAsDefaultInstance();
+  static Configuration_Cache* default_instance_;
+};
+// -------------------------------------------------------------------
+
 class Configuration : public ::google::protobuf::Message {
  public:
   Configuration();
@@ -410,6 +548,8 @@ class Configuration : public ::google::protobuf::Message {
 
   // nested types ----------------------------------------------------
 
+  typedef Configuration_Cache Cache;
+
   // accessors -------------------------------------------------------
 
   // optional string socket_path = 1;
@@ -430,18 +570,6 @@ class Configuration : public ::google::protobuf::Message {
   static const int kPoolCapacityFieldNumber = 2;
   inline ::google::protobuf::uint32 pool_capacity() const;
   inline void set_pool_capacity(::google::protobuf::uint32 value);
-
-  // optional string cache_path = 3;
-  inline bool has_cache_path() const;
-  inline void clear_cache_path();
-  static const int kCachePathFieldNumber = 3;
-  inline const ::std::string& cache_path() const;
-  inline void set_cache_path(const ::std::string& value);
-  inline void set_cache_path(const char* value);
-  inline void set_cache_path(const char* value, size_t size);
-  inline ::std::string* mutable_cache_path();
-  inline ::std::string* release_cache_path();
-  inline void set_allocated_cache_path(::std::string* cache_path);
 
   // repeated .dist_clang.proto.Host remotes = 4;
   inline int remotes_size() const;
@@ -494,33 +622,12 @@ class Configuration : public ::google::protobuf::Message {
   inline ::dist_clang::proto::Verbosity* release_verbosity();
   inline void set_allocated_verbosity(::dist_clang::proto::Verbosity* verbosity);
 
-  // optional uint64 cache_size = 9 [default = 0];
-  inline bool has_cache_size() const;
-  inline void clear_cache_size();
-  static const int kCacheSizeFieldNumber = 9;
-  inline ::google::protobuf::uint64 cache_size() const;
-  inline void set_cache_size(::google::protobuf::uint64 value);
-
   // optional uint32 user_id = 10;
   inline bool has_user_id() const;
   inline void clear_user_id();
   static const int kUserIdFieldNumber = 10;
   inline ::google::protobuf::uint32 user_id() const;
   inline void set_user_id(::google::protobuf::uint32 value);
-
-  // optional bool remote_cache = 11 [default = true];
-  inline bool has_remote_cache() const;
-  inline void clear_remote_cache();
-  static const int kRemoteCacheFieldNumber = 11;
-  inline bool remote_cache() const;
-  inline void set_remote_cache(bool value);
-
-  // optional bool sync_cache = 12 [default = false];
-  inline bool has_sync_cache() const;
-  inline void clear_sync_cache();
-  static const int kSyncCacheFieldNumber = 12;
-  inline bool sync_cache() const;
-  inline void set_sync_cache(bool value);
 
   // optional string config_path = 13;
   inline bool has_config_path() const;
@@ -534,12 +641,14 @@ class Configuration : public ::google::protobuf::Message {
   inline ::std::string* release_config_path();
   inline void set_allocated_config_path(::std::string* config_path);
 
-  // optional bool direct_mode = 14 [default = false];
-  inline bool has_direct_mode() const;
-  inline void clear_direct_mode();
-  static const int kDirectModeFieldNumber = 14;
-  inline bool direct_mode() const;
-  inline void set_direct_mode(bool value);
+  // optional .dist_clang.proto.Configuration.Cache cache = 14;
+  inline bool has_cache() const;
+  inline void clear_cache();
+  static const int kCacheFieldNumber = 14;
+  inline const ::dist_clang::proto::Configuration_Cache& cache() const;
+  inline ::dist_clang::proto::Configuration_Cache* mutable_cache();
+  inline ::dist_clang::proto::Configuration_Cache* release_cache();
+  inline void set_allocated_cache(::dist_clang::proto::Configuration_Cache* cache);
 
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Configuration)
  private:
@@ -547,31 +656,22 @@ class Configuration : public ::google::protobuf::Message {
   inline void clear_has_socket_path();
   inline void set_has_pool_capacity();
   inline void clear_has_pool_capacity();
-  inline void set_has_cache_path();
-  inline void clear_has_cache_path();
   inline void set_has_local();
   inline void clear_has_local();
   inline void set_has_statistic();
   inline void clear_has_statistic();
   inline void set_has_verbosity();
   inline void clear_has_verbosity();
-  inline void set_has_cache_size();
-  inline void clear_has_cache_size();
   inline void set_has_user_id();
   inline void clear_has_user_id();
-  inline void set_has_remote_cache();
-  inline void clear_has_remote_cache();
-  inline void set_has_sync_cache();
-  inline void clear_has_sync_cache();
   inline void set_has_config_path();
   inline void clear_has_config_path();
-  inline void set_has_direct_mode();
-  inline void clear_has_direct_mode();
+  inline void set_has_cache();
+  inline void clear_has_cache();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
   ::std::string* socket_path_;
-  ::std::string* cache_path_;
   ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Host > remotes_;
   ::dist_clang::proto::Host* local_;
   ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Compiler > versions_;
@@ -579,14 +679,11 @@ class Configuration : public ::google::protobuf::Message {
   ::google::protobuf::uint32 user_id_;
   ::dist_clang::proto::Host* statistic_;
   ::dist_clang::proto::Verbosity* verbosity_;
-  ::google::protobuf::uint64 cache_size_;
   ::std::string* config_path_;
-  bool remote_cache_;
-  bool sync_cache_;
-  bool direct_mode_;
+  ::dist_clang::proto::Configuration_Cache* cache_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(14 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(10 + 31) / 32];
 
   friend void  protobuf_AddDesc_daemon_2fconfig_2eproto();
   friend void protobuf_AssignDesc_daemon_2fconfig_2eproto();
@@ -861,6 +958,190 @@ Verbosity::mutable_levels() {
 
 // -------------------------------------------------------------------
 
+// Configuration_Cache
+
+// required string path = 1;
+inline bool Configuration_Cache::has_path() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+inline void Configuration_Cache::set_has_path() {
+  _has_bits_[0] |= 0x00000001u;
+}
+inline void Configuration_Cache::clear_has_path() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+inline void Configuration_Cache::clear_path() {
+  if (path_ != &::google::protobuf::internal::kEmptyString) {
+    path_->clear();
+  }
+  clear_has_path();
+}
+inline const ::std::string& Configuration_Cache::path() const {
+  return *path_;
+}
+inline void Configuration_Cache::set_path(const ::std::string& value) {
+  set_has_path();
+  if (path_ == &::google::protobuf::internal::kEmptyString) {
+    path_ = new ::std::string;
+  }
+  path_->assign(value);
+}
+inline void Configuration_Cache::set_path(const char* value) {
+  set_has_path();
+  if (path_ == &::google::protobuf::internal::kEmptyString) {
+    path_ = new ::std::string;
+  }
+  path_->assign(value);
+}
+inline void Configuration_Cache::set_path(const char* value, size_t size) {
+  set_has_path();
+  if (path_ == &::google::protobuf::internal::kEmptyString) {
+    path_ = new ::std::string;
+  }
+  path_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* Configuration_Cache::mutable_path() {
+  set_has_path();
+  if (path_ == &::google::protobuf::internal::kEmptyString) {
+    path_ = new ::std::string;
+  }
+  return path_;
+}
+inline ::std::string* Configuration_Cache::release_path() {
+  clear_has_path();
+  if (path_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = path_;
+    path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
+}
+inline void Configuration_Cache::set_allocated_path(::std::string* path) {
+  if (path_ != &::google::protobuf::internal::kEmptyString) {
+    delete path_;
+  }
+  if (path) {
+    set_has_path();
+    path_ = path;
+  } else {
+    clear_has_path();
+    path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
+}
+
+// optional uint64 size = 2 [default = 0];
+inline bool Configuration_Cache::has_size() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+inline void Configuration_Cache::set_has_size() {
+  _has_bits_[0] |= 0x00000002u;
+}
+inline void Configuration_Cache::clear_has_size() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+inline void Configuration_Cache::clear_size() {
+  size_ = GOOGLE_ULONGLONG(0);
+  clear_has_size();
+}
+inline ::google::protobuf::uint64 Configuration_Cache::size() const {
+  return size_;
+}
+inline void Configuration_Cache::set_size(::google::protobuf::uint64 value) {
+  set_has_size();
+  size_ = value;
+}
+
+// optional bool remote = 3 [default = true];
+inline bool Configuration_Cache::has_remote() const {
+  return (_has_bits_[0] & 0x00000004u) != 0;
+}
+inline void Configuration_Cache::set_has_remote() {
+  _has_bits_[0] |= 0x00000004u;
+}
+inline void Configuration_Cache::clear_has_remote() {
+  _has_bits_[0] &= ~0x00000004u;
+}
+inline void Configuration_Cache::clear_remote() {
+  remote_ = true;
+  clear_has_remote();
+}
+inline bool Configuration_Cache::remote() const {
+  return remote_;
+}
+inline void Configuration_Cache::set_remote(bool value) {
+  set_has_remote();
+  remote_ = value;
+}
+
+// optional bool sync = 4 [default = false];
+inline bool Configuration_Cache::has_sync() const {
+  return (_has_bits_[0] & 0x00000008u) != 0;
+}
+inline void Configuration_Cache::set_has_sync() {
+  _has_bits_[0] |= 0x00000008u;
+}
+inline void Configuration_Cache::clear_has_sync() {
+  _has_bits_[0] &= ~0x00000008u;
+}
+inline void Configuration_Cache::clear_sync() {
+  sync_ = false;
+  clear_has_sync();
+}
+inline bool Configuration_Cache::sync() const {
+  return sync_;
+}
+inline void Configuration_Cache::set_sync(bool value) {
+  set_has_sync();
+  sync_ = value;
+}
+
+// optional bool direct = 5 [default = false];
+inline bool Configuration_Cache::has_direct() const {
+  return (_has_bits_[0] & 0x00000010u) != 0;
+}
+inline void Configuration_Cache::set_has_direct() {
+  _has_bits_[0] |= 0x00000010u;
+}
+inline void Configuration_Cache::clear_has_direct() {
+  _has_bits_[0] &= ~0x00000010u;
+}
+inline void Configuration_Cache::clear_direct() {
+  direct_ = false;
+  clear_has_direct();
+}
+inline bool Configuration_Cache::direct() const {
+  return direct_;
+}
+inline void Configuration_Cache::set_direct(bool value) {
+  set_has_direct();
+  direct_ = value;
+}
+
+// optional bool mtime = 6 [default = false];
+inline bool Configuration_Cache::has_mtime() const {
+  return (_has_bits_[0] & 0x00000020u) != 0;
+}
+inline void Configuration_Cache::set_has_mtime() {
+  _has_bits_[0] |= 0x00000020u;
+}
+inline void Configuration_Cache::clear_has_mtime() {
+  _has_bits_[0] &= ~0x00000020u;
+}
+inline void Configuration_Cache::clear_mtime() {
+  mtime_ = false;
+  clear_has_mtime();
+}
+inline bool Configuration_Cache::mtime() const {
+  return mtime_;
+}
+inline void Configuration_Cache::set_mtime(bool value) {
+  set_has_mtime();
+  mtime_ = value;
+}
+
+// -------------------------------------------------------------------
+
 // Configuration
 
 // optional string socket_path = 1;
@@ -955,76 +1236,6 @@ inline void Configuration::set_pool_capacity(::google::protobuf::uint32 value) {
   pool_capacity_ = value;
 }
 
-// optional string cache_path = 3;
-inline bool Configuration::has_cache_path() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
-}
-inline void Configuration::set_has_cache_path() {
-  _has_bits_[0] |= 0x00000004u;
-}
-inline void Configuration::clear_has_cache_path() {
-  _has_bits_[0] &= ~0x00000004u;
-}
-inline void Configuration::clear_cache_path() {
-  if (cache_path_ != &::google::protobuf::internal::kEmptyString) {
-    cache_path_->clear();
-  }
-  clear_has_cache_path();
-}
-inline const ::std::string& Configuration::cache_path() const {
-  return *cache_path_;
-}
-inline void Configuration::set_cache_path(const ::std::string& value) {
-  set_has_cache_path();
-  if (cache_path_ == &::google::protobuf::internal::kEmptyString) {
-    cache_path_ = new ::std::string;
-  }
-  cache_path_->assign(value);
-}
-inline void Configuration::set_cache_path(const char* value) {
-  set_has_cache_path();
-  if (cache_path_ == &::google::protobuf::internal::kEmptyString) {
-    cache_path_ = new ::std::string;
-  }
-  cache_path_->assign(value);
-}
-inline void Configuration::set_cache_path(const char* value, size_t size) {
-  set_has_cache_path();
-  if (cache_path_ == &::google::protobuf::internal::kEmptyString) {
-    cache_path_ = new ::std::string;
-  }
-  cache_path_->assign(reinterpret_cast<const char*>(value), size);
-}
-inline ::std::string* Configuration::mutable_cache_path() {
-  set_has_cache_path();
-  if (cache_path_ == &::google::protobuf::internal::kEmptyString) {
-    cache_path_ = new ::std::string;
-  }
-  return cache_path_;
-}
-inline ::std::string* Configuration::release_cache_path() {
-  clear_has_cache_path();
-  if (cache_path_ == &::google::protobuf::internal::kEmptyString) {
-    return NULL;
-  } else {
-    ::std::string* temp = cache_path_;
-    cache_path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-    return temp;
-  }
-}
-inline void Configuration::set_allocated_cache_path(::std::string* cache_path) {
-  if (cache_path_ != &::google::protobuf::internal::kEmptyString) {
-    delete cache_path_;
-  }
-  if (cache_path) {
-    set_has_cache_path();
-    cache_path_ = cache_path;
-  } else {
-    clear_has_cache_path();
-    cache_path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-  }
-}
-
 // repeated .dist_clang.proto.Host remotes = 4;
 inline int Configuration::remotes_size() const {
   return remotes_.size();
@@ -1052,13 +1263,13 @@ Configuration::mutable_remotes() {
 
 // optional .dist_clang.proto.Host local = 5;
 inline bool Configuration::has_local() const {
-  return (_has_bits_[0] & 0x00000010u) != 0;
+  return (_has_bits_[0] & 0x00000008u) != 0;
 }
 inline void Configuration::set_has_local() {
-  _has_bits_[0] |= 0x00000010u;
+  _has_bits_[0] |= 0x00000008u;
 }
 inline void Configuration::clear_has_local() {
-  _has_bits_[0] &= ~0x00000010u;
+  _has_bits_[0] &= ~0x00000008u;
 }
 inline void Configuration::clear_local() {
   if (local_ != NULL) local_->::dist_clang::proto::Host::Clear();
@@ -1115,13 +1326,13 @@ Configuration::mutable_versions() {
 
 // optional .dist_clang.proto.Host statistic = 7;
 inline bool Configuration::has_statistic() const {
-  return (_has_bits_[0] & 0x00000040u) != 0;
+  return (_has_bits_[0] & 0x00000020u) != 0;
 }
 inline void Configuration::set_has_statistic() {
-  _has_bits_[0] |= 0x00000040u;
+  _has_bits_[0] |= 0x00000020u;
 }
 inline void Configuration::clear_has_statistic() {
-  _has_bits_[0] &= ~0x00000040u;
+  _has_bits_[0] &= ~0x00000020u;
 }
 inline void Configuration::clear_statistic() {
   if (statistic_ != NULL) statistic_->::dist_clang::proto::Host::Clear();
@@ -1153,13 +1364,13 @@ inline void Configuration::set_allocated_statistic(::dist_clang::proto::Host* st
 
 // optional .dist_clang.proto.Verbosity verbosity = 8;
 inline bool Configuration::has_verbosity() const {
-  return (_has_bits_[0] & 0x00000080u) != 0;
+  return (_has_bits_[0] & 0x00000040u) != 0;
 }
 inline void Configuration::set_has_verbosity() {
-  _has_bits_[0] |= 0x00000080u;
+  _has_bits_[0] |= 0x00000040u;
 }
 inline void Configuration::clear_has_verbosity() {
-  _has_bits_[0] &= ~0x00000080u;
+  _has_bits_[0] &= ~0x00000040u;
 }
 inline void Configuration::clear_verbosity() {
   if (verbosity_ != NULL) verbosity_->::dist_clang::proto::Verbosity::Clear();
@@ -1189,37 +1400,15 @@ inline void Configuration::set_allocated_verbosity(::dist_clang::proto::Verbosit
   }
 }
 
-// optional uint64 cache_size = 9 [default = 0];
-inline bool Configuration::has_cache_size() const {
-  return (_has_bits_[0] & 0x00000100u) != 0;
-}
-inline void Configuration::set_has_cache_size() {
-  _has_bits_[0] |= 0x00000100u;
-}
-inline void Configuration::clear_has_cache_size() {
-  _has_bits_[0] &= ~0x00000100u;
-}
-inline void Configuration::clear_cache_size() {
-  cache_size_ = GOOGLE_ULONGLONG(0);
-  clear_has_cache_size();
-}
-inline ::google::protobuf::uint64 Configuration::cache_size() const {
-  return cache_size_;
-}
-inline void Configuration::set_cache_size(::google::protobuf::uint64 value) {
-  set_has_cache_size();
-  cache_size_ = value;
-}
-
 // optional uint32 user_id = 10;
 inline bool Configuration::has_user_id() const {
-  return (_has_bits_[0] & 0x00000200u) != 0;
+  return (_has_bits_[0] & 0x00000080u) != 0;
 }
 inline void Configuration::set_has_user_id() {
-  _has_bits_[0] |= 0x00000200u;
+  _has_bits_[0] |= 0x00000080u;
 }
 inline void Configuration::clear_has_user_id() {
-  _has_bits_[0] &= ~0x00000200u;
+  _has_bits_[0] &= ~0x00000080u;
 }
 inline void Configuration::clear_user_id() {
   user_id_ = 0u;
@@ -1233,59 +1422,15 @@ inline void Configuration::set_user_id(::google::protobuf::uint32 value) {
   user_id_ = value;
 }
 
-// optional bool remote_cache = 11 [default = true];
-inline bool Configuration::has_remote_cache() const {
-  return (_has_bits_[0] & 0x00000400u) != 0;
-}
-inline void Configuration::set_has_remote_cache() {
-  _has_bits_[0] |= 0x00000400u;
-}
-inline void Configuration::clear_has_remote_cache() {
-  _has_bits_[0] &= ~0x00000400u;
-}
-inline void Configuration::clear_remote_cache() {
-  remote_cache_ = true;
-  clear_has_remote_cache();
-}
-inline bool Configuration::remote_cache() const {
-  return remote_cache_;
-}
-inline void Configuration::set_remote_cache(bool value) {
-  set_has_remote_cache();
-  remote_cache_ = value;
-}
-
-// optional bool sync_cache = 12 [default = false];
-inline bool Configuration::has_sync_cache() const {
-  return (_has_bits_[0] & 0x00000800u) != 0;
-}
-inline void Configuration::set_has_sync_cache() {
-  _has_bits_[0] |= 0x00000800u;
-}
-inline void Configuration::clear_has_sync_cache() {
-  _has_bits_[0] &= ~0x00000800u;
-}
-inline void Configuration::clear_sync_cache() {
-  sync_cache_ = false;
-  clear_has_sync_cache();
-}
-inline bool Configuration::sync_cache() const {
-  return sync_cache_;
-}
-inline void Configuration::set_sync_cache(bool value) {
-  set_has_sync_cache();
-  sync_cache_ = value;
-}
-
 // optional string config_path = 13;
 inline bool Configuration::has_config_path() const {
-  return (_has_bits_[0] & 0x00001000u) != 0;
+  return (_has_bits_[0] & 0x00000100u) != 0;
 }
 inline void Configuration::set_has_config_path() {
-  _has_bits_[0] |= 0x00001000u;
+  _has_bits_[0] |= 0x00000100u;
 }
 inline void Configuration::clear_has_config_path() {
-  _has_bits_[0] &= ~0x00001000u;
+  _has_bits_[0] &= ~0x00000100u;
 }
 inline void Configuration::clear_config_path() {
   if (config_path_ != &::google::protobuf::internal::kEmptyString) {
@@ -1347,26 +1492,42 @@ inline void Configuration::set_allocated_config_path(::std::string* config_path)
   }
 }
 
-// optional bool direct_mode = 14 [default = false];
-inline bool Configuration::has_direct_mode() const {
-  return (_has_bits_[0] & 0x00002000u) != 0;
+// optional .dist_clang.proto.Configuration.Cache cache = 14;
+inline bool Configuration::has_cache() const {
+  return (_has_bits_[0] & 0x00000200u) != 0;
 }
-inline void Configuration::set_has_direct_mode() {
-  _has_bits_[0] |= 0x00002000u;
+inline void Configuration::set_has_cache() {
+  _has_bits_[0] |= 0x00000200u;
 }
-inline void Configuration::clear_has_direct_mode() {
-  _has_bits_[0] &= ~0x00002000u;
+inline void Configuration::clear_has_cache() {
+  _has_bits_[0] &= ~0x00000200u;
 }
-inline void Configuration::clear_direct_mode() {
-  direct_mode_ = false;
-  clear_has_direct_mode();
+inline void Configuration::clear_cache() {
+  if (cache_ != NULL) cache_->::dist_clang::proto::Configuration_Cache::Clear();
+  clear_has_cache();
 }
-inline bool Configuration::direct_mode() const {
-  return direct_mode_;
+inline const ::dist_clang::proto::Configuration_Cache& Configuration::cache() const {
+  return cache_ != NULL ? *cache_ : *default_instance_->cache_;
 }
-inline void Configuration::set_direct_mode(bool value) {
-  set_has_direct_mode();
-  direct_mode_ = value;
+inline ::dist_clang::proto::Configuration_Cache* Configuration::mutable_cache() {
+  set_has_cache();
+  if (cache_ == NULL) cache_ = new ::dist_clang::proto::Configuration_Cache;
+  return cache_;
+}
+inline ::dist_clang::proto::Configuration_Cache* Configuration::release_cache() {
+  clear_has_cache();
+  ::dist_clang::proto::Configuration_Cache* temp = cache_;
+  cache_ = NULL;
+  return temp;
+}
+inline void Configuration::set_allocated_cache(::dist_clang::proto::Configuration_Cache* cache) {
+  delete cache_;
+  cache_ = cache;
+  if (cache) {
+    set_has_cache();
+  } else {
+    clear_has_cache();
+  }
 }
 
 

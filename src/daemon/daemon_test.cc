@@ -244,7 +244,7 @@ TEST_F(DaemonTest, ConfigWithCachePath) {
   base::TemporaryDir tmp_dir;
   const String expected_cache_path = tmp_dir.GetPath() + "/cache";
 
-  config.set_cache_path(expected_cache_path);
+  config.mutable_cache()->set_path(expected_cache_path);
 
   daemon::Configuration configuration(config);
 
@@ -800,8 +800,8 @@ TEST_F(DaemonTest, StoreLocalCache) {
 
   const base::TemporaryDir temp_dir;
   config.set_socket_path(socket_path);
-  config.set_cache_path(temp_dir);
-  config.set_sync_cache(true);
+  config.mutable_cache()->set_path(temp_dir);
+  config.mutable_cache()->set_sync(true);
 
   auto* version = config.add_versions();
   version->set_version(compiler_version);
@@ -937,8 +937,8 @@ TEST_F(DaemonTest, StoreRemoteCache) {
   config.set_socket_path(socket_path);
   config.mutable_local()->set_host(expected_host);
   config.mutable_local()->set_port(expected_port);
-  config.set_cache_path(temp_dir);
-  config.set_sync_cache(true);
+  config.mutable_cache()->set_path(temp_dir);
+  config.mutable_cache()->set_sync(true);
 
   auto* version = config.add_versions();
   version->set_version(compiler_version);

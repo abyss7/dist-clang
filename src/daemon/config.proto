@@ -20,22 +20,27 @@ message Verbosity {
   optional uint32 error_mark    = 1 [default=20];
 
   // all ranges are inclusive: [left, right].
-  repeated Range levels    = 2;
+  repeated Range levels         = 2;
 }
 
 message Configuration {
+  message Cache {
+    required string path = 1;
+    optional uint64 size = 2 [default=0];
+    optional bool remote = 3 [default=true];
+    optional bool sync   = 4 [default=false];  // for testing.
+    optional bool direct = 5 [default=false];
+    optional bool mtime  = 6 [default=false];
+  }
+
   optional string socket_path   = 1;
   optional uint32 pool_capacity = 2 [default=16];  // 0 - is unlimited.
-  optional string cache_path    = 3;
   repeated Host remotes         = 4;
   optional Host local           = 5;
   repeated Compiler versions    = 6;
   optional Host statistic       = 7;
   optional Verbosity verbosity  = 8;
-  optional uint64 cache_size    = 9 [default=0];  // 0 - is unlimited.
   optional uint32 user_id       = 10;
-  optional bool remote_cache    = 11 [default=true];
-  optional bool sync_cache      = 12 [default=false];  // for testing.
   optional string config_path   = 13;  // allows reloading of config changes.
-  optional bool direct_mode     = 14 [default=false];  // direct cache mode.
+  optional Cache cache          = 14;
 }
