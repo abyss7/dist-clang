@@ -1,4 +1,4 @@
-import "base.proto";
+import "proto/base.proto";
 
 package dist_clang.proto;
 
@@ -36,4 +36,6 @@ message Configuration {
   optional uint32 user_id       = 10;
   optional bool remote_cache    = 11 [default=true];
   optional bool sync_cache      = 12 [default=false];  // for testing.
+  optional string config_path   = 13;  // allows reloading of config changes.
+  optional bool direct_mode     = 14 [default=false];  // direct cache mode.
 }

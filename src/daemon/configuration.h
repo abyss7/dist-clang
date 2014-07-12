@@ -2,7 +2,7 @@
 
 #include <base/aliases.h>
 
-#include <proto/config.pb.h>
+#include <daemon/config.pb.h>
 
 namespace dist_clang {
 namespace daemon {

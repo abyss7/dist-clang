@@ -6,11 +6,11 @@
 #include <base/process_impl.h>
 #include <base/string_utils.h>
 #include <base/worker_pool.h>
+#include <daemon/config.pb.h>
 #include <daemon/statistic.h>
 #include <net/base/end_point.h>
 #include <net/connection.h>
 #include <net/network_service_impl.h>
-#include <proto/config.pb.h>
 
 #include <third_party/libcxx/exported/include/atomic>
 #include <third_party/libcxx/exported/include/condition_variable>

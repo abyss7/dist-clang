@@ -1,8 +1,8 @@
 #include <daemon/statistic.h>
 
+#include <daemon/config.pb.h>
 #include <net/connection.h>
 #include <net/network_service.h>
-#include <proto/config.pb.h>
 
 using namespace std::placeholders;
 

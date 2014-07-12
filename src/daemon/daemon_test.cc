@@ -4,9 +4,9 @@
 #include <base/process_impl.h>
 #include <base/temporary_dir.h>
 #include <base/test_process.h>
+#include <daemon/config.pb.h>
 #include <net/network_service_impl.h>
 #include <net/test_network_service.h>
-#include <proto/config.pb.h>
 
 #include <third_party/gtest/public/gtest/gtest.h>
 

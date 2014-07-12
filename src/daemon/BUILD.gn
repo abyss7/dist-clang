@@ -26,6 +26,9 @@ source_set("daemon") {
 
 shared_library("configuration") {
   sources = [
+    "config.pb.cc",
+    "config.pb.h",
+    "config.proto",
     "configuration.cc",
     "configuration.h",
   ]

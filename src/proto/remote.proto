@@ -1,4 +1,4 @@
-import "base.proto";
+import "proto/base.proto";
 
 // It's not possible to optimize for LITE_RUNTIME, since the configuration uses
 // |TextFormat::Parse()|, which uses the descriptor and the reflection.

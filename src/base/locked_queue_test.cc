@@ -110,7 +110,7 @@ TEST(LockedQueueTest, UniquePtrFriendliness) {
 
 TEST(LockedQueueTest, DISABLED_BasicMultiThreadedUsage) {
   LockedQueue<int> queue;
-  // TODO: implement this.
+  // TODO: implement this test.
 }
 
 }  // namespace base

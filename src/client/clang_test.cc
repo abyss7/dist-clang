@@ -351,11 +351,11 @@ TEST_F(ClientTest, FailedCompilation) {
 }
 
 TEST_F(ClientTest, DISABLED_MultipleCommands_OneFails) {
-  // TODO: implement this.
+  // TODO: implement this test.
 }
 
 TEST_F(ClientTest, DISABLED_MultipleCommands_Successful) {
-  // TODO: implement this.
+  // TODO: implement this test.
 }
 
 }  // namespace client

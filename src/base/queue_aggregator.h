@@ -28,7 +28,7 @@ class QueueAggregator {
     // All aggregated queues should be closed before aggregator do.
     // Also should be explicitly closed before destruction.
     for (const auto& queue : queues_) {
-      DCHECK_O_EVAL(queue->closed_);
+      DCHECK(queue->closed_);
     }
 
     for (auto& thread : threads_) {
@@ -99,7 +99,7 @@ class QueueAggregator {
   }
 
   List<std::thread> threads_;
-  List<LockedQueue<T>* WEAK_PTR> queues_;
+  List<LockedQueue<T> * WEAK_PTR> queues_;
 
   std::mutex orders_mutex_;
   std::atomic<bool> closed_ = {false};
