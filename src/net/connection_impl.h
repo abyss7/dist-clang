@@ -6,9 +6,9 @@
 
 #include <third_party/gtest/public/gtest/gtest_prod.h>
 #include <third_party/libcxx/exported/include/atomic>
-#include <third_party/protobuf/src/google/protobuf/io/coded_stream.h>
-#include <third_party/protobuf/src/google/protobuf/io/gzip_stream.h>
-#include <third_party/protobuf/src/google/protobuf/io/zero_copy_stream_impl.h>
+#include <third_party/protobuf/exported/google/protobuf/io/coded_stream.h>
+#include <third_party/protobuf/exported/google/protobuf/io/gzip_stream.h>
+#include <third_party/protobuf/exported/google/protobuf/io/zero_copy_stream_impl.h>
 
 #include <unistd.h>
 
@@ -53,9 +53,7 @@ class ConnectionImpl : public Connection {
   };
 
   // FIXME: make this value configurable.
-  enum : ui32 {
-    buffer_size = 1024
-  };
+  enum : ui32 { buffer_size = 1024 };
 
   ConnectionImpl(EventLoop& event_loop, fd_t fd, const EndPointPtr& end_point);
 

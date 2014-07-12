@@ -4,8 +4,8 @@
 #include <base/logging.h>
 #include <base/string_utils.h>
 
-#include <third_party/protobuf/src/google/protobuf/io/zero_copy_stream_impl.h>
-#include <third_party/protobuf/src/google/protobuf/text_format.h>
+#include <third_party/protobuf/exported/google/protobuf/io/zero_copy_stream_impl.h>
+#include <third_party/protobuf/exported/google/protobuf/text_format.h>
 #include <third_party/tclap/exported/include/tclap/CmdLine.h>
 
 #include <fcntl.h>
@@ -87,8 +87,7 @@ Configuration::Configuration(int argc, char *argv[]) {
         }
       }
     }
-  }
-  catch (ArgException &e) {
+  } catch (ArgException &e) {
     LOG(ERROR) << e.argId() << std::endl << e.error();
     return;
   }
