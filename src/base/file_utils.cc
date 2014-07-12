@@ -13,21 +13,21 @@ namespace dist_clang {
 namespace base {
 
 bool CopyFile(const String& src, const String& dst, bool overwrite,
-              String* error) {
+              bool no_hardlink, String* error) {
   struct stat src_stats;
   if (stat(src.c_str(), &src_stats) == -1) {
     GetLastError(error);
     return false;
   }
 
-  if (!(src_stats.st_mode & S_IWUSR & S_IWGRP & S_IWOTH)) {
+  if (!no_hardlink) {
     // Try to create hard-link at first.
-    // TODO: use |linkat()| to be sure, that the hard-link is created for
-    //       the _regular_ file - instead of for the _sym-link_.
-    if (link(src.c_str(), dst.c_str()) == 0) {
+    if (linkat(AT_FDCWD, src.c_str(), AT_FDCWD, dst.c_str(),
+               AT_SYMLINK_FOLLOW) == 0) {
       return true;
     } else if (errno == EEXIST && overwrite && unlink(dst.c_str()) == 0 &&
-               link(src.c_str(), dst.c_str()) == 0) {
+               linkat(AT_FDCWD, src.c_str(), AT_FDCWD, dst.c_str(),
+                      AT_SYMLINK_FOLLOW) == 0) {
       return true;
     }
   }

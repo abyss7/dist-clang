@@ -10,22 +10,103 @@
 namespace dist_clang {
 namespace base {
 
-TEST(FileUtilsTest, DISABLED_CopyFile) {
-  // TODO: implement this.
-  //  - Check hard-links.
-  //  - Check raw copying (with and without overwriting).
-  //  - Check file permissions.
-  //  - Check contents.
+TEST(FileUtilsTest, CopyFile_HardLinks) {
+  const String expected_content = "All your base are belong to us";
+  const TemporaryDir temp_dir;
+  const String file1 = String(temp_dir) + "/1";
+  const String file2 = String(temp_dir) + "/2";
+  const String file3 = String(temp_dir) + "/3";
+
+  ASSERT_TRUE(WriteFile(file1, expected_content));
+  ASSERT_TRUE(CopyFile(file1, file2));
+
+  struct stat st;
+  const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+
+  ASSERT_EQ(0, stat(file1.c_str(), &st));
+  EXPECT_EQ(2u, st.st_nlink);
+  EXPECT_EQ(mode, st.st_mode & mode);
+
+  auto inode = st.st_ino;
+  ASSERT_EQ(0, stat(file2.c_str(), &st));
+  EXPECT_EQ(2u, st.st_nlink);
+  EXPECT_EQ(mode, st.st_mode & mode);
+  EXPECT_EQ(inode, st.st_ino);
+
+  ASSERT_TRUE(WriteFile(file3, expected_content));
+  ASSERT_FALSE(CopyFile(file3, file2, false));
+
+  ASSERT_EQ(0, stat(file2.c_str(), &st));
+  EXPECT_EQ(2u, st.st_nlink);
+  EXPECT_EQ(mode, st.st_mode & mode);
+  EXPECT_EQ(inode, st.st_ino);
+
+  ASSERT_TRUE(CopyFile(file3, file2, true));
+
+  ASSERT_EQ(0, stat(file1.c_str(), &st));
+  EXPECT_EQ(1u, st.st_nlink);
+  EXPECT_EQ(mode, st.st_mode & mode);
+
+  inode = st.st_ino;
+  ASSERT_EQ(0, stat(file2.c_str(), &st));
+  EXPECT_EQ(2u, st.st_nlink);
+  EXPECT_EQ(mode, st.st_mode & mode);
+  EXPECT_NE(inode, st.st_ino);
+
+  inode = st.st_ino;
+  ASSERT_EQ(0, stat(file3.c_str(), &st));
+  EXPECT_EQ(2u, st.st_nlink);
+  EXPECT_EQ(mode, st.st_mode & mode);
+  EXPECT_EQ(inode, st.st_ino);
 }
 
-TEST(FileUtilsTest, DISABLED_FileExists) {
-  // TODO: implement this.
+TEST(FileUtilsTest, CopyFile_Raw) {
+  const String expected_content1 = "All your base are belong to us";
+  const String expected_content2 = "Nothing lasts forever";
+  const TemporaryDir temp_dir;
+  const String file1 = String(temp_dir) + "/1";
+  const String file2 = String(temp_dir) + "/2";
+  const String file3 = String(temp_dir) + "/3";
+
+  ASSERT_TRUE(WriteFile(file1, expected_content1));
+  ASSERT_TRUE(CopyFile(file1, file2, false, true));
+
+  struct stat st;
+  const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+  String content;
+
+  ASSERT_EQ(0, stat(file1.c_str(), &st));
+  EXPECT_EQ(1u, st.st_nlink);
+  EXPECT_EQ(mode, st.st_mode & mode);
+
+  ASSERT_EQ(0, stat(file2.c_str(), &st));
+  EXPECT_EQ(1u, st.st_nlink);
+  EXPECT_EQ(mode, st.st_mode & mode);
+  ASSERT_TRUE(ReadFile(file2, &content));
+  EXPECT_EQ(expected_content1, content);
+
+  ASSERT_TRUE(WriteFile(file3, expected_content2));
+  ASSERT_FALSE(CopyFile(file3, file2, false, true));
+
+  ASSERT_EQ(0, stat(file2.c_str(), &st));
+  EXPECT_EQ(1u, st.st_nlink);
+  EXPECT_EQ(mode, st.st_mode & mode);
+  ASSERT_TRUE(ReadFile(file2, &content));
+  EXPECT_EQ(expected_content1, content);
+
+  ASSERT_TRUE(CopyFile(file3, file2, true, true));
+
+  ASSERT_EQ(0, stat(file2.c_str(), &st));
+  EXPECT_EQ(1u, st.st_nlink);
+  EXPECT_EQ(mode, st.st_mode & mode);
+  ASSERT_TRUE(ReadFile(file2, &content));
+  EXPECT_EQ(expected_content2, content);
 }
 
 TEST(FileUtilsTest, ReadFile) {
   const String expected_content = "All your base are belong to us";
 
-  base::TemporaryDir temp_dir;
+  const base::TemporaryDir temp_dir;
   const String file_path = String(temp_dir) + "/file";
   int fd = open(file_path.c_str(), O_CREAT | O_WRONLY, 0777);
   ASSERT_NE(-1, fd);
@@ -174,8 +255,8 @@ TEST(FileUtilsTest, TempFile) {
   String error;
   String temp_file = CreateTempFile(&error);
 
-  ASSERT_FALSE(temp_file.empty()) << "Failed to create temporary file: "
-                                  << error;
+  ASSERT_FALSE(temp_file.empty())
+      << "Failed to create temporary file: " << error;
   ASSERT_TRUE(FileExists(temp_file));
   ASSERT_TRUE(DeleteFile(temp_file));
 }

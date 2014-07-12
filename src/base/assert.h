@@ -15,7 +15,7 @@ namespace {
 using dist_clang::String;
 
 String Demangle(const char* backtrace_symbol) {
-  String string = backtrace_symbol;
+  const String string = backtrace_symbol;
 
   auto begin_name = string.find('(');
   if (begin_name == String::npos) {
@@ -23,12 +23,12 @@ String Demangle(const char* backtrace_symbol) {
   }
   begin_name++;
 
-  auto end_name = string.find('+', begin_name);
+  const auto end_name = string.find('+', begin_name);
   if (end_name == String::npos) {
     return string;
   }
 
-  String mangled_name = string.substr(begin_name, end_name - begin_name);
+  const String mangled_name = string.substr(begin_name, end_name - begin_name);
   size_t size = 256;
   int status;
   char* demangled_name =

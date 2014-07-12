@@ -1,11 +1,14 @@
 #pragma once
 
+#include <base/aliases.h>
+
 #include <third_party/libcxx/exported/include/cerrno>
 #include <third_party/libcxx/exported/include/climits>
 #include <third_party/libcxx/exported/include/cstdlib>
 #include <third_party/libcxx/exported/include/cstring>
 
 #include <fcntl.h>
+#include <linux/limits.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -31,7 +34,7 @@ inline void GetLastError(String* error) {
 
 inline String SetEnv(const char* env_name, const String& value,
                      String* error = nullptr) {
-  String old_value = GetEnv(env_name);
+  const String old_value = GetEnv(env_name);
   if (setenv(env_name, value.c_str(), 1) == -1) {
     GetLastError(error);
     return String();
@@ -51,10 +54,10 @@ inline String GetCurrentDir(String* error = nullptr) {
 inline String CreateTempFile(String* error = nullptr) {
   char buf[] = "/tmp/clangd-XXXXXX.files";
 #if defined(OS_LINUX)
-  int fd = mkostemps(buf, 6, O_CLOEXEC);
+  const int fd = mkostemps(buf, 6, O_CLOEXEC);
 #elif defined(OS_MACOSX)
   // FIXME: On MacOSX the temp file isn't closed on exec.
-  int fd = mkstemps(buf, 6);
+  const int fd = mkstemps(buf, 6);
 #else
 #error Don't know, how to create a temp file: this platform is unsupported!
 #endif
@@ -75,10 +78,10 @@ inline String CreateTempFile(const char suffix[], String* error = nullptr) {
   buf[prefix_size + strlen(suffix)] = 0;
 
 #if defined(OS_LINUX)
-  int fd = mkostemps(buf, strlen(suffix), O_CLOEXEC);
+  const int fd = mkostemps(buf, strlen(suffix), O_CLOEXEC);
 #elif defined(OS_MACOSX)
   // FIXME: On MacOSX the temp file isn't closed on exec.
-  int fd = mkstemps(buf, strlen(suffix));
+  const int fd = mkstemps(buf, strlen(suffix));
 #else
 #error Don't know, how to create a temp file: this platform is unsupported!
 #endif
@@ -88,7 +91,7 @@ inline String CreateTempFile(const char suffix[], String* error = nullptr) {
     return String();
   }
   close(fd);
-  auto result = String(buf);
+  const auto result = String(buf);
   delete[] buf;
   return result;
 }
@@ -111,17 +114,14 @@ inline bool SetPermissions(const String& path, int mask,
 }
 
 inline String GetSelfPath(String* error = nullptr) {
-  // FIXME: insert MAX_PATH constant.
-  char path[1024];
-  ssize_t r;
-
-  r = readlink("/proc/self/exe", path, 1024);
-  if (r == -1) {
+  char path[PATH_MAX];
+  ssize_t read = readlink("/proc/self/exe", path, PATH_MAX);
+  if (read == -1) {
     GetLastError(error);
     return String();
   }
+  path[read] = '\0';
 
-  path[r] = '\0';
   String&& result = String(path);
   return result.substr(0, result.find_last_of('/'));
 }

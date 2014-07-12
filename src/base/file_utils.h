@@ -9,10 +9,8 @@
 namespace dist_clang {
 namespace base {
 
-// This function expects that the source and destination files are immutable -
-// i.e. they don't have write permissions.
 bool CopyFile(const String& src, const String& dst, bool overwrite = false,
-              String* error = nullptr);
+              bool no_hardlink = false, String* error = nullptr);
 
 inline bool DeleteFile(const String& path, String* error = nullptr) {
   if (unlink(path.c_str())) {
