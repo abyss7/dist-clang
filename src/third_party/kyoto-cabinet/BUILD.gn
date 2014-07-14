@@ -71,4 +71,6 @@ shared_library("kyotocabinet") {
     ":includes",
     ":flags",
   ]
+
+  all_dependent_configs = [ ":includes" ]
 }

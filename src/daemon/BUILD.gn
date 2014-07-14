@@ -13,13 +13,10 @@ source_set("daemon") {
   deps += [
     "//src/base:base",
     "//src/base:constants",
-    "//src/base:hash",
     "//src/base:logging",
     "//src/file_cache:file_cache",
-    "//src/histogram:histogram",
     "//src/net:net",
     "//src/proto:proto",
-    "//src/third_party/kyoto-cabinet:kyotocabinet",
     ":configuration",
   ]
 }

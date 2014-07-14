@@ -1,8 +1,10 @@
 package dist_clang.proto;
 
 message Manifest {
+  repeated string headers = 1;
+
   // Set the most expected default values to reduce file size on disk.
-  optional bool stderr = 100 [default=false];
-  optional bool object = 101 [default=true];
-  optional bool deps   = 102 [default=true];
+  optional bool stderr    = 100 [default=false];
+  optional bool object    = 101 [default=true];
+  optional bool deps      = 102 [default=true];
 }

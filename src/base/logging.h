@@ -29,10 +29,14 @@ enum {
   WARNING = 20u,
   INFO = 30u,
   VERBOSE = 40u,
-  CACHE_ERROR = 41u,
-  CACHE_WARNING = 42u,
-  CACHE_INFO = 43u,
-  CACHE_VERBOSE = 44u,
+  CACHE_ERROR = 110u,
+  CACHE_WARNING = 120u,
+  CACHE_INFO = 130u,
+  CACHE_VERBOSE = 140u,
+  DB_ERROR = 210u,
+  DB_WARNING = 220u,
+  DB_INFO = 230u,
+  DB_VERBOSE = 240u,
 };
 
 }  // namespace NamedLevels

@@ -2,6 +2,8 @@ shared_library("base") {
   sources = [
     "file_utils.cc",
     "file_utils.h",
+    "hash.cc",
+    "hash.h",
     "process.cc",
     "process.h",
     "process_impl.cc",
@@ -19,7 +21,9 @@ shared_library("base") {
   deps += [
     ":base_headers",
     ":logging",
+    "//src/histogram:histogram",
     "//src/third_party/gtest:gtest_headers",
+    "//src/third_party/smhasher:murmur_hash3",
   ]
 }
 
@@ -27,18 +31,6 @@ shared_library("constants") {
   sources = [
     "constants.cc",
     "constants.h",
-  ]
-}
-
-static_library("hash") {
-  sources = [
-    "hash.cc",
-    "hash.h",
-  ]
-
-  deps += [
-    ":base_headers",
-    "//src/third_party/smhasher:murmur_hash3",
   ]
 }
 

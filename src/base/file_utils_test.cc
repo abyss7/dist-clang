@@ -261,5 +261,9 @@ TEST(FileUtilsTest, TempFile) {
   ASSERT_TRUE(DeleteFile(temp_file));
 }
 
+TEST(FileUtilsTest, DISABLED_HashFile) {
+  // TODO: implement this test.
+}
+
 }  // namespace base
 }  // namespace dist_clang

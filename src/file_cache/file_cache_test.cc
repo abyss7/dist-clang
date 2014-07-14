@@ -23,8 +23,14 @@ TEST(FileCacheTest, LockNonExistentFile) {
   const String absent_path = String(tmp_dir) + "/absent_file";
   FileCache cache(tmp_dir);
 
-  EXPECT_FALSE(cache.LockForReading(absent_path));
-  EXPECT_TRUE(cache.LockForWriting(absent_path));
+  {
+    FileCache::ReadLock lock(&cache, absent_path);
+    EXPECT_FALSE(lock);
+  }
+  {
+    FileCache::WriteLock lock(&cache, absent_path);
+    EXPECT_TRUE(lock);
+  }
 }
 
 TEST(FileCacheTest, DoubleLocks) {
@@ -33,17 +39,30 @@ TEST(FileCacheTest, DoubleLocks) {
   FileCache cache(tmp_dir);
 
   ASSERT_TRUE(base::WriteFile(file_path, "1"));
-  ASSERT_TRUE(cache.LockForReading(file_path));
-  EXPECT_TRUE(cache.LockForReading(file_path));
-  EXPECT_FALSE(cache.LockForWriting(file_path));
-  cache.UnlockForReading(file_path);
-  EXPECT_FALSE(cache.LockForWriting(file_path));
-  cache.UnlockForReading(file_path);
-  EXPECT_TRUE(cache.LockForWriting(file_path));
-  EXPECT_FALSE(cache.LockForWriting(file_path));
-  EXPECT_FALSE(cache.LockForReading(file_path));
-  cache.UnlockForWriting(file_path);
-  EXPECT_TRUE(cache.LockForReading(file_path));
+  {
+    FileCache::ReadLock lock1(&cache, file_path);
+    ASSERT_TRUE(lock1);
+    {
+      FileCache::ReadLock lock2(&cache, file_path);
+      EXPECT_TRUE(lock2);
+      FileCache::WriteLock lock3(&cache, file_path);
+      EXPECT_FALSE(lock3);
+    }
+    FileCache::WriteLock lock4(&cache, file_path);
+    EXPECT_FALSE(lock4);
+  }
+  {
+    FileCache::WriteLock lock1(&cache, file_path);
+    EXPECT_TRUE(lock1);
+    FileCache::WriteLock lock2(&cache, file_path);
+    EXPECT_FALSE(lock2);
+    FileCache::ReadLock lock3(&cache, file_path);
+    EXPECT_FALSE(lock3);
+  }
+  {
+    FileCache::ReadLock lock1(&cache, file_path);
+    EXPECT_TRUE(lock1);
+  }
 }
 
 TEST(FileCacheTest, RemoveEntry) {
@@ -149,7 +168,7 @@ TEST(FileCacheTest, RestoreSingleEntry_Sync) {
 }
 
 TEST(FileCacheTest, DISABLED_RestoreEntryWithMissingFile) {
-  // TODO: implementh this test.
+  // TODO: implement this test.
 }
 
 TEST(FileCacheTest, DISABLED_RestoreEntryWithMalfordedManifest) {
@@ -246,6 +265,181 @@ TEST(FileCacheTest, DISABLED_DeleteOriginals) {
   // TODO: implement this test.
   //  - Check that original object and deps get deleted, if |entry.move_*| is
   //    true.
+}
+
+TEST(FileCacheTest, RestoreDirectEntry) {
+  const base::TemporaryDir tmp_dir;
+  const String path = tmp_dir;
+  const String object_path = path + "/test.o";
+  const String deps_path = path + "/test.d";
+  const String header1_path = path + "/test1.h";
+  const String header2_path = path + "/test2.h";
+  const String stderror = "some warning";
+  const String expected_object_code = "some object code";
+  const String expected_deps = "some deps";
+  FileCache cache(path);
+  FileCache::Entry entry{object_path, deps_path, stderror};
+  String object_code, deps;
+
+  const String code = "int main() { return 0; }";
+  const String cl = "-c";
+  const String version = "3.5 (revision 100000)";
+
+  ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
+  ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
+  ASSERT_TRUE(base::WriteFile(header1_path, "#define A"));
+  ASSERT_TRUE(base::WriteFile(header2_path, "#define B"));
+
+  // Store the entry.
+  auto future = cache.Store(code, cl, version, entry);
+  ASSERT_TRUE(!!future);
+  future->Wait();
+  ASSERT_TRUE(future->GetValue());
+
+  // Store the direct entry.
+  const String orig_code = "int main() {}";
+  const List<String> headers = {header1_path, header2_path};
+  future = cache.Store_Direct(orig_code, cl, version, headers,
+                              FileCache::Hash(code, cl, version));
+  ASSERT_TRUE(!!future);
+  future->Wait();
+  ASSERT_TRUE(future->GetValue());
+
+  // Restore the entry.
+  ASSERT_TRUE(cache.Find_Direct(orig_code, cl, version, &entry));
+  ASSERT_TRUE(base::ReadFile(entry.object_path, &object_code));
+  EXPECT_TRUE(base::ReadFile(entry.deps_path, &deps));
+  EXPECT_EQ(expected_object_code, object_code);
+  EXPECT_EQ(expected_deps, deps);
+  EXPECT_EQ(stderror, entry.stderr);
+}
+
+TEST(FileCacheTest, RestoreDirectEntry_Sync) {
+  const base::TemporaryDir tmp_dir;
+  const String path = tmp_dir;
+  const String object_path = path + "/test.o";
+  const String deps_path = path + "/test.d";
+  const String header1_path = path + "/test1.h";
+  const String header2_path = path + "/test2.h";
+  const String stderror = "some warning";
+  const String expected_object_code = "some object code";
+  const String expected_deps = "some deps";
+  FileCache cache(path);
+  FileCache::Entry entry{object_path, deps_path, stderror};
+  String object_code, deps;
+
+  const String code = "int main() { return 0; }";
+  const String cl = "-c";
+  const String version = "3.5 (revision 100000)";
+
+  ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
+  ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
+  ASSERT_TRUE(base::WriteFile(header1_path, "#define A"));
+  ASSERT_TRUE(base::WriteFile(header2_path, "#define B"));
+
+  // Store the entry.
+  cache.StoreNow(code, cl, version, entry);
+
+  // Store the direct entry.
+  const String orig_code = "int main() {}";
+  const List<String> headers = {header1_path, header2_path};
+  cache.StoreNow_Direct(orig_code, cl, version, headers,
+                        FileCache::Hash(code, cl, version));
+
+  // Restore the entry.
+  ASSERT_TRUE(cache.Find_Direct(orig_code, cl, version, &entry));
+  ASSERT_TRUE(base::ReadFile(entry.object_path, &object_code));
+  EXPECT_TRUE(base::ReadFile(entry.deps_path, &deps));
+  EXPECT_EQ(expected_object_code, object_code);
+  EXPECT_EQ(expected_deps, deps);
+  EXPECT_EQ(stderror, entry.stderr);
+}
+
+TEST(FileCacheTest, DirectEntry_ChangedHeader) {
+  const base::TemporaryDir tmp_dir;
+  const String path = tmp_dir;
+  const String object_path = path + "/test.o";
+  const String deps_path = path + "/test.d";
+  const String header1_path = path + "/test1.h";
+  const String header2_path = path + "/test2.h";
+  const String stderror = "some warning";
+  const String expected_object_code = "some object code";
+  const String expected_deps = "some deps";
+  FileCache cache(path);
+  FileCache::Entry entry{object_path, deps_path, stderror};
+  String object_code, deps;
+
+  const String code = "int main() { return 0; }";
+  const String cl = "-c";
+  const String version = "3.5 (revision 100000)";
+
+  ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
+  ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
+  ASSERT_TRUE(base::WriteFile(header1_path, "#define A"));
+  ASSERT_TRUE(base::WriteFile(header2_path, "#define B"));
+
+  // Store the entry.
+  auto future = cache.Store(code, cl, version, entry);
+  ASSERT_TRUE(!!future);
+  future->Wait();
+  ASSERT_TRUE(future->GetValue());
+
+  // Store the direct entry.
+  const String orig_code = "int main() {}";
+  const List<String> headers = {header1_path, header2_path};
+  future = cache.Store_Direct(orig_code, cl, version, headers,
+                              FileCache::Hash(code, cl, version));
+  ASSERT_TRUE(!!future);
+  future->Wait();
+  ASSERT_TRUE(future->GetValue());
+
+  // Change header contents.
+  ASSERT_TRUE(base::WriteFile(header1_path, "#define C"));
+
+  // Restore the entry.
+  EXPECT_FALSE(cache.Find_Direct(orig_code, cl, version, &entry));
+}
+
+TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
+  const base::TemporaryDir tmp_dir;
+  const String path = tmp_dir;
+  const String object_path = path + "/test.o";
+  const String deps_path = path + "/test.d";
+  const String header1_path = path + "/test1.h";
+  const String header2_path = path + "/test2.h";
+  const String stderror = "some warning";
+  const String expected_object_code = "some object code";
+  const String expected_deps = "some deps";
+  FileCache cache(path);
+  FileCache::Entry entry{object_path, deps_path, stderror};
+  String object_code, deps;
+
+  const String code = "int main() { return 0; }";
+  const String cl = "-c";
+  const String version = "3.5 (revision 100000)";
+
+  ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
+  ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
+  ASSERT_TRUE(base::WriteFile(header1_path, "#define A"));
+  ASSERT_TRUE(base::WriteFile(header2_path, "#define B"));
+
+  // Store the entry.
+  auto future = cache.Store(code, cl, version, entry);
+  ASSERT_TRUE(!!future);
+  future->Wait();
+  ASSERT_TRUE(future->GetValue());
+
+  // Store the direct entry.
+  const String orig_code = "int main() {}";
+  const List<String> headers = {header1_path, header2_path};
+  future = cache.Store_Direct(orig_code, cl, version, headers,
+                              FileCache::Hash(code, cl, version));
+  ASSERT_TRUE(!!future);
+  future->Wait();
+  ASSERT_TRUE(future->GetValue());
+
+  // Restore the entry.
+  EXPECT_FALSE(cache.Find_Direct(orig_code + " ", cl, version, &entry));
 }
 
 }  // namespace file_cache

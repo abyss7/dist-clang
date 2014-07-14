@@ -1,14 +1,15 @@
 shared_library("file_cache") {
   sources = [
+    "database.cc",
+    "database.h",
     "file_cache.cc",
     "file_cache.h",
   ]
 
   deps += [
     "//src/base:base",
-    "//src/base:hash",
     "//src/base:logging",
-    "//src/histogram:histogram",
+    "//src/third_party/kyoto-cabinet:kyotocabinet",
     ":hook",
     ":manifest",
   ]

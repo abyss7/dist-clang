@@ -25,7 +25,6 @@ test("unit_tests") {
   ]
   deps += [
     "//src/base:base",
-    "//src/base:hash",
     "//src/client:client",
     "//src/client:command",
     "//src/daemon:daemon",

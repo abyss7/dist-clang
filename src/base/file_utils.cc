@@ -1,5 +1,7 @@
 #include <base/file_utils.h>
 
+#include <base/hash.h>
+
 #include <third_party/libcxx/exported/include/map>
 #include <third_party/libcxx/exported/include/regex>
 
@@ -158,6 +160,14 @@ bool WriteFile(const String& path, const String& input, String* error) {
   }
 
   return total_bytes == input.size();
+}
+
+bool HashFile(const String& path, String* output, String* error) {
+  if (!ReadFile(path, output, error)) {
+    return false;
+  }
+  output->assign(MakeHash(*output));
+  return true;
 }
 
 ui64 CalculateDirectorySize(const String& path, String* error) {

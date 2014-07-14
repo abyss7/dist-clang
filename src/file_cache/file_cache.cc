@@ -20,7 +20,8 @@ FileCache::FileCache(const String &path, ui64 size)
     : path_(path),
       pool_(base::ThreadPool::TaskQueue::UNLIMITED, 1),
       max_size_(size),
-      cached_size_(0) {
+      cached_size_(0),
+      database_(path, "direct") {
   if (max_size_ != UNLIMITED) {
     String error;
 
@@ -51,17 +52,23 @@ String FileCache::Hash(const String &code, const String &command_line,
 bool FileCache::Find(const String &code, const String &command_line,
                      const String &version, Entry *entry) const {
   const String hash = Hash(code, command_line, version);
+  return FindByHash(hash, entry);
+}
+
+bool FileCache::Find_Direct(const String &code, const String &command_line,
+                            const String &version, Entry *entry) const {
+  String hash = Hash(code, command_line, version);
   const String first_path = FirstPath(hash);
   const String second_path = SecondPath(hash);
   const String manifest_path = CommonPath(hash) + ".manifest";
+  const ReadLock lock(this, manifest_path);
 
-  if (!LockForReading(manifest_path)) {
+  if (!lock) {
     return false;
   }
 
   proto::Manifest manifest;
   if (!file_cache::LoadManifest(manifest_path, &manifest)) {
-    UnlockForReading(manifest_path);
     return false;
   }
 
@@ -69,34 +76,20 @@ bool FileCache::Find(const String &code, const String &command_line,
   utime(second_path.c_str(), nullptr);
   utime(first_path.c_str(), nullptr);
 
-  if (entry) {
-    if (manifest.stderr()) {
-      const String stderr_path = CommonPath(hash) + ".stderr";
-      if (!base::ReadFile(stderr_path, &entry->stderr)) {
-        UnlockForReading(manifest_path);
-        return false;
-      }
+  for (const auto &header : manifest.headers()) {
+    String header_hash;
+    if (!base::HashFile(header, &header_hash)) {
+      return false;
     }
+    hash += header_hash;
+  }
+  hash = base::MakeHash(hash);
 
-    if (manifest.object()) {
-      entry->object_path = CommonPath(hash) + ".o";
-      if (!base::FileExists(entry->object_path)) {
-        UnlockForReading(manifest_path);
-        return false;
-      }
-    }
-
-    if (manifest.deps()) {
-      entry->deps_path = CommonPath(hash) + ".d";
-      if (!base::FileExists(entry->deps_path)) {
-        UnlockForReading(manifest_path);
-        return false;
-      }
-    }
+  if (database_.Get(hash, &hash)) {
+    return FindByHash(hash, entry);
   }
 
-  UnlockForReading(manifest_path);
-  return true;
+  return false;
 }
 
 FileCache::Optional FileCache::Store(const String &code,
@@ -108,9 +101,72 @@ FileCache::Optional FileCache::Store(const String &code,
   return pool_.Push(task);
 }
 
+FileCache::Optional FileCache::Store_Direct(const String &code,
+                                            const String &command_line,
+                                            const String &version,
+                                            const List<String> &headers,
+                                            const String &hash) {
+  auto &&orig_hash = Hash(code, command_line, version);
+  auto task =
+      std::bind(&FileCache::DoStore_Direct, this, orig_hash, headers, hash);
+  return pool_.Push(task);
+}
+
 void FileCache::StoreNow(const String &code, const String &command_line,
                          const String &version, const Entry &entry) {
   DoStore(Hash(code, command_line, version), entry);
+}
+
+void FileCache::StoreNow_Direct(const String &code, const String &command_line,
+                                const String &version,
+                                const List<String> &headers,
+                                const String &hash) {
+  DoStore_Direct(Hash(code, command_line, version), headers, hash);
+}
+
+bool FileCache::FindByHash(const String &hash, Entry *entry) const {
+  const String first_path = FirstPath(hash);
+  const String second_path = SecondPath(hash);
+  const String manifest_path = CommonPath(hash) + ".manifest";
+  const ReadLock lock(this, manifest_path);
+
+  if (!lock) {
+    return false;
+  }
+
+  proto::Manifest manifest;
+  if (!file_cache::LoadManifest(manifest_path, &manifest)) {
+    return false;
+  }
+
+  utime(manifest_path.c_str(), nullptr);
+  utime(second_path.c_str(), nullptr);
+  utime(first_path.c_str(), nullptr);
+
+  if (entry) {
+    if (manifest.stderr()) {
+      const String stderr_path = CommonPath(hash) + ".stderr";
+      if (!base::ReadFile(stderr_path, &entry->stderr)) {
+        return false;
+      }
+    }
+
+    if (manifest.object()) {
+      entry->object_path = CommonPath(hash) + ".o";
+      if (!base::FileExists(entry->object_path)) {
+        return false;
+      }
+    }
+
+    if (manifest.deps()) {
+      entry->deps_path = CommonPath(hash) + ".d";
+      if (!base::FileExists(entry->deps_path)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
 
 bool FileCache::RemoveEntry(const String &manifest_path) {
@@ -165,15 +221,15 @@ bool FileCache::RemoveEntry(const String &manifest_path) {
 
 void FileCache::DoStore(const String &hash, const Entry &entry) {
   const String manifest_path = CommonPath(hash) + ".manifest";
+  WriteLock lock(this, manifest_path);
 
-  if (!LockForWriting(manifest_path)) {
+  if (!lock) {
     return;
   }
 
   // FIXME: refactor to portable solution.
   if (system((String("mkdir -p ") + SecondPath(hash)).c_str()) == -1) {
     // "mkdir -p" doesn't fail if the path already exists.
-    UnlockForWriting(manifest_path);
     LOG(CACHE_ERROR) << "Failed to `mkdir -p` for " << SecondPath(hash);
     return;
   }
@@ -183,7 +239,6 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
     const String stderr_path = CommonPath(hash) + ".stderr";
     if (!base::WriteFile(stderr_path, entry.stderr)) {
       RemoveEntry(manifest_path);
-      UnlockForWriting(manifest_path);
       LOG(CACHE_ERROR) << "Failed to save stderr to " << stderr_path;
       return;
     }
@@ -194,13 +249,13 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
   if (!entry.object_path.empty()) {
     const String object_path = CommonPath(hash) + ".o";
     String error;
-    bool result = base::CopyFile(entry.object_path, object_path, true, &error);
+    bool result =
+        base::CopyFile(entry.object_path, object_path, true, false, &error);
     if (entry.move_object) {
       base::DeleteFile(entry.object_path);
     }
     if (!result) {
       RemoveEntry(manifest_path);
-      UnlockForWriting(manifest_path);
       LOG(CACHE_ERROR) << "Failed to copy " << entry.object_path
                        << " with error: " << error;
       return;
@@ -213,13 +268,13 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
   if (!entry.deps_path.empty()) {
     const String deps_path = CommonPath(hash) + ".d";
     String error;
-    bool result = base::CopyFile(entry.deps_path, deps_path, true, &error);
+    bool result =
+        base::CopyFile(entry.deps_path, deps_path, true, false, &error);
     if (entry.move_deps) {
       base::DeleteFile(entry.deps_path);
     }
     if (!result) {
       RemoveEntry(manifest_path);
-      UnlockForWriting(manifest_path);
       LOG(CACHE_ERROR) << "Failed to copy " << entry.deps_path
                        << " with error: " << error;
       return;
@@ -231,19 +286,69 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
 
   if (!file_cache::SaveManifest(manifest_path, manifest)) {
     RemoveEntry(manifest_path);
-    UnlockForWriting(manifest_path);
     LOG(CACHE_ERROR) << "Failed to save manifest to " << manifest_path;
     return;
   }
   cached_size_ += base::FileSize(manifest_path);
-  DCHECK_O_EVAL(utime(manifest_path.c_str(), nullptr) == 0);
-  DCHECK_O_EVAL(utime(SecondPath(hash).c_str(), nullptr) == 0);
-  DCHECK_O_EVAL(utime(FirstPath(hash).c_str(), nullptr) == 0);
+
+  utime(manifest_path.c_str(), nullptr);
+  utime(SecondPath(hash).c_str(), nullptr);
+  utime(FirstPath(hash).c_str(), nullptr);
 
   LOG(CACHE_VERBOSE) << "File " << entry.object_path << " is cached on path "
                      << CommonPath(hash);
 
-  UnlockForWriting(manifest_path);
+  lock.Unlock();
+  Clean();
+}
+
+void FileCache::DoStore_Direct(String orig_hash, const List<String> &headers,
+                               const String &hash) {
+  const String manifest_path = CommonPath(orig_hash) + ".manifest";
+  WriteLock lock(this, manifest_path);
+
+  if (!lock) {
+    return;
+  }
+
+  // FIXME: refactor to portable solution.
+  if (system((String("mkdir -p ") + SecondPath(orig_hash)).c_str()) == -1) {
+    // "mkdir -p" doesn't fail if the path already exists.
+    LOG(CACHE_ERROR) << "Failed to `mkdir -p` for " << SecondPath(orig_hash);
+    return;
+  }
+
+  proto::Manifest manifest;
+  manifest.set_stderr(false);
+  manifest.set_object(false);
+  manifest.set_deps(false);
+  for (const auto &header : headers) {
+    String header_hash;
+    if (!base::HashFile(header, &header_hash)) {
+      RemoveEntry(manifest_path);
+      return;
+    }
+    orig_hash += header_hash;
+    manifest.add_headers(header);
+  }
+
+  orig_hash = base::MakeHash(orig_hash);
+  if (!database_.Set(orig_hash, hash)) {
+    RemoveEntry(manifest_path);
+    return;
+  }
+
+  if (!file_cache::SaveManifest(manifest_path, manifest)) {
+    RemoveEntry(manifest_path);
+    return;
+  }
+  cached_size_ += base::FileSize(manifest_path);
+
+  utime(manifest_path.c_str(), nullptr);
+  utime(SecondPath(hash).c_str(), nullptr);
+  utime(FirstPath(hash).c_str(), nullptr);
+
+  lock.Unlock();
   Clean();
 }
 
@@ -289,9 +394,9 @@ void FileCache::Clean() {
           break;
         }
 
-        if (LockForWriting(manifest_path)) {
+        WriteLock lock(this, manifest_path);
+        if (lock) {
           should_break = !RemoveEntry(manifest_path);
-          UnlockForWriting(manifest_path);
         }
       }
 
@@ -302,56 +407,66 @@ void FileCache::Clean() {
   }
 }
 
-bool FileCache::LockForReading(const String &path) const {
+FileCache::ReadLock::ReadLock(const FileCache *file_cache, const String &path)
+    : cache_(file_cache), path_(path) {
   if (!base::FileExists(path)) {
-    return false;
+    return;
   }
 
-  std::lock_guard<std::mutex> lock(locks_mutex_);
+  std::lock_guard<std::mutex> lock(cache_->locks_mutex_);
 
-  if (write_locks_.find(path) != write_locks_.end()) {
-    return false;
+  if (cache_->write_locks_.find(path) != cache_->write_locks_.end()) {
+    return;
   }
 
-  auto it = read_locks_.find(path);
-  if (it == read_locks_.end()) {
-    it = read_locks_.emplace(path, 0).first;
+  auto it = cache_->read_locks_.find(path);
+  if (it == cache_->read_locks_.end()) {
+    it = cache_->read_locks_.emplace(path, 0).first;
   }
   it->second++;
 
-  return true;
+  locked_ = true;
 }
 
-void FileCache::UnlockForReading(const String &path) const {
-  std::lock_guard<std::mutex> lock(locks_mutex_);
+void FileCache::ReadLock::Unlock() {
+  if (locked_) {
+    std::lock_guard<std::mutex> lock(cache_->locks_mutex_);
 
-  auto it = read_locks_.find(path);
-  CHECK(it != read_locks_.end() && it->second > 0);
-  it->second--;
+    auto it = cache_->read_locks_.find(path_);
+    CHECK(it != cache_->read_locks_.end() && it->second > 0);
+    it->second--;
 
-  if (it->second == 0) {
-    read_locks_.erase(it);
+    if (it->second == 0) {
+      cache_->read_locks_.erase(it);
+    }
+
+    locked_ = false;
   }
 }
 
-bool FileCache::LockForWriting(const String &path) const {
-  std::lock_guard<std::mutex> lock(locks_mutex_);
+FileCache::WriteLock::WriteLock(const FileCache *file_cache, const String &path)
+    : cache_(file_cache), path_(path) {
+  std::lock_guard<std::mutex> lock(cache_->locks_mutex_);
 
-  if (write_locks_.find(path) != write_locks_.end() ||
-      read_locks_.find(path) != read_locks_.end()) {
-    return false;
+  if (cache_->write_locks_.find(path) != cache_->write_locks_.end() ||
+      cache_->read_locks_.find(path) != cache_->read_locks_.end()) {
+    return;
   }
 
-  write_locks_.insert(path);
-  return true;
+  cache_->write_locks_.insert(path);
+  locked_ = true;
 }
 
-void FileCache::UnlockForWriting(const String &path) const {
-  std::lock_guard<std::mutex> lock(locks_mutex_);
+void FileCache::WriteLock::Unlock() {
+  if (locked_) {
+    std::lock_guard<std::mutex> lock(cache_->locks_mutex_);
 
-  auto it = write_locks_.find(path);
-  CHECK(it != write_locks_.end());
-  write_locks_.erase(it);
+    auto it = cache_->write_locks_.find(path_);
+    CHECK(it != cache_->write_locks_.end());
+    cache_->write_locks_.erase(it);
+
+    locked_ = false;
+  }
 }
 
 }  // namespace dist_clang

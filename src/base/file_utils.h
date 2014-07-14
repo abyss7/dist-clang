@@ -37,6 +37,8 @@ bool ReadFile(const String& path, String* output, String* error = nullptr);
 bool WriteFile(const String& path, const String& input,
                String* error = nullptr);
 
+bool HashFile(const String& path, String* output, String* error = nullptr);
+
 ui64 CalculateDirectorySize(const String& path, String* error = nullptr);
 
 inline ui64 FileSize(const String& path, String* error = nullptr) {

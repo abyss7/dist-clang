@@ -446,6 +446,10 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
     }
     auto* message = task->second.get();
 
+    if (cache_config_->direct() && !message->remote()) {
+      // TODO: Check the direct mode hash.
+    }
+
     if (!message->has_pp_source()) {
       proto::Flags&& pp_flags = ConvertFlags(message->flags());
 

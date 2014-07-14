@@ -15,6 +15,11 @@
 #undef CACHE_INFO
 #undef CACHE_VERBOSE
 
+#undef DB_ERROR
+#undef DB_WARNING
+#undef DB_INFO
+#undef DB_VERBOSE
+
 using namespace dist_clang::base::named_levels;
 
 #define LOG(level) dist_clang::base::Log(level)
