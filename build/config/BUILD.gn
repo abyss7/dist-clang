@@ -125,3 +125,12 @@ config("libclang") {
 config("version") {
   defines = [ "VERSION=\"$version\"" ]
 }
+
+config("asan") {
+  cflags = [
+    "-fsanitize=address",
+    "-fno-omit-frame-pointer",
+  ]
+
+  ldflags = [ "-fsanitize=address" ]
+}
