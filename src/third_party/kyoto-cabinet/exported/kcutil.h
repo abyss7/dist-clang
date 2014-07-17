@@ -2864,7 +2864,9 @@ inline size_t strucstoutf(const uint32_t* src, size_t snum, char* dest) {
 inline void* xmalloc(size_t size) {
   _assert_(size <= MEMMAXSIZ);
   void* ptr = std::malloc(size);
+# if __has_feature(cxx_exceptions)
   if (!ptr) throw std::bad_alloc();
+#endif
   return ptr;
 }
 
@@ -2875,7 +2877,9 @@ inline void* xmalloc(size_t size) {
 inline void* xcalloc(size_t nmemb, size_t size) {
   _assert_(nmemb <= MEMMAXSIZ && size <= MEMMAXSIZ);
   void* ptr = std::calloc(nmemb, size);
+# if __has_feature(cxx_exceptions)
   if (!ptr) throw std::bad_alloc();
+#endif
   return ptr;
 }
 
@@ -2886,7 +2890,9 @@ inline void* xcalloc(size_t nmemb, size_t size) {
 inline void* xrealloc(void* ptr, size_t size) {
   _assert_(size <= MEMMAXSIZ);
   ptr = std::realloc(ptr, size);
+# if __has_feature(cxx_exceptions)
   if (!ptr) throw std::bad_alloc();
+#endif
   return ptr;
 }
 
