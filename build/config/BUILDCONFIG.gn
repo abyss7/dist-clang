@@ -51,6 +51,7 @@ if (os == "linux") {
 }
 if (os == "mac") {
   default_configs += [ "//build/config/mac:base" ]
+  default_configs -= [ "//build/config:no_stdlibs" ]
 }
 
 if (use_profiler) {
@@ -66,7 +67,10 @@ if (use_tcmalloc) {
 # =============================================================================
 
 default_deps = []
-default_deps += [ "//src/third_party/libcxx:c++" ]
+
+if (os == "linux") {
+  default_deps += [ "//src/third_party/libcxx:c++" ]
+}
 
 # =============================================================================
 # Set defaults.

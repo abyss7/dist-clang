@@ -40,6 +40,7 @@ shared_library("configuration") {
     "//src/base:constants",
     "//src/base:logging",
     "//src/proto:proto",
+    "//src/third_party/protobuf:protobuf",
     "//src/third_party/tclap:tclap",
   ]
 }

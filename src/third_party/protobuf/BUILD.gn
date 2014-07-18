@@ -65,7 +65,7 @@ source_set("protobuf_headers") {
   all_dependent_configs = [ ":includes" ]
 }
 
-static_library("protobuf_lite") {
+source_set("protobuf_lite") {
   sources = [
     "exported/google/protobuf/extension_set.cc",
     "exported/google/protobuf/generated_message_util.cc",

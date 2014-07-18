@@ -2,7 +2,7 @@ config("includes") {
   include_dirs = [ "exported/include" ]
 }
 
-static_library("c++abi") {
+source_set("c++abi") {
   sources = [
     "exported/include/cxxabi.h",
     "exported/include/libunwind.h",

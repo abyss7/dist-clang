@@ -7,8 +7,6 @@
 #include <file_cache/manifest.pb.h>
 #include <file_cache/manifest_utils.h>
 
-#include <third_party/libcxx/exported/include/fstream>
-
 #include <sys/types.h>
 #include <utime.h>
 
