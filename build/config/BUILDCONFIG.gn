@@ -75,7 +75,7 @@ default_deps += [ "//src/third_party/libcxx:c++" ]
 
 set_defaults("executable") {
   configs = default_configs
-  if (config_for_tests) {
+  if (config_for_tests && os == "linux") {
     configs += [ "//build/config:asan" ]
   }
 
