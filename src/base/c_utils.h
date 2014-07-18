@@ -8,7 +8,6 @@
 #include <third_party/libcxx/exported/include/cstring>
 
 #include <fcntl.h>
-#include <linux/limits.h>
 #include <sys/stat.h>
 #include <unistd.h>
 

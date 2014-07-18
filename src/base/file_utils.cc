@@ -12,6 +12,25 @@
 #include <sys/types.h>
 
 namespace dist_clang {
+
+namespace {
+
+int Link(const char* src, const char* dst) {
+#if defined(OS_LINUX)
+  // Linux doesn't guarantee that |link()| do dereferences symlinks, thus
+  // we use |linkat()| which does for sure.
+  return linkat(AT_FDCWD, src, AT_FDCWD, dst, AT_SYMLINK_FOLLOW);
+#elif defined(OS_MACOSX)
+  return link(src, dst);
+#else
+#pragma message "This platform doesn't support hardlinks!"
+  errno = EACCES;
+  return -1;
+#endif
+}
+
+}  // namespace
+
 namespace base {
 
 bool CopyFile(const String& src, const String& dst, bool overwrite,
@@ -24,12 +43,10 @@ bool CopyFile(const String& src, const String& dst, bool overwrite,
 
   if (!no_hardlink) {
     // Try to create hard-link at first.
-    if (linkat(AT_FDCWD, src.c_str(), AT_FDCWD, dst.c_str(),
-               AT_SYMLINK_FOLLOW) == 0) {
+    if (Link(src.c_str(), dst.c_str()) == 0) {
       return true;
     } else if (errno == EEXIST && overwrite && unlink(dst.c_str()) == 0 &&
-               linkat(AT_FDCWD, src.c_str(), AT_FDCWD, dst.c_str(),
-                      AT_SYMLINK_FOLLOW) == 0) {
+               Link(src.c_str(), dst.c_str()) == 0) {
       return true;
     }
   }
