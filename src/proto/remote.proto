@@ -49,6 +49,12 @@ message Flags {
   repeated string non_cached   = 7;  // flags, that shouldn't be cached.
   repeated string cc_only      = 8;  // flags for compilation only.
   required string action       = 9;  // "-emit-obj", "-E", etc.
+  repeated string non_direct   = 10; // flags, that shouldn't be neither direct cached, nor cached.
+
+  // Compilation = All
+  // Preprocessing = All - output - cc_only
+  // Cache = other + language + cc_only
+  // Direct = other + language + non_cached + cc_only
 }
 
 message Execute {

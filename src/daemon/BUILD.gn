@@ -23,14 +23,18 @@ source_set("daemon") {
 
 shared_library("configuration") {
   sources = [
-    "config.pb.cc",
-    "config.pb.h",
-    "config.proto",
     "configuration.cc",
     "configuration.h",
+    "configuration.pb.cc",
+    "configuration.pb.h",
+    "configuration.proto",
   ]
 
   configs += [ "//build/config:version" ]
+
+  if (!config_for_tests) {
+    configs -= [ "//build/config:no_rtti" ]
+  }
 
   deps += [
     "//src/base:constants",

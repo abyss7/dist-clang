@@ -31,10 +31,7 @@ using ProcessPtr = UniquePtr<Process>;
 class Process : public Testable<Process, ProcessImpl, const String&,
                                 const String&, ui32> {
  public:
-  enum {
-    UNLIMITED = 0,
-    SAME_UID = 0
-  };
+  enum { UNLIMITED = 0, SAME_UID = 0 };
 
   explicit Process(const String& exec_path, const String& cwd_path = String(),
                    ui32 uid = SAME_UID);

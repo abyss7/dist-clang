@@ -6,7 +6,7 @@
 #include <base/process_impl.h>
 #include <base/string_utils.h>
 #include <base/worker_pool.h>
-#include <daemon/config.pb.h>
+#include <daemon/configuration.pb.h>
 #include <daemon/statistic.h>
 #include <net/base/end_point.h>
 #include <net/connection.h>
@@ -24,6 +24,72 @@
 using namespace std::placeholders;
 
 namespace dist_clang {
+
+namespace {
+
+inline String CommandLineForCache(const dist_clang::proto::Flags& flags) {
+  String command_line =
+      base::JoinString<' '>(flags.other().begin(), flags.other().end());
+  if (flags.has_language()) {
+    command_line += " -x " + flags.language();
+  }
+  if (flags.cc_only_size()) {
+    command_line += " " + base::JoinString<' '>(flags.cc_only().begin(),
+                                                flags.cc_only().end());
+  }
+
+  return command_line;
+}
+
+inline String CommandLineForDirect(const dist_clang::proto::Flags& flags) {
+  String command_line =
+      base::JoinString<' '>(flags.other().begin(), flags.other().end());
+  if (flags.has_language()) {
+    command_line += " -x " + flags.language();
+  }
+  if (flags.non_cached_size()) {
+    command_line += " " + base::JoinString<' '>(flags.non_cached().begin(),
+                                                flags.non_cached().end());
+  }
+  if (flags.cc_only_size()) {
+    command_line += " " + base::JoinString<' '>(flags.cc_only().begin(),
+                                                flags.cc_only().end());
+  }
+
+  return command_line;
+}
+
+bool ParseDepsFile(const String& path, const String& base_path,
+                   List<String>& headers) {
+  String contents;
+  if (!base::ReadFile(path, &contents)) {
+    return false;
+  }
+
+  List<String> lines;
+  base::SplitString<'\n'>(contents, lines);
+  String last_line = lines.back();
+  lines.pop_front();
+  if (lines.empty()) {
+    return true;
+  }
+  lines.pop_back();
+  for (const auto& line : lines) {
+    base::SplitString<' '>(line.substr(2, line.size() - 4), headers);
+  }
+  base::SplitString<' '>(last_line.substr(2, last_line.size() - 2), headers);
+
+  for (auto& header : headers) {
+    if (header[0] != '/') {
+      header = base_path + "/" + header;
+    }
+  }
+
+  return true;
+}
+
+}  // namespace
+
 namespace daemon {
 
 #if defined(PROFILER)
@@ -207,18 +273,35 @@ bool Daemon::SearchCache(const proto::Execute* message,
 
   const auto& flags = message->flags();
   const auto& version = flags.compiler().version();
-  String command_line =
-      base::JoinString<' '>(flags.other().begin(), flags.other().end());
-  if (flags.has_language()) {
-    command_line += " -x " + flags.language();
-  }
-  if (flags.cc_only_size()) {
-    command_line += " " + base::JoinString<' '>(flags.cc_only().begin(),
-                                                flags.cc_only().end());
-  }
+  const String command_line = CommandLineForCache(flags);
 
   if (!cache_->Find(message->pp_source(), command_line, version, entry)) {
-    LOG(CACHE_INFO) << "Cache miss: " << message->flags().input();
+    LOG(CACHE_INFO) << "Cache miss: " << flags.input();
+    return false;
+  }
+  return true;
+}
+
+bool Daemon::SearchDirectCache(const proto::Execute* message,
+                               FileCache::Entry* entry) {
+  if (!cache_ || !cache_config_->direct() || !message || !entry ||
+      message->remote()) {
+    LOG(CACHE_WARNING) << "Failed to check the direct cache";
+    return false;
+  }
+
+  const auto& flags = message->flags();
+  const auto& version = flags.compiler().version();
+  const String input_path = message->current_dir() + "/" + flags.input();
+  const String command_line = CommandLineForDirect(flags);
+
+  String original_code;
+  if (!base::ReadFile(input_path, &original_code)) {
+    return false;
+  }
+
+  if (!cache_->Find_Direct(original_code, command_line, version, entry)) {
+    LOG(CACHE_INFO) << "Direct cache miss: " << flags.input();
     return false;
   }
   return true;
@@ -241,7 +324,7 @@ void Daemon::UpdateCacheFromFlags(const proto::Execute* message,
   }
   entry.stderr = status.description();
 
-  UpdateCache(message->pp_source(), entry, message->flags());
+  UpdateCache(message, entry);
 }
 
 void Daemon::UpdateCacheFromRemote(const proto::Execute* message,
@@ -287,27 +370,37 @@ void Daemon::UpdateCacheFromRemote(const proto::Execute* message,
   }
   entry.stderr = status.description();
 
-  UpdateCache(message->pp_source(), entry, message->flags());
+  UpdateCache(message, entry);
 }
 
-void Daemon::UpdateCache(const String& pp_source, const FileCache::Entry& entry,
-                         const proto::Flags& flags) {
+void Daemon::UpdateCache(const proto::Execute* message,
+                         const FileCache::Entry& entry) {
+  const auto& flags = message->flags();
   const auto& version = flags.compiler().version();
-  String command_line =
-      base::JoinString<' '>(flags.other().begin(), flags.other().end());
-  if (flags.has_language()) {
-    command_line += " -x " + flags.language();
-  }
-  if (flags.cc_only_size()) {
-    command_line += " " + base::JoinString<' '>(flags.cc_only().begin(),
-                                                flags.cc_only().end());
-  }
+  const String command_line = CommandLineForCache(flags);
 
   DCHECK(!!cache_config_);
   if (cache_config_->sync()) {
-    cache_->StoreNow(pp_source, command_line, version, entry);
+    cache_->StoreNow(message->pp_source(), command_line, version, entry);
   } else {
-    cache_->Store(pp_source, command_line, version, entry);
+    cache_->Store(message->pp_source(), command_line, version, entry);
+  }
+
+  if (!message->remote() && !entry.deps_path.empty() &&
+      cache_config_->direct()) {
+    const auto hash = cache_->Hash(message->pp_source(), command_line, version);
+    const String command_line = CommandLineForDirect(flags);
+    const String input_path = message->current_dir() + "/" + flags.input();
+    List<String> headers;
+    String original_code;
+
+    if (ParseDepsFile(entry.deps_path, message->current_dir(), headers) &&
+        base::ReadFile(input_path, &original_code)) {
+      cache_->Store_Direct(original_code, command_line, version, headers, hash);
+    } else {
+      LOG(CACHE_ERROR) << "Failed to parse deps file " << entry.deps_path
+                       << " or read input " << input_path;
+    }
   }
 }
 
@@ -413,6 +506,7 @@ base::ProcessPtr Daemon::CreateProcess(const proto::Flags& flags, ui32 uid,
   process->AppendArg(flags.other().begin(), flags.other().end());
   process->AppendArg(flags.action());
   process->AppendArg(flags.non_cached().begin(), flags.non_cached().end());
+  process->AppendArg(flags.non_direct().begin(), flags.non_direct().end());
   for (const auto& plugin : flags.compiler().plugins()) {
     process->AppendArg("-load").AppendArg(plugin.path());
   }
@@ -446,8 +540,26 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
     }
     auto* message = task->second.get();
 
-    if (cache_config_->direct() && !message->remote()) {
-      // TODO: Check the direct mode hash.
+    FileCache::Entry cache_entry;
+    if (SearchDirectCache(message, &cache_entry)) {
+      const String output_path =
+          message->current_dir() + "/" + message->flags().output();
+      if (base::CopyFile(cache_entry.object_path, output_path, true)) {
+        String error;
+        if (message->has_user_id() &&
+            !base::ChangeOwner(output_path, message->user_id(), &error)) {
+          LOG(ERROR) << "Failed to change owner for " << output_path << ": "
+                     << error;
+        }
+
+        proto::Status status;
+        status.set_code(proto::Status::OK);
+        status.set_description(cache_entry.stderr);
+        task->first->ReportStatus(status);
+        continue;
+      } else {
+        LOG(ERROR) << "Failed to restore file from cache: " << output_path;
+      }
     }
 
     if (!message->has_pp_source()) {
@@ -471,10 +583,9 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
       message->set_pp_source(process->stdout());
     }
 
-    FileCache::Entry cache_entry;
     if (SearchCache(message, &cache_entry)) {
       if (!message->remote()) {
-        String output_path =
+        const String output_path =
             message->current_dir() + "/" + message->flags().output();
         if (base::CopyFile(cache_entry.object_path, output_path, true)) {
           String error;

@@ -12,8 +12,8 @@ class Database {
  public:
   Database(const String& path, const String& name);
 
-  bool Set(const String& key, const String& value) THREAD_SAFE;
-  bool Get(const String& key, String* value) const THREAD_SAFE;
+  bool Set(const String& key, const String& value) THREAD_UNSAFE;
+  bool Get(const String& key, String* value) const THREAD_UNSAFE;
 
  private:
   const String path_;

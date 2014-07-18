@@ -10,7 +10,7 @@ shared_library("file_cache") {
     "//src/base:base",
     "//src/base:logging",
     "//src/third_party/kyoto-cabinet:kyotocabinet",
-    ":hook",
+    # ":hook",
     ":manifest",
   ]
 }

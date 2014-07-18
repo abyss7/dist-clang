@@ -162,11 +162,22 @@ bool WriteFile(const String& path, const String& input, String* error) {
   return total_bytes == input.size();
 }
 
-bool HashFile(const String& path, String* output, String* error) {
+bool HashFile(const String& path, String* output,
+              const List<const char*>& skip_list, String* error) {
   if (!ReadFile(path, output, error)) {
     return false;
   }
-  output->assign(MakeHash(*output));
+
+  for (const char* skip : skip_list) {
+    if (output->find(skip) != String::npos) {
+      if (error) {
+        error->assign("Skip-list hit: " + String(skip));
+      }
+      return false;
+    }
+  }
+
+  output->assign(base::Hexify(MakeHash(*output)));
   return true;
 }
 

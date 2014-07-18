@@ -263,6 +263,7 @@ TEST(FileUtilsTest, TempFile) {
 
 TEST(FileUtilsTest, DISABLED_HashFile) {
   // TODO: implement this test.
+  //       - Check skip list.
 }
 
 }  // namespace base

@@ -1,6 +1,6 @@
 #include <daemon/statistic.h>
 
-#include <daemon/config.pb.h>
+#include <daemon/configuration.pb.h>
 #include <net/connection.h>
 #include <net/network_service.h>
 

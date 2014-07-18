@@ -147,7 +147,7 @@ void Command::FillFlags(proto::Flags* flags, const String& clang_path) const {
 
   flags->Clear();
 
-  llvm::opt::ArgStringList non_cached_list, other_list;
+  llvm::opt::ArgStringList non_direct_list, non_cached_list, other_list;
 
   for (const auto& arg : *arg_list_) {
     using namespace clang::driver::options;
@@ -178,20 +178,21 @@ void Command::FillFlags(proto::Flags* flags, const String& clang_path) const {
     // NOTICE: we should be very cautious here, since the local compilations
     //         are performed on a non-preprocessed file, but the result is
     //         saved using the hash from a preprocessed file.
-    else if (arg->getOption().matches(OPT_coverage_file) ||
-             arg->getOption().matches(OPT_fdebug_compilation_dir) ||
-             arg->getOption().matches(OPT_ferror_limit) ||
-             arg->getOption().matches(OPT_include) ||
+    else if (arg->getOption().matches(OPT_include) ||
              arg->getOption().matches(OPT_internal_externc_isystem) ||
              arg->getOption().matches(OPT_isysroot) ||
-             arg->getOption().matches(OPT_main_file_name) ||
-             arg->getOption().matches(OPT_MF) ||
-             arg->getOption().matches(OPT_MMD) ||
-             arg->getOption().matches(OPT_MT) ||
              arg->getOption().matches(OPT_resource_dir) ||
              arg->getOption().matches(OPT_D) ||
              arg->getOption().matches(OPT_I)) {
       arg->render(*arg_list_, non_cached_list);
+    } else if (arg->getOption().matches(OPT_coverage_file) ||
+               arg->getOption().matches(OPT_fdebug_compilation_dir) ||
+               arg->getOption().matches(OPT_ferror_limit) ||
+               arg->getOption().matches(OPT_main_file_name) ||
+               arg->getOption().matches(OPT_MF) ||
+               arg->getOption().matches(OPT_MMD) ||
+               arg->getOption().matches(OPT_MT)) {
+      arg->render(*arg_list_, non_direct_list);
     } else if (arg->getOption().matches(OPT_internal_isystem)) {
       // Use --internal-isystem based on real clang path.
       auto EscapeRegex = [](const String& str) {
@@ -213,6 +214,9 @@ void Command::FillFlags(proto::Flags* flags, const String& clang_path) const {
     }
   }
 
+  for (const auto& value : non_direct_list) {
+    flags->add_non_direct(value);
+  }
   for (const auto& value : non_cached_list) {
     flags->add_non_cached(value);
   }

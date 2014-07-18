@@ -8,7 +8,9 @@ namespace dist_clang {
 namespace file_cache {
 
 Database::Database(const String& path, const String& name)
-    : path_(path + "/" + name + ".kch") {}
+    : path_(path + "/" + name + ".kch") {
+  LOG(DB_INFO) << "Database is created on path " << path_;
+}
 
 bool Database::Set(const String& key, const String& value) {
   using namespace kyotocabinet;
@@ -16,10 +18,12 @@ bool Database::Set(const String& key, const String& value) {
   HashDB db;
   if (!db.open(path_, HashDB::OWRITER | HashDB::OCREATE) ||
       !db.set(key, value) || !db.close()) {
-    LOG(DB_ERROR) << db.error().name() << ": " << db.error().message();
+    LOG(DB_ERROR) << "Failed to set " << key << " => " << value
+                  << " with error: " << db.error().message();
     return false;
   }
 
+  LOG(DB_VERBOSE) << "Database set " << key << " => " << value;
   return true;
 }
 
@@ -28,7 +32,8 @@ bool Database::Get(const String& key, String* value) const {
 
   HashDB db;
   if (!db.open(path_, HashDB::OREADER) || !db.get(key, value) || !db.close()) {
-    LOG(DB_ERROR) << db.error().name() << ": " << db.error().message();
+    LOG(DB_ERROR) << "Failed to get " << key
+                  << " with error: " << db.error().message();
     return false;
   }
 

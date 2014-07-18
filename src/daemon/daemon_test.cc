@@ -4,7 +4,7 @@
 #include <base/process_impl.h>
 #include <base/temporary_dir.h>
 #include <base/test_process.h>
-#include <daemon/config.pb.h>
+#include <daemon/configuration.pb.h>
 #include <net/network_service_impl.h>
 #include <net/test_network_service.h>
 
@@ -50,12 +50,11 @@ TEST(DaemonUtilTest, ConvertFlagsFromCC2PP) {
 }
 
 TEST(DaemonUtilTest, CreateProcessFromFlags) {
-  const List<String> expected_args =
-      {
-          "-cc1",           "-emit-obj",             "-I.",
-          "-load",          "/usr/lib/libplugin.so", "-dependency-file",
-          "some_deps_file", "-x",                    "c++",
-          "-o",             "test.o",                "test.cc", };
+  const List<String> expected_args = {
+      "-cc1",                  "-emit-obj",        "-I.",            "-load",
+      "/usr/lib/libplugin.so", "-dependency-file", "some_deps_file", "-x",
+      "c++",                   "-o",               "test.o",         "test.cc",
+  };
   const ui32 expected_user_id = 1u;
 
   proto::Flags flags;
@@ -830,8 +829,8 @@ TEST_F(DaemonTest, StoreLocalCache) {
           process->args_);
       process->stdout_ = "fake_source";
     } else if (run_count == 2) {
-      EXPECT_EQ((List<String>{"fake_action", "-x",         "fake_language",
-                              "-o",          output_path1, input_path1}),
+      EXPECT_EQ((List<String>{"fake_action", "-x", "fake_language", "-o",
+                              output_path1, input_path1}),
                 process->args_);
       EXPECT_TRUE(
           base::WriteFile(process->cwd_path_ + "/" + output_path1, "object"));
@@ -1081,8 +1080,16 @@ TEST_F(DaemonTest, StoreRemoteCache) {
       << "Daemon must not store references to the connection";
 }
 
+TEST_F(DaemonTest, DISABLED_StoreLocalDirectCache) {
+  // TODO: implement this test.
+}
+
+TEST_F(DaemonTest, DISABLED_StoreRemoteDirectCache) {
+  // TODO: implement this test.
+}
+
 TEST_F(DaemonTest, DISABLED_DontStoreFailedRemoteCache) {
-  // TODO: implement this.
+  // TODO: implement this test.
 }
 
 }  // namespace daemon

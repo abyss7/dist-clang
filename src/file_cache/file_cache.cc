@@ -83,7 +83,7 @@ bool FileCache::Find_Direct(const String &code, const String &command_line,
     }
     hash += header_hash;
   }
-  hash = base::MakeHash(hash);
+  hash = base::Hexify(base::MakeHash(hash));
 
   if (database_.Get(hash, &hash)) {
     return FindByHash(hash, entry);
@@ -308,6 +308,7 @@ void FileCache::DoStore_Direct(String orig_hash, const List<String> &headers,
   WriteLock lock(this, manifest_path);
 
   if (!lock) {
+    LOG(CACHE_ERROR) << "Failed to lock " << manifest_path << " for writing";
     return;
   }
 
@@ -323,18 +324,18 @@ void FileCache::DoStore_Direct(String orig_hash, const List<String> &headers,
   manifest.set_object(false);
   manifest.set_deps(false);
   for (const auto &header : headers) {
-    String header_hash;
-    if (!base::HashFile(header, &header_hash)) {
-      RemoveEntry(manifest_path);
+    String header_hash, error;
+    if (!base::HashFile(header, &header_hash, {"__DATE__", "__TIME__"},
+                        &error)) {
+      LOG(CACHE_ERROR) << "Failed to hash " << header << ": " << error;
       return;
     }
     orig_hash += header_hash;
     manifest.add_headers(header);
   }
 
-  orig_hash = base::MakeHash(orig_hash);
+  orig_hash = base::Hexify(base::MakeHash(orig_hash));
   if (!database_.Set(orig_hash, hash)) {
-    RemoveEntry(manifest_path);
     return;
   }
 
@@ -354,6 +355,11 @@ void FileCache::DoStore_Direct(String orig_hash, const List<String> &headers,
 
 void FileCache::Clean() {
   if (max_size_ != UNLIMITED) {
+    DCHECK(
+        cached_size_ < base::CalculateDirectorySize(path_)
+            ? base::CalculateDirectorySize(path_) - cached_size_ < 10 * 2 << 20
+            : cached_size_ - base::CalculateDirectorySize(path_) < 10 * 2 << 20)
+
     while (cached_size_ > max_size_) {
       String first_path, second_path;
 

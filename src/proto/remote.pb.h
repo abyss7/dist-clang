@@ -570,6 +570,22 @@ class Flags : public ::google::protobuf::Message {
   inline ::std::string* release_action();
   inline void set_allocated_action(::std::string* action);
 
+  // repeated string non_direct = 10;
+  inline int non_direct_size() const;
+  inline void clear_non_direct();
+  static const int kNonDirectFieldNumber = 10;
+  inline const ::std::string& non_direct(int index) const;
+  inline ::std::string* mutable_non_direct(int index);
+  inline void set_non_direct(int index, const ::std::string& value);
+  inline void set_non_direct(int index, const char* value);
+  inline void set_non_direct(int index, const char* value, size_t size);
+  inline ::std::string* add_non_direct();
+  inline void add_non_direct(const ::std::string& value);
+  inline void add_non_direct(const char* value);
+  inline void add_non_direct(const char* value, size_t size);
+  inline const ::google::protobuf::RepeatedPtrField< ::std::string>& non_direct() const;
+  inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_non_direct();
+
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Flags)
  private:
   inline void set_has_compiler();
@@ -596,9 +612,10 @@ class Flags : public ::google::protobuf::Message {
   ::google::protobuf::RepeatedPtrField< ::std::string> non_cached_;
   ::google::protobuf::RepeatedPtrField< ::std::string> cc_only_;
   ::std::string* action_;
+  ::google::protobuf::RepeatedPtrField< ::std::string> non_direct_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(9 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(10 + 31) / 32];
 
   friend void  protobuf_AddDesc_proto_2fremote_2eproto();
   friend void protobuf_AssignDesc_proto_2fremote_2eproto();
@@ -1665,6 +1682,50 @@ inline void Flags::set_allocated_action(::std::string* action) {
     clear_has_action();
     action_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   }
+}
+
+// repeated string non_direct = 10;
+inline int Flags::non_direct_size() const {
+  return non_direct_.size();
+}
+inline void Flags::clear_non_direct() {
+  non_direct_.Clear();
+}
+inline const ::std::string& Flags::non_direct(int index) const {
+  return non_direct_.Get(index);
+}
+inline ::std::string* Flags::mutable_non_direct(int index) {
+  return non_direct_.Mutable(index);
+}
+inline void Flags::set_non_direct(int index, const ::std::string& value) {
+  non_direct_.Mutable(index)->assign(value);
+}
+inline void Flags::set_non_direct(int index, const char* value) {
+  non_direct_.Mutable(index)->assign(value);
+}
+inline void Flags::set_non_direct(int index, const char* value, size_t size) {
+  non_direct_.Mutable(index)->assign(
+    reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* Flags::add_non_direct() {
+  return non_direct_.Add();
+}
+inline void Flags::add_non_direct(const ::std::string& value) {
+  non_direct_.Add()->assign(value);
+}
+inline void Flags::add_non_direct(const char* value) {
+  non_direct_.Add()->assign(value);
+}
+inline void Flags::add_non_direct(const char* value, size_t size) {
+  non_direct_.Add()->assign(reinterpret_cast<const char*>(value), size);
+}
+inline const ::google::protobuf::RepeatedPtrField< ::std::string>&
+Flags::non_direct() const {
+  return non_direct_;
+}
+inline ::google::protobuf::RepeatedPtrField< ::std::string>*
+Flags::mutable_non_direct() {
+  return &non_direct_;
 }
 
 // -------------------------------------------------------------------

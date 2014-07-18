@@ -46,13 +46,15 @@ class Daemon {
   using PluginMap = HashMap<String /* version */, PluginNameMap>;
 
   bool SearchCache(const proto::Execute* message, FileCache::Entry* entry);
+  bool SearchDirectCache(const proto::Execute* message,
+                         FileCache::Entry* entry);
   void UpdateCacheFromFlags(const proto::Execute* message,
                             const proto::Status& status);
   void UpdateCacheFromRemote(const proto::Execute* message,
                              const proto::RemoteResult& result,
                              const proto::Status& status);
-  void UpdateCache(const String& pp_source, const FileCache::Entry& entry,
-                   const proto::Flags& flags);
+  void UpdateCache(const proto::Execute* message,
+                   const FileCache::Entry& entry);
 
   // Convert CC to PP flags.
   static proto::Flags ConvertFlags(const proto::Flags& flags);
@@ -62,14 +64,11 @@ class Daemon {
   bool HandleNewMessage(net::ConnectionPtr connection, ScopedMessage message,
                         const proto::Status& status);
 
-  static UniquePtr<base::Process> CreateProcess(const proto::Flags& flags,
-                                                ui32 uid,
-                                                const String& cwd_path =
-                                                    String());
+  static UniquePtr<base::Process> CreateProcess(
+      const proto::Flags& flags, ui32 uid, const String& cwd_path = String());
 
-  static UniquePtr<base::Process> CreateProcess(const proto::Flags& flags,
-                                                const String& cwd_path =
-                                                    String());
+  static UniquePtr<base::Process> CreateProcess(
+      const proto::Flags& flags, const String& cwd_path = String());
 
   // Workers
   void DoCheckCache(const std::atomic<bool>& is_shutting_down);

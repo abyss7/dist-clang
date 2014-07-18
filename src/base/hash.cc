@@ -8,7 +8,8 @@ namespace dist_clang {
 namespace base {
 
 String MakeHash(const String& input, ui8 size) {
-  histogram::Counter counter("hash", input.size());
+  // FIXME: Counter somehow segfaults! And we don't use it right now anyway.
+  // histogram::Counter counter("hash", input.size());
 
   char buf[16];
   MurmurHash3_x64_128(input.data(), input.size(), 0, buf);

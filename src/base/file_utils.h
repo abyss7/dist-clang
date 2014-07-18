@@ -37,7 +37,9 @@ bool ReadFile(const String& path, String* output, String* error = nullptr);
 bool WriteFile(const String& path, const String& input,
                String* error = nullptr);
 
-bool HashFile(const String& path, String* output, String* error = nullptr);
+bool HashFile(const String& path, String* output,
+              const List<const char*>& skip_list = List<const char*>(),
+              String* error = nullptr);
 
 ui64 CalculateDirectorySize(const String& path, String* error = nullptr);
 
