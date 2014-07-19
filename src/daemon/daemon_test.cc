@@ -959,7 +959,7 @@ TEST_F(DaemonTest, StoreRemoteCache) {
         ADD_FAILURE() << "Unexpected listen on " << host << ":" << port;
     }
 
-    return true;
+    return !::testing::Test::HasNonfatalFailure();
   };
 
   connect_callback = [&](net::TestConnection* connection) {

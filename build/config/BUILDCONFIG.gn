@@ -94,7 +94,7 @@ set_defaults("source_set") {
 
 set_defaults("static_library") {
   configs = default_configs
-  deps = []
+  deps = default_deps
 }
 
 # =============================================================================

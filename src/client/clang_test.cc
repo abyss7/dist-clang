@@ -1,13 +1,8 @@
-#include <base/constants.h>
 #include <base/file_utils.h>
-#include <base/process_impl.h>
-#include <base/test_process.h>
-#include <base/temporary_dir.h>
 #include <client/clang.h>
 #include <client/command.h>
 #include <net/network_service_impl.h>
 #include <net/test_network_service.h>
-#include <proto/remote.pb.h>
 
 #include <third_party/gtest/public/gtest/gtest.h>
 #include <third_party/libcxx/exported/include/regex>
@@ -163,17 +158,6 @@ class ClientTest : public ::testing::Test {
           connect_callback(connection.get());
 
           return connection;
-        });
-      });
-    }
-
-    {
-      auto factory = base::Process::SetFactory<base::TestProcess::Factory>();
-      factory->CallOnCreate([this](base::TestProcess* process) {
-        process->CallOnRun([this, process](ui32 timeout, const String& input,
-                                           String* error) {
-          // Client shouldn't run external processes.
-          return false;
         });
       });
     }

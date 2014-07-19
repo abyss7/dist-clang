@@ -1,10 +1,9 @@
-#include <client/clang.h>
-
 #include <base/assert.h>
 #include <base/c_utils.h>
 #include <base/constants.h>
 #include <base/logging.h>
 #include <base/string_utils.h>
+#include <client/clang.h>
 
 #include <signal.h>
 
