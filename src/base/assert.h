@@ -100,6 +100,11 @@ inline void GetStackTrace(ui8 depth, std::vector<String>& strings) {
   }
 #endif  // __has_feature(cxx_exceptions)
 
+// There is a trick how to use lambda in expression:
+//
+//   DCHECK([&]{ return false; }());
+//                              ^^
+//
 #if defined(NDEBUG)
 #define DCHECK_O_EVAL(expr) (void)(expr)
 #define DCHECK(expr)

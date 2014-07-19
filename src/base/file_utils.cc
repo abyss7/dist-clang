@@ -147,12 +147,21 @@ bool WriteFile(const String& path, const String& input, String* error) {
   // We need write-access even on object files after introduction of the
   // "split-dwarf" option, see
   // https://sourceware.org/bugzilla/show_bug.cgi?id=971
+  const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+
   auto src_fd =
-      open((path + ".tmp").c_str(), O_WRONLY | O_TRUNC | O_CREAT, 0664);
+      open((path + ".tmp").c_str(), O_WRONLY | O_TRUNC | O_CREAT, mode);
   if (src_fd == -1) {
     GetLastError(error);
     return false;
   }
+
+  // FIXME: we should respect umask somehow.
+  DCHECK([&] {
+    struct stat st;
+    return fstat(src_fd, &st) == 0 && (st.st_mode & mode) == mode;
+  }());
+
 #if defined(OS_LINUX)
   if (posix_fallocate(src_fd, 0, input.size()) == -1) {
     GetLastError(error);

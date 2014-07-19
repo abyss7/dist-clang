@@ -21,7 +21,7 @@ TEST(FileUtilsTest, CopyFile_HardLinks) {
   ASSERT_TRUE(CopyFile(file1, file2));
 
   struct stat st;
-  const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+  const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   ASSERT_EQ(0, stat(file1.c_str(), &st));
   EXPECT_EQ(2u, st.st_nlink);
@@ -72,7 +72,7 @@ TEST(FileUtilsTest, CopyFile_Raw) {
   ASSERT_TRUE(CopyFile(file1, file2, false, true));
 
   struct stat st;
-  const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+  const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
   String content;
 
   ASSERT_EQ(0, stat(file1.c_str(), &st));
