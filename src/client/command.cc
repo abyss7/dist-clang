@@ -6,8 +6,6 @@
 #include <base/process_impl.h>
 #include <proto/remote.pb.h>
 
-#include <third_party/libcxx/exported/include/regex>
-
 #include <clang/Basic/Diagnostic.h>
 #include <clang/Driver/Action.h>
 #include <clang/Driver/Compilation.h>
@@ -195,13 +193,7 @@ void Command::FillFlags(proto::Flags* flags, const String& clang_path) const {
       arg->render(*arg_list_, non_direct_list);
     } else if (arg->getOption().matches(OPT_internal_isystem)) {
       // Use --internal-isystem based on real clang path.
-      auto EscapeRegex = [](const String& str) {
-        const std::regex regex(R"([\)\{\}\[\]\(\)\^\$\.\|\*\+\?\\])");
-        const String replace(R"(\$&)");
-        return std::regex_replace(str, regex, replace);
-      };
-
-      std::regex regex("(" + EscapeRegex(base::GetSelfPath()) + ")");
+      std::regex regex("(" + base::EscapeRegex(base::GetSelfPath()) + ")");
       non_cached_list.push_back(arg->getSpelling().data());
       non_cached_list.push_back(arg_list_->MakeArgString(std::regex_replace(
           arg->getValue(), regex,

@@ -2,6 +2,8 @@
 #define NDEBUG
 #include <base/assert.h>
 
+#include <base/string_utils.h>
+
 #include <third_party/gtest/public/gtest/gtest.h>
 
 namespace dist_clang {
@@ -9,30 +11,30 @@ namespace base {
 
 TEST(AssertReleaseTest, FailureStackTrace) {
   // FIXME: a gtest implementation-dependent test.
-  const char* expected =
+  const String expected = EscapeRegex(
       "Assertion failed: false\n"
+      "  dist_clang::base::GetStackTrace(unsigned char, "
+      "std::__1::vector<std::string, std::__1::allocator<std::string > >&)\n"
       "  dist_clang::base::AssertReleaseTest_FailureStackTrace_Test::TestBody"
-      "\\(\\)\n"
+      "()\n"
       "  void testing::internal::HandleSehExceptionsInMethodIfSupported<testing"
-      "::Test, void>\\(testing::Test\\*, void \\(testing::Test::\\*\\)\\(\\), c"
-      "har const\\*\\)\n"
+      "::Test, void>(testing::Test*, void (testing::Test::*)(), char const*)\n"
       "  void testing::internal::HandleExceptionsInMethodIfSupported<testing::T"
-      "est, void>\\(testing::Test\\*, void \\(testing::Test::\\*\\)\\(\\), char"
-      " const\\*\\)\n"
-      "  testing::Test::Run\\(\\)\n"
-      "  testing::TestInfo::Run\\(\\)\n"
-      "  testing::TestCase::Run\\(\\)\n"
-      "  testing::internal::UnitTestImpl::RunAllTests\\(\\)\n"
+      "est, void>(testing::Test*, void (testing::Test::*)(), char const*)\n"
+      "  testing::Test::Run()\n"
+      "  testing::TestInfo::Run()\n"
+      "  testing::TestCase::Run()\n"
+      "  testing::internal::UnitTestImpl::RunAllTests()\n"
       "  bool testing::internal::HandleSehExceptionsInMethodIfSupported<testing"
-      "::internal::UnitTestImpl, bool>\\(testing::internal::UnitTestImpl\\*, bo"
-      "ol \\(testing::internal::UnitTestImpl::\\*\\)\\(\\), char const\\*\\)\n"
+      "::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool "
+      "(testing::internal::UnitTestImpl::*)(), char const*)\n"
       "  bool testing::internal::HandleExceptionsInMethodIfSupported<testing::i"
-      "nternal::UnitTestImpl, bool>\\(testing::internal::UnitTestImpl\\*, bool "
-      "\\(testing::internal::UnitTestImpl::\\*\\)\\(\\), char const\\*\\)\n"
-      "  testing::UnitTest::Run\\(\\)\n"
-      "  RUN_ALL_TESTS\\(\\)\n"
+      "nternal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool "
+      "(testing::internal::UnitTestImpl::*)(), char const*)\n"
+      "  testing::UnitTest::Run()\n"
+      "  RUN_ALL_TESTS()\n"
       "  main\n"
-      "  __libc_start_main";
+      "  __libc_start_main");
   ASSERT_THROW_STD(CHECK(false), expected);
   ASSERT_NO_THROW(DCHECK(false));
   ASSERT_NO_THROW(DCHECK_O_EVAL(false));
@@ -41,7 +43,7 @@ TEST(AssertReleaseTest, FailureStackTrace) {
 
 TEST(AssertReleaseTest, ExpressionEvaluation) {
   int i = 0;
-  auto expr = [](int & a)->bool {
+  auto expr = [](int& a) -> bool {
     ++a;
     return false;
   };

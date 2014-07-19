@@ -3,6 +3,7 @@
 #include <base/aliases.h>
 
 #include <third_party/libcxx/exported/include/iomanip>
+#include <third_party/libcxx/exported/include/regex>
 #include <third_party/libcxx/exported/include/sstream>
 
 namespace dist_clang {
@@ -60,8 +61,7 @@ inline String Hexify(const String& binary) {
   return ss.str();
 }
 
-inline void Replace(String& input, const char* replacee,
-                    const char* replacer) {
+inline void Replace(String& input, const char* replacee, const char* replacer) {
   size_t pos = 0;
   while ((pos = input.find(replacee, pos)) != String::npos) {
     input.replace(pos, std::strlen(replacee), replacer);
@@ -75,6 +75,12 @@ inline T StringTo(const String& str) {
   std::stringstream ss(str);
   ss >> result;
   return result;
+}
+
+inline String EscapeRegex(const String& str) {
+  const std::regex regex(R"([\)\{\}\[\]\(\)\^\$\.\|\*\+\?\\])");
+  const String replace(R"(\$&)");
+  return std::regex_replace(str, regex, replace);
 }
 
 }  // namespace base

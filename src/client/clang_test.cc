@@ -60,19 +60,14 @@ TEST(CommandTest, ParseSimpleArgs) {
   expected_regex.push_back(rep("-mrelax-all"));
   expected_regex.push_back(rep("-disable-free"));
   expected_regex.push_back(rep("-main-file-name clangd-[a-zA-Z0-9]+\\.cc"));
-  expected_regex.push_back(rep("-mrelocation-model static"));
+  expected_regex.push_back(rep("-mrelocation-model (static|pic)"));
   expected_regex.push_back(rep("-mdisable-fp-elim"));
-  expected_regex.push_back(rep("-fmath-errno"));
   expected_regex.push_back(rep("-masm-verbose"));
-  expected_regex.push_back(rep("-mconstructor-aliases"));
   expected_regex.push_back(rep("-munwind-tables"));
-  expected_regex.push_back(rep("-fuse-init-array"));
   expected_regex.push_back(rep("-target-cpu [a-z0-9_]+"));
   expected_regex.push_back(rep("-target-linker-version [0-9.]+"));
   expected_regex.push_back(rep2("-coverage-file " + expected_output));
   expected_regex.push_back(rep("-resource-dir"));
-  expected_regex.push_back(rep("-internal-isystem"));
-  expected_regex.push_back(rep("-internal-externc-isystem"));
   expected_regex.push_back(rep("-fdeprecated-macro"));
   expected_regex.push_back(rep("-fdebug-compilation-dir"));
   expected_regex.push_back(rep("-ferror-limit [0-9]+"));
@@ -85,6 +80,18 @@ TEST(CommandTest, ParseSimpleArgs) {
   expected_regex.push_back(rep2("-o " + expected_output));
   expected_regex.push_back(rep("-x c++"));
   expected_regex.push_back(rep2(temp_input));
+#if defined(OS_LINUX)
+  expected_regex.push_back(rep("-fmath-errno"));
+  expected_regex.push_back(rep("-mconstructor-aliases"));
+  expected_regex.push_back(rep("-fuse-init-array"));
+  expected_regex.push_back(rep("-internal-isystem"));
+  expected_regex.push_back(rep("-internal-externc-isystem"));
+#elif defined(OS_MACOSX)
+  expected_regex.push_back(rep("-pic-level [0-9]+"));
+  expected_regex.push_back(rep("-stack-protector [0-9]+"));
+  expected_regex.push_back(rep("-fblocks"));
+  expected_regex.push_back(rep("-fencode-extended-block-signature"));
+#endif
 
   const char* argv[] = {"clang++", "-c",                    temp_input.c_str(),
                         "-o",      expected_output.c_str(), nullptr};
@@ -97,7 +104,11 @@ TEST(CommandTest, ParseSimpleArgs) {
   const auto& command = commands.front();
   for (const auto& regex : expected_regex) {
     EXPECT_TRUE(std::regex_search(command.RenderAllArgs(), regex.first))
-        << "Regex " << regex.second << " failed";
+        << "Regex \"" << regex.second << "\" failed";
+  }
+
+  if (HasNonfatalFailure()) {
+    FAIL() << command.RenderAllArgs();
   }
 }
 
@@ -121,6 +132,10 @@ TEST(CommandTest, FillFlags) {
   EXPECT_EQ("c++", flags.language());
   EXPECT_EQ("-cc1", *flags.other().begin());
   // TODO: add more expectations on flags.
+
+  if (HasNonfatalFailure()) {
+    FAIL() << command.RenderAllArgs();
+  }
 }
 
 class ClientTest : public ::testing::Test {
@@ -265,8 +280,10 @@ TEST_F(ClientTest, CannotReadMessage) {
         auto begin = non_cached.begin();
         auto end = non_cached.end();
         EXPECT_NE(end, std::find(begin, end, "-resource-dir"));
+#if defined(OS_LINUX)
         EXPECT_NE(end, std::find(begin, end, "-internal-isystem"));
         EXPECT_NE(end, std::find(begin, end, "-internal-externc-isystem"));
+#endif  // defined(OS_LINUX)
       }
 
       {

@@ -809,7 +809,7 @@ TEST_F(DaemonTest, StoreLocalCache) {
   listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
-    return true;
+    return !::testing::Test::HasNonfatalFailure();
   };
 
   connect_callback = [&](net::TestConnection* connection) {
