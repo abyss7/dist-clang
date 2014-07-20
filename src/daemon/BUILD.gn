@@ -11,13 +11,14 @@ source_set("daemon") {
     "statistic.h",
   ]
   deps += [
+    ":configuration",
     "//src/base:base",
     "//src/base:constants",
     "//src/base:logging",
     "//src/file_cache:file_cache",
     "//src/net:net",
     "//src/proto:proto",
-    ":configuration",
+    "//src/third_party/protobuf:protobuf",
   ]
 }
 
