@@ -7,11 +7,11 @@ shared_library("file_cache") {
   ]
 
   deps += [
+    ":manifest",
     "//src/base:base",
     "//src/base:logging",
     "//src/third_party/kyoto-cabinet:kyotocabinet",
-    # ":hook",
-    ":manifest",
+    "//src/third_party/protobuf:protobuf",
   ]
 }
 

@@ -95,7 +95,7 @@ source_set("protobuf_lite") {
   deps += [ ":protobuf_headers" ]
 }
 
-static_library("protobuf") {
+shared_library("protobuf") {
   sources = [
     # "exported/google/protobuf/compiler/importer.cc",
     # "exported/google/protobuf/compiler/parser.cc",

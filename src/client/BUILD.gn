@@ -35,6 +35,7 @@ shared_library("command") {
     "//src/base:base",
     "//src/base:logging",
     "//src/proto:proto",
+    "//src/third_party/protobuf:protobuf",
   ]
 
   all_dependent_configs = [ "//build/config:libclang_includes" ]

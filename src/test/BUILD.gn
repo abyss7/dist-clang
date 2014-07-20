@@ -30,5 +30,6 @@ test("unit_tests") {
     "//src/file_cache:file_cache",
     "//src/net:net",
     "//src/third_party/gtest:gtest",
+    "//src/third_party/protobuf:protobuf",
   ]
 }
