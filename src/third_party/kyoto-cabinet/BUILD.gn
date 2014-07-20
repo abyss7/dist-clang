@@ -26,6 +26,7 @@ config("flags") {
   ]
 }
 
+# NOTICE: Needs exceptions + rtti, thus, have to be shared library.
 shared_library("kyotocabinet") {
   sources = [
     "exported/kccommon.h",

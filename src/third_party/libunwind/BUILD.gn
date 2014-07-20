@@ -1,7 +1,3 @@
-config("libraries") {
-  libs = [ "c", "lzma" ]
-}
-
 source_set("unwind") {
   sources = [
     "exported/src/mi/_ReadULEB.c",
@@ -176,10 +172,11 @@ source_set("unwind") {
     "stubs",
   ]
 
-  ldflags = [ "-nostdlib" ]
+  libs = [
+    "c",
+    "lzma",
+  ]
 
   configs = []
-  direct_dependent_configs = [ ":libraries" ]
-
   deps = []
 }

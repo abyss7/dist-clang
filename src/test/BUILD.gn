@@ -26,7 +26,6 @@ test("unit_tests") {
   deps += [
     "//src/base:base",
     "//src/client:client",
-    "//src/client:command",
     "//src/daemon:daemon",
     "//src/file_cache:file_cache",
     "//src/net:net",

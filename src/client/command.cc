@@ -8,7 +8,6 @@
 
 #include <clang/Basic/Diagnostic.h>
 #include <clang/Driver/Action.h>
-#include <clang/Driver/Compilation.h>
 #include <clang/Driver/Driver.h>
 #include <clang/Driver/DriverDiagnostic.h>
 #include <clang/Driver/Options.h>

@@ -19,7 +19,7 @@ source_set("gtest_headers") {
   all_dependent_configs = [ ":includes" ]
 }
 
-shared_library("gtest") {
+static_library("gtest") {
   sources = [
     "exported/gtest-all.cc",
     "exported/gtest-internal-inl.h",
