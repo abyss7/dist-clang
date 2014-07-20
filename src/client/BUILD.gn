@@ -11,18 +11,31 @@ source_set("client") {
   sources = [
     "clang.cc",
     "clang.h",
-    "command.cc",
-    "command.h",
   ]
-  configs += [
-    "//build/config:libclang",
-  ]
+
   deps += [
+    ":command",
     "//src/base:base",
     "//src/base:logging",
     "//src/net:net",
     "//src/proto:proto",
   ]
+}
 
-  direct_dependent_configs = [ "//build/config:libclang_includes" ]
+# NOTICE: Uses custom libclang ldflags, thus, have to be shared library.
+shared_library("command") {
+  sources = [
+    "command.cc",
+    "command.h",
+  ]
+
+  configs += [ "//build/config:libclang" ]
+
+  deps += [
+    "//src/base:base",
+    "//src/base:logging",
+    "//src/proto:proto",
+  ]
+
+  all_dependent_configs = [ "//build/config:libclang_includes" ]
 }

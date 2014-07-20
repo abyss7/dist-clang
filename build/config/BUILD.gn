@@ -5,7 +5,7 @@ config("base") {
     "-pthread",
     "-Wall",
     "-Wsign-compare",
-    "-Werror",    
+    "-Werror",
   ]
   cflags_cc = [
     "-std=c++1y",
@@ -15,7 +15,7 @@ config("base") {
 
 config("default_library") {
   cflags = [
-    "-fPIC",   
+    "-fPIC",
   ]
   cflags_cc = [
     "-std=c++1y",
@@ -95,7 +95,6 @@ config("libclang") {
 
   libs = [
     "c",
-    "stdc++",
 
     # libclang parts:
     "clangTooling",
