@@ -386,9 +386,17 @@ void Daemon::UpdateCache(const proto::Execute* message,
     cache_->Store(message->pp_source(), command_line, version, entry);
   }
 
+  UpdateDirectCache(message, entry);
+}
+
+void Daemon::UpdateDirectCache(const proto::Execute* message,
+                               const FileCache::Entry& entry) {
   if (!message->remote() && !entry.deps_path.empty() &&
       cache_config_->direct()) {
-    const auto hash = cache_->Hash(message->pp_source(), command_line, version);
+    const auto& flags = message->flags();
+    const auto& version = flags.compiler().version();
+    const auto hash =
+        cache_->Hash(message->pp_source(), CommandLineForCache(flags), version);
     const String command_line = CommandLineForDirect(flags);
     const String input_path = message->current_dir() + "/" + flags.input();
     List<String> headers;
@@ -594,6 +602,8 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
             LOG(ERROR) << "Failed to change owner for " << output_path << ": "
                        << error;
           }
+
+          UpdateDirectCache(message, cache_entry);
 
           proto::Status status;
           status.set_code(proto::Status::OK);

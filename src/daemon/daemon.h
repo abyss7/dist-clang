@@ -55,6 +55,8 @@ class Daemon {
                              const proto::Status& status);
   void UpdateCache(const proto::Execute* message,
                    const FileCache::Entry& entry);
+  void UpdateDirectCache(const proto::Execute* message,
+                         const FileCache::Entry& entry);
 
   // Convert CC to PP flags.
   static proto::Flags ConvertFlags(const proto::Flags& flags);

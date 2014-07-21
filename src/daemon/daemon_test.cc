@@ -1092,5 +1092,11 @@ TEST_F(DaemonTest, DISABLED_DontStoreFailedRemoteCache) {
   // TODO: implement this test.
 }
 
+TEST_F(DaemonTest, DISABLED_UpdateDirectCacheFromLocalCache) {
+  // TODO: implement this test.
+  //       - Check that direct cache gets updated, if there is direct cache
+  //         miss, but there is hit of normal cache.
+}
+
 }  // namespace daemon
 }  // namespace dist_clang

@@ -51,9 +51,13 @@ source_set("c++abi") {
   ]
 
   configs = []
-  configs += [ ":includes", "//build/config:default_library" ]
-  direct_dependent_configs = [ ":includes" ]
+  configs += [
+    ":includes",
+    "//build/config:default_library",
+  ]
 
   deps = []
   deps += [ "//src/third_party/libunwind:unwind" ]
+
+  direct_dependent_configs = [ ":includes" ]
 }
