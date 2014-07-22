@@ -105,7 +105,6 @@ TEST(FileCacheTest, RestoreSingleEntry) {
   const String expected_object_code = "some object code";
   const String expected_deps = "some deps";
   FileCache cache(path);
-  FileCache::Entry entry{object_path, deps_path, stderror};
   String object_code, deps;
 
   const String code = "int main() { return 0; }";
@@ -116,9 +115,10 @@ TEST(FileCacheTest, RestoreSingleEntry) {
   ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
 
   // Check that entrie's content is not changed on cache miss.
+  FileCache::Entry entry{object_path, deps_path, stderror};
   EXPECT_FALSE(cache.Find(code, cl, version, &entry));
-  ASSERT_EQ(object_path, entry.object_path);
-  EXPECT_EQ(deps_path, entry.deps_path);
+  ASSERT_EQ(object_path, entry.object.GetPath());
+  EXPECT_EQ(deps_path, entry.deps.GetPath());
   EXPECT_EQ(stderror, entry.stderr);
 
   // Store the entry.
@@ -129,8 +129,8 @@ TEST(FileCacheTest, RestoreSingleEntry) {
 
   // Restore the entry.
   ASSERT_TRUE(cache.Find(code, cl, version, &entry));
-  ASSERT_TRUE(base::ReadFile(entry.object_path, &object_code));
-  EXPECT_TRUE(base::ReadFile(entry.deps_path, &deps));
+  ASSERT_TRUE(base::ReadFile(entry.object, &object_code));
+  EXPECT_TRUE(base::ReadFile(entry.deps, &deps));
   EXPECT_EQ(expected_object_code, object_code);
   EXPECT_EQ(expected_deps, deps);
   EXPECT_EQ(stderror, entry.stderr);
@@ -145,7 +145,6 @@ TEST(FileCacheTest, RestoreSingleEntry_Sync) {
   const String expected_object_code = "some object code";
   const String expected_deps = "some deps";
   FileCache cache(path);
-  FileCache::Entry entry{object_path, deps_path, stderror};
   String object_code, deps;
 
   const String code = "int main() { return 0; }";
@@ -154,14 +153,16 @@ TEST(FileCacheTest, RestoreSingleEntry_Sync) {
 
   ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
   ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
+
+  FileCache::Entry entry{object_path, deps_path, stderror};
   EXPECT_FALSE(cache.Find(code, cl, version, &entry));
-  ASSERT_EQ(object_path, entry.object_path);
-  EXPECT_EQ(deps_path, entry.deps_path);
+  ASSERT_EQ(object_path, entry.object.GetPath());
+  EXPECT_EQ(deps_path, entry.deps.GetPath());
   EXPECT_EQ(stderror, entry.stderr);
   cache.StoreNow(code, cl, version, entry);
   ASSERT_TRUE(cache.Find(code, cl, version, &entry));
-  ASSERT_TRUE(base::ReadFile(entry.object_path, &object_code));
-  EXPECT_TRUE(base::ReadFile(entry.deps_path, &deps));
+  ASSERT_TRUE(base::ReadFile(entry.object, &object_code));
+  EXPECT_TRUE(base::ReadFile(entry.deps, &deps));
   EXPECT_EQ(expected_object_code, object_code);
   EXPECT_EQ(expected_deps, deps);
   EXPECT_EQ(stderror, entry.stderr);
@@ -278,7 +279,6 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   const String expected_object_code = "some object code";
   const String expected_deps = "some deps";
   FileCache cache(path);
-  FileCache::Entry entry{object_path, deps_path, stderror};
   String object_code, deps;
 
   const String code = "int main() { return 0; }";
@@ -291,6 +291,7 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   ASSERT_TRUE(base::WriteFile(header2_path, "#define B"));
 
   // Store the entry.
+  FileCache::Entry entry{object_path, deps_path, stderror};
   auto future = cache.Store(code, cl, version, entry);
   ASSERT_TRUE(!!future);
   future->Wait();
@@ -307,8 +308,8 @@ TEST(FileCacheTest, RestoreDirectEntry) {
 
   // Restore the entry.
   ASSERT_TRUE(cache.Find_Direct(orig_code, cl, version, &entry));
-  ASSERT_TRUE(base::ReadFile(entry.object_path, &object_code));
-  EXPECT_TRUE(base::ReadFile(entry.deps_path, &deps));
+  ASSERT_TRUE(base::ReadFile(entry.object, &object_code));
+  EXPECT_TRUE(base::ReadFile(entry.deps, &deps));
   EXPECT_EQ(expected_object_code, object_code);
   EXPECT_EQ(expected_deps, deps);
   EXPECT_EQ(stderror, entry.stderr);
@@ -325,7 +326,6 @@ TEST(FileCacheTest, RestoreDirectEntry_Sync) {
   const String expected_object_code = "some object code";
   const String expected_deps = "some deps";
   FileCache cache(path);
-  FileCache::Entry entry{object_path, deps_path, stderror};
   String object_code, deps;
 
   const String code = "int main() { return 0; }";
@@ -338,6 +338,7 @@ TEST(FileCacheTest, RestoreDirectEntry_Sync) {
   ASSERT_TRUE(base::WriteFile(header2_path, "#define B"));
 
   // Store the entry.
+  FileCache::Entry entry{object_path, deps_path, stderror};
   cache.StoreNow(code, cl, version, entry);
 
   // Store the direct entry.
@@ -348,8 +349,8 @@ TEST(FileCacheTest, RestoreDirectEntry_Sync) {
 
   // Restore the entry.
   ASSERT_TRUE(cache.Find_Direct(orig_code, cl, version, &entry));
-  ASSERT_TRUE(base::ReadFile(entry.object_path, &object_code));
-  EXPECT_TRUE(base::ReadFile(entry.deps_path, &deps));
+  ASSERT_TRUE(base::ReadFile(entry.object, &object_code));
+  EXPECT_TRUE(base::ReadFile(entry.deps, &deps));
   EXPECT_EQ(expected_object_code, object_code);
   EXPECT_EQ(expected_deps, deps);
   EXPECT_EQ(stderror, entry.stderr);

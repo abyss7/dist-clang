@@ -1,5 +1,7 @@
 shared_library("base") {
   sources = [
+    "file_holder.cc",
+    "file_holder.h",
     "file_utils.cc",
     "file_utils.h",
     "hash.cc",

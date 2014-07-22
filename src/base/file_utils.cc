@@ -33,25 +33,25 @@ int Link(const char* src, const char* dst) {
 
 namespace base {
 
-bool CopyFile(const String& src, const String& dst, bool overwrite,
+bool CopyFile(FileHolder src, const String& dst, bool overwrite,
               bool no_hardlink, String* error) {
   struct stat src_stats;
-  if (stat(src.c_str(), &src_stats) == -1) {
+  if (fstat(src.GetDescriptor(), &src_stats) == -1) {
     GetLastError(error);
     return false;
   }
 
   if (!no_hardlink) {
     // Try to create hard-link at first.
-    if (Link(src.c_str(), dst.c_str()) == 0) {
+    if (Link(src.GetPath().c_str(), dst.c_str()) == 0) {
       return true;
     } else if (errno == EEXIST && overwrite && unlink(dst.c_str()) == 0 &&
-               Link(src.c_str(), dst.c_str()) == 0) {
+               Link(src.GetPath().c_str(), dst.c_str()) == 0) {
       return true;
     }
   }
 
-  auto src_fd = open(src.c_str(), O_RDONLY);
+  auto src_fd = src.GetDescriptor();
   if (src_fd == -1) {
     GetLastError(error);
     return false;
@@ -59,7 +59,6 @@ bool CopyFile(const String& src, const String& dst, bool overwrite,
 #if defined(OS_LINUX)
   if (posix_fadvise(src_fd, 0, 0, POSIX_FADV_SEQUENTIAL) == -1) {
     GetLastError(error);
-    close(src_fd);
     return false;
   }
 #endif  // defined(OS_LINUX)
@@ -68,7 +67,6 @@ bool CopyFile(const String& src, const String& dst, bool overwrite,
   // Force unlinking of |dst|, since it may be hard-linked with other places.
   if (overwrite && unlink(dst.c_str()) == -1 && errno != ENOENT) {
     GetLastError(error);
-    close(src_fd);
     return false;
   }
 
@@ -78,14 +76,12 @@ bool CopyFile(const String& src, const String& dst, bool overwrite,
   auto dst_fd = open(dst.c_str(), flags, src_stats.st_mode);
   if (dst_fd == -1) {
     GetLastError(error);
-    close(src_fd);
     return false;
   }
 #if defined(OS_LINUX)
   // FIXME: may be, we should allocate st_blocks*st_blk_size?
   if (posix_fallocate(dst_fd, 0, src_stats.st_size) == -1) {
     GetLastError(error);
-    close(src_fd);
     close(dst_fd);
     return false;
   }
@@ -104,27 +100,27 @@ bool CopyFile(const String& src, const String& dst, bool overwrite,
     }
     if (total < size) break;
   }
-  close(src_fd);
   close(dst_fd);
 
   return !size;
 }
 
-bool ReadFile(const String& path, String* output, String* error) {
+bool ReadFile(FileHolder file, String* output, String* error) {
   if (!output) {
     return false;
   }
   output->clear();
 
-  auto src_fd = open(path.c_str(), O_RDONLY);
+  auto src_fd = file.GetDescriptor();
   if (src_fd == -1) {
-    GetLastError(error);
+    if (error) {
+      error->assign(file.GetError());
+    }
     return false;
   }
 #if defined(OS_LINUX)
   if (posix_fadvise(src_fd, 0, 0, POSIX_FADV_SEQUENTIAL) == -1) {
     GetLastError(error);
-    close(src_fd);
     return false;
   }
 #endif  // defined(OS_LINUX)
@@ -138,7 +134,6 @@ bool ReadFile(const String& path, String* output, String* error) {
   if (size == -1) {
     GetLastError(error);
   }
-  close(src_fd);
 
   return !size;
 }
@@ -150,7 +145,7 @@ bool WriteFile(const String& path, const String& input, String* error) {
   const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   auto src_fd =
-      open((path + ".tmp").c_str(), O_WRONLY | O_TRUNC | O_CREAT, mode);
+      open((path + ".tmp").c_str(), O_WRONLY | O_CREAT | O_TRUNC, mode);
   if (src_fd == -1) {
     GetLastError(error);
     return false;
@@ -188,9 +183,9 @@ bool WriteFile(const String& path, const String& input, String* error) {
   return total_bytes == input.size();
 }
 
-bool HashFile(const String& path, String* output,
+bool HashFile(FileHolder file, String* output,
               const List<const char*>& skip_list, String* error) {
-  if (!ReadFile(path, output, error)) {
+  if (!ReadFile(file, output, error)) {
     return false;
   }
 
