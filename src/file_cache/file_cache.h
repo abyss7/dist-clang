@@ -26,8 +26,8 @@ class FileCache {
     String stderr;
 
     // Move cached files, e.g. when there is a remote compilation on local host.
-    bool move_object;
-    bool move_deps;
+    bool move_object = false;
+    bool move_deps = false;
   };
 
   using Optional = base::ThreadPool::Optional;

@@ -863,7 +863,6 @@ TEST_F(DaemonTest, StoreLocalCache) {
     compiler->set_version(compiler_version);
     extension->mutable_flags()->set_action("fake_action");
     extension->mutable_flags()->set_language("fake_language");
-    //    extension->set_pp_source("fake_source");
 
     proto::Status status;
     status.set_code(proto::Status::OK);
@@ -892,7 +891,6 @@ TEST_F(DaemonTest, StoreLocalCache) {
     compiler->set_version(compiler_version);
     extension->mutable_flags()->set_action("fake_action");
     extension->mutable_flags()->set_language("fake_language");
-    //    extension->set_pp_source("fake_source");
 
     proto::Status status;
     status.set_code(proto::Status::OK);
@@ -918,6 +916,7 @@ TEST_F(DaemonTest, StoreLocalCache) {
       << "Daemon must not store references to the connection";
 
   // TODO: check with deps file.
+  // TODO: check that original files are not moved.
 }
 
 TEST_F(DaemonTest, StoreRemoteCache) {
