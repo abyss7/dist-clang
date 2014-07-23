@@ -2,7 +2,6 @@
 
 #include <base/assert.h>
 #include <base/c_utils.h>
-#include <base/file_holder.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -10,8 +9,9 @@
 namespace dist_clang {
 namespace base {
 
-bool CopyFile(FileHolder src, const String& dst, bool overwrite = false,
-              bool no_hardlink = false, String* error = nullptr);
+bool CopyFile(const String& src, const String& dst, String* error = nullptr);
+
+bool LinkFile(const String& src, const String& dst, String* error = nullptr);
 
 inline bool DeleteFile(const String& path, String* error = nullptr) {
   if (unlink(path.c_str())) {
@@ -33,12 +33,12 @@ inline bool MoveFile(const String& src, const String& dst) {
   return rename(src.c_str(), dst.c_str()) != -1;
 }
 
-bool ReadFile(FileHolder file, String* output, String* error = nullptr);
+bool ReadFile(const String& file, String* output, String* error = nullptr);
 
 bool WriteFile(const String& path, const String& input,
                String* error = nullptr);
 
-bool HashFile(FileHolder file, String* output,
+bool HashFile(const String& file, String* output,
               const List<const char*>& skip_list = List<const char*>(),
               String* error = nullptr);
 

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <base/file_holder.h>
 #include <base/thread_pool.h>
 #include <file_cache/database.h>
 
@@ -21,8 +20,8 @@ class FileCache {
   };
 
   struct Entry {
-    base::FileHolder object;
-    base::FileHolder deps;
+    String object_path;
+    String deps_path;
     String stderr;
 
     // Move cached files, e.g. when there is a remote compilation on local host.

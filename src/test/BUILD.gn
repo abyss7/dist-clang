@@ -2,7 +2,6 @@ test("unit_tests") {
   sources = [
     "//src/base/assert_debug_linux_test.cc",
     "//src/base/assert_release_linux_test.cc",
-    "//src/base/file_holder_test.cc",
     "//src/base/file_utils_test.cc",
     "//src/base/future_test.cc",
     "//src/base/hash_test.cc",

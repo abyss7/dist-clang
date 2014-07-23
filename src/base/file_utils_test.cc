@@ -10,7 +10,7 @@
 namespace dist_clang {
 namespace base {
 
-TEST(FileUtilsTest, CopyFile_HardLinks) {
+TEST(FileUtilsTest, LinkFile) {
   const String expected_content = "All your base are belong to us";
   const TemporaryDir temp_dir;
   const String file1 = String(temp_dir) + "/1";
@@ -18,7 +18,7 @@ TEST(FileUtilsTest, CopyFile_HardLinks) {
   const String file3 = String(temp_dir) + "/3";
 
   ASSERT_TRUE(WriteFile(file1, expected_content));
-  ASSERT_TRUE(CopyFile(file1, file2));
+  ASSERT_TRUE(LinkFile(file1, file2));
 
   struct stat st;
   const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
@@ -34,14 +34,7 @@ TEST(FileUtilsTest, CopyFile_HardLinks) {
   EXPECT_EQ(inode, st.st_ino);
 
   ASSERT_TRUE(WriteFile(file3, expected_content));
-  ASSERT_FALSE(CopyFile(file3, file2, false));
-
-  ASSERT_EQ(0, stat(file2.c_str(), &st));
-  EXPECT_EQ(2u, st.st_nlink);
-  EXPECT_EQ(mode, st.st_mode & mode);
-  EXPECT_EQ(inode, st.st_ino);
-
-  ASSERT_TRUE(CopyFile(file3, file2, true));
+  ASSERT_TRUE(LinkFile(file3, file2));
 
   ASSERT_EQ(0, stat(file1.c_str(), &st));
   EXPECT_EQ(1u, st.st_nlink);
@@ -60,7 +53,7 @@ TEST(FileUtilsTest, CopyFile_HardLinks) {
   EXPECT_EQ(inode, st.st_ino);
 }
 
-TEST(FileUtilsTest, CopyFile_Raw) {
+TEST(FileUtilsTest, CopyFile) {
   const String expected_content1 = "All your base are belong to us";
   const String expected_content2 = "Nothing lasts forever";
   const TemporaryDir temp_dir;
@@ -69,7 +62,7 @@ TEST(FileUtilsTest, CopyFile_Raw) {
   const String file3 = String(temp_dir) + "/3";
 
   ASSERT_TRUE(WriteFile(file1, expected_content1));
-  ASSERT_TRUE(CopyFile(file1, file2, false, true));
+  ASSERT_TRUE(CopyFile(file1, file2));
 
   struct stat st;
   const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
@@ -86,15 +79,7 @@ TEST(FileUtilsTest, CopyFile_Raw) {
   EXPECT_EQ(expected_content1, content);
 
   ASSERT_TRUE(WriteFile(file3, expected_content2));
-  ASSERT_FALSE(CopyFile(file3, file2, false, true));
-
-  ASSERT_EQ(0, stat(file2.c_str(), &st));
-  EXPECT_EQ(1u, st.st_nlink);
-  EXPECT_EQ(mode, st.st_mode & mode);
-  ASSERT_TRUE(ReadFile(file2, &content));
-  EXPECT_EQ(expected_content1, content);
-
-  ASSERT_TRUE(CopyFile(file3, file2, true, true));
+  ASSERT_TRUE(CopyFile(file3, file2));
 
   ASSERT_EQ(0, stat(file2.c_str(), &st));
   EXPECT_EQ(1u, st.st_nlink);

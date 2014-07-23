@@ -150,13 +150,15 @@ bool FileCache::FindByHash(const String &hash, Entry *entry) const {
     }
 
     if (manifest.object()) {
-      if (!(entry->object = CommonPath(hash) + ".o")) {
+      entry->object_path = CommonPath(hash) + ".o";
+      if (!base::FileExists(entry->object_path)) {
         return false;
       }
     }
 
     if (manifest.deps()) {
-      if (!(entry->deps = CommonPath(hash) + ".d")) {
+      entry->deps_path = CommonPath(hash) + ".d";
+      if (!base::FileExists(entry->deps_path)) {
         return false;
       }
     }
@@ -242,17 +244,19 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
     cached_size_ += base::FileSize(stderr_path);
   }
 
-  if (entry.object) {
+  if (!entry.object_path.empty()) {
     const String object_path = CommonPath(hash) + ".o";
     String error;
-    bool result =
-        base::CopyFile(entry.object, object_path, true, false, &error);
+    bool result;
     if (entry.move_object) {
-      base::DeleteFile(entry.object.GetPath());
+      result = base::LinkFile(entry.object_path, object_path, &error);
+      base::DeleteFile(entry.object_path);
+    } else {
+      result = base::CopyFile(entry.object_path, object_path, &error);
     }
     if (!result) {
       RemoveEntry(manifest_path);
-      LOG(CACHE_ERROR) << "Failed to copy " << entry.object
+      LOG(CACHE_ERROR) << "Failed to copy " << entry.object_path
                        << " with error: " << error;
       return;
     }
@@ -261,16 +265,19 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
     manifest.set_object(false);
   }
 
-  if (entry.deps) {
+  if (!entry.deps_path.empty()) {
     const String deps_path = CommonPath(hash) + ".d";
     String error;
-    bool result = base::CopyFile(entry.deps, deps_path, true, false, &error);
+    bool result;
     if (entry.move_deps) {
-      base::DeleteFile(entry.deps.GetPath());
+      result = base::LinkFile(entry.deps_path, deps_path, &error);
+      base::DeleteFile(entry.deps_path);
+    } else {
+      result = base::CopyFile(entry.deps_path, deps_path, &error);
     }
     if (!result) {
       RemoveEntry(manifest_path);
-      LOG(CACHE_ERROR) << "Failed to copy " << entry.deps
+      LOG(CACHE_ERROR) << "Failed to copy " << entry.deps_path
                        << " with error: " << error;
       return;
     }
@@ -290,7 +297,7 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
   utime(SecondPath(hash).c_str(), nullptr);
   utime(FirstPath(hash).c_str(), nullptr);
 
-  LOG(CACHE_VERBOSE) << "File " << entry.object << " is cached on path "
+  LOG(CACHE_VERBOSE) << "File " << entry.object_path << " is cached on path "
                      << CommonPath(hash);
 
   lock.Unlock();

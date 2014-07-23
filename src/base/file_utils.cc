@@ -12,46 +12,16 @@
 #include <sys/types.h>
 
 namespace dist_clang {
-
-namespace {
-
-int Link(const char* src, const char* dst) {
-#if defined(OS_LINUX)
-  // Linux doesn't guarantee that |link()| do dereferences symlinks, thus
-  // we use |linkat()| which does for sure.
-  return linkat(AT_FDCWD, src, AT_FDCWD, dst, AT_SYMLINK_FOLLOW);
-#elif defined(OS_MACOSX)
-  return link(src, dst);
-#else
-#pragma message "This platform doesn't support hardlinks!"
-  errno = EACCES;
-  return -1;
-#endif
-}
-
-}  // namespace
-
 namespace base {
 
-bool CopyFile(FileHolder src, const String& dst, bool overwrite,
-              bool no_hardlink, String* error) {
+bool CopyFile(const String& src, const String& dst, String* error) {
   struct stat src_stats;
-  if (fstat(src.GetDescriptor(), &src_stats) == -1) {
+  if (stat(src.c_str(), &src_stats) == -1) {
     GetLastError(error);
     return false;
   }
 
-  if (!no_hardlink) {
-    // Try to create hard-link at first.
-    if (Link(src.GetPath().c_str(), dst.c_str()) == 0) {
-      return true;
-    } else if (errno == EEXIST && overwrite && unlink(dst.c_str()) == 0 &&
-               Link(src.GetPath().c_str(), dst.c_str()) == 0) {
-      return true;
-    }
-  }
-
-  auto src_fd = src.GetDescriptor();
+  auto src_fd = open(src.c_str(), O_RDONLY);
   if (src_fd == -1) {
     GetLastError(error);
     return false;
@@ -59,29 +29,33 @@ bool CopyFile(FileHolder src, const String& dst, bool overwrite,
 #if defined(OS_LINUX)
   if (posix_fadvise(src_fd, 0, 0, POSIX_FADV_SEQUENTIAL) == -1) {
     GetLastError(error);
+    close(src_fd);
     return false;
   }
 #endif  // defined(OS_LINUX)
 
-  auto flags = O_CREAT | O_WRONLY | O_EXCL;
   // Force unlinking of |dst|, since it may be hard-linked with other places.
-  if (overwrite && unlink(dst.c_str()) == -1 && errno != ENOENT) {
+  if (unlink(dst.c_str()) == -1 && errno != ENOENT) {
     GetLastError(error);
+    close(src_fd);
     return false;
   }
 
   // We need write-access even on object files after introduction of the
   // "split-dwarf" option, see
   // https://sourceware.org/bugzilla/show_bug.cgi?id=971
-  auto dst_fd = open(dst.c_str(), flags, src_stats.st_mode);
+  auto dst_fd =
+      open(dst.c_str(), O_CREAT | O_WRONLY | O_EXCL, src_stats.st_mode);
   if (dst_fd == -1) {
     GetLastError(error);
+    close(src_fd);
     return false;
   }
 #if defined(OS_LINUX)
   // FIXME: may be, we should allocate st_blocks*st_blk_size?
   if (posix_fallocate(dst_fd, 0, src_stats.st_size) == -1) {
     GetLastError(error);
+    close(src_fd);
     close(dst_fd);
     return false;
   }
@@ -100,27 +74,52 @@ bool CopyFile(FileHolder src, const String& dst, bool overwrite,
     }
     if (total < size) break;
   }
+  close(src_fd);
   close(dst_fd);
 
   return !size;
 }
 
-bool ReadFile(FileHolder file, String* output, String* error) {
+bool LinkFile(const String& src, const String& dst, String* error) {
+  auto Link = [&src, &dst]() -> int {
+#if defined(OS_LINUX)
+    // Linux doesn't guarantee that |link()| do dereferences symlinks, thus
+    // we use |linkat()| which does for sure.
+    return linkat(AT_FDCWD, src.c_str(), AT_FDCWD, dst.c_str(),
+                  AT_SYMLINK_FOLLOW);
+#elif defined(OS_MACOSX)
+    return link(src.c_str(), dst.c_str());
+#else
+#pragma message "This platform doesn't support hardlinks!"
+    errno = EACCES;
+    return -1;
+#endif
+  };
+
+  // Try to create hard-link at first.
+  if (Link() == 0 ||
+      (errno == EEXIST && unlink(dst.c_str()) == 0 && Link() == 0)) {
+    return true;
+  }
+
+  return CopyFile(src, dst, error);
+}
+
+bool ReadFile(const String& path, String* output, String* error) {
   if (!output) {
     return false;
   }
   output->clear();
 
-  auto src_fd = file.GetDescriptor();
+  auto src_fd = open(path.c_str(), O_RDONLY);
   if (src_fd == -1) {
-    if (error) {
-      error->assign(file.GetError());
-    }
+    GetLastError(error);
     return false;
   }
 #if defined(OS_LINUX)
   if (posix_fadvise(src_fd, 0, 0, POSIX_FADV_SEQUENTIAL) == -1) {
     GetLastError(error);
+    close(src_fd);
     return false;
   }
 #endif  // defined(OS_LINUX)
@@ -134,6 +133,7 @@ bool ReadFile(FileHolder file, String* output, String* error) {
   if (size == -1) {
     GetLastError(error);
   }
+  close(src_fd);
 
   return !size;
 }
@@ -183,9 +183,9 @@ bool WriteFile(const String& path, const String& input, String* error) {
   return total_bytes == input.size();
 }
 
-bool HashFile(FileHolder file, String* output,
+bool HashFile(const String& path, String* output,
               const List<const char*>& skip_list, String* error) {
-  if (!ReadFile(file, output, error)) {
+  if (!ReadFile(path, output, error)) {
     return false;
   }
 

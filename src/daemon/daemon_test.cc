@@ -917,6 +917,7 @@ TEST_F(DaemonTest, StoreLocalCache) {
 
   // TODO: check with deps file.
   // TODO: check that original files are not moved.
+  // TODO: check that removal of original files doesn't fail cache filling.
 }
 
 TEST_F(DaemonTest, StoreRemoteCache) {
@@ -1094,7 +1095,7 @@ TEST_F(DaemonTest, DISABLED_DontStoreFailedRemoteCache) {
 TEST_F(DaemonTest, DISABLED_UpdateDirectCacheFromLocalCache) {
   // TODO: implement this test.
   //       - Check that direct cache gets updated, if there is direct cache
-  //         miss, but there is hit of normal cache.
+  //         miss, but there is hit in normal cache.
 }
 
 }  // namespace daemon
