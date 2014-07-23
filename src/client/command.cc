@@ -178,7 +178,6 @@ void Command::FillFlags(proto::Flags* flags, const String& clang_path) const {
     else if (arg->getOption().matches(OPT_include) ||
              arg->getOption().matches(OPT_internal_externc_isystem) ||
              arg->getOption().matches(OPT_isysroot) ||
-             arg->getOption().matches(OPT_resource_dir) ||
              arg->getOption().matches(OPT_D) ||
              arg->getOption().matches(OPT_I)) {
       arg->render(*arg_list_, non_cached_list);
@@ -190,8 +189,9 @@ void Command::FillFlags(proto::Flags* flags, const String& clang_path) const {
                arg->getOption().matches(OPT_MMD) ||
                arg->getOption().matches(OPT_MT)) {
       arg->render(*arg_list_, non_direct_list);
-    } else if (arg->getOption().matches(OPT_internal_isystem)) {
-      // Use --internal-isystem based on real clang path.
+    } else if (arg->getOption().matches(OPT_internal_isystem) ||
+               arg->getOption().matches(OPT_resource_dir)) {
+      // Use --internal-isystem and --resource_dir based on real Clang path.
       std::regex regex("(" + base::EscapeRegex(base::GetSelfPath()) + ")");
       non_cached_list.push_back(arg->getSpelling().data());
       non_cached_list.push_back(arg_list_->MakeArgString(std::regex_replace(
