@@ -47,11 +47,11 @@ class FileCache {
   Optional Store_Direct(const String& code, const String& command_line,
                         const String& version, const List<String>& headers,
                         const String& hash);
-  void StoreNow(const String& code, const String& command_line,
-                const String& version, const Entry& entry);
-  void StoreNow_Direct(const String& code, const String& command_line,
-                       const String& version, const List<String>& headers,
-                       const String& hash);
+  Optional StoreNow(const String& code, const String& command_line,
+                    const String& version, const Entry& entry);
+  Optional StoreNow_Direct(const String& code, const String& command_line,
+                           const String& version, const List<String>& headers,
+                           const String& hash);
 
  private:
   FRIEND_TEST(file_cache::FileCacheTest, LockNonExistentFile);

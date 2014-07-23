@@ -96,7 +96,8 @@ FileCache::Optional FileCache::Store(const String &code,
                                      const Entry &entry) {
   auto &&hash = Hash(code, command_line, version);
   auto task = std::bind(&FileCache::DoStore, this, hash, entry);
-  return pool_.Push(task);
+  pool_.Push(task);
+  return pool_.Push(std::bind(&FileCache::Clean, this));
 }
 
 FileCache::Optional FileCache::Store_Direct(const String &code,
@@ -107,19 +108,25 @@ FileCache::Optional FileCache::Store_Direct(const String &code,
   auto &&orig_hash = Hash(code, command_line, version);
   auto task =
       std::bind(&FileCache::DoStore_Direct, this, orig_hash, headers, hash);
-  return pool_.Push(task);
+  pool_.Push(task);
+  return pool_.Push(std::bind(&FileCache::Clean, this));
 }
 
-void FileCache::StoreNow(const String &code, const String &command_line,
-                         const String &version, const Entry &entry) {
+FileCache::Optional FileCache::StoreNow(const String &code,
+                                        const String &command_line,
+                                        const String &version,
+                                        const Entry &entry) {
   DoStore(Hash(code, command_line, version), entry);
+  return pool_.Push(std::bind(&FileCache::Clean, this));
 }
 
-void FileCache::StoreNow_Direct(const String &code, const String &command_line,
-                                const String &version,
-                                const List<String> &headers,
-                                const String &hash) {
+FileCache::Optional FileCache::StoreNow_Direct(const String &code,
+                                               const String &command_line,
+                                               const String &version,
+                                               const List<String> &headers,
+                                               const String &hash) {
   DoStore_Direct(Hash(code, command_line, version), headers, hash);
+  return pool_.Push(std::bind(&FileCache::Clean, this));
 }
 
 bool FileCache::FindByHash(const String &hash, Entry *entry) const {
@@ -299,9 +306,6 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
 
   LOG(CACHE_VERBOSE) << "File " << entry.object_path << " is cached on path "
                      << CommonPath(hash);
-
-  lock.Unlock();
-  Clean();
 }
 
 void FileCache::DoStore_Direct(String orig_hash, const List<String> &headers,
@@ -350,9 +354,6 @@ void FileCache::DoStore_Direct(String orig_hash, const List<String> &headers,
   utime(manifest_path.c_str(), nullptr);
   utime(SecondPath(hash).c_str(), nullptr);
   utime(FirstPath(hash).c_str(), nullptr);
-
-  lock.Unlock();
-  Clean();
 }
 
 void FileCache::Clean() {

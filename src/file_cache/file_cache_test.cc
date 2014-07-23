@@ -261,6 +261,60 @@ TEST(FileCacheTest, ExceedCacheSize) {
   EXPECT_TRUE(cache.Find(code[2], cl, version, &entry));
 }
 
+TEST(FileCacheTest, ExceedCacheSize_Sync) {
+  const base::TemporaryDir tmp_dir;
+  const String path = tmp_dir;
+  const String cache_path = path + "/cache";
+  const String obj_path[] = {path + "/obj1.o", path + "/obj2.o",
+                             path + "/obj3.o"};
+  const String obj_content[] = {"22", "333", "4444"};
+  const String code[] = {"int main() { return 0; }", "int main() { return 1; }",
+                         "int main() { return 2; }"};
+  const String cl = "-c";
+  const String version = "3.5 (revision 100000)";
+  for (int i = 0; i < 3; ++i) {
+    ASSERT_TRUE(base::WriteFile(obj_path[i], obj_content[i]));
+  }
+
+  FileCache cache(cache_path, 30);
+
+  {
+    FileCache::Entry entry{obj_path[0], String(), String()};
+    auto future = cache.StoreNow(code[0], cl, version, entry);
+    ASSERT_TRUE(!!future);
+    future->Wait();
+    ASSERT_TRUE(future->GetValue());
+    EXPECT_EQ(14u, base::CalculateDirectorySize(cache_path));
+  }
+
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+
+  {
+    FileCache::Entry entry{obj_path[1], String(), String()};
+    auto future = cache.StoreNow(code[1], cl, version, entry);
+    ASSERT_TRUE(!!future);
+    future->Wait();
+    ASSERT_TRUE(future->GetValue());
+    EXPECT_EQ(29u, base::CalculateDirectorySize(cache_path));
+  }
+
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+
+  {
+    FileCache::Entry entry{obj_path[2], String(), String()};
+    auto future = cache.StoreNow(code[2], cl, version, entry);
+    ASSERT_TRUE(!!future);
+    future->Wait();
+    ASSERT_TRUE(future->GetValue());
+    EXPECT_EQ(16u, base::CalculateDirectorySize(cache_path));
+  }
+
+  FileCache::Entry entry;
+  EXPECT_FALSE(cache.Find(code[0], cl, version, &entry));
+  EXPECT_FALSE(cache.Find(code[1], cl, version, &entry));
+  EXPECT_TRUE(cache.Find(code[2], cl, version, &entry));
+}
+
 TEST(FileCacheTest, DISABLED_DeleteOriginals) {
   // TODO: implement this test.
   //  - Check that original object and deps get deleted, if |entry.move_*| is
