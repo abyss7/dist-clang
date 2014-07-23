@@ -270,7 +270,10 @@ bool Daemon::Initialize(const Configuration& configuration) {
 
 bool Daemon::SearchCache(const proto::Execute* message,
                          FileCache::Entry* entry) {
-  if (!cache_ || !message || !entry) {
+  if (!cache_) {
+    return false;
+  }
+  if (!message || !entry) {
     LOG(CACHE_WARNING) << "Failed to check the cache";
     return false;
   }
@@ -288,9 +291,12 @@ bool Daemon::SearchCache(const proto::Execute* message,
 
 bool Daemon::SearchDirectCache(const proto::Execute* message,
                                FileCache::Entry* entry) {
-  if (!cache_ || !cache_config_->direct() || !message || !entry ||
-      message->remote()) {
+  if (!message || !entry) {
     LOG(CACHE_WARNING) << "Failed to check the direct cache";
+    return false;
+  }
+
+  if (!cache_ || !cache_config_->direct() || message->remote()) {
     return false;
   }
 
@@ -313,8 +319,12 @@ bool Daemon::SearchDirectCache(const proto::Execute* message,
 
 void Daemon::UpdateCacheFromFlags(const proto::Execute* message,
                                   const proto::Status& status) {
-  if (!cache_ || !message || !message->has_pp_source()) {
-    LOG(CACHE_WARNING) << "Failed to update the cache";
+  if (!cache_) {
+    return;
+  }
+  if (!message || !message->has_pp_source()) {
+    LOG(CACHE_WARNING) << "Failed to update the cache: message doesn't provide "
+                          "preprocessed sources";
     return;
   }
   CHECK(status.code() == proto::Status::OK);
@@ -342,8 +352,12 @@ void Daemon::UpdateCacheFromFlags(const proto::Execute* message,
 void Daemon::UpdateCacheFromRemote(const proto::Execute* message,
                                    const proto::RemoteResult& result,
                                    const proto::Status& status) {
-  if (!cache_ || !message || !message->has_pp_source()) {
-    LOG(CACHE_WARNING) << "Failed to update the cache";
+  if (!cache_) {
+    return;
+  }
+  if (!message || !message->has_pp_source()) {
+    LOG(CACHE_WARNING) << "Failed to update the cache: message doesn't provide "
+                          "preprocessed sources";
     return;
   }
   CHECK(status.code() == proto::Status::OK);
@@ -391,10 +405,12 @@ void Daemon::UpdateCacheFromRemote(const proto::Execute* message,
 
 void Daemon::UpdateCache(const proto::Execute* message,
                          const FileCache::Entry& entry) {
+  DCHECK(!!message);
   const auto& flags = message->flags();
   const auto& version = flags.compiler().version();
   const String command_line = CommandLineForCache(flags);
 
+  DCHECK(!!cache_);
   DCHECK(!!cache_config_);
   if (cache_config_->sync()) {
     cache_->StoreNow(message->pp_source(), command_line, version, entry);
