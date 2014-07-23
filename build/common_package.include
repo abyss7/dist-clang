@@ -21,10 +21,10 @@ def MakeInstall(top_dir, product_dir, package_dir):
 
   # Copy libraries
   shutil.copy(os.path.join(product_dir, "lib", "libbase.so"), lib_dir)
-  shutil.copy(os.path.join(product_dir, "lib", "libc++.so"), lib_dir)
   shutil.copy(os.path.join(product_dir, "lib", "libcommand.so"), lib_dir)
   shutil.copy(os.path.join(product_dir, "lib", "libconfiguration.so"), lib_dir)
   shutil.copy(os.path.join(product_dir, "lib", "libconstants.so"), lib_dir)
+  shutil.copy(os.path.join(product_dir, "lib", "libc++.so"), lib_dir)
   shutil.copy(os.path.join(product_dir, "lib", "libfile_cache.so"), lib_dir)
   shutil.copy(os.path.join(product_dir, "lib", "libhistogram.so"), lib_dir)
   shutil.copy(os.path.join(product_dir, "lib", "libkyotocabinet.so"), lib_dir)
@@ -32,6 +32,7 @@ def MakeInstall(top_dir, product_dir, package_dir):
   shutil.copy(os.path.join(product_dir, "lib", "libmanifest.so"), lib_dir)
   shutil.copy(os.path.join(product_dir, "lib", "libnet.so"), lib_dir)
   shutil.copy(os.path.join(product_dir, "lib", "libproto.so"), lib_dir)
+  shutil.copy(os.path.join(product_dir, "lib", "libprotobuf.so"), lib_dir)
 
   # Copy configs
   shutil.copy(os.path.join(top_dir, "install", "clangd.conf"), etc_dir)
