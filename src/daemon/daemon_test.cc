@@ -254,6 +254,10 @@ TEST_F(DaemonTest, ConfigWithCachePath) {
   EXPECT_EQ(0u, connect_count);
 }
 
+TEST_F(DaemonTest, DISABLED_ConfigWithDisabledCache) {
+  // TODO: implement this test.
+}
+
 TEST_F(DaemonTest, ConfigWithLocal) {
   const String expected_host = "localhost";
   const ui16 expected_port = 7777;

@@ -460,6 +460,13 @@ class Configuration_Cache : public ::google::protobuf::Message {
   inline bool mtime() const;
   inline void set_mtime(bool value);
 
+  // optional bool disabled = 7 [default = false];
+  inline bool has_disabled() const;
+  inline void clear_disabled();
+  static const int kDisabledFieldNumber = 7;
+  inline bool disabled() const;
+  inline void set_disabled(bool value);
+
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Configuration.Cache)
  private:
   inline void set_has_path();
@@ -474,6 +481,8 @@ class Configuration_Cache : public ::google::protobuf::Message {
   inline void clear_has_direct();
   inline void set_has_mtime();
   inline void clear_has_mtime();
+  inline void set_has_disabled();
+  inline void clear_has_disabled();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -483,9 +492,10 @@ class Configuration_Cache : public ::google::protobuf::Message {
   bool sync_;
   bool direct_;
   bool mtime_;
+  bool disabled_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(6 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(7 + 31) / 32];
 
   friend void  protobuf_AddDesc_daemon_2fconfiguration_2eproto();
   friend void protobuf_AssignDesc_daemon_2fconfiguration_2eproto();
@@ -1138,6 +1148,28 @@ inline bool Configuration_Cache::mtime() const {
 inline void Configuration_Cache::set_mtime(bool value) {
   set_has_mtime();
   mtime_ = value;
+}
+
+// optional bool disabled = 7 [default = false];
+inline bool Configuration_Cache::has_disabled() const {
+  return (_has_bits_[0] & 0x00000040u) != 0;
+}
+inline void Configuration_Cache::set_has_disabled() {
+  _has_bits_[0] |= 0x00000040u;
+}
+inline void Configuration_Cache::clear_has_disabled() {
+  _has_bits_[0] &= ~0x00000040u;
+}
+inline void Configuration_Cache::clear_disabled() {
+  disabled_ = false;
+  clear_has_disabled();
+}
+inline bool Configuration_Cache::disabled() const {
+  return disabled_;
+}
+inline void Configuration_Cache::set_disabled(bool value) {
+  set_has_disabled();
+  disabled_ = value;
 }
 
 // -------------------------------------------------------------------

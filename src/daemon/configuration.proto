@@ -25,12 +25,13 @@ message Verbosity {
 
 message Configuration {
   message Cache {
-    required string path = 1;
-    optional uint64 size = 2 [default=0];
-    optional bool remote = 3 [default=true];
-    optional bool sync   = 4 [default=false];  // for testing.
-    optional bool direct = 5 [default=false];
-    optional bool mtime  = 6 [default=false];
+    required string path   = 1;
+    optional uint64 size   = 2 [default=0];
+    optional bool remote   = 3 [default=true];
+    optional bool sync     = 4 [default=false];  // for testing.
+    optional bool direct   = 5 [default=false];
+    optional bool mtime    = 6 [default=false];  // TODO: not implemented yet.
+    optional bool disabled = 7 [default=false];
   }
 
   optional string socket_path   = 1;

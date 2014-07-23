@@ -167,7 +167,7 @@ bool Daemon::Initialize(const Configuration& configuration) {
   all_tasks_->Aggregate(remote_tasks_.get());
 
   cache_tasks_.reset(new Queue);
-  if (config.has_cache()) {
+  if (config.has_cache() && !config.cache().disabled()) {
     cache_.reset(new FileCache(config.cache().path(), config.cache().size()));
     Worker worker = std::bind(&Daemon::DoCheckCache, this, _1);
     workers_->AddWorker(worker, std::thread::hardware_concurrency() * 2);
