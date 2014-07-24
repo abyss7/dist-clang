@@ -1,0 +1,39 @@
+config("includes") {
+  if (os == "linux") {
+    include_dirs = [ "linux" ]
+  }
+}
+
+config("no_warnings") {
+  cflags = [
+    "-Wno-sign-compare",
+    "-Wno-unused-function",
+  ]
+}
+
+shared_library("snappy") {
+  sources = [
+    "exported/snappy.cc",
+    "exported/snappy.h",
+    "exported/snappy-c.cc",
+    "exported/snappy-c.h",
+    "exported/snappy-internal.h",
+    "exported/snappy-sinksource.cc",
+    "exported/snappy-sinksource.h",
+    "exported/snappy-stubs-internal.cc",
+    "exported/snappy-stubs-internal.h",
+  ]
+  if (os == "linux") {
+    sources += [
+      "linux/config.h",
+      "linux/snappy-stubs-public.h",
+    ]
+  }
+
+  configs += [
+    ":includes",
+    ":no_warnings",
+  ]
+
+  direct_dependent_configs = [ ":includes" ]
+}

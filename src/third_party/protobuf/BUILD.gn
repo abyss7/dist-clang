@@ -5,6 +5,7 @@ config("includes") {
 config("no_warnings") {
   cflags = [
     "-Wno-sign-compare",
+    "-Wno-tautological-undefined-compare",
     "-Wno-unused-function",
     "-Wno-unused-variable",
   ]

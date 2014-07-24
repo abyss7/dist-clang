@@ -28,5 +28,6 @@ shared_library("net") {
     "//src/proto:proto",
     "//src/third_party/gtest:gtest_headers",
     "//src/third_party/protobuf:protobuf",
+    "//src/third_party/snappy:snappy",
   ]
 }
