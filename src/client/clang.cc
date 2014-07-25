@@ -62,8 +62,7 @@ bool DoMain(int argc, const char* const argv[], const String& socket_path,
     auto* flags = message->mutable_flags();
     command.FillFlags(flags, clang_path);
 
-    if (flags->input() == "-") {
-      // We can't handle stdin input.
+    if (!flags->has_action() || flags->input() == "-") {
       return true;
     }
 

@@ -729,6 +729,8 @@ TEST_F(DaemonTest, LocalSuccessfulCompilation) {
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1, connection.use_count())
       << "Daemon must not store references to the connection";
+
+  // TODO: check absolute output path.
 }
 
 TEST_F(DaemonTest, LocalFailedCompilation) {
@@ -922,6 +924,7 @@ TEST_F(DaemonTest, StoreLocalCache) {
   // TODO: check with deps file.
   // TODO: check that original files are not moved.
   // TODO: check that removal of original files doesn't fail cache filling.
+  // TODO: check absolute output path.
 }
 
 TEST_F(DaemonTest, StoreRemoteCache) {
@@ -1082,6 +1085,8 @@ TEST_F(DaemonTest, StoreRemoteCache) {
       << "Daemon must not store references to the connection";
   EXPECT_EQ(1, connection2.use_count())
       << "Daemon must not store references to the connection";
+
+  // TODO: check absolute output path.
 }
 
 TEST_F(DaemonTest, DISABLED_StoreLocalDirectCache) {

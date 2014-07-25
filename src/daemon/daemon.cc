@@ -332,13 +332,23 @@ void Daemon::UpdateCacheFromFlags(const proto::Execute* message,
   FileCache::Entry entry;
   const auto& flags = message->flags();
 
-  entry.object_path = message->current_dir() + "/" + flags.output();
+  if (flags.output()[0] == '/') {
+    entry.object_path = flags.output();
+  } else {
+    entry.object_path = message->current_dir() + "/" + flags.output();
+  }
+
   if (base::LinkFile(entry.object_path, entry.object_path + ".cache")) {
     entry.object_path += ".cache";
     entry.move_object = true;
   }
   if (flags.has_deps_file()) {
-    entry.deps_path = message->current_dir() + "/" + flags.deps_file();
+    if (flags.deps_file()[0] == '/') {
+      entry.deps_path = flags.deps_file();
+    } else {
+      entry.deps_path = message->current_dir() + "/" + flags.deps_file();
+    }
+
     if (base::LinkFile(entry.deps_path, entry.deps_path + ".cache")) {
       entry.deps_path += ".cache";
       entry.move_deps = true;
@@ -391,8 +401,13 @@ void Daemon::UpdateCacheFromRemote(const proto::Execute* message,
       return;
     }
   } else if (message->flags().has_deps_file()) {
-    entry.deps_path =
-        message->current_dir() + "/" + message->flags().deps_file();
+    if (message->flags().deps_file()[0] == '/') {
+      entry.deps_path = message->flags().deps_file();
+    } else {
+      entry.deps_path =
+          message->current_dir() + "/" + message->flags().deps_file();
+    }
+
     if (base::LinkFile(entry.deps_path, entry.deps_path + ".cache")) {
       entry.deps_path += ".cache";
       entry.move_deps = true;
@@ -583,7 +598,9 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
     FileCache::Entry cache_entry;
     if (SearchDirectCache(message, &cache_entry)) {
       const String output_path =
-          message->current_dir() + "/" + message->flags().output();
+          message->flags().output()[0] == '/'
+              ? message->flags().output()
+              : message->current_dir() + "/" + message->flags().output();
       if (base::CopyFile(cache_entry.object_path, output_path)) {
         String error;
         if (message->has_user_id() &&
@@ -625,8 +642,12 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
 
     if (SearchCache(message, &cache_entry)) {
       if (!message->remote()) {
+        // TODO: restore deps file as well.
+
         const String output_path =
-            message->current_dir() + "/" + message->flags().output();
+            message->flags().output()[0] == '/'
+                ? message->flags().output()
+                : message->current_dir() + "/" + message->flags().output();
         if (base::CopyFile(cache_entry.object_path, output_path)) {
           String error;
           if (message->has_user_id() &&
@@ -746,7 +767,9 @@ void Daemon::DoRemoteExecution(const std::atomic<bool>& is_shutting_down,
       const auto& extension =
           result->GetExtension(proto::RemoteResult::extension);
       String output_path =
-          message->current_dir() + "/" + message->flags().output();
+          message->flags().output()[0] == '/'
+              ? message->flags().output()
+              : message->current_dir() + "/" + message->flags().output();
       if (base::WriteFile(output_path, extension.obj())) {
         proto::Status status;
         status.set_code(proto::Status::OK);
@@ -755,6 +778,9 @@ void Daemon::DoRemoteExecution(const std::atomic<bool>& is_shutting_down,
         UpdateCacheFromRemote(message, extension, status);
         task->first->ReportStatus(status);
         continue;
+      } else {
+        LOG(WARNING) << "Failed to write output after remote compilation: "
+                     << output_path;
       }
     }
 

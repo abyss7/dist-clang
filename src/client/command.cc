@@ -20,6 +20,8 @@
 
 #include <base/using_log.h>
 
+#include <iostream>
+
 namespace {
 
 void DumpDiagnosticBuffer(const clang::TextDiagnosticBuffer* buffer) {
@@ -149,6 +151,9 @@ void Command::FillFlags(proto::Flags* flags, const String& clang_path) const {
   for (const auto& arg : *arg_list_) {
     using namespace clang::driver::options;
 
+    // TODO: try to sort out flags by some attribute, i.e. group actions,
+    //       compilation-only flags, etc.
+
     if (arg->getOption().getKind() == llvm::opt::Option::InputClass) {
       flags->set_input(arg->getValue());
     } else if (arg->getOption().matches(OPT_add_plugin)) {
@@ -157,6 +162,10 @@ void Command::FillFlags(proto::Flags* flags, const String& clang_path) const {
     } else if (arg->getOption().matches(OPT_emit_obj)) {
       flags->set_action(arg->getSpelling());
     } else if (arg->getOption().matches(OPT_E)) {
+      flags->set_action(arg->getSpelling());
+    } else if (arg->getOption().matches(OPT_S)) {
+      flags->set_action(arg->getSpelling());
+    } else if (arg->getOption().matches(OPT_fsyntax_only)) {
       flags->set_action(arg->getSpelling());
     } else if (arg->getOption().matches(OPT_dependency_file)) {
       flags->set_deps_file(arg->getValue());
