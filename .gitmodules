@@ -10,6 +10,3 @@
 [submodule "src/third_party/tclap/exported"]
 	path = src/third_party/tclap/exported
 	url = git://git.code.sf.net/p/tclap/code
-[submodule "src/third_party/snappy/exported"]
-	path = src/third_party/snappy/exported
-	url = https://github.com/google/snappy.git
