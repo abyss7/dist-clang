@@ -1,5 +1,13 @@
 #!/bin/sh
 
-gn --args="config_for_debug=true $@" gen //out/Debug.gn
-gn --args="$@" gen //out/Release.gn
-gn --args="config_for_tests=true $@" gen //out/Test.gn
+gn_path=`dirname $0`/../bin
+if [[ `uname` == 'Linux' ]]; then
+  gn_path=$gn_path/linux
+elif [[ `uname` == 'Darwin' ]]; then
+  gn_path=$gn_path/mac
+fi
+gn_path=$gn_path/gn
+
+$gn_path --args="config_for_debug=true $@" gen //out/Debug.gn
+$gn_path --args="$@" gen //out/Release.gn
+$gn_path --args="config_for_tests=true $@" gen //out/Test.gn
