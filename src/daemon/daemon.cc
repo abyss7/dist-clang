@@ -27,6 +27,22 @@ namespace dist_clang {
 
 namespace {
 
+inline String GetOutputPath(const proto::Execute* WEAK_PTR message) {
+  if (message->flags().output()[0] == '/') {
+    return message->flags().output();
+  } else {
+    return message->current_dir() + "/" + message->flags().output();
+  }
+}
+
+inline String GetDepsPath(const proto::Execute* WEAK_PTR message) {
+  if (message->flags().deps_file()[0] == '/') {
+    return message->flags().deps_file();
+  } else {
+    return message->current_dir() + "/" + message->flags().deps_file();
+  }
+}
+
 inline String CommandLineForCache(const dist_clang::proto::Flags& flags) {
   String command_line =
       base::JoinString<' '>(flags.other().begin(), flags.other().end());
@@ -332,23 +348,14 @@ void Daemon::UpdateCacheFromFlags(const proto::Execute* message,
   FileCache::Entry entry;
   const auto& flags = message->flags();
 
-  if (flags.output()[0] == '/') {
-    entry.object_path = flags.output();
-  } else {
-    entry.object_path = message->current_dir() + "/" + flags.output();
-  }
-
+  entry.object_path = GetOutputPath(message);
   if (base::LinkFile(entry.object_path, entry.object_path + ".cache")) {
     entry.object_path += ".cache";
     entry.move_object = true;
   }
-  if (flags.has_deps_file()) {
-    if (flags.deps_file()[0] == '/') {
-      entry.deps_path = flags.deps_file();
-    } else {
-      entry.deps_path = message->current_dir() + "/" + flags.deps_file();
-    }
 
+  if (flags.has_deps_file()) {
+    entry.deps_path = GetDepsPath(message);
     if (base::LinkFile(entry.deps_path, entry.deps_path + ".cache")) {
       entry.deps_path += ".cache";
       entry.move_deps = true;
@@ -401,13 +408,7 @@ void Daemon::UpdateCacheFromRemote(const proto::Execute* message,
       return;
     }
   } else if (message->flags().has_deps_file()) {
-    if (message->flags().deps_file()[0] == '/') {
-      entry.deps_path = message->flags().deps_file();
-    } else {
-      entry.deps_path =
-          message->current_dir() + "/" + message->flags().deps_file();
-    }
-
+    entry.deps_path = GetDepsPath(message);
     if (base::LinkFile(entry.deps_path, entry.deps_path + ".cache")) {
       entry.deps_path += ".cache";
       entry.move_deps = true;
@@ -597,10 +598,7 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
 
     FileCache::Entry cache_entry;
     if (SearchDirectCache(message, &cache_entry)) {
-      const String output_path =
-          message->flags().output()[0] == '/'
-              ? message->flags().output()
-              : message->current_dir() + "/" + message->flags().output();
+      const String output_path = GetOutputPath(message);
       if (base::CopyFile(cache_entry.object_path, output_path)) {
         String error;
         if (message->has_user_id() &&
@@ -644,10 +642,7 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
       if (!message->remote()) {
         // TODO: restore deps file as well.
 
-        const String output_path =
-            message->flags().output()[0] == '/'
-                ? message->flags().output()
-                : message->current_dir() + "/" + message->flags().output();
+        const String output_path = GetOutputPath(message);
         if (base::CopyFile(cache_entry.object_path, output_path)) {
           String error;
           if (message->has_user_id() &&
@@ -766,10 +761,7 @@ void Daemon::DoRemoteExecution(const std::atomic<bool>& is_shutting_down,
     if (result->HasExtension(proto::RemoteResult::extension)) {
       const auto& extension =
           result->GetExtension(proto::RemoteResult::extension);
-      String output_path =
-          message->flags().output()[0] == '/'
-              ? message->flags().output()
-              : message->current_dir() + "/" + message->flags().output();
+      String output_path = GetOutputPath(message);
       if (base::WriteFile(output_path, extension.obj())) {
         proto::Status status;
         status.set_code(proto::Status::OK);

@@ -158,7 +158,10 @@ TEST(FileCacheTest, RestoreSingleEntry_Sync) {
   ASSERT_EQ(object_path, entry.object_path);
   EXPECT_EQ(deps_path, entry.deps_path);
   EXPECT_EQ(stderror, entry.stderr);
-  cache.StoreNow(code, cl, version, entry);
+  auto future = cache.StoreNow(code, cl, version, entry);
+  ASSERT_TRUE(!!future);
+  future->Wait();
+  ASSERT_TRUE(future->GetValue());
   ASSERT_TRUE(cache.Find(code, cl, version, &entry));
   ASSERT_TRUE(base::ReadFile(entry.object_path, &object_code));
   EXPECT_TRUE(base::ReadFile(entry.deps_path, &deps));
@@ -315,10 +318,41 @@ TEST(FileCacheTest, ExceedCacheSize_Sync) {
   EXPECT_TRUE(cache.Find(code[2], cl, version, &entry));
 }
 
-TEST(FileCacheTest, DISABLED_DeleteOriginals) {
-  // TODO: implement this test.
-  //  - Check that original object and deps get deleted, if |entry.move_*| is
-  //    true.
+TEST(FileCacheTest, DeleteOriginals) {
+  const base::TemporaryDir tmp_dir;
+  const String path = tmp_dir;
+  const String object_path = path + "/test.o";
+  const String deps_path = path + "/test.d";
+  const String stderror = "some warning";
+  const String expected_object_code = "some object code";
+  const String expected_deps = "some deps";
+  FileCache cache(path);
+  FileCache::Entry entry{object_path, deps_path, stderror, true, true};
+  String object_code, deps;
+
+  const String code = "int main() { return 0; }";
+  const String cl = "-c";
+  const String version = "3.5 (revision 100000)";
+
+  ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
+  ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
+
+  // Store the entry.
+  auto future = cache.Store(code, cl, version, entry);
+  ASSERT_TRUE(!!future);
+  future->Wait();
+  ASSERT_TRUE(future->GetValue());
+
+  EXPECT_FALSE(base::FileExists(object_path));
+  EXPECT_FALSE(base::FileExists(deps_path));
+
+  // Restore the entry.
+  ASSERT_TRUE(cache.Find(code, cl, version, &entry));
+  ASSERT_TRUE(base::ReadFile(entry.object_path, &object_code));
+  EXPECT_TRUE(base::ReadFile(entry.deps_path, &deps));
+  EXPECT_EQ(expected_object_code, object_code);
+  EXPECT_EQ(expected_deps, deps);
+  EXPECT_EQ(stderror, entry.stderr);
 }
 
 TEST(FileCacheTest, RestoreDirectEntry) {

@@ -76,7 +76,8 @@ bool ProcessImpl::RunChild(int (&out_pipe)[2], int (&err_pipe)[2],
 
   if (execve(exec_path_.c_str(), const_cast<char* const*>(argv),
              const_cast<char* const*>(env)) == -1) {
-    std::cerr << "execvpe: " << strerror(errno) << std::endl;
+    std::cerr << "Failed to execute " << exec_path_ << ": " << strerror(errno)
+              << std::endl;
     exit(1);
   }
 
