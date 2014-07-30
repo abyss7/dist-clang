@@ -1897,12 +1897,16 @@ class TestWithParam : public Test, public WithParamInterface<T> {
 
 #define EXPECT_THROW(statement, expected_exception) \
   GTEST_TEST_THROW_(statement, expected_exception, GTEST_NONFATAL_FAILURE_)
+#define EXPECT_THROW_STD(statement, expected_message) \
+  GTEST_TEST_THROW_STD_(statement, expected_message, GTEST_NONFATAL_FAILURE_)
 #define EXPECT_NO_THROW(statement) \
   GTEST_TEST_NO_THROW_(statement, GTEST_NONFATAL_FAILURE_)
 #define EXPECT_ANY_THROW(statement) \
   GTEST_TEST_ANY_THROW_(statement, GTEST_NONFATAL_FAILURE_)
 #define ASSERT_THROW(statement, expected_exception) \
   GTEST_TEST_THROW_(statement, expected_exception, GTEST_FATAL_FAILURE_)
+#define ASSERT_THROW_STD(statement, expected_message) \
+  GTEST_TEST_THROW_STD_(statement, expected_message, GTEST_FATAL_FAILURE_)
 #define ASSERT_NO_THROW(statement) \
   GTEST_TEST_NO_THROW_(statement, GTEST_FATAL_FAILURE_)
 #define ASSERT_ANY_THROW(statement) \

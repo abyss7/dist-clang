@@ -664,8 +664,9 @@ inline bool AlwaysFalse() { return !AlwaysTrue(); }
 // the else branch.
 struct GTEST_API_ ConstCharPtr {
   ConstCharPtr(const char* str) : value(str) {}
+  ConstCharPtr(const ::std::string& str) : value(str) {}
   operator bool() const { return true; }
-  const char* value;
+  ::std::string value;
 };
 
 // A simple Linear Congruential Generator for generating random
@@ -1068,6 +1069,39 @@ class NativeArray {
   } else \
     GTEST_CONCAT_TOKEN_(gtest_label_testthrow_, __LINE__): \
       fail(gtest_msg.value)
+
+#define GTEST_TEST_THROW_STD_(statement, regex, fail) \
+  GTEST_AMBIGUOUS_ELSE_BLOCKER_ \
+  if (::testing::internal::ConstCharPtr gtest_msg = "") { \
+    bool gtest_caught_expected = false; \
+    try { \
+      GTEST_SUPPRESS_UNREACHABLE_CODE_WARNING_BELOW_(statement); \
+    } \
+    catch (::std::exception const& e) { \
+      gtest_caught_expected = true; \
+      const ::testing::internal::RE& gtest_regex = (regex); \
+      if (!::testing::internal::RE::PartialMatch(e.what(), gtest_regex)) { \
+        gtest_msg.value = \
+            ::std::string("Expected what() message: ") + \
+            gtest_regex.pattern() + "\n" + "Actual message: " + e.what(); \
+        goto GTEST_CONCAT_TOKEN_(gtest_label_testthrow_, __LINE__); \
+      } \
+    } \
+    catch (...) { \
+      gtest_msg.value = \
+          "Expected: " #statement " throws an exception derived from " \
+          "std::exception.\n  Actual: it throws a different type."; \
+      goto GTEST_CONCAT_TOKEN_(gtest_label_testthrow_, __LINE__); \
+    } \
+    if (!gtest_caught_expected) { \
+      gtest_msg.value = \
+          "Expected: " #statement " throws an exception derived from " \
+          "std::exception.\n  Actual: it throws nothing."; \
+      goto GTEST_CONCAT_TOKEN_(gtest_label_testthrow_, __LINE__); \
+    } \
+  } else \
+    GTEST_CONCAT_TOKEN_(gtest_label_testthrow_, __LINE__): \
+      fail(gtest_msg.value.c_str())
 
 #define GTEST_TEST_NO_THROW_(statement, fail) \
   GTEST_AMBIGUOUS_ELSE_BLOCKER_ \

@@ -2,7 +2,7 @@
 
 #include <base/testable.h>
 
-#include <third_party/gtest/public/gtest/gtest_prod.h>
+#include <third_party/gtest/exported/include/gtest/gtest_prod.h>
 
 namespace dist_clang {
 
