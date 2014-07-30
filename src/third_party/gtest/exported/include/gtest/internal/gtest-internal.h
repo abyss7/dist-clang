@@ -676,8 +676,6 @@ struct GTEST_API_ ConstCharPtr {
 // but it's good enough for our purposes.
 class GTEST_API_ Random {
  public:
-  static const UInt32 kMaxRange = 1u << 31;
-
   explicit Random(UInt32 seed) : state_(seed) {}
 
   void Reseed(UInt32 seed) { state_ = seed; }
