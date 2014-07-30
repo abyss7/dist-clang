@@ -6,6 +6,8 @@ shared_library("file_cache") {
     "file_cache.h",
   ]
 
+  datadeps = [ ":hook" ]
+
   deps += [
     ":manifest",
     "//src/base:base",
@@ -27,8 +29,6 @@ shared_library("hook") {
   libs = [
     "dl",
   ]
-
-  hard_dep = true
 }
 
 shared_library("manifest") {
