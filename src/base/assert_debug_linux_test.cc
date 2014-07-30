@@ -3,7 +3,7 @@
 
 #include <base/string_utils.h>
 
-#include <third_party/gtest/public/gtest/gtest.h>
+#include <third_party/gtest/exported/include/gtest/gtest.h>
 
 namespace dist_clang {
 namespace base {

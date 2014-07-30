@@ -4,7 +4,7 @@
 #include <base/future.h>
 #include <base/temporary_dir.h>
 
-#include <third_party/gtest/public/gtest/gtest.h>
+#include <third_party/gtest/exported/include/gtest/gtest.h>
 #include <third_party/libcxx/exported/include/regex>
 
 namespace dist_clang {

@@ -22,7 +22,6 @@ shared_library("base") {
     ":base_headers",
     ":logging",
     "//src/histogram:histogram",
-    "//src/third_party/gtest:gtest_headers",
     "//src/third_party/smhasher:murmur_hash3",
   ]
 }

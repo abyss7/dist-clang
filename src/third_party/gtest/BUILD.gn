@@ -1,39 +1,45 @@
 config("includes") {
-  include_dirs = [ "public" ]
-}
-
-source_set("gtest_headers") {
-  sources = [
-    "exported/gtest-death-test.h",
-    "exported/gtest-message.h",
-    "exported/gtest-param-test.h",
-    "exported/gtest-printers.h",
-    "exported/gtest-spi.h",
-    "exported/gtest-test-part.h",
-    "exported/gtest-typed-test.h",
-    "exported/gtest.h",
-    "exported/gtest_pred_impl.h",
-    "exported/gtest_prod.h",
-  ]
-
-  all_dependent_configs = [ ":includes" ]
+  include_dirs = [ "exported/include" ]
 }
 
 static_library("gtest") {
-  sources = [
-    "exported/gtest-all.cc",
-    "exported/gtest-internal-inl.h",
-    "exported/internal/gtest-death-test-internal.h",
-    "exported/internal/gtest-filepath.h",
-    "exported/internal/gtest-internal.h",
-    "exported/internal/gtest-linked_ptr.h",
-    "exported/internal/gtest-param-util-generated.h",
-    "exported/internal/gtest-param-util.h",
-    "exported/internal/gtest-port.h",
-    "exported/internal/gtest-string.h",
-    "exported/internal/gtest-tuple.h",
-    "exported/internal/gtest-type-util.h",
+  public = [
+    "exported/include/gtest/gtest-death-test.h",
+    "exported/include/gtest/gtest-message.h",
+    "exported/include/gtest/gtest-param-test.h",
+    "exported/include/gtest/gtest-printers.h",
+    "exported/include/gtest/gtest-spi.h",
+    "exported/include/gtest/gtest-test-part.h",
+    "exported/include/gtest/gtest-typed-test.h",
+    "exported/include/gtest/gtest.h",
+    "exported/include/gtest/gtest_pred_impl.h",
+    "exported/include/gtest/gtest_prod.h",
   ]
+
+  sources = [
+    "exported/src/gtest.cc"
+    "exported/src/gtest-death-test.cc"
+    "exported/src/gtest-filepath.cc"
+    "exported/src/gtest-internal-inl.h",
+    "exported/src/gtest-port.cc"
+    "exported/src/gtest-printers.cc"
+    "exported/src/gtest-test-part.cc"
+    "exported/src/gtest-typed-test.cc"
+    "exported/src/internal/gtest-death-test-internal.h",
+    "exported/src/internal/gtest-filepath.h",
+    "exported/src/internal/gtest-internal.h",
+    "exported/src/internal/gtest-linked_ptr.h",
+    "exported/src/internal/gtest-param-util-generated.h",
+    "exported/src/internal/gtest-param-util.h",
+    "exported/src/internal/gtest-port.h",
+    "exported/src/internal/gtest-string.h",
+    "exported/src/internal/gtest-tuple.h",
+    "exported/src/internal/gtest-type-util.h",
+  ]
+
+  cflags_cc = [ "-Wno-unused-const-variable" ]
+
+  include_dirs = [ "exported" ]
 
   configs += [
     ":includes",
@@ -43,4 +49,6 @@ static_library("gtest") {
   deps += [
     "//src/base:logging",
   ]
+
+  all_dependent_configs = [ ":includes" ]
 }

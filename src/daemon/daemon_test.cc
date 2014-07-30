@@ -8,7 +8,7 @@
 #include <net/network_service_impl.h>
 #include <net/test_network_service.h>
 
-#include <third_party/gtest/public/gtest/gtest.h>
+#include <third_party/gtest/exported/include/gtest/gtest.h>
 
 namespace dist_clang {
 namespace daemon {

@@ -1,6 +1,6 @@
 #include <base/future.h>
 
-#include <third_party/gtest/public/gtest/gtest.h>
+#include <third_party/gtest/exported/include/gtest/gtest.h>
 #include <third_party/libcxx/exported/include/thread>
 
 namespace dist_clang {

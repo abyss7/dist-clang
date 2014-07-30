@@ -6,7 +6,7 @@
 #include <net/connection.h>
 #include <net/event_loop.h>
 
-#include <third_party/gtest/public/gtest/gtest.h>
+#include <third_party/gtest/exported/include/gtest/gtest.h>
 
 #include <sys/epoll.h>
 #include <sys/socket.h>

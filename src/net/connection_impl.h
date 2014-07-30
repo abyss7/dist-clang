@@ -4,7 +4,7 @@
 #include <net/base/types.h>
 #include <net/connection.h>
 
-#include <third_party/gtest/public/gtest/gtest_prod.h>
+#include <third_party/gtest/exported/include/gtest/gtest_prod.h>
 #include <third_party/libcxx/exported/include/atomic>
 #include <third_party/protobuf/exported/google/protobuf/io/coded_stream.h>
 #include <third_party/protobuf/exported/google/protobuf/io/gzip_stream.h>

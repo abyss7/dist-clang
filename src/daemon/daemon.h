@@ -9,7 +9,7 @@
 #include <net/network_service.h>
 #include <proto/remote.pb.h>
 
-#include <third_party/gtest/public/gtest/gtest_prod.h>
+#include <third_party/gtest/exported/include/gtest/gtest_prod.h>
 
 namespace dist_clang {
 

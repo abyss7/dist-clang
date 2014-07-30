@@ -1,6 +1,6 @@
 #include <net/event_loop_mac.h>
 
-#include <third_party/gtest/public/gtest/gtest.h>
+#include <third_party/gtest/exported/include/gtest/gtest.h>
 
 #include <sys/event.h>
 #include <unistd.h>

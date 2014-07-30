@@ -1,4 +1,4 @@
-#include <third_party/gtest/public/gtest/gtest.h>
+#include <third_party/gtest/exported/include/gtest/gtest.h>
 
 int main(int argc, char* argv[]) {
   // Ignore SIGPIPE to prevent application crashes.

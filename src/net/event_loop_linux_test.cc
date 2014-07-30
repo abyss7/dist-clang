@@ -1,6 +1,6 @@
 #include <net/event_loop_linux.h>
 
-#include <third_party/gtest/public/gtest/gtest.h>
+#include <third_party/gtest/exported/include/gtest/gtest.h>
 
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
