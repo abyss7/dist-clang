@@ -28,9 +28,9 @@ bool DoMain(int argc, const char* const argv[], const String& socket_path,
   }
 
   String version = base::GetEnv(base::kEnvClangVersion);
-  List<Command> commands;
+  Command::List commands;
 
-  if (!Command::GenerateFromArgs(argc, argv, commands)) {
+  if (!DriverCommand::GenerateFromArgs(argc, argv, commands)) {
     LOG(WARNING) << "Failed to parse driver arguments - see errors above";
     return true;
   }
@@ -43,12 +43,12 @@ bool DoMain(int argc, const char* const argv[], const String& socket_path,
   }
 
   for (const auto& command : commands) {
-    if (!command.IsClang()) {
-      auto process = command.CreateProcess(current_dir, getuid());
+    if (!command->IsClang()) {
+      auto process = command->CreateProcess(current_dir, getuid());
       if (!process->Run(base::Process::UNLIMITED)) {
-        LOG(WARNING) << "Subcommand failed: " << command.GetExecutable()
+        LOG(WARNING) << "Subcommand failed: " << command->GetExecutable()
                      << std::endl << process->stderr();
-        LOG(VERBOSE) << "Arguments: " << command.RenderAllArgs();
+        LOG(VERBOSE) << "Arguments: " << command->RenderAllArgs();
         return true;
       }
       continue;
@@ -60,7 +60,7 @@ bool DoMain(int argc, const char* const argv[], const String& socket_path,
     message->set_current_dir(current_dir);
 
     auto* flags = message->mutable_flags();
-    command.FillFlags(flags, clang_path);
+    command->AsDriverCommand()->FillFlags(flags, clang_path);
 
     if (!flags->has_action() || flags->input() == "-") {
       return true;

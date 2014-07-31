@@ -14,8 +14,8 @@ TEST(CommandTest, NonExistentInput) {
   const int argc = 3;
   const char* argv[] = {"clang++", "-c", "/tmp/some_random.cc", nullptr};
 
-  List<Command> commands;
-  ASSERT_FALSE(Command::GenerateFromArgs(argc, argv, commands));
+  Command::List commands;
+  ASSERT_FALSE(DriverCommand::GenerateFromArgs(argc, argv, commands));
   ASSERT_TRUE(commands.empty());
 }
 
@@ -23,8 +23,8 @@ TEST(CommandTest, MissingArgument) {
   const int argc = 4;
   const char* argv[] = {"clang++", "-I", "-c", "/tmp/some_random.cc", nullptr};
 
-  List<Command> commands;
-  ASSERT_FALSE(Command::GenerateFromArgs(argc, argv, commands));
+  Command::List commands;
+  ASSERT_FALSE(DriverCommand::GenerateFromArgs(argc, argv, commands));
   ASSERT_TRUE(commands.empty());
 }
 
@@ -32,8 +32,8 @@ TEST(CommandTest, UnknownArgument) {
   const int argc = 4;
   const char* argv[] = {"clang++", "-12", "-c", "/tmp/some_random.cc", nullptr};
 
-  List<Command> commands;
-  ASSERT_FALSE(Command::GenerateFromArgs(argc, argv, commands));
+  Command::List commands;
+  ASSERT_FALSE(DriverCommand::GenerateFromArgs(argc, argv, commands));
   ASSERT_TRUE(commands.empty());
 }
 
@@ -42,9 +42,8 @@ TEST(CommandTest, ParseSimpleArgs) {
     return std::make_pair(std::regex(str), String(str));
   };
 
-  auto rep2 = [](const String& str) {
-    return std::make_pair(std::regex(str), str);
-  };
+  auto rep2 =
+      [](const String& str) { return std::make_pair(std::regex(str), str); };
 
   const String temp_input = base::CreateTempFile(".cc");
   const String expected_output = "/tmp/output.o";
@@ -92,18 +91,18 @@ TEST(CommandTest, ParseSimpleArgs) {
                         "-o",      expected_output.c_str(), nullptr};
   const int argc = 5;
 
-  List<Command> commands;
-  ASSERT_TRUE(Command::GenerateFromArgs(argc, argv, commands));
+  Command::List commands;
+  ASSERT_TRUE(DriverCommand::GenerateFromArgs(argc, argv, commands));
   ASSERT_EQ(1u, commands.size());
 
   const auto& command = commands.front();
   for (const auto& regex : expected_regex) {
-    EXPECT_TRUE(std::regex_search(command.RenderAllArgs(), regex.first))
+    EXPECT_TRUE(std::regex_search(command->RenderAllArgs(), regex.first))
         << "Regex \"" << regex.second << "\" failed";
   }
 
   if (HasNonfatalFailure()) {
-    FAIL() << command.RenderAllArgs();
+    FAIL() << command->RenderAllArgs();
   }
 }
 
@@ -113,13 +112,13 @@ TEST(CommandTest, FillFlags) {
                         "-o",      "/tmp/output.o", nullptr};
   const int argc = 5;
 
-  List<Command> commands;
-  ASSERT_TRUE(Command::GenerateFromArgs(argc, argv, commands));
+  Command::List commands;
+  ASSERT_TRUE(DriverCommand::GenerateFromArgs(argc, argv, commands));
   ASSERT_EQ(1u, commands.size());
 
   auto& command = commands.front();
   proto::Flags flags;
-  command.FillFlags(&flags, "/some/clang/path");
+  command->AsDriverCommand()->FillFlags(&flags, "/some/clang/path");
 
   EXPECT_EQ(temp_input, flags.input());
   EXPECT_EQ("/tmp/output.o", flags.output());
@@ -129,7 +128,25 @@ TEST(CommandTest, FillFlags) {
   // TODO: add more expectations on flags.
 
   if (HasNonfatalFailure()) {
-    FAIL() << command.RenderAllArgs();
+    FAIL() << command->RenderAllArgs();
+  }
+}
+
+TEST(CommandTest, AppendCleanTempFilesCommand) {
+  const String temp_input = base::CreateTempFile(".cc");
+  const char* argv[] = {"clang++", temp_input.c_str(), nullptr};
+  const int argc = 2;
+
+  Command::List commands;
+  ASSERT_TRUE(DriverCommand::GenerateFromArgs(argc, argv, commands));
+  ASSERT_EQ(3u, commands.size());
+  auto& command = commands.back();
+
+  // Can't use |CleanCommand::rm_path| since it's not a global symbol.
+  EXPECT_EQ("/bin/rm", command->GetExecutable());
+
+  if (HasNonfatalFailure()) {
+    FAIL() << command->RenderAllArgs();
   }
 }
 
@@ -215,9 +232,8 @@ TEST_F(ClientTest, CannotSendMessage) {
   const char* argv[] = {"clang++", "-c", temp_input.c_str(), nullptr};
   const int argc = 3;
 
-  connect_callback = [](net::TestConnection* connection) {
-    connection->AbortOnSend();
-  };
+  connect_callback =
+      [](net::TestConnection* connection) { connection->AbortOnSend(); };
 
   EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++"));
   EXPECT_TRUE(weak_ptr.expired());

@@ -15,34 +15,58 @@ class Flags;
 
 namespace client {
 
+class DriverCommand;
+
 class Command {
  public:
-  static bool GenerateFromArgs(int argc, const char* const raw_argv[],
-                               List<Command>& commands);
+  using List = List<UniquePtr<Command>>;
 
-  inline bool IsClang() const { return !command_; }
+  Command(bool is_clang) : is_clang_(is_clang) {}
+  virtual ~Command() {}
+
+  virtual base::ProcessPtr CreateProcess(const String& current_dir,
+                                         ui32 user_id) const = 0;
+  virtual String GetExecutable() const = 0;
+  virtual String RenderAllArgs() const = 0;  // For testing.
+
+  inline bool IsClang() const { return is_clang_; }
+  DriverCommand* WEAK_PTR AsDriverCommand();
+
+ private:
+  const bool is_clang_;
+};
+
+class DriverCommand : public Command {
+ public:
+  static bool GenerateFromArgs(int argc, const char* const raw_argv[],
+                               List& commands);
 
   // Check |IsClang()| before calling this methods.
   void FillFlags(proto::Flags* flags, const String& clang_path) const;
-  base::ProcessPtr CreateProcess(const String& current_dir, ui32 user_id) const;
+  virtual base::ProcessPtr CreateProcess(const String& current_dir,
+                                         ui32 user_id) const override;
 
-  String GetExecutable() const;
-  String RenderAllArgs() const;  // For testing.
+  virtual String GetExecutable() const override;
+  virtual String RenderAllArgs() const override;
 
  private:
-  Command(llvm::opt::InputArgList* arg_list,
-          SharedPtr<clang::driver::Compilation> compilation,
-          SharedPtr<llvm::opt::OptTable> opt_table,
-          SharedPtr<clang::driver::Driver> driver)
-      : arg_list_(arg_list),
+  DriverCommand(llvm::opt::InputArgList* arg_list,
+                SharedPtr<clang::driver::Compilation> compilation,
+                SharedPtr<llvm::opt::OptTable> opt_table,
+                SharedPtr<clang::driver::Driver> driver)
+      : Command(true),
+        arg_list_(arg_list),
         compilation_(compilation),
         opt_table_(opt_table),
         driver_(driver) {}
 
-  Command(const clang::driver::Command* WEAK_PTR driver_command,
-          SharedPtr<clang::driver::Compilation> compilation,
-          SharedPtr<clang::driver::Driver> driver)
-      : command_(driver_command), compilation_(compilation), driver_(driver) {}
+  DriverCommand(const clang::driver::Command* WEAK_PTR driver_command,
+                SharedPtr<clang::driver::Compilation> compilation,
+                SharedPtr<clang::driver::Driver> driver)
+      : Command(false),
+        command_(driver_command),
+        compilation_(compilation),
+        driver_(driver) {}
 
   const clang::driver::Command* WEAK_PTR command_ = nullptr;
   UniquePtr<llvm::opt::InputArgList> arg_list_;
@@ -51,6 +75,22 @@ class Command {
 
   // For "--resource-dir" and |clang::driver::Command::getExecutable()|.
   SharedPtr<clang::driver::Driver> driver_;
+};
+
+class CleanCommand : public Command {
+ public:
+  CleanCommand(const llvm::opt::ArgStringList& temp_files)
+      : Command(false), temp_files_(temp_files) {}
+
+  virtual base::ProcessPtr CreateProcess(const String& current_dir,
+                                         ui32 user_id) const override;
+
+  virtual String GetExecutable() const override { return rm_path; }
+  virtual String RenderAllArgs() const override;
+
+ private:
+  static constexpr const char* rm_path = "/bin/rm";
+  const llvm::opt::ArgStringList& temp_files_;
 };
 
 }  // namespace client

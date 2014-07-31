@@ -11,6 +11,7 @@
 #include <clang/Driver/Driver.h>
 #include <clang/Driver/DriverDiagnostic.h>
 #include <clang/Driver/Options.h>
+#include <clang/Driver/ToolChain.h>
 #include <clang/Frontend/TextDiagnosticBuffer.h>
 #include <llvm/Option/Arg.h>
 #include <llvm/Support/Host.h>
@@ -43,9 +44,14 @@ void DumpDiagnosticBuffer(const clang::TextDiagnosticBuffer* buffer) {
 namespace dist_clang {
 namespace client {
 
+DriverCommand* WEAK_PTR Command::AsDriverCommand() {
+  DCHECK(IsClang());
+  return static_cast<DriverCommand*>(this);
+}
+
 // static
-bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
-                               List<Command>& commands) {
+bool DriverCommand::GenerateFromArgs(int argc, const char* const raw_argv[],
+                                     List& commands) {
   using namespace clang;
   using namespace clang::driver;
   using namespace llvm;
@@ -61,7 +67,7 @@ bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
   TextDiagnosticBuffer* diag_client = new TextDiagnosticBuffer;
   IntrusiveRefCntPtr<DiagnosticIDs> diag_id(new DiagnosticIDs());
   IntrusiveRefCntPtr<clang::DiagnosticsEngine> diags;
-  SharedPtr<clang::driver::Compilation> compilation;
+  SharedPtr<Compilation> compilation;
   SharedPtr<Driver> driver;
 
   diags = new DiagnosticsEngine(diag_id, &*diag_opts, diag_client);
@@ -89,7 +95,7 @@ bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
            command->getSource().getKind() != Action::PreprocessJobClass) ||
           !std::regex_match(command->getExecutable(),
                             std::regex(".*/?clang(\\+\\+)?"))) {
-        commands.emplace_back(std::move(Command(command, compilation, driver)));
+        commands.emplace_back(new DriverCommand(command, compilation, driver));
         continue;
       }
 
@@ -104,11 +110,12 @@ bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
 
       const unsigned included_flags_bitmask = options::CC1Option;
       unsigned missing_arg_index, missing_arg_count;
-      commands.emplace_back(std::move(
-          Command(opts->ParseArgs(arg_begin, arg_end, missing_arg_index,
-                                  missing_arg_count, included_flags_bitmask),
-                  compilation, opts, driver)));
-      const auto& arg_list = commands.back().arg_list_;
+      auto* driver_command = new DriverCommand(
+          opts->ParseArgs(arg_begin, arg_end, missing_arg_index,
+                          missing_arg_count, included_flags_bitmask),
+          compilation, opts, driver);
+      commands.emplace_back(driver_command);
+      const auto& arg_list = driver_command->arg_list_;
 
       // Check for missing argument error.
       if (missing_arg_count) {
@@ -130,6 +137,13 @@ bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
     }
   }
 
+  // This fake command won't be necessary, if someone solves the bug:
+  // http://llvm.org/bugs/show_bug.cgi?id=20491
+  const auto& temp_files = compilation->getTempFiles();
+  if (!temp_files.empty()) {
+    commands.emplace_back(new CleanCommand(temp_files));
+  }
+
   DumpDiagnosticBuffer(diag_client);
   if (!result) {
     LOG(WARNING) << "No Clang commands found";
@@ -137,7 +151,9 @@ bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
   return result;
 }
 
-void Command::FillFlags(proto::Flags* flags, const String& clang_path) const {
+void DriverCommand::FillFlags(proto::Flags* flags,
+                              const String& clang_path) const {
+  DCHECK(IsClang());
   CHECK(arg_list_);
 
   if (!flags) {
@@ -225,8 +241,8 @@ void Command::FillFlags(proto::Flags* flags, const String& clang_path) const {
   }
 }
 
-base::ProcessPtr Command::CreateProcess(const String& current_dir,
-                                        ui32 user_id) const {
+base::ProcessPtr DriverCommand::CreateProcess(const String& current_dir,
+                                              ui32 user_id) const {
   CHECK(command_);
   auto process =
       base::Process::Create(command_->getExecutable(), current_dir, user_id);
@@ -235,7 +251,7 @@ base::ProcessPtr Command::CreateProcess(const String& current_dir,
   return process;
 }
 
-String Command::GetExecutable() const {
+String DriverCommand::GetExecutable() const {
   if (command_) {
     return command_->getExecutable();
   } else if (arg_list_) {
@@ -246,7 +262,7 @@ String Command::GetExecutable() const {
   }
 }
 
-String Command::RenderAllArgs() const {
+String DriverCommand::RenderAllArgs() const {
   String result;
 
   if (arg_list_) {
@@ -259,6 +275,23 @@ String Command::RenderAllArgs() const {
     }
   } else {
     NOTREACHED();
+  }
+
+  return result.substr(1);
+}
+
+base::ProcessPtr CleanCommand::CreateProcess(const String& current_dir,
+                                             ui32 user_id) const {
+  auto process = base::Process::Create(rm_path, current_dir, user_id);
+  process->AppendArg(temp_files_.begin(), temp_files_.end());
+  return process;
+}
+
+String CleanCommand::RenderAllArgs() const {
+  String result;
+
+  for (const auto& arg : temp_files_) {
+    result += String(" ") + arg;
   }
 
   return result.substr(1);
