@@ -114,12 +114,22 @@ inline bool SetPermissions(const String& path, int mask,
 
 inline String GetSelfPath(String* error = nullptr) {
   char path[PATH_MAX];
+#if defined(OS_LINUX)
   ssize_t read = readlink("/proc/self/exe", path, PATH_MAX);
   if (read == -1) {
     GetLastError(error);
     return String();
   }
   path[read] = '\0';
+#elif defined(OS_MACOSX)
+  ui32 size = sizeof(path);
+  if (_NSGetExecutablePath(path, &size) == -1)  {
+    // TODO: handle not-enough-sized buffer issue.
+  }
+  // FIXME: convert path to absolute with |realpath()|.
+#else
+#pragma message "Don't know how to get self-path on this platform!"
+#endif
 
   String&& result = String(path);
   return result.substr(0, result.find_last_of('/'));
