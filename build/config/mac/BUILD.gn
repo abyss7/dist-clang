@@ -3,9 +3,9 @@ config("base") {
     "OS_MACOSX",
   ]
 
-  cflags = [ "-arch x86_64" ]
+  cflags = [ "-arch", "x86_64", ]
   ldflags = [
-    "-arch x86_64",
-    "-undefined error",
+    "-arch", "x86_64",
+    "-undefined", "error",
   ]
 }

@@ -111,7 +111,7 @@ config("libclang") {
     "clangAnalysis",
     "clangARCMigrate",
     "clangRewriteFrontend",
-    "clangRewriteCore",
+    "clangRewrite",
     "clangEdit",
     "clangAST",
     "clangLex",

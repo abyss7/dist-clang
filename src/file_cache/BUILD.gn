@@ -6,7 +6,9 @@ shared_library("file_cache") {
     "file_cache.h",
   ]
 
-  datadeps = [ ":hook" ]
+  if (os == "linux") {
+    datadeps = [ ":hook" ]
+  }
 
   deps += [
     ":manifest",

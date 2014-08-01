@@ -57,7 +57,7 @@ source_set("c++abi") {
   ]
 
   deps = []
-  deps += [ "//src/third_party/libunwind:unwind" ]
+  if (os == "linux") { deps += [ "//src/third_party/libunwind:unwind" ] }
 
   direct_dependent_configs = [ ":includes" ]
 }

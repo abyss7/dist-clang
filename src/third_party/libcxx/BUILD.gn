@@ -123,12 +123,17 @@ shared_library("c++") {
   ]
   libs = [ "m" ]
   if (os == "linux") { libs += [ "rt" ] }
-  if (os == "mac") { libs += [ "c++abi" ] }
+  if (os == "mac") {
+    ldflags = [
+      "-compatibility_version", "1.0.0",
+      "-current_version", "1.0.0",
+    ]
+  }
 
   configs = []
   configs += [ "//build/config:default_library" ]
   all_dependent_configs = [ ":includes" ]
 
   deps = []
-  if (os == "linux") { deps += [ "//src/third_party/libcxxabi:c++abi" ] }
+  deps += [ "//src/third_party/libcxxabi:c++abi" ]
 }
