@@ -10,9 +10,9 @@
 
 #include <execinfo.h>
 
-namespace {
+namespace dist_clang {
 
-using dist_clang::String;
+namespace {
 
 String Demangle(const char* backtrace_symbol) {
   const String string = backtrace_symbol;
@@ -47,7 +47,6 @@ String Demangle(const char* backtrace_symbol) {
 
 }  // namespace
 
-namespace dist_clang {
 namespace base {
 
 inline void GetStackTrace(ui8 depth, std::vector<String>& strings) {

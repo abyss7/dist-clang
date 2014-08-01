@@ -23,6 +23,8 @@
 
 #include <iostream>
 
+namespace dist_clang {
+
 namespace {
 
 void DumpDiagnosticBuffer(const clang::TextDiagnosticBuffer* buffer) {
@@ -41,7 +43,6 @@ void DumpDiagnosticBuffer(const clang::TextDiagnosticBuffer* buffer) {
 
 }  // namespace
 
-namespace dist_clang {
 namespace client {
 
 DriverCommand* WEAK_PTR Command::AsDriverCommand() {

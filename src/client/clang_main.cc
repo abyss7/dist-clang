@@ -9,8 +9,7 @@
 
 #include <base/using_log.h>
 
-using namespace dist_clang;
-
+namespace dist_clang {
 namespace {
 
 int ExecuteLocally(char* argv[], const String& clangd_cxx_path) {
@@ -29,8 +28,11 @@ int ExecuteLocally(char* argv[], const String& clangd_cxx_path) {
 }
 
 }  // namespace
+}  // namespace dist_clang
 
 int main(int argc, char* argv[]) {
+  using namespace dist_clang;
+
   signal(SIGPIPE, SIG_IGN);
 
   // It's safe to use |base::Log|, since its internal static objects don't need

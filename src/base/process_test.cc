@@ -5,6 +5,8 @@
 
 #include <third_party/gtest/exported/include/gtest/gtest.h>
 
+namespace dist_clang {
+
 namespace {
 
 #if defined(OS_MACOSX)
@@ -17,7 +19,6 @@ const char* sh = "/bin/sh";
 
 }  // namespace
 
-namespace dist_clang {
 namespace base {
 
 TEST(ProcessTest, CheckExitCode) {

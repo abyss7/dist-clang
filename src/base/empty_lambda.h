@@ -1,5 +1,6 @@
 #pragma once
 
+namespace dist_clang {
 namespace {
 
 template <class ReturnType = void>
@@ -25,3 +26,4 @@ class EmptyLambda<void> {
 };
 
 }  // namespace
+}  // namespace dist_clang

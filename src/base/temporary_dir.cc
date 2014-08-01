@@ -5,6 +5,8 @@
 
 #include <ftw.h>
 
+namespace dist_clang {
+
 namespace {
 
 int Remove(const char* path, const struct stat* sb, int type, struct FTW*) {
@@ -27,7 +29,6 @@ int Remove(const char* path, const struct stat* sb, int type, struct FTW*) {
 
 }  // namespace
 
-namespace dist_clang {
 namespace base {
 
 TemporaryDir::TemporaryDir() {
