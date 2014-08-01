@@ -3,7 +3,6 @@
 #include <base/attributes.h>
 #include <base/queue_aggregator.h>
 #include <daemon/configuration.h>
-#include <daemon/statistic.h>
 #include <file_cache/file_cache.h>
 #include <net/connection_forward.h>
 #include <net/network_service.h>
@@ -82,7 +81,6 @@ class Daemon {
   PluginMap plugins_;
   UniquePtr<FileCache> cache_;
   UniquePtr<net::NetworkService> network_service_;
-  UniquePtr<daemon::Statistic> stat_service_;
   UniquePtr<Queue> local_tasks_;
   UniquePtr<Queue> failed_tasks_;
   UniquePtr<Queue> remote_tasks_;

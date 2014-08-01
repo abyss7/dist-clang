@@ -7,8 +7,6 @@ source_set("daemon") {
   sources = [
     "daemon.cc",
     "daemon.h",
-    "statistic.cc",
-    "statistic.h",
   ]
   deps += [
     ":configuration",

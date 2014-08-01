@@ -39,7 +39,6 @@ message Configuration {
   repeated Host remotes         = 4;
   optional Host local           = 5;
   repeated Compiler versions    = 6;
-  optional Host statistic       = 7;  // TODO: not implemented yet.
   optional Verbosity verbosity  = 8;
   optional uint32 user_id       = 10;
   optional string config_path   = 13;  // allows reloading of config changes.

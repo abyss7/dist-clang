@@ -294,39 +294,6 @@ TEST_F(DaemonTest, ConfigWithDisabledLocal) {
   EXPECT_EQ(0u, connect_count);
 }
 
-TEST_F(DaemonTest, ConfigWithStatistic) {
-  const String expected_host = "localhost";
-  const ui16 expected_port = 7777;
-
-  config.mutable_statistic()->set_host(expected_host);
-  config.mutable_statistic()->set_port(expected_port);
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(expected_host, host);
-    EXPECT_EQ(expected_port, port);
-    return true;
-  };
-
-  daemon::Configuration configuration(config);
-
-  EXPECT_FALSE(daemon->Initialize(configuration));
-  ASSERT_NE(nullptr, test_service);
-  EXPECT_EQ(1u, listen_count);
-  EXPECT_EQ(0u, connect_count);
-}
-
-TEST_F(DaemonTest, ConfigWithDisabledStatistic) {
-  config.mutable_statistic()->set_host("localhost");
-  config.mutable_statistic()->set_port(7777);
-  config.mutable_statistic()->set_disabled(true);
-
-  daemon::Configuration configuration(config);
-
-  EXPECT_FALSE(daemon->Initialize(configuration));
-  ASSERT_NE(nullptr, test_service);
-  EXPECT_EQ(0u, listen_count);
-  EXPECT_EQ(0u, connect_count);
-}
-
 TEST_F(DaemonTest, LocalConnection) {
   const String socket_path = "/tmp/clangd.socket";
 

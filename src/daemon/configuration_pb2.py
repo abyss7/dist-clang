@@ -14,7 +14,7 @@ import proto.base_pb2
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='daemon/configuration.proto',
   package='dist_clang.proto',
-  serialized_pb='\n\x1a\x64\x61\x65mon/configuration.proto\x12\x10\x64ist_clang.proto\x1a\x10proto/base.proto\"q\n\x04Host\x12\x0c\n\x04host\x18\x01 \x02(\t\x12\x12\n\x04port\x18\x02 \x01(\r:\x04\x36\x30\x30\x30\x12\x12\n\x07threads\x18\x03 \x01(\r:\x01\x32\x12\x17\n\x08\x64isabled\x18\x04 \x01(\x08:\x05\x66\x61lse\x12\x1a\n\x0bonly_failed\x18\x05 \x01(\x08:\x05\x66\x61lse\"|\n\tVerbosity\x12\x16\n\nerror_mark\x18\x01 \x01(\r:\x02\x32\x30\x12\x31\n\x06levels\x18\x02 \x03(\x0b\x32!.dist_clang.proto.Verbosity.Range\x1a$\n\x05Range\x12\r\n\x05right\x18\x01 \x02(\r\x12\x0c\n\x04left\x18\x02 \x01(\r\"\xf4\x03\n\rConfiguration\x12\x13\n\x0bsocket_path\x18\x01 \x01(\t\x12\x19\n\rpool_capacity\x18\x02 \x01(\r:\x02\x31\x36\x12\'\n\x07remotes\x18\x04 \x03(\x0b\x32\x16.dist_clang.proto.Host\x12%\n\x05local\x18\x05 \x01(\x0b\x32\x16.dist_clang.proto.Host\x12,\n\x08versions\x18\x06 \x03(\x0b\x32\x1a.dist_clang.proto.Compiler\x12)\n\tstatistic\x18\x07 \x01(\x0b\x32\x16.dist_clang.proto.Host\x12.\n\tverbosity\x18\x08 \x01(\x0b\x32\x1b.dist_clang.proto.Verbosity\x12\x0f\n\x07user_id\x18\n \x01(\r\x12\x13\n\x0b\x63onfig_path\x18\r \x01(\t\x12\x34\n\x05\x63\x61\x63he\x18\x0e \x01(\x0b\x32%.dist_clang.proto.Configuration.Cache\x1a~\n\x05\x43\x61\x63he\x12\x0c\n\x04path\x18\x01 \x02(\t\x12\x0f\n\x04size\x18\x02 \x01(\x04:\x01\x30\x12\x14\n\x06remote\x18\x03 \x01(\x08:\x04true\x12\x13\n\x04sync\x18\x04 \x01(\x08:\x05\x66\x61lse\x12\x15\n\x06\x64irect\x18\x05 \x01(\x08:\x05\x66\x61lse\x12\x14\n\x05mtime\x18\x06 \x01(\x08:\x05\x66\x61lse')
+  serialized_pb='\n\x1a\x64\x61\x65mon/configuration.proto\x12\x10\x64ist_clang.proto\x1a\x10proto/base.proto\"q\n\x04Host\x12\x0c\n\x04host\x18\x01 \x02(\t\x12\x12\n\x04port\x18\x02 \x01(\r:\x04\x36\x30\x30\x30\x12\x12\n\x07threads\x18\x03 \x01(\r:\x01\x32\x12\x17\n\x08\x64isabled\x18\x04 \x01(\x08:\x05\x66\x61lse\x12\x1a\n\x0bonly_failed\x18\x05 \x01(\x08:\x05\x66\x61lse\"|\n\tVerbosity\x12\x16\n\nerror_mark\x18\x01 \x01(\r:\x02\x32\x30\x12\x31\n\x06levels\x18\x02 \x03(\x0b\x32!.dist_clang.proto.Verbosity.Range\x1a$\n\x05Range\x12\r\n\x05right\x18\x01 \x02(\r\x12\x0c\n\x04left\x18\x02 \x01(\r\"\xe3\x03\n\rConfiguration\x12\x13\n\x0bsocket_path\x18\x01 \x01(\t\x12\x19\n\rpool_capacity\x18\x02 \x01(\r:\x02\x31\x36\x12\'\n\x07remotes\x18\x04 \x03(\x0b\x32\x16.dist_clang.proto.Host\x12%\n\x05local\x18\x05 \x01(\x0b\x32\x16.dist_clang.proto.Host\x12,\n\x08versions\x18\x06 \x03(\x0b\x32\x1a.dist_clang.proto.Compiler\x12.\n\tverbosity\x18\x08 \x01(\x0b\x32\x1b.dist_clang.proto.Verbosity\x12\x0f\n\x07user_id\x18\n \x01(\r\x12\x13\n\x0b\x63onfig_path\x18\r \x01(\t\x12\x34\n\x05\x63\x61\x63he\x18\x0e \x01(\x0b\x32%.dist_clang.proto.Configuration.Cache\x1a\x97\x01\n\x05\x43\x61\x63he\x12\x0c\n\x04path\x18\x01 \x02(\t\x12\x0f\n\x04size\x18\x02 \x01(\x04:\x01\x30\x12\x14\n\x06remote\x18\x03 \x01(\x08:\x04true\x12\x13\n\x04sync\x18\x04 \x01(\x08:\x05\x66\x61lse\x12\x15\n\x06\x64irect\x18\x05 \x01(\x08:\x05\x66\x61lse\x12\x14\n\x05mtime\x18\x06 \x01(\x08:\x05\x66\x61lse\x12\x17\n\x08\x64isabled\x18\x07 \x01(\x08:\x05\x66\x61lse')
 
 
 
@@ -193,6 +193,13 @@ _CONFIGURATION_CACHE = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
+    _descriptor.FieldDescriptor(
+      name='disabled', full_name='dist_clang.proto.Configuration.Cache.disabled', index=6,
+      number=7, type=8, cpp_type=7, label=1,
+      has_default_value=True, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
   ],
   extensions=[
   ],
@@ -202,8 +209,8 @@ _CONFIGURATION_CACHE = _descriptor.Descriptor(
   options=None,
   is_extendable=False,
   extension_ranges=[],
-  serialized_start=682,
-  serialized_end=808,
+  serialized_start=640,
+  serialized_end=791,
 )
 
 _CONFIGURATION = _descriptor.Descriptor(
@@ -249,35 +256,28 @@ _CONFIGURATION = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='statistic', full_name='dist_clang.proto.Configuration.statistic', index=5,
-      number=7, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
-    _descriptor.FieldDescriptor(
-      name='verbosity', full_name='dist_clang.proto.Configuration.verbosity', index=6,
+      name='verbosity', full_name='dist_clang.proto.Configuration.verbosity', index=5,
       number=8, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='user_id', full_name='dist_clang.proto.Configuration.user_id', index=7,
+      name='user_id', full_name='dist_clang.proto.Configuration.user_id', index=6,
       number=10, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='config_path', full_name='dist_clang.proto.Configuration.config_path', index=8,
+      name='config_path', full_name='dist_clang.proto.Configuration.config_path', index=7,
       number=13, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=unicode("", "utf-8"),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='cache', full_name='dist_clang.proto.Configuration.cache', index=9,
+      name='cache', full_name='dist_clang.proto.Configuration.cache', index=8,
       number=14, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
@@ -293,7 +293,7 @@ _CONFIGURATION = _descriptor.Descriptor(
   is_extendable=False,
   extension_ranges=[],
   serialized_start=308,
-  serialized_end=808,
+  serialized_end=791,
 )
 
 _VERBOSITY_RANGE.containing_type = _VERBOSITY;
@@ -302,7 +302,6 @@ _CONFIGURATION_CACHE.containing_type = _CONFIGURATION;
 _CONFIGURATION.fields_by_name['remotes'].message_type = _HOST
 _CONFIGURATION.fields_by_name['local'].message_type = _HOST
 _CONFIGURATION.fields_by_name['versions'].message_type = proto.base_pb2._COMPILER
-_CONFIGURATION.fields_by_name['statistic'].message_type = _HOST
 _CONFIGURATION.fields_by_name['verbosity'].message_type = _VERBOSITY
 _CONFIGURATION.fields_by_name['cache'].message_type = _CONFIGURATION_CACHE
 DESCRIPTOR.message_types_by_name['Host'] = _HOST

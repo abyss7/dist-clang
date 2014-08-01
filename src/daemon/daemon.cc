@@ -7,7 +7,6 @@
 #include <base/string_utils.h>
 #include <base/worker_pool.h>
 #include <daemon/configuration.pb.h>
-#include <daemon/statistic.h>
 #include <net/base/end_point.h>
 #include <net/connection.h>
 #include <net/network_service_impl.h>
@@ -139,7 +138,6 @@ Daemon::~Daemon() {
 
   workers_.reset();
   network_service_.reset();
-  stat_service_.reset();
 }
 
 bool Daemon::Initialize(const Configuration& configuration) {
@@ -153,17 +151,11 @@ bool Daemon::Initialize(const Configuration& configuration) {
   }
 
   network_service_ = net::NetworkService::Create();
-  if (config.has_statistic() && !config.statistic().disabled()) {
-    stat_service_ = daemon::Statistic::Create();
-    if (!stat_service_->Initialize(*network_service_, config.statistic())) {
-      LOG(ERROR) << "Failed to start the statistic service";
-    }
-  }
-
   workers_.reset(new base::WorkerPool);
   all_tasks_.reset(new QueueAggregator);
   local_tasks_.reset(new Queue);
   failed_tasks_.reset(new Queue);
+
   if (config.has_local()) {
     remote_tasks_.reset(new Queue(config.pool_capacity()));
     Worker worker = std::bind(&Daemon::DoLocalExecution, this, _1);

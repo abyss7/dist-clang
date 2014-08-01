@@ -614,15 +614,6 @@ class Configuration : public ::google::protobuf::Message {
   inline ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Compiler >*
       mutable_versions();
 
-  // optional .dist_clang.proto.Host statistic = 7;
-  inline bool has_statistic() const;
-  inline void clear_statistic();
-  static const int kStatisticFieldNumber = 7;
-  inline const ::dist_clang::proto::Host& statistic() const;
-  inline ::dist_clang::proto::Host* mutable_statistic();
-  inline ::dist_clang::proto::Host* release_statistic();
-  inline void set_allocated_statistic(::dist_clang::proto::Host* statistic);
-
   // optional .dist_clang.proto.Verbosity verbosity = 8;
   inline bool has_verbosity() const;
   inline void clear_verbosity();
@@ -668,8 +659,6 @@ class Configuration : public ::google::protobuf::Message {
   inline void clear_has_pool_capacity();
   inline void set_has_local();
   inline void clear_has_local();
-  inline void set_has_statistic();
-  inline void clear_has_statistic();
   inline void set_has_verbosity();
   inline void clear_has_verbosity();
   inline void set_has_user_id();
@@ -684,16 +673,15 @@ class Configuration : public ::google::protobuf::Message {
   ::std::string* socket_path_;
   ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Host > remotes_;
   ::dist_clang::proto::Host* local_;
-  ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Compiler > versions_;
   ::google::protobuf::uint32 pool_capacity_;
   ::google::protobuf::uint32 user_id_;
-  ::dist_clang::proto::Host* statistic_;
+  ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Compiler > versions_;
   ::dist_clang::proto::Verbosity* verbosity_;
   ::std::string* config_path_;
   ::dist_clang::proto::Configuration_Cache* cache_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(10 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(9 + 31) / 32];
 
   friend void  protobuf_AddDesc_daemon_2fconfiguration_2eproto();
   friend void protobuf_AssignDesc_daemon_2fconfiguration_2eproto();
@@ -1356,53 +1344,15 @@ Configuration::mutable_versions() {
   return &versions_;
 }
 
-// optional .dist_clang.proto.Host statistic = 7;
-inline bool Configuration::has_statistic() const {
-  return (_has_bits_[0] & 0x00000020u) != 0;
-}
-inline void Configuration::set_has_statistic() {
-  _has_bits_[0] |= 0x00000020u;
-}
-inline void Configuration::clear_has_statistic() {
-  _has_bits_[0] &= ~0x00000020u;
-}
-inline void Configuration::clear_statistic() {
-  if (statistic_ != NULL) statistic_->::dist_clang::proto::Host::Clear();
-  clear_has_statistic();
-}
-inline const ::dist_clang::proto::Host& Configuration::statistic() const {
-  return statistic_ != NULL ? *statistic_ : *default_instance_->statistic_;
-}
-inline ::dist_clang::proto::Host* Configuration::mutable_statistic() {
-  set_has_statistic();
-  if (statistic_ == NULL) statistic_ = new ::dist_clang::proto::Host;
-  return statistic_;
-}
-inline ::dist_clang::proto::Host* Configuration::release_statistic() {
-  clear_has_statistic();
-  ::dist_clang::proto::Host* temp = statistic_;
-  statistic_ = NULL;
-  return temp;
-}
-inline void Configuration::set_allocated_statistic(::dist_clang::proto::Host* statistic) {
-  delete statistic_;
-  statistic_ = statistic;
-  if (statistic) {
-    set_has_statistic();
-  } else {
-    clear_has_statistic();
-  }
-}
-
 // optional .dist_clang.proto.Verbosity verbosity = 8;
 inline bool Configuration::has_verbosity() const {
-  return (_has_bits_[0] & 0x00000040u) != 0;
+  return (_has_bits_[0] & 0x00000020u) != 0;
 }
 inline void Configuration::set_has_verbosity() {
-  _has_bits_[0] |= 0x00000040u;
+  _has_bits_[0] |= 0x00000020u;
 }
 inline void Configuration::clear_has_verbosity() {
-  _has_bits_[0] &= ~0x00000040u;
+  _has_bits_[0] &= ~0x00000020u;
 }
 inline void Configuration::clear_verbosity() {
   if (verbosity_ != NULL) verbosity_->::dist_clang::proto::Verbosity::Clear();
@@ -1434,13 +1384,13 @@ inline void Configuration::set_allocated_verbosity(::dist_clang::proto::Verbosit
 
 // optional uint32 user_id = 10;
 inline bool Configuration::has_user_id() const {
-  return (_has_bits_[0] & 0x00000080u) != 0;
+  return (_has_bits_[0] & 0x00000040u) != 0;
 }
 inline void Configuration::set_has_user_id() {
-  _has_bits_[0] |= 0x00000080u;
+  _has_bits_[0] |= 0x00000040u;
 }
 inline void Configuration::clear_has_user_id() {
-  _has_bits_[0] &= ~0x00000080u;
+  _has_bits_[0] &= ~0x00000040u;
 }
 inline void Configuration::clear_user_id() {
   user_id_ = 0u;
@@ -1456,13 +1406,13 @@ inline void Configuration::set_user_id(::google::protobuf::uint32 value) {
 
 // optional string config_path = 13;
 inline bool Configuration::has_config_path() const {
-  return (_has_bits_[0] & 0x00000100u) != 0;
+  return (_has_bits_[0] & 0x00000080u) != 0;
 }
 inline void Configuration::set_has_config_path() {
-  _has_bits_[0] |= 0x00000100u;
+  _has_bits_[0] |= 0x00000080u;
 }
 inline void Configuration::clear_has_config_path() {
-  _has_bits_[0] &= ~0x00000100u;
+  _has_bits_[0] &= ~0x00000080u;
 }
 inline void Configuration::clear_config_path() {
   if (config_path_ != &::google::protobuf::internal::kEmptyString) {
@@ -1526,13 +1476,13 @@ inline void Configuration::set_allocated_config_path(::std::string* config_path)
 
 // optional .dist_clang.proto.Configuration.Cache cache = 14;
 inline bool Configuration::has_cache() const {
-  return (_has_bits_[0] & 0x00000200u) != 0;
+  return (_has_bits_[0] & 0x00000100u) != 0;
 }
 inline void Configuration::set_has_cache() {
-  _has_bits_[0] |= 0x00000200u;
+  _has_bits_[0] |= 0x00000100u;
 }
 inline void Configuration::clear_has_cache() {
-  _has_bits_[0] &= ~0x00000200u;
+  _has_bits_[0] &= ~0x00000100u;
 }
 inline void Configuration::clear_cache() {
   if (cache_ != NULL) cache_->::dist_clang::proto::Configuration_Cache::Clear();
