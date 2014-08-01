@@ -1,0 +1,8 @@
+/home/ilezhankin/.local/include
+../../src
+../../src/third_party/capnproto/exported/c++/src
+../../src/third_party/gtest/exported/include
+../../src/third_party/kyoto-cabinet/exported
+../../src/third_party/libcxx/exported/include
+../../src/third_party/snappy/linux
+../../src/third_party/tclap/exported/include
