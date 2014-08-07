@@ -16,10 +16,22 @@ bool Database::Set(const String& key, const String& value) {
   using namespace kyotocabinet;
 
   HashDB db;
-  if (!db.open(path_, HashDB::OWRITER | HashDB::OCREATE) ||
-      !db.set(key, value) || !db.close()) {
+  if (!db.open(path_, HashDB::OWRITER | HashDB::OCREATE)) {
+    LOG(DB_ERROR) << "Failed to open database with error: "
+                  << db.error().message();
+    return false;
+  }
+
+  if (!db.set(key, value)) {
     LOG(DB_ERROR) << "Failed to set " << key << " => " << value
                   << " with error: " << db.error().message();
+    db.close();
+    return false;
+  }
+
+  if (!db.close()) {
+    LOG(DB_ERROR) << "Failed to close database with error: "
+                  << db.error().message();
     return false;
   }
 
@@ -31,9 +43,22 @@ bool Database::Get(const String& key, String* value) const {
   using namespace kyotocabinet;
 
   HashDB db;
-  if (!db.open(path_, HashDB::OREADER) || !db.get(key, value) || !db.close()) {
+  if (!db.open(path_, HashDB::OREADER)) {
+    LOG(DB_ERROR) << "Failed to open database with error: "
+                  << db.error().message();
+    return false;
+  }
+
+  if (!db.get(key, value)) {
     LOG(DB_ERROR) << "Failed to get " << key
                   << " with error: " << db.error().message();
+    db.close();
+    return false;
+  }
+
+  if (!db.close()) {
+    LOG(DB_ERROR) << "Failed to close database with error: "
+                  << db.error().message();
     return false;
   }
 
