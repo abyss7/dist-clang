@@ -35,8 +35,9 @@ void protobuf_AssignDesc_file_5fcache_2fmanifest_2eproto() {
       "file_cache/manifest.proto");
   GOOGLE_CHECK(file != NULL);
   Manifest_descriptor_ = file->message_type(0);
-  static const int Manifest_offsets_[4] = {
+  static const int Manifest_offsets_[5] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Manifest, headers_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Manifest, snappy_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Manifest, stderr_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Manifest, object_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Manifest, deps_),
@@ -83,9 +84,10 @@ void protobuf_AddDesc_file_5fcache_2fmanifest_2eproto() {
 
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
     "\n\031file_cache/manifest.proto\022\020dist_clang."
-    "proto\"\\\n\010Manifest\022\017\n\007headers\030\001 \003(\t\022\025\n\006st"
-    "derr\030d \001(\010:\005false\022\024\n\006object\030e \001(\010:\004true\022"
-    "\022\n\004deps\030f \001(\010:\004true", 139);
+    "proto\"s\n\010Manifest\022\017\n\007headers\030\001 \003(\t\022\025\n\006sn"
+    "appy\030\002 \001(\010:\005false\022\025\n\006stderr\030d \001(\010:\005false"
+    "\022\024\n\006object\030e \001(\010:\004true\022\022\n\004deps\030f \001(\010:\004tr"
+    "ue", 162);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "file_cache/manifest.proto", &protobuf_RegisterTypes);
   Manifest::default_instance_ = new Manifest();
@@ -104,6 +106,7 @@ struct StaticDescriptorInitializer_file_5fcache_2fmanifest_2eproto {
 
 #ifndef _MSC_VER
 const int Manifest::kHeadersFieldNumber;
+const int Manifest::kSnappyFieldNumber;
 const int Manifest::kStderrFieldNumber;
 const int Manifest::kObjectFieldNumber;
 const int Manifest::kDepsFieldNumber;
@@ -125,6 +128,7 @@ Manifest::Manifest(const Manifest& from)
 
 void Manifest::SharedCtor() {
   _cached_size_ = 0;
+  snappy_ = false;
   stderr_ = false;
   object_ = true;
   deps_ = true;
@@ -163,6 +167,7 @@ Manifest* Manifest::New() const {
 
 void Manifest::Clear() {
   if (_has_bits_[1 / 32] & (0xffu << (1 % 32))) {
+    snappy_ = false;
     stderr_ = false;
     object_ = true;
     deps_ = true;
@@ -193,6 +198,22 @@ bool Manifest::MergePartialFromCodedStream(
           goto handle_uninterpreted;
         }
         if (input->ExpectTag(10)) goto parse_headers;
+        if (input->ExpectTag(16)) goto parse_snappy;
+        break;
+      }
+
+      // optional bool snappy = 2 [default = false];
+      case 2: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
+         parse_snappy:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   bool, ::google::protobuf::internal::WireFormatLite::TYPE_BOOL>(
+                 input, &snappy_)));
+          set_has_snappy();
+        } else {
+          goto handle_uninterpreted;
+        }
         if (input->ExpectTag(800)) goto parse_stderr;
         break;
       }
@@ -272,6 +293,11 @@ void Manifest::SerializeWithCachedSizes(
       1, this->headers(i), output);
   }
 
+  // optional bool snappy = 2 [default = false];
+  if (has_snappy()) {
+    ::google::protobuf::internal::WireFormatLite::WriteBool(2, this->snappy(), output);
+  }
+
   // optional bool stderr = 100 [default = false];
   if (has_stderr()) {
     ::google::protobuf::internal::WireFormatLite::WriteBool(100, this->stderr(), output);
@@ -304,6 +330,11 @@ void Manifest::SerializeWithCachedSizes(
       WriteStringToArray(1, this->headers(i), target);
   }
 
+  // optional bool snappy = 2 [default = false];
+  if (has_snappy()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(2, this->snappy(), target);
+  }
+
   // optional bool stderr = 100 [default = false];
   if (has_stderr()) {
     target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(100, this->stderr(), target);
@@ -330,6 +361,11 @@ int Manifest::ByteSize() const {
   int total_size = 0;
 
   if (_has_bits_[1 / 32] & (0xffu << (1 % 32))) {
+    // optional bool snappy = 2 [default = false];
+    if (has_snappy()) {
+      total_size += 1 + 1;
+    }
+
     // optional bool stderr = 100 [default = false];
     if (has_stderr()) {
       total_size += 2 + 1;
@@ -380,6 +416,9 @@ void Manifest::MergeFrom(const Manifest& from) {
   GOOGLE_CHECK_NE(&from, this);
   headers_.MergeFrom(from.headers_);
   if (from._has_bits_[1 / 32] & (0xffu << (1 % 32))) {
+    if (from.has_snappy()) {
+      set_snappy(from.snappy());
+    }
     if (from.has_stderr()) {
       set_stderr(from.stderr());
     }
@@ -413,6 +452,7 @@ bool Manifest::IsInitialized() const {
 void Manifest::Swap(Manifest* other) {
   if (other != this) {
     headers_.Swap(&other->headers_);
+    std::swap(snappy_, other->snappy_);
     std::swap(stderr_, other->stderr_);
     std::swap(object_, other->object_);
     std::swap(deps_, other->deps_);

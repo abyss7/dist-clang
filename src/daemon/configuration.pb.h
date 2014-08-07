@@ -467,6 +467,13 @@ class Configuration_Cache : public ::google::protobuf::Message {
   inline bool disabled() const;
   inline void set_disabled(bool value);
 
+  // optional bool snappy = 8 [default = true];
+  inline bool has_snappy() const;
+  inline void clear_snappy();
+  static const int kSnappyFieldNumber = 8;
+  inline bool snappy() const;
+  inline void set_snappy(bool value);
+
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Configuration.Cache)
  private:
   inline void set_has_path();
@@ -483,6 +490,8 @@ class Configuration_Cache : public ::google::protobuf::Message {
   inline void clear_has_mtime();
   inline void set_has_disabled();
   inline void clear_has_disabled();
+  inline void set_has_snappy();
+  inline void clear_has_snappy();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -493,9 +502,10 @@ class Configuration_Cache : public ::google::protobuf::Message {
   bool direct_;
   bool mtime_;
   bool disabled_;
+  bool snappy_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(7 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(8 + 31) / 32];
 
   friend void  protobuf_AddDesc_daemon_2fconfiguration_2eproto();
   friend void protobuf_AssignDesc_daemon_2fconfiguration_2eproto();
@@ -1158,6 +1168,28 @@ inline bool Configuration_Cache::disabled() const {
 inline void Configuration_Cache::set_disabled(bool value) {
   set_has_disabled();
   disabled_ = value;
+}
+
+// optional bool snappy = 8 [default = true];
+inline bool Configuration_Cache::has_snappy() const {
+  return (_has_bits_[0] & 0x00000080u) != 0;
+}
+inline void Configuration_Cache::set_has_snappy() {
+  _has_bits_[0] |= 0x00000080u;
+}
+inline void Configuration_Cache::clear_has_snappy() {
+  _has_bits_[0] &= ~0x00000080u;
+}
+inline void Configuration_Cache::clear_snappy() {
+  snappy_ = true;
+  clear_has_snappy();
+}
+inline bool Configuration_Cache::snappy() const {
+  return snappy_;
+}
+inline void Configuration_Cache::set_snappy(bool value) {
+  set_has_snappy();
+  snappy_ = value;
 }
 
 // -------------------------------------------------------------------

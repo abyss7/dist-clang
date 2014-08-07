@@ -7,6 +7,8 @@
 #include <file_cache/manifest.pb.h>
 #include <file_cache/manifest_utils.h>
 
+#include <third_party/snappy/exported/snappy.h>
+
 #include <sys/types.h>
 #include <utime.h>
 
@@ -14,12 +16,13 @@
 
 namespace dist_clang {
 
-FileCache::FileCache(const String &path, ui64 size)
+FileCache::FileCache(const String &path, ui64 size, bool snappy)
     : path_(path),
       pool_(base::ThreadPool::TaskQueue::UNLIMITED, 1),
       max_size_(size),
       cached_size_(0),
-      database_(path, "direct") {
+      database_(path, "direct"),
+      snappy_(snappy) {
   if (max_size_ != UNLIMITED) {
     String error;
 
@@ -37,7 +40,7 @@ FileCache::FileCache(const String &path, ui64 size)
   pool_.Run();
 }
 
-FileCache::FileCache(const String &path) : FileCache(path, UNLIMITED) {}
+FileCache::FileCache(const String &path) : FileCache(path, UNLIMITED, false) {}
 
 // static
 String FileCache::Hash(const String &code, const String &command_line,
@@ -161,6 +164,38 @@ bool FileCache::FindByHash(const String &hash, Entry *entry) const {
       if (!base::FileExists(entry->object_path)) {
         return false;
       }
+
+      if (manifest.snappy()) {
+        String error;
+        auto tmp = base::CreateTempFile(&error);
+        if (tmp.empty()) {
+          LOG(CACHE_ERROR) << "Failed to create temporary file: " << error;
+          return false;
+        }
+
+        String packed_content;
+        if (!base::ReadFile(entry->object_path, &packed_content, &error)) {
+          LOG(CACHE_ERROR) << "Failed to read " << entry->object_path << " : "
+                           << error;
+          return false;
+        }
+
+        String unpacked_content;
+        if (!snappy::Uncompress(packed_content.data(), packed_content.size(),
+                                &unpacked_content)) {
+          LOG(CACHE_ERROR) << "Failed to unpack contents of "
+                           << entry->object_path;
+          return false;
+        }
+
+        if (!base::WriteFile(tmp, unpacked_content, &error)) {
+          LOG(CACHE_ERROR) << "Failed to write to " << tmp << " : " << error;
+          return false;
+        }
+
+        entry->object_path = tmp;
+        entry->move_object = true;
+      }
     }
 
     if (manifest.deps()) {
@@ -254,19 +289,50 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
   if (!entry.object_path.empty()) {
     const String object_path = CommonPath(hash) + ".o";
     String error;
-    bool result;
-    if (entry.move_object) {
-      result = base::LinkFile(entry.object_path, object_path, &error);
-      base::DeleteFile(entry.object_path);
+
+    if (!snappy_) {
+      bool result;
+      if (entry.move_object) {
+        result = base::LinkFile(entry.object_path, object_path, &error);
+        base::DeleteFile(entry.object_path);
+      } else {
+        result = base::CopyFile(entry.object_path, object_path, &error);
+      }
+      if (!result) {
+        RemoveEntry(manifest_path);
+        LOG(CACHE_ERROR) << "Failed to copy " << entry.object_path
+                         << " with error: " << error;
+        return;
+      }
     } else {
-      result = base::CopyFile(entry.object_path, object_path, &error);
+      String unpacked_content;
+      if (!base::ReadFile(entry.object_path, &unpacked_content, &error)) {
+        RemoveEntry(manifest_path);
+        LOG(CACHE_ERROR) << "Failed to read from " << entry.object_path << " : "
+                         << error;
+        return;
+      }
+
+      String packed_content;
+      if (!snappy::Compress(unpacked_content.data(), unpacked_content.size(),
+                            &packed_content)) {
+        RemoveEntry(manifest_path);
+        LOG(CACHE_ERROR) << "Failed to pack contents of " << entry.object_path;
+        return;
+      }
+
+      if (!base::WriteFile(object_path, packed_content, &error)) {
+        RemoveEntry(manifest_path);
+        LOG(CACHE_ERROR) << "Failed to write to " << object_path << " : "
+                         << error;
+        return;
+      }
+
+      if (entry.move_object) {
+        base::DeleteFile(entry.object_path);
+      }
     }
-    if (!result) {
-      RemoveEntry(manifest_path);
-      LOG(CACHE_ERROR) << "Failed to copy " << entry.object_path
-                       << " with error: " << error;
-      return;
-    }
+
     cached_size_ += base::FileSize(object_path);
   } else {
     manifest.set_object(false);
@@ -293,6 +359,9 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
     manifest.set_deps(false);
   }
 
+  if (snappy_) {
+    manifest.set_snappy(snappy_);
+  }
   if (!file_cache::SaveManifest(manifest_path, manifest)) {
     RemoveEntry(manifest_path);
     LOG(CACHE_ERROR) << "Failed to save manifest to " << manifest_path;
@@ -358,11 +427,6 @@ void FileCache::DoStore_Direct(String orig_hash, const List<String> &headers,
 
 void FileCache::Clean() {
   if (max_size_ != UNLIMITED) {
-    DCHECK(
-        cached_size_ < base::CalculateDirectorySize(path_)
-            ? base::CalculateDirectorySize(path_) - cached_size_ < 10 * 2 << 20
-            : cached_size_ - base::CalculateDirectorySize(path_) < 10 * 2 << 20)
-
     while (cached_size_ > max_size_) {
       String first_path, second_path;
 

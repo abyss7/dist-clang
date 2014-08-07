@@ -121,7 +121,7 @@ void protobuf_AssignDesc_daemon_2fconfiguration_2eproto() {
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(Configuration));
   Configuration_Cache_descriptor_ = Configuration_descriptor_->nested_type(0);
-  static const int Configuration_Cache_offsets_[7] = {
+  static const int Configuration_Cache_offsets_[8] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration_Cache, path_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration_Cache, size_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration_Cache, remote_),
@@ -129,6 +129,7 @@ void protobuf_AssignDesc_daemon_2fconfiguration_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration_Cache, direct_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration_Cache, mtime_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration_Cache, disabled_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration_Cache, snappy_),
   };
   Configuration_Cache_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
@@ -195,7 +196,7 @@ void protobuf_AddDesc_daemon_2fconfiguration_2eproto() {
     "failed\030\005 \001(\010:\005false\"|\n\tVerbosity\022\026\n\nerro"
     "r_mark\030\001 \001(\r:\00220\0221\n\006levels\030\002 \003(\0132!.dist_"
     "clang.proto.Verbosity.Range\032$\n\005Range\022\r\n\005"
-    "right\030\001 \002(\r\022\014\n\004left\030\002 \001(\r\"\343\003\n\rConfigurat"
+    "right\030\001 \002(\r\022\014\n\004left\030\002 \001(\r\"\371\003\n\rConfigurat"
     "ion\022\023\n\013socket_path\030\001 \001(\t\022\031\n\rpool_capacit"
     "y\030\002 \001(\r:\00216\022\'\n\007remotes\030\004 \003(\0132\026.dist_clan"
     "g.proto.Host\022%\n\005local\030\005 \001(\0132\026.dist_clang"
@@ -203,11 +204,12 @@ void protobuf_AddDesc_daemon_2fconfiguration_2eproto() {
     "ng.proto.Compiler\022.\n\tverbosity\030\010 \001(\0132\033.d"
     "ist_clang.proto.Verbosity\022\017\n\007user_id\030\n \001"
     "(\r\022\023\n\013config_path\030\r \001(\t\0224\n\005cache\030\016 \001(\0132%"
-    ".dist_clang.proto.Configuration.Cache\032\227\001"
+    ".dist_clang.proto.Configuration.Cache\032\255\001"
     "\n\005Cache\022\014\n\004path\030\001 \002(\t\022\017\n\004size\030\002 \001(\004:\0010\022\024"
     "\n\006remote\030\003 \001(\010:\004true\022\023\n\004sync\030\004 \001(\010:\005fals"
     "e\022\025\n\006direct\030\005 \001(\010:\005false\022\024\n\005mtime\030\006 \001(\010:"
-    "\005false\022\027\n\010disabled\030\007 \001(\010:\005false", 791);
+    "\005false\022\027\n\010disabled\030\007 \001(\010:\005false\022\024\n\006snapp"
+    "y\030\010 \001(\010:\004true", 813);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "daemon/configuration.proto", &protobuf_RegisterTypes);
   Host::default_instance_ = new Host();
@@ -1122,6 +1124,7 @@ const int Configuration_Cache::kSyncFieldNumber;
 const int Configuration_Cache::kDirectFieldNumber;
 const int Configuration_Cache::kMtimeFieldNumber;
 const int Configuration_Cache::kDisabledFieldNumber;
+const int Configuration_Cache::kSnappyFieldNumber;
 #endif  // !_MSC_VER
 
 Configuration_Cache::Configuration_Cache()
@@ -1147,6 +1150,7 @@ void Configuration_Cache::SharedCtor() {
   direct_ = false;
   mtime_ = false;
   disabled_ = false;
+  snappy_ = true;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -1196,6 +1200,7 @@ void Configuration_Cache::Clear() {
     direct_ = false;
     mtime_ = false;
     disabled_ = false;
+    snappy_ = true;
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   mutable_unknown_fields()->Clear();
@@ -1315,6 +1320,22 @@ bool Configuration_Cache::MergePartialFromCodedStream(
         } else {
           goto handle_uninterpreted;
         }
+        if (input->ExpectTag(64)) goto parse_snappy;
+        break;
+      }
+
+      // optional bool snappy = 8 [default = true];
+      case 8: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
+         parse_snappy:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   bool, ::google::protobuf::internal::WireFormatLite::TYPE_BOOL>(
+                 input, &snappy_)));
+          set_has_snappy();
+        } else {
+          goto handle_uninterpreted;
+        }
         if (input->ExpectAtEnd()) return true;
         break;
       }
@@ -1376,6 +1397,11 @@ void Configuration_Cache::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteBool(7, this->disabled(), output);
   }
 
+  // optional bool snappy = 8 [default = true];
+  if (has_snappy()) {
+    ::google::protobuf::internal::WireFormatLite::WriteBool(8, this->snappy(), output);
+  }
+
   if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
@@ -1422,6 +1448,11 @@ void Configuration_Cache::SerializeWithCachedSizes(
   // optional bool disabled = 7 [default = false];
   if (has_disabled()) {
     target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(7, this->disabled(), target);
+  }
+
+  // optional bool snappy = 8 [default = true];
+  if (has_snappy()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(8, this->snappy(), target);
   }
 
   if (!unknown_fields().empty()) {
@@ -1474,6 +1505,11 @@ int Configuration_Cache::ByteSize() const {
       total_size += 1 + 1;
     }
 
+    // optional bool snappy = 8 [default = true];
+    if (has_snappy()) {
+      total_size += 1 + 1;
+    }
+
   }
   if (!unknown_fields().empty()) {
     total_size +=
@@ -1522,6 +1558,9 @@ void Configuration_Cache::MergeFrom(const Configuration_Cache& from) {
     if (from.has_disabled()) {
       set_disabled(from.disabled());
     }
+    if (from.has_snappy()) {
+      set_snappy(from.snappy());
+    }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
@@ -1553,6 +1592,7 @@ void Configuration_Cache::Swap(Configuration_Cache* other) {
     std::swap(direct_, other->direct_);
     std::swap(mtime_, other->mtime_);
     std::swap(disabled_, other->disabled_);
+    std::swap(snappy_, other->snappy_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);

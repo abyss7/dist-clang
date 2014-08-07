@@ -32,6 +32,7 @@ message Configuration {
     optional bool direct   = 5 [default=false];
     optional bool mtime    = 6 [default=false];  // TODO: not implemented yet.
     optional bool disabled = 7 [default=false];
+    optional bool snappy   = 8 [default=true];
   }
 
   optional string socket_path   = 1;

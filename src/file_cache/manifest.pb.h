@@ -108,6 +108,13 @@ class Manifest : public ::google::protobuf::Message {
   inline const ::google::protobuf::RepeatedPtrField< ::std::string>& headers() const;
   inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_headers();
 
+  // optional bool snappy = 2 [default = false];
+  inline bool has_snappy() const;
+  inline void clear_snappy();
+  static const int kSnappyFieldNumber = 2;
+  inline bool snappy() const;
+  inline void set_snappy(bool value);
+
   // optional bool stderr = 100 [default = false];
   inline bool has_stderr() const;
   inline void clear_stderr();
@@ -131,6 +138,8 @@ class Manifest : public ::google::protobuf::Message {
 
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Manifest)
  private:
+  inline void set_has_snappy();
+  inline void clear_has_snappy();
   inline void set_has_stderr();
   inline void clear_has_stderr();
   inline void set_has_object();
@@ -141,12 +150,13 @@ class Manifest : public ::google::protobuf::Message {
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
   ::google::protobuf::RepeatedPtrField< ::std::string> headers_;
+  bool snappy_;
   bool stderr_;
   bool object_;
   bool deps_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(4 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(5 + 31) / 32];
 
   friend void  protobuf_AddDesc_file_5fcache_2fmanifest_2eproto();
   friend void protobuf_AssignDesc_file_5fcache_2fmanifest_2eproto();
@@ -206,15 +216,37 @@ Manifest::mutable_headers() {
   return &headers_;
 }
 
-// optional bool stderr = 100 [default = false];
-inline bool Manifest::has_stderr() const {
+// optional bool snappy = 2 [default = false];
+inline bool Manifest::has_snappy() const {
   return (_has_bits_[0] & 0x00000002u) != 0;
 }
-inline void Manifest::set_has_stderr() {
+inline void Manifest::set_has_snappy() {
   _has_bits_[0] |= 0x00000002u;
 }
-inline void Manifest::clear_has_stderr() {
+inline void Manifest::clear_has_snappy() {
   _has_bits_[0] &= ~0x00000002u;
+}
+inline void Manifest::clear_snappy() {
+  snappy_ = false;
+  clear_has_snappy();
+}
+inline bool Manifest::snappy() const {
+  return snappy_;
+}
+inline void Manifest::set_snappy(bool value) {
+  set_has_snappy();
+  snappy_ = value;
+}
+
+// optional bool stderr = 100 [default = false];
+inline bool Manifest::has_stderr() const {
+  return (_has_bits_[0] & 0x00000004u) != 0;
+}
+inline void Manifest::set_has_stderr() {
+  _has_bits_[0] |= 0x00000004u;
+}
+inline void Manifest::clear_has_stderr() {
+  _has_bits_[0] &= ~0x00000004u;
 }
 inline void Manifest::clear_stderr() {
   stderr_ = false;
@@ -230,13 +262,13 @@ inline void Manifest::set_stderr(bool value) {
 
 // optional bool object = 101 [default = true];
 inline bool Manifest::has_object() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
+  return (_has_bits_[0] & 0x00000008u) != 0;
 }
 inline void Manifest::set_has_object() {
-  _has_bits_[0] |= 0x00000004u;
+  _has_bits_[0] |= 0x00000008u;
 }
 inline void Manifest::clear_has_object() {
-  _has_bits_[0] &= ~0x00000004u;
+  _has_bits_[0] &= ~0x00000008u;
 }
 inline void Manifest::clear_object() {
   object_ = true;
@@ -252,13 +284,13 @@ inline void Manifest::set_object(bool value) {
 
 // optional bool deps = 102 [default = true];
 inline bool Manifest::has_deps() const {
-  return (_has_bits_[0] & 0x00000008u) != 0;
+  return (_has_bits_[0] & 0x00000010u) != 0;
 }
 inline void Manifest::set_has_deps() {
-  _has_bits_[0] |= 0x00000008u;
+  _has_bits_[0] |= 0x00000010u;
 }
 inline void Manifest::clear_has_deps() {
-  _has_bits_[0] &= ~0x00000008u;
+  _has_bits_[0] &= ~0x00000010u;
 }
 inline void Manifest::clear_deps() {
   deps_ = true;

@@ -31,7 +31,7 @@ class FileCache {
 
   using Optional = base::ThreadPool::Optional;
 
-  FileCache(const String& path, ui64 size);
+  FileCache(const String& path, ui64 size, bool snappy);
   explicit FileCache(const String& path);
 
   static String Hash(const String& code, const String& command_line,
@@ -112,6 +112,7 @@ class FileCache {
   ui64 max_size_;
   std::atomic<ui64> cached_size_;
   file_cache::Database database_;
+  bool snappy_;
 
   mutable std::mutex locks_mutex_;
   mutable HashMap<String, ui32> read_locks_;

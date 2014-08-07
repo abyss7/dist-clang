@@ -77,7 +77,7 @@ TEST(FileCacheTest, RemoveEntry) {
     ASSERT_TRUE(base::WriteFile(object_path, "1"));
     ASSERT_TRUE(base::WriteFile(deps_path, "1"));
     ASSERT_TRUE(base::WriteFile(stderr_path, "1"));
-    FileCache cache(tmp_dir, 100);
+    FileCache cache(tmp_dir, 100, false);
     EXPECT_TRUE(cache.RemoveEntry(manifest_path));
     ASSERT_EQ(0u, base::CalculateDirectorySize(tmp_dir));
     EXPECT_EQ(0u, cache.cached_size_);
@@ -86,7 +86,7 @@ TEST(FileCacheTest, RemoveEntry) {
   {
     ASSERT_TRUE(base::WriteFile(manifest_path, "1"));
     ASSERT_TRUE(base::WriteFile(object_path, "1"));
-    FileCache cache(tmp_dir, 100);
+    FileCache cache(tmp_dir, 100, false);
     EXPECT_TRUE(cache.RemoveEntry(manifest_path));
     ASSERT_EQ(0u, base::CalculateDirectorySize(tmp_dir));
     EXPECT_EQ(0u, cache.cached_size_);
@@ -225,7 +225,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
     ASSERT_TRUE(base::WriteFile(obj_path[i], obj_content[i]));
   }
 
-  FileCache cache(cache_path, 30);
+  FileCache cache(cache_path, 30, false);
 
   {
     FileCache::Entry entry{obj_path[0], String(), String()};
@@ -279,7 +279,7 @@ TEST(FileCacheTest, ExceedCacheSize_Sync) {
     ASSERT_TRUE(base::WriteFile(obj_path[i], obj_content[i]));
   }
 
-  FileCache cache(cache_path, 30);
+  FileCache cache(cache_path, 30, false);
 
   {
     FileCache::Entry entry{obj_path[0], String(), String()};
@@ -528,6 +528,10 @@ TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
 
   // Restore the entry.
   EXPECT_FALSE(cache.Find_Direct(orig_code + " ", cl, version, &entry));
+}
+
+TEST(FileCacheTest, DISABLED_RestoreSnappyEntry) {
+  // TODO: implement this test.
 }
 
 }  // namespace file_cache
