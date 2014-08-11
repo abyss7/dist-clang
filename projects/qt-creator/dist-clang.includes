@@ -6,3 +6,4 @@
 ../../src/third_party/libcxx/exported/include
 ../../src/third_party/snappy/linux
 ../../src/third_party/tclap/exported/include
+../../build

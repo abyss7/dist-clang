@@ -39,6 +39,7 @@ if (os == "linux") {
       "$root_out_dir/lib/libnet.so",
       "$root_out_dir/lib/libproto.so",
       "$root_out_dir/lib/libprotobuf.so",
+      "$root_out_dir/lib/libsnappy.so",
     ]
     outputs = [
       "$root_out_dir/deb/debian/control",
@@ -63,6 +64,7 @@ if (os == "linux") {
       "$root_out_dir/deb/debian/tmp/usr/lib/dist-clang/libnet.so",
       "$root_out_dir/deb/debian/tmp/usr/lib/dist-clang/libproto.so",
       "$root_out_dir/deb/debian/tmp/usr/lib/dist-clang/libprotobuf.so",
+      "$root_out_dir/deb/debian/tmp/usr/lib/dist-clang/libsnappy.so",
       "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/dist_clang/__init__.py",
       "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/dist_clang/daemon/__init__.py",
       "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/dist_clang/daemon/configuration_pb2.py",
@@ -104,6 +106,7 @@ if (os == "linux") {
       "$root_out_dir/lib/libnet.so",
       "$root_out_dir/lib/libproto.so",
       "$root_out_dir/lib/libprotobuf.so",
+      "$root_out_dir/lib/libsnappy.so",
     ]
     outputs = [
       "$root_out_dir/rpm.spec",
@@ -126,6 +129,7 @@ if (os == "linux") {
       "$root_out_dir/rpm/usr/lib/dist-clang/libnet.so",
       "$root_out_dir/rpm/usr/lib/dist-clang/libproto.so",
       "$root_out_dir/rpm/usr/lib/dist-clang/libprotobuf.so",
+      "$root_out_dir/rpm/usr/lib/dist-clang/libsnappy.so",
       "$root_out_dir/rpm/usr/lib/python2.7/dist_clang/__init__.py",
       "$root_out_dir/rpm/usr/lib/python2.7/dist_clang/daemon/__init__.py",
       "$root_out_dir/rpm/usr/lib/python2.7/dist_clang/daemon/configuration_pb2.py",

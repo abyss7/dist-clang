@@ -132,3 +132,7 @@
 ../../src/test/BUILD.gn
 ../../src/test/run_all_tests.cc
 ../../BUILD.gn
+../../build/common_package.include
+../../build/deb_changelog.template
+../../build/deb_control.template
+../../build/rpm_spec.template
