@@ -432,7 +432,7 @@ void FileCache::Clean() {
 
       {
         String error;
-        if (!base::GetLeastRecentPath(path_, first_path, &error)) {
+        if (!base::GetLeastRecentPath(path_, first_path, "[0-9a-f]", &error)) {
           LOG(CACHE_WARNING) << "Failed to get the recent path from " << path_
                              << " : " << error;
           LOG(CACHE_ERROR) << "Failed to clean the cache";
@@ -441,7 +441,8 @@ void FileCache::Clean() {
       }
       {
         String error;
-        if (!base::GetLeastRecentPath(first_path, second_path, &error)) {
+        if (!base::GetLeastRecentPath(first_path, second_path, "[0-9a-f]",
+                                      &error)) {
           if (!base::RemoveEmptyDirectory(first_path)) {
             LOG(CACHE_WARNING) << "Failed to get the recent path from "
                                << first_path << " : " << error;
