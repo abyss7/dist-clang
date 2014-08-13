@@ -74,15 +74,10 @@ inline String CommandLineForDirect(const dist_clang::proto::Flags& flags) {
   return command_line;
 }
 
-bool ParseDepsFile(const String& path, const String& base_path,
-                   List<String>& headers) {
-  String contents;
-  if (!base::ReadFile(path, &contents)) {
-    return false;
-  }
-
+bool ParseDeps(const String& deps, const String& base_path,
+               List<String>& headers) {
   List<String> lines;
-  base::SplitString<'\n'>(contents, lines);
+  base::SplitString<'\n'>(deps, lines);
   if (lines.empty()) {
     return false;
   }
@@ -341,19 +336,15 @@ void Daemon::UpdateCacheFromFlags(const proto::Execute* message,
   FileCache::Entry entry;
   const auto& flags = message->flags();
 
-  entry.object_path = GetOutputPath(message);
-  if (base::LinkFile(entry.object_path, entry.object_path + ".cache")) {
-    entry.object_path += ".cache";
-    entry.move_object = true;
+  if (!base::ReadFile(GetOutputPath(message), &entry.object)) {
+    return;
   }
 
-  if (flags.has_deps_file()) {
-    entry.deps_path = GetDepsPath(message);
-    if (base::LinkFile(entry.deps_path, entry.deps_path + ".cache")) {
-      entry.deps_path += ".cache";
-      entry.move_deps = true;
-    }
+  if (flags.has_deps_file() &&
+      !base::ReadFile(GetDepsPath(message), &entry.deps)) {
+    return;
   }
+
   entry.stderr = status.description();
 
   UpdateCache(message, entry);
@@ -372,41 +363,19 @@ void Daemon::UpdateCacheFromRemote(const proto::Execute* message,
   }
   CHECK(status.code() == proto::Status::OK);
 
-  String error;
   FileCache::Entry entry;
 
   if (result.has_obj()) {
-    entry.object_path = base::CreateTempFile(&error);
-    entry.move_object = true;
-    if (entry.object_path.empty()) {
-      LOG(CACHE_ERROR) << "Failed to create temporary file: " << error;
-      return;
-    }
-
-    if (!base::WriteFile(entry.object_path, result.obj())) {
-      LOG(CACHE_ERROR) << "Failed to write object to " << entry.object_path;
-      return;
-    }
+    entry.object = result.obj();
   }
+
   if (result.has_deps()) {
-    entry.deps_path = base::CreateTempFile(&error);
-    entry.move_deps = true;
-    if (entry.deps_path.empty()) {
-      LOG(CACHE_ERROR) << "Failed to create temporary file: " << error;
-      return;
-    }
-
-    if (!base::WriteFile(entry.deps_path, result.deps())) {
-      LOG(CACHE_ERROR) << "Failed to write deps to " << entry.deps_path;
-      return;
-    }
-  } else if (message->flags().has_deps_file()) {
-    entry.deps_path = GetDepsPath(message);
-    if (base::LinkFile(entry.deps_path, entry.deps_path + ".cache")) {
-      entry.deps_path += ".cache";
-      entry.move_deps = true;
-    }
+    entry.deps = result.deps();
+  } else if (message->flags().has_deps_file() &&
+             !base::ReadFile(GetDepsPath(message), &entry.deps)) {
+    return;
   }
+
   entry.stderr = status.description();
 
   UpdateCache(message, entry);
@@ -432,8 +401,7 @@ void Daemon::UpdateCache(const proto::Execute* message,
 
 void Daemon::UpdateDirectCache(const proto::Execute* message,
                                const FileCache::Entry& entry) {
-  if (!message->remote() && !entry.deps_path.empty() &&
-      cache_config_->direct()) {
+  if (!message->remote() && !entry.deps.empty() && cache_config_->direct()) {
     const auto& flags = message->flags();
     const auto& version = flags.compiler().version();
     const auto hash =
@@ -443,12 +411,11 @@ void Daemon::UpdateDirectCache(const proto::Execute* message,
     List<String> headers;
     String original_code;
 
-    if (ParseDepsFile(entry.deps_path, message->current_dir(), headers) &&
+    if (ParseDeps(entry.deps, message->current_dir(), headers) &&
         base::ReadFile(input_path, &original_code)) {
       cache_->Store_Direct(original_code, command_line, version, headers, hash);
     } else {
-      LOG(CACHE_ERROR) << "Failed to parse deps file " << entry.deps_path
-                       << " or read input " << input_path;
+      LOG(CACHE_ERROR) << "Failed to parse deps or read input " << input_path;
     }
   }
 }
@@ -592,7 +559,7 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
     FileCache::Entry cache_entry;
     if (SearchDirectCache(message, &cache_entry)) {
       const String output_path = GetOutputPath(message);
-      if (base::CopyFile(cache_entry.object_path, output_path)) {
+      if (base::WriteFile(output_path, cache_entry.object)) {
         String error;
         if (message->has_user_id() &&
             !base::ChangeOwner(output_path, message->user_id(), &error)) {
@@ -636,7 +603,7 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
         // TODO: restore deps file as well.
 
         const String output_path = GetOutputPath(message);
-        if (base::CopyFile(cache_entry.object_path, output_path)) {
+        if (base::WriteFile(output_path, cache_entry.object)) {
           String error;
           if (message->has_user_id() &&
               !base::ChangeOwner(output_path, message->user_id(), &error)) {
@@ -657,13 +624,14 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
       } else {
         Daemon::ScopedMessage message(new proto::Universal);
         auto result = message->MutableExtension(proto::RemoteResult::extension);
-        if (base::ReadFile(cache_entry.object_path, result->mutable_obj())) {
-          auto status = message->MutableExtension(proto::Status::extension);
-          status->set_code(proto::Status::OK);
-          status->set_description(cache_entry.stderr);
-          task->first->SendAsync(std::move(message));
-          continue;
-        }
+        result->set_obj(cache_entry.object);
+
+        auto status = message->MutableExtension(proto::Status::extension);
+        status->set_code(proto::Status::OK);
+        status->set_description(cache_entry.stderr);
+
+        task->first->SendAsync(std::move(message));
+        continue;
       }
     }
 

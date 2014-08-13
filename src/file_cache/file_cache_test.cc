@@ -101,12 +101,11 @@ TEST(FileCacheTest, RestoreSingleEntry) {
   const String path = tmp_dir;
   const String object_path = path + "/test.o";
   const String deps_path = path + "/test.d";
-  const String stderror = "some warning";
+  const String expected_stderr = "some warning";
   const String expected_object_code = "some object code";
   const String expected_deps = "some deps";
   FileCache cache(path);
-  FileCache::Entry entry{object_path, deps_path, stderror};
-  String object_code, deps;
+  FileCache::Entry entry;
 
   const String code = "int main() { return 0; }";
   const String cl = "-c";
@@ -117,9 +116,13 @@ TEST(FileCacheTest, RestoreSingleEntry) {
 
   // Check that entrie's content is not changed on cache miss.
   EXPECT_FALSE(cache.Find(code, cl, version, &entry));
-  ASSERT_EQ(object_path, entry.object_path);
-  EXPECT_EQ(deps_path, entry.deps_path);
-  EXPECT_EQ(stderror, entry.stderr);
+  EXPECT_TRUE(entry.object.empty());
+  EXPECT_TRUE(entry.deps.empty());
+  EXPECT_TRUE(entry.stderr.empty());
+
+  entry.object = expected_object_code;
+  entry.deps = expected_deps;
+  entry.stderr = expected_stderr;
 
   // Store the entry.
   auto future = cache.Store(code, cl, version, entry);
@@ -129,11 +132,9 @@ TEST(FileCacheTest, RestoreSingleEntry) {
 
   // Restore the entry.
   ASSERT_TRUE(cache.Find(code, cl, version, &entry));
-  ASSERT_TRUE(base::ReadFile(entry.object_path, &object_code));
-  EXPECT_TRUE(base::ReadFile(entry.deps_path, &deps));
-  EXPECT_EQ(expected_object_code, object_code);
-  EXPECT_EQ(expected_deps, deps);
-  EXPECT_EQ(stderror, entry.stderr);
+  EXPECT_EQ(expected_object_code, entry.object);
+  EXPECT_EQ(expected_deps, entry.deps);
+  EXPECT_EQ(expected_stderr, entry.stderr);
 }
 
 TEST(FileCacheTest, RestoreSingleEntry_Sync) {
@@ -141,12 +142,11 @@ TEST(FileCacheTest, RestoreSingleEntry_Sync) {
   const String path = tmp_dir;
   const String object_path = path + "/test.o";
   const String deps_path = path + "/test.d";
-  const String stderror = "some warning";
+  const String expected_stderr = "some warning";
   const String expected_object_code = "some object code";
   const String expected_deps = "some deps";
   FileCache cache(path);
-  FileCache::Entry entry{object_path, deps_path, stderror};
-  String object_code, deps;
+  FileCache::Entry entry;
 
   const String code = "int main() { return 0; }";
   const String cl = "-c";
@@ -155,19 +155,23 @@ TEST(FileCacheTest, RestoreSingleEntry_Sync) {
   ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
   ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
   EXPECT_FALSE(cache.Find(code, cl, version, &entry));
-  ASSERT_EQ(object_path, entry.object_path);
-  EXPECT_EQ(deps_path, entry.deps_path);
-  EXPECT_EQ(stderror, entry.stderr);
+  EXPECT_TRUE(entry.object.empty());
+  EXPECT_TRUE(entry.deps.empty());
+  EXPECT_TRUE(entry.stderr.empty());
+
+  entry.object = expected_object_code;
+  entry.deps = expected_deps;
+  entry.stderr = expected_stderr;
+
   auto future = cache.StoreNow(code, cl, version, entry);
   ASSERT_TRUE(!!future);
   future->Wait();
   ASSERT_TRUE(future->GetValue());
+
   ASSERT_TRUE(cache.Find(code, cl, version, &entry));
-  ASSERT_TRUE(base::ReadFile(entry.object_path, &object_code));
-  EXPECT_TRUE(base::ReadFile(entry.deps_path, &deps));
-  EXPECT_EQ(expected_object_code, object_code);
-  EXPECT_EQ(expected_deps, deps);
-  EXPECT_EQ(stderror, entry.stderr);
+  EXPECT_EQ(expected_object_code, entry.object);
+  EXPECT_EQ(expected_deps, entry.deps);
+  EXPECT_EQ(expected_stderr, entry.stderr);
 }
 
 TEST(FileCacheTest, DISABLED_RestoreEntryWithMissingFile) {
@@ -214,21 +218,16 @@ TEST(FileCacheTest, ExceedCacheSize) {
   const base::TemporaryDir tmp_dir;
   const String path = tmp_dir;
   const String cache_path = path + "/cache";
-  const String obj_path[] = {path + "/obj1.o", path + "/obj2.o",
-                             path + "/obj3.o"};
   const String obj_content[] = {"22", "333", "4444"};
   const String code[] = {"int main() { return 0; }", "int main() { return 1; }",
                          "int main() { return 2; }"};
   const String cl = "-c";
   const String version = "3.5 (revision 100000)";
-  for (int i = 0; i < 3; ++i) {
-    ASSERT_TRUE(base::WriteFile(obj_path[i], obj_content[i]));
-  }
 
   FileCache cache(cache_path, 30, false);
 
   {
-    FileCache::Entry entry{obj_path[0], String(), String()};
+    FileCache::Entry entry{obj_content[0], String(), String()};
     auto future = cache.Store(code[0], cl, version, entry);
     ASSERT_TRUE(!!future);
     future->Wait();
@@ -239,7 +238,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
   {
-    FileCache::Entry entry{obj_path[1], String(), String()};
+    FileCache::Entry entry{obj_content[1], String(), String()};
     auto future = cache.Store(code[1], cl, version, entry);
     ASSERT_TRUE(!!future);
     future->Wait();
@@ -250,7 +249,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
   {
-    FileCache::Entry entry{obj_path[2], String(), String()};
+    FileCache::Entry entry{obj_content[2], String(), String()};
     auto future = cache.Store(code[2], cl, version, entry);
     ASSERT_TRUE(!!future);
     future->Wait();
@@ -268,21 +267,16 @@ TEST(FileCacheTest, ExceedCacheSize_Sync) {
   const base::TemporaryDir tmp_dir;
   const String path = tmp_dir;
   const String cache_path = path + "/cache";
-  const String obj_path[] = {path + "/obj1.o", path + "/obj2.o",
-                             path + "/obj3.o"};
   const String obj_content[] = {"22", "333", "4444"};
   const String code[] = {"int main() { return 0; }", "int main() { return 1; }",
                          "int main() { return 2; }"};
   const String cl = "-c";
   const String version = "3.5 (revision 100000)";
-  for (int i = 0; i < 3; ++i) {
-    ASSERT_TRUE(base::WriteFile(obj_path[i], obj_content[i]));
-  }
 
   FileCache cache(cache_path, 30, false);
 
   {
-    FileCache::Entry entry{obj_path[0], String(), String()};
+    FileCache::Entry entry{obj_content[0], String(), String()};
     auto future = cache.StoreNow(code[0], cl, version, entry);
     ASSERT_TRUE(!!future);
     future->Wait();
@@ -293,7 +287,7 @@ TEST(FileCacheTest, ExceedCacheSize_Sync) {
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
   {
-    FileCache::Entry entry{obj_path[1], String(), String()};
+    FileCache::Entry entry{obj_content[1], String(), String()};
     auto future = cache.StoreNow(code[1], cl, version, entry);
     ASSERT_TRUE(!!future);
     future->Wait();
@@ -304,7 +298,7 @@ TEST(FileCacheTest, ExceedCacheSize_Sync) {
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
   {
-    FileCache::Entry entry{obj_path[2], String(), String()};
+    FileCache::Entry entry{obj_content[2], String(), String()};
     auto future = cache.StoreNow(code[2], cl, version, entry);
     ASSERT_TRUE(!!future);
     future->Wait();
@@ -318,43 +312,6 @@ TEST(FileCacheTest, ExceedCacheSize_Sync) {
   EXPECT_TRUE(cache.Find(code[2], cl, version, &entry));
 }
 
-TEST(FileCacheTest, DeleteOriginals) {
-  const base::TemporaryDir tmp_dir;
-  const String path = tmp_dir;
-  const String object_path = path + "/test.o";
-  const String deps_path = path + "/test.d";
-  const String stderror = "some warning";
-  const String expected_object_code = "some object code";
-  const String expected_deps = "some deps";
-  FileCache cache(path);
-  FileCache::Entry entry{object_path, deps_path, stderror, true, true};
-  String object_code, deps;
-
-  const String code = "int main() { return 0; }";
-  const String cl = "-c";
-  const String version = "3.5 (revision 100000)";
-
-  ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
-  ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
-
-  // Store the entry.
-  auto future = cache.Store(code, cl, version, entry);
-  ASSERT_TRUE(!!future);
-  future->Wait();
-  ASSERT_TRUE(future->GetValue());
-
-  EXPECT_FALSE(base::FileExists(object_path));
-  EXPECT_FALSE(base::FileExists(deps_path));
-
-  // Restore the entry.
-  ASSERT_TRUE(cache.Find(code, cl, version, &entry));
-  ASSERT_TRUE(base::ReadFile(entry.object_path, &object_code));
-  EXPECT_TRUE(base::ReadFile(entry.deps_path, &deps));
-  EXPECT_EQ(expected_object_code, object_code);
-  EXPECT_EQ(expected_deps, deps);
-  EXPECT_EQ(stderror, entry.stderr);
-}
-
 TEST(FileCacheTest, RestoreDirectEntry) {
   const base::TemporaryDir tmp_dir;
   const String path = tmp_dir;
@@ -362,12 +319,11 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   const String deps_path = path + "/test.d";
   const String header1_path = path + "/test1.h";
   const String header2_path = path + "/test2.h";
-  const String stderror = "some warning";
+  const String expected_stderr = "some warning";
   const String expected_object_code = "some object code";
   const String expected_deps = "some deps";
   FileCache cache(path);
-  FileCache::Entry entry{object_path, deps_path, stderror};
-  String object_code, deps;
+  FileCache::Entry entry;
 
   const String code = "int main() { return 0; }";
   const String cl = "-c";
@@ -377,6 +333,10 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
   ASSERT_TRUE(base::WriteFile(header1_path, "#define A"));
   ASSERT_TRUE(base::WriteFile(header2_path, "#define B"));
+
+  entry.object = expected_object_code;
+  entry.deps = expected_deps;
+  entry.stderr = expected_stderr;
 
   // Store the entry.
   auto future = cache.Store(code, cl, version, entry);
@@ -395,11 +355,9 @@ TEST(FileCacheTest, RestoreDirectEntry) {
 
   // Restore the entry.
   ASSERT_TRUE(cache.Find_Direct(orig_code, cl, version, &entry));
-  ASSERT_TRUE(base::ReadFile(entry.object_path, &object_code));
-  EXPECT_TRUE(base::ReadFile(entry.deps_path, &deps));
-  EXPECT_EQ(expected_object_code, object_code);
-  EXPECT_EQ(expected_deps, deps);
-  EXPECT_EQ(stderror, entry.stderr);
+  EXPECT_EQ(expected_object_code, entry.object);
+  EXPECT_EQ(expected_deps, entry.deps);
+  EXPECT_EQ(expected_stderr, entry.stderr);
 }
 
 TEST(FileCacheTest, RestoreDirectEntry_Sync) {
@@ -409,12 +367,11 @@ TEST(FileCacheTest, RestoreDirectEntry_Sync) {
   const String deps_path = path + "/test.d";
   const String header1_path = path + "/test1.h";
   const String header2_path = path + "/test2.h";
-  const String stderror = "some warning";
+  const String expected_stderr = "some warning";
   const String expected_object_code = "some object code";
   const String expected_deps = "some deps";
   FileCache cache(path);
-  FileCache::Entry entry{object_path, deps_path, stderror};
-  String object_code, deps;
+  FileCache::Entry entry;
 
   const String code = "int main() { return 0; }";
   const String cl = "-c";
@@ -424,6 +381,10 @@ TEST(FileCacheTest, RestoreDirectEntry_Sync) {
   ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
   ASSERT_TRUE(base::WriteFile(header1_path, "#define A"));
   ASSERT_TRUE(base::WriteFile(header2_path, "#define B"));
+
+  entry.object = expected_object_code;
+  entry.deps = expected_deps;
+  entry.stderr = expected_stderr;
 
   // Store the entry.
   cache.StoreNow(code, cl, version, entry);
@@ -436,11 +397,9 @@ TEST(FileCacheTest, RestoreDirectEntry_Sync) {
 
   // Restore the entry.
   ASSERT_TRUE(cache.Find_Direct(orig_code, cl, version, &entry));
-  ASSERT_TRUE(base::ReadFile(entry.object_path, &object_code));
-  EXPECT_TRUE(base::ReadFile(entry.deps_path, &deps));
-  EXPECT_EQ(expected_object_code, object_code);
-  EXPECT_EQ(expected_deps, deps);
-  EXPECT_EQ(stderror, entry.stderr);
+  EXPECT_EQ(expected_object_code, entry.object);
+  EXPECT_EQ(expected_deps, entry.deps);
+  EXPECT_EQ(expected_stderr, entry.stderr);
 }
 
 TEST(FileCacheTest, DirectEntry_ChangedHeader) {
@@ -450,12 +409,11 @@ TEST(FileCacheTest, DirectEntry_ChangedHeader) {
   const String deps_path = path + "/test.d";
   const String header1_path = path + "/test1.h";
   const String header2_path = path + "/test2.h";
-  const String stderror = "some warning";
+  const String expected_stderr = "some warning";
   const String expected_object_code = "some object code";
   const String expected_deps = "some deps";
   FileCache cache(path);
-  FileCache::Entry entry{object_path, deps_path, stderror};
-  String object_code, deps;
+  FileCache::Entry entry;
 
   const String code = "int main() { return 0; }";
   const String cl = "-c";
@@ -465,6 +423,10 @@ TEST(FileCacheTest, DirectEntry_ChangedHeader) {
   ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
   ASSERT_TRUE(base::WriteFile(header1_path, "#define A"));
   ASSERT_TRUE(base::WriteFile(header2_path, "#define B"));
+
+  entry.object = expected_object_code;
+  entry.deps = expected_deps;
+  entry.stderr = expected_stderr;
 
   // Store the entry.
   auto future = cache.Store(code, cl, version, entry);

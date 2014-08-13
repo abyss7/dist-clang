@@ -20,13 +20,9 @@ class FileCache {
   };
 
   struct Entry {
-    String object_path;
-    String deps_path;
+    String object;
+    String deps;
     String stderr;
-
-    // Move cached files, e.g. when there is a remote compilation on local host.
-    bool move_object = false;
-    bool move_deps = false;
   };
 
   using Optional = base::ThreadPool::Optional;
