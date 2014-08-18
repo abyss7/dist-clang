@@ -1,4 +1,4 @@
 *.pyc
 /out
-/projects/qt-creator/*.user
+/*.creator.user
 /.project
