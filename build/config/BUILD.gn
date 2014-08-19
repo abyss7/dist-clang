@@ -7,22 +7,26 @@ config("base") {
     "-Wsign-compare",
     "-Werror",
   ]
+
   cflags_cc = [
     "-std=c++1y",
   ]
+
   include_dirs = [ "//src" ]
 }
 
 config("default_library") {
-  cflags = [
-    "-fPIC",
-  ]
+  cflags = [ "-fPIC" ]
+
   cflags_cc = [
     "-std=c++1y",
     "-nostdinc++",
   ]
+
   include_dirs = [ "//src/third_party/libcxx/exported/include" ]
+
   ldflags = [ "-nodefaultlibs" ]
+
   libs = [ "c" ]
 }
 
@@ -31,6 +35,9 @@ config("debug") {
     "-g",
     "-O0",
   ]
+
+  defines = [ "_DEBUG" ]
+
   ldflags = [
     "-rpath", rebase_path("$root_out_dir/lib"),
   ]
@@ -41,9 +48,9 @@ config("release") {
     "-fomit-frame-pointer",
     "-O3",
   ]
-  defines = [
-    "NDEBUG",
-  ]
+
+  defines = [ "NDEBUG" ]
+
   ldflags = [
     "-rpath", "/usr/lib/dist-clang",
     "-rpath", rebase_path("$root_out_dir/lib"), # TODO: remove it when building for distribution.
@@ -51,12 +58,10 @@ config("release") {
 }
 
 config("no_stdlibs") {
-  cflags_cc = [
-    "-nostdinc++",
-  ]
-  ldflags = [
-    "-nodefaultlibs",
-  ]
+  cflags_cc = [ "-nostdinc++" ]
+
+  ldflags = [ "-nodefaultlibs" ]
+
   libs = [
     "c",
     "m",
@@ -72,15 +77,6 @@ config("no_exceptions") {
 config("no_rtti") {
   cflags_cc = [ "-fno-rtti" ]
   ldflags = [ "-fno-rtti" ]
-}
-
-config("profiler") {
-  defines = [ "PROFILER" ]
-  libs = [ "profiler" ]
-}
-
-config("tcmalloc") {
-  libs = [ "tcmalloc" ]
 }
 
 config("libclang_includes") {

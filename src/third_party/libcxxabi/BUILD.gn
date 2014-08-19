@@ -1,63 +1,125 @@
+#
+# Generated from CMake Ninja with options:
+#
+#  LIBCXXABI_ENABLE_ASSERTIONS = ON
+#  LIBCXXABI_ENABLE_PEDANTIC   = ON
+#  LIBCXXABI_ENABLE_WERROR     = OFF
+#  LIBCXXABI_USE_LLVM_UNWINDER = OFF
+#  LIBCXXABI_ENABLE_SHARED     = ON
+#
+
+config("flags") {
+  defines = [
+    "__STDC_CONSTANT_MACROS",
+    "__STDC_FORMAT_MACROS",
+    "__STDC_LIMIT_MACROS",
+  ]
+
+  cflags = [
+    "-fdata-sections",
+    "-ffunction-sections",
+
+   # Warnings:
+    "-Werror=date-time",
+  ]
+
+  cflags_cc = [
+    "-fstrict-aliasing",
+    "-fvisibility-inlines-hidden",
+    "-pedantic",
+
+   # Warnings:
+    "-Werror=return-type",
+    "-W",
+    "-Wall",
+    "-Wchar-subscripts",
+    "-Wconversion",
+    "-Wmismatched-tags",
+    "-Wmissing-braces",
+    "-Wnewline-eof",
+    "-Wno-unused-function",
+    "-Wshadow",
+    "-Wshorten-64-to-32",
+    "-Wsign-compare",
+    "-Wsign-conversion",
+    "-Wstrict-aliasing=2",
+    "-Wstrict-overflow=4",
+    "-Wunused-parameter",
+    "-Wunused-variable",
+    "-Wwrite-strings",
+    "-Wno-error",
+  ]
+}
+
 config("includes") {
   include_dirs = [ "exported/include" ]
 }
 
-source_set("c++abi") {
-  sources = [
-    "exported/include/cxxabi.h",
+# The unwinder currently only works on Darwin and on ARM Linux.
+# Not used in this project.
+static_library("unwind") {
+  public = [
     "exported/include/libunwind.h",
-    "exported/include/mach-o/compact_unwind_encoding.h",
-    "exported/include/unwind.h",
+  ]
+
+  sources = [
+    "exported/src/Unwind/Unwind-EHABI.cpp",
+    "exported/src/Unwind/Unwind-sjlj.c",
+    "exported/src/Unwind/UnwindLevel1-gcc-ext.c",
+    "exported/src/Unwind/UnwindLevel1.c",
+    "exported/src/Unwind/UnwindRegistersRestore.S",
+    "exported/src/Unwind/UnwindRegistersSave.S",
+    "exported/src/Unwind/libunwind.cpp",
+  ]
+
+  configs = []
+  configs = [
+    ":flags",
+    ":includes",
+    "//build/config:default_library",
+  ]
+
+  deps = []
+}
+
+shared_library("c++abi") {
+  public = [
+    "exported/include/cxxabi.h",
+  ]
+
+  sources = [
     "exported/src/abort_message.cpp",
-    "exported/src/abort_message.h",
     "exported/src/cxa_aux_runtime.cpp",
     "exported/src/cxa_default_handlers.cpp",
     "exported/src/cxa_demangle.cpp",
     "exported/src/cxa_exception.cpp",
-    "exported/src/cxa_exception.hpp",
     "exported/src/cxa_exception_storage.cpp",
     "exported/src/cxa_guard.cpp",
     "exported/src/cxa_handlers.cpp",
-    "exported/src/cxa_handlers.hpp",
     "exported/src/cxa_new_delete.cpp",
     "exported/src/cxa_personality.cpp",
     "exported/src/cxa_unexpected.cpp",
     "exported/src/cxa_vector.cpp",
     "exported/src/cxa_virtual.cpp",
     "exported/src/exception.cpp",
-    "exported/src/fallback_malloc.ipp",
     "exported/src/private_typeinfo.cpp",
-    "exported/src/private_typeinfo.h",
     "exported/src/stdexcept.cpp",
     "exported/src/typeinfo.cpp",
   ]
 
-  cflags = [
-    "-fstrict-aliasing",
-    "-Wstrict-aliasing=2",
-    "-Wsign-conversion",
-    "-Wshadow",
-    "-Wconversion",
-    "-Wunused-variable",
-    "-Wmissing-field-initializers",
-    "-Wchar-subscripts",
-    "-Wmismatched-tags",
-    "-Wmissing-braces",
-    "-Wshorten-64-to-32",
-    "-Wsign-compare",
-    "-Wstrict-overflow=4",
-    "-Wunused-parameter",
-    "-Wnewline-eof",
-  ]
+  defines = [ "cxxabi_EXPORTS" ]  # TODO: do we need it?
+
+  libs = [ "pthread" ]  # TODO: may be move to "default_library" config?
 
   configs = []
-  configs += [
+  configs = [
+    ":flags",
     ":includes",
     "//build/config:default_library",
   ]
 
   deps = []
-  if (os == "linux") { deps += [ "//src/third_party/libunwind:unwind" ] }
+  deps = [ "//src/third_party/libunwind:unwind" ]
 
   direct_dependent_configs = [ ":includes" ]
 }

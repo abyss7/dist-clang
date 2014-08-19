@@ -3,12 +3,6 @@
 # =============================================================================
 
 declare_args() {
-  # Build with support for Google Performance Tools (gperftools).
-  use_profiler = false
-
-  # Link with the tcmalloc library.
-  use_tcmalloc = false
-
   # Build for debugging.
   config_for_debug = false
 
@@ -54,20 +48,16 @@ if (os == "mac") {
   default_configs -= [ "//build/config:no_stdlibs" ]
 }
 
-if (use_profiler) {
-  default_configs += [ "//build/config:profiler" ]
-}
-
-if (use_tcmalloc) {
-  default_configs += [ "//build/config:tcmalloc" ]
-}
-
 # =============================================================================
 # Setup dependencies.
 # =============================================================================
 
 default_deps = []
-default_deps += [ "//src/third_party/libcxx:c++" ]
+default_deps += [
+  "//src/third_party/gperftools:tcmalloc",
+  "//src/third_party/libcxx:c++",
+  "//src/third_party/libcxxabi:c++abi",
+]
 
 # =============================================================================
 # Set defaults.
