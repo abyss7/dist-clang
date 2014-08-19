@@ -6,7 +6,7 @@
 	url = https://llvm.googlesource.com/libcxx
 [submodule "src/third_party/libunwind/exported"]
 	path = src/third_party/libunwind/exported
-	url = git://git.sv.gnu.org/libunwind.git
+	url = https://github.com/abyss7/libunwind.git
 [submodule "src/third_party/tclap/exported"]
 	path = src/third_party/tclap/exported
 	url = git://git.code.sf.net/p/tclap/code

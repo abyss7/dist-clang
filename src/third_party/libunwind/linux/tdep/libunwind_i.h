@@ -30,6 +30,6 @@
 
 #else /* UNW_REMOTE_ONLY */
 
-# include "tdep-x86_64/libunwind_i.h"
+# error Remote-only unwinding is not supported.
 
 #endif /* UNW_REMOTE_ONLY */

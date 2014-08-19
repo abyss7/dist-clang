@@ -29,6 +29,6 @@
 
 #else /* UNW_REMOTE_ONLY */
 
-# include "libunwind-x86_64.h"
+# error Remote-only unwinding is not supported.
 
 #endif /* UNW_REMOTE_ONLY */
