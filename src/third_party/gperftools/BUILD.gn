@@ -1,7 +1,36 @@
-config("includes") {
+config("flags") {
+  cflags = [
+    "-fno-builtin-calloc",
+    "-fno-builtin-cfree",
+    "-fno-builtin-free",
+    "-fno-builtin-malloc",
+    "-fno-builtin-memalign",
+    "-fno-builtin-realloc",
+    "-fno-builtin-posix_memalign",
+    "-fno-builtin-pvalloc",
+    "-fno-builtin-valloc",
+  ]
+
+  defines = [
+    "HAVE_CONFIG_H",
+    "NO_FRAME_POINTER",
+  ]
+
   if (os == "linux") {
     include_dirs = [ "linux" ]
   }
+
+  ldflags = [
+    "-fno-builtin-calloc",
+    "-fno-builtin-cfree",
+    "-fno-builtin-free",
+    "-fno-builtin-malloc",
+    "-fno-builtin-memalign",
+    "-fno-builtin-realloc",
+    "-fno-builtin-posix_memalign",
+    "-fno-builtin-pvalloc",
+    "-fno-builtin-valloc",
+  ]
 }
 
 config("no_warnings") {
@@ -9,83 +38,136 @@ config("no_warnings") {
     "-Wno-sign-compare",
     "-Wno-unused-const-variable",
     "-Wno-unused-function",
+    "-Wno-unused-variable",
   ]
 }
 
-shared_library("tcmalloc") {
+source_set("spinlock") {
   sources = [
     "exported/src/base/atomicops-internals-x86.cc",
-    "exported/src/base/atomicops-internals-x86.h",
-    "exported/src/base/basictypes.h",
-    "exported/src/base/dynamic_annotations.c",
-    "exported/src/base/dynamic_annotations.h",
-    "exported/src/base/logging.cc",
-    "exported/src/base/logging.h",
-    "exported/src/base/low_level_alloc.cc",
-    "exported/src/base/low_level_alloc.h",
     "exported/src/base/spinlock.cc",
-    "exported/src/base/spinlock.h",
     "exported/src/base/spinlock_internal.cc",
-    "exported/src/base/spinlock_internal.h",
-    "exported/src/base/sysinfo.cc",
-    "exported/src/base/sysinfo.h",
-    "exported/src/central_freelist.cc",
-    "exported/src/central_freelist.h",
-    "exported/src/common.cc",
-    "exported/src/common.h",
-    "exported/src/gperftools/heap-checker.h",
-    "exported/src/gperftools/malloc_extension.h",
-    "exported/src/gperftools/malloc_hook.h",
-    "exported/src/gperftools/stacktrace.h",
-    "exported/src/heap-checker.cc",
-    "exported/src/heap-checker-bcad.cc",
-    "exported/src/heap-profile-table.cc",
-    "exported/src/heap-profile-table.h",
-    "exported/src/internal_logging.cc",
-    "exported/src/internal_logging.h",
-    "exported/src/malloc_extension.cc",
-    "exported/src/malloc_hook.cc",
-    "exported/src/maybe_threads.cc",
-    "exported/src/maybe_threads.h",
-    "exported/src/memory_region_map.cc",
-    "exported/src/memory_region_map.h",
-    "exported/src/page_heap.cc",
-    "exported/src/page_heap.h",
-    "exported/src/raw_printer.cc",
-    "exported/src/raw_printer.h",
-    "exported/src/sampler.cc",
-    "exported/src/sampler.h",
-    "exported/src/span.cc",
-    "exported/src/span.h",
-    "exported/src/stacktrace.cc",
-    "exported/src/stack_trace_table.cc",
-    "exported/src/stack_trace_table.h",
-    "exported/src/static_vars.cc",
-    "exported/src/static_vars.h",
-    "exported/src/symbolize.cc",
-    "exported/src/symbolize.h",
-    "exported/src/system-alloc.cc",
-    "exported/src/system-alloc.h",
-    "exported/src/tcmalloc.cc",
-    "exported/src/tcmalloc.h",
-    "exported/src/thread_cache.cc",
-    "exported/src/thread_cache.h",
   ]
-  if (os == "linux") {
-    sources += [
-      "exported/src/base/linuxthreads.cc",
-      "exported/src/base/linuxthreads.h",
-      "linux/config.h",
-    ]
-  }
+
+  include_dirs = [ "exported/src" ]
 
   configs += [
-    ":includes",
+    ":flags",
+    ":no_warnings",
+  ]
+
+  deps -= [ "//src/third_party/gperftools:tcmalloc" ]
+}
+
+source_set("sysinfo") {
+  sources = [
+    "exported/src/base/sysinfo.cc",
+  ]
+
+  include_dirs = [ "exported/src" ]
+
+  configs += [
+    ":flags",
+    ":no_warnings",
+  ]
+
+  deps -= [ "//src/third_party/gperftools:tcmalloc" ]
+}
+
+source_set("logging") {
+  sources = [
+    "exported/src/base/dynamic_annotations.c",
+    "exported/src/base/logging.cc",
+  ]
+
+  include_dirs = [ "exported/src" ]
+
+  configs += [
+    ":flags",
+    ":no_warnings",
+  ]
+
+  deps -= [ "//src/third_party/gperftools:tcmalloc" ]
+}
+
+source_set("stacktrace") {
+  sources = [
+    "exported/src/base/elf_mem_image.cc",
+    "exported/src/base/vdso_support.cc",
+    "exported/src/stacktrace.cc",
+  ]
+
+  include_dirs = [ "exported/src" ]
+
+  configs += [
+    ":flags",
     ":no_warnings",
     "//src/third_party/libunwind:includes",
   ]
 
   deps -= [ "//src/third_party/gperftools:tcmalloc" ]
+  deps += [
+    ":logging",
+    ":spinlock",
+    ":sysinfo",
+  ]
+}
+
+source_set("tcmalloc_internal") {
+  sources = [
+    "exported/src/common.cc",
+    "exported/src/internal_logging.cc",
+    "exported/src/system-alloc.cc",
+    "exported/src/memfs_malloc.cc",
+    "exported/src/central_freelist.cc",
+    "exported/src/page_heap.cc",
+    "exported/src/sampler.cc",
+    "exported/src/span.cc",
+    "exported/src/stack_trace_table.cc",
+    "exported/src/static_vars.cc",
+    "exported/src/symbolize.cc",
+    "exported/src/thread_cache.cc",
+    "exported/src/malloc_hook.cc",
+    "exported/src/malloc_extension.cc",
+    "exported/src/maybe_threads.cc",
+    "exported/src/base/low_level_alloc.cc",
+    "exported/src/heap-profile-table.cc",
+    "exported/src/heap-profiler.cc",
+    "exported/src/raw_printer.cc",
+    "exported/src/memory_region_map.cc",
+  ]
 
   include_dirs = [ "exported/src" ]
+
+  configs += [
+    ":flags",
+    ":no_warnings",
+  ]
+
+  deps -= [ "//src/third_party/gperftools:tcmalloc" ]
+  deps += [ ":stacktrace" ]
+}
+
+shared_library("tcmalloc") {
+  sources = [
+    "exported/src/base/thread_lister.c",
+    "exported/src/heap-checker.cc",
+    "exported/src/heap-checker-bcad.cc",
+    "exported/src/tcmalloc.cc",
+  ]
+  if (os == "linux") {
+    sources += [
+      "exported/src/base/linuxthreads.cc",
+    ]
+  }
+
+  include_dirs = [ "exported/src" ]
+
+  configs += [
+    ":flags",
+    ":no_warnings",
+  ]
+
+  deps -= [ "//src/third_party/gperftools:tcmalloc" ]
+  deps += [ ":tcmalloc_internal" ]
 }
