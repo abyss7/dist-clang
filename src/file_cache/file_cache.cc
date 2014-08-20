@@ -18,7 +18,7 @@ namespace dist_clang {
 
 FileCache::FileCache(const String &path, ui64 size, bool snappy)
     : path_(path),
-      pool_(base::ThreadPool::TaskQueue::UNLIMITED, 1),
+      pool_(base::ThreadPool::TaskQueue::UNLIMITED, 1 + snappy),
       max_size_(size),
       cached_size_(0),
       database_(path, "direct"),
@@ -164,11 +164,6 @@ bool FileCache::FindByHash(const String &hash, Entry *entry) const {
 
       if (manifest.snappy()) {
         String error;
-        auto tmp = base::CreateTempFile(&error);
-        if (tmp.empty()) {
-          LOG(CACHE_ERROR) << "Failed to create temporary file: " << error;
-          return false;
-        }
 
         String packed_content;
         if (!base::ReadFile(object_path, &packed_content, &error)) {
