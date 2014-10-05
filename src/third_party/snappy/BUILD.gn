@@ -1,6 +1,7 @@
 config("includes") {
+  include_dirs = [ "exported" ]
   if (os == "linux") {
-    include_dirs = [ "linux" ]
+    include_dirs += [ "linux" ]
   }
 }
 
@@ -12,6 +13,8 @@ config("no_warnings") {
 }
 
 shared_library("snappy") {
+  public = [ "exported/snappy.h" ]
+
   sources = [
     "exported/snappy.cc",
     "exported/snappy.h",

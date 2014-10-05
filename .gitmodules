@@ -16,3 +16,6 @@
 [submodule "src/third_party/gperftools/exported"]
 	path = src/third_party/gperftools/exported
 	url = https://code.google.com/r/abyss7-gperftools
+[submodule "src/third_party/leveldb/exported"]
+	path = src/third_party/leveldb/exported
+	url = https://github.com/google/leveldb.git

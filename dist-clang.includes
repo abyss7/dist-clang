@@ -1,3 +1,4 @@
 /home/ilezhankin/.local/include
 build
 src
+src/third_party/leveldb/exported/include

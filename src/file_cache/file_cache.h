@@ -1,7 +1,7 @@
 #pragma once
 
 #include <base/thread_pool.h>
-#include <file_cache/database.h>
+#include <file_cache/database_leveldb.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest_prod.h>
 

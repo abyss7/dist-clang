@@ -1,7 +1,7 @@
 shared_library("file_cache") {
   sources = [
-    "database.cc",
-    "database.h",
+    "database_leveldb.cc",
+    "database_leveldb.h",
     "file_cache.cc",
     "file_cache.h",
   ]
@@ -14,7 +14,7 @@ shared_library("file_cache") {
     ":manifest",
     "//src/base:base",
     "//src/base:logging",
-    "//src/third_party/kyoto-cabinet:kyotocabinet",
+    "//src/third_party/leveldb:leveldb",
     "//src/third_party/protobuf:protobuf",
     "//src/third_party/snappy:snappy",
   ]
