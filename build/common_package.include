@@ -27,8 +27,6 @@ def MakeInstall(top_dir, product_dir, package_dir):
   shutil.copy(os.path.join(product_dir, "lib", "libc++.so"), lib_dir)
   shutil.copy(os.path.join(product_dir, "lib", "libc++abi.so"), lib_dir)
   shutil.copy(os.path.join(product_dir, "lib", "libfile_cache.so"), lib_dir)
-  shutil.copy(os.path.join(product_dir, "lib", "libhistogram.so"), lib_dir)
-  shutil.copy(os.path.join(product_dir, "lib", "libkyotocabinet.so"), lib_dir)
   shutil.copy(os.path.join(product_dir, "lib", "liblogging.so"), lib_dir)
   shutil.copy(os.path.join(product_dir, "lib", "libmanifest.so"), lib_dir)
   shutil.copy(os.path.join(product_dir, "lib", "libnet.so"), lib_dir)
