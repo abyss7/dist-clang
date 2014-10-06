@@ -110,6 +110,14 @@ shared_library("c++abi") {
   defines = [ "cxxabi_EXPORTS" ]  # TODO: do we need it?
 
   libs = [ "pthread" ]  # TODO: may be move to "default_library" config?
+  if (os == "mac") {
+    ldflags = exec_script("//build/macosx_sdk_libs.py", [], "list lines")
+    ldflags += [
+      "-compatibility_version", "1.0.0",
+      "-current_version", "1.0.0",
+    ]
+    libs += [ "System.framework" ]
+  }
 
   configs = []
   configs = [
@@ -119,7 +127,9 @@ shared_library("c++abi") {
   ]
 
   deps = []
-  deps = [ "//src/third_party/libunwind:unwind" ]
+  if (os == "linux") {
+    deps = [ "//src/third_party/libunwind:unwind" ]
+  }
 
   direct_dependent_configs = [ ":includes" ]
 }

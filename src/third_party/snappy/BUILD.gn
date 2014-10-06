@@ -2,6 +2,8 @@ config("includes") {
   include_dirs = [ "exported" ]
   if (os == "linux") {
     include_dirs += [ "linux" ]
+  } else if (os == "mac") {
+    include_dirs += [ "mac" ]
   }
 }
 

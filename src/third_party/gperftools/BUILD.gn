@@ -13,11 +13,23 @@ config("flags") {
 
   defines = [
     "HAVE_CONFIG_H",
-    "NO_FRAME_POINTER",
   ]
+  if (os == "linux") {
+    defines += [ "NO_FRAME_POINTER" ]
+  }
+  if (os == "mac") {
+    defines += [
+      "NO_HEAP_CHECK",
+      "NO_TCMALLOC_SAMPLES",
+      "_THREAD_SAFE",
+    ]
+  }
 
   if (os == "linux") {
     include_dirs = [ "linux" ]
+  }
+  if (os == "mac") {
+    include_dirs = [ "mac" ]
   }
 
   ldflags = [
@@ -35,9 +47,11 @@ config("flags") {
 
 config("no_warnings") {
   cflags = [
+    "-Wno-deprecated-declarations",
     "-Wno-sign-compare",
     "-Wno-unused-const-variable",
     "-Wno-unused-function",
+    "-Wno-unused-private-field",
     "-Wno-unused-variable",
   ]
 }
@@ -102,8 +116,10 @@ source_set("stacktrace") {
   configs += [
     ":flags",
     ":no_warnings",
-    "//src/third_party/libunwind:includes",
   ]
+  if (os == "linux") {
+    configs += [ "//src/third_party/libunwind:includes" ]
+  }
 
   deps -= [ "//src/third_party/gperftools:tcmalloc" ]
   deps += [
@@ -150,14 +166,14 @@ source_set("tcmalloc_internal") {
 
 shared_library("tcmalloc") {
   sources = [
-    "exported/src/base/thread_lister.c",
-    "exported/src/heap-checker.cc",
-    "exported/src/heap-checker-bcad.cc",
     "exported/src/tcmalloc.cc",
   ]
   if (os == "linux") {
     sources += [
       "exported/src/base/linuxthreads.cc",
+      "exported/src/base/thread_lister.c",
+      "exported/src/heap-checker.cc",
+      "exported/src/heap-checker-bcad.cc",
     ]
   }
 
