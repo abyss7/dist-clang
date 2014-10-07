@@ -174,8 +174,38 @@ TEST(FileCacheTest, RestoreSingleEntry_Sync) {
   EXPECT_EQ(expected_stderr, entry.stderr);
 }
 
-TEST(FileCacheTest, DISABLED_RestoreEntryWithMissingFile) {
-  // TODO: implement this test.
+TEST(FileCacheTest, RestoreEntryWithMissingFile) {
+  const base::TemporaryDir tmp_dir;
+  const String path = tmp_dir;
+  const String object_path = path + "/test.o";
+  const String deps_path = path + "/test.d";
+  const String expected_stderr = "some warning";
+  const String expected_object_code = "some object code";
+  const String expected_deps = "some deps";
+  FileCache cache(path);
+  FileCache::Entry entry;
+
+  const String code = "int main() { return 0; }";
+  const String cl = "-c";
+  const String version = "3.5 (revision 100000)";
+
+  ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
+  ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
+
+  entry.object = expected_object_code;
+  entry.deps = expected_deps;
+  entry.stderr = expected_stderr;
+
+  // Store the entry.
+  auto future = cache.Store(code, cl, version, entry);
+  ASSERT_TRUE(!!future);
+  future->Wait();
+  ASSERT_TRUE(future->GetValue());
+
+  base::DeleteFile(cache.CommonPath(FileCache::Hash(code, cl, version)) + ".d");
+
+  // Restore the entry.
+  ASSERT_FALSE(cache.Find(code, cl, version, &entry));
 }
 
 TEST(FileCacheTest, DISABLED_RestoreEntryWithMalfordedManifest) {

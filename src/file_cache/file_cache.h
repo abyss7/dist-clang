@@ -11,6 +11,7 @@ namespace file_cache {
 FORWARD_TEST(FileCacheTest, LockNonExistentFile);
 FORWARD_TEST(FileCacheTest, DoubleLocks);
 FORWARD_TEST(FileCacheTest, RemoveEntry);
+FORWARD_TEST(FileCacheTest, RestoreEntryWithMissingFile);
 }  // namespace file_cache
 
 class FileCache {
@@ -53,6 +54,7 @@ class FileCache {
   FRIEND_TEST(file_cache::FileCacheTest, LockNonExistentFile);
   FRIEND_TEST(file_cache::FileCacheTest, DoubleLocks);
   FRIEND_TEST(file_cache::FileCacheTest, RemoveEntry);
+  FRIEND_TEST(file_cache::FileCacheTest, RestoreEntryWithMissingFile);
 
   class ReadLock {
    public:

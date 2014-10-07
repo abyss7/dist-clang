@@ -1,4 +1,6 @@
 /home/ilezhankin/.local/include
 build
 src
+src/third_party/gtest/exported/include
 src/third_party/leveldb/exported/include
+src/third_party/libcxx/exported/include
