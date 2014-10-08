@@ -31,7 +31,7 @@ message Status {
     NO_VERSION    = 7;
   }
 
-  required Code code           = 1 [default=OK];
+  required Code code           = 1 [ default = OK ];
   optional string description  = 2;
 
   extend Universal {
@@ -69,6 +69,25 @@ message Execute {
   }
 }
 
+message LocalExecute {
+  required Flags flags         = 1;  // Flags to run compilation/preprocessing.
+  required string current_dir  = 2;
+  optional uint32 user_id      = 3;  // Owner of local objects.
+
+  extend Universal {
+    optional LocalExecute extension = 5;
+  }
+}
+
+message RemoteExecute {
+  optional Flags flags         = 1;  // Flags to run compilation/preprocessing.
+  optional string source       = 2;
+
+  extend Universal {
+    optional RemoteExecute extension = 6;
+  }
+}
+
 message RemoteResult {
   required bytes obj           = 1;  // Doesn't comply with file cache manifest.
   optional bytes deps          = 2;
@@ -78,4 +97,4 @@ message RemoteResult {
   }
 }
 
-// Last unused extension index: 5.
+// Last unused extension index: 7.

@@ -1,0 +1,363 @@
+#include <daemon/emitter.h>
+
+#include <base/file_utils.h>
+#include <base/logging.h>
+#include <net/base/end_point.h>
+
+#include <base/using_log.h>
+
+using namespace std::placeholders;
+
+namespace dist_clang {
+
+namespace {
+
+inline String GetOutputPath(const proto::LocalExecute* WEAK_PTR message) {
+  DCHECK(message);
+  if (message->flags().output()[0] == '/') {
+    return message->flags().output();
+  } else {
+    return message->current_dir() + "/" + message->flags().output();
+  }
+}
+
+inline String GetDepsPath(const proto::LocalExecute* WEAK_PTR message) {
+  DCHECK(message);
+  if (message->flags().deps_file()[0] == '/') {
+    return message->flags().deps_file();
+  } else {
+    return message->current_dir() + "/" + message->flags().deps_file();
+  }
+}
+
+inline bool GenerateSource(const proto::LocalExecute* WEAK_PTR message,
+                           String* source) {
+  proto::Flags pp_flags;
+
+  DCHECK(message);
+  pp_flags.CopyFrom(message->flags());
+  pp_flags.clear_cc_only();
+  pp_flags.set_output("-");
+  pp_flags.set_action("-E");
+
+  base::ProcessPtr process =
+      daemon::BaseDaemon::CreateProcess(pp_flags, message->current_dir());
+  if (!process->Run(10)) {
+    return false;
+  }
+
+  if (source) {
+    source->assign(process->stdout());
+  }
+
+  return true;
+}
+
+}  // namespace
+
+namespace daemon {
+
+Emitter::Emitter(const proto::Configuration& configuration)
+    : BaseDaemon(configuration) {
+  using Worker = base::WorkerPool::SimpleWorker;
+
+  CHECK(conf_.has_emitter());
+
+  all_tasks_.reset(new Queue);
+  cache_tasks_.reset(new Queue);
+  failed_tasks_.reset(new Queue);
+
+  local_tasks_.reset(new QueueAggregator);
+  local_tasks_->Aggregate(failed_tasks_.get());
+  if (!conf_.emitter().only_failed()) {
+    local_tasks_->Aggregate(all_tasks_.get());
+  }
+
+  if (!conf_.emitter().has_threads()) {
+    Worker worker = std::bind(&Emitter::DoLocalExecute, this, _1);
+    workers_->AddWorker(worker, conf_.emitter().threads());
+  }
+
+  if (conf_.has_cache() && !conf_.cache().disabled()) {
+    Worker worker = std::bind(&Emitter::DoCheckCache, this, _1);
+    workers_->AddWorker(worker, std::thread::hardware_concurrency() * 2);
+  }
+
+  for (const auto& remote : conf_.emitter().remotes()) {
+    if (!remote.disabled()) {
+      auto end_point = net::EndPoint::TcpHost(remote.host(), remote.port());
+      Worker worker = std::bind(&Emitter::DoRemoteExecute, this, _1, end_point);
+      workers_->AddWorker(worker, remote.threads());
+    }
+  }
+}
+
+Emitter::~Emitter() {
+  all_tasks_->Close();
+  cache_tasks_->Close();
+  failed_tasks_->Close();
+  local_tasks_->Close();
+  workers_.reset();
+}
+
+bool Emitter::Initialize() {
+  String error;
+  if (!Listen(conf_.emitter().socket_path(), &error)) {
+    LOG(ERROR) << "Failed to listen on " << conf_.emitter().socket_path()
+               << " : " << error;
+    return false;
+  }
+
+  return BaseDaemon::Initialize();
+}
+
+bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
+                               const proto::Status& status) {
+  if (!message->IsInitialized()) {
+    LOG(INFO) << message->InitializationErrorString();
+    return false;
+  }
+
+  if (status.code() != proto::Status::OK) {
+    LOG(ERROR) << status.description();
+    return connection->ReportStatus(status);
+  }
+
+  if (message->HasExtension(proto::LocalExecute::extension)) {
+    Message execute(message->ReleaseExtension(proto::LocalExecute::extension));
+    if (conf_.has_cache() && !conf_.cache().disabled()) {
+      return cache_tasks_->Push(std::make_pair(connection, std::move(execute)));
+    } else {
+      return all_tasks_->Push(std::make_pair(connection, std::move(execute)));
+    }
+  }
+
+  NOTREACHED();
+  return false;
+}
+
+void Emitter::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
+  while (!is_shutting_down) {
+    Optional&& task = cache_tasks_->Pop();
+    if (!task) {
+      break;
+    }
+    proto::LocalExecute* incoming = task->second.get();
+
+    FileCache::Entry entry;
+    if (SearchDirectCache(incoming->flags(), incoming->current_dir(), &entry)) {
+      auto RestoreFromCache = [&] {
+        String error;
+        const String output_path = GetOutputPath(incoming);
+
+        if (!base::WriteFile(output_path, entry.object)) {
+          LOG(ERROR) << "Failed to restore file from cache: " << output_path;
+          return false;
+        }
+        if (incoming->has_user_id() &&
+            !base::ChangeOwner(output_path, incoming->user_id(), &error)) {
+          LOG(ERROR) << "Failed to change owner for " << output_path << ": "
+                     << error;
+        }
+
+        // TODO: restore deps file.
+
+        proto::Status status;
+        status.set_code(proto::Status::OK);
+        status.set_description(entry.stderr);
+        task->first->ReportStatus(status);
+
+        return true;
+      };
+
+      if (RestoreFromCache()) {
+        continue;
+      }
+    }
+
+    all_tasks_->Push(std::move(*task));
+  }
+}
+
+void Emitter::DoLocalExecute(const std::atomic<bool>& is_shutting_down) {
+  while (!is_shutting_down) {
+    Optional&& task = local_tasks_->Pop();
+    if (!task) {
+      break;
+    }
+    proto::LocalExecute* incoming = task->second.get();
+
+    // Check that we have a compiler of a requested version.
+    proto::Status status;
+    if (!SetupCompiler(incoming->mutable_flags(), &status)) {
+      task->first->ReportStatus(status);
+      continue;
+    }
+
+    const String output_path = GetOutputPath(incoming);
+    String error;
+    String source;
+
+    if (conf_.has_cache() && !conf_.cache().disabled() &&
+        GenerateSource(incoming, &source)) {
+      FileCache::Entry entry;
+      if (SearchCache(incoming->flags(), source, &entry)) {
+        auto RestoreFromCache = [&] {
+          if (!base::WriteFile(output_path, entry.object)) {
+            LOG(ERROR) << "Failed to restore file from cache: " << output_path;
+            return false;
+          }
+          if (incoming->has_user_id() &&
+              !base::ChangeOwner(output_path, incoming->user_id(), &error)) {
+            LOG(ERROR) << "Failed to change owner for " << output_path << ": "
+                       << error;
+          }
+
+          // TODO: restore deps file.
+
+          UpdateDirectCache(incoming, source, entry);
+
+          proto::Status status;
+          status.set_code(proto::Status::OK);
+          status.set_description(entry.stderr);
+          task->first->ReportStatus(status);
+
+          return true;
+        };
+
+        if (RestoreFromCache()) {
+          continue;
+        }
+      }
+    }
+
+    ui32 uid =
+        incoming->has_user_id() ? incoming->user_id() : base::Process::SAME_UID;
+    base::ProcessPtr process =
+        CreateProcess(incoming->flags(), uid, incoming->current_dir());
+    if (!process->Run(base::Process::UNLIMITED, &error)) {
+      status.set_code(proto::Status::EXECUTION);
+      if (!process->stderr().empty()) {
+        status.set_description(process->stderr());
+      } else if (!error.empty()) {
+        status.set_description(error);
+      } else {
+        status.set_description("without errors");
+      }
+    } else {
+      status.set_code(proto::Status::OK);
+      status.set_description(process->stderr());
+      LOG(INFO) << "Local compilation successful:  "
+                << incoming->flags().input();
+
+      if (!source.empty()) {
+        FileCache::Entry entry = {output_path, GetDepsPath(incoming),
+                                  process->stderr()};
+        UpdateCache(incoming->flags(), source, entry);
+        UpdateDirectCache(incoming, source, entry);
+      }
+    }
+
+    task->first->ReportStatus(status);
+  }
+}
+
+void Emitter::DoRemoteExecute(const std::atomic<bool>& is_shutting_down,
+                              net::EndPointPtr end_point) {
+  if (!end_point) {
+    // TODO: do re-resolve |end_point| periodically, since the network
+    // configuration may change on runtime.
+    return;
+  }
+
+  while (!is_shutting_down) {
+    Optional&& task = all_tasks_->Pop();
+    if (!task) {
+      break;
+    }
+    proto::LocalExecute* incoming = task->second.get();
+
+    UniquePtr<proto::RemoteExecute> outgoing(new proto::RemoteExecute);
+    if (!GenerateSource(incoming, outgoing->mutable_source())) {
+      failed_tasks_->Push(std::move(*task));
+      continue;
+    }
+
+    auto connection = Connect(end_point);
+    if (!connection) {
+      all_tasks_->Push(std::move(*task));
+      continue;
+    }
+
+    // Filter outgoing flags.
+    outgoing->mutable_flags()->CopyFrom(incoming->flags());
+    outgoing->mutable_flags()->mutable_compiler()->clear_path();
+    outgoing->mutable_flags()->clear_output();
+    outgoing->mutable_flags()->clear_input();
+    outgoing->mutable_flags()->clear_non_cached();
+    outgoing->mutable_flags()->clear_deps_file();
+
+    if (!connection->SendSync(std::move(outgoing))) {
+      all_tasks_->Push(std::move(*task));
+      continue;
+    }
+
+    Universal reply(new proto::Universal);
+    if (!connection->ReadSync(reply.get())) {
+      all_tasks_->Push(std::move(*task));
+      continue;
+    }
+
+    if (reply->HasExtension(proto::Status::extension)) {
+      const auto& status = reply->GetExtension(proto::Status::extension);
+      if (status.code() != proto::Status::OK) {
+        LOG(WARNING) << "Remote compilation failed with error(s):" << std::endl
+                     << status.description();
+        failed_tasks_->Push(std::move(*task));
+        continue;
+      }
+    }
+
+    const String output_path = GetOutputPath(incoming);
+    if (reply->HasExtension(proto::RemoteResult::extension)) {
+      const auto& result = reply->GetExtension(proto::RemoteResult::extension);
+      if (base::WriteFile(output_path, result.obj())) {
+        proto::Status status;
+        status.set_code(proto::Status::OK);
+        LOG(INFO) << "Remote compilation successful: "
+                  << incoming->flags().input();
+
+        FileCache::Entry entry;
+        auto GenerateEntry = [&] {
+          entry.object = result.obj();
+          if (result.has_deps()) {
+            entry.deps = result.deps();
+          } else if (incoming->flags().has_deps_file() &&
+                     !base::ReadFile(GetDepsPath(incoming), &entry.deps)) {
+            return false;
+          }
+          entry.stderr = status.description();
+
+          return true;
+        };
+
+        if (GenerateEntry()) {
+          UpdateCache(incoming->flags(), outgoing->source(), entry);
+        }
+
+        task->first->ReportStatus(status);
+        continue;
+      }
+    } else {
+      LOG(WARNING) << "Remote compilation successful, but no results returned: "
+                   << output_path;
+    }
+
+    // In case this task has crashed the remote end, we will try only local
+    // compilation next time.
+    failed_tasks_->Push(std::move(*task));
+  }
+}
+
+}  // namespace daemon
+}  // namespace dist_clang

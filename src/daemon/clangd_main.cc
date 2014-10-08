@@ -1,6 +1,7 @@
 #include <base/logging.h>
+#include <daemon/absorber.h>
 #include <daemon/configuration.h>
-#include <daemon/daemon.h>
+#include <daemon/emitter.h>
 
 #include <third_party/libcxx/exported/include/iostream>
 
@@ -15,7 +16,7 @@ int main(int argc, char* argv[]) {
   signal(SIGPIPE, SIG_IGN);
 
   daemon::Configuration configuration(argc, argv);
-  daemon::Daemon daemon;
+  UniquePtr<daemon::BaseDaemon> daemon;
 
   if (configuration.config().has_user_id() &&
       setuid(configuration.config().user_id()) == -1) {
@@ -23,7 +24,16 @@ int main(int argc, char* argv[]) {
                << configuration.config().user_id();
   }
 
-  if (!daemon.Initialize(configuration)) {
+  if (configuration.config().has_absorber()) {
+    daemon.reset(new daemon::Absorber(configuration.config()));
+  } else if (configuration.config().has_emitter()) {
+    daemon.reset(new daemon::Emitter(configuration.config()));
+  } else {
+    LOG(FATAL) << "Specify exactly one daemon configuration: either Absorber, "
+                  "or Emitter";
+  }
+
+  if (!daemon->Initialize()) {
     LOG(FATAL) << "Daemon failed to initialize.";
   }
 

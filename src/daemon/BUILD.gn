@@ -5,8 +5,14 @@ executable("clangd") {
 
 source_set("daemon") {
   sources = [
-    "daemon.cc",
-    "daemon.h",
+    "absorber.cc",
+    "absorber.h",
+    "base_daemon.cc",
+    "base_daemon.h",
+    # "daemon.cc",
+    # "daemon.h",
+    "emitter.cc",
+    "emitter.h",
   ]
   deps += [
     ":configuration",

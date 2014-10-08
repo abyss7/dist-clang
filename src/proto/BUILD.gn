@@ -6,9 +6,6 @@ shared_library("proto") {
     "remote.pb.cc",
     "remote.pb.h",
     "remote.proto",
-    "stats.pb.cc",
-    "stats.pb.h",
-    "stats.proto",
   ]
 
   if (!config_for_tests) {

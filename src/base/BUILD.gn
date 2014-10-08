@@ -39,7 +39,10 @@ shared_library("logging") {
     "using_log.h",
   ]
 
-  deps += [ ":base_headers" ]
+  deps += [
+    ":base_headers",
+    "//src/third_party/protobuf:protobuf",
+  ]
 }
 
 static_library("singleton") {

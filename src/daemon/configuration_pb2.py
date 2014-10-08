@@ -14,7 +14,7 @@ import proto.base_pb2
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='daemon/configuration.proto',
   package='dist_clang.proto',
-  serialized_pb='\n\x1a\x64\x61\x65mon/configuration.proto\x12\x10\x64ist_clang.proto\x1a\x10proto/base.proto\"q\n\x04Host\x12\x0c\n\x04host\x18\x01 \x02(\t\x12\x12\n\x04port\x18\x02 \x01(\r:\x04\x36\x30\x30\x30\x12\x12\n\x07threads\x18\x03 \x01(\r:\x01\x32\x12\x17\n\x08\x64isabled\x18\x04 \x01(\x08:\x05\x66\x61lse\x12\x1a\n\x0bonly_failed\x18\x05 \x01(\x08:\x05\x66\x61lse\"|\n\tVerbosity\x12\x16\n\nerror_mark\x18\x01 \x01(\r:\x02\x32\x30\x12\x31\n\x06levels\x18\x02 \x03(\x0b\x32!.dist_clang.proto.Verbosity.Range\x1a$\n\x05Range\x12\r\n\x05right\x18\x01 \x02(\r\x12\x0c\n\x04left\x18\x02 \x01(\r\"\xe3\x03\n\rConfiguration\x12\x13\n\x0bsocket_path\x18\x01 \x01(\t\x12\x19\n\rpool_capacity\x18\x02 \x01(\r:\x02\x31\x36\x12\'\n\x07remotes\x18\x04 \x03(\x0b\x32\x16.dist_clang.proto.Host\x12%\n\x05local\x18\x05 \x01(\x0b\x32\x16.dist_clang.proto.Host\x12,\n\x08versions\x18\x06 \x03(\x0b\x32\x1a.dist_clang.proto.Compiler\x12.\n\tverbosity\x18\x08 \x01(\x0b\x32\x1b.dist_clang.proto.Verbosity\x12\x0f\n\x07user_id\x18\n \x01(\r\x12\x13\n\x0b\x63onfig_path\x18\r \x01(\t\x12\x34\n\x05\x63\x61\x63he\x18\x0e \x01(\x0b\x32%.dist_clang.proto.Configuration.Cache\x1a\x97\x01\n\x05\x43\x61\x63he\x12\x0c\n\x04path\x18\x01 \x02(\t\x12\x0f\n\x04size\x18\x02 \x01(\x04:\x01\x30\x12\x14\n\x06remote\x18\x03 \x01(\x08:\x04true\x12\x13\n\x04sync\x18\x04 \x01(\x08:\x05\x66\x61lse\x12\x15\n\x06\x64irect\x18\x05 \x01(\x08:\x05\x66\x61lse\x12\x14\n\x05mtime\x18\x06 \x01(\x08:\x05\x66\x61lse\x12\x17\n\x08\x64isabled\x18\x07 \x01(\x08:\x05\x66\x61lse')
+  serialized_pb='\n\x1a\x64\x61\x65mon/configuration.proto\x12\x10\x64ist_clang.proto\x1a\x10proto/base.proto\"U\n\x04Host\x12\x0c\n\x04host\x18\x01 \x02(\t\x12\x12\n\x04port\x18\x02 \x01(\r:\x04\x36\x30\x30\x30\x12\x12\n\x07threads\x18\x03 \x01(\r:\x01\x32\x12\x17\n\x08\x64isabled\x18\x04 \x01(\x08:\x05\x66\x61lse\"|\n\tVerbosity\x12\x16\n\nerror_mark\x18\x01 \x01(\r:\x02\x32\x30\x12\x31\n\x06levels\x18\x02 \x03(\x0b\x32!.dist_clang.proto.Verbosity.Range\x1a$\n\x05Range\x12\r\n\x05right\x18\x01 \x02(\r\x12\x0c\n\x04left\x18\x02 \x01(\r\"\xa0\x05\n\rConfiguration\x12\x38\n\x07\x65mitter\x18\x01 \x01(\x0b\x32\'.dist_clang.proto.Configuration.Emitter\x12:\n\x08\x61\x62sorber\x18\x02 \x01(\x0b\x32(.dist_clang.proto.Configuration.Absorber\x12\x19\n\rpool_capacity\x18\x03 \x01(\r:\x02\x31\x36\x12,\n\x08versions\x18\x04 \x03(\x0b\x32\x1a.dist_clang.proto.Compiler\x12.\n\tverbosity\x18\x05 \x01(\x0b\x32\x1b.dist_clang.proto.Verbosity\x12\x0f\n\x07user_id\x18\x06 \x01(\r\x12\x13\n\x0b\x63onfig_path\x18\x07 \x01(\t\x12\x34\n\x05\x63\x61\x63he\x18\x08 \x01(\x0b\x32%.dist_clang.proto.Configuration.Cache\x1a\x97\x01\n\x05\x43\x61\x63he\x12\x0c\n\x04path\x18\x01 \x02(\t\x12\x0f\n\x04size\x18\x02 \x01(\x04:\x01\x30\x12\x14\n\x06remote\x18\x03 \x01(\x08:\x04true\x12\x13\n\x04sync\x18\x04 \x01(\x08:\x05\x66\x61lse\x12\x15\n\x06\x64irect\x18\x05 \x01(\x08:\x05\x66\x61lse\x12\x14\n\x05mtime\x18\x06 \x01(\x08:\x05\x66\x61lse\x12\x17\n\x08\x64isabled\x18\x07 \x01(\x08:\x05\x66\x61lse\x1aw\n\x07\x45mitter\x12\x13\n\x0bsocket_path\x18\x01 \x01(\t\x12\'\n\x07remotes\x18\x02 \x03(\x0b\x32\x16.dist_clang.proto.Host\x12\x12\n\x07threads\x18\x03 \x01(\r:\x01\x32\x12\x1a\n\x0bonly_failed\x18\x04 \x01(\x08:\x05\x66\x61lse\x1a\x31\n\x08\x41\x62sorber\x12%\n\x05local\x18\x01 \x01(\x0b\x32\x16.dist_clang.proto.Host')
 
 
 
@@ -54,13 +54,6 @@ _HOST = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
-    _descriptor.FieldDescriptor(
-      name='only_failed', full_name='dist_clang.proto.Host.only_failed', index=4,
-      number=5, type=8, cpp_type=7, label=1,
-      has_default_value=True, default_value=False,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
   ],
   extensions=[
   ],
@@ -71,7 +64,7 @@ _HOST = _descriptor.Descriptor(
   is_extendable=False,
   extension_ranges=[],
   serialized_start=66,
-  serialized_end=179,
+  serialized_end=151,
 )
 
 
@@ -105,8 +98,8 @@ _VERBOSITY_RANGE = _descriptor.Descriptor(
   options=None,
   is_extendable=False,
   extension_ranges=[],
-  serialized_start=269,
-  serialized_end=305,
+  serialized_start=241,
+  serialized_end=277,
 )
 
 _VERBOSITY = _descriptor.Descriptor(
@@ -139,8 +132,8 @@ _VERBOSITY = _descriptor.Descriptor(
   options=None,
   is_extendable=False,
   extension_ranges=[],
-  serialized_start=181,
-  serialized_end=305,
+  serialized_start=153,
+  serialized_end=277,
 )
 
 
@@ -209,8 +202,83 @@ _CONFIGURATION_CACHE = _descriptor.Descriptor(
   options=None,
   is_extendable=False,
   extension_ranges=[],
-  serialized_start=640,
-  serialized_end=791,
+  serialized_start=629,
+  serialized_end=780,
+)
+
+_CONFIGURATION_EMITTER = _descriptor.Descriptor(
+  name='Emitter',
+  full_name='dist_clang.proto.Configuration.Emitter',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='socket_path', full_name='dist_clang.proto.Configuration.Emitter.socket_path', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=unicode("", "utf-8"),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='remotes', full_name='dist_clang.proto.Configuration.Emitter.remotes', index=1,
+      number=2, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='threads', full_name='dist_clang.proto.Configuration.Emitter.threads', index=2,
+      number=3, type=13, cpp_type=3, label=1,
+      has_default_value=True, default_value=2,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='only_failed', full_name='dist_clang.proto.Configuration.Emitter.only_failed', index=3,
+      number=4, type=8, cpp_type=7, label=1,
+      has_default_value=True, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  extension_ranges=[],
+  serialized_start=782,
+  serialized_end=901,
+)
+
+_CONFIGURATION_ABSORBER = _descriptor.Descriptor(
+  name='Absorber',
+  full_name='dist_clang.proto.Configuration.Absorber',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='local', full_name='dist_clang.proto.Configuration.Absorber.local', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  extension_ranges=[],
+  serialized_start=903,
+  serialized_end=952,
 )
 
 _CONFIGURATION = _descriptor.Descriptor(
@@ -221,64 +289,57 @@ _CONFIGURATION = _descriptor.Descriptor(
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='socket_path', full_name='dist_clang.proto.Configuration.socket_path', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=unicode("", "utf-8"),
+      name='emitter', full_name='dist_clang.proto.Configuration.emitter', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='pool_capacity', full_name='dist_clang.proto.Configuration.pool_capacity', index=1,
-      number=2, type=13, cpp_type=3, label=1,
+      name='absorber', full_name='dist_clang.proto.Configuration.absorber', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='pool_capacity', full_name='dist_clang.proto.Configuration.pool_capacity', index=2,
+      number=3, type=13, cpp_type=3, label=1,
       has_default_value=True, default_value=16,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='remotes', full_name='dist_clang.proto.Configuration.remotes', index=2,
+      name='versions', full_name='dist_clang.proto.Configuration.versions', index=3,
       number=4, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='local', full_name='dist_clang.proto.Configuration.local', index=3,
+      name='verbosity', full_name='dist_clang.proto.Configuration.verbosity', index=4,
       number=5, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='versions', full_name='dist_clang.proto.Configuration.versions', index=4,
-      number=6, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
-    _descriptor.FieldDescriptor(
-      name='verbosity', full_name='dist_clang.proto.Configuration.verbosity', index=5,
-      number=8, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
-    _descriptor.FieldDescriptor(
-      name='user_id', full_name='dist_clang.proto.Configuration.user_id', index=6,
-      number=10, type=13, cpp_type=3, label=1,
+      name='user_id', full_name='dist_clang.proto.Configuration.user_id', index=5,
+      number=6, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='config_path', full_name='dist_clang.proto.Configuration.config_path', index=7,
-      number=13, type=9, cpp_type=9, label=1,
+      name='config_path', full_name='dist_clang.proto.Configuration.config_path', index=6,
+      number=7, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=unicode("", "utf-8"),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='cache', full_name='dist_clang.proto.Configuration.cache', index=8,
-      number=14, type=11, cpp_type=10, label=1,
+      name='cache', full_name='dist_clang.proto.Configuration.cache', index=7,
+      number=8, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -286,21 +347,25 @@ _CONFIGURATION = _descriptor.Descriptor(
   ],
   extensions=[
   ],
-  nested_types=[_CONFIGURATION_CACHE, ],
+  nested_types=[_CONFIGURATION_CACHE, _CONFIGURATION_EMITTER, _CONFIGURATION_ABSORBER, ],
   enum_types=[
   ],
   options=None,
   is_extendable=False,
   extension_ranges=[],
-  serialized_start=308,
-  serialized_end=791,
+  serialized_start=280,
+  serialized_end=952,
 )
 
 _VERBOSITY_RANGE.containing_type = _VERBOSITY;
 _VERBOSITY.fields_by_name['levels'].message_type = _VERBOSITY_RANGE
 _CONFIGURATION_CACHE.containing_type = _CONFIGURATION;
-_CONFIGURATION.fields_by_name['remotes'].message_type = _HOST
-_CONFIGURATION.fields_by_name['local'].message_type = _HOST
+_CONFIGURATION_EMITTER.fields_by_name['remotes'].message_type = _HOST
+_CONFIGURATION_EMITTER.containing_type = _CONFIGURATION;
+_CONFIGURATION_ABSORBER.fields_by_name['local'].message_type = _HOST
+_CONFIGURATION_ABSORBER.containing_type = _CONFIGURATION;
+_CONFIGURATION.fields_by_name['emitter'].message_type = _CONFIGURATION_EMITTER
+_CONFIGURATION.fields_by_name['absorber'].message_type = _CONFIGURATION_ABSORBER
 _CONFIGURATION.fields_by_name['versions'].message_type = proto.base_pb2._COMPILER
 _CONFIGURATION.fields_by_name['verbosity'].message_type = _VERBOSITY
 _CONFIGURATION.fields_by_name['cache'].message_type = _CONFIGURATION_CACHE
@@ -334,6 +399,18 @@ class Configuration(_message.Message):
     DESCRIPTOR = _CONFIGURATION_CACHE
 
     # @@protoc_insertion_point(class_scope:dist_clang.proto.Configuration.Cache)
+
+  class Emitter(_message.Message):
+    __metaclass__ = _reflection.GeneratedProtocolMessageType
+    DESCRIPTOR = _CONFIGURATION_EMITTER
+
+    # @@protoc_insertion_point(class_scope:dist_clang.proto.Configuration.Emitter)
+
+  class Absorber(_message.Message):
+    __metaclass__ = _reflection.GeneratedProtocolMessageType
+    DESCRIPTOR = _CONFIGURATION_ABSORBER
+
+    # @@protoc_insertion_point(class_scope:dist_clang.proto.Configuration.Absorber)
   DESCRIPTOR = _CONFIGURATION
 
   # @@protoc_insertion_point(class_scope:dist_clang.proto.Configuration)

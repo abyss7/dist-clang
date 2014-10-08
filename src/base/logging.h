@@ -8,6 +8,12 @@
 // The whole log facility should be minimalistic, since it may be used in a
 // third-party libraries, like gtest.
 
+namespace google {
+namespace protobuf {
+class Message;
+}
+}
+
 namespace dist_clang {
 namespace base {
 
@@ -72,6 +78,8 @@ class Log {
     }
     return *this;
   }
+
+  Log& operator<<(const google::protobuf::Message& info);
 
   Log& operator<<(std::ostream& (*func)(std::ostream&));  // for |std::endl|
 

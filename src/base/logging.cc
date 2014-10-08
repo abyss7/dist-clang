@@ -3,6 +3,7 @@
 #include <base/assert.h>
 
 #include <third_party/libcxx/exported/include/iostream>
+#include <third_party/protobuf/exported/google/protobuf/text_format.h>
 
 namespace dist_clang {
 namespace base {
@@ -36,6 +37,14 @@ Log::~Log() {
   if (level_ == named_levels::FATAL) {
     exit(1);
   }
+}
+
+Log& Log::operator<<(const google::protobuf::Message& info) {
+  String str;
+  if (google::protobuf::TextFormat::PrintToString(info, &str)) {
+    stream_ << str;
+  }
+  return *this;
 }
 
 Log& Log::operator<<(std::ostream& (*func)(std::ostream&)) {

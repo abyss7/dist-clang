@@ -64,8 +64,14 @@ src/client/clang_main.cc
 src/client/clang_test.cc
 src/client/command.cc
 src/client/command.h
+src/daemon/absorber.cc
+src/daemon/absorber.h
+src/daemon/absorber_test.cc
 src/daemon/balancer.cc
 src/daemon/balancer.h
+src/daemon/base_daemon.cc
+src/daemon/base_daemon.h
+src/daemon/base_daemon_test.cc
 src/daemon/BUILD.gn
 src/daemon/clangd_main.cc
 src/daemon/configuration.cc
@@ -77,6 +83,8 @@ src/daemon/configuration_pb2.py
 src/daemon/daemon.cc
 src/daemon/daemon.h
 src/daemon/daemon_test.cc
+src/daemon/emitter.cc
+src/daemon/emitter.h
 src/file_cache/BUILD.gn
 src/file_cache/database_leveldb.cc
 src/file_cache/database_leveldb.h
@@ -130,9 +138,6 @@ src/proto/BUILD.gn
 src/proto/remote.pb.cc
 src/proto/remote.pb.h
 src/proto/remote.proto
-src/proto/stats.pb.cc
-src/proto/stats.pb.h
-src/proto/stats.proto
 src/test/BUILD.gn
 src/test/run_all_tests.cc
 src/third_party/gperftools/exported/src/base/arm_instruction_set_select.h
