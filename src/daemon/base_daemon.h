@@ -13,6 +13,7 @@ namespace daemon {
 
 class BaseDaemon {
  public:
+  virtual ~BaseDaemon();
   virtual bool Initialize() = 0;
 
   static base::ProcessPtr CreateProcess(const proto::Flags& flags, ui32 user_id,
@@ -24,7 +25,6 @@ class BaseDaemon {
   using Universal = UniquePtr<proto::Universal>;
 
   BaseDaemon(const proto::Configuration& configuration);
-  virtual ~BaseDaemon();
 
   virtual bool HandleNewMessage(net::ConnectionPtr connection,
                                 Universal message,

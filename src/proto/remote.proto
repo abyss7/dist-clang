@@ -57,18 +57,6 @@ message Flags {
   // Direct = other + language + non_cached + cc_only
 }
 
-message Execute {
-  required bool remote         = 1;
-  required Flags flags         = 2;  // Flags to run compilation/preprocessing.
-  optional string current_dir  = 4;  // Required for local execution.
-  optional string pp_source    = 5;  // Required for remote execution.
-  optional uint32 user_id      = 6;  // Owner of local objects.
-
-  extend Universal {
-    optional Execute extension = 3;
-  }
-}
-
 message LocalExecute {
   required Flags flags         = 1;  // Flags to run compilation/preprocessing.
   required string current_dir  = 2;

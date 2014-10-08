@@ -56,8 +56,7 @@ bool DoMain(int argc, const char* const argv[], const String& socket_path,
       continue;
     }
 
-    UniquePtr<proto::Execute> message(new proto::Execute);
-    message->set_remote(false);
+    UniquePtr<proto::LocalExecute> message(new proto::LocalExecute);
     message->set_user_id(getuid());
     message->set_current_dir(current_dir);
 

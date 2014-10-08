@@ -283,10 +283,10 @@ TEST_F(ClientTest, CannotReadMessage) {
   connect_callback = [&](net::TestConnection* connection) {
     connection->AbortOnRead();
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      ASSERT_TRUE(message.HasExtension(proto::Execute::extension));
+      ASSERT_TRUE(message.HasExtension(proto::LocalExecute::extension));
 
-      const auto& extension = message.GetExtension(proto::Execute::extension);
-      EXPECT_FALSE(extension.remote());
+      const auto& extension =
+          message.GetExtension(proto::LocalExecute::extension);
       EXPECT_EQ(base::GetCurrentDir(), extension.current_dir());
       ASSERT_TRUE(extension.has_flags());
 

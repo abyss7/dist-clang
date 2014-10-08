@@ -63,6 +63,7 @@ Emitter::Emitter(const proto::Configuration& configuration)
 
   CHECK(conf_.has_emitter());
 
+  workers_.reset(new base::WorkerPool);
   all_tasks_.reset(new Queue);
   cache_tasks_.reset(new Queue);
   failed_tasks_.reset(new Queue);
@@ -73,7 +74,7 @@ Emitter::Emitter(const proto::Configuration& configuration)
     local_tasks_->Aggregate(all_tasks_.get());
   }
 
-  if (!conf_.emitter().has_threads()) {
+  {
     Worker worker = std::bind(&Emitter::DoLocalExecute, this, _1);
     workers_->AddWorker(worker, conf_.emitter().threads());
   }
@@ -106,6 +107,23 @@ bool Emitter::Initialize() {
     LOG(ERROR) << "Failed to listen on " << conf_.emitter().socket_path()
                << " : " << error;
     return false;
+  }
+
+  if (conf_.emitter().only_failed()) {
+    bool has_active_remote = false;
+
+    for (const auto& remote : conf_.emitter().remotes()) {
+      if (!remote.disabled()) {
+        has_active_remote = true;
+        break;
+      }
+    }
+
+    if (!has_active_remote) {
+      LOG(ERROR) << "Daemon will hang without active remotes and set flag "
+                    "\"emitter.only_failed\"";
+      return false;
+    }
   }
 
   return BaseDaemon::Initialize();

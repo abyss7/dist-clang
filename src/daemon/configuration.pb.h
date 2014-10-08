@@ -132,13 +132,6 @@ class Host : public ::google::protobuf::Message {
   inline bool disabled() const;
   inline void set_disabled(bool value);
 
-  // optional bool only_failed = 5 [default = false];
-  inline bool has_only_failed() const;
-  inline void clear_only_failed();
-  static const int kOnlyFailedFieldNumber = 5;
-  inline bool only_failed() const;
-  inline void set_only_failed(bool value);
-
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Host)
  private:
   inline void set_has_host();
@@ -149,8 +142,6 @@ class Host : public ::google::protobuf::Message {
   inline void clear_has_threads();
   inline void set_has_disabled();
   inline void clear_has_disabled();
-  inline void set_has_only_failed();
-  inline void clear_has_only_failed();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -158,10 +149,9 @@ class Host : public ::google::protobuf::Message {
   ::google::protobuf::uint32 port_;
   ::google::protobuf::uint32 threads_;
   bool disabled_;
-  bool only_failed_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(5 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(4 + 31) / 32];
 
   friend void  protobuf_AddDesc_daemon_2fconfiguration_2eproto();
   friend void protobuf_AssignDesc_daemon_2fconfiguration_2eproto();
@@ -469,13 +459,6 @@ class Configuration_Cache : public ::google::protobuf::Message {
   inline bool snappy() const;
   inline void set_snappy(bool value);
 
-  // optional bool remote = 8 [default = true];
-  inline bool has_remote() const;
-  inline void clear_remote();
-  static const int kRemoteFieldNumber = 8;
-  inline bool remote() const;
-  inline void set_remote(bool value);
-
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Configuration.Cache)
  private:
   inline void set_has_path();
@@ -492,8 +475,6 @@ class Configuration_Cache : public ::google::protobuf::Message {
   inline void clear_has_disabled();
   inline void set_has_snappy();
   inline void clear_has_snappy();
-  inline void set_has_remote();
-  inline void clear_has_remote();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -504,10 +485,9 @@ class Configuration_Cache : public ::google::protobuf::Message {
   bool mtime_;
   bool disabled_;
   bool snappy_;
-  bool remote_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(8 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(7 + 31) / 32];
 
   friend void  protobuf_AddDesc_daemon_2fconfiguration_2eproto();
   friend void protobuf_AssignDesc_daemon_2fconfiguration_2eproto();
@@ -854,39 +834,6 @@ class Configuration : public ::google::protobuf::Message {
   inline ::dist_clang::proto::Configuration_Cache* release_cache();
   inline void set_allocated_cache(::dist_clang::proto::Configuration_Cache* cache);
 
-  // optional string socket_path = 9;
-  inline bool has_socket_path() const;
-  inline void clear_socket_path();
-  static const int kSocketPathFieldNumber = 9;
-  inline const ::std::string& socket_path() const;
-  inline void set_socket_path(const ::std::string& value);
-  inline void set_socket_path(const char* value);
-  inline void set_socket_path(const char* value, size_t size);
-  inline ::std::string* mutable_socket_path();
-  inline ::std::string* release_socket_path();
-  inline void set_allocated_socket_path(::std::string* socket_path);
-
-  // repeated .dist_clang.proto.Host remotes = 10;
-  inline int remotes_size() const;
-  inline void clear_remotes();
-  static const int kRemotesFieldNumber = 10;
-  inline const ::dist_clang::proto::Host& remotes(int index) const;
-  inline ::dist_clang::proto::Host* mutable_remotes(int index);
-  inline ::dist_clang::proto::Host* add_remotes();
-  inline const ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Host >&
-      remotes() const;
-  inline ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Host >*
-      mutable_remotes();
-
-  // optional .dist_clang.proto.Host local = 11;
-  inline bool has_local() const;
-  inline void clear_local();
-  static const int kLocalFieldNumber = 11;
-  inline const ::dist_clang::proto::Host& local() const;
-  inline ::dist_clang::proto::Host* mutable_local();
-  inline ::dist_clang::proto::Host* release_local();
-  inline void set_allocated_local(::dist_clang::proto::Host* local);
-
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Configuration)
  private:
   inline void set_has_emitter();
@@ -903,10 +850,6 @@ class Configuration : public ::google::protobuf::Message {
   inline void clear_has_config_path();
   inline void set_has_cache();
   inline void clear_has_cache();
-  inline void set_has_socket_path();
-  inline void clear_has_socket_path();
-  inline void set_has_local();
-  inline void clear_has_local();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -918,12 +861,9 @@ class Configuration : public ::google::protobuf::Message {
   ::dist_clang::proto::Verbosity* verbosity_;
   ::std::string* config_path_;
   ::dist_clang::proto::Configuration_Cache* cache_;
-  ::std::string* socket_path_;
-  ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Host > remotes_;
-  ::dist_clang::proto::Host* local_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(11 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(8 + 31) / 32];
 
   friend void  protobuf_AddDesc_daemon_2fconfiguration_2eproto();
   friend void protobuf_AssignDesc_daemon_2fconfiguration_2eproto();
@@ -1073,28 +1013,6 @@ inline bool Host::disabled() const {
 inline void Host::set_disabled(bool value) {
   set_has_disabled();
   disabled_ = value;
-}
-
-// optional bool only_failed = 5 [default = false];
-inline bool Host::has_only_failed() const {
-  return (_has_bits_[0] & 0x00000010u) != 0;
-}
-inline void Host::set_has_only_failed() {
-  _has_bits_[0] |= 0x00000010u;
-}
-inline void Host::clear_has_only_failed() {
-  _has_bits_[0] &= ~0x00000010u;
-}
-inline void Host::clear_only_failed() {
-  only_failed_ = false;
-  clear_has_only_failed();
-}
-inline bool Host::only_failed() const {
-  return only_failed_;
-}
-inline void Host::set_only_failed(bool value) {
-  set_has_only_failed();
-  only_failed_ = value;
 }
 
 // -------------------------------------------------------------------
@@ -1400,28 +1318,6 @@ inline bool Configuration_Cache::snappy() const {
 inline void Configuration_Cache::set_snappy(bool value) {
   set_has_snappy();
   snappy_ = value;
-}
-
-// optional bool remote = 8 [default = true];
-inline bool Configuration_Cache::has_remote() const {
-  return (_has_bits_[0] & 0x00000080u) != 0;
-}
-inline void Configuration_Cache::set_has_remote() {
-  _has_bits_[0] |= 0x00000080u;
-}
-inline void Configuration_Cache::clear_has_remote() {
-  _has_bits_[0] &= ~0x00000080u;
-}
-inline void Configuration_Cache::clear_remote() {
-  remote_ = true;
-  clear_has_remote();
-}
-inline bool Configuration_Cache::remote() const {
-  return remote_;
-}
-inline void Configuration_Cache::set_remote(bool value) {
-  set_has_remote();
-  remote_ = value;
 }
 
 // -------------------------------------------------------------------
@@ -1901,139 +1797,6 @@ inline void Configuration::set_allocated_cache(::dist_clang::proto::Configuratio
     set_has_cache();
   } else {
     clear_has_cache();
-  }
-}
-
-// optional string socket_path = 9;
-inline bool Configuration::has_socket_path() const {
-  return (_has_bits_[0] & 0x00000100u) != 0;
-}
-inline void Configuration::set_has_socket_path() {
-  _has_bits_[0] |= 0x00000100u;
-}
-inline void Configuration::clear_has_socket_path() {
-  _has_bits_[0] &= ~0x00000100u;
-}
-inline void Configuration::clear_socket_path() {
-  if (socket_path_ != &::google::protobuf::internal::kEmptyString) {
-    socket_path_->clear();
-  }
-  clear_has_socket_path();
-}
-inline const ::std::string& Configuration::socket_path() const {
-  return *socket_path_;
-}
-inline void Configuration::set_socket_path(const ::std::string& value) {
-  set_has_socket_path();
-  if (socket_path_ == &::google::protobuf::internal::kEmptyString) {
-    socket_path_ = new ::std::string;
-  }
-  socket_path_->assign(value);
-}
-inline void Configuration::set_socket_path(const char* value) {
-  set_has_socket_path();
-  if (socket_path_ == &::google::protobuf::internal::kEmptyString) {
-    socket_path_ = new ::std::string;
-  }
-  socket_path_->assign(value);
-}
-inline void Configuration::set_socket_path(const char* value, size_t size) {
-  set_has_socket_path();
-  if (socket_path_ == &::google::protobuf::internal::kEmptyString) {
-    socket_path_ = new ::std::string;
-  }
-  socket_path_->assign(reinterpret_cast<const char*>(value), size);
-}
-inline ::std::string* Configuration::mutable_socket_path() {
-  set_has_socket_path();
-  if (socket_path_ == &::google::protobuf::internal::kEmptyString) {
-    socket_path_ = new ::std::string;
-  }
-  return socket_path_;
-}
-inline ::std::string* Configuration::release_socket_path() {
-  clear_has_socket_path();
-  if (socket_path_ == &::google::protobuf::internal::kEmptyString) {
-    return NULL;
-  } else {
-    ::std::string* temp = socket_path_;
-    socket_path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-    return temp;
-  }
-}
-inline void Configuration::set_allocated_socket_path(::std::string* socket_path) {
-  if (socket_path_ != &::google::protobuf::internal::kEmptyString) {
-    delete socket_path_;
-  }
-  if (socket_path) {
-    set_has_socket_path();
-    socket_path_ = socket_path;
-  } else {
-    clear_has_socket_path();
-    socket_path_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-  }
-}
-
-// repeated .dist_clang.proto.Host remotes = 10;
-inline int Configuration::remotes_size() const {
-  return remotes_.size();
-}
-inline void Configuration::clear_remotes() {
-  remotes_.Clear();
-}
-inline const ::dist_clang::proto::Host& Configuration::remotes(int index) const {
-  return remotes_.Get(index);
-}
-inline ::dist_clang::proto::Host* Configuration::mutable_remotes(int index) {
-  return remotes_.Mutable(index);
-}
-inline ::dist_clang::proto::Host* Configuration::add_remotes() {
-  return remotes_.Add();
-}
-inline const ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Host >&
-Configuration::remotes() const {
-  return remotes_;
-}
-inline ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Host >*
-Configuration::mutable_remotes() {
-  return &remotes_;
-}
-
-// optional .dist_clang.proto.Host local = 11;
-inline bool Configuration::has_local() const {
-  return (_has_bits_[0] & 0x00000400u) != 0;
-}
-inline void Configuration::set_has_local() {
-  _has_bits_[0] |= 0x00000400u;
-}
-inline void Configuration::clear_has_local() {
-  _has_bits_[0] &= ~0x00000400u;
-}
-inline void Configuration::clear_local() {
-  if (local_ != NULL) local_->::dist_clang::proto::Host::Clear();
-  clear_has_local();
-}
-inline const ::dist_clang::proto::Host& Configuration::local() const {
-  return local_ != NULL ? *local_ : *default_instance_->local_;
-}
-inline ::dist_clang::proto::Host* Configuration::mutable_local() {
-  set_has_local();
-  if (local_ == NULL) local_ = new ::dist_clang::proto::Host;
-  return local_;
-}
-inline ::dist_clang::proto::Host* Configuration::release_local() {
-  clear_has_local();
-  ::dist_clang::proto::Host* temp = local_;
-  local_ = NULL;
-  return temp;
-}
-inline void Configuration::set_allocated_local(::dist_clang::proto::Host* local) {
-  delete local_;
-  local_ = local;
-  if (local) {
-    set_has_local();
-  } else {
-    clear_has_local();
   }
 }
 

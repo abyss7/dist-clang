@@ -29,8 +29,8 @@ int main(int argc, char* argv[]) {
   } else if (configuration.config().has_emitter()) {
     daemon.reset(new daemon::Emitter(configuration.config()));
   } else {
-    LOG(FATAL) << "Specify exactly one daemon configuration: either Absorber, "
-                  "or Emitter";
+    LOG(FATAL)
+        << "Specify exactly one daemon configuration: Absorber or Emitter";
   }
 
   if (!daemon->Initialize()) {
