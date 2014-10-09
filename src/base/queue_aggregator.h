@@ -14,7 +14,7 @@ class QueueAggregator {
  public:
   using Optional = typename LockedQueue<T>::Optional;
 
-  ~QueueAggregator() { DCHECK(closed_); }
+  ~QueueAggregator() noexcept(false) { DCHECK(closed_); }
 
   void Close() {
     {
