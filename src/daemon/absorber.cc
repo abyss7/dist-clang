@@ -12,12 +12,17 @@ namespace daemon {
 
 Absorber::Absorber(const proto::Configuration& configuration)
     : BaseDaemon(configuration) {
+  using Worker = base::WorkerPool::SimpleWorker;
+
   CHECK(conf_.has_absorber() && !conf_.absorber().local().disabled());
 
+  workers_.reset(new base::WorkerPool);
   tasks_.reset(new Queue(conf_.pool_capacity()));
-  base::WorkerPool::SimpleWorker worker =
-      std::bind(&Absorber::DoExecute, this, _1);
-  workers_->AddWorker(worker, conf_.absorber().local().threads());
+
+  {
+    Worker worker = std::bind(&Absorber::DoExecute, this, _1);
+    workers_->AddWorker(worker, conf_.absorber().local().threads());
+  }
 }
 
 Absorber::~Absorber() {

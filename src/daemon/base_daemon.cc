@@ -75,11 +75,6 @@ bool ParseDeps(const String& deps, const String& base_path,
 namespace daemon {
 
 bool BaseDaemon::Initialize() {
-  if (!conf_.IsInitialized()) {
-    LOG(ERROR) << conf_.InitializationErrorString();
-    return false;
-  }
-
   if (conf_.has_cache() && !conf_.cache().disabled()) {
     cache_.reset(new FileCache(conf_.cache().path(), conf_.cache().size(),
                                conf_.cache().snappy()));
@@ -110,6 +105,8 @@ bool BaseDaemon::Initialize() {
 
 BaseDaemon::BaseDaemon(const proto::Configuration& configuration)
     : conf_(configuration), network_service_(net::NetworkService::Create()) {
+  conf_.CheckInitialized();
+
   // Setup log's verbosity early - even before configuration integrity check.
   // Everything else is done in the method |Initialize()|.
   if (conf_.has_verbosity()) {

@@ -1,16 +1,19 @@
 #include <daemon/absorber.h>
 
-#include <daemon/configuration.h>
-
 #include <third_party/gtest/exported/include/gtest/gtest.h>
 
 namespace dist_clang {
 namespace daemon {
 
-TEST(AbsorberTest, ConfigWithoutAbsorber) {
-  proto::Configuration conf;
+TEST(AbsorberConfigurationTest, NoAbsorberSection) {
+  ASSERT_ANY_THROW((Absorber((proto::Configuration()))));
+}
 
-  EXPECT_ANY_THROW({ delete new Absorber(conf); });
+TEST(AbsorberConfigurationTest, NoLocalHost) {
+  proto::Configuration conf;
+  conf.mutable_absorber();
+
+  ASSERT_ANY_THROW(Absorber absorber(conf));
 }
 
 }  // namespace daemon

@@ -1,3 +1,4 @@
+*.autosave
 *.pyc
 /out
 /*.creator.user

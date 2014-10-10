@@ -14,7 +14,6 @@ test("unit_tests") {
     "//src/client/clang_test.cc",
     "//src/daemon/absorber_test.cc",
     "//src/daemon/base_daemon_test.cc",
-    # "//src/daemon/daemon_test.cc",
     "//src/daemon/emitter_test.cc",
     "//src/file_cache/file_cache_test.cc",
     "//src/net/connection_linux_test.cc",  # TODO: make this test cross-platform.

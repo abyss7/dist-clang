@@ -18,9 +18,7 @@ FORWARD_TEST(ClientTest, FailedCompilation);
 
 namespace daemon {
 FORWARD_TEST(BaseDaemonTest, CreateProcessFromFlags);
-FORWARD_TEST(DaemonUtilTest, CreateProcessFromFlags);
-FORWARD_TEST(DaemonTest, StoreLocalCache);
-FORWARD_TEST(DaemonTest, StoreRemoteCache);
+FORWARD_TEST(EmitterTest, StoreLocalCache);
 }  // namespace daemon
 
 namespace base {
@@ -68,8 +66,7 @@ class Process : public Testable<Process, ProcessImpl, const String&,
   FRIEND_TEST(client::ClientTest, SuccessfulCompilation);
   FRIEND_TEST(client::ClientTest, FailedCompilation);
   FRIEND_TEST(daemon::BaseDaemonTest, CreateProcessFromFlags);
-  FRIEND_TEST(daemon::DaemonTest, StoreLocalCache);
-  FRIEND_TEST(daemon::DaemonTest, StoreRemoteCache);
+  FRIEND_TEST(daemon::EmitterTest, StoreLocalCache);
 };
 
 template <class Iterator>
