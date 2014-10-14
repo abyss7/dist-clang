@@ -39,6 +39,11 @@ bool Absorber::Initialize() {
     return false;
   }
 
+  if (conf_.has_cache() && conf_.cache().has_direct()) {
+    LOG(WARNING) << "Absorber doesn't use the Direct Cache mode. The flag "
+                    "\"cache.direct\" will be ignored";
+  }
+
   return BaseDaemon::Initialize();
 }
 

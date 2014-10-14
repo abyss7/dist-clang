@@ -16,5 +16,9 @@ TEST(AbsorberConfigurationTest, NoLocalHost) {
   ASSERT_ANY_THROW(Absorber absorber(conf));
 }
 
+TEST(AbsorberConfigurationTest, DISABLED_IgnoreDirectCache) {
+  // TODO: implement this test. Check that "cache.direct" is really ignored.
+}
+
 }  // namespace daemon
 }  // namespace dist_clang

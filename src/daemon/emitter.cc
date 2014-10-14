@@ -315,6 +315,9 @@ void Emitter::DoRemoteExecute(const std::atomic<bool>& is_shutting_down,
     outgoing->mutable_flags()->clear_non_cached();
     outgoing->mutable_flags()->clear_deps_file();
 
+    // Make extra copy of |source|, so we can use it to update cache later.
+    const auto source = outgoing->source();
+
     if (!connection->SendSync(std::move(outgoing))) {
       all_tasks_->Push(std::move(*task));
       continue;
@@ -360,7 +363,8 @@ void Emitter::DoRemoteExecute(const std::atomic<bool>& is_shutting_down,
         };
 
         if (GenerateEntry()) {
-          UpdateCache(incoming->flags(), outgoing->source(), entry);
+          UpdateCache(incoming->flags(), source, entry);
+          UpdateDirectCache(incoming, source, entry);
         }
 
         task->first->ReportStatus(status);
