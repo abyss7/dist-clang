@@ -233,7 +233,6 @@ bool FileCache::RemoveEntry(const String &manifest_path) {
     }
   }
 
-  DCHECK(base::FileExists(manifest_path));
   auto size = base::FileSize(manifest_path);
   if (!base::DeleteFile(manifest_path)) {
     result = false;
