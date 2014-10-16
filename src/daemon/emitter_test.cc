@@ -525,7 +525,7 @@ TEST_F(EmitterTest, LocalFailedCompilation) {
       << "Daemon must not store references to the connection";
 }
 
-TEST_F(EmitterTest, StoreLocalCache) {
+TEST_F(EmitterTest, StoreCacheForLocalResult) {
   const String socket_path = "/tmp/test.socket";
   const proto::Status::Code expected_code = proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
@@ -534,6 +534,7 @@ TEST_F(EmitterTest, StoreLocalCache) {
   const String input_path2 = "test2.cc";
   const String output_path1 = "test1.o";
   const String output_path2 = "test2.o";
+  const String expected_object = "object";
 
   const base::TemporaryDir temp_dir;
   conf.mutable_emitter()->set_socket_path(socket_path);
@@ -570,8 +571,9 @@ TEST_F(EmitterTest, StoreLocalCache) {
       EXPECT_EQ((List<String>{"fake_action", "-x", "fake_language", "-o",
                               output_path1, input_path1}),
                 process->args_);
-      EXPECT_TRUE(
-          base::WriteFile(process->cwd_path_ + "/" + output_path1, "object"));
+      EXPECT_TRUE(base::WriteFile(process->cwd_path_ + "/" + output_path1,
+                                  expected_object));
+      std::cerr << process->cwd_path_ << std::endl;
     } else if (run_count == 3) {
       EXPECT_EQ(
           (List<String>{"-E", "-x", "fake_language", "-o", "-", input_path2}),
@@ -588,7 +590,6 @@ TEST_F(EmitterTest, StoreLocalCache) {
     std::shared_ptr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection1);
 
-    base::TemporaryDir temp_dir;
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(proto::LocalExecute::extension);
     extension->set_current_dir(temp_dir);
@@ -615,7 +616,6 @@ TEST_F(EmitterTest, StoreLocalCache) {
     std::shared_ptr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection2);
 
-    base::TemporaryDir temp_dir;
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(proto::LocalExecute::extension);
     extension->set_current_dir(temp_dir);
@@ -639,6 +639,12 @@ TEST_F(EmitterTest, StoreLocalCache) {
 
   emitter.reset();
 
+  String cache_output;
+  String output_path = String(temp_dir) + "/" + output_path2;
+  EXPECT_TRUE(base::FileExists(output_path));
+  EXPECT_TRUE(base::ReadFile(output_path, &cache_output));
+  EXPECT_EQ(expected_object, cache_output);
+
   EXPECT_EQ(3u, run_count);
   EXPECT_EQ(1u, listen_count);
   EXPECT_EQ(2u, connect_count);
@@ -654,6 +660,12 @@ TEST_F(EmitterTest, StoreLocalCache) {
   // TODO: check that original files are not moved.
   // TODO: check that removal of original files doesn't fail cache filling.
   // TODO: check absolute output path.
+}
+
+TEST_F(EmitterTest, DISABLED_StoreCacheForRemoteResult) {
+  // TODO: implement this test.
+  //       - check with deps file.
+  //       - check absolute output path.
 }
 
 TEST_F(EmitterTest, DISABLED_StoreDirectCacheForLocalResult) {

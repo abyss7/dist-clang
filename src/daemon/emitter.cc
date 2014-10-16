@@ -269,10 +269,14 @@ void Emitter::DoLocalExecute(const std::atomic<bool>& is_shutting_down) {
                 << incoming->flags().input();
 
       if (!source.empty()) {
-        FileCache::Entry entry = {output_path, GetDepsPath(incoming),
-                                  process->stderr()};
-        UpdateCache(incoming->flags(), source, entry);
-        UpdateDirectCache(incoming, source, entry);
+        FileCache::Entry entry;
+        if (base::ReadFile(GetOutputPath(incoming), &entry.object) &&
+            (!incoming->flags().has_deps_file() ||
+             base::ReadFile(GetDepsPath(incoming), &entry.deps))) {
+          entry.stderr = process->stderr();
+          UpdateCache(incoming->flags(), source, entry);
+          UpdateDirectCache(incoming, source, entry);
+        }
       }
     }
 
