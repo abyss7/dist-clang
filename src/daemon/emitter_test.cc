@@ -573,7 +573,6 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
                 process->args_);
       EXPECT_TRUE(base::WriteFile(process->cwd_path_ + "/" + output_path1,
                                   expected_object));
-      std::cerr << process->cwd_path_ << std::endl;
     } else if (run_count == 3) {
       EXPECT_EQ(
           (List<String>{"-E", "-x", "fake_language", "-o", "-", input_path2}),
