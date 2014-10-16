@@ -50,15 +50,17 @@ String FileCache::Hash(const String &code, const String &command_line,
          base::Hexify(base::MakeHash(version, 4));
 }
 
-bool FileCache::Find(const String &code, const String &command_line,
-                     const String &version, Entry *entry) const {
-  const String hash = Hash(code, command_line, version);
+bool FileCache::Find(const String &preprocessed_code,
+                     const String &command_line, const String &version,
+                     Entry *entry) const {
+  const String hash = Hash(preprocessed_code, command_line, version);
   return FindByHash(hash, entry);
 }
 
-bool FileCache::Find_Direct(const String &code, const String &command_line,
-                            const String &version, Entry *entry) const {
-  String hash = Hash(code, command_line, version);
+bool FileCache::Find_Direct(const String &original_code,
+                            const String &command_line, const String &version,
+                            Entry *entry) const {
+  String hash = Hash(original_code, command_line, version);
   const String first_path = FirstPath(hash);
   const String second_path = SecondPath(hash);
   const String manifest_path = CommonPath(hash) + ".manifest";
@@ -93,42 +95,42 @@ bool FileCache::Find_Direct(const String &code, const String &command_line,
   return false;
 }
 
-FileCache::Optional FileCache::Store(const String &code,
+FileCache::Optional FileCache::Store(const String &preprocessed_code,
                                      const String &command_line,
                                      const String &version,
                                      const Entry &entry) {
-  auto &&hash = Hash(code, command_line, version);
+  auto &&hash = Hash(preprocessed_code, command_line, version);
   auto task = std::bind(&FileCache::DoStore, this, hash, entry);
   pool_.Push(task);
   return pool_.Push(std::bind(&FileCache::Clean, this));
 }
 
-FileCache::Optional FileCache::Store_Direct(const String &code,
+FileCache::Optional FileCache::Store_Direct(const String &original_code,
                                             const String &command_line,
                                             const String &version,
                                             const List<String> &headers,
                                             const String &hash) {
-  auto &&orig_hash = Hash(code, command_line, version);
+  auto &&orig_hash = Hash(original_code, command_line, version);
   auto task =
       std::bind(&FileCache::DoStore_Direct, this, orig_hash, headers, hash);
   pool_.Push(task);
   return pool_.Push(std::bind(&FileCache::Clean, this));
 }
 
-FileCache::Optional FileCache::StoreNow(const String &code,
+FileCache::Optional FileCache::StoreNow(const String &preprocessed_code,
                                         const String &command_line,
                                         const String &version,
                                         const Entry &entry) {
-  DoStore(Hash(code, command_line, version), entry);
+  DoStore(Hash(preprocessed_code, command_line, version), entry);
   return pool_.Push(std::bind(&FileCache::Clean, this));
 }
 
-FileCache::Optional FileCache::StoreNow_Direct(const String &code,
+FileCache::Optional FileCache::StoreNow_Direct(const String &original_code,
                                                const String &command_line,
                                                const String &version,
                                                const List<String> &headers,
                                                const String &hash) {
-  DoStore_Direct(Hash(code, command_line, version), headers, hash);
+  DoStore_Direct(Hash(original_code, command_line, version), headers, hash);
   return pool_.Push(std::bind(&FileCache::Clean, this));
 }
 

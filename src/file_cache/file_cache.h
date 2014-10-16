@@ -34,21 +34,21 @@ class FileCache {
   static String Hash(const String& code, const String& command_line,
                      const String& version);
 
-  bool Find(const String& code, const String& command_line,
+  bool Find(const String& preprocessed_code, const String& command_line,
             const String& version, Entry* entry) const;
-  bool Find_Direct(const String& code, const String& command_line,
+  bool Find_Direct(const String& original_code, const String& command_line,
                    const String& version, Entry* entry) const;
 
-  Optional Store(const String& code, const String& command_line,
+  Optional Store(const String& preprocessed_code, const String& command_line,
                  const String& version, const Entry& entry);
-  Optional Store_Direct(const String& code, const String& command_line,
+  Optional Store_Direct(const String& original_code, const String& command_line,
                         const String& version, const List<String>& headers,
                         const String& hash);
-  Optional StoreNow(const String& code, const String& command_line,
+  Optional StoreNow(const String& preprocessed_code, const String& command_line,
                     const String& version, const Entry& entry);
-  Optional StoreNow_Direct(const String& code, const String& command_line,
-                           const String& version, const List<String>& headers,
-                           const String& hash);
+  Optional StoreNow_Direct(const String& original_code,
+                           const String& command_line, const String& version,
+                           const List<String>& headers, const String& hash);
 
  private:
   FRIEND_TEST(file_cache::FileCacheTest, LockNonExistentFile);
