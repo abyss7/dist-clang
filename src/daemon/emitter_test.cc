@@ -526,6 +526,7 @@ TEST_F(EmitterTest, LocalFailedCompilation) {
 }
 
 TEST_F(EmitterTest, StoreCacheForLocalResult) {
+  const base::TemporaryDir temp_dir;
   const String socket_path = "/tmp/test.socket";
   const proto::Status::Code expected_code = proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
@@ -533,10 +534,9 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
   const String input_path1 = "test1.cc";
   const String input_path2 = "test2.cc";
   const String output_path1 = "test1.o";
-  const String output_path2 = "test2.o";
+  const String output_path2 = String(temp_dir) + "/test2.o";
   const String expected_object = "object";
 
-  const base::TemporaryDir temp_dir;
   conf.mutable_emitter()->set_socket_path(socket_path);
   conf.mutable_cache()->set_path(temp_dir);
   conf.mutable_cache()->set_sync(true);
@@ -639,9 +639,8 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
   emitter.reset();
 
   String cache_output;
-  String output_path = String(temp_dir) + "/" + output_path2;
-  EXPECT_TRUE(base::FileExists(output_path));
-  EXPECT_TRUE(base::ReadFile(output_path, &cache_output));
+  EXPECT_TRUE(base::FileExists(output_path2));
+  EXPECT_TRUE(base::ReadFile(output_path2, &cache_output));
   EXPECT_EQ(expected_object, cache_output);
 
   EXPECT_EQ(3u, run_count);
@@ -658,7 +657,6 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
   // TODO: check with deps file.
   // TODO: check that original files are not moved.
   // TODO: check that removal of original files doesn't fail cache filling.
-  // TODO: check absolute output path.
 }
 
 TEST_F(EmitterTest, DISABLED_StoreCacheForRemoteResult) {
