@@ -60,5 +60,13 @@ TEST(FutureTest, FulfillOnExit) {
   EXPECT_EQ(1, future->GetValue());
 }
 
+TEST(FutureTest, DISABLED_AsyncUsage) {
+  // TODO: implement this test.
+}
+
+TEST(FutureTest, DISABLED_DoubleAsyncSetValue) {
+  // TODO: implement this test.
+}
+
 }  // namespace base
 }  // namespace dist_clang

@@ -18,7 +18,7 @@ class QueueAggregator {
 
   void Close() {
     {
-      std::unique_lock<std::mutex> lock(orders_mutex_);
+      UniqueLock lock(orders_mutex_);
       closed_ = true;
       order_count_ = 0;
       pop_condition_.notify_all();
@@ -43,7 +43,7 @@ class QueueAggregator {
   }
 
   Optional Pop() THREAD_SAFE {
-    std::unique_lock<std::mutex> lock(orders_mutex_);
+    UniqueLock lock(orders_mutex_);
     if (!closed_) {
       ++order_count_;
     }
@@ -73,11 +73,11 @@ class QueueAggregator {
   void DoPop(LockedQueue<T>* WEAK_PTR queue) {
     while (!closed_) {
       {
-        std::unique_lock<std::mutex> lock(orders_mutex_);
+        UniqueLock lock(orders_mutex_);
         pop_condition_.wait(lock, [this] { return order_count_ || closed_; });
       }
 
-      std::unique_lock<std::mutex> lock(queue->pop_mutex_);
+      UniqueLock lock(queue->pop_mutex_);
       queue->pop_condition_.wait(
           lock, [queue] { return queue->closed_ || !queue->queue_.empty(); });
       if (queue->closed_ && queue->queue_.empty()) {
@@ -85,7 +85,7 @@ class QueueAggregator {
       }
 
       {
-        std::unique_lock<std::mutex> lock(orders_mutex_);
+        UniqueLock lock(orders_mutex_);
 
         if (order_count_) {
           orders_.push_back(std::move(queue->queue_.front()));

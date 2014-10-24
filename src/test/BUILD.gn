@@ -25,6 +25,7 @@ test("unit_tests") {
     "//src/net/test_network_service.h",
     "run_all_tests.cc",
   ]
+
   deps += [
     "//src/base:base",
     "//src/client:client",

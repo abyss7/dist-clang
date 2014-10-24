@@ -7,6 +7,7 @@ namespace dist_clang {
 namespace base {
 
 template <class Base, class Default = Base, class... Args>
+// |Args| goes to the unique and default constructor of the |Default|.
 class Testable {
  public:
   class Factory {

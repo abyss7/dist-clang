@@ -30,7 +30,7 @@ class LockedQueue {
 
   // Should be explicitly closed before destruction.
   void Close() THREAD_SAFE {
-    std::unique_lock<std::mutex> lock(pop_mutex_);
+    UniqueLock lock(pop_mutex_);
     closed_ = true;
     pop_condition_.notify_all();
   }
@@ -59,7 +59,7 @@ class LockedQueue {
 
   // Returns disengaged object only when this queue is closed and empty.
   Optional Pop() THREAD_SAFE {
-    std::unique_lock<std::mutex> lock(pop_mutex_);
+    UniqueLock lock(pop_mutex_);
     pop_condition_.wait(lock, [this] { return closed_ || !queue_.empty(); });
     if (closed_ && queue_.empty()) {
       return Optional();
@@ -71,7 +71,7 @@ class LockedQueue {
   }
 
   Optional Pop(std::atomic<ui64>& external_counter) THREAD_SAFE {
-    std::unique_lock<std::mutex> lock(pop_mutex_);
+    UniqueLock lock(pop_mutex_);
     pop_condition_.wait(lock, [this] { return closed_ || !queue_.empty(); });
     if (closed_ && queue_.empty()) {
       return Optional();

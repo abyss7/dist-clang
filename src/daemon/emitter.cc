@@ -86,7 +86,7 @@ Emitter::Emitter(const proto::Configuration& configuration)
 
   for (const auto& remote : conf_.emitter().remotes()) {
     if (!remote.disabled()) {
-      auto end_point = net::EndPoint::TcpHost(remote.host(), remote.port());
+      auto end_point = resolver_->Resolve(remote.host(), remote.port());
       Worker worker = std::bind(&Emitter::DoRemoteExecute, this, _1, end_point);
       workers_->AddWorker(worker, remote.threads());
     }
@@ -144,9 +144,11 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
   if (message->HasExtension(proto::LocalExecute::extension)) {
     Message execute(message->ReleaseExtension(proto::LocalExecute::extension));
     if (conf_.has_cache() && !conf_.cache().disabled()) {
-      return cache_tasks_->Push(std::make_pair(connection, std::move(execute)));
+      return cache_tasks_->Push(
+          std::make_tuple(connection, std::move(execute), String()));
     } else {
-      return all_tasks_->Push(std::make_pair(connection, std::move(execute)));
+      return all_tasks_->Push(
+          std::make_tuple(connection, std::move(execute), String()));
     }
   }
 
@@ -160,37 +162,50 @@ void Emitter::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
     if (!task) {
       break;
     }
-    proto::LocalExecute* incoming = task->second.get();
-
+    proto::LocalExecute* incoming = std::get<MESSAGE>(*task).get();
     FileCache::Entry entry;
+
+    auto RestoreFromCache = [&](const String& source) {
+      String error;
+      const String output_path = GetOutputPath(incoming);
+
+      if (!base::WriteFile(output_path, entry.object)) {
+        LOG(ERROR) << "Failed to restore file from cache: " << output_path;
+        return false;
+      }
+      if (incoming->has_user_id() &&
+          !base::ChangeOwner(output_path, incoming->user_id(), &error)) {
+        LOG(ERROR) << "Failed to change owner for " << output_path << ": "
+                   << error;
+      }
+
+      // TODO: restore deps file.
+
+      if (!source.empty()) {
+        UpdateDirectCache(incoming, source, entry);
+      }
+
+      proto::Status status;
+      status.set_code(proto::Status::OK);
+      status.set_description(entry.stderr);
+      std::get<CONNECTION>(*task)->ReportStatus(status);
+
+      return true;
+    };
+
     if (SearchDirectCache(incoming->flags(), incoming->current_dir(), &entry)) {
-      auto RestoreFromCache = [&] {
-        String error;
-        const String output_path = GetOutputPath(incoming);
-
-        if (!base::WriteFile(output_path, entry.object)) {
-          LOG(ERROR) << "Failed to restore file from cache: " << output_path;
-          return false;
-        }
-        if (incoming->has_user_id() &&
-            !base::ChangeOwner(output_path, incoming->user_id(), &error)) {
-          LOG(ERROR) << "Failed to change owner for " << output_path << ": "
-                     << error;
-        }
-
-        // TODO: restore deps file.
-
-        proto::Status status;
-        status.set_code(proto::Status::OK);
-        status.set_description(entry.stderr);
-        task->first->ReportStatus(status);
-
-        return true;
-      };
-
-      if (RestoreFromCache()) {
+      if (RestoreFromCache(String())) {
         continue;
       }
+    }
+
+    String& source = std::get<SOURCE>(*task);
+    if (!GenerateSource(incoming, &source)) {
+      failed_tasks_->Push(std::move(*task));
+      continue;
+    } else if (SearchCache(incoming->flags(), source, &entry) &&
+               RestoreFromCache(source)) {
+      continue;
     }
 
     all_tasks_->Push(std::move(*task));
@@ -203,51 +218,16 @@ void Emitter::DoLocalExecute(const std::atomic<bool>& is_shutting_down) {
     if (!task) {
       break;
     }
-    proto::LocalExecute* incoming = task->second.get();
+    proto::LocalExecute* incoming = std::get<MESSAGE>(*task).get();
 
     // Check that we have a compiler of a requested version.
     proto::Status status;
     if (!SetupCompiler(incoming->mutable_flags(), &status)) {
-      task->first->ReportStatus(status);
+      std::get<CONNECTION>(*task)->ReportStatus(status);
       continue;
     }
 
-    const String output_path = GetOutputPath(incoming);
     String error;
-    String source;
-
-    if (conf_.has_cache() && !conf_.cache().disabled() &&
-        GenerateSource(incoming, &source)) {
-      FileCache::Entry entry;
-      if (SearchCache(incoming->flags(), source, &entry)) {
-        auto RestoreFromCache = [&] {
-          if (!base::WriteFile(output_path, entry.object)) {
-            LOG(ERROR) << "Failed to restore file from cache: " << output_path;
-            return false;
-          }
-          if (incoming->has_user_id() &&
-              !base::ChangeOwner(output_path, incoming->user_id(), &error)) {
-            LOG(ERROR) << "Failed to change owner for " << output_path << ": "
-                       << error;
-          }
-
-          // TODO: restore deps file.
-
-          UpdateDirectCache(incoming, source, entry);
-
-          proto::Status status;
-          status.set_code(proto::Status::OK);
-          status.set_description(entry.stderr);
-          task->first->ReportStatus(status);
-
-          return true;
-        };
-
-        if (RestoreFromCache()) {
-          continue;
-        }
-      }
-    }
 
     ui32 uid =
         incoming->has_user_id() ? incoming->user_id() : base::Process::SAME_UID;
@@ -268,6 +248,8 @@ void Emitter::DoLocalExecute(const std::atomic<bool>& is_shutting_down) {
       LOG(INFO) << "Local compilation successful:  "
                 << incoming->flags().input();
 
+      const String& source = std::get<SOURCE>(*task);
+
       if (!source.empty()) {
         FileCache::Entry entry;
         if (base::ReadFile(GetOutputPath(incoming), &entry.object) &&
@@ -280,47 +262,49 @@ void Emitter::DoLocalExecute(const std::atomic<bool>& is_shutting_down) {
       }
     }
 
-    task->first->ReportStatus(status);
+    std::get<CONNECTION>(*task)->ReportStatus(status);
   }
 }
 
 void Emitter::DoRemoteExecute(const std::atomic<bool>& is_shutting_down,
-                              net::EndPointPtr end_point) {
-  if (!end_point) {
+                              net::EndPointResolver::Optional end_point) {
+  if (!end_point || !(*end_point)) {
     // TODO: do re-resolve |end_point| periodically, since the network
     // configuration may change on runtime.
     return;
   }
+
+  LOG(ERROR) << "SENDING!";
 
   while (!is_shutting_down) {
     Optional&& task = all_tasks_->Pop();
     if (!task) {
       break;
     }
-    proto::LocalExecute* incoming = task->second.get();
+    proto::LocalExecute* incoming = std::get<MESSAGE>(*task).get();
+    String& source = std::get<SOURCE>(*task);
 
     UniquePtr<proto::RemoteExecute> outgoing(new proto::RemoteExecute);
-    if (!GenerateSource(incoming, outgoing->mutable_source())) {
+    if (source.empty() && !GenerateSource(incoming, &source)) {
       failed_tasks_->Push(std::move(*task));
       continue;
     }
 
-    auto connection = Connect(end_point);
+    auto connection = Connect(end_point->GetValue());
     if (!connection) {
       all_tasks_->Push(std::move(*task));
       continue;
     }
 
-    // Filter outgoing flags.
     outgoing->mutable_flags()->CopyFrom(incoming->flags());
+    outgoing->set_source(source);
+
+    // Filter outgoing flags.
     outgoing->mutable_flags()->mutable_compiler()->clear_path();
     outgoing->mutable_flags()->clear_output();
     outgoing->mutable_flags()->clear_input();
     outgoing->mutable_flags()->clear_non_cached();
     outgoing->mutable_flags()->clear_deps_file();
-
-    // Make extra copy of |source|, so we can use it to update cache later.
-    const auto source = outgoing->source();
 
     if (!connection->SendSync(std::move(outgoing))) {
       all_tasks_->Push(std::move(*task));
@@ -371,7 +355,7 @@ void Emitter::DoRemoteExecute(const std::atomic<bool>& is_shutting_down,
           UpdateDirectCache(incoming, source, entry);
         }
 
-        task->first->ReportStatus(status);
+        std::get<CONNECTION>(*task)->ReportStatus(status);
         continue;
       }
     } else {

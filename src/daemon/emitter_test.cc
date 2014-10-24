@@ -69,19 +69,18 @@ class EmitterTest : public ::testing::Test {
       auto factory = base::Process::SetFactory<base::TestProcess::Factory>();
       factory->CallOnCreate([this](base::TestProcess* process) {
         process->CountRuns(&run_count);
-        process->CallOnRun(
-            [this, process](ui32 timeout, const String& input, String* error) {
-              run_callback(process);
+        process->CallOnRun([this, process](ui32, const String&, String* error) {
+          run_callback(process);
 
-              if (!do_run) {
-                if (error) {
-                  error->assign("Test process fails to run intentionally");
-                }
-                return false;
-              }
+          if (!do_run) {
+            if (error) {
+              error->assign("Test process fails to run intentionally");
+            }
+            return false;
+          }
 
-              return true;
-            });
+          return true;
+        });
       });
     }
   }
@@ -525,21 +524,32 @@ TEST_F(EmitterTest, LocalFailedCompilation) {
       << "Daemon must not store references to the connection";
 }
 
+/*
+ * 1. Store new entry in the cache after a local compilation.
+ * 2. Try to compile the same preprocessed source locally.
+ * 3. Restore saved entry from the cache without compilation.
+ */
 TEST_F(EmitterTest, StoreCacheForLocalResult) {
   const base::TemporaryDir temp_dir;
   const String socket_path = "/tmp/test.socket";
   const proto::Status::Code expected_code = proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
+  const String object_code = "fake_object_code";
+  const String source = "fake_source";
+  const String language = "fake_language";
+  const String action = "fake_action";
   const String input_path1 = "test1.cc";
   const String input_path2 = "test2.cc";
   const String output_path1 = "test1.o";
+
   const String output_path2 = String(temp_dir) + "/test2.o";
-  const String expected_object = "object";
+  // |output_path2| checks that everything works fine with absolute paths.
 
   conf.mutable_emitter()->set_socket_path(socket_path);
   conf.mutable_cache()->set_path(temp_dir);
   conf.mutable_cache()->set_sync(true);
+  conf.mutable_cache()->set_direct(false);
 
   auto* version = conf.add_versions();
   version->set_version(compiler_version);
@@ -563,21 +573,19 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ(
-          (List<String>{"-E", "-x", "fake_language", "-o", "-", input_path1}),
-          process->args_);
-      process->stdout_ = "fake_source";
+      EXPECT_EQ((List<String>{"-E", "-x", language, "-o", "-", input_path1}),
+                process->args_);
+      process->stdout_ = source;
     } else if (run_count == 2) {
-      EXPECT_EQ((List<String>{"fake_action", "-x", "fake_language", "-o",
-                              output_path1, input_path1}),
+      EXPECT_EQ((List<String>{action, "-x", language, "-o", output_path1,
+                              input_path1}),
                 process->args_);
       EXPECT_TRUE(base::WriteFile(process->cwd_path_ + "/" + output_path1,
-                                  expected_object));
+                                  object_code));
     } else if (run_count == 3) {
-      EXPECT_EQ(
-          (List<String>{"-E", "-x", "fake_language", "-o", "-", input_path2}),
-          process->args_);
-      process->stdout_ = "fake_source";
+      EXPECT_EQ((List<String>{"-E", "-x", language, "-o", "-", input_path2}),
+                process->args_);
+      process->stdout_ = source;
     }
   };
 
@@ -597,15 +605,15 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
     extension->mutable_flags()->set_output(output_path1);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
-    extension->mutable_flags()->set_action("fake_action");
-    extension->mutable_flags()->set_language("fake_language");
+    extension->mutable_flags()->set_action(action);
+    extension->mutable_flags()->set_language(language);
 
     proto::Status status;
     status.set_code(proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
-    std::unique_lock<std::mutex> lock(send_mutex);
+    UniqueLock lock(send_mutex);
     send_condition.wait_for(lock, std::chrono::seconds(1),
                             [this] { return send_count == 1; });
   }
@@ -623,15 +631,15 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
     extension->mutable_flags()->set_output(output_path2);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
-    extension->mutable_flags()->set_action("fake_action");
-    extension->mutable_flags()->set_language("fake_language");
+    extension->mutable_flags()->set_action(action);
+    extension->mutable_flags()->set_language(language);
 
     proto::Status status;
     status.set_code(proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
-    std::unique_lock<std::mutex> lock(send_mutex);
+    UniqueLock lock(send_mutex);
     send_condition.wait_for(lock, std::chrono::seconds(1),
                             [this] { return send_count == 2; });
   }
@@ -641,7 +649,7 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
   String cache_output;
   EXPECT_TRUE(base::FileExists(output_path2));
   EXPECT_TRUE(base::ReadFile(output_path2, &cache_output));
-  EXPECT_EQ(expected_object, cache_output);
+  EXPECT_EQ(object_code, cache_output);
 
   EXPECT_EQ(3u, run_count);
   EXPECT_EQ(1u, listen_count);
@@ -659,11 +667,157 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
   // TODO: check that removal of original files doesn't fail cache filling.
 }
 
-TEST_F(EmitterTest, DISABLED_StoreCacheForRemoteResult) {
-  // TODO: implement this test.
-  //       - check with deps file.
-  //       - check absolute output path.
+/*
+TEST_F(EmitterTest, StoreCacheForRemoteResult) {
+  const base::TemporaryDir temp_dir;
+  const String socket_path = "/tmp/test.socket";
+  const String host = "fake_host";
+  const ui16 port = 12345;
+  const proto::Status::Code expected_code = proto::Status::OK;
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const String object_code = "fake_object_code";
+  const String source = "fake_source";
+  const String language = "fake_language";
+  const String action = "fake_action";
+  const String input_path1 = "test1.cc";
+  const String input_path2 = "test2.cc";
+  const String output_path1 = "test1.o";
+
+  const String output_path2 = String(temp_dir) + "/test2.o";
+  // |output_path2| checks that everything works fine with absolute paths.
+
+  conf.mutable_emitter()->set_socket_path(socket_path);
+  conf.mutable_emitter()->set_only_failed(true);
+  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_sync(true);
+  conf.mutable_cache()->set_direct(false);
+
+  auto* remote = conf.mutable_emitter()->add_remotes();
+  remote->set_host(host);
+  remote->set_port(port);
+  remote->set_threads(1);
+
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+
+  listen_callback = [&](const String& host, ui16 port, String*) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+    return !::testing::Test::HasNonfatalFailure();
+  };
+
+  connect_callback = [&](net::TestConnection* connection) {
+    if (connect_count == 1) {
+      connection->CallOnSend([&](const net::Connection::Message& message) {
+        EXPECT_TRUE(message.HasExtension(proto::Status::extension));
+        const auto& status = message.GetExtension(proto::Status::extension);
+        EXPECT_EQ(expected_code, status.code()) << status.description();
+
+        send_condition.notify_all();
+      });
+    } else if (connect_count == 2) {
+      connection->CallOnSend([&](const net::Connection::Message& message) {
+        EXPECT_TRUE(message.HasExtension(proto::RemoteExecute::extension));
+        const auto& command =
+            message.GetExtension(proto::RemoteExecute::extension);
+        EXPECT_EQ(source, command.source());
+        LOG(ERROR) << command.flags().compiler().version();
+      });
+    }
+  };
+
+  run_callback = [&](base::TestProcess* process) {
+    if (run_count == 1) {
+      EXPECT_EQ((List<String>{"-E", "-x", language, "-o", "-", input_path1}),
+                process->args_);
+      process->stdout_ = source;
+    } else if (run_count == 2) {
+      EXPECT_EQ((List<String>{"-E", "-x", language, "-o", "-", input_path2}),
+                process->args_);
+      process->stdout_ = source;
+    }
+  };
+
+  emitter.reset(new Emitter(conf));
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto connection1 = test_service->TriggerListen(socket_path);
+  {
+    std::shared_ptr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection1);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(proto::LocalExecute::extension);
+    extension->set_current_dir(temp_dir);
+
+    extension->mutable_flags()->set_input(input_path1);
+    extension->mutable_flags()->set_output(output_path1);
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
+    compiler->set_version(compiler_version);
+    extension->mutable_flags()->set_action(action);
+    extension->mutable_flags()->set_language(language);
+
+    proto::Status status;
+    status.set_code(proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    UniqueLock lock(send_mutex);
+    send_condition.wait_for(lock, std::chrono::seconds(1),
+                            [this] { return send_count == 1; });
+  }
+
+  auto connection2 = test_service->TriggerListen(socket_path);
+  {
+    std::shared_ptr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection2);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(proto::LocalExecute::extension);
+    extension->set_current_dir(temp_dir);
+
+    extension->mutable_flags()->set_input(input_path2);
+    extension->mutable_flags()->set_output(output_path2);
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
+    compiler->set_version(compiler_version);
+    extension->mutable_flags()->set_action(action);
+    extension->mutable_flags()->set_language(language);
+
+    proto::Status status;
+    status.set_code(proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    UniqueLock lock(send_mutex);
+    send_condition.wait_for(lock, std::chrono::seconds(1),
+                            [this] { return send_count == 2; });
+  }
+
+  emitter.reset();
+
+  String cache_output;
+  EXPECT_TRUE(base::FileExists(output_path2));
+  EXPECT_TRUE(base::ReadFile(output_path2, &cache_output));
+  EXPECT_EQ(object_code, cache_output);
+
+  EXPECT_EQ(2u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(2u, connect_count);
+  EXPECT_EQ(2u, connections_created);
+  EXPECT_EQ(2u, read_count);
+  EXPECT_EQ(2u, send_count);
+  EXPECT_EQ(1, connection1.use_count())
+      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count())
+      << "Daemon must not store references to the connection";
+
+  // TODO: check with deps file.
+  // TODO: check that original files are not moved.
+  // TODO: check that removal of original files doesn't fail cache filling.
 }
+*/
 
 TEST_F(EmitterTest, DISABLED_StoreDirectCacheForLocalResult) {
   // TODO: implement this test. Check that we store direct cache for successful

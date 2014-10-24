@@ -9,8 +9,6 @@ source_set("daemon") {
     "absorber.h",
     "base_daemon.cc",
     "base_daemon.h",
-    # "daemon.cc",
-    # "daemon.h",
     "emitter.cc",
     "emitter.h",
   ]

@@ -5,6 +5,7 @@
 #include <daemon/configuration.pb.h>
 #include <file_cache/file_cache.h>
 #include <net/connection_forward.h>
+#include <net/end_point_resolver.h>
 #include <net/network_service_impl.h>
 #include <proto/remote.pb.h>
 
@@ -58,6 +59,7 @@ class BaseDaemon {
                          const String& source, const FileCache::Entry& entry);
 
   const proto::Configuration conf_;
+  UniquePtr<net::EndPointResolver> resolver_;
 
  private:
   using CompilerMap = HashMap<String /* version */, String /* path */>;

@@ -364,7 +364,7 @@ TEST_F(DaemonTest, StoreRemoteCache) {
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
-    std::unique_lock<std::mutex> lock(send_mutex);
+    UniqueLock lock(send_mutex);
     send_condition.wait_for(lock, std::chrono::seconds(1),
                             [this] { return send_count == 1; });
   }
@@ -392,7 +392,7 @@ TEST_F(DaemonTest, StoreRemoteCache) {
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
-    std::unique_lock<std::mutex> lock(send_mutex);
+    UniqueLock lock(send_mutex);
     send_condition.wait_for(lock, std::chrono::seconds(1),
                             [this] { return send_count == 2; });
   }

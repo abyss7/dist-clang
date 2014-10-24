@@ -1241,3 +1241,5 @@ src/third_party/tclap/exported/include/tclap/ZshCompletionOutput.h
 src/third_party/tclap/BUILD.gn
 BUILD.gn
 src/daemon/emitter_test.cc
+src/net/end_point_resolver.h
+src/net/end_point_resolver.cc

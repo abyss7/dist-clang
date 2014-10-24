@@ -14,8 +14,14 @@ class Emitter : public BaseDaemon {
   virtual bool Initialize() override;
 
  private:
+  enum TaskIndex {
+    CONNECTION = 0,
+    MESSAGE = 1,
+    SOURCE = 2,
+  };
+
   using Message = UniquePtr<proto::LocalExecute>;
-  using Task = Pair<net::ConnectionPtr, Message>;
+  using Task = Tuple<net::ConnectionPtr, Message, String>;
   using Queue = base::LockedQueue<Task>;
   using QueueAggregator = base::QueueAggregator<Task>;
   using Optional = Queue::Optional;
@@ -27,7 +33,7 @@ class Emitter : public BaseDaemon {
   void DoCheckCache(const std::atomic<bool>& is_shutting_down);
   void DoLocalExecute(const std::atomic<bool>& is_shutting_down);
   void DoRemoteExecute(const std::atomic<bool>& is_shutting_down,
-                       net::EndPointPtr end_point);
+                       net::EndPointResolver::Optional end_point);
 
   UniquePtr<Queue> all_tasks_, cache_tasks_, failed_tasks_;
   UniquePtr<QueueAggregator> local_tasks_;

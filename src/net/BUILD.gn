@@ -9,6 +9,8 @@ shared_library("net") {
     "connection_forward.h",
     "connection_impl.cc",
     "connection_impl.h",
+    "end_point_resolver.cc",
+    "end_point_resolver.h",
     "event_loop.cc",
     "event_loop.h",
     "event_loop_linux.cc",
