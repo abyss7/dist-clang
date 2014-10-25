@@ -1,4 +1,5 @@
 build
+build/llvm/linux/include
 src
 src/third_party/gtest/exported/include
 src/third_party/leveldb/exported

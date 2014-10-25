@@ -81,20 +81,20 @@ config("no_rtti") {
   ldflags = [ "-fno-rtti" ]
 }
 
+import("//build/llvm/llvm.gni")
+
 config("libclang_includes") {
-  defines = exec_script("//build/llvm.py", [ "defines" ], "list lines")
-  include_dirs = exec_script("//build/llvm.py", [ "includedir" ], "list lines")
+  defines = llvm_defines
+  include_dirs = [ "//build/llvm/" + os + "/include" ]
 }
 
 config("libclang") {
-  defines = exec_script("//build/llvm.py", [ "defines" ], "list lines")
-  include_dirs = exec_script("//build/llvm.py", [ "includedir" ], "list lines")
-  ldflags = exec_script("//build/llvm.py", [ "ldflags" ], "list lines")
+  defines = llvm_defines
+  include_dirs = [ "//build/llvm/" + os + "/include" ]
+  lib_dirs = [ "//build/llvm/" + os + "/lib" ]
 
-  libs = [
-    "c",
-
-    # libclang parts:
+  libs = [ "c" ]
+  libs += [
     "clangTooling",
     "clangFrontendTool",
     "clangFrontend",
@@ -115,8 +115,8 @@ config("libclang") {
     "clangLex",
     "clangBasic"
   ]
-  libs += exec_script("//build/llvm.py", [ "libs" ], "list lines")
-  libs += exec_script("//build/llvm.py", [ "system-libs" ], "list lines")
+  libs += llvm_libs
+  libs += llvm_system_libs
 }
 
 config("version") {
