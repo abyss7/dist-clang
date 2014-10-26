@@ -75,6 +75,7 @@ bool DriverCommand::GenerateFromArgs(int argc, const char* const raw_argv[],
 
   std::string path = argv[0];
   driver.reset(new Driver(path, llvm::sys::getDefaultTargetTriple(), *diags));
+  driver->setCheckInputsExist(false);
   compilation.reset(driver->BuildCompilation(argv));
   DumpDiagnosticBuffer(diag_client);
 
@@ -84,10 +85,10 @@ bool DriverCommand::GenerateFromArgs(int argc, const char* const raw_argv[],
 
   SharedPtr<opt::OptTable> opts(createDriverOptTable());
   bool result = false;
-  const auto& jobs = compilation->getJobs().getJobs();
+  const auto& jobs = compilation->getJobs();
   for (auto& job : jobs) {
     if (job->getKind() == Job::CommandClass) {
-      auto command = static_cast<clang::driver::Command*>(job.get());
+      auto command = static_cast<clang::driver::Command*>(job);
 
       // It's a kind of heuristics to skip non-Clang commands.
       if ((command->getSource().getKind() != Action::AssembleJobClass &&
@@ -115,26 +116,12 @@ bool DriverCommand::GenerateFromArgs(int argc, const char* const raw_argv[],
           opts->ParseArgs(arg_begin, arg_end, missing_arg_index,
                           missing_arg_count, included_flags_bitmask),
           compilation, opts, driver);
+
+      if (diags->hasErrorOccurred()) {
+        return false;
+      }
+
       commands.emplace_back(driver_command);
-      const auto& arg_list = driver_command->arg_list_;
-
-      // Check for missing argument error.
-      if (missing_arg_count) {
-        diags->Report(diag::err_drv_missing_argument)
-            << arg_list->getArgString(missing_arg_index) << missing_arg_count;
-        DumpDiagnosticBuffer(diag_client);
-        return false;
-      }
-
-      // Issue errors on unknown arguments.
-      for (auto it = arg_list->filtered_begin(options::OPT_UNKNOWN),
-                end = arg_list->filtered_end();
-           it != end; ++it) {
-        diags->Report(diag::err_drv_unknown_argument)
-            << (*it)->getAsString(*arg_list);
-        DumpDiagnosticBuffer(diag_client);
-        return false;
-      }
     }
   }
 

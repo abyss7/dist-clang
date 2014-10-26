@@ -12,18 +12,10 @@
 namespace dist_clang {
 namespace client {
 
-TEST(CommandTest, NonExistentInput) {
-  const int argc = 3;
-  const char* argv[] = {"clang++", "-c", "/tmp/some_random.cc", nullptr};
-
-  Command::List commands;
-  ASSERT_FALSE(DriverCommand::GenerateFromArgs(argc, argv, commands));
-  ASSERT_TRUE(commands.empty());
-}
-
 TEST(CommandTest, MissingArgument) {
   const int argc = 4;
-  const char* argv[] = {"clang++", "-I", "-c", "/tmp/some_random.cc", nullptr};
+  const char* argv[] = {"clang++", "-c", "/tmp/some_random.cc", "-Xclang",
+                        nullptr};
 
   Command::List commands;
   ASSERT_FALSE(DriverCommand::GenerateFromArgs(argc, argv, commands));
@@ -47,7 +39,7 @@ TEST(CommandTest, ParseSimpleArgs) {
   auto rep2 =
       [](const String& str) { return std::make_pair(std::regex(str), str); };
 
-  const String temp_input = base::CreateTempFile(".cc");
+  const String expected_input = "/tmp/input.cc";
   const String expected_output = "/tmp/output.o";
   List<Pair<std::regex, String>> expected_regex;
   expected_regex.push_back(rep("-cc1"));
@@ -55,7 +47,7 @@ TEST(CommandTest, ParseSimpleArgs) {
   expected_regex.push_back(rep("-emit-obj"));
   expected_regex.push_back(rep("-mrelax-all"));
   expected_regex.push_back(rep("-disable-free"));
-  expected_regex.push_back(rep("-main-file-name clangd-[a-zA-Z0-9]+\\.cc"));
+  expected_regex.push_back(rep("-main-file-name input\\.cc"));
   expected_regex.push_back(rep("-mrelocation-model (static|pic)"));
   expected_regex.push_back(rep("-mdisable-fp-elim"));
   expected_regex.push_back(rep("-masm-verbose"));
@@ -75,7 +67,7 @@ TEST(CommandTest, ParseSimpleArgs) {
   expected_regex.push_back(rep("-fdiagnostics-show-option"));
   expected_regex.push_back(rep2("-o " + expected_output));
   expected_regex.push_back(rep("-x c++"));
-  expected_regex.push_back(rep2(temp_input));
+  expected_regex.push_back(rep2(expected_input));
 #if defined(OS_LINUX)
   expected_regex.push_back(rep("-fmath-errno"));
   expected_regex.push_back(rep("-mconstructor-aliases"));
@@ -89,8 +81,9 @@ TEST(CommandTest, ParseSimpleArgs) {
   expected_regex.push_back(rep("-fencode-extended-block-signature"));
 #endif
 
-  const char* argv[] = {"clang++", "-c",                    temp_input.c_str(),
-                        "-o",      expected_output.c_str(), nullptr};
+  const char* argv[] = {"clang++",               "-c",
+                        expected_input.c_str(),  "-o",
+                        expected_output.c_str(), nullptr};
   const int argc = 5;
 
   Command::List commands;
