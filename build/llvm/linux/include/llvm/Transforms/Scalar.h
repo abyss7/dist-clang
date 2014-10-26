@@ -36,13 +36,6 @@ FunctionPass *createConstantPropagationPass();
 
 //===----------------------------------------------------------------------===//
 //
-// AlignmentFromAssumptions - Use assume intrinsics to set load/store
-// alignments.
-//
-FunctionPass *createAlignmentFromAssumptionsPass();
-
-//===----------------------------------------------------------------------===//
-//
 // SCCP - Sparse conditional constant propagation.
 //
 FunctionPass *createSCCPPass();
@@ -206,17 +199,16 @@ FunctionPass *createReassociatePass();
 //===----------------------------------------------------------------------===//
 //
 // JumpThreading - Thread control through mult-pred/multi-succ blocks where some
-// preds always go to some succ. Thresholds other than minus one override the
-// internal BB duplication default threshold.
+// preds always go to some succ.
 //
-FunctionPass *createJumpThreadingPass(int Threshold = -1);
+FunctionPass *createJumpThreadingPass();
 
 //===----------------------------------------------------------------------===//
 //
 // CFGSimplification - Merge basic blocks, eliminate unreachable blocks,
 // simplify terminator instructions, etc...
 //
-FunctionPass *createCFGSimplificationPass(int Threshold = -1);
+FunctionPass *createCFGSimplificationPass();
 
 //===----------------------------------------------------------------------===//
 //

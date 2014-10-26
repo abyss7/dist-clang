@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_REWRITE_CORE_HTMLREWRITE_H
-#define LLVM_CLANG_REWRITE_CORE_HTMLREWRITE_H
+#ifndef LLVM_CLANG_HTMLREWRITER_H
+#define LLVM_CLANG_HTMLREWRITER_H
 
 #include "clang/Basic/SourceLocation.h"
 #include <string>

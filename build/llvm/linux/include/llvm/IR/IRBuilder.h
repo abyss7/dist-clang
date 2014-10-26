@@ -364,60 +364,43 @@ public:
   /// \brief Create and insert a memset to the specified pointer and the
   /// specified value.
   ///
-  /// If the pointer isn't an i8*, it will be converted. If a TBAA tag is
-  /// specified, it will be added to the instruction. Likewise with alias.scope
-  /// and noalias tags.
+  /// If the pointer isn't an i8*, it will be converted.  If a TBAA tag is
+  /// specified, it will be added to the instruction.
   CallInst *CreateMemSet(Value *Ptr, Value *Val, uint64_t Size, unsigned Align,
-                         bool isVolatile = false, MDNode *TBAATag = nullptr,
-                         MDNode *ScopeTag = nullptr,
-                         MDNode *NoAliasTag = nullptr) {
-    return CreateMemSet(Ptr, Val, getInt64(Size), Align, isVolatile,
-                        TBAATag, ScopeTag, NoAliasTag);
+                         bool isVolatile = false, MDNode *TBAATag = nullptr) {
+    return CreateMemSet(Ptr, Val, getInt64(Size), Align, isVolatile, TBAATag);
   }
 
   CallInst *CreateMemSet(Value *Ptr, Value *Val, Value *Size, unsigned Align,
-                         bool isVolatile = false, MDNode *TBAATag = nullptr,
-                         MDNode *ScopeTag = nullptr,
-                         MDNode *NoAliasTag = nullptr);
+                         bool isVolatile = false, MDNode *TBAATag = nullptr);
 
   /// \brief Create and insert a memcpy between the specified pointers.
   ///
   /// If the pointers aren't i8*, they will be converted.  If a TBAA tag is
-  /// specified, it will be added to the instruction. Likewise with alias.scope
-  /// and noalias tags.
+  /// specified, it will be added to the instruction.
   CallInst *CreateMemCpy(Value *Dst, Value *Src, uint64_t Size, unsigned Align,
                          bool isVolatile = false, MDNode *TBAATag = nullptr,
-                         MDNode *TBAAStructTag = nullptr,
-                         MDNode *ScopeTag = nullptr,
-                         MDNode *NoAliasTag = nullptr) {
+                         MDNode *TBAAStructTag = nullptr) {
     return CreateMemCpy(Dst, Src, getInt64(Size), Align, isVolatile, TBAATag,
-                        TBAAStructTag, ScopeTag, NoAliasTag);
+                        TBAAStructTag);
   }
 
   CallInst *CreateMemCpy(Value *Dst, Value *Src, Value *Size, unsigned Align,
                          bool isVolatile = false, MDNode *TBAATag = nullptr,
-                         MDNode *TBAAStructTag = nullptr,
-                         MDNode *ScopeTag = nullptr,
-                         MDNode *NoAliasTag = nullptr);
+                         MDNode *TBAAStructTag = nullptr);
 
   /// \brief Create and insert a memmove between the specified
   /// pointers.
   ///
   /// If the pointers aren't i8*, they will be converted.  If a TBAA tag is
-  /// specified, it will be added to the instruction. Likewise with alias.scope
-  /// and noalias tags.
+  /// specified, it will be added to the instruction.
   CallInst *CreateMemMove(Value *Dst, Value *Src, uint64_t Size, unsigned Align,
-                          bool isVolatile = false, MDNode *TBAATag = nullptr,
-                          MDNode *ScopeTag = nullptr,
-                          MDNode *NoAliasTag = nullptr) {
-    return CreateMemMove(Dst, Src, getInt64(Size), Align, isVolatile,
-                         TBAATag, ScopeTag, NoAliasTag);
+                          bool isVolatile = false, MDNode *TBAATag = nullptr) {
+    return CreateMemMove(Dst, Src, getInt64(Size), Align, isVolatile, TBAATag);
   }
 
   CallInst *CreateMemMove(Value *Dst, Value *Src, Value *Size, unsigned Align,
-                          bool isVolatile = false, MDNode *TBAATag = nullptr,
-                          MDNode *ScopeTag = nullptr,
-                          MDNode *NoAliasTag = nullptr);
+                          bool isVolatile = false, MDNode *TBAATag = nullptr);
 
   /// \brief Create a lifetime.start intrinsic.
   ///
@@ -446,7 +429,7 @@ private:
 /// The first template argument handles whether or not to preserve names in the
 /// final instruction output. This defaults to on.  The second template argument
 /// specifies a class to use for creating constants.  This defaults to creating
-/// minimally folded constants.  The third template argument allows clients to
+/// minimally folded constants.  The fourth template argument allows clients to
 /// specify custom insertion hooks that are called on every newly created
 /// insertion.
 template<bool preserveNames = true, typename T = ConstantFolder,
@@ -587,7 +570,8 @@ public:
 
   InvokeInst *CreateInvoke(Value *Callee, BasicBlock *NormalDest,
                            BasicBlock *UnwindDest, const Twine &Name = "") {
-    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest, None),
+    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest,
+                                     ArrayRef<Value *>()),
                   Name);
   }
   InvokeInst *CreateInvoke(Value *Callee, BasicBlock *NormalDest,

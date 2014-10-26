@@ -249,9 +249,9 @@ public:
 
   CorrectionCandidateCallback()
       : WantTypeSpecifiers(true), WantExpressionKeywords(true),
-        WantCXXNamedCasts(true), WantFunctionLikeCasts(true),
-        WantRemainingKeywords(true), WantObjCSuper(false),
-        IsObjCIvarLookup(false), IsAddressOfOperand(false) {}
+        WantCXXNamedCasts(true), WantRemainingKeywords(true),
+        WantObjCSuper(false), IsObjCIvarLookup(false),
+        IsAddressOfOperand(false) {}
 
   virtual ~CorrectionCandidateCallback() {}
 
@@ -277,13 +277,11 @@ public:
     return ValidateCandidate(candidate) ? 0 : InvalidDistance;
   }
 
-  // Flags for context-dependent keywords. WantFunctionLikeCasts is only
-  // used/meaningful when WantCXXNamedCasts is false.
+  // Flags for context-dependent keywords.
   // TODO: Expand these to apply to non-keywords or possibly remove them.
   bool WantTypeSpecifiers;
   bool WantExpressionKeywords;
   bool WantCXXNamedCasts;
-  bool WantFunctionLikeCasts;
   bool WantRemainingKeywords;
   bool WantObjCSuper;
   // Temporary hack for the one case where a CorrectTypoContext enum is used
@@ -327,7 +325,6 @@ public:
     WantTypeSpecifiers = false;
     WantExpressionKeywords = false;
     WantCXXNamedCasts = false;
-    WantFunctionLikeCasts = false;
     WantRemainingKeywords = false;
   }
 

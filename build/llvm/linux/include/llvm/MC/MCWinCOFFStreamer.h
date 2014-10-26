@@ -30,12 +30,6 @@ public:
   MCWinCOFFStreamer(MCContext &Context, MCAsmBackend &MAB, MCCodeEmitter &CE,
                     raw_ostream &OS);
 
-  /// state management
-  void reset() override {
-    CurSymbol = nullptr;
-    MCObjectStreamer::reset();
-  }
-
   /// \name MCStreamer interface
   /// \{
 

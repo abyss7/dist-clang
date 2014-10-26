@@ -16,8 +16,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_ANALYSIS_ANALYSES_FORMATSTRING_H
-#define LLVM_CLANG_ANALYSIS_ANALYSES_FORMATSTRING_H
+#ifndef LLVM_CLANG_FORMAT_H
+#define LLVM_CLANG_FORMAT_H
 
 #include "clang/AST/CanonicalType.h"
 
@@ -79,7 +79,6 @@ public:
     AsLongDouble, // 'L'
     AsAllocate,   // for '%as', GNU extension to C90 scanf
     AsMAllocate,  // for '%ms', GNU extension to scanf
-    AsWide,       // 'w' (MSVCRT, like l but only for c, C, s, S, or Z
     AsWideChar = AsLong // for '%ls', only makes sense for printf
   };
 
@@ -154,8 +153,6 @@ public:
     SArg,
 
     // ** Printf-specific **
-
-    ZArg, // MS extension
 
     // Objective-C specific specifiers.
     ObjCObjArg,  // '@'
@@ -647,9 +644,6 @@ public:
 bool ParsePrintfString(FormatStringHandler &H,
                        const char *beg, const char *end, const LangOptions &LO,
                        const TargetInfo &Target);
-  
-bool ParseFormatStringHasSArg(const char *beg, const char *end, const LangOptions &LO,
-                              const TargetInfo &Target);
 
 bool ParseScanfString(FormatStringHandler &H,
                       const char *beg, const char *end, const LangOptions &LO,

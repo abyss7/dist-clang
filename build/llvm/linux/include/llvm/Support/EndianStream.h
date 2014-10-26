@@ -12,11 +12,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SUPPORT_ENDIANSTREAM_H
-#define LLVM_SUPPORT_ENDIANSTREAM_H
+#ifndef _LLVM_SUPPORT_ENDIAN_STREAM_H_
+#define _LLVM_SUPPORT_ENDIAN_STREAM_H_
 
-#include "llvm/Support/Endian.h"
-#include "llvm/Support/raw_ostream.h"
+#include <llvm/Support/Endian.h>
+#include <llvm/Support/raw_ostream.h>
 
 namespace llvm {
 namespace support {
@@ -36,4 +36,4 @@ template <endianness endian> struct Writer {
 } // end namespace support
 } // end namespace llvm
 
-#endif
+#endif // _LLVM_SUPPORT_ENDIAN_STREAM_H_

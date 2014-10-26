@@ -2113,7 +2113,7 @@ public:
   
   /// \brief Retrieve the argument types.
   ArrayRef<TypeSourceInfo *> getArgs() const { 
-    return llvm::makeArrayRef(getTypeSourceInfos(), getNumArgs());
+    return ArrayRef<TypeSourceInfo *>(getTypeSourceInfos(), getNumArgs());
   }
   
   typedef TypeSourceInfo **arg_iterator;
@@ -2767,7 +2767,7 @@ public:
                                   ArrayRef<CleanupObject> objects);
 
   ArrayRef<CleanupObject> getObjects() const {
-    return llvm::makeArrayRef(getObjectsBuffer(), getNumObjects());
+    return ArrayRef<CleanupObject>(getObjectsBuffer(), getNumObjects());
   }
 
   unsigned getNumObjects() const { return ExprWithCleanupsBits.NumObjects; }

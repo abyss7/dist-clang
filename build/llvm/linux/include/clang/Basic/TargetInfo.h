@@ -577,21 +577,13 @@ public:
   bool validateInputConstraint(ConstraintInfo *OutputConstraints,
                                unsigned NumOutputs,
                                ConstraintInfo &info) const;
-
-  virtual bool validateOutputSize(StringRef /*Constraint*/,
-                                  unsigned /*Size*/) const {
-    return true;
-  }
-
   virtual bool validateInputSize(StringRef /*Constraint*/,
                                  unsigned /*Size*/) const {
     return true;
   }
-  virtual bool
-  validateConstraintModifier(StringRef /*Constraint*/,
-                             char /*Modifier*/,
-                             unsigned /*Size*/,
-                             std::string &/*SuggestedModifier*/) const {
+  virtual bool validateConstraintModifier(StringRef /*Constraint*/,
+                                          const char /*Modifier*/,
+                                          unsigned /*Size*/) const {
     return true;
   }
   bool resolveSymbolicName(const char *&Name,

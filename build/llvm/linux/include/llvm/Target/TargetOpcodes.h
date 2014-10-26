@@ -104,13 +104,7 @@ enum {
   /// support optimizations for dynamic languages (such as javascript) that
   /// rewrite calls to runtimes with more efficient code sequences.
   /// This also implies a stack map.
-  PATCHPOINT = 18,
-
-  /// This pseudo-instruction loads the stack guard value. Targets which need
-  /// to prevent the stack guard value or address from being spilled to the
-  /// stack should override TargetLowering::emitLoadStackGuardNode and
-  /// additionally expand this pseudo after register allocation.
-  LOAD_STACK_GUARD = 19
+  PATCHPOINT = 18
 };
 } // end namespace TargetOpcode
 } // end namespace llvm

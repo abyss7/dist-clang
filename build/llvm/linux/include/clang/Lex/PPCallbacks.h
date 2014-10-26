@@ -322,12 +322,15 @@ public:
 /// \brief Simple wrapper class for chaining callbacks.
 class PPChainedCallbacks : public PPCallbacks {
   virtual void anchor();
-  std::unique_ptr<PPCallbacks> First, Second;
+  PPCallbacks *First, *Second;
 
 public:
-  PPChainedCallbacks(std::unique_ptr<PPCallbacks> _First,
-                     std::unique_ptr<PPCallbacks> _Second)
-    : First(std::move(_First)), Second(std::move(_Second)) {}
+  PPChainedCallbacks(PPCallbacks *_First, PPCallbacks *_Second)
+    : First(_First), Second(_Second) {}
+  ~PPChainedCallbacks() {
+    delete Second;
+    delete First;
+  }
 
   void FileChanged(SourceLocation Loc, FileChangeReason Reason,
                    SrcMgr::CharacteristicKind FileType,

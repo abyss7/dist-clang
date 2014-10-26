@@ -13,8 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_CODEGEN_CGFUNCTIONINFO_H
-#define LLVM_CLANG_CODEGEN_CGFUNCTIONINFO_H
+#ifndef LLVM_CLANG_CODEGEN_FUNCTION_INFO_H
+#define LLVM_CLANG_CODEGEN_FUNCTION_INFO_H
 
 #include "clang/AST/CanonicalType.h"
 #include "clang/AST/Type.h"
@@ -87,7 +87,6 @@ private:
   bool IndirectRealign : 1; // isIndirect()
   bool SRetAfterThis : 1;   // isIndirect()
   bool InReg : 1;           // isDirect() || isExtend() || isIndirect()
-  bool CanBeFlattened: 1;   // isDirect()
 
   ABIArgInfo(Kind K)
       : PaddingType(nullptr), TheKind(K), PaddingInReg(false), InReg(false) {}
@@ -98,13 +97,11 @@ public:
         TheKind(Direct), PaddingInReg(false), InReg(false) {}
 
   static ABIArgInfo getDirect(llvm::Type *T = nullptr, unsigned Offset = 0,
-                              llvm::Type *Padding = nullptr,
-                              bool CanBeFlattened = true) {
+                              llvm::Type *Padding = nullptr) {
     auto AI = ABIArgInfo(Direct);
     AI.setCoerceToType(T);
     AI.setDirectOffset(Offset);
     AI.setPaddingType(Padding);
-    AI.setCanBeFlattened(CanBeFlattened);
     return AI;
   }
   static ABIArgInfo getDirectInReg(llvm::Type *T = nullptr) {
@@ -268,16 +265,6 @@ public:
     InAllocaSRet = SRet;
   }
 
-  bool getCanBeFlattened() const {
-    assert(isDirect() && "Invalid kind!");
-    return CanBeFlattened;
-  }
-
-  void setCanBeFlattened(bool Flatten) {
-    assert(isDirect() && "Invalid kind!");
-    CanBeFlattened = Flatten;
-  }
-
   void dump() const;
 };
 
@@ -406,9 +393,6 @@ public:
 
   bool isVariadic() const { return Required.allowsOptionalArgs(); }
   RequiredArgs getRequiredArgs() const { return Required; }
-  unsigned getNumRequiredArgs() const {
-    return isVariadic() ? getRequiredArgs().getNumRequiredArgs() : arg_size();
-  }
 
   bool isInstanceMethod() const { return InstanceMethod; }
 

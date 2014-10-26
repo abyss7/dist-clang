@@ -18,7 +18,6 @@
 
 #include "llvm/ADT/PointerUnion.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
-#include "llvm/IR/Metadata.h"
 #include "llvm/IR/Value.h"  // PointerLikeTypeTraits<Value*>
 #include "llvm/Support/DataTypes.h"
 
@@ -92,7 +91,7 @@ class MachineMemOperand {
   MachinePointerInfo PtrInfo;
   uint64_t Size;
   unsigned Flags;
-  AAMDNodes AAInfo;
+  const MDNode *TBAAInfo;
   const MDNode *Ranges;
 
 public:
@@ -118,8 +117,7 @@ public:
   /// MachineMemOperand - Construct an MachineMemOperand object with the
   /// specified PtrInfo, flags, size, and base alignment.
   MachineMemOperand(MachinePointerInfo PtrInfo, unsigned flags, uint64_t s,
-                    unsigned base_alignment,
-                    const AAMDNodes &AAInfo = AAMDNodes(),
+                    unsigned base_alignment, const MDNode *TBAAInfo = nullptr,
                     const MDNode *Ranges = nullptr);
 
   const MachinePointerInfo &getPointerInfo() const { return PtrInfo; }
@@ -163,8 +161,8 @@ public:
   /// base address, without the offset.
   uint64_t getBaseAlignment() const { return (1u << (Flags >> MOMaxBits)) >> 1; }
 
-  /// getAAInfo - Return the AA tags for the memory reference.
-  AAMDNodes getAAInfo() const { return AAInfo; }
+  /// getTBAAInfo - Return the TBAA tag for the memory reference.
+  const MDNode *getTBAAInfo() const { return TBAAInfo; }
 
   /// getRanges - Return the range tag for the memory reference.
   const MDNode *getRanges() const { return Ranges; }

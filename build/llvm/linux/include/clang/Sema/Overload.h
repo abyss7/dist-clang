@@ -25,7 +25,6 @@
 #include "clang/Sema/TemplateDeduction.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/AlignOf.h"
 #include "llvm/Support/Allocator.h"
 
 namespace clang {
@@ -719,8 +718,7 @@ namespace clang {
     CandidateSetKind Kind;
 
     unsigned NumInlineSequences;
-    llvm::AlignedCharArray<llvm::AlignOf<ImplicitConversionSequence>::Alignment,
-                           16 * sizeof(ImplicitConversionSequence)> InlineSpace;
+    char InlineSpace[16 * sizeof(ImplicitConversionSequence)];
 
     OverloadCandidateSet(const OverloadCandidateSet &) LLVM_DELETED_FUNCTION;
     void operator=(const OverloadCandidateSet &) LLVM_DELETED_FUNCTION;
@@ -761,7 +759,7 @@ namespace clang {
       // available.
       if (NumConversions + NumInlineSequences <= 16) {
         ImplicitConversionSequence *I =
-            (ImplicitConversionSequence *)InlineSpace.buffer;
+          (ImplicitConversionSequence*)InlineSpace;
         C.Conversions = &I[NumInlineSequences];
         NumInlineSequences += NumConversions;
       } else {

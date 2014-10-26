@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FRONTEND_VERIFYDIAGNOSTICCONSUMER_H
-#define LLVM_CLANG_FRONTEND_VERIFYDIAGNOSTICCONSUMER_H
+#ifndef LLVM_CLANG_FRONTEND_VERIFYDIAGNOSTICSCLIENT_H
+#define LLVM_CLANG_FRONTEND_VERIFYDIAGNOSTICSCLIENT_H
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Lex/Preprocessor.h"
@@ -145,12 +145,9 @@ public:
   ///
   class Directive {
   public:
-    static std::unique_ptr<Directive> create(bool RegexKind,
-                                             SourceLocation DirectiveLoc,
-                                             SourceLocation DiagnosticLoc,
-                                             bool MatchAnyLine, StringRef Text,
-                                             unsigned Min, unsigned Max);
-
+    static Directive *create(bool RegexKind, SourceLocation DirectiveLoc,
+                             SourceLocation DiagnosticLoc, bool MatchAnyLine,
+                             StringRef Text, unsigned Min, unsigned Max);
   public:
     /// Constant representing n or more matches.
     static const unsigned MaxCount = UINT_MAX;
@@ -184,7 +181,7 @@ public:
     void operator=(const Directive &) LLVM_DELETED_FUNCTION;
   };
 
-  typedef std::vector<std::unique_ptr<Directive>> DirectiveList;
+  typedef std::vector<Directive*> DirectiveList;
 
   /// ExpectedData - owns directive objects and deletes on destructor.
   ///
@@ -195,11 +192,13 @@ public:
     DirectiveList Notes;
 
     void Reset() {
-      Errors.clear();
-      Warnings.clear();
-      Remarks.clear();
-      Notes.clear();
+      llvm::DeleteContainerPointers(Errors);
+      llvm::DeleteContainerPointers(Warnings);
+      llvm::DeleteContainerPointers(Remarks);
+      llvm::DeleteContainerPointers(Notes);
     }
+
+    ~ExpectedData() { Reset(); }
   };
 
   enum DirectiveStatus {

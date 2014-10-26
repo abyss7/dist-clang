@@ -15,10 +15,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CODEGEN_PBQP_COSTALLOCATOR_H
-#define LLVM_CODEGEN_PBQP_COSTALLOCATOR_H
+#ifndef LLVM_COSTALLOCATOR_H
+#define LLVM_COSTALLOCATOR_H
 
-#include <memory>
 #include <set>
 #include <type_traits>
 
@@ -28,20 +27,57 @@ template <typename CostT,
           typename CostKeyTComparator>
 class CostPool {
 public:
-  class PoolEntry : public std::enable_shared_from_this<PoolEntry> {
+
+  class PoolEntry {
   public:
     template <typename CostKeyT>
     PoolEntry(CostPool &pool, CostKeyT cost)
-        : pool(pool), cost(std::move(cost)) {}
+      : pool(pool), cost(std::move(cost)), refCount(0) {}
     ~PoolEntry() { pool.removeEntry(this); }
+    void incRef() { ++refCount; }
+    bool decRef() { --refCount; return (refCount == 0); }
     CostT& getCost() { return cost; }
     const CostT& getCost() const { return cost; }
   private:
     CostPool &pool;
     CostT cost;
+    std::size_t refCount;
   };
 
-  typedef std::shared_ptr<CostT> PoolRef;
+  class PoolRef {
+  public:
+    PoolRef(PoolEntry *entry) : entry(entry) {
+      this->entry->incRef();
+    }
+    PoolRef(const PoolRef &r) {
+      entry = r.entry;
+      entry->incRef();
+    }
+    PoolRef& operator=(const PoolRef &r) {
+      assert(entry != nullptr && "entry should not be null.");
+      PoolEntry *temp = r.entry;
+      temp->incRef();
+      entry->decRef();
+      entry = temp;
+      return *this;
+    }
+
+    ~PoolRef() {
+      if (entry->decRef())
+        delete entry;
+    }
+    void reset(PoolEntry *entry) {
+      entry->incRef();
+      this->entry->decRef();
+      this->entry = entry;
+    }
+    CostT& operator*() { return entry->getCost(); }
+    const CostT& operator*() const { return entry->getCost(); }
+    CostT* operator->() { return &entry->getCost(); }
+    const CostT* operator->() const { return &entry->getCost(); }
+  private:
+    PoolEntry *entry;
+  };
 
 private:
   class EntryComparator {
@@ -68,17 +104,19 @@ private:
   void removeEntry(PoolEntry *p) { entrySet.erase(p); }
 
 public:
-  template <typename CostKeyT> PoolRef getCost(CostKeyT costKey) {
+
+  template <typename CostKeyT>
+  PoolRef getCost(CostKeyT costKey) {
     typename EntrySet::iterator itr =
       std::lower_bound(entrySet.begin(), entrySet.end(), costKey,
                        EntryComparator());
 
     if (itr != entrySet.end() && costKey == (*itr)->getCost())
-      return PoolRef((*itr)->shared_from_this(), &(*itr)->getCost());
+      return PoolRef(*itr);
 
-    auto p = std::make_shared<PoolEntry>(*this, std::move(costKey));
-    entrySet.insert(itr, p.get());
-    return PoolRef(std::move(p), &p->getCost());
+    PoolEntry *p = new PoolEntry(*this, std::move(costKey));
+    entrySet.insert(itr, p);
+    return PoolRef(p);
   }
 };
 
@@ -106,4 +144,4 @@ private:
 
 }
 
-#endif
+#endif // LLVM_COSTALLOCATOR_H

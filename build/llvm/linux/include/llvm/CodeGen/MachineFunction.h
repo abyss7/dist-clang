@@ -21,7 +21,6 @@
 #include "llvm/ADT/ilist.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/IR/DebugLoc.h"
-#include "llvm/IR/Metadata.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/ArrayRecycler.h"
 #include "llvm/Support/Recycler.h"
@@ -39,7 +38,6 @@ class MachineModuleInfo;
 class MCContext;
 class Pass;
 class TargetMachine;
-class TargetSubtargetInfo;
 class TargetRegisterClass;
 struct MachinePointerInfo;
 
@@ -77,7 +75,6 @@ struct MachineFunctionInfo {
 class MachineFunction {
   const Function *Fn;
   const TargetMachine &Target;
-  const TargetSubtargetInfo *STI;
   MCContext &Ctx;
   MachineModuleInfo &MMI;
   GCModuleInfo *GMI;
@@ -164,11 +161,6 @@ public:
   /// getTarget - Return the target machine this machine code is compiled with
   ///
   const TargetMachine &getTarget() const { return Target; }
-
-  /// getSubtarget - Return the subtarget for which this machine code is being
-  /// compiled.
-  const TargetSubtargetInfo &getSubtarget() const { return *STI; }
-  void setSubtarget(const TargetSubtargetInfo *ST) { STI = ST; }
 
   /// getRegInfo - Return information about the registers currently in use.
   ///
@@ -407,7 +399,7 @@ public:
   MachineMemOperand *getMachineMemOperand(MachinePointerInfo PtrInfo,
                                           unsigned f, uint64_t s,
                                           unsigned base_alignment,
-                                          const AAMDNodes &AAInfo = AAMDNodes(),
+                                          const MDNode *TBAAInfo = nullptr,
                                           const MDNode *Ranges = nullptr);
   
   /// getMachineMemOperand - Allocate a new MachineMemOperand by copying

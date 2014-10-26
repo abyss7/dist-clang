@@ -156,11 +156,6 @@ public:
   virtual void mangleItaniumThreadLocalWrapper(const VarDecl *D,
                                                raw_ostream &) = 0;
 
-  virtual void mangleCXXCtorComdat(const CXXConstructorDecl *D,
-                                   raw_ostream &) = 0;
-  virtual void mangleCXXDtorComdat(const CXXDestructorDecl *D,
-                                   raw_ostream &) = 0;
-
   static bool classof(const MangleContext *C) {
     return C->getKind() == MK_Itanium;
   }

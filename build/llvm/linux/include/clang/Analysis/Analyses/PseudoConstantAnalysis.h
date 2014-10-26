@@ -13,8 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_ANALYSIS_ANALYSES_PSEUDOCONSTANTANALYSIS_H
-#define LLVM_CLANG_ANALYSIS_ANALYSES_PSEUDOCONSTANTANALYSIS_H
+#ifndef LLVM_CLANG_ANALYSIS_PSEUDOCONSTANTANALYSIS
+#define LLVM_CLANG_ANALYSIS_PSEUDOCONSTANTANALYSIS
 
 #include "clang/AST/Stmt.h"
 

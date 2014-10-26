@@ -87,10 +87,10 @@ public:
   unsigned size() const { return NumParams; }
 
   ArrayRef<NamedDecl*> asArray() {
-    return llvm::makeArrayRef(begin(), end());
+    return ArrayRef<NamedDecl*>(begin(), size());
   }
   ArrayRef<const NamedDecl*> asArray() const {
-    return llvm::makeArrayRef(begin(), size());
+    return ArrayRef<const NamedDecl*>(begin(), size());
   }
 
   NamedDecl* getParam(unsigned Idx) {
@@ -204,7 +204,7 @@ public:
 
   /// \brief Produce this as an array ref.
   ArrayRef<TemplateArgument> asArray() const {
-    return llvm::makeArrayRef(data(), size());
+    return ArrayRef<TemplateArgument>(data(), size());
   }
 
   /// \brief Retrieve the number of template arguments in this
@@ -236,7 +236,7 @@ protected:
       TemplateParams(nullptr) {}
 
   // Construct a template decl with the given name and parameters.
-  // Used when there is not templated element (tt-params).
+  // Used when there is not templated element (tt-params, alias?).
   TemplateDecl(Kind DK, DeclContext *DC, SourceLocation L,
                DeclarationName Name, TemplateParameterList *Params)
     : NamedDecl(DK, DC, L, Name), TemplatedDecl(nullptr),

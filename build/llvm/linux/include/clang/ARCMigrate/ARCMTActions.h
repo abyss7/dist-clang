@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_ARCMIGRATE_ARCMTACTIONS_H
-#define LLVM_CLANG_ARCMIGRATE_ARCMTACTIONS_H
+#ifndef LLVM_CLANG_ARCMIGRATE_ARCMT_ACTION_H
+#define LLVM_CLANG_ARCMIGRATE_ARCMT_ACTION_H
 
 #include "clang/ARCMigrate/FileRemapper.h"
 #include "clang/Frontend/FrontendAction.h"
@@ -37,8 +37,8 @@ class MigrateSourceAction : public ASTFrontendAction {
   FileRemapper Remapper;
 protected:
   bool BeginInvocation(CompilerInstance &CI) override;
-  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
-                                                 StringRef InFile) override;
+  ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
+                                 StringRef InFile) override;
 };
 
 class MigrateAction : public WrapperFrontendAction {
@@ -65,8 +65,8 @@ public:
                     unsigned migrateAction);
 
 protected:
-  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
-                                                 StringRef InFile) override;
+  ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
+                                 StringRef InFile) override;
   bool BeginInvocation(CompilerInstance &CI) override;
 };
 

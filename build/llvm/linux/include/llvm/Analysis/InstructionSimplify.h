@@ -37,7 +37,6 @@
 namespace llvm {
   template<typename T>
   class ArrayRef;
-  class AssumptionTracker;
   class DominatorTree;
   class Instruction;
   class DataLayout;
@@ -51,36 +50,28 @@ namespace llvm {
   Value *SimplifyAddInst(Value *LHS, Value *RHS, bool isNSW, bool isNUW,
                          const DataLayout *TD = nullptr,
                          const TargetLibraryInfo *TLI = nullptr,
-                         const DominatorTree *DT = nullptr,
-                         AssumptionTracker *AT = nullptr,
-                         const Instruction *CxtI = nullptr);
+                         const DominatorTree *DT = nullptr);
 
   /// SimplifySubInst - Given operands for a Sub, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifySubInst(Value *LHS, Value *RHS, bool isNSW, bool isNUW,
                          const DataLayout *TD = nullptr,
                          const TargetLibraryInfo *TLI = nullptr,
-                         const DominatorTree *DT = nullptr,
-                         AssumptionTracker *AT = nullptr,
-                         const Instruction *CxtI = nullptr);
+                         const DominatorTree *DT = nullptr);
 
   /// Given operands for an FAdd, see if we can fold the result.  If not, this
   /// returns null.
   Value *SimplifyFAddInst(Value *LHS, Value *RHS, FastMathFlags FMF,
                          const DataLayout *TD = nullptr,
                          const TargetLibraryInfo *TLI = nullptr,
-                         const DominatorTree *DT = nullptr,
-                         AssumptionTracker *AT = nullptr,
-                         const Instruction *CxtI = nullptr);
+                         const DominatorTree *DT = nullptr);
 
   /// Given operands for an FSub, see if we can fold the result.  If not, this
   /// returns null.
   Value *SimplifyFSubInst(Value *LHS, Value *RHS, FastMathFlags FMF,
                          const DataLayout *TD = nullptr,
                          const TargetLibraryInfo *TLI = nullptr,
-                         const DominatorTree *DT = nullptr,
-                         AssumptionTracker *AT = nullptr,
-                         const Instruction *CxtI = nullptr);
+                         const DominatorTree *DT = nullptr);
 
   /// Given operands for an FMul, see if we can fold the result.  If not, this
   /// returns null.
@@ -88,157 +79,121 @@ namespace llvm {
                           FastMathFlags FMF,
                           const DataLayout *TD = nullptr,
                           const TargetLibraryInfo *TLI = nullptr,
-                          const DominatorTree *DT = nullptr,
-                          AssumptionTracker *AT = nullptr,
-                          const Instruction *CxtI = nullptr);
+                          const DominatorTree *DT = nullptr);
 
   /// SimplifyMulInst - Given operands for a Mul, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifyMulInst(Value *LHS, Value *RHS, const DataLayout *TD = nullptr,
                          const TargetLibraryInfo *TLI = nullptr,
-                         const DominatorTree *DT = nullptr,
-                         AssumptionTracker *AT = nullptr,
-                         const Instruction *CxtI = nullptr);
+                         const DominatorTree *DT = nullptr);
 
   /// SimplifySDivInst - Given operands for an SDiv, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifySDivInst(Value *LHS, Value *RHS,
                           const DataLayout *TD = nullptr,
                           const TargetLibraryInfo *TLI = nullptr,
-                          const DominatorTree *DT = nullptr,
-                          AssumptionTracker *AT = nullptr,
-                          const Instruction *CxtI = nullptr);
+                          const DominatorTree *DT = nullptr);
 
   /// SimplifyUDivInst - Given operands for a UDiv, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifyUDivInst(Value *LHS, Value *RHS,
                           const DataLayout *TD = nullptr,
                           const TargetLibraryInfo *TLI = nullptr,
-                          const DominatorTree *DT = nullptr,
-                          AssumptionTracker *AT = nullptr,
-                          const Instruction *CxtI = nullptr);
+                          const DominatorTree *DT = nullptr);
 
   /// SimplifyFDivInst - Given operands for an FDiv, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifyFDivInst(Value *LHS, Value *RHS,
                           const DataLayout *TD = nullptr,
                           const TargetLibraryInfo *TLI = nullptr,
-                          const DominatorTree *DT = nullptr,
-                          AssumptionTracker *AT = nullptr,
-                          const Instruction *CxtI = nullptr);
+                          const DominatorTree *DT = nullptr);
 
   /// SimplifySRemInst - Given operands for an SRem, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifySRemInst(Value *LHS, Value *RHS,
                           const DataLayout *TD = nullptr,
                           const TargetLibraryInfo *TLI = nullptr,
-                          const DominatorTree *DT = nullptr,
-                          AssumptionTracker *AT = nullptr,
-                          const Instruction *CxtI = nullptr);
+                          const DominatorTree *DT = nullptr);
 
   /// SimplifyURemInst - Given operands for a URem, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifyURemInst(Value *LHS, Value *RHS,
                           const DataLayout *TD = nullptr,
                           const TargetLibraryInfo *TLI = nullptr,
-                          const DominatorTree *DT = nullptr,
-                          AssumptionTracker *AT = nullptr,
-                          const Instruction *CxtI = nullptr);
+                          const DominatorTree *DT = nullptr);
 
   /// SimplifyFRemInst - Given operands for an FRem, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifyFRemInst(Value *LHS, Value *RHS,
                           const DataLayout *TD = nullptr,
                           const TargetLibraryInfo *TLI = nullptr,
-                          const DominatorTree *DT = nullptr,
-                          AssumptionTracker *AT = nullptr,
-                          const Instruction *CxtI = nullptr);
+                          const DominatorTree *DT = nullptr);
 
   /// SimplifyShlInst - Given operands for a Shl, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifyShlInst(Value *Op0, Value *Op1, bool isNSW, bool isNUW,
                          const DataLayout *TD = nullptr,
                          const TargetLibraryInfo *TLI = nullptr,
-                         const DominatorTree *DT = nullptr,
-                         AssumptionTracker *AT = nullptr,
-                         const Instruction *CxtI = nullptr);
+                         const DominatorTree *DT = nullptr);
 
   /// SimplifyLShrInst - Given operands for a LShr, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifyLShrInst(Value *Op0, Value *Op1, bool isExact,
                           const DataLayout *TD = nullptr,
                           const TargetLibraryInfo *TLI = nullptr,
-                          const DominatorTree *DT = nullptr,
-                          AssumptionTracker *AT = nullptr,
-                          const Instruction *CxtI = nullptr);
+                          const DominatorTree *DT = nullptr);
 
   /// SimplifyAShrInst - Given operands for a AShr, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifyAShrInst(Value *Op0, Value *Op1, bool isExact,
                           const DataLayout *TD = nullptr,
                           const TargetLibraryInfo *TLI = nullptr,
-                          const DominatorTree *DT = nullptr,
-                          AssumptionTracker *AT = nullptr,
-                          const Instruction *CxtI = nullptr);
+                          const DominatorTree *DT = nullptr);
 
   /// SimplifyAndInst - Given operands for an And, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifyAndInst(Value *LHS, Value *RHS, const DataLayout *TD = nullptr,
                          const TargetLibraryInfo *TLI = nullptr,
-                         const DominatorTree *DT = nullptr,
-                         AssumptionTracker *AT = nullptr,
-                         const Instruction *CxtI = nullptr);
+                         const DominatorTree *DT = nullptr);
 
   /// SimplifyOrInst - Given operands for an Or, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifyOrInst(Value *LHS, Value *RHS, const DataLayout *TD = nullptr,
                         const TargetLibraryInfo *TLI = nullptr,
-                        const DominatorTree *DT = nullptr,
-                        AssumptionTracker *AT = nullptr,
-                        const Instruction *CxtI = nullptr);
+                        const DominatorTree *DT = nullptr);
 
   /// SimplifyXorInst - Given operands for a Xor, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifyXorInst(Value *LHS, Value *RHS, const DataLayout *TD = nullptr,
                          const TargetLibraryInfo *TLI = nullptr,
-                         const DominatorTree *DT = nullptr,
-                         AssumptionTracker *AT = nullptr,
-                         const Instruction *CxtI = nullptr);
+                         const DominatorTree *DT = nullptr);
 
   /// SimplifyICmpInst - Given operands for an ICmpInst, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifyICmpInst(unsigned Predicate, Value *LHS, Value *RHS,
                           const DataLayout *TD = nullptr,
                           const TargetLibraryInfo *TLI = nullptr,
-                          const DominatorTree *DT = nullptr,
-                          AssumptionTracker *AT = nullptr,
-                          Instruction *CxtI = nullptr);
+                          const DominatorTree *DT = nullptr);
 
   /// SimplifyFCmpInst - Given operands for an FCmpInst, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifyFCmpInst(unsigned Predicate, Value *LHS, Value *RHS,
                           const DataLayout *TD = nullptr,
                           const TargetLibraryInfo *TLI = nullptr,
-                          const DominatorTree *DT = nullptr,
-                          AssumptionTracker *AT = nullptr,
-                          const Instruction *CxtI = nullptr);
+                          const DominatorTree *DT = nullptr);
 
   /// SimplifySelectInst - Given operands for a SelectInst, see if we can fold
   /// the result.  If not, this returns null.
   Value *SimplifySelectInst(Value *Cond, Value *TrueVal, Value *FalseVal,
                             const DataLayout *TD = nullptr,
                             const TargetLibraryInfo *TLI = nullptr,
-                            const DominatorTree *DT = nullptr,
-                            AssumptionTracker *AT = nullptr,
-                            const Instruction *CxtI = nullptr);
+                            const DominatorTree *DT = nullptr);
 
   /// SimplifyGEPInst - Given operands for an GetElementPtrInst, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifyGEPInst(ArrayRef<Value *> Ops, const DataLayout *TD = nullptr,
                          const TargetLibraryInfo *TLI = nullptr,
-                         const DominatorTree *DT = nullptr,
-                         AssumptionTracker *AT = nullptr,
-                         const Instruction *CxtI = nullptr);
+                         const DominatorTree *DT = nullptr);
 
   /// SimplifyInsertValueInst - Given operands for an InsertValueInst, see if we
   /// can fold the result.  If not, this returns null.
@@ -246,17 +201,13 @@ namespace llvm {
                                  ArrayRef<unsigned> Idxs,
                                  const DataLayout *TD = nullptr,
                                  const TargetLibraryInfo *TLI = nullptr,
-                                 const DominatorTree *DT = nullptr,
-                                 AssumptionTracker *AT = nullptr,
-                                 const Instruction *CxtI = nullptr);
+                                 const DominatorTree *DT = nullptr);
 
   /// SimplifyTruncInst - Given operands for an TruncInst, see if we can fold
   /// the result.  If not, this returns null.
   Value *SimplifyTruncInst(Value *Op, Type *Ty, const DataLayout *TD = nullptr,
                            const TargetLibraryInfo *TLI = nullptr,
-                           const DominatorTree *DT = nullptr,
-                           AssumptionTracker *AT = nullptr,
-                           const Instruction *CxtI = nullptr);
+                           const DominatorTree *DT = nullptr);
 
   //=== Helper functions for higher up the class hierarchy.
 
@@ -266,18 +217,14 @@ namespace llvm {
   Value *SimplifyCmpInst(unsigned Predicate, Value *LHS, Value *RHS,
                          const DataLayout *TD = nullptr,
                          const TargetLibraryInfo *TLI = nullptr,
-                         const DominatorTree *DT = nullptr,
-                         AssumptionTracker *AT = nullptr,
-                         const Instruction *CxtI = nullptr);
+                         const DominatorTree *DT = nullptr);
 
   /// SimplifyBinOp - Given operands for a BinaryOperator, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifyBinOp(unsigned Opcode, Value *LHS, Value *RHS,
                        const DataLayout *TD = nullptr,
                        const TargetLibraryInfo *TLI = nullptr,
-                       const DominatorTree *DT = nullptr,
-                       AssumptionTracker *AT = nullptr,
-                       const Instruction *CxtI = nullptr);
+                       const DominatorTree *DT = nullptr);
 
   /// \brief Given a function and iterators over arguments, see if we can fold
   /// the result.
@@ -286,9 +233,7 @@ namespace llvm {
   Value *SimplifyCall(Value *V, User::op_iterator ArgBegin,
                       User::op_iterator ArgEnd, const DataLayout *TD = nullptr,
                       const TargetLibraryInfo *TLI = nullptr,
-                      const DominatorTree *DT = nullptr,
-                      AssumptionTracker *AT = nullptr,
-                      const Instruction *CxtI = nullptr);
+                      const DominatorTree *DT = nullptr);
 
   /// \brief Given a function and set of arguments, see if we can fold the
   /// result.
@@ -297,16 +242,13 @@ namespace llvm {
   Value *SimplifyCall(Value *V, ArrayRef<Value *> Args,
                       const DataLayout *TD = nullptr,
                       const TargetLibraryInfo *TLI = nullptr,
-                      const DominatorTree *DT = nullptr,
-                      AssumptionTracker *AT = nullptr,
-                      const Instruction *CxtI = nullptr);
+                      const DominatorTree *DT = nullptr);
 
   /// SimplifyInstruction - See if we can compute a simplified version of this
   /// instruction.  If not, this returns null.
   Value *SimplifyInstruction(Instruction *I, const DataLayout *TD = nullptr,
                              const TargetLibraryInfo *TLI = nullptr,
-                             const DominatorTree *DT = nullptr,
-                             AssumptionTracker *AT = nullptr);
+                             const DominatorTree *DT = nullptr);
 
 
   /// \brief Replace all uses of 'I' with 'SimpleV' and simplify the uses
@@ -320,8 +262,7 @@ namespace llvm {
   bool replaceAndRecursivelySimplify(Instruction *I, Value *SimpleV,
                                      const DataLayout *TD = nullptr,
                                      const TargetLibraryInfo *TLI = nullptr,
-                                     const DominatorTree *DT = nullptr,
-                                     AssumptionTracker *AT = nullptr);
+                                     const DominatorTree *DT = nullptr);
 
   /// \brief Recursively attempt to simplify an instruction.
   ///
@@ -332,8 +273,7 @@ namespace llvm {
   bool recursivelySimplifyInstruction(Instruction *I,
                                       const DataLayout *TD = nullptr,
                                       const TargetLibraryInfo *TLI = nullptr,
-                                      const DominatorTree *DT = nullptr,
-                                      AssumptionTracker *AT = nullptr);
+                                      const DominatorTree *DT = nullptr);
 } // end namespace llvm
 
 #endif

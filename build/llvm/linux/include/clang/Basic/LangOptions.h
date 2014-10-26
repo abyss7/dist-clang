@@ -12,8 +12,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_BASIC_LANGOPTIONS_H
-#define LLVM_CLANG_BASIC_LANGOPTIONS_H
+#ifndef LLVM_CLANG_LANGOPTIONS_H
+#define LLVM_CLANG_LANGOPTIONS_H
 
 #include "clang/Basic/CommentOptions.h"
 #include "clang/Basic/LLVM.h"
@@ -87,11 +87,6 @@ public:
 
   /// \brief The name of the current module.
   std::string CurrentModule;
-
-  /// \brief The name of the module that the translation unit is an
-  /// implementation of. Prevents semantic imports, but does not otherwise
-  /// treat this as the CurrentModule.
-  std::string ImplementationOfModule;
 
   /// \brief Options for parsing comments.
   CommentOptions CommentOpts;

@@ -538,12 +538,6 @@ class CXXRecordDecl : public RecordDecl {
         ManglingNumber(0), ContextDecl(nullptr), Captures(nullptr),
         MethodTyInfo(Info) {
       IsLambda = true;
-
-      // C++11 [expr.prim.lambda]p3:
-      //   This class type is neither an aggregate nor a literal type.
-      Aggregate = false;
-      PlainOldData = false;
-      HasNonLiteralTypeFieldsOrBases = true;
     }
 
     /// \brief Whether this lambda is known to be dependent, even if its
@@ -2110,8 +2104,8 @@ public:
   }
   ArrayRef<VarDecl *> getArrayIndexes() {
     assert(getNumArrayIndices() != 0 && "Getting indexes for non-array init");
-    return llvm::makeArrayRef(reinterpret_cast<VarDecl **>(this + 1),
-                              getNumArrayIndices());
+    return ArrayRef<VarDecl *>(reinterpret_cast<VarDecl **>(this + 1),
+                               getNumArrayIndices());
   }
 
   /// \brief Get the initializer.
@@ -2642,8 +2636,7 @@ public:
 /// \code
 /// namespace Foo = Bar;
 /// \endcode
-class NamespaceAliasDecl : public NamedDecl,
-                           public Redeclarable<NamespaceAliasDecl> {
+class NamespaceAliasDecl : public NamedDecl {
   void anchor() override;
 
   /// \brief The location of the \c namespace keyword.
@@ -2661,47 +2654,17 @@ class NamespaceAliasDecl : public NamedDecl,
   /// a NamespaceAliasDecl.
   NamedDecl *Namespace;
 
-  NamespaceAliasDecl(ASTContext &C, DeclContext *DC,
-                     SourceLocation NamespaceLoc, SourceLocation AliasLoc,
-                     IdentifierInfo *Alias, NestedNameSpecifierLoc QualifierLoc,
+  NamespaceAliasDecl(DeclContext *DC, SourceLocation NamespaceLoc,
+                     SourceLocation AliasLoc, IdentifierInfo *Alias,
+                     NestedNameSpecifierLoc QualifierLoc,
                      SourceLocation IdentLoc, NamedDecl *Namespace)
-      : NamedDecl(NamespaceAlias, DC, AliasLoc, Alias), redeclarable_base(C),
-        NamespaceLoc(NamespaceLoc), IdentLoc(IdentLoc),
-        QualifierLoc(QualifierLoc), Namespace(Namespace) {}
-
-  typedef Redeclarable<NamespaceAliasDecl> redeclarable_base;
-  NamespaceAliasDecl *getNextRedeclarationImpl() override;
-  NamespaceAliasDecl *getPreviousDeclImpl() override;
-  NamespaceAliasDecl *getMostRecentDeclImpl() override;
+    : NamedDecl(NamespaceAlias, DC, AliasLoc, Alias),
+      NamespaceLoc(NamespaceLoc), IdentLoc(IdentLoc),
+      QualifierLoc(QualifierLoc), Namespace(Namespace) { }
 
   friend class ASTDeclReader;
 
 public:
-  static NamespaceAliasDecl *Create(ASTContext &C, DeclContext *DC,
-                                    SourceLocation NamespaceLoc,
-                                    SourceLocation AliasLoc,
-                                    IdentifierInfo *Alias,
-                                    NestedNameSpecifierLoc QualifierLoc,
-                                    SourceLocation IdentLoc,
-                                    NamedDecl *Namespace);
-
-  static NamespaceAliasDecl *CreateDeserialized(ASTContext &C, unsigned ID);
-
-  typedef redeclarable_base::redecl_range redecl_range;
-  typedef redeclarable_base::redecl_iterator redecl_iterator;
-  using redeclarable_base::redecls_begin;
-  using redeclarable_base::redecls_end;
-  using redeclarable_base::redecls;
-  using redeclarable_base::getPreviousDecl;
-  using redeclarable_base::getMostRecentDecl;
-
-  NamespaceAliasDecl *getCanonicalDecl() override {
-    return getFirstDecl();
-  }
-  const NamespaceAliasDecl *getCanonicalDecl() const {
-    return getFirstDecl();
-  }
-
   /// \brief Retrieve the nested-name-specifier that qualifies the
   /// name of the namespace, with source-location information.
   NestedNameSpecifierLoc getQualifierLoc() const { return QualifierLoc; }
@@ -2737,6 +2700,16 @@ public:
   /// \brief Retrieve the namespace that this alias refers to, which
   /// may either be a NamespaceDecl or a NamespaceAliasDecl.
   NamedDecl *getAliasedNamespace() const { return Namespace; }
+
+  static NamespaceAliasDecl *Create(ASTContext &C, DeclContext *DC,
+                                    SourceLocation NamespaceLoc,
+                                    SourceLocation AliasLoc,
+                                    IdentifierInfo *Alias,
+                                    NestedNameSpecifierLoc QualifierLoc,
+                                    SourceLocation IdentLoc,
+                                    NamedDecl *Namespace);
+
+  static NamespaceAliasDecl *CreateDeserialized(ASTContext &C, unsigned ID);
 
   SourceRange getSourceRange() const override LLVM_READONLY {
     return SourceRange(NamespaceLoc, IdentLoc);

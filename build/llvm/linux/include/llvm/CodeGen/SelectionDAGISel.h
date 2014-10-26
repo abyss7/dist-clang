@@ -18,7 +18,6 @@
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/IR/BasicBlock.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
 #include "llvm/Pass.h"
 
 namespace llvm {
@@ -51,16 +50,15 @@ public:
   AliasAnalysis *AA;
   GCFunctionInfo *GFI;
   CodeGenOpt::Level OptLevel;
-  const TargetInstrInfo *TII;
-  const TargetLowering *TLI;
-
   static char ID;
 
   explicit SelectionDAGISel(TargetMachine &tm,
                             CodeGenOpt::Level OL = CodeGenOpt::Default);
   virtual ~SelectionDAGISel();
 
-  const TargetLowering *getTargetLowering() const { return TLI; }
+  const TargetLowering *getTargetLowering() const {
+    return TM.getTargetLowering();
+  }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override;
 
@@ -239,12 +237,6 @@ public:
   SDNode *SelectCodeCommon(SDNode *NodeToMatch,
                            const unsigned char *MatcherTable,
                            unsigned TableSize);
-
-  /// \brief Return true if complex patterns for this target can mutate the
-  /// DAG.
-  virtual bool ComplexPatternFuncMutatesDAG() const {
-    return false;
-  }
 
 private:
 

@@ -506,11 +506,6 @@ public:
     Contents.ImmVal = immVal;
   }
 
-  void setFPImm(const ConstantFP *CFP) {
-    assert(isFPImm() && "Wrong MachineOperand mutator");
-    Contents.CFP = CFP;
-  }
-
   void setOffset(int64_t Offset) {
     assert((isGlobal() || isSymbol() || isCPI() || isTargetIndex() ||
             isBlockAddress()) && "Wrong MachineOperand accessor");
@@ -548,11 +543,6 @@ public:
   /// the specified value.  If an operand is known to be an immediate already,
   /// the setImm method should be used.
   void ChangeToImmediate(int64_t ImmVal);
-
-  /// ChangeToFPImmediate - Replace this operand with a new FP immediate operand
-  /// of the specified value.  If an operand is known to be an FP immediate
-  /// already, the setFPImm method should be used.
-  void ChangeToFPImmediate(const ConstantFP *FPImm);
 
   /// ChangeToRegister - Replace this operand with a new register operand of
   /// the specified value.  If an operand is known to be an register already,
@@ -712,8 +702,6 @@ public:
   friend class MachineInstr;
   friend class MachineRegisterInfo;
 private:
-  void removeRegFromUses();
-
   //===--------------------------------------------------------------------===//
   // Methods for handling register use/def lists.
   //===--------------------------------------------------------------------===//

@@ -72,21 +72,21 @@ struct SubtargetInfoKV {
 class SubtargetFeatures {
   std::vector<std::string> Features;    // Subtarget features as a vector
 public:
-  explicit SubtargetFeatures(StringRef Initial = "");
+  explicit SubtargetFeatures(const StringRef Initial = "");
 
   /// Features string accessors.
   std::string getString() const;
 
   /// Adding Features.
-  void AddFeature(StringRef String);
+  void AddFeature(const StringRef String);
 
   /// ToggleFeature - Toggle a feature and returns the newly updated feature
   /// bits.
-  uint64_t ToggleFeature(uint64_t Bits, StringRef String,
+  uint64_t ToggleFeature(uint64_t Bits, const StringRef String,
                          ArrayRef<SubtargetFeatureKV> FeatureTable);
 
   /// Get feature bits of a CPU.
-  uint64_t getFeatureBits(StringRef CPU,
+  uint64_t getFeatureBits(const StringRef CPU,
                           ArrayRef<SubtargetFeatureKV> CPUTable,
                           ArrayRef<SubtargetFeatureKV> FeatureTable);
 

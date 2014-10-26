@@ -19,7 +19,6 @@
 #include <climits>
 
 namespace llvm {
-class AssumptionTracker;
 class CallSite;
 class DataLayout;
 class Function;
@@ -101,7 +100,6 @@ public:
 /// \brief Cost analyzer used by inliner.
 class InlineCostAnalysis : public CallGraphSCCPass {
   const TargetTransformInfo *TTI;
-  AssumptionTracker *AT;
 
 public:
   static char ID;

@@ -12,8 +12,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_DECLOPENMP_H
-#define LLVM_CLANG_AST_DECLOPENMP_H
+#ifndef LLVM_CLANG_AST_OPENMP_H
+#define LLVM_CLANG_AST_OPENMP_H
 
 #include "clang/AST/DeclBase.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -42,8 +42,9 @@ class OMPThreadPrivateDecl : public Decl {
     Decl(DK, DC, L), NumVars(0) { }
 
   ArrayRef<const Expr *> getVars() const {
-    return llvm::makeArrayRef(reinterpret_cast<const Expr * const *>(this + 1),
-                              NumVars);
+    return ArrayRef<const Expr *>(
+                   reinterpret_cast<const Expr * const *>(this + 1),
+                   NumVars);
   }
 
   MutableArrayRef<Expr *> getVars() {

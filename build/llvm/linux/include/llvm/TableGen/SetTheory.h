@@ -44,8 +44,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TABLEGEN_SETTHEORY_H
-#define LLVM_TABLEGEN_SETTHEORY_H
+#ifndef SETTHEORY_H
+#define SETTHEORY_H
 
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/StringMap.h"

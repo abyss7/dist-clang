@@ -22,7 +22,6 @@
 namespace clang {
 
 class ASTContext;
-class CXXRecordDecl;
 class NamespaceAliasDecl;
 class NamespaceDecl;
 class IdentifierInfo;
@@ -46,7 +45,7 @@ class NestedNameSpecifier : public llvm::FoldingSetNode {
   /// \brief Enumeration describing
   enum StoredSpecifierKind {
     StoredIdentifier = 0,
-    StoredDecl = 1,
+    StoredNamespaceOrAlias = 1,
     StoredTypeSpec = 2,
     StoredTypeSpecWithTemplate = 3
   };
@@ -84,10 +83,7 @@ public:
     /// stored as a Type*.
     TypeSpecWithTemplate,
     /// \brief The global specifier '::'. There is no stored value.
-    Global,
-    /// \brief Microsoft's '__super' specifier, stored as a CXXRecordDecl* of
-    /// the class it appeared in.
-    Super
+    Global
   };
 
 private:
@@ -147,11 +143,6 @@ public:
   /// scope.
   static NestedNameSpecifier *GlobalSpecifier(const ASTContext &Context);
 
-  /// \brief Returns the nested name specifier representing the __super scope
-  /// for the given CXXRecordDecl.
-  static NestedNameSpecifier *SuperSpecifier(const ASTContext &Context,
-                                             CXXRecordDecl *RD);
-
   /// \brief Return the prefix of this nested name specifier.
   ///
   /// The prefix contains all of the parts of the nested name
@@ -180,10 +171,6 @@ public:
   /// \brief Retrieve the namespace alias stored in this nested name
   /// specifier.
   NamespaceAliasDecl *getAsNamespaceAlias() const;
-
-  /// \brief Retrieve the record declaration stored in this nested name
-  /// specifier.
-  CXXRecordDecl *getAsRecordDecl() const;
 
   /// \brief Retrieve the type stored in this nested name specifier.
   const Type *getAsType() const {
@@ -434,22 +421,7 @@ public:
   /// \brief Turn this (empty) nested-name-specifier into the global
   /// nested-name-specifier '::'.
   void MakeGlobal(ASTContext &Context, SourceLocation ColonColonLoc);
-  
-  /// \brief Turns this (empty) nested-name-specifier into '__super'
-  /// nested-name-specifier.
-  ///
-  /// \param Context The AST context in which this nested-name-specifier
-  /// resides.
-  ///
-  /// \param RD The declaration of the class in which nested-name-specifier
-  /// appeared.
-  ///
-  /// \param SuperLoc The location of the '__super' keyword.
-  /// name.
-  ///
-  /// \param ColonColonLoc The location of the trailing '::'.
-  void MakeSuper(ASTContext &Context, CXXRecordDecl *RD, 
-                 SourceLocation SuperLoc, SourceLocation ColonColonLoc);
+
   /// \brief Make a new nested-name-specifier from incomplete source-location
   /// information.
   ///

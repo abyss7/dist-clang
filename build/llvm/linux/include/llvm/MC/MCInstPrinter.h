@@ -1,4 +1,4 @@
-//===- MCInstPrinter.h - MCInst to target assembly syntax -------*- C++ -*-===//
+//===-- MCInstPrinter.h - Convert an MCInst to target assembly syntax -----===//
 //
 //                     The LLVM Compiler Infrastructure
 //

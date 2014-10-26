@@ -22,6 +22,7 @@
 
 #ifdef _MSC_VER
 #include <intrin.h>
+#include <limits>
 #endif
 
 namespace llvm {
@@ -549,23 +550,16 @@ inline uint64_t MinAlign(uint64_t A, uint64_t B) {
   return (A | B) & (1 + ~(A | B));
 }
 
-/// \brief Aligns \c Addr to \c Alignment bytes, rounding up.
+/// \brief Aligns \c Ptr to \c Alignment bytes, rounding up.
 ///
 /// Alignment should be a power of two.  This method rounds up, so
-/// alignAddr(7, 4) == 8 and alignAddr(8, 4) == 8.
-inline uintptr_t alignAddr(void *Addr, size_t Alignment) {
+/// AlignPtr(7, 4) == 8 and AlignPtr(8, 4) == 8.
+inline char *alignPtr(char *Ptr, size_t Alignment) {
   assert(Alignment && isPowerOf2_64((uint64_t)Alignment) &&
          "Alignment is not a power of two!");
 
-  assert((uintptr_t)Addr + Alignment - 1 >= (uintptr_t)Addr);
-
-  return (((uintptr_t)Addr + Alignment - 1) & ~(uintptr_t)(Alignment - 1));
-}
-
-/// \brief Returns the necessary adjustment for aligning \c Ptr to \c Alignment
-/// bytes, rounding up.
-inline size_t alignmentAdjustment(void *Ptr, size_t Alignment) {
-  return alignAddr(Ptr, Alignment) - (uintptr_t)Ptr;
+  return (char *)(((uintptr_t)Ptr + Alignment - 1) &
+                  ~(uintptr_t)(Alignment - 1));
 }
 
 /// NextPowerOf2 - Returns the next power of two (in 64-bits)
@@ -638,7 +632,13 @@ inline int64_t SignExtend64(uint64_t X, unsigned B) {
   return int64_t(X << (64 - B)) >> (64 - B);
 }
 
-extern const float huge_valf;
+#if defined(_MSC_VER)
+  // Visual Studio defines the HUGE_VAL class of macros using purposeful
+  // constant arithmetic overflow, which it then warns on when encountered.
+  const float huge_valf = std::numeric_limits<float>::infinity();
+#else
+  const float huge_valf = HUGE_VALF;
+#endif
 } // End llvm namespace
 
 #endif

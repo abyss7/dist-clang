@@ -35,8 +35,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_IR_PASSMANAGER_H
-#define LLVM_IR_PASSMANAGER_H
+#ifndef LLVM_IR_PASS_MANAGER_H
+#define LLVM_IR_PASS_MANAGER_H
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
@@ -107,9 +107,11 @@ public:
       PreservedPassIDs = Arg.PreservedPassIDs;
       return;
     }
-    for (void *P : PreservedPassIDs)
-      if (!Arg.PreservedPassIDs.count(P))
-        PreservedPassIDs.erase(P);
+    for (SmallPtrSet<void *, 2>::const_iterator I = PreservedPassIDs.begin(),
+                                                E = PreservedPassIDs.end();
+         I != E; ++I)
+      if (!Arg.PreservedPassIDs.count(*I))
+        PreservedPassIDs.erase(*I);
   }
 
   /// \brief Intersect this set with a temporary other set in place.
@@ -123,9 +125,11 @@ public:
       PreservedPassIDs = std::move(Arg.PreservedPassIDs);
       return;
     }
-    for (void *P : PreservedPassIDs)
-      if (!Arg.PreservedPassIDs.count(P))
-        PreservedPassIDs.erase(P);
+    for (SmallPtrSet<void *, 2>::const_iterator I = PreservedPassIDs.begin(),
+                                                E = PreservedPassIDs.end();
+         I != E; ++I)
+      if (!Arg.PreservedPassIDs.count(*I))
+        PreservedPassIDs.erase(*I);
   }
 
   /// \brief Query whether a pass is marked as preserved by this set.

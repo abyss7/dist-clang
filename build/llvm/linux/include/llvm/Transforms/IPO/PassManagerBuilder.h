@@ -18,17 +18,16 @@
 #include <vector>
 
 namespace llvm {
-class Pass;
 class TargetLibraryInfo;
-class TargetMachine;
+class Pass;
 
 // The old pass manager infrastructure is hidden in a legacy namespace now.
 namespace legacy {
-class FunctionPassManager;
 class PassManagerBase;
+class FunctionPassManager;
 }
-using legacy::FunctionPassManager;
 using legacy::PassManagerBase;
+using legacy::FunctionPassManager;
 
 /// PassManagerBuilder - This class is used to set up a standard optimization
 /// sequence for languages like C and C++, allowing some APIs to customize the
@@ -119,11 +118,6 @@ public:
   bool LoopVectorize;
   bool RerollLoops;
   bool LoadCombine;
-  bool DisableGVNLoadPRE;
-  bool VerifyInput;
-  bool VerifyOutput;
-  bool StripDebug;
-  bool MergeFunctions;
 
 private:
   /// ExtensionList - This is list of all of the extensions that are registered.
@@ -141,7 +135,6 @@ public:
 private:
   void addExtensionsToPM(ExtensionPointTy ETy, PassManagerBase &PM) const;
   void addInitialAliasAnalysisPasses(PassManagerBase &PM) const;
-  void addLTOOptimizationPasses(PassManagerBase &PM);
 
 public:
   /// populateFunctionPassManager - This fills in the function pass manager,
@@ -151,7 +144,8 @@ public:
 
   /// populateModulePassManager - This sets up the primary pass manager.
   void populateModulePassManager(PassManagerBase &MPM);
-  void populateLTOPassManager(PassManagerBase &PM, TargetMachine *TM = nullptr);
+  void populateLTOPassManager(PassManagerBase &PM, bool Internalize,
+                              bool RunInliner, bool DisableGVNLoadPRE = false);
 };
 
 /// Registers a function for adding a standard set of passes.  This should be

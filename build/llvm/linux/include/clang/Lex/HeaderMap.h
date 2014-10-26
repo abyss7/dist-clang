@@ -17,8 +17,6 @@
 #include "clang/Basic/LLVM.h"
 #include "llvm/Support/Compiler.h"
 
-#include <memory>
-
 namespace llvm {
   class MemoryBuffer;
 }
@@ -36,12 +34,15 @@ class HeaderMap {
   HeaderMap(const HeaderMap &) LLVM_DELETED_FUNCTION;
   void operator=(const HeaderMap &) LLVM_DELETED_FUNCTION;
 
-  std::unique_ptr<const llvm::MemoryBuffer> FileBuffer;
+  const llvm::MemoryBuffer *FileBuffer;
   bool NeedsBSwap;
 
-  HeaderMap(std::unique_ptr<const llvm::MemoryBuffer> File, bool BSwap)
-      : FileBuffer(std::move(File)), NeedsBSwap(BSwap) {}
+  HeaderMap(const llvm::MemoryBuffer *File, bool BSwap)
+    : FileBuffer(File), NeedsBSwap(BSwap) {
+  }
 public:
+  ~HeaderMap();
+
   /// HeaderMap::Create - This attempts to load the specified file as a header
   /// map.  If it doesn't look like a HeaderMap, it gives up and returns null.
   static const HeaderMap *Create(const FileEntry *FE, FileManager &FM);

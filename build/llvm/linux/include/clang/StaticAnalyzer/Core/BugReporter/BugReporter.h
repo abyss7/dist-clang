@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_STATICANALYZER_CORE_BUGREPORTER_BUGREPORTER_H
-#define LLVM_CLANG_STATICANALYZER_CORE_BUGREPORTER_BUGREPORTER_H
+#ifndef LLVM_CLANG_GR_BUGREPORTER
+#define LLVM_CLANG_GR_BUGREPORTER
 
 #include "clang/Basic/SourceLocation.h"
 #include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
@@ -63,7 +63,7 @@ public:
   };
 
   typedef const SourceRange *ranges_iterator;
-  typedef SmallVector<std::unique_ptr<BugReporterVisitor>, 8> VisitorList;
+  typedef SmallVector<BugReporterVisitor *, 8> VisitorList;
   typedef VisitorList::iterator visitor_iterator;
   typedef SmallVector<StringRef, 2> ExtraTextList;
 
@@ -179,9 +179,9 @@ public:
 
   const ExplodedNode *getErrorNode() const { return ErrorNode; }
 
-  StringRef getDescription() const { return Description; }
+  const StringRef getDescription() const { return Description; }
 
-  StringRef getShortDescription(bool UseFallback = true) const {
+  const StringRef getShortDescription(bool UseFallback = true) const {
     if (ShortDescription.empty() && UseFallback)
       return Description;
     return ShortDescription;
@@ -299,9 +299,9 @@ public:
   /// \sa registerConditionVisitor(), registerTrackNullOrUndefValue(),
   /// registerFindLastStore(), registerNilReceiverVisitor(), and
   /// registerVarDeclsLastStore().
-  void addVisitor(std::unique_ptr<BugReporterVisitor> visitor);
+  void addVisitor(BugReporterVisitor *visitor);
 
-  /// Iterators through the custom diagnostic visitors.
+	/// Iterators through the custom diagnostic visitors.
   visitor_iterator visitor_begin() { return Callbacks.begin(); }
   visitor_iterator visitor_end() { return Callbacks.end(); }
 
@@ -345,12 +345,9 @@ class BugReportEquivClass : public llvm::FoldingSetNode {
   llvm::ilist<BugReport> Reports;
 
   friend class BugReporter;
-  void AddReport(std::unique_ptr<BugReport> R) {
-    Reports.push_back(R.release());
-  }
-
+  void AddReport(BugReport* R) { Reports.push_back(R); }
 public:
-  BugReportEquivClass(std::unique_ptr<BugReport> R) { AddReport(std::move(R)); }
+  BugReportEquivClass(BugReport* R) { Reports.push_back(R); }
   ~BugReportEquivClass();
 
   void Profile(llvm::FoldingSetNodeID& ID) const {

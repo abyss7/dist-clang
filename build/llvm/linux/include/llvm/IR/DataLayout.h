@@ -184,8 +184,6 @@ public:
   /// Initialize target data from properties stored in the module.
   explicit DataLayout(const Module *M);
 
-  void init(const Module *M);
-
   DataLayout(const DataLayout &DL) : LayoutMap(nullptr) { *this = DL; }
 
   DataLayout &operator=(const DataLayout &DL) {
@@ -468,10 +466,13 @@ public:
 
   const DataLayout &getDataLayout() const { return DL; }
 
-  static char ID; // Pass identification, replacement for typeid
+  // For use with the C API. C++ code should always use the constructor that
+  // takes a module.
+  explicit DataLayoutPass(const DataLayout &DL);
 
-  bool doFinalization(Module &M) override;
-  bool doInitialization(Module &M) override;
+  explicit DataLayoutPass(const Module *M);
+
+  static char ID; // Pass identification, replacement for typeid
 };
 
 /// StructLayout - used to lazily calculate structure layout information for a

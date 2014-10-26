@@ -92,7 +92,7 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
   const TargetInfo  *Target;
   FileManager       &FileMgr;
   SourceManager     &SourceMgr;
-  std::unique_ptr<ScratchBuffer> ScratchBuf;
+  ScratchBuffer     *ScratchBuf;
   HeaderSearch      &HeaderInfo;
   ModuleLoader      &TheModuleLoader;
 
@@ -192,11 +192,7 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
 
   /// \brief Tracks all of the pragmas that the client registered
   /// with this preprocessor.
-  std::unique_ptr<PragmaNamespace> PragmaHandlers;
-
-  /// \brief Pragma handlers of the original source is stored here during the
-  /// parsing of a model file.
-  std::unique_ptr<PragmaNamespace> PragmaHandlersBackup;
+  PragmaNamespace *PragmaHandlers;
 
   /// \brief Tracks all of the comment handlers that the client registered
   /// with this preprocessor.
@@ -338,7 +334,7 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
 
   /// \brief Actions invoked when some preprocessor activity is
   /// encountered (e.g. a file is \#included, etc).
-  std::unique_ptr<PPCallbacks> Callbacks;
+  PPCallbacks *Callbacks;
 
   struct MacroExpandsInfo {
     Token Tok;
@@ -395,7 +391,7 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
   /// \brief Cache of macro expanders to reduce malloc traffic.
   enum { TokenLexerCacheSize = 8 };
   unsigned NumCachedTokenLexers;
-  std::unique_ptr<TokenLexer> TokenLexerCache[TokenLexerCacheSize];
+  TokenLexer *TokenLexerCache[TokenLexerCacheSize];
   /// \}
 
   /// \brief Keeps macro expanded tokens for TokenLexers.
@@ -437,11 +433,16 @@ private:  // Cached tokens state.
   struct MacroInfoChain {
     MacroInfo MI;
     MacroInfoChain *Next;
+    MacroInfoChain *Prev;
   };
 
   /// MacroInfos are managed as a chain for easy disposal.  This is the head
   /// of that list.
   MacroInfoChain *MIChainHead;
+
+  /// A "freelist" of MacroInfo objects that can be reused for quick
+  /// allocation.
+  MacroInfoChain *MICache;
 
   struct DeserializedMacroInfoChain {
     MacroInfo MI;
@@ -467,17 +468,6 @@ public:
   /// \param Target is owned by the caller and must remain valid for the
   /// lifetime of the preprocessor.
   void Initialize(const TargetInfo &Target);
-
-  /// \brief Initialize the preprocessor to parse a model file
-  ///
-  /// To parse model files the preprocessor of the original source is reused to
-  /// preserver the identifier table. However to avoid some duplicate
-  /// information in the preprocessor some cleanup is needed before it is used
-  /// to parse model files. This method does that cleanup.
-  void InitializeForModelFile();
-
-  /// \brief Cleanup after model file parsing
-  void FinalizeForModelFile();
 
   /// \brief Retrieve the preprocessor options used to initialize this
   /// preprocessor.
@@ -575,12 +565,11 @@ public:
   ///
   /// Note that this class takes ownership of any PPCallbacks object given to
   /// it.
-  PPCallbacks *getPPCallbacks() const { return Callbacks.get(); }
-  void addPPCallbacks(std::unique_ptr<PPCallbacks> C) {
+  PPCallbacks *getPPCallbacks() const { return Callbacks; }
+  void addPPCallbacks(PPCallbacks *C) {
     if (Callbacks)
-      C = llvm::make_unique<PPChainedCallbacks>(std::move(C),
-                                                std::move(Callbacks));
-    Callbacks = std::move(C);
+      C = new PPChainedCallbacks(C, Callbacks);
+    Callbacks = C;
   }
   /// \}
 
@@ -616,15 +605,13 @@ public:
   void appendMacroDirective(IdentifierInfo *II, MacroDirective *MD);
   DefMacroDirective *appendDefMacroDirective(IdentifierInfo *II, MacroInfo *MI,
                                              SourceLocation Loc,
-                                             unsigned ImportedFromModuleID,
-                                             ArrayRef<unsigned> Overrides) {
-    DefMacroDirective *MD =
-        AllocateDefMacroDirective(MI, Loc, ImportedFromModuleID, Overrides);
+                                             bool isImported) {
+    DefMacroDirective *MD = AllocateDefMacroDirective(MI, Loc, isImported);
     appendMacroDirective(II, MD);
     return MD;
   }
   DefMacroDirective *appendDefMacroDirective(IdentifierInfo *II, MacroInfo *MI){
-    return appendDefMacroDirective(II, MI, MI->getDefinitionLoc(), 0, None);
+    return appendDefMacroDirective(II, MI, MI->getDefinitionLoc(), false);
   }
   /// \brief Set a MacroDirective that was loaded from a PCH file.
   void setLoadedMacroDirective(IdentifierInfo *II, MacroDirective *MD);
@@ -1361,7 +1348,6 @@ public:
 private:
 
   void PushIncludeMacroStack() {
-    assert(CurLexerKind != CLK_CachingLexer && "cannot push a caching lexer");
     IncludeMacroStack.push_back(IncludeStackInfo(
         CurLexerKind, CurSubmodule, std::move(CurLexer), std::move(CurPTHLexer),
         CurPPLexer, std::move(CurTokenLexer), CurDirLookup));
@@ -1384,16 +1370,17 @@ private:
   /// \brief Allocate a new MacroInfo object.
   MacroInfo *AllocateMacroInfo();
 
-  DefMacroDirective *
-  AllocateDefMacroDirective(MacroInfo *MI, SourceLocation Loc,
-                            unsigned ImportedFromModuleID = 0,
-                            ArrayRef<unsigned> Overrides = None);
-  UndefMacroDirective *
-  AllocateUndefMacroDirective(SourceLocation UndefLoc,
-                              unsigned ImportedFromModuleID = 0,
-                              ArrayRef<unsigned> Overrides = None);
+  DefMacroDirective *AllocateDefMacroDirective(MacroInfo *MI,
+                                               SourceLocation Loc,
+                                               bool isImported);
+  UndefMacroDirective *AllocateUndefMacroDirective(SourceLocation UndefLoc);
   VisibilityMacroDirective *AllocateVisibilityMacroDirective(SourceLocation Loc,
                                                              bool isPublic);
+
+  /// \brief Release the specified MacroInfo for re-use.
+  ///
+  /// This memory will  be reused for allocating new MacroInfo objects.
+  void ReleaseMacroInfo(MacroInfo* MI);
 
   /// \brief Lex and validate a macro name, which occurs after a
   /// \#define or \#undef. 

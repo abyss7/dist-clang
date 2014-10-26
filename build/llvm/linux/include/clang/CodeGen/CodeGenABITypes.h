@@ -21,8 +21,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_CODEGEN_CODEGENABITYPES_H
-#define LLVM_CLANG_CODEGEN_CODEGENABITYPES_H
+#ifndef LLVM_CLANG_CODEGEN_ABITYPES_H
+#define LLVM_CLANG_CODEGEN_ABITYPES_H
 
 #include "clang/AST/CanonicalType.h"
 #include "clang/AST/Type.h"
@@ -39,7 +39,6 @@ class CXXRecordDecl;
 class CodeGenOptions;
 class DiagnosticsEngine;
 class ObjCMethodDecl;
-class CoverageSourceInfo;
 
 namespace CodeGen {
 class CGFunctionInfo;
@@ -48,8 +47,7 @@ class CodeGenModule;
 class CodeGenABITypes
 {
 public:
-  CodeGenABITypes(ASTContext &C, llvm::Module &M, const llvm::DataLayout &TD,
-                  CoverageSourceInfo *CoverageInfo = nullptr);
+  CodeGenABITypes(ASTContext &C, llvm::Module &M, const llvm::DataLayout &TD);
   ~CodeGenABITypes();
 
   /// These methods all forward to methods in the private implementation class

@@ -12,8 +12,8 @@
 // then forwards any diagnostics to the adapted diagnostic client.
 //
 //===----------------------------------------------------------------------===//
-#ifndef LLVM_CLANG_REWRITE_FRONTEND_FIXITREWRITER_H
-#define LLVM_CLANG_REWRITE_FRONTEND_FIXITREWRITER_H
+#ifndef LLVM_CLANG_REWRITE_FIX_IT_REWRITER_H
+#define LLVM_CLANG_REWRITE_FIX_IT_REWRITER_H
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceLocation.h"
@@ -125,4 +125,4 @@ public:
 
 }
 
-#endif
+#endif // LLVM_CLANG_REWRITE_FIX_IT_REWRITER_H

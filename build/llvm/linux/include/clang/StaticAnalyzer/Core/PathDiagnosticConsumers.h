@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHDIAGNOSTICCONSUMERS_H
-#define LLVM_CLANG_STATICANALYZER_CORE_PATHDIAGNOSTICCONSUMERS_H
+#ifndef LLVM_CLANG_GR_PATH_DIAGNOSTIC_CLIENTS_H
+#define LLVM_CLANG_GR_PATH_DIAGNOSTIC_CLIENTS_H
 
 #include <string>
 #include <vector>

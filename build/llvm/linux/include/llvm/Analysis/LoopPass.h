@@ -82,11 +82,6 @@ public:
   /// deleteAnalysisValue - Delete analysis info associated with value V.
   virtual void deleteAnalysisValue(Value *V, Loop *L) {}
 
-  /// Delete analysis info associated with Loop L.
-  /// Called to notify a Pass that a loop has been deleted and any
-  /// associated analysis values can be deleted.
-  virtual void deleteAnalysisLoop(Loop *L) {}
-
 protected:
   /// skipOptnoneFunction - Containing function has Attribute::OptimizeNone
   /// and most transformation passes should skip it.
@@ -156,10 +151,6 @@ public:
   /// deleteSimpleAnalysisValue - Invoke deleteAnalysisValue hook for all passes
   /// that implement simple analysis interface.
   void deleteSimpleAnalysisValue(Value *V, Loop *L);
-
-  /// Invoke deleteAnalysisLoop hook for all passes that implement simple
-  /// analysis interface.
-  void deleteSimpleAnalysisLoop(Loop *L);
 
 private:
   std::deque<Loop *> LQ;

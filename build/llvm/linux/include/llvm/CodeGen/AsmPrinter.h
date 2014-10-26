@@ -264,9 +264,6 @@ public:
   /// function.
   virtual void EmitFunctionBodyEnd() {}
 
-  /// Targets can override this to emit stuff at the end of a basic block.
-  virtual void EmitBasicBlockEnd(const MachineBasicBlock &MBB) {}
-
   /// Targets should implement this to emit instructions.
   virtual void EmitInstruction(const MachineInstr *) {
     llvm_unreachable("EmitInstruction not implemented");
@@ -405,13 +402,6 @@ public:
   /// Get the value for DW_AT_APPLE_isa. Zero if no isa encoding specified.
   virtual unsigned getISAEncoding() { return 0; }
 
-  /// Emit a dwarf register operation for describing
-  /// - a small value occupying only part of a register or
-  /// - a register representing only part of a value.
-  void EmitDwarfOpPiece(ByteStreamer &Streamer, unsigned SizeInBits,
-                        unsigned OffsetInBits = 0) const;
-
-
   /// \brief Emit a partial DWARF register operation.
   /// \param MLoc             the register
   /// \param PieceSize        size and
@@ -428,7 +418,7 @@ public:
                            unsigned PieceSize = 0,
                            unsigned PieceOffset = 0) const;
 
-  /// EmitDwarfRegOp - Emit a dwarf register operation.
+  /// Emit dwarf register operation.
   /// \param Indirect   whether this is a register-indirect address
   virtual void EmitDwarfRegOp(ByteStreamer &BS, const MachineLocation &MLoc,
                               bool Indirect) const;

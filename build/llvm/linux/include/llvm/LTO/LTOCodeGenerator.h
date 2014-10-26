@@ -32,8 +32,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LTO_LTOCODEGENERATOR_H
-#define LLVM_LTO_LTOCODEGENERATOR_H
+#ifndef LTO_CODE_GENERATOR_H
+#define LTO_CODE_GENERATOR_H
 
 #include "llvm-c/lto.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -122,9 +122,9 @@ private:
   bool generateObjectFile(raw_ostream &out, bool disableOpt, bool disableInline,
                           bool disableGVNLoadPRE, std::string &errMsg);
   void applyScopeRestrictions();
-  void applyRestriction(GlobalValue &GV, ArrayRef<StringRef> Libcalls,
+  void applyRestriction(GlobalValue &GV, const ArrayRef<StringRef> &Libcalls,
                         std::vector<const char *> &MustPreserveList,
-                        SmallPtrSetImpl<GlobalValue *> &AsmUsed,
+                        SmallPtrSet<GlobalValue *, 8> &AsmUsed,
                         Mangler &Mangler);
   bool determineTarget(std::string &errMsg);
 
@@ -142,7 +142,7 @@ private:
   lto_codegen_model CodeModel;
   StringSet MustPreserveSymbols;
   StringSet AsmUndefinedRefs;
-  std::unique_ptr<MemoryBuffer> NativeObjectFile;
+  MemoryBuffer *NativeObjectFile;
   std::vector<char *> CodegenOptions;
   std::string MCpu;
   std::string MAttr;
@@ -152,4 +152,4 @@ private:
   void *DiagContext;
 };
 }
-#endif
+#endif // LTO_CODE_GENERATOR_H

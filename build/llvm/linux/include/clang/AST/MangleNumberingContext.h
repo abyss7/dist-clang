@@ -12,8 +12,8 @@
 //  literals.
 //
 //===----------------------------------------------------------------------===//
-#ifndef LLVM_CLANG_AST_MANGLENUMBERINGCONTEXT_H
-#define LLVM_CLANG_AST_MANGLENUMBERINGCONTEXT_H
+#ifndef LLVM_CLANG_MANGLENUMBERINGCONTEXT_H
+#define LLVM_CLANG_MANGLENUMBERINGCONTEXT_H
 
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/DenseMap.h"
@@ -30,20 +30,23 @@ class VarDecl;
 
 /// \brief Keeps track of the mangled names of lambda expressions and block
 /// literals within a particular context.
-class MangleNumberingContext : public RefCountedBase<MangleNumberingContext> {
+class MangleNumberingContext 
+    : public RefCountedBase<MangleNumberingContext> {
+  llvm::DenseMap<const Type *, unsigned> ManglingNumbers;
+
 public:
   virtual ~MangleNumberingContext() {}
 
   /// \brief Retrieve the mangling number of a new lambda expression with the
   /// given call operator within this context.
-  virtual unsigned getManglingNumber(const CXXMethodDecl *CallOperator) = 0;
+  unsigned getManglingNumber(const CXXMethodDecl *CallOperator);
 
   /// \brief Retrieve the mangling number of a new block literal within this
   /// context.
-  virtual unsigned getManglingNumber(const BlockDecl *BD) = 0;
+  unsigned getManglingNumber(const BlockDecl *BD);
 
   /// Static locals are numbered by source order.
-  virtual unsigned getStaticLocalNumber(const VarDecl *VD) = 0;
+  unsigned getStaticLocalNumber(const VarDecl *VD);
 
   /// \brief Retrieve the mangling number of a static local variable within
   /// this context.
@@ -55,6 +58,6 @@ public:
   virtual unsigned getManglingNumber(const TagDecl *TD,
                                      unsigned MSLocalManglingNumber) = 0;
 };
-
+  
 } // end namespace clang
 #endif

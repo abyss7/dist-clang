@@ -25,7 +25,6 @@ namespace llvm {
 class FastMathFlags;
 class LLVMContext;
 class MDNode;
-struct AAMDNodes;
 
 template<typename ValueSubClass, typename ItemParentClass>
   class SymbolTableListTraits;
@@ -169,11 +168,6 @@ public:
       getAllMetadataOtherThanDebugLocImpl(MDs);
   }
 
-  /// getAAMetadata - Fills the AAMDNodes structure with AA metadata from
-  /// this instruction. When Merge is true, the existing AA metadata is
-  /// merged with that from this instruction providing the most-general result.
-  void getAAMetadata(AAMDNodes &N, bool Merge = false) const;
-
   /// setMetadata - Set the metadata of the specified kind to the specified
   /// node.  This updates/replaces metadata if already present, or removes it if
   /// Node is null.
@@ -185,7 +179,7 @@ public:
   /// convenience method for passes to do so.
   void dropUnknownMetadata(ArrayRef<unsigned> KnownIDs);
   void dropUnknownMetadata() {
-    return dropUnknownMetadata(None);
+    return dropUnknownMetadata(ArrayRef<unsigned>());
   }
   void dropUnknownMetadata(unsigned ID1) {
     return dropUnknownMetadata(makeArrayRef(ID1));
@@ -194,10 +188,6 @@ public:
     unsigned IDs[] = {ID1, ID2};
     return dropUnknownMetadata(IDs);
   }
-
-  /// setAAMetadata - Sets the metadata on this instruction from the
-  /// AAMDNodes structure.
-  void setAAMetadata(const AAMDNodes &N);
 
   /// setDebugLoc - Set the debug location information for this instruction.
   void setDebugLoc(const DebugLoc &Loc) { DbgLoc = Loc; }
@@ -230,15 +220,10 @@ public:
   /// this flag.
   void setHasAllowReciprocal(bool B);
 
-  /// Convenience function for setting multiple fast-math flags on this
+  /// Convenience function for setting all the fast-math flags on this
   /// instruction, which must be an operator which supports these flags. See
-  /// LangRef.html for the meaning of these flags.
+  /// LangRef.html for the meaning of these flats.
   void setFastMathFlags(FastMathFlags FMF);
-
-  /// Convenience function for transferring all fast-math flag values to this
-  /// instruction, which must be an operator which supports these flags. See
-  /// LangRef.html for the meaning of these flags.
-  void copyFastMathFlags(FastMathFlags FMF);
 
   /// Determine whether the unsafe-algebra flag is set.
   bool hasUnsafeAlgebra() const;
@@ -257,7 +242,7 @@ public:
 
   /// Convenience function for getting all the fast-math flags, which must be an
   /// operator which supports these flags. See LangRef.html for the meaning of
-  /// these flags.
+  /// these flats.
   FastMathFlags getFastMathFlags() const;
 
   /// Copy I's fast-math flags
@@ -337,11 +322,6 @@ public:
   bool mayReadOrWriteMemory() const {
     return mayReadFromMemory() || mayWriteToMemory();
   }
-
-  /// isAtomic - Return true if this instruction has an
-  /// AtomicOrdering of unordered or higher.
-  ///
-  bool isAtomic() const;
 
   /// mayThrow - Return true if this instruction may throw an exception.
   ///

@@ -166,7 +166,9 @@ public:
     : CrashRecoveryContextCleanupBase<
         CrashRecoveryContextDeleteCleanup<T>, T>(context, resource) {}
 
-  void recoverResources() override { delete this->resource; }
+  virtual void recoverResources() {
+    delete this->resource;
+  }  
 };
 
 template <typename T>
@@ -179,7 +181,9 @@ public:
     : CrashRecoveryContextCleanupBase<CrashRecoveryContextReleaseRefCleanup<T>,
           T>(context, resource) {}
 
-  void recoverResources() override { this->resource->Release(); }
+  virtual void recoverResources() {
+    this->resource->Release();
+  }
 };
 
 template <typename T, typename Cleanup = CrashRecoveryContextDeleteCleanup<T> >

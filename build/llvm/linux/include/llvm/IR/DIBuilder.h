@@ -38,6 +38,7 @@ namespace llvm {
   class DIFile;
   class DIEnumerator;
   class DIType;
+  class DIArray;
   class DIGlobalVariable;
   class DIImportedEntity;
   class DINameSpace;
@@ -85,6 +86,7 @@ namespace llvm {
 
     public:
     explicit DIBuilder(Module &M);
+    enum ComplexAddrKind { OpPlus=1, OpDeref };
     enum DebugEmissionKind { FullDebug=1, LineTablesOnly };
 
     /// finalize - Construct any deferred debug info descriptors.
@@ -220,6 +222,32 @@ namespace llvm {
     createStaticMemberType(DIDescriptor Scope, StringRef Name,
                            DIFile File, unsigned LineNo, DIType Ty,
                            unsigned Flags, llvm::Value *Val);
+
+    /// createObjCIVar - Create debugging information entry for Objective-C
+    /// instance variable.
+    /// @param Name         Member name.
+    /// @param File         File where this member is defined.
+    /// @param LineNo       Line number.
+    /// @param SizeInBits   Member size.
+    /// @param AlignInBits  Member alignment.
+    /// @param OffsetInBits Member offset.
+    /// @param Flags        Flags to encode member attribute, e.g. private
+    /// @param Ty           Parent type.
+    /// @param PropertyName Name of the Objective C property associated with
+    ///                     this ivar.
+    /// @param PropertyGetterName Name of the Objective C property getter
+    ///                           selector.
+    /// @param PropertySetterName Name of the Objective C property setter
+    ///                           selector.
+    /// @param PropertyAttributes Objective C property attributes.
+    DIDerivedType createObjCIVar(StringRef Name, DIFile File,
+                                 unsigned LineNo, uint64_t SizeInBits,
+                                 uint64_t AlignInBits, uint64_t OffsetInBits,
+                                 unsigned Flags, DIType Ty,
+                                 StringRef PropertyName = StringRef(),
+                                 StringRef PropertyGetterName = StringRef(),
+                                 StringRef PropertySetterName = StringRef(),
+                                 unsigned PropertyAttributes = 0);
 
     /// createObjCIVar - Create debugging information entry for Objective-C
     /// instance variable.
@@ -407,9 +435,8 @@ namespace llvm {
     ///                        includes return type at 0th index.
     /// @param Flags           E.g.: LValueReference.
     ///                        These flags are used to emit dwarf attributes.
-    DISubroutineType createSubroutineType(DIFile File,
-                                          DITypeArray ParameterTypes,
-                                          unsigned Flags = 0);
+    DICompositeType createSubroutineType(DIFile File, DIArray ParameterTypes,
+                                         unsigned Flags = 0);
 
     /// createArtificialType - Create a new DIType with "artificial" flag set.
     DIType createArtificialType(DIType Ty);
@@ -436,22 +463,44 @@ namespace llvm {
     /// through debug info anchors.
     void retainType(DIType T);
 
-    /// createUnspecifiedParameter - Create unspecified parameter type
+    /// createUnspecifiedParameter - Create unspecified type descriptor
     /// for a subroutine type.
-    DIBasicType createUnspecifiedParameter();
+    DIDescriptor createUnspecifiedParameter();
 
     /// getOrCreateArray - Get a DIArray, create one if required.
     DIArray getOrCreateArray(ArrayRef<Value *> Elements);
-
-    /// getOrCreateTypeArray - Get a DITypeArray, create one if required.
-    DITypeArray getOrCreateTypeArray(ArrayRef<Value *> Elements);
 
     /// getOrCreateSubrange - Create a descriptor for a value range.  This
     /// implicitly uniques the values returned.
     DISubrange getOrCreateSubrange(int64_t Lo, int64_t Count);
 
+    /// createGlobalVariable - Create a new descriptor for the specified global.
+    /// @param Name        Name of the variable.
+    /// @param File        File where this variable is defined.
+    /// @param LineNo      Line number.
+    /// @param Ty          Variable Type.
+    /// @param isLocalToUnit Boolean flag indicate whether this variable is
+    ///                      externally visible or not.
+    /// @param Val         llvm::Value of the variable.
+    DIGlobalVariable
+    createGlobalVariable(StringRef Name, DIFile File, unsigned LineNo,
+                         DITypeRef Ty, bool isLocalToUnit, llvm::Value *Val);
 
-    /// createGlobalVariable - Create a new descriptor for the specified
+    /// \brief Create a new descriptor for the specified global.
+    /// @param Name        Name of the variable.
+    /// @param LinkageName Mangled variable name.
+    /// @param File        File where this variable is defined.
+    /// @param LineNo      Line number.
+    /// @param Ty          Variable Type.
+    /// @param isLocalToUnit Boolean flag indicate whether this variable is
+    ///                      externally visible or not.
+    /// @param Val         llvm::Value of the variable.
+    DIGlobalVariable
+    createGlobalVariable(StringRef Name, StringRef LinkageName, DIFile File,
+                         unsigned LineNo, DITypeRef Ty, bool isLocalToUnit,
+                         llvm::Value *Val);
+
+    /// createStaticVariable - Create a new descriptor for the specified
     /// variable.
     /// @param Context     Variable scope.
     /// @param Name        Name of the variable.
@@ -464,19 +513,10 @@ namespace llvm {
     /// @param Val         llvm::Value of the variable.
     /// @param Decl        Reference to the corresponding declaration.
     DIGlobalVariable
-    createGlobalVariable(DIDescriptor Context, StringRef Name,
+    createStaticVariable(DIDescriptor Context, StringRef Name,
                          StringRef LinkageName, DIFile File, unsigned LineNo,
                          DITypeRef Ty, bool isLocalToUnit, llvm::Value *Val,
                          MDNode *Decl = nullptr);
-
-    /// createTempGlobalVariableFwdDecl - Identical to createGlobalVariable
-    /// except that the resulting DbgNode is temporary and meant to be RAUWed.
-    DIGlobalVariable
-    createTempGlobalVariableFwdDecl(DIDescriptor Context, StringRef Name,
-                                    StringRef LinkageName, DIFile File,
-                                    unsigned LineNo, DITypeRef Ty,
-                                    bool isLocalToUnit, llvm::Value *Val,
-                                    MDNode *Decl = nullptr);
 
 
     /// createLocalVariable - Create a new descriptor for the specified
@@ -500,18 +540,23 @@ namespace llvm {
                                    unsigned Flags = 0,
                                    unsigned ArgNo = 0);
 
-    /// createExpression - Create a new descriptor for the specified
-    /// variable which has a complex address expression for its address.
-    /// @param Addr        An array of complex address operations.
-    DIExpression createExpression(ArrayRef<int64_t> Addr = None);
 
-    /// createPieceExpression - Create a descriptor to describe one part
-    /// of aggregate variable that is fragmented across multiple Values.
-    ///
-    /// @param OffsetInBytes Offset of the piece in bytes.
-    /// @param SizeInBytes   Size of the piece in bytes.
-    DIExpression createPieceExpression(unsigned OffsetInBytes,
-                                       unsigned SizeInBytes);
+    /// createComplexVariable - Create a new descriptor for the specified
+    /// variable which has a complex address expression for its address.
+    /// @param Tag         Dwarf TAG. Usually DW_TAG_auto_variable or
+    ///                    DW_TAG_arg_variable.
+    /// @param Scope       Variable scope.
+    /// @param Name        Variable name.
+    /// @param F           File where this variable is defined.
+    /// @param LineNo      Line number.
+    /// @param Ty          Variable Type
+    /// @param Addr        An array of complex address operations.
+    /// @param ArgNo       If this variable is an argument then this argument's
+    ///                    number. 1 indicates 1st argument.
+    DIVariable createComplexVariable(unsigned Tag, DIDescriptor Scope,
+                                     StringRef Name, DIFile F, unsigned LineNo,
+                                     DITypeRef Ty, ArrayRef<Value *> Addr,
+                                     unsigned ArgNo = 0);
 
     /// createFunction - Create a new descriptor for the specified subprogram.
     /// See comments in DISubprogram for descriptions of these fields.
@@ -540,21 +585,6 @@ namespace llvm {
                                 Function *Fn = nullptr,
                                 MDNode *TParam = nullptr,
                                 MDNode *Decl = nullptr);
-
-    /// createTempFunctionFwdDecl - Identical to createFunction,
-    /// except that the resulting DbgNode is meant to be RAUWed.
-    DISubprogram createTempFunctionFwdDecl(DIDescriptor Scope, StringRef Name,
-                                           StringRef LinkageName,
-                                           DIFile File, unsigned LineNo,
-                                           DICompositeType Ty, bool isLocalToUnit,
-                                           bool isDefinition,
-                                           unsigned ScopeLine,
-                                           unsigned Flags = 0,
-                                           bool isOptimized = false,
-                                           Function *Fn = nullptr,
-                                           MDNode *TParam = nullptr,
-                                           MDNode *Decl = nullptr);
-
 
     /// FIXME: this is added for dragonegg. Once we update dragonegg
     /// to call resolve function, this will be removed.
@@ -616,9 +646,8 @@ namespace llvm {
     /// lexical block as it crosses a file.
     /// @param Scope       Lexical block.
     /// @param File        Source file.
-    /// @param Discriminator DWARF path discriminator value.
-    DILexicalBlockFile createLexicalBlockFile(DIDescriptor Scope, DIFile File,
-                                              unsigned Discriminator = 0);
+    DILexicalBlockFile createLexicalBlockFile(DIDescriptor Scope,
+                                              DIFile File);
 
     /// createLexicalBlock - This creates a descriptor for a lexical block
     /// with the specified parent context.
@@ -626,8 +655,10 @@ namespace llvm {
     /// @param File          Source file.
     /// @param Line          Line number.
     /// @param Col           Column number.
+    /// @param Discriminator DWARF path discriminator value.
     DILexicalBlock createLexicalBlock(DIDescriptor Scope, DIFile File,
-                                      unsigned Line, unsigned Col);
+                                      unsigned Line, unsigned Col,
+                                      unsigned Discriminator);
 
     /// \brief Create a descriptor for an imported module.
     /// @param Context The scope this module is imported into
@@ -659,38 +690,36 @@ namespace llvm {
     /// insertDeclare - Insert a new llvm.dbg.declare intrinsic call.
     /// @param Storage     llvm::Value of the variable
     /// @param VarInfo     Variable's debug info descriptor.
-    /// @param Expr         A complex location expression.
     /// @param InsertAtEnd Location for the new intrinsic.
     Instruction *insertDeclare(llvm::Value *Storage, DIVariable VarInfo,
-                               DIExpression Expr, BasicBlock *InsertAtEnd);
+                               BasicBlock *InsertAtEnd);
 
     /// insertDeclare - Insert a new llvm.dbg.declare intrinsic call.
     /// @param Storage      llvm::Value of the variable
     /// @param VarInfo      Variable's debug info descriptor.
-    /// @param Expr         A complex location expression.
     /// @param InsertBefore Location for the new intrinsic.
     Instruction *insertDeclare(llvm::Value *Storage, DIVariable VarInfo,
-                               DIExpression Expr, Instruction *InsertBefore);
+                               Instruction *InsertBefore);
+
 
     /// insertDbgValueIntrinsic - Insert a new llvm.dbg.value intrinsic call.
     /// @param Val          llvm::Value of the variable
     /// @param Offset       Offset
     /// @param VarInfo      Variable's debug info descriptor.
-    /// @param Expr         A complex location expression.
     /// @param InsertAtEnd Location for the new intrinsic.
     Instruction *insertDbgValueIntrinsic(llvm::Value *Val, uint64_t Offset,
-                                         DIVariable VarInfo, DIExpression Expr,
+                                         DIVariable VarInfo,
                                          BasicBlock *InsertAtEnd);
 
     /// insertDbgValueIntrinsic - Insert a new llvm.dbg.value intrinsic call.
     /// @param Val          llvm::Value of the variable
     /// @param Offset       Offset
     /// @param VarInfo      Variable's debug info descriptor.
-    /// @param Expr         A complex location expression.
     /// @param InsertBefore Location for the new intrinsic.
     Instruction *insertDbgValueIntrinsic(llvm::Value *Val, uint64_t Offset,
-                                         DIVariable VarInfo, DIExpression Expr,
+                                         DIVariable VarInfo,
                                          Instruction *InsertBefore);
+
   };
 } // end namespace llvm
 

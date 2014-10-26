@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_ANALYSIS_PROGRAMPOINT_H
-#define LLVM_CLANG_ANALYSIS_PROGRAMPOINT_H
+#ifndef LLVM_CLANG_ANALYSIS_PROGRAM_POINT
+#define LLVM_CLANG_ANALYSIS_PROGRAM_POINT
 
 #include "clang/Analysis/AnalysisContext.h"
 #include "clang/Analysis/CFG.h"

@@ -21,35 +21,41 @@
 
 namespace llvm {
 
-/// This class acts as a container for the memory buffer used during generation
-/// and loading of executable objects using MCJIT and RuntimeDyld. The
+/// ObjectBuffer - This class acts as a container for the memory buffer used during
+/// generation and loading of executable objects using MCJIT and RuntimeDyld.  The
 /// underlying memory for the object will be owned by the ObjectBuffer instance
-/// throughout its lifetime.
+/// throughout its lifetime.  The getMemBuffer() method provides a way to create a
+/// MemoryBuffer wrapper object instance to be owned by other classes (such as
+/// ObjectFile) as needed, but the MemoryBuffer instance returned does not own the
+/// actual memory it points to.
 class ObjectBuffer {
   virtual void anchor();
 public:
   ObjectBuffer() {}
-  ObjectBuffer(std::unique_ptr<MemoryBuffer> Buf) : Buffer(std::move(Buf)) {}
+  ObjectBuffer(MemoryBuffer* Buf) : Buffer(Buf) {}
   virtual ~ObjectBuffer() {}
 
-  MemoryBufferRef getMemBuffer() const { return Buffer->getMemBufferRef(); }
+  /// getMemBuffer - Like MemoryBuffer::getMemBuffer() this function
+  /// returns a pointer to an object that is owned by the caller. However,
+  /// the caller does not take ownership of the underlying memory.
+  MemoryBuffer *getMemBuffer() const {
+    return MemoryBuffer::getMemBuffer(Buffer->getBuffer(),
+                                      Buffer->getBufferIdentifier(), false);
+  }
 
   const char *getBufferStart() const { return Buffer->getBufferStart(); }
   size_t getBufferSize() const { return Buffer->getBufferSize(); }
   StringRef getBuffer() const { return Buffer->getBuffer(); }
-  StringRef getBufferIdentifier() const {
-    return Buffer->getBufferIdentifier();
-  }
 
 protected:
   // The memory contained in an ObjectBuffer
   std::unique_ptr<MemoryBuffer> Buffer;
 };
 
-/// This class encapsulates the SmallVector and raw_svector_ostream needed to
-/// generate an object using MC code emission while providing a common
-/// ObjectBuffer interface for access to the memory once the object has been
-/// generated.
+/// ObjectBufferStream - This class encapsulates the SmallVector and
+/// raw_svector_ostream needed to generate an object using MC code emission
+/// while providing a common ObjectBuffer interface for access to the
+/// memory once the object has been generated.
 class ObjectBufferStream : public ObjectBuffer {
   void anchor() override;
 public:
@@ -62,8 +68,9 @@ public:
     OS.flush();
 
     // Make the data accessible via the ObjectBuffer::Buffer
-    Buffer =
-        MemoryBuffer::getMemBuffer(StringRef(SV.data(), SV.size()), "", false);
+    Buffer.reset(MemoryBuffer::getMemBuffer(StringRef(SV.data(), SV.size()),
+                                            "",
+                                            false));
   }
 
 protected:

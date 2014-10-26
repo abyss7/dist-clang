@@ -530,12 +530,6 @@ make_unique(size_t n) {
 
 #endif
 
-struct FreeDeleter {
-  void operator()(void* v) {
-    ::free(v);
-  }
-};
-
 template<typename First, typename Second>
 struct pair_hash {
   size_t operator()(const std::pair<First, Second> &P) const {

@@ -43,7 +43,6 @@ class Stmt;
 class StringLiteral;
 class TemplateArgumentList;
 class TemplateParameterList;
-class TypeAliasTemplateDecl;
 class TypeLoc;
 class UnresolvedSetImpl;
 class VarTemplateDecl;
@@ -289,8 +288,6 @@ public:
     return const_cast<NamedDecl*>(this)->getMostRecentDecl();
   }
 
-  ObjCStringFormatFamily getObjCFStringFormattingFamily() const;
-
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classofKind(Kind K) { return K >= firstNamed && K <= lastNamed; }
 };
@@ -308,8 +305,6 @@ inline raw_ostream &operator<<(raw_ostream &OS, const NamedDecl &ND) {
 class LabelDecl : public NamedDecl {
   void anchor() override;
   LabelStmt *TheStmt;
-  StringRef MSAsmName;
-  bool MSAsmNameResolved;
   /// LocStart - For normal labels, this is the same as the main declaration
   /// label, i.e., the location of the identifier; for GNU local labels,
   /// this is the location of the __label__ keyword.
@@ -317,10 +312,7 @@ class LabelDecl : public NamedDecl {
 
   LabelDecl(DeclContext *DC, SourceLocation IdentL, IdentifierInfo *II,
             LabelStmt *S, SourceLocation StartL)
-    : NamedDecl(Label, DC, IdentL, II),
-      TheStmt(S),
-      MSAsmNameResolved(false),
-      LocStart(StartL) {}
+    : NamedDecl(Label, DC, IdentL, II), TheStmt(S), LocStart(StartL) {}
 
 public:
   static LabelDecl *Create(ASTContext &C, DeclContext *DC,
@@ -339,12 +331,6 @@ public:
   SourceRange getSourceRange() const override LLVM_READONLY {
     return SourceRange(LocStart, getLocation());
   }
-
-  bool isMSAsmLabel() const { return MSAsmName.size() != 0; }
-  bool isResolvedMSAsmLabel() const { return isMSAsmLabel() && MSAsmNameResolved; }
-  void setMSAsmLabel(StringRef Name);
-  StringRef getMSAsmLabel() const { return MSAsmName; }
-  void setMSAsmLabelResolved() { MSAsmNameResolved = true; }
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
@@ -1664,7 +1650,7 @@ public:
   /// unnecessary AST de-serialization of the body.
   Stmt *getBody(const FunctionDecl *&Definition) const;
 
-  Stmt *getBody() const override {
+   Stmt *getBody() const override {
     const FunctionDecl* Definition;
     return getBody(Definition);
   }
@@ -1894,7 +1880,7 @@ public:
     return llvm::makeArrayRef(ParamInfo, getNumParams());
   }
 
-  ArrayRef<NamedDecl *> getDeclsInPrototypeScope() const {
+  const ArrayRef<NamedDecl *> &getDeclsInPrototypeScope() const {
     return DeclsInPrototypeScope;
   }
   void setDeclsInPrototypeScope(ArrayRef<NamedDecl *> NewDecls);
@@ -2169,9 +2155,8 @@ class FieldDecl : public DeclaratorDecl, public Mergeable<FieldDecl> {
   mutable unsigned CachedFieldIndex : 31;
 
   /// \brief An InClassInitStyle value, and either a bit width expression (if
-  /// the InClassInitStyle value is ICIS_NoInit) in struct/class, or a captured
-  /// variable length array bound in a lambda expression, or a pointer to the
-  /// in-class initializer for this field (otherwise).
+  /// the InClassInitStyle value is ICIS_NoInit), or a pointer to the in-class
+  /// initializer for this field (otherwise).
   ///
   /// We can safely combine these two because in-class initializers are not
   /// permitted for bit-fields.
@@ -2179,7 +2164,7 @@ class FieldDecl : public DeclaratorDecl, public Mergeable<FieldDecl> {
   /// If the InClassInitStyle is not ICIS_NoInit and the initializer is null,
   /// then this field has an in-class initializer which has not yet been parsed
   /// and attached.
-  llvm::PointerIntPair<void *, 2, unsigned> InitializerOrBitWidth;
+  llvm::PointerIntPair<Expr *, 2, unsigned> InitializerOrBitWidth;
 protected:
   FieldDecl(Kind DK, DeclContext *DC, SourceLocation StartLoc,
             SourceLocation IdLoc, IdentifierInfo *Id,
@@ -2207,8 +2192,11 @@ public:
   /// isMutable - Determines whether this field is mutable (C++ only).
   bool isMutable() const { return Mutable; }
 
-  /// \brief Determines whether this field is a bitfield.
-  bool isBitField() const;
+  /// isBitfield - Determines whether this field is a bitfield.
+  bool isBitField() const {
+    return getInClassInitStyle() == ICIS_NoInit &&
+           InitializerOrBitWidth.getPointer();
+  }
 
   /// @brief Determines whether this is an unnamed bitfield.
   bool isUnnamedBitfield() const { return isBitField() && !getDeclName(); }
@@ -2220,9 +2208,7 @@ public:
   bool isAnonymousStructOrUnion() const;
 
   Expr *getBitWidth() const {
-    return isBitField()
-               ? static_cast<Expr *>(InitializerOrBitWidth.getPointer())
-               : nullptr;
+    return isBitField() ? InitializerOrBitWidth.getPointer() : nullptr;
   }
   unsigned getBitWidthValue(const ASTContext &Ctx) const;
 
@@ -2252,9 +2238,8 @@ public:
   /// in-class initializer, but this returns null, then we have not parsed and
   /// attached it yet.
   Expr *getInClassInitializer() const {
-    return hasInClassInitializer()
-               ? static_cast<Expr *>(InitializerOrBitWidth.getPointer())
-               : nullptr;
+    return hasInClassInitializer() ? InitializerOrBitWidth.getPointer()
+                                   : nullptr;
   }
   /// setInClassInitializer - Set the C++11 in-class initializer for this
   /// member.
@@ -2266,18 +2251,6 @@ public:
     InitializerOrBitWidth.setPointer(nullptr);
     InitializerOrBitWidth.setInt(ICIS_NoInit);
   }
-
-  /// \brief Determine whether this member captures the variable length array
-  /// type.
-  bool hasCapturedVLAType() const;
-  /// \brief Get the captured variable length array type.
-  const VariableArrayType *getCapturedVLAType() const {
-    return hasCapturedVLAType() ? static_cast<const VariableArrayType *>(
-                                      InitializerOrBitWidth.getPointer())
-                                : nullptr;
-  }
-  /// \brief Set the captured variable length array type for this field.
-  void setCapturedVLAType(const VariableArrayType *VLAType);
 
   /// getParent - Returns the parent of this field declaration, which
   /// is the struct in which this method is defined.
@@ -2519,13 +2492,9 @@ public:
 /// TypeAliasDecl - Represents the declaration of a typedef-name via a C++0x
 /// alias-declaration.
 class TypeAliasDecl : public TypedefNameDecl {
-  /// The template for which this is the pattern, if any.
-  TypeAliasTemplateDecl *Template;
-
   TypeAliasDecl(ASTContext &C, DeclContext *DC, SourceLocation StartLoc,
                 SourceLocation IdLoc, IdentifierInfo *Id, TypeSourceInfo *TInfo)
-      : TypedefNameDecl(TypeAlias, C, DC, StartLoc, IdLoc, Id, TInfo),
-        Template(nullptr) {}
+      : TypedefNameDecl(TypeAlias, C, DC, StartLoc, IdLoc, Id, TInfo) {}
 
 public:
   static TypeAliasDecl *Create(ASTContext &C, DeclContext *DC,
@@ -2534,9 +2503,6 @@ public:
   static TypeAliasDecl *CreateDeserialized(ASTContext &C, unsigned ID);
 
   SourceRange getSourceRange() const override LLVM_READONLY;
-
-  TypeAliasTemplateDecl *getDescribedAliasTemplate() const { return Template; }
-  void setDescribedAliasTemplate(TypeAliasTemplateDecl *TAT) { Template = TAT; }
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
@@ -2681,7 +2647,7 @@ public:
   }
 
   /// isThisDeclarationADefinition() - Return true if this declaration
-  /// is a completion definition of the type.  Provided for consistency.
+  /// is a completion definintion of the type.  Provided for consistency.
   bool isThisDeclarationADefinition() const {
     return isCompleteDefinition();
   }
@@ -3169,10 +3135,6 @@ public:
   /// C::C c; // same as "C c;"
   /// \endcode
   bool isInjectedClassName() const;
-
-  /// \brief Determine whether this record is a class describing a lambda
-  /// function object.
-  bool isLambda() const;
 
   /// getDefinition - Returns the RecordDecl that actually defines
   ///  this struct/union/class.  When determining whether or not a

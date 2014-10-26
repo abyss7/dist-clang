@@ -26,21 +26,19 @@ namespace object {
 }
 
 class RuntimeDyldImpl;
-class RuntimeDyldCheckerImpl;
 class ObjectImage;
 
 class RuntimeDyld {
-  friend class RuntimeDyldCheckerImpl;
+  friend class RuntimeDyldChecker;
 
   RuntimeDyld(const RuntimeDyld &) LLVM_DELETED_FUNCTION;
   void operator=(const RuntimeDyld &) LLVM_DELETED_FUNCTION;
 
   // RuntimeDyldImpl is the actual class. RuntimeDyld is just the public
   // interface.
-  std::unique_ptr<RuntimeDyldImpl> Dyld;
+  RuntimeDyldImpl *Dyld;
   RTDyldMemoryManager *MM;
   bool ProcessAllSections;
-  RuntimeDyldCheckerImpl *Checker;
 protected:
   // Change the address associated with a section when resolving relocations.
   // Any relocations already associated with the symbol will be re-resolved.
@@ -53,24 +51,22 @@ public:
   /// Ownership of the input buffer is transferred to the ObjectImage
   /// instance returned from this function if successful. In the case of load
   /// failure, the input buffer will be deleted.
-  std::unique_ptr<ObjectImage>
-  loadObject(std::unique_ptr<ObjectBuffer> InputBuffer);
+  ObjectImage *loadObject(ObjectBuffer *InputBuffer);
 
   /// Prepare the referenced object file for execution.
   /// Ownership of the input object is transferred to the ObjectImage
   /// instance returned from this function if successful. In the case of load
   /// failure, the input object will be deleted.
-  std::unique_ptr<ObjectImage>
-  loadObject(std::unique_ptr<object::ObjectFile> InputObject);
+  ObjectImage *loadObject(std::unique_ptr<object::ObjectFile> InputObject);
 
   /// Get the address of our local copy of the symbol. This may or may not
   /// be the address used for relocation (clients can copy the data around
   /// and resolve relocatons based on where they put it).
-  void *getSymbolAddress(StringRef Name) const;
+  void *getSymbolAddress(StringRef Name);
 
   /// Get the address of the target copy of the symbol. This is the address
   /// used for relocation.
-  uint64_t getSymbolLoadAddress(StringRef Name) const;
+  uint64_t getSymbolLoadAddress(StringRef Name);
 
   /// Resolve the relocations for all symbols we currently know about.
   void resolveRelocations();

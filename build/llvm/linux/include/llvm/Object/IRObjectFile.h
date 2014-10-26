@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_OBJECT_IROBJECTFILE_H
-#define LLVM_OBJECT_IROBJECTFILE_H
+#ifndef LLVM_OBJECT_IR_OBJECT_FILE_H
+#define LLVM_OBJECT_IR_OBJECT_FILE_H
 
 #include "llvm/Object/SymbolicFile.h"
 
@@ -22,15 +22,13 @@ class Module;
 class GlobalValue;
 
 namespace object {
-class ObjectFile;
-
 class IRObjectFile : public SymbolicFile {
   std::unique_ptr<Module> M;
   std::unique_ptr<Mangler> Mang;
   std::vector<std::pair<std::string, uint32_t>> AsmSymbols;
 
 public:
-  IRObjectFile(MemoryBufferRef Object, std::unique_ptr<Module> M);
+  IRObjectFile(std::unique_ptr<MemoryBuffer> Object, std::unique_ptr<Module> M);
   ~IRObjectFile();
   void moveSymbolNext(DataRefImpl &Symb) const override;
   std::error_code printSymbolName(raw_ostream &OS,
@@ -51,18 +49,9 @@ public:
     return v->isIR();
   }
 
-  /// \brief Finds and returns bitcode embedded in the given object file, or an
-  /// error code if not found.
-  static ErrorOr<MemoryBufferRef> findBitcodeInObject(const ObjectFile &Obj);
-
-  /// \brief Finds and returns bitcode in the given memory buffer (which may
-  /// be either a bitcode file or a native object file with embedded bitcode),
-  /// or an error code if not found.
-  static ErrorOr<MemoryBufferRef>
-  findBitcodeInMemBuffer(MemoryBufferRef Object);
-
-  static ErrorOr<std::unique_ptr<IRObjectFile>>
-  createIRObjectFile(MemoryBufferRef Object, LLVMContext &Context);
+  static ErrorOr<IRObjectFile *>
+  createIRObjectFile(std::unique_ptr<MemoryBuffer> Object,
+                     LLVMContext &Context);
 };
 }
 }

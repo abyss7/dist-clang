@@ -197,9 +197,6 @@ public:
   private:
     void retain() { if (Obj) IntrusiveRefCntPtrInfo<T>::retain(Obj); }
     void release() { if (Obj) IntrusiveRefCntPtrInfo<T>::release(Obj); }
-
-    template <typename X>
-    friend class IntrusiveRefCntPtr;
   };
 
   template<class T, class U>

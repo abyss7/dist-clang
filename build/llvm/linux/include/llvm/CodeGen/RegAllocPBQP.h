@@ -123,10 +123,9 @@ namespace llvm {
 
     /// Build a PBQP instance to represent the register allocation problem for
     /// the given MachineFunction.
-    virtual std::unique_ptr<PBQPRAProblem>
-    build(MachineFunction *mf, const LiveIntervals *lis,
-          const MachineBlockFrequencyInfo *mbfi, const RegSet &vregs);
-
+    virtual PBQPRAProblem *build(MachineFunction *mf, const LiveIntervals *lis,
+                                 const MachineBlockFrequencyInfo *mbfi,
+                                 const RegSet &vregs);
   private:
 
     void addSpillCosts(PBQP::Vector &costVec, PBQP::PBQPNum spillCost);
@@ -143,10 +142,9 @@ namespace llvm {
 
     /// Build a PBQP instance to represent the register allocation problem for
     /// the given MachineFunction.
-    std::unique_ptr<PBQPRAProblem> build(MachineFunction *mf,
-                                         const LiveIntervals *lis,
-                                         const MachineBlockFrequencyInfo *mbfi,
-                                         const RegSet &vregs) override;
+    PBQPRAProblem *build(MachineFunction *mf, const LiveIntervals *lis,
+                         const MachineBlockFrequencyInfo *mbfi,
+                         const RegSet &vregs) override;
 
   private:
 

@@ -515,12 +515,8 @@ public:
   /// indicating the declaration is used.
   void markUsed(ASTContext &C);
 
-  /// \brief Whether any declaration of this entity was referenced.
+  /// \brief Whether this declaration was referenced.
   bool isReferenced() const;
-
-  /// \brief Whether this declaration was referenced. This should not be relied
-  /// upon for anything other than debugging.
-  bool isThisDeclarationReferenced() const { return Referenced; }
 
   void setReferenced(bool R = true) { Referenced = R; }
 
@@ -679,9 +675,9 @@ public:
     return const_cast<Decl*>(this)->getLexicalDeclContext();
   }
 
-  /// Determine whether this declaration is declared out of line (outside its
-  /// semantic context).
-  virtual bool isOutOfLine() const;
+  virtual bool isOutOfLine() const {
+    return getLexicalDeclContext() != getDeclContext();
+  }
 
   /// setDeclContext - Set both the semantic and lexical DeclContext
   /// to DC.
@@ -1646,7 +1642,7 @@ public:
 
   void dumpDeclContext() const;
   void dumpLookups() const;
-  void dumpLookups(llvm::raw_ostream &OS, bool DumpDecls = false) const;
+  void dumpLookups(llvm::raw_ostream &OS) const;
 
 private:
   void reconcileExternalVisibleStorage() const;

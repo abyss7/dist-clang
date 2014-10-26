@@ -34,8 +34,7 @@ enum LambdaCaptureDefault {
 enum LambdaCaptureKind {
   LCK_This,   ///< Capturing the \c this pointer
   LCK_ByCopy, ///< Capturing by copy (a.k.a., by value)
-  LCK_ByRef,  ///< Capturing by reference
-  LCK_VLAType ///< Capturing variable-length array type
+  LCK_ByRef   ///< Capturing by reference
 };
 
 } // end namespace clang

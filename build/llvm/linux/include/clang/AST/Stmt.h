@@ -393,10 +393,6 @@ public:
   /// statement, such as ExprWithCleanups or ImplicitCastExpr nodes.
   Stmt *IgnoreImplicit();
 
-  /// \brief Skip no-op (attributed, compound) container stmts and skip captured
-  /// stmt at the top, if \a IgnoreCaptured is true.
-  Stmt *IgnoreContainers(bool IgnoreCaptured = false);
-
   const Stmt *stripLabelLikeStatements() const;
   Stmt *stripLabelLikeStatements() {
     return const_cast<Stmt*>(
@@ -850,7 +846,7 @@ public:
 
   SourceLocation getAttrLoc() const { return AttrLoc; }
   ArrayRef<const Attr*> getAttrs() const {
-    return llvm::makeArrayRef(getAttrArrayPtr(), NumAttrs);
+    return ArrayRef<const Attr*>(getAttrArrayPtr(), NumAttrs);
   }
   Stmt *getSubStmt() { return SubStmt; }
   const Stmt *getSubStmt() const { return SubStmt; }
@@ -1584,21 +1580,18 @@ public:
     Kind MyKind;
     std::string Str;
     unsigned OperandNo;
-
-    // Source range for operand references.
-    CharSourceRange Range;
   public:
     AsmStringPiece(const std::string &S) : MyKind(String), Str(S) {}
-    AsmStringPiece(unsigned OpNo, const std::string &S, SourceLocation Begin,
-                   SourceLocation End)
-      : MyKind(Operand), Str(S), OperandNo(OpNo),
-        Range(CharSourceRange::getCharRange(Begin, End)) {
+    AsmStringPiece(unsigned OpNo, char Modifier)
+      : MyKind(Operand), Str(), OperandNo(OpNo) {
+      Str += Modifier;
     }
 
     bool isString() const { return MyKind == String; }
     bool isOperand() const { return MyKind == Operand; }
 
     const std::string &getString() const {
+      assert(isString());
       return Str;
     }
 
@@ -1607,14 +1600,12 @@ public:
       return OperandNo;
     }
 
-    CharSourceRange getRange() const {
-      assert(isOperand() && "Range is currently used only for Operands.");
-      return Range;
-    }
-
     /// getModifier - Get the modifier for this operand, if present.  This
     /// returns '\0' if there was no modifier.
-    char getModifier() const;
+    char getModifier() const {
+      assert(isOperand());
+      return Str[0];
+    }
   };
 
   /// AnalyzeAsmString - Analyze the asm string of the current asm, decomposing
@@ -1789,14 +1780,14 @@ public:
   //===--- Other ---===//
 
   ArrayRef<StringRef> getAllConstraints() const {
-    return llvm::makeArrayRef(Constraints, NumInputs + NumOutputs);
+    return ArrayRef<StringRef>(Constraints, NumInputs + NumOutputs);
   }
   ArrayRef<StringRef> getClobbers() const {
-    return llvm::makeArrayRef(Clobbers, NumClobbers);
+    return ArrayRef<StringRef>(Clobbers, NumClobbers);
   }
   ArrayRef<Expr*> getAllExprs() const {
-    return llvm::makeArrayRef(reinterpret_cast<Expr**>(Exprs),
-                              NumInputs + NumOutputs);
+    return ArrayRef<Expr*>(reinterpret_cast<Expr**>(Exprs),
+                           NumInputs + NumOutputs);
   }
 
   StringRef getClobber(unsigned i) const { return getClobbers()[i]; }
@@ -1901,22 +1892,24 @@ class SEHTryStmt : public Stmt {
   bool            IsCXXTry;
   SourceLocation  TryLoc;
   Stmt           *Children[2];
+  int             HandlerIndex;
+  int             HandlerParentIndex;
 
   enum { TRY = 0, HANDLER = 1 };
 
   SEHTryStmt(bool isCXXTry, // true if 'try' otherwise '__try'
-             SourceLocation TryLoc,
-             Stmt *TryBlock,
-             Stmt *Handler);
+             SourceLocation TryLoc, Stmt *TryBlock, Stmt *Handler,
+             int HandlerIndex, int HandlerParentIndex);
 
   friend class ASTReader;
   friend class ASTStmtReader;
   explicit SEHTryStmt(EmptyShell E) : Stmt(SEHTryStmtClass, E) { }
 
 public:
-  static SEHTryStmt* Create(const ASTContext &C, bool isCXXTry,
+  static SEHTryStmt *Create(const ASTContext &C, bool isCXXTry,
                             SourceLocation TryLoc, Stmt *TryBlock,
-                            Stmt *Handler);
+                            Stmt *Handler, int HandlerIndex,
+                            int HandlerParentIndex);
 
   SourceLocation getLocStart() const LLVM_READONLY { return getTryLoc(); }
   SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
@@ -1943,6 +1936,9 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == SEHTryStmtClass;
   }
+
+  int getHandlerIndex() const { return HandlerIndex; }
+  int getHandlerParentIndex() const { return HandlerParentIndex; }
 };
 
 /// Represents a __leave statement.

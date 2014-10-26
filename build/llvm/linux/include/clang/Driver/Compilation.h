@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_DRIVER_COMPILATION_H
-#define LLVM_CLANG_DRIVER_COMPILATION_H
+#ifndef CLANG_DRIVER_COMPILATION_H_
+#define CLANG_DRIVER_COMPILATION_H_
 
 #include "clang/Driver/Job.h"
 #include "clang/Driver/Util.h"
@@ -94,7 +94,7 @@ public:
   JobList &getJobs() { return Jobs; }
   const JobList &getJobs() const { return Jobs; }
 
-  void addCommand(std::unique_ptr<Command> C) { Jobs.addJob(std::move(C)); }
+  void addCommand(Command *C) { Jobs.addJob(C); }
 
   const llvm::opt::ArgStringList &getTempFiles() const { return TempFiles; }
 

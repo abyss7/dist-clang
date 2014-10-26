@@ -144,7 +144,6 @@ namespace PBQP {
       typedef RegAlloc::NodeMetadata NodeMetadata;
 
       struct EdgeMetadata { };
-      struct GraphMetadata { };
 
       typedef PBQP::Graph<RegAllocSolverImpl> Graph;
 

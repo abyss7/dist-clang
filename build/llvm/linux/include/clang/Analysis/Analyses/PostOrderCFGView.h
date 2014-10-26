@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_ANALYSIS_ANALYSES_POSTORDERCFGVIEW_H
-#define LLVM_CLANG_ANALYSIS_ANALYSES_POSTORDERCFGVIEW_H
+#ifndef LLVM_CLANG_POSTORDER_CFGVIEW
+#define LLVM_CLANG_POSTORDER_CFGVIEW
 
 #include <vector>
 //#include <algorithm>

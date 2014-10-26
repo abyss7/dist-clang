@@ -30,13 +30,13 @@ namespace path {
 
 /// @brief Path iterator.
 ///
-/// This is an input iterator that iterates over the individual components in
-/// \a path. The traversal order is as follows:
+/// This is a bidirectional iterator that iterates over the individual
+/// components in \a path. The forward traversal order is as follows:
 /// * The root-name element, if present.
 /// * The root-directory element, if present.
 /// * Each successive filename element, if present.
 /// * Dot, if one or more trailing non-root slash characters are present.
-/// Traversing backwards is possible with \a reverse_iterator
+/// The backwards traversal order is the reverse of forward traversal.
 ///
 /// Iteration examples. Each component is separated by ',':
 /// @code
@@ -47,8 +47,7 @@ namespace path {
 ///   ../        => ..,.
 ///   C:\foo\bar => C:,/,foo,bar
 /// @endcode
-class const_iterator
-    : public std::iterator<std::input_iterator_tag, const StringRef> {
+class const_iterator {
   StringRef Path;      ///< The entire path.
   StringRef Component; ///< The current component. Not necessarily in Path.
   size_t    Position;  ///< The iterators current position within Path.
@@ -58,39 +57,26 @@ class const_iterator
   friend const_iterator end(StringRef path);
 
 public:
+  typedef const StringRef value_type;
+  typedef ptrdiff_t difference_type;
+  typedef value_type &reference;
+  typedef value_type *pointer;
+  typedef std::bidirectional_iterator_tag iterator_category;
+
   reference operator*() const { return Component; }
   pointer   operator->() const { return &Component; }
   const_iterator &operator++();    // preincrement
   const_iterator &operator++(int); // postincrement
+  const_iterator &operator--();    // predecrement
+  const_iterator &operator--(int); // postdecrement
   bool operator==(const const_iterator &RHS) const;
-  bool operator!=(const const_iterator &RHS) const { return !(*this == RHS); }
+  bool operator!=(const const_iterator &RHS) const;
 
   /// @brief Difference in bytes between this and RHS.
   ptrdiff_t operator-(const const_iterator &RHS) const;
 };
 
-/// @brief Reverse path iterator.
-///
-/// This is an input iterator that iterates over the individual components in
-/// \a path in reverse order. The traversal order is exactly reversed from that
-/// of \a const_iterator
-class reverse_iterator
-    : public std::iterator<std::input_iterator_tag, const StringRef> {
-  StringRef Path;      ///< The entire path.
-  StringRef Component; ///< The current component. Not necessarily in Path.
-  size_t    Position;  ///< The iterators current position within Path.
-
-  friend reverse_iterator rbegin(StringRef path);
-  friend reverse_iterator rend(StringRef path);
-
-public:
-  reference operator*() const { return Component; }
-  pointer   operator->() const { return &Component; }
-  reverse_iterator &operator++();    // preincrement
-  reverse_iterator &operator++(int); // postincrement
-  bool operator==(const reverse_iterator &RHS) const;
-  bool operator!=(const reverse_iterator &RHS) const { return !(*this == RHS); }
-};
+typedef std::reverse_iterator<const_iterator> reverse_iterator;
 
 /// @brief Get begin iterator over \a path.
 /// @param path Input path.
@@ -105,12 +91,16 @@ const_iterator end(StringRef path);
 /// @brief Get reverse begin iterator over \a path.
 /// @param path Input path.
 /// @returns Iterator initialized with the first reverse component of \a path.
-reverse_iterator rbegin(StringRef path);
+inline reverse_iterator rbegin(StringRef path) {
+  return reverse_iterator(end(path));
+}
 
 /// @brief Get reverse end iterator over \a path.
 /// @param path Input path.
 /// @returns Iterator initialized to the reverse end of \a path.
-reverse_iterator rend(StringRef path);
+inline reverse_iterator rend(StringRef path) {
+  return reverse_iterator(begin(path));
+}
 
 /// @}
 /// @name Lexical Modifiers
@@ -204,7 +194,7 @@ void native(SmallVectorImpl<char> &path);
 ///
 /// @param path Input path.
 /// @result The root name of \a path if it has one, otherwise "".
-StringRef root_name(StringRef path);
+const StringRef root_name(StringRef path);
 
 /// @brief Get root directory.
 ///
@@ -217,7 +207,7 @@ StringRef root_name(StringRef path);
 /// @param path Input path.
 /// @result The root directory of \a path if it has one, otherwise
 ///               "".
-StringRef root_directory(StringRef path);
+const StringRef root_directory(StringRef path);
   
 /// @brief Get root path.
 ///
@@ -225,7 +215,7 @@ StringRef root_directory(StringRef path);
 ///
 /// @param path Input path.
 /// @result The root path of \a path if it has one, otherwise "".
-StringRef root_path(StringRef path);
+const StringRef root_path(StringRef path);
 
 /// @brief Get relative path.
 ///
@@ -237,7 +227,7 @@ StringRef root_path(StringRef path);
 ///
 /// @param path Input path.
 /// @result The path starting after root_path if one exists, otherwise "".
-StringRef relative_path(StringRef path);
+const StringRef relative_path(StringRef path);
 
 /// @brief Get parent path.
 ///
@@ -249,7 +239,7 @@ StringRef relative_path(StringRef path);
 ///
 /// @param path Input path.
 /// @result The parent path of \a path if one exists, otherwise "".
-StringRef parent_path(StringRef path);
+const StringRef parent_path(StringRef path);
 
 /// @brief Get filename.
 ///
@@ -263,7 +253,7 @@ StringRef parent_path(StringRef path);
 /// @param path Input path.
 /// @result The filename part of \a path. This is defined as the last component
 ///         of \a path.
-StringRef filename(StringRef path);
+const StringRef filename(StringRef path);
 
 /// @brief Get stem.
 ///
@@ -281,7 +271,7 @@ StringRef filename(StringRef path);
 ///
 /// @param path Input path.
 /// @result The stem of \a path.
-StringRef stem(StringRef path);
+const StringRef stem(StringRef path);
 
 /// @brief Get extension.
 ///
@@ -297,7 +287,7 @@ StringRef stem(StringRef path);
 ///
 /// @param path Input path.
 /// @result The extension of \a path.
-StringRef extension(StringRef path);
+const StringRef extension(StringRef path);
 
 /// @brief Check whether the given char is a path separator on the host OS.
 ///
@@ -308,7 +298,7 @@ bool is_separator(char value);
 /// @brief Return the preferred separator for this platform.
 ///
 /// @result StringRef of the preferred separator, null-terminated.
-StringRef get_separator();
+const StringRef get_separator();
 
 /// @brief Get the typical temporary directory for the system, e.g., 
 /// "/var/tmp" or "C:/TEMP"

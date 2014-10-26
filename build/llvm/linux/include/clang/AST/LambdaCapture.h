@@ -68,21 +68,11 @@ public:
 
   /// \brief Determine whether this capture handles the C++ \c this
   /// pointer.
-  bool capturesThis() const {
-    return (DeclAndBits.getPointer() == nullptr) &&
-           !(DeclAndBits.getInt() & Capture_ByCopy);
-  }
+  bool capturesThis() const { return DeclAndBits.getPointer() == nullptr; }
 
   /// \brief Determine whether this capture handles a variable.
   bool capturesVariable() const {
     return dyn_cast_or_null<VarDecl>(DeclAndBits.getPointer());
-  }
-
-  /// \brief Determine whether this captures a variable length array bound
-  /// expression.
-  bool capturesVLAType() const {
-    return (DeclAndBits.getPointer() == nullptr) &&
-           (DeclAndBits.getInt() & Capture_ByCopy);
   }
 
   /// \brief Determine whether this is an init-capture.

@@ -10,8 +10,8 @@
 // that are used as part of fact-checking capability expressions.
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_ANALYSIS_ANALYSES_THREADSAFETYLOGICAL_H
-#define LLVM_CLANG_ANALYSIS_ANALYSES_THREADSAFETYLOGICAL_H
+#ifndef LLVM_CLANG_THREAD_SAFETY_LOGICAL_H
+#define LLVM_CLANG_THREAD_SAFETY_LOGICAL_H
 
 #include "clang/Analysis/Analyses/ThreadSafetyTIL.h"
 
@@ -41,13 +41,13 @@ private:
 };
 
 class Terminal : public LExpr {
-  til::SExpr *Expr;
+  til::SExprRef Expr;
 
 public:
   Terminal(til::SExpr *Expr) : LExpr(LExpr::Terminal), Expr(Expr) {}
 
-  const til::SExpr *expr() const { return Expr; }
-  til::SExpr *expr() { return Expr; }
+  const til::SExpr *expr() const { return Expr.get(); }
+  til::SExpr *expr() { return Expr.get(); }
 
   static bool classof(const LExpr *E) { return E->kind() == LExpr::Terminal; }
 };
@@ -104,5 +104,5 @@ bool LExpr::implies(const LExpr *RHS) const {
 }
 }
 
-#endif
+#endif // LLVM_CLANG_THREAD_SAFETY_LOGICAL_H
 

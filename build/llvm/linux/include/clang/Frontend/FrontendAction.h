@@ -18,10 +18,8 @@
 #ifndef LLVM_CLANG_FRONTEND_FRONTENDACTION_H
 #define LLVM_CLANG_FRONTEND_FRONTENDACTION_H
 
-#include "clang/AST/ASTConsumer.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/LangOptions.h"
-#include "clang/Frontend/ASTUnit.h"
 #include "clang/Frontend/FrontendOptions.h"
 #include "llvm/ADT/StringRef.h"
 #include <memory>
@@ -29,7 +27,9 @@
 #include <vector>
 
 namespace clang {
+class ASTConsumer;
 class ASTMergeAction;
+class ASTUnit;
 class CompilerInstance;
 
 /// Abstract base class for actions which can be performed by the frontend.
@@ -41,8 +41,8 @@ class FrontendAction {
   friend class WrapperFrontendAction;
 
 private:
-  std::unique_ptr<ASTConsumer> CreateWrappedASTConsumer(CompilerInstance &CI,
-                                                        StringRef InFile);
+  ASTConsumer* CreateWrappedASTConsumer(CompilerInstance &CI,
+                                        StringRef InFile);
 
 protected:
   /// @name Implementation Action Interface
@@ -61,8 +61,8 @@ protected:
   /// getCurrentFile().
   ///
   /// \return The new AST consumer, or null on failure.
-  virtual std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
-                                                         StringRef InFile) = 0;
+  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
+                                         StringRef InFile) = 0;
 
   /// \brief Callback before starting processing a single input, giving the
   /// opportunity to modify the CompilerInvocation or do some other action
@@ -146,23 +146,14 @@ public:
     return *CurrentASTUnit;
   }
 
-  std::unique_ptr<ASTUnit> takeCurrentASTUnit() {
-    return std::move(CurrentASTUnit);
-  }
+  ASTUnit *takeCurrentASTUnit() { return CurrentASTUnit.release(); }
 
   void setCurrentInput(const FrontendInputFile &CurrentInput,
-                       std::unique_ptr<ASTUnit> AST = nullptr);
+                       ASTUnit *AST = nullptr);
 
   /// @}
   /// @name Supported Modes
   /// @{
-
-  /// \brief Is this action invoked on a model file? 
-  ///
-  /// Model files are incomplete translation units that relies on type
-  /// information from another translation unit. Check ParseModelFileAction for
-  /// details.
-  virtual bool isModelParsingAction() const { return false; }
 
   /// \brief Does this action only use the preprocessor?
   ///
@@ -231,16 +222,16 @@ protected:
   void ExecuteAction() override;
 
 public:
-  ASTFrontendAction() {}
   bool usesPreprocessorOnly() const override { return false; }
 };
 
 class PluginASTAction : public ASTFrontendAction {
   virtual void anchor();
-public:
-  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
-                                                 StringRef InFile) override = 0;
+protected:
+  ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
+                                 StringRef InFile) override = 0;
 
+public:
   /// \brief Parse the given plugin command line arguments.
   ///
   /// \param CI - The compiler instance, for use in reporting diagnostics.
@@ -256,8 +247,8 @@ class PreprocessorFrontendAction : public FrontendAction {
 protected:
   /// \brief Provide a default implementation which returns aborts;
   /// this method should never be called by FrontendAction clients.
-  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
-                                                 StringRef InFile) override;
+  ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
+                                 StringRef InFile) override;
 
 public:
   bool usesPreprocessorOnly() const override { return true; }
@@ -273,8 +264,8 @@ class WrapperFrontendAction : public FrontendAction {
   std::unique_ptr<FrontendAction> WrappedAction;
 
 protected:
-  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
-                                                 StringRef InFile) override;
+  ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
+                                 StringRef InFile) override;
   bool BeginInvocation(CompilerInstance &CI) override;
   bool BeginSourceFileAction(CompilerInstance &CI, StringRef Filename) override;
   void ExecuteAction() override;

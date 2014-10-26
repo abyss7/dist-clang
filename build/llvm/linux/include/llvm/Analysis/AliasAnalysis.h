@@ -39,7 +39,6 @@
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/IR/CallSite.h"
-#include "llvm/IR/Metadata.h"
 
 namespace llvm {
 
@@ -113,14 +112,13 @@ public:
     /// there are restrictions on stepping out of one object and into another.
     /// See http://llvm.org/docs/LangRef.html#pointeraliasing
     uint64_t Size;
-    /// AATags - The metadata nodes which describes the aliasing of the
-    /// location (each member is null if that kind of information is
-    /// unavailable)..
-    AAMDNodes AATags;
+    /// TBAATag - The metadata node which describes the TBAA type of
+    /// the location, or null if there is no known unique tag.
+    const MDNode *TBAATag;
 
     explicit Location(const Value *P = nullptr, uint64_t S = UnknownSize,
-                      const AAMDNodes &N = AAMDNodes())
-      : Ptr(P), Size(S), AATags(N) {}
+                      const MDNode *N = nullptr)
+      : Ptr(P), Size(S), TBAATag(N) {}
 
     Location getWithNewPtr(const Value *NewPtr) const {
       Location Copy(*this);
@@ -134,9 +132,9 @@ public:
       return Copy;
     }
 
-    Location getWithoutAATags() const {
+    Location getWithoutTBAATag() const {
       Location Copy(*this);
-      Copy.AATags = AAMDNodes();
+      Copy.TBAATag = nullptr;
       return Copy;
     }
   };
@@ -568,23 +566,25 @@ public:
 template<>
 struct DenseMapInfo<AliasAnalysis::Location> {
   static inline AliasAnalysis::Location getEmptyKey() {
-    return AliasAnalysis::Location(DenseMapInfo<const Value *>::getEmptyKey(),
-                                   0);
+    return
+      AliasAnalysis::Location(DenseMapInfo<const Value *>::getEmptyKey(),
+                              0, nullptr);
   }
   static inline AliasAnalysis::Location getTombstoneKey() {
-    return AliasAnalysis::Location(
-        DenseMapInfo<const Value *>::getTombstoneKey(), 0);
+    return
+      AliasAnalysis::Location(DenseMapInfo<const Value *>::getTombstoneKey(),
+                              0, nullptr);
   }
   static unsigned getHashValue(const AliasAnalysis::Location &Val) {
     return DenseMapInfo<const Value *>::getHashValue(Val.Ptr) ^
            DenseMapInfo<uint64_t>::getHashValue(Val.Size) ^
-           DenseMapInfo<AAMDNodes>::getHashValue(Val.AATags);
+           DenseMapInfo<const MDNode *>::getHashValue(Val.TBAATag);
   }
   static bool isEqual(const AliasAnalysis::Location &LHS,
                       const AliasAnalysis::Location &RHS) {
     return LHS.Ptr == RHS.Ptr &&
            LHS.Size == RHS.Size &&
-           LHS.AATags == RHS.AATags;
+           LHS.TBAATag == RHS.TBAATag;
   }
 };
 

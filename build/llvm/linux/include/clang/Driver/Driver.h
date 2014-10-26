@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_DRIVER_DRIVER_H
-#define LLVM_CLANG_DRIVER_DRIVER_H
+#ifndef CLANG_DRIVER_DRIVER_H_
+#define CLANG_DRIVER_DRIVER_H_
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LLVM.h"
@@ -42,7 +42,6 @@ namespace driver {
   class Command;
   class Compilation;
   class InputInfo;
-  class Job;
   class JobAction;
   class SanitizerArgs;
   class ToolChain;
@@ -191,9 +190,6 @@ private:
   phases::ID getFinalPhase(const llvm::opt::DerivedArgList &DAL,
                            llvm::opt::Arg **FinalPhaseArg = nullptr) const;
 
-  // Before executing jobs, sets up response files for commands that need them.
-  void setUpResponseFiles(Compilation &C, Job &J);
-
 public:
   Driver(StringRef _ClangExecutable,
          StringRef _DefaultTargetTriple,
@@ -295,10 +291,10 @@ public:
   /// arguments and return an appropriate exit code.
   ///
   /// This routine handles additional processing that must be done in addition
-  /// to just running the subprocesses, for example reporting errors, setting
-  /// up response files, removing temporary files, etc.
-  int ExecuteCompilation(Compilation &C,
-     SmallVectorImpl< std::pair<int, const Command *> > &FailingCommands);
+  /// to just running the subprocesses, for example reporting errors, removing
+  /// temporary files, etc.
+  int ExecuteCompilation(const Compilation &C,
+     SmallVectorImpl< std::pair<int, const Command *> > &FailingCommands) const;
   
   /// generateCompilationDiagnostics - Generate diagnostics information 
   /// including preprocessed source file(s).
@@ -347,9 +343,8 @@ public:
   /// ConstructAction - Construct the appropriate action to do for
   /// \p Phase on the \p Input, taking in to account arguments
   /// like -fsyntax-only or --analyze.
-  std::unique_ptr<Action>
-  ConstructPhaseAction(const llvm::opt::ArgList &Args, phases::ID Phase,
-                       std::unique_ptr<Action> Input) const;
+  Action *ConstructPhaseAction(const llvm::opt::ArgList &Args, phases::ID Phase,
+                               Action *Input) const;
 
   /// BuildJobsForAction - Construct the jobs to perform for the
   /// action \p A.

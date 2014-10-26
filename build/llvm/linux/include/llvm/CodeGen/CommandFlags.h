@@ -54,16 +54,6 @@ RelocModel("relocation-model",
                       "Relocatable external references, non-relocatable code"),
               clEnumValEnd));
 
-cl::opt<ThreadModel::Model>
-TMModel("thread-model",
-        cl::desc("Choose threading model"),
-        cl::init(ThreadModel::POSIX),
-        cl::values(clEnumValN(ThreadModel::POSIX, "posix",
-                              "POSIX thread model"),
-                   clEnumValN(ThreadModel::Single, "single",
-                              "Single thread model"),
-                   clEnumValEnd));
-
 cl::opt<llvm::CodeModel::Model>
 CMModel("code-model",
         cl::desc("Choose code model"),
@@ -190,8 +180,8 @@ EnablePIE("enable-pie",
           cl::init(false));
 
 cl::opt<bool>
-UseCtors("use-ctors",
-             cl::desc("Use .ctors instead of .init_array."),
+UseInitArray("use-init-array",
+             cl::desc("Use .init_array instead of .ctors."),
              cl::init(false));
 
 cl::opt<std::string> StopAfter("stop-after",
@@ -248,14 +238,12 @@ static inline TargetOptions InitTargetOptionsFromCodeGenFlags() {
   Options.StackAlignmentOverride = OverrideStackAlignment;
   Options.TrapFuncName = TrapFuncName;
   Options.PositionIndependentExecutable = EnablePIE;
-  Options.UseInitArray = !UseCtors;
+  Options.UseInitArray = UseInitArray;
   Options.DataSections = DataSections;
   Options.FunctionSections = FunctionSections;
 
   Options.MCOptions = InitMCTargetOptionsFromFlags();
   Options.JTType = JTableType;
-
-  Options.ThreadModel = TMModel;
 
   return Options;
 }

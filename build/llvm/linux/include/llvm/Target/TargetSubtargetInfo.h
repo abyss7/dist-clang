@@ -19,18 +19,12 @@
 
 namespace llvm {
 
-class DataLayout;
 class MachineFunction;
 class MachineInstr;
 class SDep;
 class SUnit;
-class TargetFrameLowering;
-class TargetInstrInfo;
-class TargetLowering;
 class TargetRegisterClass;
-class TargetRegisterInfo;
 class TargetSchedModel;
-class TargetSelectionDAGInfo;
 struct MachineSchedPolicy;
 template <typename T> class SmallVectorImpl;
 
@@ -52,38 +46,6 @@ public:
   typedef SmallVectorImpl<const TargetRegisterClass*> RegClassVector;
 
   virtual ~TargetSubtargetInfo();
-
-  // Interfaces to the major aspects of target machine information:
-  //
-  // -- Instruction opcode and operand information
-  // -- Pipelines and scheduling information
-  // -- Stack frame information
-  // -- Selection DAG lowering information
-  //
-  // N.B. These objects may change during compilation. It's not safe to cache
-  // them between functions.
-  virtual const TargetInstrInfo *getInstrInfo() const { return nullptr; }
-  virtual const TargetFrameLowering *getFrameLowering() const {
-    return nullptr;
-  }
-  virtual const TargetLowering *getTargetLowering() const { return nullptr; }
-  virtual const TargetSelectionDAGInfo *getSelectionDAGInfo() const {
-    return nullptr;
-  }
-  virtual const DataLayout *getDataLayout() const { return nullptr; }
-
-  /// getRegisterInfo - If register information is available, return it.  If
-  /// not, return null.  This is kept separate from RegInfo until RegInfo has
-  /// details of graph coloring register allocation removed from it.
-  ///
-  virtual const TargetRegisterInfo *getRegisterInfo() const { return nullptr; }
-
-  /// getInstrItineraryData - Returns instruction itinerary data for the target
-  /// or specific subtarget.
-  ///
-  virtual const InstrItineraryData *getInstrItineraryData() const {
-    return nullptr;
-  }
 
   /// Resolve a SchedClass at runtime, where SchedClass identifies an
   /// MCSchedClassDesc with the isVariant property. This may return the ID of
@@ -112,7 +74,7 @@ public:
   virtual bool enablePostMachineScheduler() const;
 
   /// \brief True if the subtarget should run the atomic expansion pass.
-  virtual bool enableAtomicExpand() const;
+  virtual bool enableAtomicExpandLoadLinked() const;
 
   /// \brief Override generic scheduling policy within a region.
   ///
@@ -128,26 +90,26 @@ public:
   // dependency.
   virtual void adjustSchedDependency(SUnit *def, SUnit *use,
                                      SDep& dep) const { }
-
+  
   // For use with PostRAScheduling: get the anti-dependence breaking that should
   // be performed before post-RA scheduling.
   virtual AntiDepBreakMode getAntiDepBreakMode() const {
     return ANTIDEP_NONE;
   }
-
+  
   // For use with PostRAScheduling: in CriticalPathRCs, return any register
   // classes that should only be considered for anti-dependence breaking if they
   // are on the critical path.
   virtual void getCriticalPathRCs(RegClassVector &CriticalPathRCs) const {
     return CriticalPathRCs.clear();
   }
-
+  
   // For use with PostRAScheduling: get the minimum optimization level needed
   // to enable post-RA scheduling.
   virtual CodeGenOpt::Level getOptLevelToEnablePostRAScheduler() const {
     return CodeGenOpt::Default;
   }
-
+  
   /// \brief True if the subtarget should run the local reassignment
   /// heuristic of the register allocator.
   /// This heuristic may be compile time intensive, \p OptLevel provides
@@ -160,6 +122,10 @@ public:
 
   /// \brief Enable the use of the early if conversion pass.
   virtual bool enableEarlyIfConversion() const { return false; }
+
+  /// \brief Reset the features for the subtarget.
+  virtual void resetSubtargetFeatures(const MachineFunction *MF) { }
+
 };
 
 } // End llvm namespace

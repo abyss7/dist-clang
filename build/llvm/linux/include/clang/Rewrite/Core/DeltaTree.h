@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_REWRITE_CORE_DELTATREE_H
-#define LLVM_CLANG_REWRITE_CORE_DELTATREE_H
+#ifndef CLANG_REWRITE_DELTATREE_H
+#define CLANG_REWRITE_DELTATREE_H
 
 #include "llvm/Support/Compiler.h"
 

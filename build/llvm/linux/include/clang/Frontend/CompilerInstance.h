@@ -14,7 +14,6 @@
 #include "clang/Basic/SourceManager.h"
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/Utils.h"
-#include "clang/AST/ASTConsumer.h"
 #include "clang/Lex/ModuleLoader.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
@@ -444,11 +443,11 @@ public:
 
   /// takeASTConsumer - Remove the current AST consumer and give ownership to
   /// the caller.
-  std::unique_ptr<ASTConsumer> takeASTConsumer() { return std::move(Consumer); }
+  ASTConsumer *takeASTConsumer() { return Consumer.release(); }
 
   /// setASTConsumer - Replace the current AST consumer; the compiler instance
   /// takes ownership of \p Value.
-  void setASTConsumer(std::unique_ptr<ASTConsumer> Value);
+  void setASTConsumer(ASTConsumer *Value);
 
   /// }
   /// @name Semantic analysis
@@ -460,8 +459,8 @@ public:
     return *TheSema;
   }
 
-  std::unique_ptr<Sema> takeSema();
-  void resetAndLeakSema();
+  Sema *takeSema() { return TheSema.release(); }
+  void resetAndLeakSema() { BuryPointer(TheSema.release()); }
 
   /// }
   /// @name Module Management
@@ -484,6 +483,12 @@ public:
     assert(CompletionConsumer &&
            "Compiler instance has no code completion consumer!");
     return *CompletionConsumer;
+  }
+
+  /// takeCodeCompletionConsumer - Remove the current code completion consumer
+  /// and give ownership to the caller.
+  CodeCompleteConsumer *takeCodeCompletionConsumer() {
+    return CompletionConsumer.release();
   }
 
   /// setCodeCompletionConsumer - Replace the current code completion consumer;
@@ -641,7 +646,7 @@ public:
   /// renamed to \p OutputPath in the end.
   ///
   /// \param OutputPath - If given, the path to the output file.
-  /// \param Error [out] - On failure, the error.
+  /// \param Error [out] - On failure, the error message.
   /// \param BaseInput - If \p OutputPath is empty, the input path name to use
   /// for deriving the output path.
   /// \param Extension - The extension to use for derived output names.
@@ -658,10 +663,13 @@ public:
   /// \param TempPathName [out] - If given, the temporary file path name
   /// will be stored here on success.
   static llvm::raw_fd_ostream *
-  createOutputFile(StringRef OutputPath, std::error_code &Error, bool Binary,
-                   bool RemoveFileOnSignal, StringRef BaseInput,
-                   StringRef Extension, bool UseTemporary,
-                   bool CreateMissingDirectories, std::string *ResultPathName,
+  createOutputFile(StringRef OutputPath, std::string &Error,
+                   bool Binary, bool RemoveFileOnSignal,
+                   StringRef BaseInput,
+                   StringRef Extension,
+                   bool UseTemporary,
+                   bool CreateMissingDirectories,
+                   std::string *ResultPathName,
                    std::string *TempPathName);
 
   llvm::raw_null_ostream *createNullOutputFile();

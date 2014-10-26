@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SEMA_ATTRIBUTELIST_H
-#define LLVM_CLANG_SEMA_ATTRIBUTELIST_H
+#ifndef LLVM_CLANG_SEMA_ATTRLIST_H
+#define LLVM_CLANG_SEMA_ATTRLIST_H
 
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/VersionTuple.h"
@@ -455,7 +455,6 @@ public:
   bool hasCustomParsing() const;
   unsigned getMinArgs() const;
   unsigned getMaxArgs() const;
-  bool hasVariadicArg() const;
   bool diagnoseAppertainsTo(class Sema &S, const Decl *D) const;
   bool diagnoseLangOpts(class Sema &S) const;
   bool existsInTarget(const llvm::Triple &T) const;
@@ -827,7 +826,7 @@ enum AttributeDeclKind {
   ExpectedVariableFunctionOrLabel,
   ExpectedFieldOrGlobalVar,
   ExpectedStruct,
-  ExpectedVariableOrTypedef,
+  ExpectedVariableFunctionOrTag,
   ExpectedTLSVar,
   ExpectedVariableOrField,
   ExpectedVariableFieldOrTag,

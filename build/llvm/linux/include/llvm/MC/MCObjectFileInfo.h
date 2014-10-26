@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_MC_MCOBJECTFILEINFO_H
-#define LLVM_MC_MCOBJECTFILEINFO_H
+#ifndef LLVM_MC_MCBJECTFILEINFO_H
+#define LLVM_MC_MCBJECTFILEINFO_H
 
 #include "llvm/ADT/Triple.h"
 #include "llvm/Support/CodeGen.h"
@@ -116,7 +116,6 @@ protected:
 
   /// These are used for the Fission separate debug information files.
   const MCSection *DwarfInfoDWOSection;
-  const MCSection *DwarfTypesDWOSection;
   const MCSection *DwarfAbbrevDWOSection;
   const MCSection *DwarfStrDWOSection;
   const MCSection *DwarfLineDWOSection;
@@ -262,9 +261,7 @@ public:
     return DwarfInfoDWOSection;
   }
   const MCSection *getDwarfTypesSection(uint64_t Hash) const;
-  const MCSection *getDwarfTypesDWOSection() const {
-    return DwarfTypesDWOSection;
-  }
+  const MCSection *getDwarfTypesDWOSection(uint64_t Hash) const;
   const MCSection *getDwarfAbbrevDWOSection() const {
     return DwarfAbbrevDWOSection;
   }

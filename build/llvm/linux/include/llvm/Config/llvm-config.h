@@ -19,7 +19,7 @@
 #define LLVM_BINDIR "/home/ilezhankin/.local/bin"
 
 /* Time at which LLVM was configured */
-#define LLVM_CONFIGTIME "Thu Oct 23 15:00:01 MSK 2014"
+#define LLVM_CONFIGTIME "Sun Oct 26 11:53:47 MSK 2014"
 
 /* Installation directory for data files */
 #define LLVM_DATADIR "/home/ilezhankin/.local/share/llvm"
@@ -91,6 +91,6 @@
 #define LLVM_VERSION_MAJOR 3
 
 /* Minor version of the LLVM API */
-#define LLVM_VERSION_MINOR 6
+#define LLVM_VERSION_MINOR 5
 
 #endif

@@ -20,7 +20,6 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/ilist.h"
 #include "llvm/ADT/ilist_node.h"
-#include "llvm/IR/Metadata.h"
 #include "llvm/IR/ValueHandle.h"
 #include <vector>
 
@@ -41,11 +40,11 @@ class AliasSet : public ilist_node<AliasSet> {
     PointerRec **PrevInList, *NextInList;
     AliasSet *AS;
     uint64_t Size;
-    AAMDNodes AAInfo;
+    const MDNode *TBAAInfo;
   public:
     PointerRec(Value *V)
       : Val(V), PrevInList(nullptr), NextInList(nullptr), AS(nullptr), Size(0),
-        AAInfo(DenseMapInfo<AAMDNodes>::getEmptyKey()) {}
+        TBAAInfo(DenseMapInfo<const MDNode *>::getEmptyKey()) {}
 
     Value *getValue() const { return Val; }
     
@@ -57,27 +56,27 @@ class AliasSet : public ilist_node<AliasSet> {
       return &NextInList;
     }
 
-    void updateSizeAndAAInfo(uint64_t NewSize, const AAMDNodes &NewAAInfo) {
+    void updateSizeAndTBAAInfo(uint64_t NewSize, const MDNode *NewTBAAInfo) {
       if (NewSize > Size) Size = NewSize;
 
-      if (AAInfo == DenseMapInfo<AAMDNodes>::getEmptyKey())
-        // We don't have a AAInfo yet. Set it to NewAAInfo.
-        AAInfo = NewAAInfo;
-      else if (AAInfo != NewAAInfo)
-        // NewAAInfo conflicts with AAInfo.
-        AAInfo = DenseMapInfo<AAMDNodes>::getTombstoneKey();
+      if (TBAAInfo == DenseMapInfo<const MDNode *>::getEmptyKey())
+        // We don't have a TBAAInfo yet. Set it to NewTBAAInfo.
+        TBAAInfo = NewTBAAInfo;
+      else if (TBAAInfo != NewTBAAInfo)
+        // NewTBAAInfo conflicts with TBAAInfo.
+        TBAAInfo = DenseMapInfo<const MDNode *>::getTombstoneKey();
     }
 
     uint64_t getSize() const { return Size; }
 
-    /// getAAInfo - Return the AAInfo, or null if there is no
+    /// getTBAAInfo - Return the TBAAInfo, or null if there is no
     /// information or conflicting information.
-    AAMDNodes getAAInfo() const {
-      // If we have missing or conflicting AAInfo, return null.
-      if (AAInfo == DenseMapInfo<AAMDNodes>::getEmptyKey() ||
-          AAInfo == DenseMapInfo<AAMDNodes>::getTombstoneKey())
-        return AAMDNodes();
-      return AAInfo;
+    const MDNode *getTBAAInfo() const {
+      // If we have missing or conflicting TBAAInfo, return null.
+      if (TBAAInfo == DenseMapInfo<const MDNode *>::getEmptyKey() ||
+          TBAAInfo == DenseMapInfo<const MDNode *>::getTombstoneKey())
+        return nullptr;
+      return TBAAInfo;
     }
 
     AliasSet *getAliasSet(AliasSetTracker &AST) {
@@ -205,7 +204,7 @@ public:
 
     Value *getPointer() const { return CurNode->getValue(); }
     uint64_t getSize() const { return CurNode->getSize(); }
-    AAMDNodes getAAInfo() const { return CurNode->getAAInfo(); }
+    const MDNode *getTBAAInfo() const { return CurNode->getTBAAInfo(); }
 
     iterator& operator++() {                // Preincrement
       assert(CurNode && "Advancing past AliasSet.end()!");
@@ -251,7 +250,7 @@ private:
   void removeFromTracker(AliasSetTracker &AST);
 
   void addPointer(AliasSetTracker &AST, PointerRec &Entry, uint64_t Size,
-                  const AAMDNodes &AAInfo,
+                  const MDNode *TBAAInfo,
                   bool KnownMustAlias = false);
   void addUnknownInst(Instruction *I, AliasAnalysis &AA);
   void removeUnknownInst(Instruction *I) {
@@ -268,7 +267,7 @@ public:
   /// aliasesPointer - Return true if the specified pointer "may" (or must)
   /// alias one of the members in the set.
   ///
-  bool aliasesPointer(const Value *Ptr, uint64_t Size, const AAMDNodes &AAInfo,
+  bool aliasesPointer(const Value *Ptr, uint64_t Size, const MDNode *TBAAInfo,
                       AliasAnalysis &AA) const;
   bool aliasesUnknownInst(Instruction *Inst, AliasAnalysis &AA) const;
 };
@@ -323,7 +322,7 @@ public:
   /// These methods return true if inserting the instruction resulted in the
   /// addition of a new alias set (i.e., the pointer did not alias anything).
   ///
-  bool add(Value *Ptr, uint64_t Size, const AAMDNodes &AAInfo); // Add a loc.
+  bool add(Value *Ptr, uint64_t Size, const MDNode *TBAAInfo); // Add a location
   bool add(LoadInst *LI);
   bool add(StoreInst *SI);
   bool add(VAArgInst *VAAI);
@@ -336,7 +335,7 @@ public:
   /// be aliased by the specified instruction.  These methods return true if any
   /// alias sets were eliminated.
   // Remove a location
-  bool remove(Value *Ptr, uint64_t Size, const AAMDNodes &AAInfo);
+  bool remove(Value *Ptr, uint64_t Size, const MDNode *TBAAInfo);
   bool remove(LoadInst *LI);
   bool remove(StoreInst *SI);
   bool remove(VAArgInst *VAAI);
@@ -355,20 +354,20 @@ public:
   /// true if a new alias set is created to contain the pointer (because the
   /// pointer didn't alias anything).
   AliasSet &getAliasSetForPointer(Value *P, uint64_t Size,
-                                  const AAMDNodes &AAInfo,
+                                  const MDNode *TBAAInfo,
                                   bool *New = nullptr);
 
   /// getAliasSetForPointerIfExists - Return the alias set containing the
   /// location specified if one exists, otherwise return null.
   AliasSet *getAliasSetForPointerIfExists(Value *P, uint64_t Size,
-                                          const AAMDNodes &AAInfo) {
-    return findAliasSetForPointer(P, Size, AAInfo);
+                                          const MDNode *TBAAInfo) {
+    return findAliasSetForPointer(P, Size, TBAAInfo);
   }
 
   /// containsPointer - Return true if the specified location is represented by
   /// this alias set, false otherwise.  This does not modify the AST object or
   /// alias sets.
-  bool containsPointer(Value *P, uint64_t Size, const AAMDNodes &AAInfo) const;
+  bool containsPointer(Value *P, uint64_t Size, const MDNode *TBAAInfo) const;
 
   /// getAliasAnalysis - Return the underlying alias analysis object used by
   /// this tracker.
@@ -415,16 +414,16 @@ private:
     return *Entry;
   }
 
-  AliasSet &addPointer(Value *P, uint64_t Size, const AAMDNodes &AAInfo,
+  AliasSet &addPointer(Value *P, uint64_t Size, const MDNode *TBAAInfo,
                        AliasSet::AccessType E,
                        bool &NewSet) {
     NewSet = false;
-    AliasSet &AS = getAliasSetForPointer(P, Size, AAInfo, &NewSet);
+    AliasSet &AS = getAliasSetForPointer(P, Size, TBAAInfo, &NewSet);
     AS.AccessTy |= E;
     return AS;
   }
   AliasSet *findAliasSetForPointer(const Value *Ptr, uint64_t Size,
-                                   const AAMDNodes &AAInfo);
+                                   const MDNode *TBAAInfo);
 
   AliasSet *findAliasSetForUnknownInst(Instruction *Inst);
 };

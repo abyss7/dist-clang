@@ -25,7 +25,7 @@
 #include <iterator>
 #include <set>
 
-namespace llvm {
+using namespace llvm;
 
 #define DEBUG_TYPE "region"
 
@@ -915,9 +915,5 @@ void RegionInfoBase<Tr>::calculate(FuncT &F) {
   BlockT *BB = GraphTraits<FuncPtrT>::getEntryNode(&F);
   buildRegionsTree(DT->getNode(BB), TopLevelRegion);
 }
-
-#undef DEBUG_TYPE
-
-} // end namespace llvm
 
 #endif

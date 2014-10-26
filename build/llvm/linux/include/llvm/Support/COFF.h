@@ -31,53 +31,28 @@ namespace llvm {
 namespace COFF {
 
   // The maximum number of sections that a COFF object can have (inclusive).
-  const int32_t MaxNumberOfSections16 = 65279;
+  const int MaxNumberOfSections = 65299;
 
   // The PE signature bytes that follows the DOS stub header.
   static const char PEMagic[] = { 'P', 'E', '\0', '\0' };
 
-  static const char BigObjMagic[] = {
-      '\xc7', '\xa1', '\xba', '\xd1', '\xee', '\xba', '\xa9', '\x4b',
-      '\xaf', '\x20', '\xfa', '\xf6', '\x6a', '\xa4', '\xdc', '\xb8',
-  };
-
   // Sizes in bytes of various things in the COFF format.
   enum {
-    Header16Size   = 20,
-    Header32Size   = 56,
+    HeaderSize     = 20,
     NameSize       = 8,
-    Symbol16Size   = 18,
-    Symbol32Size   = 20,
+    SymbolSize     = 18,
     SectionSize    = 40,
     RelocationSize = 10
   };
 
   struct header {
     uint16_t Machine;
-    int32_t  NumberOfSections;
+    uint16_t NumberOfSections;
     uint32_t TimeDateStamp;
     uint32_t PointerToSymbolTable;
     uint32_t NumberOfSymbols;
     uint16_t SizeOfOptionalHeader;
     uint16_t Characteristics;
-  };
-
-  struct BigObjHeader {
-    enum : uint16_t { MinBigObjectVersion = 2 };
-
-    uint16_t Sig1; ///< Must be IMAGE_FILE_MACHINE_UNKNOWN (0).
-    uint16_t Sig2; ///< Must be 0xFFFF.
-    uint16_t Version;
-    uint16_t Machine;
-    uint32_t TimeDateStamp;
-    uint8_t  UUID[16];
-    uint32_t unused1;
-    uint32_t unused2;
-    uint32_t unused3;
-    uint32_t unused4;
-    uint32_t NumberOfSections;
-    uint32_t PointerToSymbolTable;
-    uint32_t NumberOfSymbols;
   };
 
   enum MachineTypes {
@@ -149,7 +124,7 @@ namespace COFF {
   struct symbol {
     char     Name[NameSize];
     uint32_t Value;
-    int32_t  SectionNumber;
+    uint16_t SectionNumber;
     uint16_t Type;
     uint8_t  StorageClass;
     uint8_t  NumberOfAuxSymbols;
@@ -165,9 +140,9 @@ namespace COFF {
     SF_WeakExternal = 0x01000000
   };
 
-  enum SymbolSectionNumber : int32_t {
-    IMAGE_SYM_DEBUG     = -2,
-    IMAGE_SYM_ABSOLUTE  = -1,
+  enum SymbolSectionNumber {
+    IMAGE_SYM_DEBUG     = 0xFFFE,
+    IMAGE_SYM_ABSOLUTE  = 0xFFFF,
     IMAGE_SYM_UNDEFINED = 0
   };
 
@@ -392,14 +367,18 @@ namespace COFF {
     IMAGE_WEAK_EXTERN_SEARCH_ALIAS     = 3
   };
 
+  struct AuxiliaryFile {
+    uint8_t FileName[18];
+  };
+
   struct AuxiliarySectionDefinition {
     uint32_t Length;
     uint16_t NumberOfRelocations;
     uint16_t NumberOfLinenumbers;
     uint32_t CheckSum;
-    uint32_t Number;
+    uint16_t Number;
     uint8_t  Selection;
-    char     unused;
+    char     unused[3];
   };
 
   struct AuxiliaryCLRToken {
@@ -413,6 +392,7 @@ namespace COFF {
     AuxiliaryFunctionDefinition FunctionDefinition;
     AuxiliarybfAndefSymbol      bfAndefSymbol;
     AuxiliaryWeakExternal       WeakExternal;
+    AuxiliaryFile               File;
     AuxiliarySectionDefinition  SectionDefinition;
   };
 
@@ -667,8 +647,8 @@ namespace COFF {
     DEBUG_INDEX_SUBSECTION        = 0xF4
   };
 
-  inline bool isReservedSectionNumber(int32_t SectionNumber) {
-    return SectionNumber <= 0;
+  inline bool isReservedSectionNumber(int N) {
+    return N == IMAGE_SYM_UNDEFINED || N > MaxNumberOfSections;
   }
 
 } // End namespace COFF.

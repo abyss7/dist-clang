@@ -257,16 +257,9 @@ private:
       (B * FastMathFlags::AllowReciprocal);
   }
 
-  /// Convenience function for setting multiple fast-math flags.
-  /// FMF is a mask of the bits to set.
+  /// Convenience function for setting all the fast-math flags
   void setFastMathFlags(FastMathFlags FMF) {
     SubclassOptionalData |= FMF.Flags;
-  }
-
-  /// Convenience function for copying all fast-math flags.
-  /// All values in FMF are transferred to this operator.
-  void copyFastMathFlags(FastMathFlags FMF) {
-    SubclassOptionalData = FMF.Flags;
   }
 
 public:
@@ -409,7 +402,7 @@ public:
   /// getPointerAddressSpace - Method to return the address space of the
   /// pointer operand.
   unsigned getPointerAddressSpace() const {
-    return getPointerOperandType()->getPointerAddressSpace();
+    return cast<PointerType>(getPointerOperandType())->getAddressSpace();
   }
 
   unsigned getNumIndices() const {  // Note: always non-negative

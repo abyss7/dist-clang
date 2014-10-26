@@ -24,35 +24,30 @@ namespace clang {
 
 /// \brief Represents a version number in the form major[.minor[.subminor]].
 class VersionTuple {
-  unsigned Major : 31;
+  unsigned Major;
   unsigned Minor : 31;
   unsigned Subminor : 31;
   unsigned HasMinor : 1;
   unsigned HasSubminor : 1;
-  unsigned UsesUnderscores : 1;
 
 public:
   VersionTuple() 
-    : Major(0), Minor(0), Subminor(0), HasMinor(false), HasSubminor(false),
-      UsesUnderscores(false) { }
+    : Major(0), Minor(0), Subminor(0), HasMinor(false), HasSubminor(false) { }
 
   explicit VersionTuple(unsigned Major)
-    : Major(Major), Minor(0), Subminor(0), HasMinor(false), HasSubminor(false),
-      UsesUnderscores(false)
+    : Major(Major), Minor(0), Subminor(0), HasMinor(false), HasSubminor(false)
   { }
 
-  explicit VersionTuple(unsigned Major, unsigned Minor,
-                        bool UsesUnderscores = false)
+  explicit VersionTuple(unsigned Major, unsigned Minor)
     : Major(Major), Minor(Minor), Subminor(0), HasMinor(true), 
-      HasSubminor(false), UsesUnderscores(UsesUnderscores)
+      HasSubminor(false)
   { }
 
-  explicit VersionTuple(unsigned Major, unsigned Minor, unsigned Subminor,
-                        bool UsesUnderscores = false)
+  explicit VersionTuple(unsigned Major, unsigned Minor, unsigned Subminor)
     : Major(Major), Minor(Minor), Subminor(Subminor), HasMinor(true), 
-      HasSubminor(true), UsesUnderscores(UsesUnderscores)
+      HasSubminor(true)
   { }
-  
+
   /// \brief Determine whether this version information is empty
   /// (e.g., all version components are zero).
   bool empty() const { return Major == 0 && Minor == 0 && Subminor == 0; }
@@ -74,14 +69,6 @@ public:
     return Subminor;
   }
 
-  bool usesUnderscores() const {
-    return UsesUnderscores;
-  }
-
-  void UseDotAsSeparator() {
-    UsesUnderscores = false;
-  }
-  
   /// \brief Determine if two version numbers are equivalent. If not
   /// provided, minor and subminor version numbers are considered to be zero.
   friend bool operator==(const VersionTuple& X, const VersionTuple &Y) {

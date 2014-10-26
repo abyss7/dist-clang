@@ -12,11 +12,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_PROFILEDATA_INSTRPROFWRITER_H
-#define LLVM_PROFILEDATA_INSTRPROFWRITER_H
+#ifndef LLVM_PROFILEDATA_INSTRPROF_WRITER_H_
+#define LLVM_PROFILEDATA_INSTRPROF_WRITER_H_
 
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ProfileData/InstrProf.h"
 #include "llvm/Support/DataTypes.h"
@@ -29,13 +28,13 @@ namespace llvm {
 /// Writer for instrumentation based profile data.
 class InstrProfWriter {
 public:
-  typedef SmallDenseMap<uint64_t, std::vector<uint64_t>, 1> CounterData;
+  struct CounterData {
+    uint64_t Hash;
+    std::vector<uint64_t> Counts;
+  };
 private:
   StringMap<CounterData> FunctionData;
-  uint64_t MaxFunctionCount;
 public:
-  InstrProfWriter() : MaxFunctionCount(0) {}
-
   /// Add function counts for the given function. If there are already counts
   /// for this function and the hash and number of counts match, each counter is
   /// summed.
@@ -48,4 +47,4 @@ public:
 
 } // end namespace llvm
 
-#endif
+#endif // LLVM_PROFILE_INSTRPROF_WRITER_H_

@@ -13,8 +13,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SUPPORT_ERROROR_H
-#define LLVM_SUPPORT_ERROROR_H
+#ifndef LLVM_SUPPORT_ERROR_OR_H
+#define LLVM_SUPPORT_ERROR_OR_H
 
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/Support/AlignOf.h"
@@ -115,19 +115,19 @@ public:
   }
 
   template <class OtherT>
-  ErrorOr(
-      const ErrorOr<OtherT> &Other,
-      typename std::enable_if<std::is_convertible<OtherT, T>::value>::type * =
-          nullptr) {
+  ErrorOr(const ErrorOr<OtherT> &Other) {
     copyConstruct(Other);
   }
 
+  ErrorOr &operator =(const ErrorOr &Other) {
+    copyAssign(Other);
+    return *this;
+  }
+
   template <class OtherT>
-  explicit ErrorOr(
-      const ErrorOr<OtherT> &Other,
-      typename std::enable_if<
-          !std::is_convertible<OtherT, const T &>::value>::type * = nullptr) {
-    copyConstruct(Other);
+  ErrorOr &operator =(const ErrorOr<OtherT> &Other) {
+    copyAssign(Other);
+    return *this;
   }
 
   ErrorOr(ErrorOr &&Other) {
@@ -135,29 +135,17 @@ public:
   }
 
   template <class OtherT>
-  ErrorOr(
-      ErrorOr<OtherT> &&Other,
-      typename std::enable_if<std::is_convertible<OtherT, T>::value>::type * =
-          nullptr) {
+  ErrorOr(ErrorOr<OtherT> &&Other) {
     moveConstruct(std::move(Other));
   }
 
-  // This might eventually need SFINAE but it's more complex than is_convertible
-  // & I'm too lazy to write it right now.
-  template <class OtherT>
-  explicit ErrorOr(
-      ErrorOr<OtherT> &&Other,
-      typename std::enable_if<!std::is_convertible<OtherT, T>::value>::type * =
-          nullptr) {
-    moveConstruct(std::move(Other));
-  }
-
-  ErrorOr &operator=(const ErrorOr &Other) {
-    copyAssign(Other);
+  ErrorOr &operator =(ErrorOr &&Other) {
+    moveAssign(std::move(Other));
     return *this;
   }
 
-  ErrorOr &operator=(ErrorOr &&Other) {
+  template <class OtherT>
+  ErrorOr &operator =(ErrorOr<OtherT> &&Other) {
     moveAssign(std::move(Other));
     return *this;
   }

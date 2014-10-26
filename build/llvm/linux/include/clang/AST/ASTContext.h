@@ -74,15 +74,6 @@ namespace clang {
     class FullComment;
   }
 
-  struct TypeInfo {
-    uint64_t Width;
-    unsigned Align;
-    bool AlignIsRequired : 1;
-    TypeInfo() : Width(0), Align(0), AlignIsRequired(false) {}
-    TypeInfo(uint64_t Width, unsigned Align, bool AlignIsRequired)
-        : Width(Width), Align(Align), AlignIsRequired(AlignIsRequired) {}
-  };
-
 /// \brief Holds long-lived AST nodes (such as types and decls) that can be
 /// referred to throughout the semantic analysis of a file.
 class ASTContext : public RefCountedBase<ASTContext> {
@@ -153,7 +144,8 @@ class ASTContext : public RefCountedBase<ASTContext> {
     ObjCLayouts;
 
   /// \brief A cache from types to size and alignment information.
-  typedef llvm::DenseMap<const Type *, struct TypeInfo> TypeInfoMap;
+  typedef llvm::DenseMap<const Type*,
+                         std::pair<uint64_t, unsigned> > TypeInfoMap;
   mutable TypeInfoMap MemoizedTypeInfo;
 
   /// \brief A cache mapping from CXXRecordDecls to key functions.
@@ -461,12 +453,11 @@ public:
   /// 'NodeT' can be one of Decl, Stmt, Type, TypeLoc,
   /// NestedNameSpecifier or NestedNameSpecifierLoc.
   template <typename NodeT>
-  ArrayRef<ast_type_traits::DynTypedNode> getParents(const NodeT &Node) {
+  ParentVector getParents(const NodeT &Node) {
     return getParents(ast_type_traits::DynTypedNode::create(Node));
   }
 
-  ArrayRef<ast_type_traits::DynTypedNode>
-  getParents(const ast_type_traits::DynTypedNode &Node);
+  ParentVector getParents(const ast_type_traits::DynTypedNode &Node);
 
   const clang::PrintingPolicy &getPrintingPolicy() const {
     return PrintingPolicy;
@@ -1380,8 +1371,7 @@ public:
   ///
   /// If \p Field is specified then record field names are also encoded.
   void getObjCEncodingForType(QualType T, std::string &S,
-                              const FieldDecl *Field=nullptr,
-                              QualType *NotEncodedT=nullptr) const;
+                              const FieldDecl *Field=nullptr) const;
 
   /// \brief Emit the Objective-C property type encoding for the given
   /// type \p T into \p S.
@@ -1591,7 +1581,7 @@ public:
 
 private:
   CanQualType getFromTargetType(unsigned Type) const;
-  TypeInfo getTypeInfoImpl(const Type *T) const;
+  std::pair<uint64_t, unsigned> getTypeInfoImpl(const Type *T) const;
 
   //===--------------------------------------------------------------------===//
   //                         Type Predicates.
@@ -1624,12 +1614,18 @@ public:
   const llvm::fltSemantics &getFloatTypeSemantics(QualType T) const;
 
   /// \brief Get the size and alignment of the specified complete type in bits.
-  TypeInfo getTypeInfo(const Type *T) const;
-  TypeInfo getTypeInfo(QualType T) const { return getTypeInfo(T.getTypePtr()); }
+  std::pair<uint64_t, unsigned> getTypeInfo(const Type *T) const;
+  std::pair<uint64_t, unsigned> getTypeInfo(QualType T) const {
+    return getTypeInfo(T.getTypePtr());
+  }
 
   /// \brief Return the size of the specified (complete) type \p T, in bits.
-  uint64_t getTypeSize(QualType T) const { return getTypeInfo(T).Width; }
-  uint64_t getTypeSize(const Type *T) const { return getTypeInfo(T).Width; }
+  uint64_t getTypeSize(QualType T) const {
+    return getTypeInfo(T).first;
+  }
+  uint64_t getTypeSize(const Type *T) const {
+    return getTypeInfo(T).first;
+  }
 
   /// \brief Return the size of the character type, in bits.
   uint64_t getCharWidth() const {
@@ -1649,8 +1645,12 @@ public:
 
   /// \brief Return the ABI-specified alignment of a (complete) type \p T, in
   /// bits.
-  unsigned getTypeAlign(QualType T) const { return getTypeInfo(T).Align; }
-  unsigned getTypeAlign(const Type *T) const { return getTypeInfo(T).Align; }
+  unsigned getTypeAlign(QualType T) const {
+    return getTypeInfo(T).second;
+  }
+  unsigned getTypeAlign(const Type *T) const {
+    return getTypeInfo(T).second;
+  }
 
   /// \brief Return the ABI-specified alignment of a (complete) type \p T, in 
   /// characters.
@@ -1663,11 +1663,6 @@ public:
 
   std::pair<CharUnits, CharUnits> getTypeInfoInChars(const Type *T) const;
   std::pair<CharUnits, CharUnits> getTypeInfoInChars(QualType T) const;
-
-  /// \brief Determine if the alignment the type has was required using an
-  /// alignment attribute.
-  bool isAlignmentRequired(const Type *T) const;
-  bool isAlignmentRequired(QualType T) const;
 
   /// \brief Return the "preferred" alignment of the specified type \p T for
   /// the current target, in bits.
@@ -2277,14 +2272,12 @@ private:
                                   bool StructField = false,
                                   bool EncodeBlockParameters = false,
                                   bool EncodeClassNames = false,
-                                  bool EncodePointerToObjCTypedef = false,
-                                  QualType *NotEncodedT=nullptr) const;
+                                  bool EncodePointerToObjCTypedef = false) const;
 
   // Adds the encoding of the structure's members.
   void getObjCEncodingForStructureImpl(RecordDecl *RD, std::string &S,
                                        const FieldDecl *Field,
-                                       bool includeVBases = true,
-                                       QualType *NotEncodedT=nullptr) const;
+                                       bool includeVBases = true) const;
 public:
   // Adds the encoding of a method parameter or return type.
   void getObjCEncodingForMethodParameter(Decl::ObjCDeclQualifier QT,
@@ -2356,9 +2349,9 @@ static inline Selector GetUnarySelector(StringRef name, ASTContext& Ctx) {
 /// // Specific alignment
 /// IntegerLiteral *Ex2 = new (Context, 4) IntegerLiteral(arguments);
 /// @endcode
-/// Memory allocated through this placement new operator does not need to be
-/// explicitly freed, as ASTContext will free all of this memory when it gets
-/// destroyed. Please note that you cannot use delete on the pointer.
+/// Please note that you cannot use delete on the pointer; it must be
+/// deallocated using an explicit destructor call followed by
+/// @c Context.Deallocate(Ptr).
 ///
 /// @param Bytes The number of bytes to allocate. Calculated by the compiler.
 /// @param C The ASTContext that provides the allocator.
@@ -2393,9 +2386,9 @@ inline void operator delete(void *Ptr, const clang::ASTContext &C, size_t) {
 /// // Specific alignment
 /// char *data = new (Context, 4) char[10];
 /// @endcode
-/// Memory allocated through this placement new[] operator does not need to be
-/// explicitly freed, as ASTContext will free all of this memory when it gets
-/// destroyed. Please note that you cannot use delete on the pointer.
+/// Please note that you cannot use delete on the pointer; it must be
+/// deallocated using an explicit destructor call followed by
+/// @c Context.Deallocate(Ptr).
 ///
 /// @param Bytes The number of bytes to allocate. Calculated by the compiler.
 /// @param C The ASTContext that provides the allocator.

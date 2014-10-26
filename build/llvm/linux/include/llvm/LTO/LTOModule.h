@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LTO_LTOMODULE_H
-#define LLVM_LTO_LTOMODULE_H
+#ifndef LTO_MODULE_H
+#define LTO_MODULE_H
 
 #include "llvm-c/lto.h"
 #include "llvm/ADT/StringMap.h"
@@ -71,8 +71,8 @@ public:
                                  StringRef triplePrefix);
 
   /// Create a MemoryBuffer from a memory range with an optional name.
-  static std::unique_ptr<MemoryBuffer>
-  makeBuffer(const void *mem, size_t length, StringRef name = "");
+  static MemoryBuffer *makeBuffer(const void *mem, size_t length,
+                                  StringRef name = "");
 
   /// Create an LTOModule. N.B. These methods take ownership of the buffer. The
   /// caller must have initialized the Targets, the TargetMCs, the AsmPrinters,
@@ -202,9 +202,10 @@ private:
   /// Get string that the data pointer points to.
   bool objcClassNameFromExpression(const Constant *c, std::string &name);
 
-  /// Create an LTOModule (private version).
-  static LTOModule *makeLTOModule(MemoryBufferRef Buffer, TargetOptions options,
-                                  std::string &errMsg);
+  /// Create an LTOModule (private version). N.B. This method takes ownership of
+  /// the buffer.
+  static LTOModule *makeLTOModule(std::unique_ptr<MemoryBuffer> Buffer,
+                                  TargetOptions options, std::string &errMsg);
 };
 }
-#endif
+#endif // LTO_MODULE_H

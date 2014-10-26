@@ -14,7 +14,6 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCObjectWriter.h"
-#include "llvm/MC/StringTableBuilder.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/MachO.h"
 #include <vector>
@@ -105,7 +104,7 @@ class MachObjectWriter : public MCObjectWriter {
   /// @name Symbol Table Data
   /// @{
 
-  StringTableBuilder StringTable;
+  SmallString<256> StringTable;
   std::vector<MachSymbolData> LocalSymbolData;
   std::vector<MachSymbolData> ExternalSymbolData;
   std::vector<MachSymbolData> UndefinedSymbolData;
@@ -240,7 +239,8 @@ public:
 
   /// ComputeSymbolTable - Compute the symbol table data
   ///
-  void ComputeSymbolTable(MCAssembler &Asm,
+  /// \param StringTable [out] - The string table data.
+  void ComputeSymbolTable(MCAssembler &Asm, SmallString<256> &StringTable,
                           std::vector<MachSymbolData> &LocalSymbolData,
                           std::vector<MachSymbolData> &ExternalSymbolData,
                           std::vector<MachSymbolData> &UndefinedSymbolData);

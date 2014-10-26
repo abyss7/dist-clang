@@ -461,7 +461,7 @@
 #define LLVM_BINDIR "/home/ilezhankin/.local/bin"
 
 /* Time at which LLVM was configured */
-#define LLVM_CONFIGTIME "Thu Oct 23 15:00:01 MSK 2014"
+#define LLVM_CONFIGTIME "Sun Oct 26 11:53:47 MSK 2014"
 
 /* Installation directory for data files */
 #define LLVM_DATADIR "/home/ilezhankin/.local/share/llvm"
@@ -539,7 +539,7 @@
 #define LLVM_VERSION_MAJOR 3
 
 /* Minor version of the LLVM API */
-#define LLVM_VERSION_MINOR 6
+#define LLVM_VERSION_MINOR 5
 
 /* Patch version of the LLVM API */
 #define LLVM_VERSION_PATCH 0
@@ -558,13 +558,13 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 3.6.0svn"
+#define PACKAGE_STRING "LLVM 3.5.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "llvm"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.6.0svn"
+#define PACKAGE_VERSION "3.5.0"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
