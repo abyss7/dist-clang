@@ -1,4 +1,6 @@
 #include <base/file_utils.h>
+#include <base/process_impl.h>
+#include <base/test_process.h>
 #include <client/clang.h>
 #include <client/command.h>
 #include <net/network_service_impl.h>
@@ -178,14 +180,35 @@ class ClientTest : public ::testing::Test {
         });
       });
     }
+
+    {
+      auto factory = base::Process::SetFactory<base::TestProcess::Factory>();
+      factory->CallOnCreate([this](base::TestProcess* process) {
+        process->CountRuns(&run_count);
+        process->CallOnRun([this, process](ui32, const String&, String* error) {
+          run_callback(process);
+
+          if (!do_run) {
+            if (error) {
+              error->assign("Test process fails to run intentionally");
+            }
+            return false;
+          }
+
+          return true;
+        });
+      });
+    }
   }
 
  protected:
   bool do_connect = true;
+  bool do_run = true;
   net::ConnectionWeakPtr weak_ptr;
   ui32 send_count = 0, read_count = 0, connect_count = 0,
-       connections_created = 0;
+       connections_created = 0, run_count = 0;
   Fn<void(net::TestConnection*)> connect_callback = EmptyLambda<>();
+  Fn<void(base::TestProcess*)> run_callback = EmptyLambda<>();
 };
 
 TEST_F(ClientTest, NoConnection) {
@@ -215,6 +238,11 @@ TEST_F(ClientTest, NoEnvironmentVariable) {
   EXPECT_EQ(0u, connections_created);
 }
 
+TEST_F(ClientTest, DISABLED_NoVersionEnvVariable) {
+  // TODO: implement this test.
+  //       - Check that we take version from clang itself.
+}
+
 TEST_F(ClientTest, NoInputFile) {
   const char* argv[] = {"clang++", "-c", "/tmp/qwerty", nullptr};
   const int argc = 3;
@@ -234,6 +262,10 @@ TEST_F(ClientTest, CannotSendMessage) {
 
   connect_callback =
       [](net::TestConnection* connection) { connection->AbortOnSend(); };
+  run_callback = [](base::TestProcess* process) {
+    EXPECT_EQ((List<String>{"--version"}), process->args_);
+    process->stdout_ = "test_version\nline2\nline3";
+  };
 
   EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++"));
   EXPECT_TRUE(weak_ptr.expired());
@@ -295,6 +327,10 @@ TEST_F(ClientTest, CannotReadMessage) {
       }
     });
   };
+  run_callback = [](base::TestProcess* process) {
+    EXPECT_EQ((List<String>{"--version"}), process->args_);
+    process->stdout_ = "test_version\nline2\nline3";
+  };
 
   EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++"));
   EXPECT_TRUE(weak_ptr.expired());
@@ -308,6 +344,11 @@ TEST_F(ClientTest, ReadMessageWithoutStatus) {
   const String temp_input = base::CreateTempFile(".cc");
   const char* argv[] = {"clang++", "-c", temp_input.c_str(), nullptr};
   const int argc = 3;
+
+  run_callback = [](base::TestProcess* process) {
+    EXPECT_EQ((List<String>{"--version"}), process->args_);
+    process->stdout_ = "test_version\nline2\nline3";
+  };
 
   EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++"));
   EXPECT_TRUE(weak_ptr.expired());
@@ -327,6 +368,10 @@ TEST_F(ClientTest, ReadMessageWithBadStatus) {
       auto extension = message->MutableExtension(proto::Status::extension);
       extension->set_code(proto::Status::INCONSEQUENT);
     });
+  };
+  run_callback = [](base::TestProcess* process) {
+    EXPECT_EQ((List<String>{"--version"}), process->args_);
+    process->stdout_ = "test_version\nline2\nline3";
   };
 
   EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++"));
@@ -348,6 +393,10 @@ TEST_F(ClientTest, SuccessfulCompilation) {
       extension->set_code(proto::Status::OK);
     });
   };
+  run_callback = [](base::TestProcess* process) {
+    EXPECT_EQ((List<String>{"--version"}), process->args_);
+    process->stdout_ = "test_version\nline2\nline3";
+  };
 
   EXPECT_FALSE(client::DoMain(argc, argv, String(), "clang++"));
   EXPECT_TRUE(weak_ptr.expired());
@@ -367,6 +416,10 @@ TEST_F(ClientTest, FailedCompilation) {
       auto extension = message->MutableExtension(proto::Status::extension);
       extension->set_code(proto::Status::EXECUTION);
     });
+  };
+  run_callback = [](base::TestProcess* process) {
+    EXPECT_EQ((List<String>{"--version"}), process->args_);
+    process->stdout_ = "test_version\nline2\nline3";
   };
 
   EXPECT_EXIT(client::DoMain(argc, argv, String(), "clang++"),

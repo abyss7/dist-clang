@@ -3,6 +3,8 @@
 #include <base/c_utils.h>
 #include <base/constants.h>
 #include <base/logging.h>
+#include <base/process_impl.h>
+#include <base/string_utils.h>
 #include <client/command.h>
 #include <net/base/end_point.h>
 #include <net/network_service_impl.h>
@@ -67,7 +69,20 @@ bool DoMain(int argc, const char* const argv[], const String& socket_path,
     }
 
     if (version.empty()) {
-      // TODO: extract version from |clang_path|.
+      auto process =
+          base::Process::Create(clang_path, String(), base::Process::SAME_UID);
+      process->AppendArg("--version");
+      if (!process->Run(1)) {
+        return true;
+      }
+
+      List<String> output;
+      base::SplitString<'\n'>(process->stdout(), output);
+      if (output.size() != 3) {
+        return true;
+      }
+
+      version = *output.begin();
     }
     flags->mutable_compiler()->set_version(version);
     flags->mutable_compiler()->set_path(clang_path);

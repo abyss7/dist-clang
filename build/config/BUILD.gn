@@ -5,6 +5,8 @@ config("base") {
     "-pthread",
     "-Wall",
     "-Wsign-compare",
+    "-Wno-unknown-warning-option",
+    "-Wno-error=unused-command-line-argument",
     "-Werror",
   ]
 
