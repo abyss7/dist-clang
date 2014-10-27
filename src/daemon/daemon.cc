@@ -588,7 +588,7 @@ void Daemon::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
       }
 
       base::ProcessPtr process =
-          CreateProcess(pp_flags, message->current_dir());
+          CreateProcess(pp_flags, message->user_id(), message->current_dir());
       if (!process->Run(10)) {
         // It usually means, that there is an error in the source code.
         // We should skip a cache check and head to local compilation.
@@ -669,7 +669,7 @@ void Daemon::DoRemoteExecution(const std::atomic<bool>& is_shutting_down,
       }
 
       base::ProcessPtr process =
-          CreateProcess(pp_flags, message->current_dir());
+          CreateProcess(pp_flags, message->user_id(), message->current_dir());
       if (!process->Run(10)) {
         // It usually means, that there is an error in the source code.
         // We should skip a cache check and head to local compilation.
