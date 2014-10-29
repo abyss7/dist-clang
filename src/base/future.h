@@ -8,6 +8,10 @@
 namespace dist_clang {
 namespace base {
 
+// The |std::promise| and |std::future| doesn't suite because, when the promise
+// is destroyed before setting any value (the broken promise situation) the
+// future triggers an exception - and we don't use exceptions.
+
 template <class T>
 class Promise;
 
@@ -57,36 +61,35 @@ class Promise {
   Promise(const T& default_value)
       : state_(new typename Future<T>::State), on_exit_value_(default_value) {}
   Promise(Promise<T>&& other) = default;
-  ~Promise() { SetValue(on_exit_value_); }
+  ~Promise() {
+    if (state_) {
+      SetValue(on_exit_value_);
+    }
+  }
 
   Optional GetFuture() {
-    if (!state_) {
-      return Optional();
-    }
-
+    DCHECK(state_);
     return Future<T>(state_);
   }
 
   void SetValue(const T& value) { SetStateValue(state_, value); }
 
   void SetValue(Fn<T(void)> fn) {
-    if (state_) {
-      UniqueLock lock(state_->mutex);
-      if (!state_->fulfilled && !state_->async.joinable()) {
-        state_->async = Thread(&SetStateValue, state_, fn());
-      }
+    DCHECK(state_);
+    UniqueLock lock(state_->mutex);
+    if (!state_->fulfilled && !state_->async.joinable()) {
+      state_->async = Thread(&SetStateValue, state_, fn());
     }
   }
 
  private:
   static void SetStateValue(StatePtr state, const T& value) {
-    if (state) {
-      UniqueLock lock(state->mutex);
-      if (!state->fulfilled && !state->async.joinable()) {
-        state->value = value;
-        state->fulfilled = true;
-        state->condition.notify_all();
-      }
+    DCHECK(state);
+    UniqueLock lock(state->mutex);
+    if (!state->fulfilled && !state->async.joinable()) {
+      state->value = value;
+      state->fulfilled = true;
+      state->condition.notify_all();
     }
   }
 

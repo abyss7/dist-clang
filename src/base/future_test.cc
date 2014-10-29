@@ -42,14 +42,6 @@ TEST(FutureTest, DoubleSetValue) {
   EXPECT_EQ(2, future->GetValue());
 }
 
-TEST(FutureTest, BadPromise) {
-  Promise<int> promise1(1);
-  Promise<int> promise2(std::move(promise1));
-
-  EXPECT_FALSE(!!promise1.GetFuture());
-  EXPECT_TRUE(!!promise2.GetFuture());
-}
-
 TEST(FutureTest, FulfillOnExit) {
   UniquePtr<Future<int>> future;
   {
