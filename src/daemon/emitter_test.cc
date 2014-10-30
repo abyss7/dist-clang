@@ -4,6 +4,7 @@
 #include <base/process_impl.h>
 #include <base/temporary_dir.h>
 #include <base/test_process.h>
+#include <net/test_end_point_resolver.h>
 #include <net/test_network_service.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest.h>
@@ -83,6 +84,8 @@ class EmitterTest : public ::testing::Test {
         });
       });
     }
+
+    net::EndPointResolver::SetFactory<net::TestEndPointResolver::Factory>();
   }
 
  protected:
@@ -614,8 +617,8 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    send_condition.wait_for(lock, std::chrono::seconds(1),
-                            [this] { return send_count == 1; });
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
+                                        [this] { return send_count == 1; }));
   }
 
   auto connection2 = test_service->TriggerListen(socket_path);
@@ -640,8 +643,8 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    send_condition.wait_for(lock, std::chrono::seconds(1),
-                            [this] { return send_count == 2; });
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
+                                        [this] { return send_count == 2; }));
   }
 
   emitter.reset();
@@ -667,7 +670,6 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
   // TODO: check that removal of original files doesn't fail cache filling.
 }
 
-/*
 TEST_F(EmitterTest, StoreCacheForRemoteResult) {
   const base::TemporaryDir temp_dir;
   const String socket_path = "/tmp/test.socket";
@@ -710,6 +712,8 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
 
   connect_callback = [&](net::TestConnection* connection) {
     if (connect_count == 1) {
+      // Connection from client to local daemon.
+
       connection->CallOnSend([&](const net::Connection::Message& message) {
         EXPECT_TRUE(message.HasExtension(proto::Status::extension));
         const auto& status = message.GetExtension(proto::Status::extension);
@@ -718,12 +722,30 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
         send_condition.notify_all();
       });
     } else if (connect_count == 2) {
+      // Connection from local daemon to remote daemon.
+
       connection->CallOnSend([&](const net::Connection::Message& message) {
         EXPECT_TRUE(message.HasExtension(proto::RemoteExecute::extension));
         const auto& command =
             message.GetExtension(proto::RemoteExecute::extension);
         EXPECT_EQ(source, command.source());
-        LOG(ERROR) << command.flags().compiler().version();
+
+        send_condition.notify_all();
+      });
+
+      connection->CallOnRead([&](net::Connection::Message* message) {
+        message->MutableExtension(proto::RemoteResult::extension)
+            ->set_obj(object_code);
+      });
+    } else if (connect_count == 3) {
+      // Connection from client to local daemon.
+
+      connection->CallOnSend([&](const net::Connection::Message& message) {
+        EXPECT_TRUE(message.HasExtension(proto::Status::extension));
+        const auto& status = message.GetExtension(proto::Status::extension);
+        EXPECT_EQ(expected_code, status.code()) << status.description();
+
+        send_condition.notify_all();
       });
     }
   };
@@ -750,8 +772,8 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(proto::LocalExecute::extension);
-    extension->set_current_dir(temp_dir);
 
+    extension->set_current_dir(temp_dir);
     extension->mutable_flags()->set_input(input_path1);
     extension->mutable_flags()->set_output(output_path1);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
@@ -765,8 +787,8 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    send_condition.wait_for(lock, std::chrono::seconds(1),
-                            [this] { return send_count == 1; });
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
+                                        [this] { return send_count == 2; }));
   }
 
   auto connection2 = test_service->TriggerListen(socket_path);
@@ -791,23 +813,23 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    send_condition.wait_for(lock, std::chrono::seconds(1),
-                            [this] { return send_count == 2; });
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
+                                        [this] { return send_count == 3; }));
   }
 
   emitter.reset();
 
   String cache_output;
-  EXPECT_TRUE(base::FileExists(output_path2));
-  EXPECT_TRUE(base::ReadFile(output_path2, &cache_output));
+  ASSERT_TRUE(base::FileExists(output_path2));
+  ASSERT_TRUE(base::ReadFile(output_path2, &cache_output));
   EXPECT_EQ(object_code, cache_output);
 
   EXPECT_EQ(2u, run_count);
   EXPECT_EQ(1u, listen_count);
-  EXPECT_EQ(2u, connect_count);
-  EXPECT_EQ(2u, connections_created);
-  EXPECT_EQ(2u, read_count);
-  EXPECT_EQ(2u, send_count);
+  EXPECT_EQ(3u, connect_count);
+  EXPECT_EQ(3u, connections_created);
+  EXPECT_EQ(3u, read_count);
+  EXPECT_EQ(3u, send_count);
   EXPECT_EQ(1, connection1.use_count())
       << "Daemon must not store references to the connection";
   EXPECT_EQ(1, connection2.use_count())
@@ -817,7 +839,6 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
   // TODO: check that original files are not moved.
   // TODO: check that removal of original files doesn't fail cache filling.
 }
-*/
 
 TEST_F(EmitterTest, DISABLED_StoreDirectCacheForLocalResult) {
   // TODO: implement this test. Check that we store direct cache for successful

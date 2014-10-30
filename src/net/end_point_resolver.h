@@ -12,8 +12,10 @@ class EndPointResolver : public base::Testable<EndPointResolver> {
   using Promise = base::Promise<EndPointPtr>;
   using Optional = Promise::Optional;
 
+  virtual ~EndPointResolver() {}
+
   // Resolve only tcp hosts, since there is no need for anything else for now.
-  Optional Resolve(const String& host, ui16 port);
+  virtual Optional Resolve(const String& host, ui16 port);
 };
 
 }  // namespace net

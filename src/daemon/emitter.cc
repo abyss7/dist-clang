@@ -274,8 +274,6 @@ void Emitter::DoRemoteExecute(const std::atomic<bool>& is_shutting_down,
     return;
   }
 
-  LOG(ERROR) << "SENDING!";
-
   while (!is_shutting_down) {
     Optional&& task = all_tasks_->Pop();
     if (!task) {

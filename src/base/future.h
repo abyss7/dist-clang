@@ -78,7 +78,8 @@ class Promise {
     DCHECK(state_);
     UniqueLock lock(state_->mutex);
     if (!state_->fulfilled && !state_->async.joinable()) {
-      state_->async = Thread(&SetStateValue, state_, fn());
+      state_->async =
+          Thread([fn](StatePtr state) { SetStateValue(state, fn()); }, state_);
     }
   }
 
@@ -90,6 +91,10 @@ class Promise {
       state->value = value;
       state->fulfilled = true;
       state->condition.notify_all();
+    }
+
+    if (state->async.joinable()) {
+      state->async.detach();
     }
   }
 
