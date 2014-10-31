@@ -443,7 +443,8 @@ bool Daemon::FillFlags(proto::Flags* flags, proto::Status* status) {
     if (compiler == compilers_.end()) {
       if (status) {
         status->set_code(proto::Status::NO_VERSION);
-        status->set_description("Compiler of the required version not found");
+        status->set_description("Compiler of the version \"" +
+                                flags->compiler().version() + "\" not found");
       }
       return false;
     }
@@ -456,7 +457,8 @@ bool Daemon::FillFlags(proto::Flags* flags, proto::Status* status) {
     if (!plugin.has_path() && plugin_map == plugins_.end()) {
       if (status) {
         status->set_code(proto::Status::NO_VERSION);
-        status->set_description("Plugin " + plugin.name() + " not found");
+        status->set_description(" No plugins available for the version \"" +
+                                flags->compiler().version() + "\"");
       }
       return false;
     }
@@ -464,7 +466,9 @@ bool Daemon::FillFlags(proto::Flags* flags, proto::Status* status) {
     if (plugin_by_name == plugin_map->second.end()) {
       if (status) {
         status->set_code(proto::Status::NO_VERSION);
-        status->set_description("Plugin " + plugin.name() + " not found");
+        status->set_description("Plugin " + plugin.name() +
+                                " not found for the version \"" +
+                                flags->compiler().version() + "\"");
       }
       return false;
     }
