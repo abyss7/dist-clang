@@ -829,7 +829,10 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
   EXPECT_EQ(3u, connect_count);
   EXPECT_EQ(3u, connections_created);
   EXPECT_EQ(3u, read_count);
-  EXPECT_EQ(3u, send_count);
+  EXPECT_EQ(3u, send_count) << "There should be only these transmissions:\n"
+                               "  1. Local daemon -> remote daemon.\n"
+                               "  2. Local daemon -> 1st client.\n"
+                               "  3. Local daemon -> 2nd client.";
   EXPECT_EQ(1, connection1.use_count())
       << "Daemon must not store references to the connection";
   EXPECT_EQ(1, connection2.use_count())

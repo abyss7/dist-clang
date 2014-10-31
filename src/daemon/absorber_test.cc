@@ -20,5 +20,15 @@ TEST(AbsorberConfigurationTest, DISABLED_IgnoreDirectCache) {
   // TODO: implement this test. Check that "cache.direct" is really ignored.
 }
 
+TEST(AbsorberTest, DISABLED_SuccessfulCompilation) {
+  // TODO: implement this test. Check that incoming request is processed and the
+  //       result is sent back.
+}
+
+TEST(AbsorberTest, DISABLED_StoreLocalCache) {
+  // TODO: implement this test. Check that successful compilation result is
+  //       cached.
+}
+
 }  // namespace daemon
 }  // namespace dist_clang
