@@ -71,7 +71,6 @@ TEST(CommandTest, ParseSimpleArgs) {
 #if defined(OS_LINUX)
   expected_regex.push_back(rep("-fmath-errno"));
   expected_regex.push_back(rep("-mconstructor-aliases"));
-  expected_regex.push_back(rep("-fuse-init-array"));
   expected_regex.push_back(rep("-internal-isystem"));
   expected_regex.push_back(rep("-internal-externc-isystem"));
 #elif defined(OS_MACOSX)
