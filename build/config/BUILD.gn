@@ -131,5 +131,7 @@ config("asan") {
 
   ldflags = [ "-fsanitize=address" ]
 
-  libs = [ "dl" ]
+  if (os == "linux") {
+    libs = [ "dl" ]
+  }
 }
