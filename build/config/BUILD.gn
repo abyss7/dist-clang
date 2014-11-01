@@ -130,4 +130,6 @@ config("asan") {
   ]
 
   ldflags = [ "-fsanitize=address" ]
+
+  libs = [ "dl" ]
 }

@@ -81,8 +81,7 @@ TEST(CommandTest, ParseSimpleArgs) {
   expected_regex.push_back(rep("-fencode-extended-block-signature"));
 #endif
 
-  const char* argv[] = {"clang++",               "-c",
-                        expected_input.c_str(),  "-o",
+  const char* argv[] = {"clang++", "-c", expected_input.c_str(), "-o",
                         expected_output.c_str(), nullptr};
   const int argc = 5;
 
@@ -103,8 +102,8 @@ TEST(CommandTest, ParseSimpleArgs) {
 
 TEST(CommandTest, FillFlags) {
   const String temp_input = base::CreateTempFile(".cc");
-  const char* argv[] = {"clang++", "-c",            temp_input.c_str(),
-                        "-o",      "/tmp/output.o", nullptr};
+  const char* argv[] = {"clang++", "-c", temp_input.c_str(), "-o",
+                        "/tmp/output.o", nullptr};
   const int argc = 5;
 
   Command::List commands;
@@ -147,9 +146,9 @@ TEST(CommandTest, AppendCleanTempFilesCommand) {
 
 class ClientTest : public ::testing::Test {
  public:
-  virtual void SetUp() override {
-    using Service = net::TestNetworkService;
+  using Service = net::TestNetworkService;
 
+  virtual void SetUp() override {
     {
       auto factory = net::NetworkService::SetFactory<Service::Factory>();
       factory->CallOnCreate([this](Service* service) {
@@ -192,6 +191,11 @@ class ClientTest : public ::testing::Test {
         });
       });
     }
+  }
+
+  virtual void TearDown() override {
+    net::NetworkService::SetFactory<Service::Factory>();
+    base::Process::SetFactory<base::TestProcess::Factory>();
   }
 
  protected:
