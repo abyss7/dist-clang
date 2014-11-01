@@ -1,6 +1,5 @@
 #pragma once
 
-#include <histogram/counter.h>
 #include <net/base/types.h>
 #include <net/connection.h>
 
