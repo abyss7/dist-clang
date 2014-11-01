@@ -117,17 +117,16 @@ llvm_libs = [
 llvm_system_libs = [
   "z",
   "pthread",
-  "edit",
   "m",
 ]
 
 if (os == "linux") {
-  llvm_system_libs += [
-    "dl",
-    "tinfo",
-  ]
+  llvm_system_libs += [ "dl" ]
 }
 
 if (os == "mac") {
-  llvm_system_libs += [ "curses" ]
+  llvm_system_libs += [
+    "curses",
+    "edit",
+  ]
 }
