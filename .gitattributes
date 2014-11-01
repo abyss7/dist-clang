@@ -1,1 +1,3 @@
 bin/ binary
+build/llvm/linux/lib binary
+build/llvm/mac/lib binary

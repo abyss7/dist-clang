@@ -118,7 +118,16 @@ llvm_system_libs = [
   "z",
   "pthread",
   "edit",
-  "tinfo",
-  "dl",
   "m",
 ]
+
+if (os == "linux") {
+  llvm_system_libs += [
+    "dl",
+    "tinfo",
+  ]
+}
+
+if (os == "mac") {
+  llvm_system_libs += [ "curses" ]
+}
