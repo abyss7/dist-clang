@@ -17,6 +17,7 @@ FORWARD_TEST(ClientTest, FailedCompilation);
 }  // namespace client
 
 namespace daemon {
+FORWARD_TEST(AbsorberTest, StoreLocalCache);
 FORWARD_TEST(BaseDaemonTest, CreateProcessFromFlags);
 FORWARD_TEST(EmitterTest, StoreCacheForLocalResult);
 FORWARD_TEST(EmitterTest, StoreCacheForRemoteResult);
@@ -66,6 +67,7 @@ class Process : public Testable<Process, ProcessImpl, const String&,
   FRIEND_TEST(client::ClientTest, ReadMessageWithBadStatus);
   FRIEND_TEST(client::ClientTest, SuccessfulCompilation);
   FRIEND_TEST(client::ClientTest, FailedCompilation);
+  FRIEND_TEST(daemon::AbsorberTest, StoreLocalCache);
   FRIEND_TEST(daemon::BaseDaemonTest, CreateProcessFromFlags);
   FRIEND_TEST(daemon::EmitterTest, StoreCacheForLocalResult);
   FRIEND_TEST(daemon::EmitterTest, StoreCacheForRemoteResult);

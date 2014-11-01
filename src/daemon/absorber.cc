@@ -115,6 +115,8 @@ void Absorber::DoExecute(const std::atomic<bool>& is_shutting_down) {
       }
     }
 
+    Universal outgoing(new proto::Universal);
+
     // Pipe the input file to the compiler and read output file from the
     // compiler's stdout.
     String error;
@@ -140,12 +142,12 @@ void Absorber::DoExecute(const std::atomic<bool>& is_shutting_down) {
       status.set_code(proto::Status::OK);
       status.set_description(process->stderr());
       LOG(INFO) << "External compilation successful";
+
+      const auto& result = proto::RemoteResult::extension;
+      outgoing->MutableExtension(result)->set_obj(process->stdout());
     }
 
-    Universal outgoing(new proto::Universal);
-    const auto& result = proto::RemoteResult::extension;
     outgoing->MutableExtension(proto::Status::extension)->CopyFrom(status);
-    outgoing->MutableExtension(result)->set_obj(process->stdout());
 
     if (status.code() == proto::Status::OK) {
       FileCache::Entry entry;

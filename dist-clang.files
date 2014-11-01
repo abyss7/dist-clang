@@ -2269,3 +2269,4 @@ build/llvm/linux/include/llvm/PassSupport.h
 build/llvm/llvm.gni
 build/llvm/llvm.py
 src/net/test_end_point_resolver.h
+src/daemon/common_daemon_test.h

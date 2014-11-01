@@ -1,13 +1,8 @@
 #include <daemon/emitter.h>
 
 #include <base/file_utils.h>
-#include <base/process_impl.h>
 #include <base/temporary_dir.h>
-#include <base/test_process.h>
-#include <net/test_end_point_resolver.h>
-#include <net/test_network_service.h>
-
-#include <third_party/gtest/exported/include/gtest/gtest.h>
+#include <daemon/common_daemon_test.h>
 
 namespace dist_clang {
 namespace daemon {
@@ -41,74 +36,9 @@ TEST(EmitterConfigurationTest, OnlyFailedWithoutRemotes) {
   ASSERT_FALSE(emitter.Initialize());
 }
 
-class EmitterTest : public ::testing::Test {
- public:
-  using Service = net::TestNetworkService;
-
-  virtual void SetUp() override {
-    {
-      auto factory = net::NetworkService::SetFactory<Service::Factory>();
-      factory->CallOnCreate([this](Service* service) {
-        ASSERT_EQ(nullptr, test_service);
-        test_service = service;
-        service->CountConnectAttempts(&connect_count);
-        service->CountListenAttempts(&listen_count);
-        service->CallOnConnect([this](net::EndPointPtr, String*) {
-          auto connection = Service::TestConnectionPtr(new net::TestConnection);
-          connection->CountSendAttempts(&send_count);
-          connection->CountReadAttempts(&read_count);
-          ++connections_created;
-          connect_callback(connection.get());
-
-          return connection;
-        });
-        service->CallOnListen(listen_callback);
-      });
-    }
-
-    {
-      auto factory = base::Process::SetFactory<base::TestProcess::Factory>();
-      factory->CallOnCreate([this](base::TestProcess* process) {
-        process->CountRuns(&run_count);
-        process->CallOnRun([this, process](ui32, const String&, String* error) {
-          run_callback(process);
-
-          if (!do_run) {
-            if (error) {
-              error->assign("Test process fails to run intentionally");
-            }
-            return false;
-          }
-
-          return true;
-        });
-      });
-    }
-
-    net::EndPointResolver::SetFactory<net::TestEndPointResolver::Factory>();
-  }
-
+class EmitterTest : public CommonDaemonTest {
  protected:
-  using ListenCallback = Fn<bool(const String&, ui16, String*)>;
-  using ConnectCallback = Fn<void(net::TestConnection*)>;
-  using RunCallback = Fn<void(base::TestProcess*)>;
-
-  ListenCallback listen_callback = EmptyLambda<bool>(true);
-  ConnectCallback connect_callback = EmptyLambda<>();
-  RunCallback run_callback = EmptyLambda<>();
-
   UniquePtr<Emitter> emitter;
-  Service* WEAK_PTR test_service = nullptr;
-  proto::Configuration conf;
-  bool do_run = true;
-
-  // for test StoreLocalCache.
-  std::mutex send_mutex;
-  std::condition_variable send_condition;
-
-  ui32 listen_count = 0, connect_count = 0, read_count = 0, send_count = 0,
-       run_count = 0;
-  ui32 connections_created = 0;
 };
 
 /*
@@ -829,10 +759,11 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
   EXPECT_EQ(3u, connect_count);
   EXPECT_EQ(3u, connections_created);
   EXPECT_EQ(3u, read_count);
-  EXPECT_EQ(3u, send_count) << "There should be only these transmissions:\n"
-                               "  1. Local daemon -> remote daemon.\n"
-                               "  2. Local daemon -> 1st client.\n"
-                               "  3. Local daemon -> 2nd client.";
+  EXPECT_EQ(3u, send_count)
+      << "There should be only these transmissions:" << std::endl
+      << "  1. Local daemon -> remote daemon." << std::endl
+      << "  2. Local daemon -> 1st client." << std::endl
+      << "  3. Local daemon -> 2nd client.";
   EXPECT_EQ(1, connection1.use_count())
       << "Daemon must not store references to the connection";
   EXPECT_EQ(1, connection2.use_count())

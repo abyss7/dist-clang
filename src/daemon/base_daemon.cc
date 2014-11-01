@@ -240,7 +240,10 @@ void BaseDaemon::UpdateCache(const proto::Flags& flags, const String& source,
   const auto& version = flags.compiler().version();
   const String command_line = CommandLineForCache(flags);
 
-  DCHECK(cache_);
+  if (!cache_ || conf_.cache().disabled()) {
+    return;
+  }
+
   if (conf_.cache().sync()) {
     cache_->StoreNow(source, command_line, version, entry);
   } else {
@@ -256,7 +259,7 @@ void BaseDaemon::UpdateDirectCache(const proto::LocalExecute* message,
   DCHECK(conf_.has_emitter() && !conf_.has_absorber());
   DCHECK(flags.has_input() && flags.input()[0] != '/');
 
-  if (!cache_ || !conf_.cache().direct()) {
+  if (!cache_ || !conf_.cache().direct() || conf_.cache().disabled()) {
     return;
   }
 
