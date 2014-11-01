@@ -65,9 +65,6 @@ class FileCache {
       const file_cache::string::CommandLine& command_line,
       const file_cache::string::Version& version);
 
-  bool FindByHash(const file_cache::string::HandledHash& hash,
-                  Entry* entry) const;
-
   bool Find(const file_cache::string::HandledSource& code,
             const file_cache::string::CommandLine& command_line,
             const file_cache::string::Version& version, Entry* entry) const;
@@ -145,6 +142,8 @@ class FileCache {
     return SecondPath(hash) + "/" + hash.substr(2);
   }
 
+  bool FindByHash(const file_cache::string::HandledHash& hash,
+                  Entry* entry) const;
   bool RemoveEntry(const String& manifest_path);
   void DoStore(const file_cache::string::HandledHash& hash, const Entry& entry);
   void DoStore(file_cache::string::UnhandledHash orig_hash,

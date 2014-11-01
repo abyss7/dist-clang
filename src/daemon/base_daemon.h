@@ -54,9 +54,6 @@ class BaseDaemon {
 
   bool SetupCompiler(proto::Flags* flags, proto::Status* status) const;
 
-  bool SearchSimpleCache(const file_cache::string::HandledHash& hash,
-                         FileCache::Entry* entry) const;
-
   bool SearchSimpleCache(const proto::Flags& flags,
                          const file_cache::string::HandledSource& source,
                          FileCache::Entry* entry) const;

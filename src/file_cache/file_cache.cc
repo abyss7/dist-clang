@@ -62,69 +62,6 @@ UnhandledHash FileCache::Hash(const UnhandledSource &code,
                        base::Hexify(base::MakeHash(version, 4)));
 }
 
-bool FileCache::FindByHash(const HandledHash &hash, Entry *entry) const {
-  const String first_path = FirstPath(hash);
-  const String second_path = SecondPath(hash);
-  const String manifest_path = CommonPath(hash) + ".manifest";
-  const ReadLock lock(this, manifest_path);
-
-  if (!lock) {
-    return false;
-  }
-
-  proto::Manifest manifest;
-  if (!file_cache::LoadManifest(manifest_path, &manifest)) {
-    return false;
-  }
-
-  utime(manifest_path.c_str(), nullptr);
-  utime(second_path.c_str(), nullptr);
-  utime(first_path.c_str(), nullptr);
-
-  if (entry) {
-    if (manifest.stderr()) {
-      const String stderr_path = CommonPath(hash) + ".stderr";
-      if (!base::ReadFile(stderr_path, &entry->stderr)) {
-        return false;
-      }
-    }
-
-    if (manifest.object()) {
-      const String object_path = CommonPath(hash) + ".o";
-
-      if (manifest.snappy()) {
-        String error;
-
-        String packed_content;
-        if (!base::ReadFile(object_path, &packed_content, &error)) {
-          LOG(CACHE_ERROR) << "Failed to read " << object_path << " : "
-                           << error;
-          return false;
-        }
-
-        if (!snappy::Uncompress(packed_content.data(), packed_content.size(),
-                                &entry->object)) {
-          LOG(CACHE_ERROR) << "Failed to unpack contents of " << object_path;
-          return false;
-        }
-      } else {
-        if (!base::ReadFile(object_path, &entry->object)) {
-          return false;
-        }
-      }
-    }
-
-    if (manifest.deps()) {
-      const String deps_path = CommonPath(hash) + ".d";
-      if (!base::ReadFile(deps_path, &entry->deps)) {
-        return false;
-      }
-    }
-  }
-
-  return true;
-}
-
 bool FileCache::Find(const HandledSource &code, const CommandLine &command_line,
                      const Version &version, Entry *entry) const {
   return FindByHash(Hash(code, command_line, version), entry);
@@ -201,6 +138,69 @@ FileCache::Optional FileCache::StoreNow(const UnhandledSource &code,
                                         const HandledHash &hash) {
   DoStore(Hash(code, command_line, version), headers, hash);
   return pool_.Push(std::bind(&FileCache::Clean, this));
+}
+
+bool FileCache::FindByHash(const HandledHash &hash, Entry *entry) const {
+  const String first_path = FirstPath(hash);
+  const String second_path = SecondPath(hash);
+  const String manifest_path = CommonPath(hash) + ".manifest";
+  const ReadLock lock(this, manifest_path);
+
+  if (!lock) {
+    return false;
+  }
+
+  proto::Manifest manifest;
+  if (!file_cache::LoadManifest(manifest_path, &manifest)) {
+    return false;
+  }
+
+  utime(manifest_path.c_str(), nullptr);
+  utime(second_path.c_str(), nullptr);
+  utime(first_path.c_str(), nullptr);
+
+  if (entry) {
+    if (manifest.stderr()) {
+      const String stderr_path = CommonPath(hash) + ".stderr";
+      if (!base::ReadFile(stderr_path, &entry->stderr)) {
+        return false;
+      }
+    }
+
+    if (manifest.object()) {
+      const String object_path = CommonPath(hash) + ".o";
+
+      if (manifest.snappy()) {
+        String error;
+
+        String packed_content;
+        if (!base::ReadFile(object_path, &packed_content, &error)) {
+          LOG(CACHE_ERROR) << "Failed to read " << object_path << " : "
+                           << error;
+          return false;
+        }
+
+        if (!snappy::Uncompress(packed_content.data(), packed_content.size(),
+                                &entry->object)) {
+          LOG(CACHE_ERROR) << "Failed to unpack contents of " << object_path;
+          return false;
+        }
+      } else {
+        if (!base::ReadFile(object_path, &entry->object)) {
+          return false;
+        }
+      }
+    }
+
+    if (manifest.deps()) {
+      const String deps_path = CommonPath(hash) + ".d";
+      if (!base::ReadFile(deps_path, &entry->deps)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
 
 bool FileCache::RemoveEntry(const String &manifest_path) {

@@ -709,18 +709,6 @@ class LocalExecute : public ::google::protobuf::Message {
   inline ::google::protobuf::uint32 user_id() const;
   inline void set_user_id(::google::protobuf::uint32 value);
 
-  // optional string hash = 4;
-  inline bool has_hash() const;
-  inline void clear_hash();
-  static const int kHashFieldNumber = 4;
-  inline const ::std::string& hash() const;
-  inline void set_hash(const ::std::string& value);
-  inline void set_hash(const char* value);
-  inline void set_hash(const char* value, size_t size);
-  inline ::std::string* mutable_hash();
-  inline ::std::string* release_hash();
-  inline void set_allocated_hash(::std::string* hash);
-
   static const int kExtensionFieldNumber = 5;
   static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
       ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::LocalExecute >, 11, false >
@@ -733,18 +721,15 @@ class LocalExecute : public ::google::protobuf::Message {
   inline void clear_has_current_dir();
   inline void set_has_user_id();
   inline void clear_has_user_id();
-  inline void set_has_hash();
-  inline void clear_has_hash();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
   ::dist_clang::proto::Flags* flags_;
   ::std::string* current_dir_;
-  ::std::string* hash_;
   ::google::protobuf::uint32 user_id_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(4 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(3 + 31) / 32];
 
   friend void  protobuf_AddDesc_proto_2fremote_2eproto();
   friend void protobuf_AssignDesc_proto_2fremote_2eproto();
@@ -830,18 +815,6 @@ class RemoteExecute : public ::google::protobuf::Message {
   inline ::std::string* release_source();
   inline void set_allocated_source(::std::string* source);
 
-  // optional string hash = 3;
-  inline bool has_hash() const;
-  inline void clear_hash();
-  static const int kHashFieldNumber = 3;
-  inline const ::std::string& hash() const;
-  inline void set_hash(const ::std::string& value);
-  inline void set_hash(const char* value);
-  inline void set_hash(const char* value, size_t size);
-  inline ::std::string* mutable_hash();
-  inline ::std::string* release_hash();
-  inline void set_allocated_hash(::std::string* hash);
-
   static const int kExtensionFieldNumber = 6;
   static ::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
       ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::RemoteExecute >, 11, false >
@@ -852,17 +825,14 @@ class RemoteExecute : public ::google::protobuf::Message {
   inline void clear_has_flags();
   inline void set_has_source();
   inline void clear_has_source();
-  inline void set_has_hash();
-  inline void clear_has_hash();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
   ::dist_clang::proto::Flags* flags_;
   ::std::string* source_;
-  ::std::string* hash_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(3 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(2 + 31) / 32];
 
   friend void  protobuf_AddDesc_proto_2fremote_2eproto();
   friend void protobuf_AssignDesc_proto_2fremote_2eproto();
@@ -1971,76 +1941,6 @@ inline void LocalExecute::set_user_id(::google::protobuf::uint32 value) {
   user_id_ = value;
 }
 
-// optional string hash = 4;
-inline bool LocalExecute::has_hash() const {
-  return (_has_bits_[0] & 0x00000008u) != 0;
-}
-inline void LocalExecute::set_has_hash() {
-  _has_bits_[0] |= 0x00000008u;
-}
-inline void LocalExecute::clear_has_hash() {
-  _has_bits_[0] &= ~0x00000008u;
-}
-inline void LocalExecute::clear_hash() {
-  if (hash_ != &::google::protobuf::internal::kEmptyString) {
-    hash_->clear();
-  }
-  clear_has_hash();
-}
-inline const ::std::string& LocalExecute::hash() const {
-  return *hash_;
-}
-inline void LocalExecute::set_hash(const ::std::string& value) {
-  set_has_hash();
-  if (hash_ == &::google::protobuf::internal::kEmptyString) {
-    hash_ = new ::std::string;
-  }
-  hash_->assign(value);
-}
-inline void LocalExecute::set_hash(const char* value) {
-  set_has_hash();
-  if (hash_ == &::google::protobuf::internal::kEmptyString) {
-    hash_ = new ::std::string;
-  }
-  hash_->assign(value);
-}
-inline void LocalExecute::set_hash(const char* value, size_t size) {
-  set_has_hash();
-  if (hash_ == &::google::protobuf::internal::kEmptyString) {
-    hash_ = new ::std::string;
-  }
-  hash_->assign(reinterpret_cast<const char*>(value), size);
-}
-inline ::std::string* LocalExecute::mutable_hash() {
-  set_has_hash();
-  if (hash_ == &::google::protobuf::internal::kEmptyString) {
-    hash_ = new ::std::string;
-  }
-  return hash_;
-}
-inline ::std::string* LocalExecute::release_hash() {
-  clear_has_hash();
-  if (hash_ == &::google::protobuf::internal::kEmptyString) {
-    return NULL;
-  } else {
-    ::std::string* temp = hash_;
-    hash_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-    return temp;
-  }
-}
-inline void LocalExecute::set_allocated_hash(::std::string* hash) {
-  if (hash_ != &::google::protobuf::internal::kEmptyString) {
-    delete hash_;
-  }
-  if (hash) {
-    set_has_hash();
-    hash_ = hash;
-  } else {
-    clear_has_hash();
-    hash_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-  }
-}
-
 // -------------------------------------------------------------------
 
 // RemoteExecute
@@ -2150,76 +2050,6 @@ inline void RemoteExecute::set_allocated_source(::std::string* source) {
   } else {
     clear_has_source();
     source_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-  }
-}
-
-// optional string hash = 3;
-inline bool RemoteExecute::has_hash() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
-}
-inline void RemoteExecute::set_has_hash() {
-  _has_bits_[0] |= 0x00000004u;
-}
-inline void RemoteExecute::clear_has_hash() {
-  _has_bits_[0] &= ~0x00000004u;
-}
-inline void RemoteExecute::clear_hash() {
-  if (hash_ != &::google::protobuf::internal::kEmptyString) {
-    hash_->clear();
-  }
-  clear_has_hash();
-}
-inline const ::std::string& RemoteExecute::hash() const {
-  return *hash_;
-}
-inline void RemoteExecute::set_hash(const ::std::string& value) {
-  set_has_hash();
-  if (hash_ == &::google::protobuf::internal::kEmptyString) {
-    hash_ = new ::std::string;
-  }
-  hash_->assign(value);
-}
-inline void RemoteExecute::set_hash(const char* value) {
-  set_has_hash();
-  if (hash_ == &::google::protobuf::internal::kEmptyString) {
-    hash_ = new ::std::string;
-  }
-  hash_->assign(value);
-}
-inline void RemoteExecute::set_hash(const char* value, size_t size) {
-  set_has_hash();
-  if (hash_ == &::google::protobuf::internal::kEmptyString) {
-    hash_ = new ::std::string;
-  }
-  hash_->assign(reinterpret_cast<const char*>(value), size);
-}
-inline ::std::string* RemoteExecute::mutable_hash() {
-  set_has_hash();
-  if (hash_ == &::google::protobuf::internal::kEmptyString) {
-    hash_ = new ::std::string;
-  }
-  return hash_;
-}
-inline ::std::string* RemoteExecute::release_hash() {
-  clear_has_hash();
-  if (hash_ == &::google::protobuf::internal::kEmptyString) {
-    return NULL;
-  } else {
-    ::std::string* temp = hash_;
-    hash_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-    return temp;
-  }
-}
-inline void RemoteExecute::set_allocated_hash(::std::string* hash) {
-  if (hash_ != &::google::protobuf::internal::kEmptyString) {
-    delete hash_;
-  }
-  if (hash) {
-    set_has_hash();
-    hash_ = hash;
-  } else {
-    clear_has_hash();
-    hash_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   }
 }
 

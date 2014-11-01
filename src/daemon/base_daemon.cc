@@ -197,22 +197,6 @@ bool BaseDaemon::SetupCompiler(proto::Flags* flags,
   return true;
 }
 
-bool BaseDaemon::SearchSimpleCache(const HandledHash& hash,
-                                   FileCache::Entry* entry) const {
-  DCHECK(entry);
-
-  if (!cache_) {
-    return false;
-  }
-
-  if (!cache_->FindByHash(hash, entry)) {
-    LOG(CACHE_INFO) << "Cache miss: " << hash.str;
-    return false;
-  }
-
-  return true;
-}
-
 bool BaseDaemon::SearchSimpleCache(const proto::Flags& flags,
                                    const HandledSource& source,
                                    FileCache::Entry* entry) const {

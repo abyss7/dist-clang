@@ -197,12 +197,6 @@ void Emitter::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
       return true;
     };
 
-    if (incoming->has_hash() &&
-        SearchSimpleCache(HandledHash(incoming->hash()), &entry) &&
-        RestoreFromCache(HandledSource())) {
-      continue;
-    }
-
     if (SearchDirectCache(incoming->flags(), incoming->current_dir(), &entry) &&
         RestoreFromCache(HandledSource())) {
       continue;
@@ -214,9 +208,7 @@ void Emitter::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
       continue;
     }
 
-    incoming->set_hash(GenerateHash(incoming->flags(), source));
-
-    if (SearchSimpleCache(HandledHash(incoming->hash()), &entry) &&
+    if (SearchSimpleCache(incoming->flags(), source, &entry) &&
         RestoreFromCache(source)) {
       continue;
     }

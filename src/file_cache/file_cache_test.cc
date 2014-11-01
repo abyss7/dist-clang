@@ -81,8 +81,10 @@ TEST(FileCacheTest, RemoveEntry) {
     ASSERT_TRUE(base::WriteFile(stderr_path, "1"));
     FileCache cache(tmp_dir, 100, false);
     EXPECT_TRUE(cache.RemoveEntry(manifest_path));
-    ASSERT_EQ(0u, base::CalculateDirectorySize(tmp_dir));
-    EXPECT_EQ(0u, cache.cached_size_);
+    auto db_size =
+        base::CalculateDirectorySize(String(tmp_dir) + "/leveldb_direct");
+    ASSERT_EQ(0u, base::CalculateDirectorySize(tmp_dir) - db_size);
+    EXPECT_EQ(0u, cache.cached_size_ - db_size);
   }
 
   {
@@ -90,8 +92,10 @@ TEST(FileCacheTest, RemoveEntry) {
     ASSERT_TRUE(base::WriteFile(object_path, "1"));
     FileCache cache(tmp_dir, 100, false);
     EXPECT_TRUE(cache.RemoveEntry(manifest_path));
-    ASSERT_EQ(0u, base::CalculateDirectorySize(tmp_dir));
-    EXPECT_EQ(0u, cache.cached_size_);
+    auto db_size =
+        base::CalculateDirectorySize(String(tmp_dir) + "/leveldb_direct");
+    ASSERT_EQ(0u, base::CalculateDirectorySize(tmp_dir) - db_size);
+    EXPECT_EQ(0u, cache.cached_size_ - db_size);
   }
 
   // TODO: check that |RemoveEntry()| fails, if at least one file can't be
