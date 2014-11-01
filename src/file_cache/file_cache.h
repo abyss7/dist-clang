@@ -8,10 +8,34 @@
 namespace dist_clang {
 
 namespace file_cache {
+
 FORWARD_TEST(FileCacheTest, LockNonExistentFile);
 FORWARD_TEST(FileCacheTest, DoubleLocks);
 FORWARD_TEST(FileCacheTest, RemoveEntry);
 FORWARD_TEST(FileCacheTest, RestoreEntryWithMissingFile);
+
+namespace string {
+
+#define DEFINE_STRING_TYPE(type)                   \
+  struct type {                                    \
+    type() = default;                              \
+    explicit type(const String& str) : str(str) {} \
+    operator String() const { return str; }        \
+                                                   \
+    String str;                                    \
+  }
+
+DEFINE_STRING_TYPE(HandledSource);
+DEFINE_STRING_TYPE(UnhandledSource);
+DEFINE_STRING_TYPE(HandledHash);
+DEFINE_STRING_TYPE(UnhandledHash);
+DEFINE_STRING_TYPE(CommandLine);
+DEFINE_STRING_TYPE(Version);
+
+#undef DEFINE_STRING_TYPE
+
+}  // namespace string
+
 }  // namespace file_cache
 
 class FileCache {
@@ -31,24 +55,48 @@ class FileCache {
   FileCache(const String& path, ui64 size, bool snappy);
   explicit FileCache(const String& path);
 
-  static String Hash(const String& code, const String& command_line,
-                     const String& version);
+  static file_cache::string::HandledHash Hash(
+      const file_cache::string::HandledSource& code,
+      const file_cache::string::CommandLine& command_line,
+      const file_cache::string::Version& version);
 
-  bool Find(const String& preprocessed_code, const String& command_line,
-            const String& version, Entry* entry) const;
-  bool Find_Direct(const String& original_code, const String& command_line,
-                   const String& version, Entry* entry) const;
+  static file_cache::string::UnhandledHash Hash(
+      const file_cache::string::UnhandledSource& code,
+      const file_cache::string::CommandLine& command_line,
+      const file_cache::string::Version& version);
 
-  Optional Store(const String& preprocessed_code, const String& command_line,
-                 const String& version, const Entry& entry);
-  Optional Store_Direct(const String& original_code, const String& command_line,
-                        const String& version, const List<String>& headers,
-                        const String& hash);
-  Optional StoreNow(const String& preprocessed_code, const String& command_line,
-                    const String& version, const Entry& entry);
-  Optional StoreNow_Direct(const String& original_code,
-                           const String& command_line, const String& version,
-                           const List<String>& headers, const String& hash);
+  bool FindByHash(const file_cache::string::HandledHash& hash,
+                  Entry* entry) const;
+
+  bool Find(const file_cache::string::HandledSource& code,
+            const file_cache::string::CommandLine& command_line,
+            const file_cache::string::Version& version, Entry* entry) const;
+
+  bool Find(const file_cache::string::UnhandledSource& code,
+            const file_cache::string::CommandLine& command_line,
+            const file_cache::string::Version& version, Entry* entry) const;
+
+  Optional Store(const file_cache::string::HandledSource& code,
+                 const file_cache::string::CommandLine& command_line,
+                 const file_cache::string::Version& version,
+                 const Entry& entry);
+
+  Optional Store(const file_cache::string::UnhandledSource& code,
+                 const file_cache::string::CommandLine& command_line,
+                 const file_cache::string::Version& version,
+                 const List<String>& headers,
+                 const file_cache::string::HandledHash& hash);
+
+  Optional StoreNow(const file_cache::string::HandledSource& code,
+                    const file_cache::string::CommandLine& command_line,
+                    const file_cache::string::Version& version,
+                    const Entry& entry);
+
+  Optional StoreNow(const file_cache::string::UnhandledSource& code,
+                    const file_cache::string::CommandLine& command_line,
+                    const file_cache::string::Version& version,
+                    const List<String>& headers,
+                    const file_cache::string::HandledHash& hash);
 
  private:
   FRIEND_TEST(file_cache::FileCacheTest, LockNonExistentFile);
@@ -97,12 +145,11 @@ class FileCache {
     return SecondPath(hash) + "/" + hash.substr(2);
   }
 
-  bool FindByHash(const String& hash, Entry* entry) const;
-
   bool RemoveEntry(const String& manifest_path);
-  void DoStore(const String& hash, const Entry& entry);
-  void DoStore_Direct(String orig_hash, const List<String>& headers,
-                      const String& hash);
+  void DoStore(const file_cache::string::HandledHash& hash, const Entry& entry);
+  void DoStore(file_cache::string::UnhandledHash orig_hash,
+               const List<String>& headers,
+               const file_cache::string::HandledHash& hash);
   void Clean();
 
   const String path_;

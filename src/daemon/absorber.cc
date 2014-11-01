@@ -80,7 +80,9 @@ void Absorber::DoExecute(const std::atomic<bool>& is_shutting_down) {
     proto::RemoteExecute* incoming = task->second.get();
 
     FileCache::Entry cache_entry;
-    if (SearchCache(incoming->flags(), incoming->source(), &cache_entry)) {
+    if (SearchSimpleCache(incoming->flags(),
+                    file_cache::string::HandledSource(incoming->source()),
+                    &cache_entry)) {
       Universal outgoing(new proto::Universal);
       auto* result = outgoing->MutableExtension(proto::RemoteResult::extension);
       result->set_obj(cache_entry.object);
@@ -155,7 +157,8 @@ void Absorber::DoExecute(const std::atomic<bool>& is_shutting_down) {
       entry.object = process->stdout();
       entry.stderr = status.description();
 
-      UpdateCache(incoming->flags(), incoming->source(), entry);
+      UpdateSimpleCache(incoming->flags(),
+                  file_cache::string::HandledSource(incoming->source()), entry);
     }
 
     task->first->SendAsync(std::move(outgoing));

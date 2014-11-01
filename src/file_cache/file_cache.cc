@@ -42,99 +42,27 @@ FileCache::FileCache(const String &path, ui64 size, bool snappy)
 
 FileCache::FileCache(const String &path) : FileCache(path, UNLIMITED, false) {}
 
+using namespace file_cache::string;
+
 // static
-String FileCache::Hash(const String &code, const String &command_line,
-                       const String &version) {
-  return base::Hexify(base::MakeHash(code)) + "-" +
-         base::Hexify(base::MakeHash(command_line, 4)) + "-" +
-         base::Hexify(base::MakeHash(version, 4));
+HandledHash FileCache::Hash(const HandledSource &code,
+                            const CommandLine &command_line,
+                            const Version &version) {
+  return HandledHash(base::Hexify(base::MakeHash(code)) + "-" +
+                     base::Hexify(base::MakeHash(command_line, 4)) + "-" +
+                     base::Hexify(base::MakeHash(version, 4)));
 }
 
-bool FileCache::Find(const String &preprocessed_code,
-                     const String &command_line, const String &version,
-                     Entry *entry) const {
-  const String hash = Hash(preprocessed_code, command_line, version);
-  return FindByHash(hash, entry);
+// static
+UnhandledHash FileCache::Hash(const UnhandledSource &code,
+                              const CommandLine &command_line,
+                              const Version &version) {
+  return UnhandledHash(base::Hexify(base::MakeHash(code)) + "-" +
+                       base::Hexify(base::MakeHash(command_line, 4)) + "-" +
+                       base::Hexify(base::MakeHash(version, 4)));
 }
 
-bool FileCache::Find_Direct(const String &original_code,
-                            const String &command_line, const String &version,
-                            Entry *entry) const {
-  String hash = Hash(original_code, command_line, version);
-  const String first_path = FirstPath(hash);
-  const String second_path = SecondPath(hash);
-  const String manifest_path = CommonPath(hash) + ".manifest";
-  const ReadLock lock(this, manifest_path);
-
-  if (!lock) {
-    return false;
-  }
-
-  proto::Manifest manifest;
-  if (!file_cache::LoadManifest(manifest_path, &manifest)) {
-    return false;
-  }
-
-  utime(manifest_path.c_str(), nullptr);
-  utime(second_path.c_str(), nullptr);
-  utime(first_path.c_str(), nullptr);
-
-  for (const auto &header : manifest.headers()) {
-    String header_hash;
-    if (!base::HashFile(header, &header_hash)) {
-      return false;
-    }
-    hash += header_hash;
-  }
-  hash = base::Hexify(base::MakeHash(hash));
-
-  if (database_.Get(hash, &hash)) {
-    return FindByHash(hash, entry);
-  }
-
-  return false;
-}
-
-FileCache::Optional FileCache::Store(const String &preprocessed_code,
-                                     const String &command_line,
-                                     const String &version,
-                                     const Entry &entry) {
-  auto &&hash = Hash(preprocessed_code, command_line, version);
-  auto task = std::bind(&FileCache::DoStore, this, hash, entry);
-  pool_.Push(task);
-  return pool_.Push(std::bind(&FileCache::Clean, this));
-}
-
-FileCache::Optional FileCache::Store_Direct(const String &original_code,
-                                            const String &command_line,
-                                            const String &version,
-                                            const List<String> &headers,
-                                            const String &hash) {
-  auto &&orig_hash = Hash(original_code, command_line, version);
-  auto task =
-      std::bind(&FileCache::DoStore_Direct, this, orig_hash, headers, hash);
-  pool_.Push(task);
-  return pool_.Push(std::bind(&FileCache::Clean, this));
-}
-
-FileCache::Optional FileCache::StoreNow(const String &preprocessed_code,
-                                        const String &command_line,
-                                        const String &version,
-                                        const Entry &entry) {
-  DoStore(Hash(preprocessed_code, command_line, version), entry);
-  return pool_.Push(std::bind(&FileCache::Clean, this));
-}
-
-FileCache::Optional FileCache::StoreNow_Direct(const String &original_code,
-                                               const String &command_line,
-                                               const String &version,
-                                               const List<String> &headers,
-                                               const String &hash) {
-  DoStore_Direct(Hash(original_code, command_line, version), headers, hash);
-  return pool_.Push(std::bind(&FileCache::Clean, this));
-}
-
-bool FileCache::FindByHash(const String &hash, Entry *entry) const {
+bool FileCache::FindByHash(const HandledHash &hash, Entry *entry) const {
   const String first_path = FirstPath(hash);
   const String second_path = SecondPath(hash);
   const String manifest_path = CommonPath(hash) + ".manifest";
@@ -197,6 +125,84 @@ bool FileCache::FindByHash(const String &hash, Entry *entry) const {
   return true;
 }
 
+bool FileCache::Find(const HandledSource &code, const CommandLine &command_line,
+                     const Version &version, Entry *entry) const {
+  return FindByHash(Hash(code, command_line, version), entry);
+}
+
+bool FileCache::Find(const UnhandledSource &code,
+                     const CommandLine &command_line, const Version &version,
+                     Entry *entry) const {
+  String hash = Hash(code, command_line, version);
+  const String first_path = FirstPath(hash);
+  const String second_path = SecondPath(hash);
+  const String manifest_path = CommonPath(hash) + ".manifest";
+  const ReadLock lock(this, manifest_path);
+
+  if (!lock) {
+    return false;
+  }
+
+  proto::Manifest manifest;
+  if (!file_cache::LoadManifest(manifest_path, &manifest)) {
+    return false;
+  }
+
+  utime(manifest_path.c_str(), nullptr);
+  utime(second_path.c_str(), nullptr);
+  utime(first_path.c_str(), nullptr);
+
+  for (const auto &header : manifest.headers()) {
+    String header_hash;
+    if (!base::HashFile(header, &header_hash)) {
+      return false;
+    }
+    hash += header_hash;
+  }
+  hash = base::Hexify(base::MakeHash(hash));
+
+  if (database_.Get(hash, &hash)) {
+    return FindByHash(HandledHash(hash), entry);
+  }
+
+  return false;
+}
+
+FileCache::Optional FileCache::Store(const HandledSource &code,
+                                     const CommandLine &command_line,
+                                     const Version &version,
+                                     const Entry &entry) {
+  pool_.Push([=] { DoStore(Hash(code, command_line, version), entry); });
+  return pool_.Push(std::bind(&FileCache::Clean, this));
+}
+
+FileCache::Optional FileCache::Store(const UnhandledSource &code,
+                                     const CommandLine &command_line,
+                                     const Version &version,
+                                     const List<String> &headers,
+                                     const HandledHash &hash) {
+  pool_.Push(
+      [=] { DoStore(Hash(code, command_line, version), headers, hash); });
+  return pool_.Push(std::bind(&FileCache::Clean, this));
+}
+
+FileCache::Optional FileCache::StoreNow(const HandledSource &code,
+                                        const CommandLine &command_line,
+                                        const Version &version,
+                                        const Entry &entry) {
+  DoStore(Hash(code, command_line, version), entry);
+  return pool_.Push(std::bind(&FileCache::Clean, this));
+}
+
+FileCache::Optional FileCache::StoreNow(const UnhandledSource &code,
+                                        const CommandLine &command_line,
+                                        const Version &version,
+                                        const List<String> &headers,
+                                        const HandledHash &hash) {
+  DoStore(Hash(code, command_line, version), headers, hash);
+  return pool_.Push(std::bind(&FileCache::Clean, this));
+}
+
 bool FileCache::RemoveEntry(const String &manifest_path) {
   const String common_path =
       manifest_path.substr(0, manifest_path.size() - sizeof(".manifest") + 1);
@@ -246,7 +252,7 @@ bool FileCache::RemoveEntry(const String &manifest_path) {
   return result;
 }
 
-void FileCache::DoStore(const String &hash, const Entry &entry) {
+void FileCache::DoStore(const HandledHash &hash, const Entry &entry) {
   const String manifest_path = CommonPath(hash) + ".manifest";
   WriteLock lock(this, manifest_path);
 
@@ -337,8 +343,8 @@ void FileCache::DoStore(const String &hash, const Entry &entry) {
   LOG(CACHE_VERBOSE) << "File is cached on path " << CommonPath(hash);
 }
 
-void FileCache::DoStore_Direct(String orig_hash, const List<String> &headers,
-                               const String &hash) {
+void FileCache::DoStore(UnhandledHash orig_hash, const List<String> &headers,
+                        const HandledHash &hash) {
   const String manifest_path = CommonPath(orig_hash) + ".manifest";
   WriteLock lock(this, manifest_path);
 
@@ -354,6 +360,7 @@ void FileCache::DoStore_Direct(String orig_hash, const List<String> &headers,
     return;
   }
 
+  String direct_hash = orig_hash;
   proto::Manifest manifest;
   manifest.set_stderr(false);
   manifest.set_object(false);
@@ -365,12 +372,12 @@ void FileCache::DoStore_Direct(String orig_hash, const List<String> &headers,
       LOG(CACHE_ERROR) << "Failed to hash " << header << ": " << error;
       return;
     }
-    orig_hash += header_hash;
+    direct_hash += header_hash;
     manifest.add_headers(header);
   }
 
-  orig_hash = base::Hexify(base::MakeHash(orig_hash));
-  if (!database_.Set(orig_hash, hash)) {
+  direct_hash = base::Hexify(base::MakeHash(direct_hash));
+  if (!database_.Set(direct_hash, hash)) {
     return;
   }
 

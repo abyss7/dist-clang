@@ -61,6 +61,7 @@ message LocalExecute {
   required Flags flags         = 1;  // Flags to run compilation/preprocessing.
   required string current_dir  = 2;
   optional uint32 user_id      = 3;  // Owner of local objects.
+  optional string hash         = 4;
 
   extend Universal {
     optional LocalExecute extension = 5;
@@ -70,6 +71,7 @@ message LocalExecute {
 message RemoteExecute {
   optional Flags flags         = 1;  // Flags to run compilation/preprocessing.
   optional string source       = 2;
+  optional string hash         = 3;
 
   extend Universal {
     optional RemoteExecute extension = 6;

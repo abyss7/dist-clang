@@ -48,15 +48,29 @@ class BaseDaemon {
     return network_service_->Connect(end_point, error);
   }
 
+  file_cache::string::HandledHash GenerateHash(
+      const proto::Flags& flags,
+      const file_cache::string::HandledSource& code) const;
+
   bool SetupCompiler(proto::Flags* flags, proto::Status* status) const;
-  bool SearchCache(const proto::Flags& flags, const String& source,
-                   FileCache::Entry* entry) const;
+
+  bool SearchSimpleCache(const file_cache::string::HandledHash& hash,
+                         FileCache::Entry* entry) const;
+
+  bool SearchSimpleCache(const proto::Flags& flags,
+                         const file_cache::string::HandledSource& source,
+                         FileCache::Entry* entry) const;
+
   bool SearchDirectCache(const proto::Flags& flags, const String& current_dir,
                          FileCache::Entry* entry) const;
-  void UpdateCache(const proto::Flags& flags, const String& source,
-                   const FileCache::Entry& entry);
+
+  void UpdateSimpleCache(const proto::Flags& flags,
+                         const file_cache::string::HandledSource& source,
+                         const FileCache::Entry& entry);
+
   void UpdateDirectCache(const proto::LocalExecute* message,
-                         const String& source, const FileCache::Entry& entry);
+                         const file_cache::string::HandledSource& source,
+                         const FileCache::Entry& entry);
 
   const proto::Configuration conf_;
   UniquePtr<net::EndPointResolver> resolver_;

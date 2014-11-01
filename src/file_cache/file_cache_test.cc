@@ -10,12 +10,14 @@
 namespace dist_clang {
 namespace file_cache {
 
-TEST(FileCacheTest, HashCompliesWithRegex) {
-  const base::TemporaryDir tmp_dir;
-  FileCache cache(tmp_dir);
+using namespace string;
 
+TEST(FileCacheTest, HashCompliesWithRegex) {
   std::regex hash_regex("[a-z0-9]{32}-[a-z0-9]{8}-[a-z0-9]{8}");
-  EXPECT_TRUE(std::regex_match(cache.Hash("1", "2", "3"), hash_regex));
+  EXPECT_TRUE(
+      std::regex_match(static_cast<String>(FileCache::Hash(
+                           HandledSource("1"), CommandLine("2"), Version("3"))),
+                       hash_regex));
 }
 
 TEST(FileCacheTest, LockNonExistentFile) {
@@ -107,9 +109,9 @@ TEST(FileCacheTest, RestoreSingleEntry) {
   FileCache cache(path);
   FileCache::Entry entry;
 
-  const String code = "int main() { return 0; }";
-  const String cl = "-c";
-  const String version = "3.5 (revision 100000)";
+  const HandledSource code("int main() { return 0; }");
+  const CommandLine cl("-c");
+  const Version version("3.5 (revision 100000)");
 
   ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
   ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
@@ -148,9 +150,9 @@ TEST(FileCacheTest, RestoreSingleEntry_Sync) {
   FileCache cache(path);
   FileCache::Entry entry;
 
-  const String code = "int main() { return 0; }";
-  const String cl = "-c";
-  const String version = "3.5 (revision 100000)";
+  const HandledSource code("int main() { return 0; }");
+  const CommandLine cl("-c");
+  const Version version("3.5 (revision 100000)");
 
   ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
   ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
@@ -185,9 +187,9 @@ TEST(FileCacheTest, RestoreEntryWithMissingFile) {
   FileCache cache(path);
   FileCache::Entry entry;
 
-  const String code = "int main() { return 0; }";
-  const String cl = "-c";
-  const String version = "3.5 (revision 100000)";
+  const HandledSource code("int main() { return 0; }");
+  const CommandLine cl("-c");
+  const Version version("3.5 (revision 100000)");
 
   ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
   ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
@@ -249,10 +251,11 @@ TEST(FileCacheTest, ExceedCacheSize) {
   const String path = tmp_dir;
   const String cache_path = path + "/cache";
   const String obj_content[] = {"22", "333", "4444"};
-  const String code[] = {"int main() { return 0; }", "int main() { return 1; }",
-                         "int main() { return 2; }"};
-  const String cl = "-c";
-  const String version = "3.5 (revision 100000)";
+  const HandledSource code[] = {HandledSource("int main() { return 0; }"),
+                                HandledSource("int main() { return 1; }"),
+                                HandledSource("int main() { return 2; }")};
+  const CommandLine cl("-c");
+  const Version version("3.5 (revision 100000)");
 
   FileCache cache(cache_path, 30, false);
 
@@ -298,10 +301,11 @@ TEST(FileCacheTest, ExceedCacheSize_Sync) {
   const String path = tmp_dir;
   const String cache_path = path + "/cache";
   const String obj_content[] = {"22", "333", "4444"};
-  const String code[] = {"int main() { return 0; }", "int main() { return 1; }",
-                         "int main() { return 2; }"};
-  const String cl = "-c";
-  const String version = "3.5 (revision 100000)";
+  const HandledSource code[] = {HandledSource("int main() { return 0; }"),
+                                HandledSource("int main() { return 1; }"),
+                                HandledSource("int main() { return 2; }")};
+  const CommandLine cl("-c");
+  const Version version("3.5 (revision 100000)");
 
   FileCache cache(cache_path, 30, false);
 
@@ -355,9 +359,9 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   FileCache cache(path);
   FileCache::Entry entry;
 
-  const String code = "int main() { return 0; }";
-  const String cl = "-c";
-  const String version = "3.5 (revision 100000)";
+  const HandledSource code("int main() { return 0; }");
+  const CommandLine cl("-c");
+  const Version version("3.5 (revision 100000)");
 
   ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
   ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
@@ -375,16 +379,16 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   ASSERT_TRUE(future->GetValue());
 
   // Store the direct entry.
-  const String orig_code = "int main() {}";
+  const UnhandledSource orig_code("int main() {}");
   const List<String> headers = {header1_path, header2_path};
-  future = cache.Store_Direct(orig_code, cl, version, headers,
-                              FileCache::Hash(code, cl, version));
+  future = cache.Store(orig_code, cl, version, headers,
+                       FileCache::Hash(code, cl, version));
   ASSERT_TRUE(!!future);
   future->Wait();
   ASSERT_TRUE(future->GetValue());
 
   // Restore the entry.
-  ASSERT_TRUE(cache.Find_Direct(orig_code, cl, version, &entry));
+  ASSERT_TRUE(cache.Find(orig_code, cl, version, &entry));
   EXPECT_EQ(expected_object_code, entry.object);
   EXPECT_EQ(expected_deps, entry.deps);
   EXPECT_EQ(expected_stderr, entry.stderr);
@@ -403,9 +407,9 @@ TEST(FileCacheTest, RestoreDirectEntry_Sync) {
   FileCache cache(path);
   FileCache::Entry entry;
 
-  const String code = "int main() { return 0; }";
-  const String cl = "-c";
-  const String version = "3.5 (revision 100000)";
+  const HandledSource code("int main() { return 0; }");
+  const CommandLine cl("-c");
+  const Version version("3.5 (revision 100000)");
 
   ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
   ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
@@ -420,13 +424,13 @@ TEST(FileCacheTest, RestoreDirectEntry_Sync) {
   cache.StoreNow(code, cl, version, entry);
 
   // Store the direct entry.
-  const String orig_code = "int main() {}";
+  const UnhandledSource orig_code("int main() {}");
   const List<String> headers = {header1_path, header2_path};
-  cache.StoreNow_Direct(orig_code, cl, version, headers,
-                        FileCache::Hash(code, cl, version));
+  cache.StoreNow(orig_code, cl, version, headers,
+                 FileCache::Hash(code, cl, version));
 
   // Restore the entry.
-  ASSERT_TRUE(cache.Find_Direct(orig_code, cl, version, &entry));
+  ASSERT_TRUE(cache.Find(orig_code, cl, version, &entry));
   EXPECT_EQ(expected_object_code, entry.object);
   EXPECT_EQ(expected_deps, entry.deps);
   EXPECT_EQ(expected_stderr, entry.stderr);
@@ -445,9 +449,9 @@ TEST(FileCacheTest, DirectEntry_ChangedHeader) {
   FileCache cache(path);
   FileCache::Entry entry;
 
-  const String code = "int main() { return 0; }";
-  const String cl = "-c";
-  const String version = "3.5 (revision 100000)";
+  const HandledSource code("int main() { return 0; }");
+  const CommandLine cl("-c");
+  const Version version("3.5 (revision 100000)");
 
   ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
   ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
@@ -465,10 +469,10 @@ TEST(FileCacheTest, DirectEntry_ChangedHeader) {
   ASSERT_TRUE(future->GetValue());
 
   // Store the direct entry.
-  const String orig_code = "int main() {}";
+  const UnhandledSource orig_code("int main() {}");
   const List<String> headers = {header1_path, header2_path};
-  future = cache.Store_Direct(orig_code, cl, version, headers,
-                              FileCache::Hash(code, cl, version));
+  future = cache.Store(orig_code, cl, version, headers,
+                       FileCache::Hash(code, cl, version));
   ASSERT_TRUE(!!future);
   future->Wait();
   ASSERT_TRUE(future->GetValue());
@@ -477,7 +481,7 @@ TEST(FileCacheTest, DirectEntry_ChangedHeader) {
   ASSERT_TRUE(base::WriteFile(header1_path, "#define C"));
 
   // Restore the entry.
-  EXPECT_FALSE(cache.Find_Direct(orig_code, cl, version, &entry));
+  EXPECT_FALSE(cache.Find(orig_code, cl, version, &entry));
 }
 
 TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
@@ -492,11 +496,10 @@ TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
   const String expected_deps = "some deps";
   FileCache cache(path);
   FileCache::Entry entry{object_path, deps_path, stderror};
-  String object_code, deps;
 
-  const String code = "int main() { return 0; }";
-  const String cl = "-c";
-  const String version = "3.5 (revision 100000)";
+  const HandledSource code("int main() { return 0; }");
+  const CommandLine cl("-c");
+  const Version version("3.5 (revision 100000)");
 
   ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
   ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
@@ -510,16 +513,17 @@ TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
   ASSERT_TRUE(future->GetValue());
 
   // Store the direct entry.
-  const String orig_code = "int main() {}";
+  const UnhandledSource orig_code("int main() {}");
   const List<String> headers = {header1_path, header2_path};
-  future = cache.Store_Direct(orig_code, cl, version, headers,
-                              FileCache::Hash(code, cl, version));
+  future = cache.Store(orig_code, cl, version, headers,
+                       FileCache::Hash(code, cl, version));
   ASSERT_TRUE(!!future);
   future->Wait();
   ASSERT_TRUE(future->GetValue());
 
   // Restore the entry.
-  EXPECT_FALSE(cache.Find_Direct(orig_code + " ", cl, version, &entry));
+  const UnhandledSource bad_orig_code(String(orig_code) + " ");
+  EXPECT_FALSE(cache.Find(bad_orig_code, cl, version, &entry));
 }
 
 TEST(FileCacheTest, DISABLED_RestoreSnappyEntry) {

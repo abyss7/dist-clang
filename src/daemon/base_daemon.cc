@@ -8,9 +8,11 @@
 
 namespace dist_clang {
 
+using namespace file_cache::string;
+
 namespace {
 
-inline String CommandLineForCache(const proto::Flags& flags) {
+inline CommandLine CommandLineForCache(const proto::Flags& flags) {
   String command_line =
       base::JoinString<' '>(flags.other().begin(), flags.other().end());
   if (flags.has_language()) {
@@ -21,10 +23,10 @@ inline String CommandLineForCache(const proto::Flags& flags) {
                                                 flags.cc_only().end());
   }
 
-  return command_line;
+  return CommandLine(command_line);
 }
 
-inline String CommandLineForDirect(const proto::Flags& flags) {
+inline CommandLine CommandLineForDirect(const proto::Flags& flags) {
   String command_line =
       base::JoinString<' '>(flags.other().begin(), flags.other().end());
   if (flags.has_language()) {
@@ -39,7 +41,7 @@ inline String CommandLineForDirect(const proto::Flags& flags) {
                                                 flags.cc_only().end());
   }
 
-  return command_line;
+  return CommandLine(command_line);
 }
 
 bool ParseDeps(const String& deps, const String& base_path,
@@ -146,6 +148,12 @@ BaseDaemon::BaseDaemon(const proto::Configuration& configuration)
 
 BaseDaemon::~BaseDaemon() { network_service_.reset(); }
 
+HandledHash BaseDaemon::GenerateHash(const proto::Flags& flags,
+                                     const HandledSource& code) const {
+  const Version version(flags.compiler().version());
+  return FileCache::Hash(code, CommandLineForCache(flags), version);
+}
+
 bool BaseDaemon::SetupCompiler(proto::Flags* flags,
                                proto::Status* status) const {
   // No flags - filled flags.
@@ -189,16 +197,33 @@ bool BaseDaemon::SetupCompiler(proto::Flags* flags,
   return true;
 }
 
-bool BaseDaemon::SearchCache(const proto::Flags& flags, const String& source,
-                             FileCache::Entry* entry) const {
+bool BaseDaemon::SearchSimpleCache(const HandledHash& hash,
+                                   FileCache::Entry* entry) const {
   DCHECK(entry);
 
   if (!cache_) {
     return false;
   }
 
-  const auto& version = flags.compiler().version();
-  const String command_line = CommandLineForCache(flags);
+  if (!cache_->FindByHash(hash, entry)) {
+    LOG(CACHE_INFO) << "Cache miss: " << hash.str;
+    return false;
+  }
+
+  return true;
+}
+
+bool BaseDaemon::SearchSimpleCache(const proto::Flags& flags,
+                                   const HandledSource& source,
+                                   FileCache::Entry* entry) const {
+  DCHECK(entry);
+
+  if (!cache_) {
+    return false;
+  }
+
+  const Version version(flags.compiler().version());
+  const auto command_line = CommandLineForCache(flags);
 
   if (!cache_->Find(source, command_line, version, entry)) {
     LOG(CACHE_INFO) << "Cache miss: " << flags.input();
@@ -218,16 +243,16 @@ bool BaseDaemon::SearchDirectCache(const proto::Flags& flags,
     return false;
   }
 
-  const auto& version = flags.compiler().version();
+  const Version version(flags.compiler().version());
   const String input = current_dir + "/" + flags.input();
-  const String command_line = CommandLineForDirect(flags);
+  const CommandLine command_line(CommandLineForDirect(flags));
 
-  String original_code;
-  if (!base::ReadFile(input, &original_code)) {
+  UnhandledSource code;
+  if (!base::ReadFile(input, &code.str)) {
     return false;
   }
 
-  if (!cache_->Find_Direct(original_code, command_line, version, entry)) {
+  if (!cache_->Find(code, command_line, version, entry)) {
     LOG(CACHE_INFO) << "Direct cache miss: " << flags.input();
     return false;
   }
@@ -235,12 +260,13 @@ bool BaseDaemon::SearchDirectCache(const proto::Flags& flags,
   return true;
 }
 
-void BaseDaemon::UpdateCache(const proto::Flags& flags, const String& source,
-                             const FileCache::Entry& entry) {
-  const auto& version = flags.compiler().version();
-  const String command_line = CommandLineForCache(flags);
+void BaseDaemon::UpdateSimpleCache(const proto::Flags& flags,
+                                   const HandledSource& source,
+                                   const FileCache::Entry& entry) {
+  const Version version(flags.compiler().version());
+  const auto command_line = CommandLineForCache(flags);
 
-  if (!cache_ || conf_.cache().disabled()) {
+  if (!cache_) {
     return;
   }
 
@@ -252,14 +278,14 @@ void BaseDaemon::UpdateCache(const proto::Flags& flags, const String& source,
 }
 
 void BaseDaemon::UpdateDirectCache(const proto::LocalExecute* message,
-                                   const String& source,
+                                   const HandledSource& source,
                                    const FileCache::Entry& entry) {
   const auto& flags = message->flags();
 
   DCHECK(conf_.has_emitter() && !conf_.has_absorber());
   DCHECK(flags.has_input() && flags.input()[0] != '/');
 
-  if (!cache_ || !conf_.cache().direct() || conf_.cache().disabled()) {
+  if (!cache_ || !conf_.cache().direct()) {
     return;
   }
 
@@ -269,16 +295,16 @@ void BaseDaemon::UpdateDirectCache(const proto::LocalExecute* message,
     return;
   }
 
-  const auto& version = flags.compiler().version();
+  const Version version(flags.compiler().version());
   const auto hash = cache_->Hash(source, CommandLineForCache(flags), version);
-  const String command_line = CommandLineForDirect(flags);
+  const auto command_line = CommandLineForDirect(flags);
   const String input_path = message->current_dir() + "/" + flags.input();
   List<String> headers;
-  String original_code;
+  UnhandledSource original_code;
 
   if (ParseDeps(entry.deps, message->current_dir(), headers) &&
-      base::ReadFile(input_path, &original_code)) {
-    cache_->Store_Direct(original_code, command_line, version, headers, hash);
+      base::ReadFile(input_path, &original_code.str)) {
+    cache_->Store(original_code, command_line, version, headers, hash);
   } else {
     LOG(CACHE_ERROR) << "Failed to parse deps or read input " << input_path;
   }

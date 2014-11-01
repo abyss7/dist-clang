@@ -31,7 +31,7 @@ inline String GetDepsPath(const proto::LocalExecute* WEAK_PTR message) {
 }
 
 inline bool GenerateSource(const proto::LocalExecute* WEAK_PTR message,
-                           String* source) {
+                           file_cache::string::HandledSource* source) {
   proto::Flags pp_flags;
 
   DCHECK(message);
@@ -47,7 +47,7 @@ inline bool GenerateSource(const proto::LocalExecute* WEAK_PTR message,
   }
 
   if (source) {
-    source->assign(process->stdout());
+    source->str.assign(process->stdout());
   }
 
   return true;
@@ -131,6 +131,8 @@ bool Emitter::Initialize() {
 
 bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
                                const proto::Status& status) {
+  using namespace file_cache::string;
+
   if (!message->IsInitialized()) {
     LOG(INFO) << message->InitializationErrorString();
     return false;
@@ -145,10 +147,10 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
     Message execute(message->ReleaseExtension(proto::LocalExecute::extension));
     if (conf_.has_cache() && !conf_.cache().disabled()) {
       return cache_tasks_->Push(
-          std::make_tuple(connection, std::move(execute), String()));
+          std::make_tuple(connection, std::move(execute), HandledSource()));
     } else {
       return all_tasks_->Push(
-          std::make_tuple(connection, std::move(execute), String()));
+          std::make_tuple(connection, std::move(execute), HandledSource()));
     }
   }
 
@@ -157,6 +159,8 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
 }
 
 void Emitter::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
+  using namespace file_cache::string;
+
   while (!is_shutting_down) {
     Optional&& task = cache_tasks_->Pop();
     if (!task) {
@@ -165,7 +169,7 @@ void Emitter::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
     proto::LocalExecute* incoming = std::get<MESSAGE>(*task).get();
     FileCache::Entry entry;
 
-    auto RestoreFromCache = [&](const String& source) {
+    auto RestoreFromCache = [&](const HandledSource& source) {
       String error;
       const String output_path = GetOutputPath(incoming);
 
@@ -181,7 +185,7 @@ void Emitter::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
 
       // TODO: restore deps file.
 
-      if (!source.empty()) {
+      if (!source.str.empty()) {
         UpdateDirectCache(incoming, source, entry);
       }
 
@@ -193,18 +197,27 @@ void Emitter::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
       return true;
     };
 
-    if (SearchDirectCache(incoming->flags(), incoming->current_dir(), &entry)) {
-      if (RestoreFromCache(String())) {
-        continue;
-      }
+    if (incoming->has_hash() &&
+        SearchSimpleCache(HandledHash(incoming->hash()), &entry) &&
+        RestoreFromCache(HandledSource())) {
+      continue;
     }
 
-    String& source = std::get<SOURCE>(*task);
+    if (SearchDirectCache(incoming->flags(), incoming->current_dir(), &entry) &&
+        RestoreFromCache(HandledSource())) {
+      continue;
+    }
+
+    auto& source = std::get<SOURCE>(*task);
     if (!GenerateSource(incoming, &source)) {
       failed_tasks_->Push(std::move(*task));
       continue;
-    } else if (SearchCache(incoming->flags(), source, &entry) &&
-               RestoreFromCache(source)) {
+    }
+
+    incoming->set_hash(GenerateHash(incoming->flags(), source));
+
+    if (SearchSimpleCache(HandledHash(incoming->hash()), &entry) &&
+        RestoreFromCache(source)) {
       continue;
     }
 
@@ -248,15 +261,15 @@ void Emitter::DoLocalExecute(const std::atomic<bool>& is_shutting_down) {
       LOG(INFO) << "Local compilation successful:  "
                 << incoming->flags().input();
 
-      const String& source = std::get<SOURCE>(*task);
+      const auto& source = std::get<SOURCE>(*task);
 
-      if (!source.empty()) {
+      if (!source.str.empty()) {
         FileCache::Entry entry;
         if (base::ReadFile(GetOutputPath(incoming), &entry.object) &&
             (!incoming->flags().has_deps_file() ||
              base::ReadFile(GetDepsPath(incoming), &entry.deps))) {
           entry.stderr = process->stderr();
-          UpdateCache(incoming->flags(), source, entry);
+          UpdateSimpleCache(incoming->flags(), source, entry);
           UpdateDirectCache(incoming, source, entry);
         }
       }
@@ -282,10 +295,10 @@ void Emitter::DoRemoteExecute(const std::atomic<bool>& is_shutting_down,
       break;
     }
     proto::LocalExecute* incoming = std::get<MESSAGE>(*task).get();
-    String& source = std::get<SOURCE>(*task);
+    auto& source = std::get<SOURCE>(*task);
 
     UniquePtr<proto::RemoteExecute> outgoing(new proto::RemoteExecute);
-    if (source.empty() && !GenerateSource(incoming, &source)) {
+    if (source.str.empty() && !GenerateSource(incoming, &source)) {
       failed_tasks_->Push(std::move(*task));
       continue;
     }
@@ -351,7 +364,7 @@ void Emitter::DoRemoteExecute(const std::atomic<bool>& is_shutting_down,
         };
 
         if (GenerateEntry()) {
-          UpdateCache(incoming->flags(), source, entry);
+          UpdateSimpleCache(incoming->flags(), source, entry);
           UpdateDirectCache(incoming, source, entry);
         }
 
