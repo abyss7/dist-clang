@@ -1,127 +1,96 @@
 config("includes") {
-  include_dirs = [ "exported" ]
+  include_dirs = [
+    "exported/src",
+    os,
+  ]
 }
 
-config("no_warnings") {
+config("warnings") {
   cflags = [
+    "-Woverloaded-virtual",
     "-Wno-sign-compare",
-    "-Wno-tautological-undefined-compare",
+    # "-Wno-tautological-undefined-compare",
     "-Wno-unused-function",
     "-Wno-unused-local-typedef",
-    "-Wno-unused-variable",
+    # "-Wno-unused-variable",
+    "-Wwrite-strings",
   ]
-}
-
-source_set("protobuf_headers") {
-  sources = [
-    # "exported/google/protobuf/compiler/code_generator.h",
-    # "exported/google/protobuf/compiler/command_line_interface.h",
-    # "exported/google/protobuf/compiler/cpp/cpp_generator.h",
-    # "exported/google/protobuf/compiler/importer.h",
-    # "exported/google/protobuf/compiler/java/java_generator.h",
-    # "exported/google/protobuf/compiler/parser.h",
-    # "exported/google/protobuf/compiler/plugin.h",
-    # "exported/google/protobuf/compiler/plugin.pb.h",
-    # "exported/google/protobuf/compiler/python/python_generator.h",
-    "exported/google/protobuf/descriptor.h",
-    "exported/google/protobuf/descriptor.pb.h",
-    "exported/google/protobuf/descriptor_database.h",
-    "exported/google/protobuf/dynamic_message.h",
-    "exported/google/protobuf/extension_set.h",
-    "exported/google/protobuf/generated_enum_reflection.h",
-    "exported/google/protobuf/generated_message_util.h",
-    "exported/google/protobuf/generated_message_reflection.h",
-    "exported/google/protobuf/io/coded_stream.h",
-    "exported/google/protobuf/io/gzip_stream.h",
-    "exported/google/protobuf/io/printer.h",
-    "exported/google/protobuf/io/tokenizer.h",
-    "exported/google/protobuf/io/zero_copy_stream.h",
-    "exported/google/protobuf/io/zero_copy_stream_impl.h",
-    "exported/google/protobuf/io/zero_copy_stream_impl_lite.h",
-    "exported/google/protobuf/message.h",
-    "exported/google/protobuf/message_lite.h",
-    "exported/google/protobuf/reflection_ops.h",
-    "exported/google/protobuf/repeated_field.h",
-    "exported/google/protobuf/service.h",
-    "exported/google/protobuf/stubs/atomicops.h",
-    "exported/google/protobuf/stubs/atomicops_internals_arm_gcc.h",
-    "exported/google/protobuf/stubs/atomicops_internals_arm_qnx.h",
-    "exported/google/protobuf/stubs/atomicops_internals_atomicword_compat.h",
-    "exported/google/protobuf/stubs/atomicops_internals_macosx.h",
-    "exported/google/protobuf/stubs/atomicops_internals_mips_gcc.h",
-    "exported/google/protobuf/stubs/atomicops_internals_pnacl.h",
-    "exported/google/protobuf/stubs/atomicops_internals_x86_gcc.h",
-    "exported/google/protobuf/stubs/atomicops_internals_x86_msvc.h",
-    "exported/google/protobuf/stubs/common.h",
-    "exported/google/protobuf/stubs/platform_macros.h",
-    "exported/google/protobuf/stubs/once.h",
-    "exported/google/protobuf/stubs/template_util.h",
-    "exported/google/protobuf/stubs/type_traits.h",
-    "exported/google/protobuf/text_format.h",
-    "exported/google/protobuf/unknown_field_set.h",
-    "exported/google/protobuf/wire_format.h",
-    "exported/google/protobuf/wire_format_lite.h",
-    "exported/google/protobuf/wire_format_lite_inl.h",
-  ]
-
-  all_dependent_configs = [ ":includes" ]
 }
 
 source_set("protobuf_lite") {
   sources = [
-    "exported/google/protobuf/extension_set.cc",
-    "exported/google/protobuf/generated_message_util.cc",
-    "exported/google/protobuf/io/coded_stream.cc",
-    "exported/google/protobuf/io/coded_stream_inl.h",
-    "exported/google/protobuf/io/zero_copy_stream.cc",
-    "exported/google/protobuf/io/zero_copy_stream_impl_lite.cc",
-    "exported/google/protobuf/message_lite.cc",
-    "exported/google/protobuf/repeated_field.cc",
-    "exported/google/protobuf/stubs/atomicops_internals_x86_gcc.cc",
-    "exported/google/protobuf/stubs/atomicops_internals_x86_msvc.cc",
-    "exported/google/protobuf/stubs/common.cc",
-    "exported/google/protobuf/stubs/once.cc",
-    "exported/google/protobuf/stubs/hash.h",
-    "exported/google/protobuf/stubs/map-util.h",
-    "exported/google/protobuf/stubs/stl_util.h",
-    "exported/google/protobuf/stubs/stringprintf.cc",
-    "exported/google/protobuf/stubs/stringprintf.h",
-    "exported/google/protobuf/wire_format_lite.cc",
+    "exported/src/google/protobuf/extension_set.cc",
+    "exported/src/google/protobuf/extension_set.h",
+    "exported/src/google/protobuf/generated_message_util.cc",
+    "exported/src/google/protobuf/generated_message_util.h",
+    "exported/src/google/protobuf/io/coded_stream.cc",
+    "exported/src/google/protobuf/io/coded_stream.h",
+    "exported/src/google/protobuf/io/coded_stream_inl.h",
+    "exported/src/google/protobuf/io/zero_copy_stream.cc",
+    "exported/src/google/protobuf/io/zero_copy_stream.h",
+    "exported/src/google/protobuf/io/zero_copy_stream_impl_lite.cc",
+    "exported/src/google/protobuf/io/zero_copy_stream_impl_lite.h",
+    "exported/src/google/protobuf/message_lite.cc",
+    "exported/src/google/protobuf/message_lite.h",
+    "exported/src/google/protobuf/repeated_field.cc",
+    "exported/src/google/protobuf/repeated_field.h",
+    "exported/src/google/protobuf/stubs/atomicops_internals_arm_gcc.h",
+    "exported/src/google/protobuf/stubs/atomicops_internals_atomicword_compat.h",
+    "exported/src/google/protobuf/stubs/atomicops_internals_macosx.h",
+    "exported/src/google/protobuf/stubs/atomicops_internals_mips_gcc.h",
+    "exported/src/google/protobuf/stubs/atomicops_internals_x86_gcc.cc",
+    "exported/src/google/protobuf/stubs/atomicops_internals_x86_gcc.h",
+    "exported/src/google/protobuf/stubs/atomicops_internals_x86_msvc.cc",
+    "exported/src/google/protobuf/stubs/atomicops_internals_x86_msvc.h",
+    "exported/src/google/protobuf/stubs/common.cc",
+    "exported/src/google/protobuf/stubs/common.h",
+    "exported/src/google/protobuf/stubs/hash.h",
+    "exported/src/google/protobuf/stubs/map_util.h",
+    "exported/src/google/protobuf/stubs/once.cc",
+    "exported/src/google/protobuf/stubs/once.h",
+    "exported/src/google/protobuf/stubs/shared_ptr.h",
+    "exported/src/google/protobuf/stubs/platform_macros.h",
+    "exported/src/google/protobuf/stubs/stringprintf.cc",
+    "exported/src/google/protobuf/stubs/stringprintf.h",
+    "exported/src/google/protobuf/wire_format_lite.cc",
+    "exported/src/google/protobuf/wire_format_lite.h",
+    "exported/src/google/protobuf/wire_format_lite_inl.h",
   ]
 
   if (!config_for_tests) {
     configs -= [ "//build/config:no_rtti" ]
   }
-  configs += [ ":no_warnings" ]
+  configs += [ ":warnings" ]
 
-  deps += [ ":protobuf_headers" ]
+  all_dependent_configs = [ ":includes" ]
 }
 
 shared_library("protobuf") {
   sources = [
-    # "exported/google/protobuf/compiler/importer.cc",
-    # "exported/google/protobuf/compiler/parser.cc",
-    "exported/google/protobuf/descriptor.cc",
-    "exported/google/protobuf/descriptor.pb.cc",
-    "exported/google/protobuf/descriptor_database.cc",
-    "exported/google/protobuf/dynamic_message.cc",
-    "exported/google/protobuf/extension_set_heavy.cc",
-    "exported/google/protobuf/generated_message_reflection.cc",
-    "exported/google/protobuf/io/gzip_stream.cc",
-    "exported/google/protobuf/io/printer.cc",
-    "exported/google/protobuf/io/tokenizer.cc",
-    "exported/google/protobuf/io/zero_copy_stream_impl.cc",
-    "exported/google/protobuf/message.cc",
-    "exported/google/protobuf/reflection_ops.cc",
-    "exported/google/protobuf/service.cc",
-    "exported/google/protobuf/stubs/strutil.cc",
-    "exported/google/protobuf/stubs/strutil.h",
-    "exported/google/protobuf/stubs/substitute.cc",
-    "exported/google/protobuf/stubs/substitute.h",
-    "exported/google/protobuf/stubs/structurally_valid.cc",
-    "exported/google/protobuf/text_format.cc",
-    "exported/google/protobuf/unknown_field_set.cc",
-    "exported/google/protobuf/wire_format.cc",
+    "exported/src/google/protobuf/compiler/importer.cc",
+    "exported/src/google/protobuf/compiler/parser.cc",
+    "exported/src/google/protobuf/descriptor.cc",
+    "exported/src/google/protobuf/descriptor.pb.cc",
+    "exported/src/google/protobuf/descriptor_database.cc",
+    "exported/src/google/protobuf/dynamic_message.cc",
+    "exported/src/google/protobuf/extension_set_heavy.cc",
+    "exported/src/google/protobuf/generated_message_reflection.cc",
+    "exported/src/google/protobuf/io/gzip_stream.cc",
+    "exported/src/google/protobuf/io/printer.cc",
+    "exported/src/google/protobuf/io/strtod.cc",
+    "exported/src/google/protobuf/io/tokenizer.cc",
+    "exported/src/google/protobuf/io/zero_copy_stream_impl.cc",
+    "exported/src/google/protobuf/message.cc",
+    "exported/src/google/protobuf/reflection_ops.cc",
+    "exported/src/google/protobuf/service.cc",
+    "exported/src/google/protobuf/stubs/strutil.cc",
+    "exported/src/google/protobuf/stubs/strutil.h",
+    "exported/src/google/protobuf/stubs/substitute.cc",
+    "exported/src/google/protobuf/stubs/substitute.h",
+    "exported/src/google/protobuf/stubs/structurally_valid.cc",
+    "exported/src/google/protobuf/text_format.cc",
+    "exported/src/google/protobuf/unknown_field_set.cc",
+    "exported/src/google/protobuf/wire_format.cc",
   ]
 
   libs = [ "z" ]
@@ -129,7 +98,90 @@ shared_library("protobuf") {
   if (!config_for_tests) {
     configs -= [ "//build/config:no_rtti" ]
   }
-  configs += [ ":no_warnings" ]
+  configs += [ ":warnings" ]
 
   deps += [ ":protobuf_lite" ]
+}
+
+executable("protoc") {
+  sources = [
+    "exported/src/google/protobuf/compiler/code_generator.cc",
+    "exported/src/google/protobuf/compiler/command_line_interface.cc",
+    "exported/src/google/protobuf/compiler/cpp/cpp_enum.cc",
+    "exported/src/google/protobuf/compiler/cpp/cpp_enum.h",
+    "exported/src/google/protobuf/compiler/cpp/cpp_enum_field.cc",
+    "exported/src/google/protobuf/compiler/cpp/cpp_enum_field.h",
+    "exported/src/google/protobuf/compiler/cpp/cpp_extension.cc",
+    "exported/src/google/protobuf/compiler/cpp/cpp_extension.h",
+    "exported/src/google/protobuf/compiler/cpp/cpp_field.cc",
+    "exported/src/google/protobuf/compiler/cpp/cpp_field.h",
+    "exported/src/google/protobuf/compiler/cpp/cpp_file.cc",
+    "exported/src/google/protobuf/compiler/cpp/cpp_file.h",
+    "exported/src/google/protobuf/compiler/cpp/cpp_generator.cc",
+    "exported/src/google/protobuf/compiler/cpp/cpp_helpers.cc",
+    "exported/src/google/protobuf/compiler/cpp/cpp_helpers.h",
+    "exported/src/google/protobuf/compiler/cpp/cpp_message.cc",
+    "exported/src/google/protobuf/compiler/cpp/cpp_message.h",
+    "exported/src/google/protobuf/compiler/cpp/cpp_message_field.cc",
+    "exported/src/google/protobuf/compiler/cpp/cpp_message_field.h",
+    "exported/src/google/protobuf/compiler/cpp/cpp_options.h",
+    "exported/src/google/protobuf/compiler/cpp/cpp_primitive_field.cc",
+    "exported/src/google/protobuf/compiler/cpp/cpp_primitive_field.h",
+    "exported/src/google/protobuf/compiler/cpp/cpp_service.cc",
+    "exported/src/google/protobuf/compiler/cpp/cpp_service.h",
+    "exported/src/google/protobuf/compiler/cpp/cpp_string_field.cc",
+    "exported/src/google/protobuf/compiler/cpp/cpp_string_field.h",
+    "exported/src/google/protobuf/compiler/java/java_context.cc",
+    "exported/src/google/protobuf/compiler/java/java_context.h",
+    "exported/src/google/protobuf/compiler/java/java_doc_comment.cc",
+    "exported/src/google/protobuf/compiler/java/java_doc_comment.h",
+    "exported/src/google/protobuf/compiler/java/java_enum.cc",
+    "exported/src/google/protobuf/compiler/java/java_enum.h",
+    "exported/src/google/protobuf/compiler/java/java_enum_field.cc",
+    "exported/src/google/protobuf/compiler/java/java_enum_field.h",
+    "exported/src/google/protobuf/compiler/java/java_extension.cc",
+    "exported/src/google/protobuf/compiler/java/java_extension.h",
+    "exported/src/google/protobuf/compiler/java/java_field.cc",
+    "exported/src/google/protobuf/compiler/java/java_field.h",
+    "exported/src/google/protobuf/compiler/java/java_file.cc",
+    "exported/src/google/protobuf/compiler/java/java_file.h",
+    "exported/src/google/protobuf/compiler/java/java_generator.cc",
+    "exported/src/google/protobuf/compiler/java/java_generator_factory.cc",
+    "exported/src/google/protobuf/compiler/java/java_generator_factory.h",
+    "exported/src/google/protobuf/compiler/java/java_helpers.cc",
+    "exported/src/google/protobuf/compiler/java/java_helpers.h",
+    "exported/src/google/protobuf/compiler/java/java_lazy_message_field.cc",
+    "exported/src/google/protobuf/compiler/java/java_lazy_message_field.h",
+    "exported/src/google/protobuf/compiler/java/java_message.cc",
+    "exported/src/google/protobuf/compiler/java/java_message.h",
+    "exported/src/google/protobuf/compiler/java/java_message_field.cc",
+    "exported/src/google/protobuf/compiler/java/java_message_field.h",
+    "exported/src/google/protobuf/compiler/java/java_name_resolver.cc",
+    "exported/src/google/protobuf/compiler/java/java_name_resolver.h",
+    "exported/src/google/protobuf/compiler/java/java_primitive_field.cc",
+    "exported/src/google/protobuf/compiler/java/java_primitive_field.h",
+    "exported/src/google/protobuf/compiler/java/java_shared_code_generator.cc",
+    "exported/src/google/protobuf/compiler/java/java_shared_code_generator.h",
+    "exported/src/google/protobuf/compiler/java/java_service.cc",
+    "exported/src/google/protobuf/compiler/java/java_service.h",
+    "exported/src/google/protobuf/compiler/java/java_string_field.cc",
+    "exported/src/google/protobuf/compiler/java/java_string_field.h",
+    "exported/src/google/protobuf/compiler/main.cc",
+    "exported/src/google/protobuf/compiler/plugin.cc",
+    "exported/src/google/protobuf/compiler/plugin.pb.cc",
+    "exported/src/google/protobuf/compiler/python/python_generator.cc",
+    "exported/src/google/protobuf/compiler/subprocess.cc",
+    "exported/src/google/protobuf/compiler/subprocess.h",
+    "exported/src/google/protobuf/compiler/zip_writer.cc",
+    "exported/src/google/protobuf/compiler/zip_writer.h",
+  ]
+
+  libs = [ "z" ]
+
+  if (!config_for_tests) {
+    configs -= [ "//build/config:no_rtti" ]
+  }
+  configs += [ ":warnings" ]
+
+  deps += [ ":protobuf" ]
 }

@@ -1,3 +1,0 @@
-scm: svn
-url: http://protobuf.googlecode.com/svn/tags/2.5.0/
-rev: 512

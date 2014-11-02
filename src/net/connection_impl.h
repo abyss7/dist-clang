@@ -5,9 +5,9 @@
 
 #include <third_party/gtest/exported/include/gtest/gtest_prod.h>
 #include <third_party/libcxx/exported/include/atomic>
-#include <third_party/protobuf/exported/google/protobuf/io/coded_stream.h>
-#include <third_party/protobuf/exported/google/protobuf/io/gzip_stream.h>
-#include <third_party/protobuf/exported/google/protobuf/io/zero_copy_stream_impl.h>
+#include <third_party/protobuf/exported/src/google/protobuf/io/coded_stream.h>
+#include <third_party/protobuf/exported/src/google/protobuf/io/gzip_stream.h>
+#include <third_party/protobuf/exported/src/google/protobuf/io/zero_copy_stream_impl.h>
 
 #include <unistd.h>
 

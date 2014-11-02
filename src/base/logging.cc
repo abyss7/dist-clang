@@ -3,7 +3,7 @@
 #include <base/assert.h>
 
 #include <third_party/libcxx/exported/include/iostream>
-#include <third_party/protobuf/exported/google/protobuf/text_format.h>
+#include <third_party/protobuf/exported/src/google/protobuf/text_format.h>
 
 namespace dist_clang {
 namespace base {
