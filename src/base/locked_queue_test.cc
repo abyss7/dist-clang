@@ -81,6 +81,8 @@ TEST(LockedQueueTest, MoveSemantics) {
   EXPECT_EQ(1, actual->counter());
 
   queue.Close();
+
+  actual->counter() = 0;
 }
 
 TEST(LockedQueueTest, UniquePtrFriendliness) {
