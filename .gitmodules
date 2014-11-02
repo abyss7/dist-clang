@@ -3,7 +3,7 @@
 	url = https://llvm.googlesource.com/libcxxabi
 [submodule "src/third_party/libcxx/exported"]
 	path = src/third_party/libcxx/exported
-	url = https://github.com/abyss7/libcxx.git
+	url = https://github.com/llvm-mirror/libcxx.git
 [submodule "src/third_party/libunwind/exported"]
 	path = src/third_party/libunwind/exported
 	url = https://github.com/abyss7/libunwind.git

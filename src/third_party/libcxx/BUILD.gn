@@ -121,13 +121,17 @@ shared_library("c++") {
     "-Wno-long-long",
     "-Wno-error",
   ]
-  libs = [ "m" ]
-  if (os == "linux") { libs += [ "rt" ] }
+
   if (os == "mac") {
     ldflags = [
       "-compatibility_version", "1.0.0",
       "-current_version", "1.0.0",
     ]
+  }
+
+  libs = [ "m" ]
+  if (os == "linux") {
+    libs += [ "rt" ]
   }
 
   configs = []
