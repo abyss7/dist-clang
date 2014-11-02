@@ -11,11 +11,14 @@ config("flags") {
     "-fno-builtin-valloc",
   ]
 
-  defines = [
-    "HAVE_CONFIG_H",
-  ]
+  defines = [ "HAVE_CONFIG_H" ]
   if (os == "linux") {
     defines += [ "NO_FRAME_POINTER" ]
+
+    # ASan contains it's own LeakSanitizer.
+    if (use_asan) {
+      defines += [ "NO_HEAP_CHECK" ]
+    }
   }
   if (os == "mac") {
     defines += [
@@ -172,9 +175,15 @@ shared_library("tcmalloc") {
     sources += [
       "exported/src/base/linuxthreads.cc",
       "exported/src/base/thread_lister.c",
-      "exported/src/heap-checker.cc",
-      "exported/src/heap-checker-bcad.cc",
     ]
+
+    # ASan contains it's own LeakSanitizer.
+    if (!use_asan) {
+      sources += [
+        "exported/src/heap-checker.cc",
+        "exported/src/heap-checker-bcad.cc",
+      ]
+    }
   }
 
   include_dirs = [ "exported/src" ]

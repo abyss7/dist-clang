@@ -11,6 +11,9 @@ declare_args() {
 
   # Build version.
   version = exec_script("//build/version.py", [], "value")
+
+  # Use Clang ASan.
+  use_asan = false
 }
 
 # =============================================================================
@@ -23,6 +26,8 @@ default_configs = [
 ]
 
 if (config_for_tests) {
+  use_asan = true
+
   default_configs += [
     "//build/config:debug",
   ]
@@ -65,9 +70,7 @@ default_deps += [
 
 set_defaults("executable") {
   configs = default_configs
-  if (config_for_tests && os == "linux") {
-    configs += [ "//build/config:asan" ]
-  }
+  configs += [ "//build/config:asan" ]
 
   deps = default_deps
 }
