@@ -39,7 +39,9 @@ inline bool IsNonBlocking(fd_t fd) {
   int flags;
 
   flags = fcntl(fd, F_GETFL, 0);
-  if (flags == -1) return false;
+  if (flags == -1) {
+    return false;
+  }
 
   return flags & O_NONBLOCK;
 }

@@ -20,7 +20,9 @@ class TestProcess : public Process {
                                       const String& cwd_path,
                                       ui32 uid) override;
 
-    inline void CallOnCreate(OnCreateCallback callback);
+    inline void CallOnCreate(OnCreateCallback callback) {
+      on_create_ = callback;
+    }
 
    private:
     OnCreateCallback on_create_ = EmptyLambda<>();
@@ -30,8 +32,8 @@ class TestProcess : public Process {
   virtual bool Run(ui16 sec_timeout, const String& input,
                    String* error) override;
 
-  inline void CallOnRun(OnRunCallback callback);
-  inline void CountRuns(ui32* counter);
+  inline void CallOnRun(OnRunCallback callback) { on_run_ = callback; }
+  inline void CountRuns(ui32* counter) { run_attempts_ = counter; }
 
  private:
   TestProcess(const String& exec_path, const String& cwd_path, ui32 uid);
@@ -39,14 +41,6 @@ class TestProcess : public Process {
   OnRunCallback on_run_ = EmptyLambda<bool>(false);
   ui32* run_attempts_ = nullptr;
 };
-
-void TestProcess::Factory::CallOnCreate(OnCreateCallback callback) {
-  on_create_ = callback;
-}
-
-void TestProcess::CallOnRun(OnRunCallback callback) { on_run_ = callback; }
-
-void TestProcess::CountRuns(ui32* counter) { run_attempts_ = counter; }
 
 }  // namespace base
 }  // namespace dist_clang

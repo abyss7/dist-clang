@@ -146,7 +146,9 @@ BaseDaemon::BaseDaemon(const proto::Configuration& configuration)
   }
 }
 
-BaseDaemon::~BaseDaemon() { network_service_.reset(); }
+BaseDaemon::~BaseDaemon() {
+  network_service_.reset();
+}
 
 HandledHash BaseDaemon::GenerateHash(const proto::Flags& flags,
                                      const HandledSource& code) const {

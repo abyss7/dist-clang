@@ -66,11 +66,16 @@ class TestServer : public EventLoop {
     strcpy(address.sun_path, socket_path_.c_str());
 
     listen_fd_ = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
-    if (-1 == listen_fd_) return false;
-    if (-1 == bind(listen_fd_, reinterpret_cast<sockaddr*>(&address),
-                   sizeof(address)))
+    if (-1 == listen_fd_) {
       return false;
-    if (-1 == listen(listen_fd_, 5)) return false;
+    }
+    if (-1 == bind(listen_fd_, reinterpret_cast<sockaddr*>(&address),
+                   sizeof(address))) {
+      return false;
+    }
+    if (-1 == listen(listen_fd_, 5)) {
+      return false;
+    }
 
     return true;
   }
@@ -79,8 +84,12 @@ class TestServer : public EventLoop {
         server_fd_(-1),
         epoll_fd_(epoll_create1(EPOLL_CLOEXEC)) {}
   ~TestServer() {
-    if (listen_fd_ != -1) close(listen_fd_);
-    if (server_fd_ != -1) close(server_fd_);
+    if (listen_fd_ != -1) {
+      close(listen_fd_);
+    }
+    if (server_fd_ != -1) {
+      close(server_fd_);
+    }
     Stop();
   }
 

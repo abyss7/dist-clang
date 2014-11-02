@@ -10,7 +10,7 @@
 namespace dist_clang {
 namespace file_cache {
 
-bool LoadManifest(const String &path, proto::Manifest *manifest) {
+bool LoadManifest(const String& path, proto::Manifest* manifest) {
   auto fd = open(path.c_str(), O_RDONLY);
   if (fd == -1) {
     return false;
@@ -24,7 +24,7 @@ bool LoadManifest(const String &path, proto::Manifest *manifest) {
   return true;
 }
 
-bool SaveManifest(const String &path, const proto::Manifest &manifest) {
+bool SaveManifest(const String& path, const proto::Manifest& manifest) {
   auto fd = open(path.c_str(), O_CREAT | O_WRONLY, 0644);
   if (fd == -1) {
     return false;

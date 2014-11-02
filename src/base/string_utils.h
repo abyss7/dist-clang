@@ -25,7 +25,9 @@ template <>
 inline void SplitString<'\n'>(const String& input, List<String>& tokens) {
   std::istringstream ss(input);
   String line;
-  while (std::getline(ss, line)) tokens.push_back(line);
+  while (std::getline(ss, line)) {
+    tokens.push_back(line);
+  }
 }
 
 inline void SplitString(const String& input, const String& delimiter,
@@ -45,7 +47,9 @@ inline String JoinString(const T& begin, const T& end) {
   String output;
 
   for (auto it = begin; it != end; ++it) {
-    if (it != begin) output += delimiter;
+    if (it != begin) {
+      output += delimiter;
+    }
     output += *it;
   }
 

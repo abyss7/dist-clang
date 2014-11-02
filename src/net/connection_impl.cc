@@ -32,9 +32,12 @@ ConnectionImpl::ConnectionImpl(EventLoop& event_loop, fd_t fd,
       file_input_stream_(fd_, buffer_size),
       gzip_input_stream_(
           new GzipInputStream(&file_input_stream_, GzipInputStream::ZLIB)),
-      file_output_stream_(fd_, buffer_size) {}
+      file_output_stream_(fd_, buffer_size) {
+}
 
-ConnectionImpl::~ConnectionImpl() { Close(); }
+ConnectionImpl::~ConnectionImpl() {
+  Close();
+}
 
 bool ConnectionImpl::ReadAsync(ReadCallback callback) {
   auto shared = std::static_pointer_cast<ConnectionImpl>(shared_from_this());

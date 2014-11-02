@@ -17,14 +17,14 @@ class ThreadPool {
   using Optional = Promise::Optional;
 
   explicit ThreadPool(ui64 capacity = TaskQueue::UNLIMITED,
-                      ui32 concurrency =
-                          std::thread::hardware_concurrency() * 2);
+                      ui32 concurrency = std::thread::hardware_concurrency() *
+                                         2);
   ~ThreadPool();
 
   void Run();
   Optional Push(const Closure& task);
   Optional Push(Closure&& task);
-  inline ui64 TaskCount() const;
+  inline ui64 TaskCount() const { return tasks_.Size() + active_task_count_; }
 
  private:
   void DoWork(const std::atomic<bool>& is_shutting_down);
@@ -34,10 +34,6 @@ class ThreadPool {
   ui32 concurrency_;
   std::atomic<ui64> active_task_count_ = {0};
 };
-
-ui64 ThreadPool::TaskCount() const {
-  return tasks_.Size() + active_task_count_;
-}
 
 }  // namespace base
 }  // namespace dist_clang

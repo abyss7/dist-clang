@@ -16,7 +16,9 @@ using namespace ::std::placeholders;
 namespace dist_clang {
 namespace net {
 
-bool NetworkServiceImpl::Run() { return event_loop_->Run(); }
+bool NetworkServiceImpl::Run() {
+  return event_loop_->Run();
+}
 
 bool NetworkServiceImpl::Listen(const String& path, ListenCallback callback,
                                 String* error) {

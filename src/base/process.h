@@ -38,13 +38,16 @@ class Process : public Testable<Process, ProcessImpl, const String&,
                    ui32 uid = SAME_UID);
   virtual ~Process() {}
 
-  Process& AppendArg(const String& arg);
   template <class Iterator>
-  Process& AppendArg(Iterator begin, Iterator end);
+  Process& AppendArg(Iterator begin, Iterator end) {
+    args_.insert(args_.end(), begin, end);
+    return *this;
+  }
+  Process& AppendArg(const String& arg);
   Process& AddEnv(const char* name, const String& value);
 
-  inline const String& stdout() const;
-  inline const String& stderr() const;
+  inline const String& stdout() const { return stdout_; }
+  inline const String& stderr() const { return stderr_; }
 
   // |sec_timeout| specifies the timeout in seconds - for how long we should
   // wait for another portion of the output from a child process.
@@ -72,16 +75,6 @@ class Process : public Testable<Process, ProcessImpl, const String&,
   FRIEND_TEST(daemon::EmitterTest, StoreCacheForLocalResult);
   FRIEND_TEST(daemon::EmitterTest, StoreCacheForRemoteResult);
 };
-
-template <class Iterator>
-Process& Process::AppendArg(Iterator begin, Iterator end) {
-  args_.insert(args_.end(), begin, end);
-  return *this;
-}
-
-const String& Process::stdout() const { return stdout_; }
-
-const String& Process::stderr() const { return stderr_; }
 
 }  // namespace base
 }  // namespace dist_clang

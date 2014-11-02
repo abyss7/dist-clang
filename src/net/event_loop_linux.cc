@@ -15,7 +15,8 @@ namespace net {
 EpollEventLoop::EpollEventLoop(ConnectionCallback callback)
     : listen_fd_(epoll_create1(EPOLL_CLOEXEC)),
       io_fd_(epoll_create1(EPOLL_CLOEXEC)),
-      callback_(callback) {}
+      callback_(callback) {
+}
 
 EpollEventLoop::~EpollEventLoop() {
   Stop();

@@ -9,7 +9,8 @@ namespace dist_clang {
 namespace net {
 
 KqueueEventLoop::KqueueEventLoop(ConnectionCallback callback)
-    : listen_fd_(kqueue()), io_fd_(kqueue()), callback_(callback) {}
+    : listen_fd_(kqueue()), io_fd_(kqueue()), callback_(callback) {
+}
 
 KqueueEventLoop::~KqueueEventLoop() {
   Stop();
@@ -74,7 +75,9 @@ void KqueueEventLoop::DoListenWork(const std::atomic<bool>& is_shutting_down,
     }
   }
 
-  for (auto fd : listening_fds_) close(fd);
+  for (auto fd : listening_fds_) {
+    close(fd);
+  }
 }
 
 void KqueueEventLoop::DoIOWork(const std::atomic<bool>& is_shutting_down,

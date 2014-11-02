@@ -45,8 +45,8 @@ using String = std::string;
 
 using Thread = std::thread;
 
-template <typename ... Args>
-using Tuple = std::tuple<Args ...>;
+template <typename... Args>
+using Tuple = std::tuple<Args...>;
 
 using UniqueLock = std::unique_lock<std::mutex>;
 

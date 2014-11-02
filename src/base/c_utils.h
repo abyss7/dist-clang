@@ -127,10 +127,10 @@ inline String GetSelfPath(String* error = nullptr) {
   path[read] = '\0';
 #elif defined(OS_MACOSX)
   ui32 size = sizeof(path);
-  if (_NSGetExecutablePath(path, &size) == -1)  {
+  if (_NSGetExecutablePath(path, &size) == -1) {
     // TODO: handle not-enough-sized buffer issue.
   }
-  // FIXME: convert path to absolute with |realpath()|.
+// FIXME: convert path to absolute with |realpath()|.
 #else
 #pragma message "Don't know how to get self-path on this platform!"
 #endif

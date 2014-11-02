@@ -7,9 +7,9 @@ namespace daemon {
 
 TEST(BaseDaemonTest, CreateProcessFromFlags) {
   const List<String> expected_args = {
-      "-cc1",                  "-emit-obj",        "-I.",            "-load",
-      "/usr/lib/libplugin.so", "-dependency-file", "some_deps_file", "-x",
-      "c++",                   "-o",               "test.o",         "test.cc",
+      "-cc1", "-emit-obj", "-I.", "-load", "/usr/lib/libplugin.so",
+      "-dependency-file", "some_deps_file", "-x", "c++", "-o", "test.o",
+      "test.cc",
   };
   const ui32 expected_user_id = 1u;
 

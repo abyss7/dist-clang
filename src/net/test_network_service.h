@@ -73,7 +73,9 @@ void TestNetworkService::Factory::CallOnCreate(OnCreateCallback callback) {
   on_create_ = callback;
 }
 
-bool TestNetworkService::Run() { return true; }
+bool TestNetworkService::Run() {
+  return true;
+}
 
 void TestNetworkService::CallOnConnect(OnConnectCallback callback) {
   on_connect_ = callback;

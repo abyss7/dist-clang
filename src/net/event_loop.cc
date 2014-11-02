@@ -7,9 +7,12 @@ namespace dist_clang {
 namespace net {
 
 EventLoop::EventLoop(ui32 concurrency)
-    : is_running_(IDLE), concurrency_(concurrency) {}
+    : is_running_(IDLE), concurrency_(concurrency) {
+}
 
-EventLoop::~EventLoop() { DCHECK(!pool_); }
+EventLoop::~EventLoop() {
+  DCHECK(!pool_);
+}
 
 bool EventLoop::Run() {
   using namespace std::placeholders;

@@ -24,7 +24,8 @@ void Log::Reset(ui32 error_mark, RangeSet&& ranges) {
 }
 
 Log::Log(ui32 level)
-    : level_(level), error_mark_(error_mark()), ranges_(ranges()) {}
+    : level_(level), error_mark_(error_mark()), ranges_(ranges()) {
+}
 
 Log::~Log() {
   auto& output_stream = (level_ <= error_mark_) ? std::cerr : std::cout;

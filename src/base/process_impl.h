@@ -8,9 +8,7 @@ namespace base {
 
 class ProcessImpl : public Process {
  public:
-  enum {
-    MAX_ARGS = 4096
-  };
+  enum : ui32 { MAX_ARGS = 4096 };
 
   virtual bool Run(ui16 sec_timeout, String* error = nullptr) override;
   virtual bool Run(ui16 sec_timeout, const String& input,
@@ -34,7 +32,7 @@ class ProcessImpl : public Process {
   explicit ProcessImpl(const String& exec_path,
                        const String& cwd_path = String(), ui32 uid = SAME_UID);
 
-  bool RunChild(int (&out_pipe)[2], int (&err_pipe)[2], int* in_pipe);
+  bool RunChild(int(&out_pipe)[2], int(&err_pipe)[2], int* in_pipe);
   void kill(int pid);
 
   bool killed_;

@@ -69,10 +69,14 @@ bool CopyFile(const String& src, const String& dst, String* error) {
     int bytes_written = 0;
     while (total < size) {
       bytes_written = write(dst_fd, buffer + total, size - total);
-      if (bytes_written <= 0) break;
+      if (bytes_written <= 0) {
+        break;
+      }
       total += bytes_written;
     }
-    if (total < size) break;
+    if (total < size) {
+      break;
+    }
   }
   close(src_fd);
   close(dst_fd);
@@ -170,7 +174,9 @@ bool WriteFile(const String& path, const String& input, String* error) {
   while (total_bytes < input.size()) {
     size =
         write(src_fd, input.data() + total_bytes, input.size() - total_bytes);
-    if (size <= 0) break;
+    if (size <= 0) {
+      break;
+    }
     total_bytes += size;
   }
   close(src_fd);

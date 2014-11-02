@@ -16,7 +16,7 @@
 
 namespace dist_clang {
 
-FileCache::FileCache(const String &path, ui64 size, bool snappy)
+FileCache::FileCache(const String& path, ui64 size, bool snappy)
     : path_(path),
       pool_(base::ThreadPool::TaskQueue::UNLIMITED, 1 + snappy),
       max_size_(size),
@@ -40,36 +40,37 @@ FileCache::FileCache(const String &path, ui64 size, bool snappy)
   pool_.Run();
 }
 
-FileCache::FileCache(const String &path) : FileCache(path, UNLIMITED, false) {}
+FileCache::FileCache(const String& path) : FileCache(path, UNLIMITED, false) {
+}
 
 using namespace file_cache::string;
 
 // static
-HandledHash FileCache::Hash(const HandledSource &code,
-                            const CommandLine &command_line,
-                            const Version &version) {
+HandledHash FileCache::Hash(const HandledSource& code,
+                            const CommandLine& command_line,
+                            const Version& version) {
   return HandledHash(base::Hexify(base::MakeHash(code)) + "-" +
                      base::Hexify(base::MakeHash(command_line, 4)) + "-" +
                      base::Hexify(base::MakeHash(version, 4)));
 }
 
 // static
-UnhandledHash FileCache::Hash(const UnhandledSource &code,
-                              const CommandLine &command_line,
-                              const Version &version) {
+UnhandledHash FileCache::Hash(const UnhandledSource& code,
+                              const CommandLine& command_line,
+                              const Version& version) {
   return UnhandledHash(base::Hexify(base::MakeHash(code)) + "-" +
                        base::Hexify(base::MakeHash(command_line, 4)) + "-" +
                        base::Hexify(base::MakeHash(version, 4)));
 }
 
-bool FileCache::Find(const HandledSource &code, const CommandLine &command_line,
-                     const Version &version, Entry *entry) const {
+bool FileCache::Find(const HandledSource& code, const CommandLine& command_line,
+                     const Version& version, Entry* entry) const {
   return FindByHash(Hash(code, command_line, version), entry);
 }
 
-bool FileCache::Find(const UnhandledSource &code,
-                     const CommandLine &command_line, const Version &version,
-                     Entry *entry) const {
+bool FileCache::Find(const UnhandledSource& code,
+                     const CommandLine& command_line, const Version& version,
+                     Entry* entry) const {
   String hash = Hash(code, command_line, version);
   const String first_path = FirstPath(hash);
   const String second_path = SecondPath(hash);
@@ -89,7 +90,7 @@ bool FileCache::Find(const UnhandledSource &code,
   utime(second_path.c_str(), nullptr);
   utime(first_path.c_str(), nullptr);
 
-  for (const auto &header : manifest.headers()) {
+  for (const auto& header : manifest.headers()) {
     String header_hash;
     if (!base::HashFile(header, &header_hash)) {
       return false;
@@ -105,42 +106,42 @@ bool FileCache::Find(const UnhandledSource &code,
   return false;
 }
 
-FileCache::Optional FileCache::Store(const HandledSource &code,
-                                     const CommandLine &command_line,
-                                     const Version &version,
-                                     const Entry &entry) {
+FileCache::Optional FileCache::Store(const HandledSource& code,
+                                     const CommandLine& command_line,
+                                     const Version& version,
+                                     const Entry& entry) {
   pool_.Push([=] { DoStore(Hash(code, command_line, version), entry); });
   return pool_.Push(std::bind(&FileCache::Clean, this));
 }
 
-FileCache::Optional FileCache::Store(const UnhandledSource &code,
-                                     const CommandLine &command_line,
-                                     const Version &version,
-                                     const List<String> &headers,
-                                     const HandledHash &hash) {
+FileCache::Optional FileCache::Store(const UnhandledSource& code,
+                                     const CommandLine& command_line,
+                                     const Version& version,
+                                     const List<String>& headers,
+                                     const HandledHash& hash) {
   pool_.Push(
       [=] { DoStore(Hash(code, command_line, version), headers, hash); });
   return pool_.Push(std::bind(&FileCache::Clean, this));
 }
 
-FileCache::Optional FileCache::StoreNow(const HandledSource &code,
-                                        const CommandLine &command_line,
-                                        const Version &version,
-                                        const Entry &entry) {
+FileCache::Optional FileCache::StoreNow(const HandledSource& code,
+                                        const CommandLine& command_line,
+                                        const Version& version,
+                                        const Entry& entry) {
   DoStore(Hash(code, command_line, version), entry);
   return pool_.Push(std::bind(&FileCache::Clean, this));
 }
 
-FileCache::Optional FileCache::StoreNow(const UnhandledSource &code,
-                                        const CommandLine &command_line,
-                                        const Version &version,
-                                        const List<String> &headers,
-                                        const HandledHash &hash) {
+FileCache::Optional FileCache::StoreNow(const UnhandledSource& code,
+                                        const CommandLine& command_line,
+                                        const Version& version,
+                                        const List<String>& headers,
+                                        const HandledHash& hash) {
   DoStore(Hash(code, command_line, version), headers, hash);
   return pool_.Push(std::bind(&FileCache::Clean, this));
 }
 
-bool FileCache::FindByHash(const HandledHash &hash, Entry *entry) const {
+bool FileCache::FindByHash(const HandledHash& hash, Entry* entry) const {
   const String first_path = FirstPath(hash);
   const String second_path = SecondPath(hash);
   const String manifest_path = CommonPath(hash) + ".manifest";
@@ -203,7 +204,7 @@ bool FileCache::FindByHash(const HandledHash &hash, Entry *entry) const {
   return true;
 }
 
-bool FileCache::RemoveEntry(const String &manifest_path) {
+bool FileCache::RemoveEntry(const String& manifest_path) {
   const String common_path =
       manifest_path.substr(0, manifest_path.size() - sizeof(".manifest") + 1);
   const String object_path = common_path + ".o";
@@ -252,7 +253,7 @@ bool FileCache::RemoveEntry(const String &manifest_path) {
   return result;
 }
 
-void FileCache::DoStore(const HandledHash &hash, const Entry &entry) {
+void FileCache::DoStore(const HandledHash& hash, const Entry& entry) {
   const String manifest_path = CommonPath(hash) + ".manifest";
   WriteLock lock(this, manifest_path);
 
@@ -343,8 +344,8 @@ void FileCache::DoStore(const HandledHash &hash, const Entry &entry) {
   LOG(CACHE_VERBOSE) << "File is cached on path " << CommonPath(hash);
 }
 
-void FileCache::DoStore(UnhandledHash orig_hash, const List<String> &headers,
-                        const HandledHash &hash) {
+void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
+                        const HandledHash& hash) {
   const String manifest_path = CommonPath(orig_hash) + ".manifest";
   WriteLock lock(this, manifest_path);
 
@@ -365,7 +366,7 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String> &headers,
   manifest.set_stderr(false);
   manifest.set_object(false);
   manifest.set_deps(false);
-  for (const auto &header : headers) {
+  for (const auto& header : headers) {
     String header_hash, error;
     if (!base::HashFile(header, &header_hash, {"__DATE__", "__TIME__"},
                         &error)) {
@@ -448,7 +449,7 @@ void FileCache::Clean() {
   }
 }
 
-FileCache::ReadLock::ReadLock(const FileCache *file_cache, const String &path)
+FileCache::ReadLock::ReadLock(const FileCache* file_cache, const String& path)
     : cache_(file_cache), path_(path) {
   if (!base::FileExists(path)) {
     return;
@@ -485,7 +486,7 @@ void FileCache::ReadLock::Unlock() {
   }
 }
 
-FileCache::WriteLock::WriteLock(const FileCache *file_cache, const String &path)
+FileCache::WriteLock::WriteLock(const FileCache* file_cache, const String& path)
     : cache_(file_cache), path_(path) {
   std::lock_guard<std::mutex> lock(cache_->locks_mutex_);
 
