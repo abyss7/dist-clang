@@ -21,12 +21,16 @@ declare_args() {
 # =============================================================================
 
 default_configs = [
+  "//build/config:asan",
   "//build/config:base",
   "//build/config:no_stdlibs",
 ]
 
 if (config_for_tests) {
-  use_asan = true
+  # FIXME: ASan binaries doesn't run on Mac
+  if (os == "linux") {
+    use_asan = true
+  }
 
   default_configs += [
     "//build/config:debug",
@@ -70,8 +74,6 @@ default_deps += [
 
 set_defaults("executable") {
   configs = default_configs
-  configs += [ "//build/config:asan" ]
-
   deps = default_deps
 }
 
