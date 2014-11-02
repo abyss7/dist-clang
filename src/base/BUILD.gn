@@ -45,15 +45,6 @@ shared_library("logging") {
   ]
 }
 
-static_library("singleton") {
-  sources = [
-    "singleton.cc",
-    "singleton.h",
-  ]
-
-  deps += [ ":base_headers" ]
-}
-
 source_set("base_headers") {
   sources = [
     "aliases.h",

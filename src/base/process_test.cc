@@ -98,7 +98,7 @@ TEST_F(ProcessTest, ReadTimeout) {
 
 TEST_F(ProcessTest, TooManyArgs) {
   ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
-  for (int i = 0; i < ProcessImpl::MAX_ARGS + 2; ++i) {
+  for (auto i = 0u; i < ProcessImpl::MAX_ARGS + 2; ++i) {
     process->AppendArg("yes");
   }
   ASSERT_THROW_STD(process->Run(1), "Assertion failed: .* < MAX_ARGS");
