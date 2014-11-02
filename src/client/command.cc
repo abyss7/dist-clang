@@ -118,6 +118,7 @@ bool DriverCommand::GenerateFromArgs(int argc, const char* const raw_argv[],
           compilation, opts, driver);
 
       if (diags->hasErrorOccurred()) {
+        delete driver_command;
         return false;
       }
 
