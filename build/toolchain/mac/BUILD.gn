@@ -35,7 +35,7 @@ toolchain("clang") {
   }
 
   tool("solink") {
-    command = "if [ ! -e \$lib -o ! -e \${lib}.TOC ] || otool -l \$lib | grep -q LC_REEXPORT_DYLIB ; then $ld -shared \$ldflags -o \$lib \$in \$solibs \$libs && { otool -l \$lib | grep LC_ID_DYLIB -A 5; nm -gP \$lib | cut -f1-2 -d' ' | grep -v U\$\$; true; } > \${lib}.TOC; else $ld -shared \$ldflags -o \$lib \$in \$solibs \$libs && { otool -l \$lib | grep LC_ID_DYLIB -A 5; nm -gP \$lib | cut -f1-2 -d' ' | grep -v U\$\$; true; } > \${lib}.tmp && if ! cmp -s \${lib}.tmp \${lib}.TOC; then mv \${lib}.tmp \${lib}.TOC ; fi; fi"
+    command = "if [ ! -e \$lib -o ! -e \${lib}.TOC ] || otool -l \$lib | grep -q LC_REEXPORT_DYLIB ; then $ld -shared \$ldflags -install_name @rpath/\$lib -o \$lib \$in \$solibs \$libs && { otool -l \$lib | grep LC_ID_DYLIB -A 5; nm -gP \$lib | cut -f1-2 -d' ' | grep -v U\$\$; true; } > \${lib}.TOC; else $ld -shared \$ldflags -install_name @rpath/\$lib -o \$lib \$in \$solibs \$libs && { otool -l \$lib | grep LC_ID_DYLIB -A 5; nm -gP \$lib | cut -f1-2 -d' ' | grep -v U\$\$; true; } > \${lib}.tmp && if ! cmp -s \${lib}.tmp \${lib}.TOC; then mv \${lib}.tmp \${lib}.TOC ; fi; fi"
     description = "SOLINK \$lib"
     restat = "1"
   }
