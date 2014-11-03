@@ -1,9 +1,10 @@
 #include <net/connection_impl.h>
 
 #include <base/assert.h>
+#include <base/file_descriptor_utils.h>
 #include <base/logging.h>
-#include <net/base/utils.h>
 #include <net/event_loop.h>
+#include <net/net_utils.h>
 
 #include <base/using_log.h>
 
@@ -13,16 +14,17 @@ namespace dist_clang {
 namespace net {
 
 // static
-ConnectionImplPtr ConnectionImpl::Create(EventLoop& event_loop, fd_t fd,
+ConnectionImplPtr ConnectionImpl::Create(EventLoop& event_loop,
+                                         FileDescriptor fd,
                                          const EndPointPtr& end_point) {
 #if !defined(OS_MACOSX)
   DCHECK(!IsListening(fd));
 #endif
-  DCHECK(!IsNonBlocking(fd));
+  DCHECK(!base::IsNonBlocking(fd));
   return ConnectionImplPtr(new ConnectionImpl(event_loop, fd, end_point));
 }
 
-ConnectionImpl::ConnectionImpl(EventLoop& event_loop, fd_t fd,
+ConnectionImpl::ConnectionImpl(EventLoop& event_loop, FileDescriptor fd,
                                const EndPointPtr& end_point)
     : fd_(fd),
       event_loop_(event_loop),

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <net/base/types.h>
 #include <net/connection.h>
 
 #include <sys/types.h>

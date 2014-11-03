@@ -33,10 +33,10 @@ class NetworkServiceImpl : public NetworkService {
   NetworkServiceImpl();
 
   // |fd| is a descriptor of a listening socket, which accepts new connection.
-  void HandleNewConnection(fd_t fd, ConnectionPtr connection);
+  void HandleNewConnection(FileDescriptor fd, ConnectionPtr connection);
 
   UniquePtr<EventLoop> event_loop_;
-  HashMap<fd_t, ListenCallback> listen_callbacks_;
+  HashMap<FileDescriptor, ListenCallback> listen_callbacks_;
 };
 
 }  // namespace net

@@ -2,7 +2,8 @@
 
 #include <base/file_utils.h>
 #include <base/logging.h>
-#include <net/base/end_point.h>
+#include <net/connection.h>
+#include <net/end_point.h>
 
 #include <base/using_log.h>
 

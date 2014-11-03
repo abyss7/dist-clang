@@ -1,25 +1,48 @@
+visibility = [
+  "//src/base/*",
+  "//src/client/*",
+  "//src/daemon/*",
+  "//src/file_cache/*",
+  "//src/net/*",
+  "//src/test/*",
+]
+
+common_base_headers = [
+  "aliases.h",
+  "assert.h",
+  "string_utils.h",
+]
+
 shared_library("base") {
   sources = [
+    "attributes.h",
+    "c_utils.h",
+    "empty_lambda.h",
+    "file_descriptor_utils.h",
     "file_utils.cc",
     "file_utils.h",
+    "future.h",
     "hash.cc",
     "hash.h",
+    "locked_queue.h",
     "process.cc",
     "process.h",
     "process_impl.cc",
     "process_impl.h",
     "process_impl_linux.cc",
     "process_impl_mac.cc",
+    "queue_aggregator.h",
     "temporary_dir.cc",
     "temporary_dir.h",
+    "testable.h",
     "thread_pool.cc",
     "thread_pool.h",
     "worker_pool.cc",
     "worker_pool.h",
   ]
+  sources += common_base_headers
 
   deps += [
-    ":base_headers",
     ":logging",
     "//src/third_party/smhasher:murmur_hash3",
   ]
@@ -33,31 +56,22 @@ shared_library("constants") {
 }
 
 shared_library("logging") {
+  # TODO: upstream ability to change logging facility for gtest.
+  visibility += [ "//src/third_party/gtest:gtest" ]
+
   sources = [
     "logging.cc",
     "logging.h",
     "using_log.h",
   ]
+  sources += common_base_headers
+
+  public = [
+    "logging.h",
+    "using_log.h",
+  ]
 
   deps += [
-    ":base_headers",
     "//src/third_party/protobuf:protobuf",
   ]
-}
-
-source_set("base_headers") {
-  sources = [
-    "aliases.h",
-    "assert.h",
-    "attributes.h",
-    "c_utils.h",
-    "empty_lambda.h",
-    "future.h",
-    "locked_queue.h",
-    "queue_aggregator.h",
-    "string_utils.h",
-    "testable.h",
-  ]
-
-  all_dependent_configs = [ "//src/third_party/libcxxabi:includes" ]
 }

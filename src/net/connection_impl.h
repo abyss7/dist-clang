@@ -1,6 +1,5 @@
 #pragma once
 
-#include <net/base/types.h>
 #include <net/connection.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest_prod.h>
@@ -20,7 +19,7 @@ class ConnectionImpl : public Connection {
  public:
   // Create connection only on a socket with a pending connection -
   // i.e. after connect() or accept().
-  static ConnectionImplPtr Create(EventLoop& event_loop, fd_t fd,
+  static ConnectionImplPtr Create(EventLoop& event_loop, FileDescriptor fd,
                                   const EndPointPtr& end_point = EndPointPtr());
   ~ConnectionImpl();
 
@@ -54,7 +53,8 @@ class ConnectionImpl : public Connection {
   // FIXME: make this value configurable.
   enum : ui32 { buffer_size = 1024 };
 
-  ConnectionImpl(EventLoop& event_loop, fd_t fd, const EndPointPtr& end_point);
+  ConnectionImpl(EventLoop& event_loop, FileDescriptor fd,
+                 const EndPointPtr& end_point);
 
   virtual bool SendAsyncImpl(SendCallback callback) override;
   virtual bool SendSyncImpl(Status* status) override;
@@ -63,7 +63,7 @@ class ConnectionImpl : public Connection {
   void DoSend();
   void Close();
 
-  const fd_t fd_;
+  const FileDescriptor fd_;
 
   EventLoop& event_loop_;
   std::atomic<bool> is_closed_, added_;

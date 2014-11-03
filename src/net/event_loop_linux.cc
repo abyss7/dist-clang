@@ -2,8 +2,9 @@
 
 #include <base/assert.h>
 #include <base/c_utils.h>
-#include <net/base/utils.h>
+#include <base/file_descriptor_utils.h>
 #include <net/connection_impl.h>
+#include <net/net_utils.h>
 
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
@@ -24,9 +25,9 @@ EpollEventLoop::~EpollEventLoop() {
   close(io_fd_);
 }
 
-bool EpollEventLoop::HandlePassive(fd_t fd) {
+bool EpollEventLoop::HandlePassive(FileDescriptor fd) {
   DCHECK(IsListening(fd));
-  DCHECK(IsNonBlocking(fd));
+  DCHECK(base::IsNonBlocking(fd));
   listening_fds_.insert(fd);
   return ReadyForListen(fd);
 }
@@ -40,7 +41,7 @@ bool EpollEventLoop::ReadyForSend(ConnectionImplPtr connection) {
 }
 
 void EpollEventLoop::DoListenWork(const std::atomic<bool>& is_shutting_down,
-                                  fd_t self_pipe) {
+                                  FileDescriptor self_pipe) {
   const int MAX_EVENTS = 10;  // This should be enought in most cases.
   struct epoll_event events[MAX_EVENTS];
 
@@ -82,7 +83,7 @@ void EpollEventLoop::DoListenWork(const std::atomic<bool>& is_shutting_down,
 }
 
 void EpollEventLoop::DoIOWork(const std::atomic<bool>& is_shutting_down,
-                              fd_t self_pipe) {
+                              FileDescriptor self_pipe) {
   struct epoll_event event;
   event.events = EPOLLIN;
   event.data.fd = self_pipe;
@@ -99,7 +100,7 @@ void EpollEventLoop::DoIOWork(const std::atomic<bool>& is_shutting_down,
     }
 
     DCHECK(events_count == 1);
-    fd_t fd = event.data.fd;
+    FileDescriptor fd = event.data.fd;
 
     // FIXME: it's a little bit hacky, but should work almost always.
     if (fd == self_pipe) {
@@ -125,7 +126,7 @@ void EpollEventLoop::DoIOWork(const std::atomic<bool>& is_shutting_down,
   }
 }
 
-bool EpollEventLoop::ReadyForListen(fd_t fd) {
+bool EpollEventLoop::ReadyForListen(FileDescriptor fd) {
   struct epoll_event event;
   event.events = EPOLLIN | EPOLLONESHOT;
   event.data.fd = fd;

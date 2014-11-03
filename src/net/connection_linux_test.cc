@@ -2,9 +2,9 @@
 #include <base/logging.h>
 #include <base/string_utils.h>
 #include <base/temporary_dir.h>
-#include <net/base/utils.h>
-#include <net/connection.h>
+#include <net/connection_impl.h>
 #include <net/event_loop.h>
+#include <net/net_utils.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest.h>
 
@@ -226,7 +226,7 @@ class TestServer : public EventLoop {
   }
 
  private:
-  virtual bool HandlePassive(fd_t fd) override {
+  virtual bool HandlePassive(FileDescriptor fd) override {
     // TODO: implement this.
     return false;
   }
@@ -259,17 +259,17 @@ class TestServer : public EventLoop {
     return true;
   }
 
-  virtual void RemoveConnection(fd_t fd) {
+  virtual void RemoveConnection(FileDescriptor fd) {
     // Do nothing.
   }
 
   virtual void DoListenWork(const std::atomic<bool>& is_shutting_down,
-                            fd_t self_pipe) override {
+                            FileDescriptor self_pipe) override {
     // Test server doesn't do listening work.
   }
 
   virtual void DoIOWork(const std::atomic<bool>& is_shutting_down,
-                        fd_t self_pipe) override {
+                        FileDescriptor self_pipe) override {
     const int TIMEOUT = 1 * 1000;  // In milliseconds.
     struct epoll_event event;
     event.events = EPOLLIN;
@@ -287,7 +287,7 @@ class TestServer : public EventLoop {
       }
 
       DCHECK(events_count == 1);
-      fd_t fd = event.data.fd;
+      FileDescriptor fd = event.data.fd;
 
       // FIXME: it's a little bit hacky, but should work almost always.
       if (fd == self_pipe) {

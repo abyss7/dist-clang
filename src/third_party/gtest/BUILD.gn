@@ -13,7 +13,6 @@ static_library("gtest") {
     "exported/include/gtest/gtest-typed-test.h",
     "exported/include/gtest/gtest.h",
     "exported/include/gtest/gtest_pred_impl.h",
-    "exported/include/gtest/gtest_prod.h",
   ]
 
   sources = [

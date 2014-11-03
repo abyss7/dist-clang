@@ -2,8 +2,9 @@
 
 #include <base/assert.h>
 #include <base/c_utils.h>
-#include <net/base/end_point.h>
-#include <net/base/utils.h>
+#include <base/file_descriptor_utils.h>
+#include <net/connection_impl.h>
+#include <net/end_point.h>
 
 #include <netdb.h>
 #include <netinet/in.h>
@@ -32,8 +33,8 @@ bool NetworkServiceImpl::Listen(const String& path, ListenCallback callback,
     base::GetLastError(error);
     return false;
   }
-  MakeCloseOnExec(fd);
-  MakeNonBlocking(fd);
+  base::MakeCloseOnExec(fd);
+  base::MakeNonBlocking(fd);
 
   auto socket_address = reinterpret_cast<sockaddr*>(&address);
   if (bind(fd, socket_address, sizeof(address)) == -1) {
@@ -84,8 +85,8 @@ bool NetworkServiceImpl::Listen(const String& host, ui16 port,
     base::GetLastError(error);
     return false;
   }
-  MakeCloseOnExec(fd);
-  MakeNonBlocking(fd);
+  base::MakeCloseOnExec(fd);
+  base::MakeNonBlocking(fd);
 
   int on = 1;
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1) {
@@ -127,7 +128,7 @@ ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point,
     base::GetLastError(error);
     return ConnectionPtr();
   }
-  MakeCloseOnExec(fd);
+  base::MakeCloseOnExec(fd);
 
   if (connect(fd, *end_point, end_point->size()) == -1) {
     base::GetLastError(error);
@@ -161,7 +162,7 @@ ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point,
   return ConnectionImpl::Create(*event_loop_, fd, end_point);
 }
 
-void NetworkServiceImpl::HandleNewConnection(fd_t fd,
+void NetworkServiceImpl::HandleNewConnection(FileDescriptor fd,
                                              ConnectionPtr connection) {
   auto callback = listen_callbacks_.find(fd);
   DCHECK(callback != listen_callbacks_.end());

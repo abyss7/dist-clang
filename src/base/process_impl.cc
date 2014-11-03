@@ -9,7 +9,7 @@
 namespace dist_clang {
 namespace base {
 
-ProcessImpl::ScopedDescriptor::ScopedDescriptor(net::fd_t fd) : fd_(fd) {
+ProcessImpl::ScopedDescriptor::ScopedDescriptor(FileDescriptor fd) : fd_(fd) {
 }
 
 ProcessImpl::ScopedDescriptor::~ScopedDescriptor() {
@@ -18,11 +18,11 @@ ProcessImpl::ScopedDescriptor::~ScopedDescriptor() {
   }
 }
 
-ProcessImpl::ScopedDescriptor::operator net::fd_t() {
+ProcessImpl::ScopedDescriptor::operator FileDescriptor() {
   return fd_;
 }
 
-net::fd_t ProcessImpl::ScopedDescriptor::Release() {
+FileDescriptor ProcessImpl::ScopedDescriptor::Release() {
   auto old_fd = fd_;
   fd_ = -1;
   return old_fd;
@@ -33,7 +33,9 @@ ProcessImpl::ProcessImpl(const String& exec_path, const String& cwd_path,
     : Process(exec_path, cwd_path, uid), killed_(false) {
 }
 
-bool ProcessImpl::RunChild(int(&out_pipe)[2], int(&err_pipe)[2], int* in_pipe) {
+bool ProcessImpl::RunChild(FileDescriptor(&out_pipe)[2],
+                           FileDescriptor(&err_pipe)[2],
+                           FileDescriptor* in_pipe) {
   if ((in_pipe && dup2(in_pipe[0], STDIN_FILENO) == -1) ||
       dup2(out_pipe[1], STDOUT_FILENO) == -1 ||
       dup2(err_pipe[1], STDERR_FILENO) == -1) {

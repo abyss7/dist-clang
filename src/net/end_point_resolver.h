@@ -2,7 +2,7 @@
 
 #include <base/future.h>
 #include <base/testable.h>
-#include <net/base/end_point.h>
+#include <net/end_point.h>
 
 namespace dist_clang {
 namespace net {

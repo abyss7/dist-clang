@@ -2,7 +2,6 @@
 
 #include <base/attributes.h>
 #include <base/testable.h>
-#include <net/base/types.h>
 #include <net/connection_forward.h>
 
 namespace dist_clang {

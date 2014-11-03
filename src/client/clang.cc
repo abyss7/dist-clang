@@ -6,7 +6,8 @@
 #include <base/process_impl.h>
 #include <base/string_utils.h>
 #include <client/command.h>
-#include <net/base/end_point.h>
+#include <net/connection.h>
+#include <net/end_point.h>
 #include <net/network_service_impl.h>
 #include <proto/remote.pb.h>
 
