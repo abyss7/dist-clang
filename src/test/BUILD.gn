@@ -1,4 +1,4 @@
-test("unit_tests") {
+executable("unit_tests") {
   sources = [
     "//src/base/assert_debug_linux_test.cc",
     "//src/base/assert_release_linux_test.cc",

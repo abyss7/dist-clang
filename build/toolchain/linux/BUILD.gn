@@ -4,44 +4,79 @@ toolchain("clang") {
   ar = "ar"
   ld = cxx
 
-  lib_prefix = "-l"
-  lib_dir_prefix = "-L"
+  lib_switch = "-l"
+  lib_dir_switch = "-L"
 
   tool("cc") {
-    command = "$cc -MMD -MF \$out.d \$defines \$includes \$cflags \$cflags_c -c \$in -o \$out"
-    description = "CC \$out"
-    depfile = "\$out.d"
+    depfile = "{{output}}.d"
+    command = "$cc -MMD -MF $depfile {{defines}} {{include_dirs}} {{cflags}} {{cflags_c}} -c {{source}} -o {{output}}"
+    depsformat = "gcc"
+    description = "CC {{output}}"
+    outputs = [ "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.o" ]
   }
 
   tool("cxx") {
-    command = "$cxx -MMD -MF \$out.d \$defines \$includes \$cflags \$cflags_cc -c \$in -o \$out"
-    description = "CXX \$out"
-    depfile = "\$out.d"
+    depfile = "{{output}}.d"
+    command = "$cxx -MMD -MF $depfile {{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}} -c {{source}} -o {{output}}"
+    depsformat = "gcc"
+    description = "CXX {{output}}"
+    outputs = [ "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.o" ]
+  }
+
+  tool("asm") {
+    depfile = "{{output}}.d"
+    command = "$cc -MMD -MF $depfile {{defines}} {{include_dirs}} {{cflags}} {{cflags_c}} -c {{source}} -o {{output}}"
+    depsformat = "gcc"
+    description = "ASM {{output}}"
+    outputs = [ "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.o" ]
   }
 
   tool("stamp") {
-    command = "\${postbuilds}touch \$out"
-    description = "STAMP \$out"
+    command = "touch {{output}}"
+    description = "STAMP {{output}}"
   }
 
   tool("copy") {
-    command = "ln -f \$in \$out 2>/dev/null || (rm -rf \$out && cp -af \$in \$out)"
-    description = "COPY \$in \$out"
+    command = "ln -f {{source}} {{output}} 2>/dev/null || (rm -rf {{output}} && cp -af {{source}} {{output}})"
+    description = "COPY {{source}} {{output}}"
   }
 
   tool("alink") {
-    command = "rm -f \$out && $ar rcs \$out \$in"
-    description = "AR \$out"
+    command = "rm -f {{output}} && $ar rcs {{output}} {{inputs}}"
+    description = "AR {{output}}"
+    outputs = [ "{{target_out_dir}}/{{target_output_name}}{{output_extension}}" ]
+    default_output_extension = ".a"
+    output_prefix = "lib"
   }
 
   tool("solink") {
-    command = "if [ ! -e \$lib -o ! -e \${lib}.TOC ]; then $ld -shared \$ldflags -o \$lib -Wl,-soname=\$soname \$in \$solibs \$libs && { readelf -d \${lib} | grep SONAME ; nm -gD -f p \${lib} | cut -f1-2 -d' '; } > \${lib}.TOC; else $ld -shared \$ldflags -o \$lib -Wl,-soname=\$soname \$in \$solibs \$libs && { readelf -d \${lib} | grep SONAME ; nm -gD -f p \${lib} | cut -f1-2 -d' '; } > \${lib}.tmp && if ! cmp -s \${lib}.tmp \${lib}.TOC; then mv \${lib}.tmp \${lib}.TOC ; fi; fi"
-    description = "SOLINK \$lib"
-    restat = "1"
+    soname = "{{target_output_name}}{{output_extension}}"
+    sofile = "{{root_out_dir}}/$soname"
+    tocfile = sofile + ".TOC"
+    temporary_tocname = sofile + ".tmp"
+    link_command = "$ld -shared {{ldflags}} -o $sofile -Wl,-soname=$soname {{inputs}} {{solibs}} {{libs}}"
+    toc_command = "{ readelf -d $sofile | grep SONAME ; nm -gD -f p $soname | cut -f1-2 -d' '; } > $temporary_tocname"
+    replace_command = "if ! cmp -s $temporary_tocname $tocfile; then mv $temporary_tocname $tocfile; fi"
+
+    command = "$link_command && $toc_command && $replace_command"
+    description = "SOLINK $sofile"
+    default_output_extension = ".so"
+    output_prefix = "lib"
+
+    restat = true
+
+    outputs = [
+      sofile,
+      tocfile,
+    ]
+    link_output = sofile
+    depend_output = tocfile
   }
 
   tool("link") {
-    command = "$ld \$ldflags -o \$out -Wl,--start-group \$in \$solibs -Wl,--end-group \$libs"
-    description = "LINK \$out"
+    outfile = "{{root_out_dir}}/{{target_output_name}}{{output_extension}}"
+    command = "$ld {{ldflags}} -o $outfile -Wl,--start-group {{inputs}} {{solibs}} -Wl,--end-group {{libs}}"
+    description = "LINK $outfile"
+    outputs = [ outfile ]
   }
 }

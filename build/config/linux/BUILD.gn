@@ -4,8 +4,10 @@ config("base") {
   ]
 
   ldflags = [
-    # Can't use this flag with ASan: http://llvm.org/bugs/show_bug.cgi?id=21341
-    # "--no-undefined",
     "-rdynamic",      # for |backtrace()|
   ]
+  # Can't use this flag with ASan: http://llvm.org/bugs/show_bug.cgi?id=21341
+  if (use_asan == false) {
+    ldflags += [ "--no-undefined" ]
+  }
 }
