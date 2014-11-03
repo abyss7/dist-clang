@@ -1,5 +1,6 @@
 #include <base/file_utils.h>
 
+#include <base/assert.h>
 #include <base/hash.h>
 
 #include <third_party/libcxx/exported/include/map>

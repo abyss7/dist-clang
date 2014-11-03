@@ -2,9 +2,7 @@
 
 #include <base/empty_lambda.h>
 #include <base/hash.h>
-#include <net/end_point.h>
 #include <net/network_service.h>
-#include <net/test_connection.h>
 
 namespace std {
 
@@ -26,7 +24,6 @@ namespace net {
 
 class TestNetworkService : public NetworkService {
  public:
-  using TestConnectionPtr = std::shared_ptr<TestConnection>;
   using OnConnectCallback = Fn<TestConnectionPtr(EndPointPtr, String*)>;
   using OnListenCallback = Fn<bool(const String&, ui16, String*)>;
 

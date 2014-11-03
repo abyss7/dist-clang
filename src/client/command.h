@@ -2,7 +2,7 @@
 
 #include <base/aliases.h>
 #include <base/attributes.h>
-#include <base/process.h>
+#include <base/process_forward.h>
 
 #include <clang/Driver/Compilation.h>
 #include <llvm/Option/ArgList.h>

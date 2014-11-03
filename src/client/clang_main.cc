@@ -60,11 +60,13 @@ int main(int argc, char* argv[]) {
   String socket_path =
       base::GetEnv(base::kEnvSocketPath, base::kDefaultSocketPath);
 
+  String version = base::GetEnv(base::kEnvClangVersion);
+
   // NOTICE: Use separate |DoMain| function to make sure that all local objects
   //         get destructed before the invokation of |exec|. Do not use global
   //         objects!
   String&& clang_path = base::GetEnv(base::kEnvClangPath);
-  if (client::DoMain(argc, argv, socket_path, clang_path)) {
+  if (client::DoMain(argc, argv, socket_path, clang_path, std::move(version))) {
     return ExecuteLocally(argv, clang_path);
   }
 

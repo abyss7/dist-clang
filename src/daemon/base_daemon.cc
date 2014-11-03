@@ -4,6 +4,7 @@
 #include <base/logging.h>
 #include <base/process_impl.h>
 #include <net/connection.h>
+#include <net/network_service_impl.h>
 
 #include <base/using_log.h>
 

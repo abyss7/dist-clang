@@ -1,5 +1,7 @@
 #include <net/test_network_service.h>
 
+#include <net/test_connection.h>
+
 namespace dist_clang {
 namespace net {
 

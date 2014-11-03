@@ -4,6 +4,7 @@
 #include <base/test_process.h>
 #include <daemon/configuration.pb.h>
 #include <net/network_service_impl.h>
+#include <net/test_connection.h>
 #include <net/test_end_point_resolver.h>
 #include <net/test_network_service.h>
 
@@ -27,7 +28,7 @@ struct CommonDaemonTest : public ::testing::Test {
         service->CountConnectAttempts(&connect_count);
         service->CountListenAttempts(&listen_count);
         service->CallOnConnect([this](net::EndPointPtr, String*) {
-          auto connection = Service::TestConnectionPtr(new net::TestConnection);
+          auto connection = net::TestConnectionPtr(new net::TestConnection);
           connection->CountSendAttempts(&send_count);
           connection->CountReadAttempts(&read_count);
           ++connections_created;

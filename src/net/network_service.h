@@ -1,6 +1,5 @@
 #pragma once
 
-#include <base/attributes.h>
 #include <base/testable.h>
 #include <net/connection_forward.h>
 

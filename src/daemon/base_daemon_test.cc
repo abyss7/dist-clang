@@ -1,5 +1,7 @@
 #include <daemon/base_daemon.h>
 
+#include <base/process.h>
+
 #include <third_party/gtest/exported/include/gtest/gtest.h>
 
 namespace dist_clang {

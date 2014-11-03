@@ -1,7 +1,6 @@
 #include <client/clang.h>
 
 #include <base/c_utils.h>
-#include <base/constants.h>
 #include <base/logging.h>
 #include <base/process_impl.h>
 #include <base/string_utils.h>
@@ -17,7 +16,7 @@ namespace dist_clang {
 namespace client {
 
 bool DoMain(int argc, const char* const argv[], const String& socket_path,
-            const String& clang_path) {
+            const String& clang_path, String version) {
   if (clang_path.empty()) {
     return true;
   }
@@ -30,7 +29,6 @@ bool DoMain(int argc, const char* const argv[], const String& socket_path,
     return true;
   }
 
-  String version = base::GetEnv(base::kEnvClangVersion);
   Command::List commands;
 
   if (!DriverCommand::GenerateFromArgs(argc, argv, commands)) {

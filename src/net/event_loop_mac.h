@@ -1,6 +1,5 @@
 #pragma once
 
-#include <base/attributes.h>
 #include <net/event_loop.h>
 
 namespace dist_clang {

@@ -1,8 +1,6 @@
 #undef NDEBUG
 #include <base/assert.h>
 
-#include <base/string_utils.h>
-
 #include <third_party/gtest/exported/include/gtest/gtest.h>
 
 namespace dist_clang {

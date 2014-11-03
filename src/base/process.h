@@ -1,5 +1,6 @@
 #pragma once
 
+#include <base/process_forward.h>
 #include <base/testable.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest_prod.h>
@@ -25,9 +26,7 @@ FORWARD_TEST(EmitterTest, StoreCacheForRemoteResult);
 
 namespace base {
 
-class Process;
 class ProcessImpl;
-using ProcessPtr = UniquePtr<Process>;
 
 class Process : public Testable<Process, ProcessImpl, const String&,
                                 const String&, ui32> {

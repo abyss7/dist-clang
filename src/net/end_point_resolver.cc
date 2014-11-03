@@ -1,6 +1,7 @@
 #include <net/end_point_resolver.h>
 
 #include <base/aliases.h>
+#include <net/end_point.h>
 
 namespace dist_clang {
 namespace net {

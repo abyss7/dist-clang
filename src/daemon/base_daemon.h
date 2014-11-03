@@ -1,12 +1,12 @@
 #pragma once
 
 #include <base/aliases.h>
-#include <base/process.h>
+#include <base/process_forward.h>
 #include <daemon/configuration.pb.h>
 #include <file_cache/file_cache.h>
 #include <net/connection_forward.h>
 #include <net/end_point_resolver.h>
-#include <net/network_service_impl.h>
+#include <net/network_service.h>
 #include <proto/remote.pb.h>
 
 namespace dist_clang {

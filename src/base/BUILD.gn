@@ -27,6 +27,7 @@ shared_library("base") {
     "locked_queue.h",
     "process.cc",
     "process.h",
+    "process_forward.h",
     "process_impl.cc",
     "process_impl.h",
     "process_impl_linux.cc",

@@ -4,7 +4,9 @@
 #include <client/clang.h>
 #include <client/command.h>
 #include <net/network_service_impl.h>
+#include <net/test_connection.h>
 #include <net/test_network_service.h>
+#include <proto/remote.pb.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest.h>
 #include <third_party/libcxx/exported/include/regex>
@@ -157,10 +159,10 @@ class ClientTest : public ::testing::Test {
             if (error) {
               error->assign("Test service rejects connection intentionally");
             }
-            return Service::TestConnectionPtr();
+            return net::TestConnectionPtr();
           }
 
-          auto connection = Service::TestConnectionPtr(new net::TestConnection);
+          auto connection = net::TestConnectionPtr(new net::TestConnection);
           connection->CountSendAttempts(&send_count);
           connection->CountReadAttempts(&read_count);
           weak_ptr = connection->shared_from_this();
@@ -213,7 +215,8 @@ TEST_F(ClientTest, NoConnection) {
   const int argc = 3;
 
   do_connect = false;
-  EXPECT_TRUE(client::DoMain(argc, argv, "socket_path", "clang_path"));
+  EXPECT_TRUE(
+      client::DoMain(argc, argv, "socket_path", "clang_path", "version"));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -226,7 +229,7 @@ TEST_F(ClientTest, NoEnvironmentVariable) {
   const char* argv[] = {"clang++", "-c", temp_input.c_str(), nullptr};
   const int argc = 3;
 
-  EXPECT_TRUE(client::DoMain(argc, argv, String(), String()));
+  EXPECT_TRUE(client::DoMain(argc, argv, String(), String(), String()));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -243,7 +246,7 @@ TEST_F(ClientTest, NoInputFile) {
   const char* argv[] = {"clang++", "-c", "/tmp/qwerty", nullptr};
   const int argc = 3;
 
-  EXPECT_TRUE(client::DoMain(argc, argv, "socket_path", "clang++"));
+  EXPECT_TRUE(client::DoMain(argc, argv, "socket_path", "clang++", "version"));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -263,7 +266,7 @@ TEST_F(ClientTest, CannotSendMessage) {
     process->stdout_ = "test_version\nline2\nline3";
   };
 
-  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++"));
+  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++", "version"));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -328,7 +331,7 @@ TEST_F(ClientTest, CannotReadMessage) {
     process->stdout_ = "test_version\nline2\nline3";
   };
 
-  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++"));
+  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++", "version"));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -346,7 +349,7 @@ TEST_F(ClientTest, ReadMessageWithoutStatus) {
     process->stdout_ = "test_version\nline2\nline3";
   };
 
-  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++"));
+  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++", "version"));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -370,7 +373,7 @@ TEST_F(ClientTest, ReadMessageWithBadStatus) {
     process->stdout_ = "test_version\nline2\nline3";
   };
 
-  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++"));
+  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++", "version"));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -394,7 +397,7 @@ TEST_F(ClientTest, SuccessfulCompilation) {
     process->stdout_ = "test_version\nline2\nline3";
   };
 
-  EXPECT_FALSE(client::DoMain(argc, argv, String(), "clang++"));
+  EXPECT_FALSE(client::DoMain(argc, argv, String(), "clang++", "version"));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -418,7 +421,7 @@ TEST_F(ClientTest, FailedCompilation) {
     process->stdout_ = "test_version\nline2\nline3";
   };
 
-  EXPECT_EXIT(client::DoMain(argc, argv, String(), "clang++"),
+  EXPECT_EXIT(client::DoMain(argc, argv, String(), "clang++", "version"),
               ::testing::ExitedWithCode(1), ".*");
 }
 

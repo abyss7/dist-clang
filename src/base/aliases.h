@@ -58,4 +58,7 @@ using UniquePtr = std::unique_ptr<T>;
 template <class T>
 using Vector = std::vector<T>;
 
+template <class T>
+using WeakPtr = std::weak_ptr<T>;
+
 }  // namespace dist_clang

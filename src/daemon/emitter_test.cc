@@ -3,6 +3,7 @@
 #include <base/file_utils.h>
 #include <base/temporary_dir.h>
 #include <daemon/common_daemon_test.h>
+#include <net/test_connection.h>
 
 namespace dist_clang {
 namespace daemon {
