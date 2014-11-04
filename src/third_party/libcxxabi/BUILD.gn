@@ -58,10 +58,6 @@ config("includes") {
 # The unwinder currently only works on Darwin and on ARM Linux.
 # Not used in this project.
 static_library("unwind") {
-  public = [
-    "exported/include/libunwind.h",
-  ]
-
   sources = [
     "exported/src/Unwind/Unwind-EHABI.cpp",
     "exported/src/Unwind/Unwind-sjlj.c",
@@ -70,6 +66,10 @@ static_library("unwind") {
     "exported/src/Unwind/UnwindRegistersRestore.S",
     "exported/src/Unwind/UnwindRegistersSave.S",
     "exported/src/Unwind/libunwind.cpp",
+  ]
+
+  public = [
+    "exported/include/libunwind.h",
   ]
 
   configs = []
@@ -83,10 +83,6 @@ static_library("unwind") {
 }
 
 shared_library("c++abi") {
-  public = [
-    "exported/include/cxxabi.h",
-  ]
-
   sources = [
     "exported/src/abort_message.cpp",
     "exported/src/cxa_aux_runtime.cpp",
@@ -107,7 +103,7 @@ shared_library("c++abi") {
     "exported/src/typeinfo.cpp",
   ]
 
-  defines = [ "cxxabi_EXPORTS" ]  # TODO: do we need it?
+  public = [ "exported/include/cxxabi.h" ]
 
   libs = [ "pthread" ]  # TODO: may be move to "default_library" config?
   if (os == "mac") {
@@ -131,5 +127,5 @@ shared_library("c++abi") {
     deps = [ "//src/third_party/libunwind:unwind" ]
   }
 
-  direct_dependent_configs = [ ":includes" ]
+  public_configs = [ ":includes" ]
 }

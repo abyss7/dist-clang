@@ -2,12 +2,11 @@
 
 #include <base/aliases.h>
 
-#include <third_party/libcxx/exported/include/cerrno>
-#include <third_party/libcxx/exported/include/climits>
-#include <third_party/libcxx/exported/include/cstdlib>
-#include <third_party/libcxx/exported/include/cstring>
-
+#include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 

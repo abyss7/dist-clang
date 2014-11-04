@@ -3,17 +3,7 @@ config("includes") {
 }
 
 static_library("gtest") {
-  public = [
-    "exported/include/gtest/gtest-death-test.h",
-    "exported/include/gtest/gtest-message.h",
-    "exported/include/gtest/gtest-param-test.h",
-    "exported/include/gtest/gtest-printers.h",
-    "exported/include/gtest/gtest-spi.h",
-    "exported/include/gtest/gtest-test-part.h",
-    "exported/include/gtest/gtest-typed-test.h",
-    "exported/include/gtest/gtest.h",
-    "exported/include/gtest/gtest_pred_impl.h",
-  ]
+  visibility = [ "//src/test/*" ]
 
   sources = [
     "exported/src/gtest.cc",
@@ -36,18 +26,25 @@ static_library("gtest") {
     "exported/include/gtest/internal/gtest-type-util.h",
   ]
 
+  public = [
+    "exported/include/gtest/gtest-death-test.h",
+    "exported/include/gtest/gtest-message.h",
+    "exported/include/gtest/gtest-param-test.h",
+    "exported/include/gtest/gtest-printers.h",
+    "exported/include/gtest/gtest-spi.h",
+    "exported/include/gtest/gtest-test-part.h",
+    "exported/include/gtest/gtest-typed-test.h",
+    "exported/include/gtest/gtest.h",
+    "exported/include/gtest/gtest_pred_impl.h",
+  ]
+
   cflags_cc = [ "-Wno-unused-const-variable" ]
 
   include_dirs = [ "exported" ]
 
-  configs += [
-    ":includes",
-    "//src/third_party/libcxxabi:includes",
-  ]
+  public_configs = [ ":includes" ]
 
-  deps += [
-    "//src/base:logging",
-  ]
+  deps += [ "//src/base:logging" ]
 
-  all_dependent_configs = [ ":includes" ]
+  # public_deps = [ "//src/third_party/libcxxabi:c++abi" ]
 }

@@ -3,15 +3,11 @@ assert(os == "linux", "libunwind is supported on Linux only")
 config("includes") {
   include_dirs = [
     "exported/include",
-    "linux",
+    os,
   ]
 }
 
 source_set("unwind") {
-  public = [
-    "linux/libunwind.h",
-  ]
-
   sources = [
     "exported/src/dwarf/Gexpr.c",
     "exported/src/dwarf/Gfde.c",
@@ -114,6 +110,10 @@ source_set("unwind") {
     "exported/src/x86_64/setcontext.S",
   ]
 
+  public = [
+    "linux/libunwind.h",
+  ]
+
   cflags = [
     "-g",
     "-O2",
@@ -131,7 +131,7 @@ source_set("unwind") {
   include_dirs = [
     "exported/src",
     "exported/include",
-    "linux",
+    os,
     "exported/include/tdep-x86_64",
   ]
 
@@ -144,5 +144,5 @@ source_set("unwind") {
   configs = []
   deps = []
 
-  direct_dependent_configs = [ ":includes" ]
+  public_configs = [ ":includes" ]
 }

@@ -112,6 +112,30 @@ shared_library("c++") {
     "exported/src/valarray.cpp",
   ]
 
+  public = [
+    "exported/include/atomic",
+    "exported/include/condition_variable",
+    "exported/include/cstdint",
+    "exported/include/experimental/optional",
+    "exported/include/functional",
+    "exported/include/iomanip",
+    "exported/include/iostream",
+    "exported/include/list",
+    "exported/include/map",
+    "exported/include/memory",
+    "exported/include/mutex",
+    "exported/include/queue",
+    "exported/include/regex",
+    "exported/include/set",
+    "exported/include/sstream",
+    "exported/include/string",
+    "exported/include/thread",
+    "exported/include/tuple",
+    "exported/include/unordered_map",
+    "exported/include/unordered_set",
+    "exported/include/vector",
+  ]
+
   cflags = [
     "-O3",
     "-pedantic",
@@ -136,7 +160,7 @@ shared_library("c++") {
 
   configs = []
   configs += [ "//build/config:default_library" ]
-  all_dependent_configs = [ ":includes" ]
+  public_configs = [ ":includes" ]
 
   deps = []
   deps += [ "//src/third_party/libcxxabi:c++abi" ]

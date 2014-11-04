@@ -103,13 +103,26 @@ static_library("leveldb") {
     "exported/util/status.cc",
   ]
 
-  include_dirs = [ "exported" ]
-
-  configs += [
-    ":includes",
-    ":flags",
+  public = [
+    "exported/include/leveldb/cache.h",
+    "exported/include/leveldb/comparator.h",
+    "exported/include/leveldb/db.h",
+    "exported/include/leveldb/env.h",
+    "exported/include/leveldb/filter_policy.h",
+    "exported/include/leveldb/iterator.h",
+    "exported/include/leveldb/options.h",
+    "exported/include/leveldb/slice.h",
+    "exported/include/leveldb/status.h",
+    "exported/include/leveldb/table.h",
+    "exported/include/leveldb/table_builder.h",
+    "exported/include/leveldb/write_batch.h",
   ]
 
+  include_dirs = [ "exported" ]
+
+  configs += [ ":flags" ]
+
+  public_configs = [ ":includes" ]
+
   deps += [ "//src/third_party/snappy:snappy" ]
-  direct_dependent_configs = [ ":includes" ]
 }

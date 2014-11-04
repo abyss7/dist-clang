@@ -1,14 +1,22 @@
 executable("clang") {
+  visibility = [ "//:All" ]
+
   sources = [ "clang_main.cc" ]
+
   deps += [
     ":client",
+    "//src/base:base",
     "//src/base:constants",
     "//src/base:logging",
-    "//src/third_party/protobuf:protobuf",
   ]
 }
 
 source_set("client") {
+  visibility = [
+    ":*",
+    "//src/test:unit_tests",
+  ]
+
   sources = [
     "clang.cc",
     "clang.h",
@@ -20,11 +28,17 @@ source_set("client") {
     "//src/base:logging",
     "//src/net:net",
     "//src/proto:proto",
+    "//src/third_party/protobuf:protobuf",
   ]
 }
 
 # NOTICE: Uses custom libclang ldflags, thus, have to be shared library.
 shared_library("command") {
+  visibility = [
+    ":*",
+    "//src/test:unit_tests",
+  ]
+
   sources = [
     "command.cc",
     "command.h",
@@ -39,5 +53,5 @@ shared_library("command") {
     "//src/third_party/protobuf:protobuf",
   ]
 
-  all_dependent_configs = [ "//build/config:libclang_includes" ]
+  public_configs = [ "//build/config:libclang_includes" ]
 }

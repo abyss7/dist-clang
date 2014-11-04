@@ -1,10 +1,8 @@
 config("includes") {
-  include_dirs = [ "exported" ]
-  if (os == "linux") {
-    include_dirs += [ "linux" ]
-  } else if (os == "mac") {
-    include_dirs += [ "mac" ]
-  }
+  include_dirs = [
+    "exported",
+    os,
+  ]
 }
 
 config("no_warnings") {
@@ -15,8 +13,6 @@ config("no_warnings") {
 }
 
 shared_library("snappy") {
-  public = [ "exported/snappy.h" ]
-
   sources = [
     "exported/snappy.cc",
     "exported/snappy.h",
@@ -27,18 +23,13 @@ shared_library("snappy") {
     "exported/snappy-sinksource.h",
     "exported/snappy-stubs-internal.cc",
     "exported/snappy-stubs-internal.h",
-  ]
-  if (os == "linux") {
-    sources += [
-      "linux/config.h",
-      "linux/snappy-stubs-public.h",
-    ]
-  }
-
-  configs += [
-    ":includes",
-    ":no_warnings",
+    os + "/config.h",
+    os + "/snappy-stubs-public.h",
   ]
 
-  direct_dependent_configs = [ ":includes" ]
+  public = [ "exported/snappy.h" ]
+
+  configs += [ ":no_warnings" ]
+
+  public_configs = [ ":includes" ]
 }

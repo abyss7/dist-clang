@@ -1,8 +1,6 @@
 #include <daemon/configuration.h>
 
-#include <base/constants.h>
 #include <base/logging.h>
-#include <base/string_utils.h>
 
 #include <third_party/protobuf/exported/src/google/protobuf/io/zero_copy_stream_impl.h>
 #include <third_party/protobuf/exported/src/google/protobuf/text_format.h>

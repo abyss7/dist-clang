@@ -1,4 +1,11 @@
 shared_library("proto") {
+  visibility = [
+    "//src/client:*",
+    "//src/daemon:*",
+    "//src/net:*",
+    "//src/test:unit_tests",
+  ]
+
   sources = [
     "base.pb.cc",
     "base.pb.h",
@@ -12,7 +19,5 @@ shared_library("proto") {
     configs -= [ "//build/config:no_rtti" ]
   }
 
-  deps += [
-    "//src/third_party/protobuf:protobuf",
-  ]
+  public_deps = [ "//src/third_party/protobuf:protobuf" ]
 }

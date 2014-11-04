@@ -72,7 +72,5 @@ shared_library("logging") {
     "using_log.h",
   ]
 
-  deps += [
-    "//src/third_party/protobuf:protobuf",
-  ]
+  deps += [ "//src/third_party/protobuf:protobuf" ]
 }

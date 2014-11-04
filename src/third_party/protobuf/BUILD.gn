@@ -9,88 +9,116 @@ config("warnings") {
   cflags = [
     "-Woverloaded-virtual",
     "-Wno-sign-compare",
-    # "-Wno-tautological-undefined-compare",
     "-Wno-unused-function",
     "-Wno-unused-local-typedef",
-    # "-Wno-unused-variable",
     "-Wwrite-strings",
   ]
 }
 
-source_set("protobuf_lite") {
-  sources = [
-    "exported/src/google/protobuf/extension_set.cc",
-    "exported/src/google/protobuf/extension_set.h",
-    "exported/src/google/protobuf/generated_message_util.cc",
-    "exported/src/google/protobuf/generated_message_util.h",
-    "exported/src/google/protobuf/io/coded_stream.cc",
-    "exported/src/google/protobuf/io/coded_stream.h",
-    "exported/src/google/protobuf/io/coded_stream_inl.h",
-    "exported/src/google/protobuf/io/zero_copy_stream.cc",
-    "exported/src/google/protobuf/io/zero_copy_stream.h",
-    "exported/src/google/protobuf/io/zero_copy_stream_impl_lite.cc",
-    "exported/src/google/protobuf/io/zero_copy_stream_impl_lite.h",
-    "exported/src/google/protobuf/message_lite.cc",
-    "exported/src/google/protobuf/message_lite.h",
-    "exported/src/google/protobuf/repeated_field.cc",
-    "exported/src/google/protobuf/repeated_field.h",
-    "exported/src/google/protobuf/stubs/atomicops_internals_arm_gcc.h",
-    "exported/src/google/protobuf/stubs/atomicops_internals_atomicword_compat.h",
-    "exported/src/google/protobuf/stubs/atomicops_internals_macosx.h",
-    "exported/src/google/protobuf/stubs/atomicops_internals_mips_gcc.h",
-    "exported/src/google/protobuf/stubs/atomicops_internals_x86_gcc.cc",
-    "exported/src/google/protobuf/stubs/atomicops_internals_x86_gcc.h",
-    "exported/src/google/protobuf/stubs/atomicops_internals_x86_msvc.cc",
-    "exported/src/google/protobuf/stubs/atomicops_internals_x86_msvc.h",
-    "exported/src/google/protobuf/stubs/common.cc",
-    "exported/src/google/protobuf/stubs/common.h",
-    "exported/src/google/protobuf/stubs/hash.h",
-    "exported/src/google/protobuf/stubs/map_util.h",
-    "exported/src/google/protobuf/stubs/once.cc",
-    "exported/src/google/protobuf/stubs/once.h",
-    "exported/src/google/protobuf/stubs/shared_ptr.h",
-    "exported/src/google/protobuf/stubs/platform_macros.h",
-    "exported/src/google/protobuf/stubs/stringprintf.cc",
-    "exported/src/google/protobuf/stubs/stringprintf.h",
-    "exported/src/google/protobuf/wire_format_lite.cc",
-    "exported/src/google/protobuf/wire_format_lite.h",
-    "exported/src/google/protobuf/wire_format_lite_inl.h",
-  ]
+protobuf_lite_sources = [
+  "exported/src/google/protobuf/extension_set.cc",
+  "exported/src/google/protobuf/extension_set.h",
+  "exported/src/google/protobuf/generated_message_util.cc",
+  "exported/src/google/protobuf/generated_message_util.h",
+  "exported/src/google/protobuf/io/coded_stream.cc",
+  "exported/src/google/protobuf/io/coded_stream.h",
+  "exported/src/google/protobuf/io/coded_stream_inl.h",
+  "exported/src/google/protobuf/io/zero_copy_stream.cc",
+  "exported/src/google/protobuf/io/zero_copy_stream.h",
+  "exported/src/google/protobuf/io/zero_copy_stream_impl_lite.cc",
+  "exported/src/google/protobuf/io/zero_copy_stream_impl_lite.h",
+  "exported/src/google/protobuf/message_lite.cc",
+  "exported/src/google/protobuf/message_lite.h",
+  "exported/src/google/protobuf/repeated_field.cc",
+  "exported/src/google/protobuf/repeated_field.h",
+  "exported/src/google/protobuf/stubs/atomicops_internals_arm_gcc.h",
+  "exported/src/google/protobuf/stubs/atomicops_internals_atomicword_compat.h",
+  "exported/src/google/protobuf/stubs/atomicops_internals_macosx.h",
+  "exported/src/google/protobuf/stubs/atomicops_internals_mips_gcc.h",
+  "exported/src/google/protobuf/stubs/atomicops_internals_x86_gcc.cc",
+  "exported/src/google/protobuf/stubs/atomicops_internals_x86_gcc.h",
+  "exported/src/google/protobuf/stubs/atomicops_internals_x86_msvc.cc",
+  "exported/src/google/protobuf/stubs/atomicops_internals_x86_msvc.h",
+  "exported/src/google/protobuf/stubs/common.cc",
+  "exported/src/google/protobuf/stubs/common.h",
+  "exported/src/google/protobuf/stubs/hash.h",
+  "exported/src/google/protobuf/stubs/map_util.h",
+  "exported/src/google/protobuf/stubs/once.cc",
+  "exported/src/google/protobuf/stubs/once.h",
+  "exported/src/google/protobuf/stubs/shared_ptr.h",
+  "exported/src/google/protobuf/stubs/platform_macros.h",
+  "exported/src/google/protobuf/stubs/stringprintf.cc",
+  "exported/src/google/protobuf/stubs/stringprintf.h",
+  "exported/src/google/protobuf/wire_format_lite.cc",
+  "exported/src/google/protobuf/wire_format_lite.h",
+  "exported/src/google/protobuf/wire_format_lite_inl.h",
+]
+
+shared_library("protobuf_lite") {
+  sources = protobuf_lite_sources
+
+  public = []
 
   if (!config_for_tests) {
     configs -= [ "//build/config:no_rtti" ]
   }
   configs += [ ":warnings" ]
 
-  all_dependent_configs = [ ":includes" ]
+  public_configs = [ ":includes" ]
 }
 
 shared_library("protobuf") {
   sources = [
     "exported/src/google/protobuf/compiler/importer.cc",
+    "exported/src/google/protobuf/compiler/importer.h",
     "exported/src/google/protobuf/compiler/parser.cc",
+    "exported/src/google/protobuf/compiler/parser.h",
     "exported/src/google/protobuf/descriptor.cc",
+    "exported/src/google/protobuf/descriptor.h",
     "exported/src/google/protobuf/descriptor.pb.cc",
+    "exported/src/google/protobuf/descriptor.pb.h",
     "exported/src/google/protobuf/descriptor_database.cc",
+    "exported/src/google/protobuf/descriptor_database.h",
     "exported/src/google/protobuf/dynamic_message.cc",
+    "exported/src/google/protobuf/dynamic_message.h",
     "exported/src/google/protobuf/extension_set_heavy.cc",
     "exported/src/google/protobuf/generated_message_reflection.cc",
+    "exported/src/google/protobuf/generated_message_reflection.h",
     "exported/src/google/protobuf/io/gzip_stream.cc",
+    "exported/src/google/protobuf/io/gzip_stream.h",
     "exported/src/google/protobuf/io/printer.cc",
+    "exported/src/google/protobuf/io/printer.h",
     "exported/src/google/protobuf/io/strtod.cc",
+    "exported/src/google/protobuf/io/strtod.h",
     "exported/src/google/protobuf/io/tokenizer.cc",
+    "exported/src/google/protobuf/io/tokenizer.h",
     "exported/src/google/protobuf/io/zero_copy_stream_impl.cc",
+    "exported/src/google/protobuf/io/zero_copy_stream_impl.h",
     "exported/src/google/protobuf/message.cc",
+    "exported/src/google/protobuf/message.h",
     "exported/src/google/protobuf/reflection_ops.cc",
+    "exported/src/google/protobuf/reflection_ops.h",
     "exported/src/google/protobuf/service.cc",
+    "exported/src/google/protobuf/service.h",
     "exported/src/google/protobuf/stubs/strutil.cc",
     "exported/src/google/protobuf/stubs/strutil.h",
     "exported/src/google/protobuf/stubs/substitute.cc",
     "exported/src/google/protobuf/stubs/substitute.h",
     "exported/src/google/protobuf/stubs/structurally_valid.cc",
     "exported/src/google/protobuf/text_format.cc",
+    "exported/src/google/protobuf/text_format.h",
     "exported/src/google/protobuf/unknown_field_set.cc",
+    "exported/src/google/protobuf/unknown_field_set.h",
     "exported/src/google/protobuf/wire_format.cc",
+    "exported/src/google/protobuf/wire_format.h",
+  ]
+  sources += protobuf_lite_sources
+
+  public = [
+    "exported/src/google/protobuf/io/coded_stream.h",
+    "exported/src/google/protobuf/io/gzip_stream.h",
+    "exported/src/google/protobuf/io/zero_copy_stream_impl.h",
+    "exported/src/google/protobuf/text_format.h",
   ]
 
   libs = [ "z" ]
@@ -100,10 +128,12 @@ shared_library("protobuf") {
   }
   configs += [ ":warnings" ]
 
-  deps += [ ":protobuf_lite" ]
+  public_configs = [ ":includes" ]
 }
 
 executable("protoc") {
+  visibility = []
+
   sources = [
     "exported/src/google/protobuf/compiler/code_generator.cc",
     "exported/src/google/protobuf/compiler/command_line_interface.cc",
@@ -175,6 +205,8 @@ executable("protoc") {
     "exported/src/google/protobuf/compiler/zip_writer.cc",
     "exported/src/google/protobuf/compiler/zip_writer.h",
   ]
+
+  public = []
 
   libs = [ "z" ]
 

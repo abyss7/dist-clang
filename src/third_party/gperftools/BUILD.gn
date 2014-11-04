@@ -1,3 +1,5 @@
+visibility = [ ":*" ]
+
 config("flags") {
   cflags = [
     "-fno-builtin-calloc",
@@ -28,12 +30,7 @@ config("flags") {
     ]
   }
 
-  if (os == "linux") {
-    include_dirs = [ "linux" ]
-  }
-  if (os == "mac") {
-    include_dirs = [ "mac" ]
-  }
+  include_dirs = [ os ]
 
   ldflags = [
     "-fno-builtin-calloc",
@@ -168,6 +165,8 @@ source_set("tcmalloc_internal") {
 }
 
 shared_library("tcmalloc") {
+  visibility += [ "//src/*" ]
+
   sources = [
     "exported/src/tcmalloc.cc",
   ]

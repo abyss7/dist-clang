@@ -1,10 +1,17 @@
 shared_library("file_cache") {
+  visibility = [
+    "//src/daemon:*",
+    "//src/test:unit_tests",
+  ]
+
   sources = [
     "database_leveldb.cc",
     "database_leveldb.h",
     "file_cache.cc",
     "file_cache.h",
   ]
+
+  public = [ "file_cache.h" ]
 
   deps += [
     ":manifest",
@@ -17,6 +24,8 @@ shared_library("file_cache") {
 }
 
 shared_library("manifest") {
+  visibility = [ ":*" ]
+
   sources = [
     "manifest.pb.cc",
     "manifest.pb.h",
@@ -29,7 +38,7 @@ shared_library("manifest") {
     configs -= [ "//build/config:no_rtti" ]
   }
 
-  deps += [
-    "//src/third_party/protobuf:protobuf",
-  ]
+  deps += [ "//src/base:base" ]
+
+  public_deps = [ "//src/third_party/protobuf:protobuf" ]
 }

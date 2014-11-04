@@ -32,5 +32,5 @@ source_set("tclap") {
     "exported/include/tclap/ZshCompletionOutput.h",
   ]
 
-  direct_dependent_configs = [ ":exceptions" ]
+  public_configs = [ ":exceptions" ]
 }

@@ -2,148 +2,14 @@
 #include <base/process_impl.h>
 #include <base/test_process.h>
 #include <client/clang.h>
-#include <client/command.h>
 #include <net/network_service_impl.h>
 #include <net/test_connection.h>
 #include <net/test_network_service.h>
-#include <proto/remote.pb.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest.h>
-#include <third_party/libcxx/exported/include/regex>
 
 namespace dist_clang {
 namespace client {
-
-TEST(CommandTest, MissingArgument) {
-  const int argc = 4;
-  const char* argv[] = {"clang++", "-c", "/tmp/some_random.cc", "-Xclang",
-                        nullptr};
-
-  Command::List commands;
-  ASSERT_FALSE(DriverCommand::GenerateFromArgs(argc, argv, commands));
-  ASSERT_TRUE(commands.empty());
-}
-
-TEST(CommandTest, UnknownArgument) {
-  const int argc = 4;
-  const char* argv[] = {"clang++", "-12", "-c", "/tmp/some_random.cc", nullptr};
-
-  Command::List commands;
-  ASSERT_FALSE(DriverCommand::GenerateFromArgs(argc, argv, commands));
-  ASSERT_TRUE(commands.empty());
-}
-
-TEST(CommandTest, ParseSimpleArgs) {
-  auto rep = [](const char* str) {
-    return std::make_pair(std::regex(str), String(str));
-  };
-
-  auto rep2 =
-      [](const String& str) { return std::make_pair(std::regex(str), str); };
-
-  const String expected_input = "/tmp/input.cc";
-  const String expected_output = "/tmp/output.o";
-  List<Pair<std::regex, String>> expected_regex;
-  expected_regex.push_back(rep("-cc1"));
-  expected_regex.push_back(rep("-triple [a-z0-9_]+-[a-z0-9_]+-[a-z0-9]+"));
-  expected_regex.push_back(rep("-emit-obj"));
-  expected_regex.push_back(rep("-mrelax-all"));
-  expected_regex.push_back(rep("-disable-free"));
-  expected_regex.push_back(rep("-main-file-name input\\.cc"));
-  expected_regex.push_back(rep("-mrelocation-model (static|pic)"));
-  expected_regex.push_back(rep("-mdisable-fp-elim"));
-  expected_regex.push_back(rep("-masm-verbose"));
-  expected_regex.push_back(rep("-munwind-tables"));
-  expected_regex.push_back(rep("-target-cpu [a-z0-9_]+"));
-  expected_regex.push_back(rep("-target-linker-version [0-9.]+"));
-  expected_regex.push_back(rep2("-coverage-file " + expected_output));
-  expected_regex.push_back(rep("-resource-dir"));
-  expected_regex.push_back(rep("-fdeprecated-macro"));
-  expected_regex.push_back(rep("-fdebug-compilation-dir"));
-  expected_regex.push_back(rep("-ferror-limit [0-9]+"));
-  expected_regex.push_back(rep("-fmessage-length [0-9]+"));
-  expected_regex.push_back(rep("-mstackrealign"));
-  expected_regex.push_back(rep("-fobjc-runtime="));
-  expected_regex.push_back(rep("-fcxx-exceptions"));
-  expected_regex.push_back(rep("-fexceptions"));
-  expected_regex.push_back(rep("-fdiagnostics-show-option"));
-  expected_regex.push_back(rep2("-o " + expected_output));
-  expected_regex.push_back(rep("-x c++"));
-  expected_regex.push_back(rep2(expected_input));
-#if defined(OS_LINUX)
-  expected_regex.push_back(rep("-fmath-errno"));
-  expected_regex.push_back(rep("-mconstructor-aliases"));
-  expected_regex.push_back(rep("-internal-isystem"));
-  expected_regex.push_back(rep("-internal-externc-isystem"));
-#elif defined(OS_MACOSX)
-  expected_regex.push_back(rep("-pic-level [0-9]+"));
-  expected_regex.push_back(rep("-stack-protector [0-9]+"));
-  expected_regex.push_back(rep("-fblocks"));
-  expected_regex.push_back(rep("-fencode-extended-block-signature"));
-#endif
-
-  const char* argv[] = {"clang++", "-c", expected_input.c_str(), "-o",
-                        expected_output.c_str(), nullptr};
-  const int argc = 5;
-
-  Command::List commands;
-  ASSERT_TRUE(DriverCommand::GenerateFromArgs(argc, argv, commands));
-  ASSERT_EQ(1u, commands.size());
-
-  const auto& command = commands.front();
-  for (const auto& regex : expected_regex) {
-    EXPECT_TRUE(std::regex_search(command->RenderAllArgs(), regex.first))
-        << "Regex \"" << regex.second << "\" failed";
-  }
-
-  if (HasNonfatalFailure()) {
-    FAIL() << command->RenderAllArgs();
-  }
-}
-
-TEST(CommandTest, FillFlags) {
-  const String temp_input = base::CreateTempFile(".cc");
-  const char* argv[] = {"clang++", "-c", temp_input.c_str(), "-o",
-                        "/tmp/output.o", nullptr};
-  const int argc = 5;
-
-  Command::List commands;
-  ASSERT_TRUE(DriverCommand::GenerateFromArgs(argc, argv, commands));
-  ASSERT_EQ(1u, commands.size());
-
-  auto& command = commands.front();
-  proto::Flags flags;
-  command->AsDriverCommand()->FillFlags(&flags, "/some/clang/path");
-
-  EXPECT_EQ(temp_input, flags.input());
-  EXPECT_EQ("/tmp/output.o", flags.output());
-  EXPECT_EQ("-emit-obj", flags.action());
-  EXPECT_EQ("c++", flags.language());
-  EXPECT_EQ("-cc1", *flags.other().begin());
-  // TODO: add more expectations on flags.
-
-  if (HasNonfatalFailure()) {
-    FAIL() << command->RenderAllArgs();
-  }
-}
-
-TEST(CommandTest, AppendCleanTempFilesCommand) {
-  const String temp_input = base::CreateTempFile(".cc");
-  const char* argv[] = {"clang++", temp_input.c_str(), nullptr};
-  const int argc = 2;
-
-  Command::List commands;
-  ASSERT_TRUE(DriverCommand::GenerateFromArgs(argc, argv, commands));
-  ASSERT_EQ(3u, commands.size());
-  auto& command = commands.back();
-
-  // Can't use |CleanCommand::rm_path| since it's not a global symbol.
-  EXPECT_EQ("/bin/rm", command->GetExecutable());
-
-  if (HasNonfatalFailure()) {
-    FAIL() << command->RenderAllArgs();
-  }
-}
 
 class ClientTest : public ::testing::Test {
  public:

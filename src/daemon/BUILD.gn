@@ -1,9 +1,21 @@
 executable("clangd") {
+  visibility = [ "//:All" ]
+
   sources = [ "clangd_main.cc" ]
-  deps += [ ":daemon" ]
+
+  deps += [
+    ":configuration",
+    ":daemon",
+    "//src/base:logging",
+  ]
 }
 
 source_set("daemon") {
+  visibility = [
+    ":*",
+    "//src/test:unit_tests",
+  ]
+
   sources = [
     "absorber.cc",
     "absorber.h",
@@ -12,6 +24,7 @@ source_set("daemon") {
     "emitter.cc",
     "emitter.h",
   ]
+
   deps += [
     ":configuration",
     "//src/base:base",
@@ -25,6 +38,11 @@ source_set("daemon") {
 }
 
 shared_library("configuration") {
+  visibility = [
+    ":*",
+    "//src/test:unit_tests",
+  ]
+
   sources = [
     "configuration.cc",
     "configuration.h",
@@ -34,16 +52,17 @@ shared_library("configuration") {
   ]
 
   configs += [ "//build/config:version" ]
-
   if (!config_for_tests) {
     configs -= [ "//build/config:no_rtti" ]
   }
 
   deps += [
+    "//src/base:base",
     "//src/base:constants",
     "//src/base:logging",
-    "//src/proto:proto",
     "//src/third_party/protobuf:protobuf",
     "//src/third_party/tclap:tclap",
   ]
+
+  public_deps = [ "//src/proto:proto" ]
 }

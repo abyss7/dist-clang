@@ -1,4 +1,6 @@
 executable("unit_tests") {
+  visibility = [ "//:Tests" ]
+
   sources = [
     "//src/base/assert_debug_linux_test.cc",
     "//src/base/assert_release_linux_test.cc",
@@ -12,8 +14,10 @@ executable("unit_tests") {
     "//src/base/test_process.cc",
     "//src/base/test_process.h",
     "//src/client/clang_test.cc",
+    "//src/client/command_test.cc",
     "//src/daemon/absorber_test.cc",
     "//src/daemon/base_daemon_test.cc",
+    "//src/daemon/common_daemon_test.h",
     "//src/daemon/emitter_test.cc",
     "//src/file_cache/file_cache_test.cc",
     "//src/net/connection_linux_test.cc",  # TODO: make this test cross-platform.
@@ -27,12 +31,18 @@ executable("unit_tests") {
     "run_all_tests.cc",
   ]
 
+  public = []
+
   deps += [
     "//src/base:base",
+    "//src/base:logging",
     "//src/client:client",
+    "//src/client:command",
+    "//src/daemon:configuration",
     "//src/daemon:daemon",
     "//src/file_cache:file_cache",
     "//src/net:net",
+    "//src/proto:proto",
     "//src/third_party/gtest:gtest",
     "//src/third_party/protobuf:protobuf",
   ]

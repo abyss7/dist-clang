@@ -5,3 +5,4 @@ src/third_party/leveldb/exported
 src/third_party/leveldb/exported/include
 src/third_party/libcxx/exported/include
 src/third_party/protobuf/exported/src
+src/third_party/tclap/exported/include

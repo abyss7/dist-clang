@@ -27,9 +27,10 @@ default_configs = [
 ]
 
 if (config_for_tests) {
-  # FIXME: ASan binaries doesn't run on Mac
-  if (os == "linux") {
-    use_asan = true
+  use_asan = true
+  if (os == "mac") {
+    # FIXME: ASan binaries doesn't run on Mac
+    use_asan = false
   }
 
   default_configs += [

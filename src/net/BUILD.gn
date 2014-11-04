@@ -1,4 +1,10 @@
 shared_library("net") {
+  visibility = [
+    "//src/client:*",
+    "//src/daemon:*",
+    "//src/test:unit_tests",
+  ]
+
   sources = [
     "connection.cc",
     "connection.h",
