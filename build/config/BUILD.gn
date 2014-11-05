@@ -40,15 +40,8 @@ config("debug") {
 
   defines = [ "_DEBUG" ]
 
-  if (os == "linux") {
-    rpath = rebase_path("$root_out_dir/lib")
-  }
-  if (os == "mac") {
-    rpath = rebase_path("$root_out_dir")
-  }
-
   ldflags = [
-    "-rpath", rpath,
+    "-rpath", rebase_path("$root_out_dir"),
   ]
 }
 
@@ -60,16 +53,11 @@ config("release") {
 
   defines = [ "NDEBUG" ]
 
-  if (os == "linux") {
-    rpath = rebase_path("$root_out_dir/lib")
-  }
-  if (os == "mac") {
-    rpath = rebase_path("$root_out_dir")
-  }
-
   ldflags = [
     "-rpath", "/usr/lib/dist-clang",
-    "-rpath", rpath, # TODO: remove it when building for distribution.
+
+    # TODO: remove it when building for distribution.
+    "-rpath", rebase_path("$root_out_dir"),
   ]
 }
 
