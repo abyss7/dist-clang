@@ -7,29 +7,29 @@ namespace net {
 
 class KqueueEventLoop : public EventLoop {
  public:
-  using ConnectionCallback = Fn<void(fd_t, ConnectionPtr)>;
+  using ConnectionCallback = Fn<void(FileDescriptor, ConnectionPtr)>;
 
   KqueueEventLoop(ConnectionCallback callback);
   ~KqueueEventLoop();
 
-  virtual bool HandlePassive(fd_t fd) THREAD_UNSAFE override;
+  virtual bool HandlePassive(FileDescriptor fd) THREAD_UNSAFE override;
   virtual bool ReadyForRead(ConnectionImplPtr connection) THREAD_SAFE override;
   virtual bool ReadyForSend(ConnectionImplPtr connection) THREAD_SAFE override;
 
  private:
   virtual void DoListenWork(const std::atomic<bool>& is_shutting_down,
-                            fd_t self_pipe) override;
+                            FileDescriptor self_pipe) override;
   virtual void DoIOWork(const std::atomic<bool>& is_shutting_down,
-                        fd_t self_pipe) override;
+                        FileDescriptor self_pipe) override;
 
-  bool ReadyForListen(fd_t fd);
-  bool ReadyFor(ConnectionImplPtr connection, int16_t filter);
+  bool ReadyForListen(FileDescriptor fd);
+  bool ReadyFor(ConnectionImplPtr connection, i16 filter);
 
-  fd_t listen_fd_, io_fd_;
+  FileDescriptor listen_fd_, io_fd_;
   ConnectionCallback callback_;
 
   // We need to store listening fds - to be able to close them at shutdown.
-  HashSet<fd_t> listening_fds_;
+  HashSet<FileDescriptor> listening_fds_;
 };
 
 }  // namespace net

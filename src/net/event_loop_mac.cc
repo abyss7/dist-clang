@@ -1,7 +1,9 @@
 #include <net/event_loop_mac.h>
 
 #include <base/assert.h>
-#include <net/base/utils.h>
+#include <base/file_descriptor_utils.h>
+#include <net/connection_impl.h>
+#include <net/net_utils.h>
 
 #include <sys/event.h>
 
@@ -18,12 +20,12 @@ KqueueEventLoop::~KqueueEventLoop() {
   close(io_fd_);
 }
 
-bool KqueueEventLoop::HandlePassive(fd_t fd) {
+bool KqueueEventLoop::HandlePassive(FileDescriptor fd) {
 #if !defined(OS_MACOSX)
   // TODO: don't know why, but assertion fails on Mac.
   DCHECK(IsListening(fd));
 #endif
-  DCHECK(IsNonBlocking(fd));
+  DCHECK(base::IsNonBlocking(fd));
   listening_fds_.insert(fd);
   return ReadyForListen(fd);
 }
@@ -37,7 +39,7 @@ bool KqueueEventLoop::ReadyForSend(ConnectionImplPtr connection) {
 }
 
 void KqueueEventLoop::DoListenWork(const std::atomic<bool>& is_shutting_down,
-                                   fd_t self_pipe) {
+                                   FileDescriptor self_pipe) {
   const int MAX_EVENTS = 10;  // This should be enought in most cases.
   struct kevent events[MAX_EVENTS];
 
@@ -55,7 +57,7 @@ void KqueueEventLoop::DoListenWork(const std::atomic<bool>& is_shutting_down,
     }
 
     for (int i = 0; i < events_count; ++i) {
-      fd_t fd = events[i].ident;
+      FileDescriptor fd = events[i].ident;
       if (fd == self_pipe) {
         continue;
       }
@@ -67,8 +69,8 @@ void KqueueEventLoop::DoListenWork(const std::atomic<bool>& is_shutting_down,
           DCHECK(errno == EAGAIN || errno == EWOULDBLOCK);
           break;
         }
-        MakeCloseOnExec(new_fd);
-        MakeNonBlocking(new_fd, true);
+        base::MakeCloseOnExec(new_fd);
+        base::MakeNonBlocking(new_fd, true);
         callback_(fd, ConnectionImpl::Create(*this, new_fd));
       }
       ReadyForListen(fd);
@@ -81,7 +83,7 @@ void KqueueEventLoop::DoListenWork(const std::atomic<bool>& is_shutting_down,
 }
 
 void KqueueEventLoop::DoIOWork(const std::atomic<bool>& is_shutting_down,
-                               fd_t self_pipe) {
+                               FileDescriptor self_pipe) {
   struct kevent event;
   EV_SET(&event, self_pipe, EVFILT_READ, EV_ADD, 0, 0, 0);
   kevent(io_fd_, &event, 1, nullptr, 0, nullptr);
@@ -97,7 +99,7 @@ void KqueueEventLoop::DoIOWork(const std::atomic<bool>& is_shutting_down,
     }
 
     DCHECK(events_count == 1);
-    fd_t fd = event.ident;
+    FileDescriptor fd = event.ident;
 
     if (fd == self_pipe) {
       continue;
@@ -119,13 +121,13 @@ void KqueueEventLoop::DoIOWork(const std::atomic<bool>& is_shutting_down,
   }
 }
 
-bool KqueueEventLoop::ReadyForListen(fd_t fd) {
+bool KqueueEventLoop::ReadyForListen(FileDescriptor fd) {
   struct kevent event;
   EV_SET(&event, fd, EVFILT_READ, EV_ADD | EV_ENABLE | EV_ONESHOT, 0, 0, 0);
   return kevent(listen_fd_, &event, 1, nullptr, 0, nullptr) != -1;
 }
 
-bool KqueueEventLoop::ReadyFor(ConnectionImplPtr connection, int16_t filter) {
+bool KqueueEventLoop::ReadyFor(ConnectionImplPtr connection, i16 filter) {
   DCHECK(connection->IsOnEventLoop(this));
 
   auto fd = GetConnectionDescriptor(connection);

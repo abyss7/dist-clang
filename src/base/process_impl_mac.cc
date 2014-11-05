@@ -2,7 +2,7 @@
 
 #include <base/assert.h>
 #include <base/c_utils.h>
-#include <net/base/utils.h>
+#include <base/file_descriptor_utils.h>
 
 #include <signal.h>
 #include <sys/event.h>
@@ -13,8 +13,8 @@ namespace base {
 bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
   CHECK(args_.size() + 1 < MAX_ARGS);
 
-  int out_pipe_fd[2];
-  int err_pipe_fd[2];
+  FileDescriptor out_pipe_fd[2];
+  FileDescriptor err_pipe_fd[2];
   if (pipe(out_pipe_fd) == -1) {
     GetLastError(error);
     return false;
@@ -80,7 +80,7 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
       }
 
       for (int i = 0; i < event_count; ++i) {
-        net::fd_t fd = events[i].ident;
+        FileDescriptor fd = events[i].ident;
         if (events[i].filter == EVFILT_READ && events[i].data) {
           auto buffer_size = events[i].data;
           auto buffer = UniquePtr<char[]>(new char[buffer_size]);
@@ -133,9 +133,9 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
 bool ProcessImpl::Run(ui16 sec_timeout, const String& input, String* error) {
   CHECK(args_.size() + 1 < MAX_ARGS);
 
-  int in_pipe_fd[2];
-  int out_pipe_fd[2];
-  int err_pipe_fd[2];
+  FileDescriptor in_pipe_fd[2];
+  FileDescriptor out_pipe_fd[2];
+  FileDescriptor err_pipe_fd[2];
   if (pipe(in_pipe_fd) == -1) {
     GetLastError(error);
     return false;
@@ -166,7 +166,7 @@ bool ProcessImpl::Run(ui16 sec_timeout, const String& input, String* error) {
     ScopedDescriptor out_fd(out_pipe_fd[0]);
     ScopedDescriptor err_fd(err_pipe_fd[0]);
 
-    net::MakeNonBlocking(in_fd);
+    base::MakeNonBlocking(in_fd);
 
     ScopedDescriptor kq_fd(kqueue());
     if (kq_fd == -1) {
@@ -218,7 +218,7 @@ bool ProcessImpl::Run(ui16 sec_timeout, const String& input, String* error) {
       }
 
       for (int i = 0; i < event_count; ++i) {
-        net::fd_t fd = events[i].ident;
+        FileDescriptor fd = events[i].ident;
 
         if (events[i].filter == EVFILT_READ && events[i].data) {
           auto buffer_size = events[i].data;
