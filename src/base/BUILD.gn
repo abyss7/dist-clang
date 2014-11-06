@@ -7,16 +7,14 @@ visibility = [
   "//src/test/*",
 ]
 
-common_base_headers = [
-  "aliases.h",
-  "assert.h",
-  "string_utils.h",
-]
-
 shared_library("base") {
   sources = [
+    "aliases.h",
+    "assert.h",
     "attributes.h",
     "c_utils.h",
+    "const_string.cc",
+    "const_string.h",
     "empty_lambda.h",
     "file_descriptor_utils.h",
     "file_utils.cc",
@@ -33,6 +31,7 @@ shared_library("base") {
     "process_impl_linux.cc",
     "process_impl_mac.cc",
     "queue_aggregator.h",
+    "string_utils.h",
     "temporary_dir.cc",
     "temporary_dir.h",
     "testable.h",
@@ -41,12 +40,13 @@ shared_library("base") {
     "worker_pool.cc",
     "worker_pool.h",
   ]
-  sources += common_base_headers
 
   deps += [
     ":logging",
     "//src/third_party/smhasher:murmur_hash3",
   ]
+
+  allow_circular_includes_from = [ ":logging" ]
 }
 
 shared_library("constants") {
@@ -62,12 +62,6 @@ shared_library("logging") {
 
   sources = [
     "logging.cc",
-    "logging.h",
-    "using_log.h",
-  ]
-  sources += common_base_headers
-
-  public = [
     "logging.h",
     "using_log.h",
   ]

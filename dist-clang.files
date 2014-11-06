@@ -2519,3 +2519,5 @@ src/third_party/protobuf/exported/src/google/protobuf/wire_format_unittest.cc
 src/third_party/protobuf/linux/config.h
 src/third_party/protobuf/mac/config.h
 src/third_party/protobuf/BUILD.gn
+src/base/const_string.h
+src/base/const_string.cc

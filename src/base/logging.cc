@@ -1,6 +1,7 @@
 #include <base/logging.h>
 
 #include <base/assert.h>
+#include <base/const_string.h>
 
 #include <third_party/libcxx/exported/include/iostream>
 #include <third_party/protobuf/exported/src/google/protobuf/text_format.h>
@@ -50,6 +51,11 @@ Log& Log::operator<<(const google::protobuf::Message& info) {
 
 Log& Log::operator<<(std::ostream& (*func)(std::ostream&)) {
   stream_ << func;
+  return *this;
+}
+
+Log& Log::operator<<(const ConstString& info) {
+  stream_ << String(info);
   return *this;
 }
 
