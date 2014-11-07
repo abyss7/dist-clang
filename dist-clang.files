@@ -2521,3 +2521,4 @@ src/third_party/protobuf/mac/config.h
 src/third_party/protobuf/BUILD.gn
 src/base/const_string.h
 src/base/const_string.cc
+src/base/const_string_test.cc
