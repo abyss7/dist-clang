@@ -469,13 +469,13 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
   const proto::Status::Code expected_code = proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
-  const String object_code = "fake_object_code";
-  const String source = "fake_source";
-  const String language = "fake_language";
-  const String action = "fake_action";
-  const String input_path1 = "test1.cc";
-  const String input_path2 = "test2.cc";
-  const String output_path1 = "test1.o";
+  const auto object_code = "fake_object_code"_l;
+  const auto source = "fake_source"_l;
+  const auto language = "fake_language"_l;
+  const auto action = "fake_action"_l;
+  const auto input_path1 = "test1.cc"_l;
+  const auto input_path2 = "test2.cc"_l;
+  const auto output_path1 = "test1.o"_l;
 
   const String output_path2 = String(temp_dir) + "/test2.o";
   // |output_path2| checks that everything works fine with absolute paths.
@@ -507,17 +507,19 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ((List<String>{"-E", "-x", language, "-o", "-", input_path1}),
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l,
+                                 input_path1}),
                 process->args_);
       process->stdout_ = source;
     } else if (run_count == 2) {
-      EXPECT_EQ((List<String>{action, "-x", language, "-o", output_path1,
-                              input_path1}),
+      EXPECT_EQ((Immutable::Rope{action, "-x"_l, language, "-o"_l, output_path1,
+                                 input_path1}),
                 process->args_);
-      EXPECT_TRUE(base::WriteFile(process->cwd_path_ + "/" + output_path1,
+      EXPECT_TRUE(base::WriteFile(process->cwd_path_ + "/"_l + output_path1,
                                   object_code));
     } else if (run_count == 3) {
-      EXPECT_EQ((List<String>{"-E", "-x", language, "-o", "-", input_path2}),
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l,
+                                 input_path2}),
                 process->args_);
       process->stdout_ = source;
     }
@@ -580,7 +582,7 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
 
   emitter.reset();
 
-  String cache_output;
+  Immutable cache_output;
   EXPECT_TRUE(base::FileExists(output_path2));
   EXPECT_TRUE(base::ReadFile(output_path2, &cache_output));
   EXPECT_EQ(object_code, cache_output);
@@ -609,12 +611,12 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
   const proto::Status::Code expected_code = proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
-  const String object_code = "fake_object_code";
-  const String source = "fake_source";
-  const String language = "fake_language";
+  const auto object_code = "fake_object_code"_l;
+  const auto source = "fake_source"_l;
+  const auto language = "fake_language"_l;
   const String action = "fake_action";
-  const String input_path1 = "test1.cc";
-  const String input_path2 = "test2.cc";
+  const auto input_path1 = "test1.cc"_l;
+  const auto input_path2 = "test2.cc"_l;
   const String output_path1 = "test1.o";
 
   const String output_path2 = String(temp_dir) + "/test2.o";
@@ -683,11 +685,13 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ((List<String>{"-E", "-x", language, "-o", "-", input_path1}),
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l,
+                                 input_path1}),
                 process->args_);
       process->stdout_ = source;
     } else if (run_count == 2) {
-      EXPECT_EQ((List<String>{"-E", "-x", language, "-o", "-", input_path2}),
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l,
+                                 input_path2}),
                 process->args_);
       process->stdout_ = source;
     }
@@ -750,7 +754,7 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
 
   emitter.reset();
 
-  String cache_output;
+  Immutable cache_output;
   ASSERT_TRUE(base::FileExists(output_path2));
   ASSERT_TRUE(base::ReadFile(output_path2, &cache_output));
   EXPECT_EQ(object_code, cache_output);

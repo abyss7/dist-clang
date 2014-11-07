@@ -42,8 +42,8 @@ inline bool GenerateSource(const proto::LocalExecute* WEAK_PTR message,
   pp_flags.set_output("-");
   pp_flags.set_action("-E");
 
-  base::ProcessPtr process =
-      daemon::BaseDaemon::CreateProcess(pp_flags, message->current_dir());
+  base::ProcessPtr process = daemon::BaseDaemon::CreateProcess(
+      pp_flags, Immutable(message->current_dir()));
   if (!process->Run(10)) {
     return false;
   }
@@ -238,8 +238,8 @@ void Emitter::DoLocalExecute(const std::atomic<bool>& is_shutting_down) {
 
     ui32 uid =
         incoming->has_user_id() ? incoming->user_id() : base::Process::SAME_UID;
-    base::ProcessPtr process =
-        CreateProcess(incoming->flags(), uid, incoming->current_dir());
+    base::ProcessPtr process = CreateProcess(
+        incoming->flags(), uid, Immutable(incoming->current_dir()));
     if (!process->Run(base::Process::UNLIMITED, &error)) {
       status.set_code(proto::Status::EXECUTION);
       if (!process->stderr().empty()) {
@@ -336,8 +336,8 @@ void Emitter::DoRemoteExecute(const std::atomic<bool>& is_shutting_down,
 
     const String output_path = GetOutputPath(incoming);
     if (reply->HasExtension(proto::RemoteResult::extension)) {
-      const auto& result = reply->GetExtension(proto::RemoteResult::extension);
-      if (base::WriteFile(output_path, result.obj())) {
+      auto* result = reply->MutableExtension(proto::RemoteResult::extension);
+      if (base::WriteFile(output_path, result->obj())) {
         proto::Status status;
         status.set_code(proto::Status::OK);
         LOG(INFO) << "Remote compilation successful: "
@@ -345,14 +345,14 @@ void Emitter::DoRemoteExecute(const std::atomic<bool>& is_shutting_down,
 
         FileCache::Entry entry;
         auto GenerateEntry = [&] {
-          entry.object = result.obj();
-          if (result.has_deps()) {
-            entry.deps = result.deps();
+          entry.object = result->release_obj();
+          if (result->has_deps()) {
+            entry.deps = result->release_deps();
           } else if (incoming->flags().has_deps_file() &&
                      !base::ReadFile(GetDepsPath(incoming), &entry.deps)) {
             return false;
           }
-          entry.stderr = status.description();
+          entry.stderr = Immutable(status.description());
 
           return true;
         };

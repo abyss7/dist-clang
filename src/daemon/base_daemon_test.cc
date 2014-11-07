@@ -8,10 +8,10 @@ namespace dist_clang {
 namespace daemon {
 
 TEST(BaseDaemonTest, CreateProcessFromFlags) {
-  const List<String> expected_args = {
-      "-cc1", "-emit-obj", "-I.", "-load", "/usr/lib/libplugin.so",
-      "-dependency-file", "some_deps_file", "-x", "c++", "-o", "test.o",
-      "test.cc",
+  const List<Literal> expected_args = {
+      "-cc1"_l, "-emit-obj"_l, "-I."_l, "-load"_l, "/usr/lib/libplugin.so"_l,
+      "-dependency-file"_l, "some_deps_file"_l, "-x"_l, "c++"_l, "-o"_l,
+      "test.o"_l, "test.cc"_l,
   };
   const ui32 expected_user_id = 1u;
 
@@ -35,7 +35,7 @@ TEST(BaseDaemonTest, CreateProcessFromFlags) {
     for (const auto& arg : process->args_) {
       EXPECT_EQ(*(it++), arg);
     }
-    EXPECT_EQ("/usr/bin/clang", process->exec_path_);
+    EXPECT_EQ("/usr/bin/clang"_l, process->exec_path_);
     EXPECT_EQ(expected_user_id, process->uid_);
   }
 
@@ -46,7 +46,7 @@ TEST(BaseDaemonTest, CreateProcessFromFlags) {
     for (const auto& arg : process->args_) {
       EXPECT_EQ(*(it++), arg);
     }
-    EXPECT_EQ("/usr/bin/clang", process->exec_path_);
+    EXPECT_EQ("/usr/bin/clang"_l, process->exec_path_);
     EXPECT_EQ(base::Process::SAME_UID, process->uid_);
   }
 }

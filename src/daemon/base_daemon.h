@@ -18,9 +18,9 @@ class BaseDaemon {
   virtual bool Initialize() = 0;
 
   static base::ProcessPtr CreateProcess(const proto::Flags& flags, ui32 user_id,
-                                        const String& cwd_path = String());
+                                        Immutable cwd_path = Immutable());
   static base::ProcessPtr CreateProcess(const proto::Flags& flags,
-                                        const String& cwd_path = String());
+                                        Immutable cwd_path = Immutable());
 
  protected:
   using Universal = UniquePtr<proto::Universal>;

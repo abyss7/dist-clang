@@ -24,7 +24,7 @@ bool DoMain(int argc, const char* const argv[], const String& socket_path,
   auto service = net::NetworkService::Create();
   auto end_point = net::EndPoint::UnixSocket(socket_path);
 
-  String current_dir = base::GetCurrentDir();
+  auto current_dir = base::GetCurrentDir();
   if (current_dir.empty()) {
     return true;
   }
@@ -69,7 +69,7 @@ bool DoMain(int argc, const char* const argv[], const String& socket_path,
     if (version.empty()) {
       auto process =
           base::Process::Create(clang_path, String(), base::Process::SAME_UID);
-      process->AppendArg("--version");
+      process->AppendArg("--version"_l);
       if (!process->Run(1)) {
         return true;
       }

@@ -28,8 +28,7 @@ FileDescriptor ProcessImpl::ScopedDescriptor::Release() {
   return old_fd;
 }
 
-ProcessImpl::ProcessImpl(const String& exec_path, const String& cwd_path,
-                         ui32 uid)
+ProcessImpl::ProcessImpl(const String& exec_path, Immutable cwd_path, ui32 uid)
     : Process(exec_path, cwd_path, uid), killed_(false) {
 }
 
@@ -53,7 +52,8 @@ bool ProcessImpl::RunChild(FileDescriptor(&out_pipe)[2],
   close(err_pipe[1]);
 
   if (!cwd_path_.empty() && !ChangeCurrentDir(cwd_path_)) {
-    std::cerr << "Can't change current directory to " + cwd_path_ << std::endl;
+    std::cerr << "Can't change current directory to "_l << cwd_path_.c_str()
+              << std::endl;
     exit(1);
   }
 
@@ -81,8 +81,8 @@ bool ProcessImpl::RunChild(FileDescriptor(&out_pipe)[2],
 
   if (execve(exec_path_.c_str(), const_cast<char* const*>(argv),
              const_cast<char* const*>(env)) == -1) {
-    std::cerr << "Failed to execute " << exec_path_ << ": " << strerror(errno)
-              << std::endl;
+    std::cerr << "Failed to execute " << exec_path_.c_str() << ": "
+              << strerror(errno) << std::endl;
     exit(1);
   }
 

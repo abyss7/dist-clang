@@ -14,6 +14,11 @@
 
 namespace dist_clang {
 
+namespace base {
+class ConstString;
+class Literal;
+}
+
 using FileDescriptor = int;
 
 using i8 = int8_t;
@@ -24,6 +29,8 @@ using i32 = int32_t;
 using ui32 = uint32_t;
 using i64 = int64_t;
 using ui64 = uint64_t;
+
+using Immutable = base::ConstString;
 
 template <typename Signature>
 using Fn = std::function<Signature>;
@@ -36,6 +43,8 @@ using HashSet = std::unordered_set<U>;
 
 template <class T>
 using List = std::list<T>;
+
+using Literal = base::Literal;
 
 template <class U, class V = U>
 using Pair = std::pair<U, V>;

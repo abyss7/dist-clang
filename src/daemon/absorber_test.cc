@@ -158,10 +158,10 @@ TEST_F(AbsorberTest, StoreLocalCache) {
   const proto::Status::Code expected_code = proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
-  const String object_code = "fake_object_code";
+  const auto object_code = "fake_object_code"_l;
   const String source = "fake_source";
-  const String language = "fake_language";
-  const String action = "fake_action";
+  const auto language = "fake_language"_l;
+  const auto action = "fake_action"_l;
 
   conf.mutable_absorber()->mutable_local()->set_host(expected_host);
   conf.mutable_absorber()->mutable_local()->set_port(expected_port);
@@ -188,14 +188,14 @@ TEST_F(AbsorberTest, StoreLocalCache) {
       EXPECT_TRUE(message.HasExtension(proto::RemoteResult::extension));
       const auto& ext = message.GetExtension(proto::RemoteResult::extension);
       EXPECT_TRUE(ext.has_obj());
-      EXPECT_EQ(object_code, ext.obj());
+      EXPECT_EQ(String(object_code), ext.obj());
 
       send_condition.notify_all();
     });
   };
 
   run_callback = [&](base::TestProcess* process) {
-    EXPECT_EQ((List<String>{action, "-x", language, "-o", "-"}),
+    EXPECT_EQ((Immutable::Rope{action, "-x"_l, language, "-o"_l, "-"_l}),
               process->args_);
     process->stdout_ = object_code;
   };

@@ -24,7 +24,7 @@ class Command {
   Command(bool is_clang) : is_clang_(is_clang) {}
   virtual ~Command() {}
 
-  virtual base::ProcessPtr CreateProcess(const String& current_dir,
+  virtual base::ProcessPtr CreateProcess(Immutable current_dir,
                                          ui32 user_id) const = 0;
   virtual String GetExecutable() const = 0;
   virtual String RenderAllArgs() const = 0;  // For testing.
@@ -43,7 +43,7 @@ class DriverCommand : public Command {
 
   // Check |IsClang()| before calling this methods.
   void FillFlags(proto::Flags* flags, const String& clang_path) const;
-  virtual base::ProcessPtr CreateProcess(const String& current_dir,
+  virtual base::ProcessPtr CreateProcess(Immutable current_dir,
                                          ui32 user_id) const override;
 
   virtual String GetExecutable() const override;
@@ -82,7 +82,7 @@ class CleanCommand : public Command {
   CleanCommand(const llvm::opt::ArgStringList& temp_files)
       : Command(false), temp_files_(temp_files) {}
 
-  virtual base::ProcessPtr CreateProcess(const String& current_dir,
+  virtual base::ProcessPtr CreateProcess(Immutable current_dir,
                                          ui32 user_id) const override;
 
   virtual String GetExecutable() const override { return rm_path; }

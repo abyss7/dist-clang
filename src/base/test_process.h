@@ -17,8 +17,7 @@ class TestProcess : public Process {
     using OnCreateCallback = Fn<void(TestProcess*)>;
 
     virtual UniquePtr<Process> Create(const String& exec_path,
-                                      const String& cwd_path,
-                                      ui32 uid) override;
+                                      Immutable cwd_path, ui32 uid) override;
 
     inline void CallOnCreate(OnCreateCallback callback) {
       on_create_ = callback;
@@ -36,7 +35,7 @@ class TestProcess : public Process {
   inline void CountRuns(ui32* counter) { run_attempts_ = counter; }
 
  private:
-  TestProcess(const String& exec_path, const String& cwd_path, ui32 uid);
+  TestProcess(const String& exec_path, Immutable cwd_path, ui32 uid);
 
   OnRunCallback on_run_ = EmptyLambda<bool>(false);
   ui32* run_attempts_ = nullptr;

@@ -17,6 +17,16 @@ ConstString::ConstString(Literal str)
   DCHECK(str.str_[size_] == '\0');
 }
 
+ConstString::ConstString(char str[])
+    : str_(str, CharArrayDeleter), size_(strlen(str)), null_end_(true) {
+}
+
+ConstString::ConstString(UniquePtr<char[]>& str)
+    : str_(str.release(), CharArrayDeleter),
+      size_(strlen(str_.get())),
+      null_end_(true) {
+}
+
 ConstString::ConstString(char str[], size_t size)
     : str_(str, CharArrayDeleter), size_(size) {
 }
@@ -31,6 +41,11 @@ ConstString::ConstString(String&& str)
       size_(medium_->size()),
       null_end_(true) {
   DCHECK(medium_->data()[size_] == '\0');
+}
+
+ConstString::ConstString(String* str) : ConstString(std::move(*str)) {
+  DCHECK(str);
+  delete str;
 }
 
 ConstString::ConstString(Rope&& rope) : rope_(std::move(rope)) {
@@ -86,6 +101,25 @@ const char* ConstString::c_str() const {
   CollapseRope();
   NullTerminate();
   return str_.get();
+}
+
+bool ConstString::operator==(const ConstString& other) const {
+  if (size_ != other.size_) {
+    return false;
+  }
+  for (size_t i = 0; i < size_; ++i) {
+    if (this->operator[](i) != other[i]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+size_t ConstString::find(const char* str) const {
+  // TODO: make it a 0-copy.
+  String tmp = this->operator String();
+  return tmp.find(str);
 }
 
 const char& ConstString::operator[](size_t index) const {
@@ -147,10 +181,10 @@ void ConstString::NullTerminate() const {
     return;
   }
 
-  char* new_str = new char[size_ + 1];
+  UniquePtr<char[]> new_str(new char[size_ + 1]);
   new_str[size_] = '\0';
-  memcpy(new_str, str_.get(), size_);
-  str_.reset(new_str, CharArrayDeleter);
+  memcpy(new_str.get(), str_.get(), size_);
+  str_.reset(new_str.release(), CharArrayDeleter);
   null_end_ = true;
 }
 

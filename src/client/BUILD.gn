@@ -6,6 +6,7 @@ executable("clang") {
   deps += [
     ":client",
     "//src/base:base",
+    "//src/base:const_string",
     "//src/base:constants",
     "//src/base:logging",
   ]
@@ -48,6 +49,7 @@ shared_library("command") {
 
   deps += [
     "//src/base:base",
+    "//src/base:const_string",
     "//src/base:logging",
     "//src/proto:proto",
     "//src/third_party/protobuf:protobuf",

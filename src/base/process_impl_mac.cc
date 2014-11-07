@@ -58,7 +58,7 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
       timeout_ptr = &timeout;
     }
     size_t stdout_size = 0, stderr_size = 0;
-    List<Pair<UniquePtr<char[]>, int>> stdout, stderr;
+    Immutable::Rope stdout, stderr;
 
     int exhausted_fds = 0;
     while (exhausted_fds < 2 && !killed_) {
@@ -95,10 +95,10 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
             break;
           } else {
             if (fd == out_fd) {
-              stdout.push_back(std::make_pair(std::move(buffer), bytes_read));
+              stdout.emplace_back(buffer, bytes_read);
               stdout_size += bytes_read;
             } else {
-              stderr.push_back(std::make_pair(std::move(buffer), bytes_read));
+              stderr.emplace_back(buffer, bytes_read);
               stderr_size += bytes_read;
             }
           }
@@ -111,15 +111,8 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
       }
     }
 
-    stdout_.reserve(stdout_size);
-    for (const auto& piece : stdout) {
-      stdout_.append(String(piece.first.get(), piece.second));
-    }
-
-    stderr_.reserve(stderr_size);
-    for (const auto& piece : stderr) {
-      stderr_.append(String(piece.first.get(), piece.second));
-    }
+    stdout_ = Immutable(stdout, stdout_size);
+    stderr_ = Immutable(stderr, stderr_size);
 
     int status;
     CHECK(waitpid(child_pid, &status, 0) == child_pid);
@@ -192,7 +185,7 @@ bool ProcessImpl::Run(ui16 sec_timeout, const String& input, String* error) {
       timeout_ptr = &timeout;
     }
     size_t stdin_size = 0, stdout_size = 0, stderr_size = 0;
-    List<Pair<UniquePtr<char[]>, int>> stdout, stderr;
+    Immutable::Rope stdout, stderr;
 
     int exhausted_fds = 0;
     while (exhausted_fds < 3 && !killed_) {
@@ -234,10 +227,10 @@ bool ProcessImpl::Run(ui16 sec_timeout, const String& input, String* error) {
             break;
           } else {
             if (fd == out_fd) {
-              stdout.push_back(std::make_pair(std::move(buffer), bytes_read));
+              stdout.emplace_back(buffer, bytes_read);
               stdout_size += bytes_read;
             } else {
-              stderr.push_back(std::make_pair(std::move(buffer), bytes_read));
+              stderr.emplace_back(buffer, bytes_read);
               stderr_size += bytes_read;
             }
           }
@@ -267,15 +260,8 @@ bool ProcessImpl::Run(ui16 sec_timeout, const String& input, String* error) {
       }
     }
 
-    stdout_.reserve(stdout_size);
-    for (const auto& piece : stdout) {
-      stdout_.append(String(piece.first.get(), piece.second));
-    }
-
-    stderr_.reserve(stderr_size);
-    for (const auto& piece : stderr) {
-      stderr_.append(String(piece.first.get(), piece.second));
-    }
+    stdout_ = Immutable(stdout, stdout_size);
+    stderr_ = Immutable(stderr, stderr_size);
 
     int status;
     CHECK(waitpid(child_pid, &status, 0) == child_pid);

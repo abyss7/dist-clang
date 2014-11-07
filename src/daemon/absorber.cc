@@ -158,7 +158,7 @@ void Absorber::DoExecute(const std::atomic<bool>& is_shutting_down) {
       FileCache::Entry entry;
 
       entry.object = process->stdout();
-      entry.stderr = status.description();
+      entry.stderr = Immutable(status.description());
 
       UpdateSimpleCache(incoming->flags(),
                         file_cache::string::HandledSource(incoming->source()),

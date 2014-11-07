@@ -1,6 +1,7 @@
 #include <base/file_utils.h>
 
 #include <base/assert.h>
+#include <base/const_string.h>
 #include <base/hash.h>
 
 #include <third_party/libcxx/exported/include/map>
@@ -110,11 +111,10 @@ bool LinkFile(const String& src, const String& dst, String* error) {
   return CopyFile(src, dst, error);
 }
 
-bool ReadFile(const String& path, String* output, String* error) {
+bool ReadFile(const String& path, Immutable* output, String* error) {
   if (!output) {
     return false;
   }
-  output->clear();
 
   auto src_fd = open(path.c_str(), O_RDONLY);
   if (src_fd == -1) {
@@ -129,18 +129,68 @@ bool ReadFile(const String& path, String* output, String* error) {
   }
 #endif  // defined(OS_LINUX)
 
-  const size_t buffer_size = 1024;
-  char buffer[buffer_size];
+  const size_t buffer_size = 8192;
+  Immutable::Rope rope;
+  auto buffer = UniquePtr<char[]>(new char[buffer_size]);
   int size = 0;
-  while ((size = read(src_fd, buffer, buffer_size)) > 0) {
-    output->append(String(buffer, size));
+  while ((size = read(src_fd, buffer.get(), buffer_size)) > 0) {
+    rope.emplace_back(buffer, size);
+    buffer.reset(new char[buffer_size]);
   }
+  output->assign(rope);
   if (size == -1) {
     GetLastError(error);
   }
   close(src_fd);
 
   return !size;
+}
+
+bool WriteFile(const String& path, Immutable input, String* error) {
+  // We need write-access even on object files after introduction of the
+  // "split-dwarf" option, see
+  // https://sourceware.org/bugzilla/show_bug.cgi?id=971
+  const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+
+  auto src_fd =
+      open((path + ".tmp").c_str(), O_WRONLY | O_CREAT | O_TRUNC, mode);
+  if (src_fd == -1) {
+    GetLastError(error);
+    return false;
+  }
+
+  // FIXME: we should respect umask somehow.
+  DCHECK([&] {
+    struct stat st;
+    return fstat(src_fd, &st) == 0 && (st.st_mode & mode) == mode;
+  }());
+
+#if defined(OS_LINUX)
+  if (posix_fallocate(src_fd, 0, input.size()) == -1) {
+    GetLastError(error);
+    close(src_fd);
+    return false;
+  }
+#endif  // defined(OS_LINUX)
+
+  size_t total_bytes = 0;
+  int size = 0;
+  while (total_bytes < input.size()) {
+    size =
+        write(src_fd, input.data() + total_bytes, input.size() - total_bytes);
+    if (size <= 0) {
+      break;
+    }
+    total_bytes += size;
+  }
+  close(src_fd);
+
+  if (!MoveFile(path + ".tmp", path)) {
+    DeleteFile(path + ".tmp");
+    return false;
+  }
+
+  return total_bytes == input.size();
 }
 
 bool WriteFile(const String& path, const String& input, String* error) {
@@ -190,8 +240,8 @@ bool WriteFile(const String& path, const String& input, String* error) {
   return total_bytes == input.size();
 }
 
-bool HashFile(const String& path, String* output,
-              const List<const char*>& skip_list, String* error) {
+bool HashFile(const String& path, Immutable* output,
+              const List<Literal>& skip_list, String* error) {
   if (!ReadFile(path, output, error)) {
     return false;
   }

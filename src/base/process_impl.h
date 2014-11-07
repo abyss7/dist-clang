@@ -29,7 +29,7 @@ class ProcessImpl : public Process {
   };
 
   explicit ProcessImpl(const String& exec_path,
-                       const String& cwd_path = String(), ui32 uid = SAME_UID);
+                       Immutable cwd_path = Immutable(), ui32 uid = SAME_UID);
 
   bool RunChild(FileDescriptor(&out_pipe)[2], FileDescriptor(&err_pipe)[2],
                 FileDescriptor* in_pipe);

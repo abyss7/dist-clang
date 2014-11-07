@@ -71,7 +71,7 @@ bool FileCache::Find(const HandledSource& code, const CommandLine& command_line,
 bool FileCache::Find(const UnhandledSource& code,
                      const CommandLine& command_line, const Version& version,
                      Entry* entry) const {
-  String hash = Hash(code, command_line, version);
+  Immutable hash = Hash(code, command_line, version);
   const String first_path = FirstPath(hash);
   const String second_path = SecondPath(hash);
   const String manifest_path = CommonPath(hash) + ".manifest";
@@ -90,14 +90,15 @@ bool FileCache::Find(const UnhandledSource& code,
   utime(second_path.c_str(), nullptr);
   utime(first_path.c_str(), nullptr);
 
+  Immutable::Rope hash_rope = {hash};
   for (const auto& header : manifest.headers()) {
-    String header_hash;
+    Immutable header_hash;
     if (!base::HashFile(header, &header_hash)) {
       return false;
     }
-    hash += header_hash;
+    hash_rope.push_back(header_hash);
   }
-  hash = base::Hexify(base::MakeHash(hash));
+  hash = base::Hexify(base::MakeHash(hash_rope));
 
   if (database_.Get(hash, &hash)) {
     return FindByHash(HandledHash(hash), entry);
@@ -174,18 +175,20 @@ bool FileCache::FindByHash(const HandledHash& hash, Entry* entry) const {
       if (manifest.snappy()) {
         String error;
 
-        String packed_content;
+        Immutable packed_content;
         if (!base::ReadFile(object_path, &packed_content, &error)) {
           LOG(CACHE_ERROR) << "Failed to read " << object_path << " : "
                            << error;
           return false;
         }
 
+        String object_str;
         if (!snappy::Uncompress(packed_content.data(), packed_content.size(),
-                                &entry->object)) {
+                                &object_str)) {
           LOG(CACHE_ERROR) << "Failed to unpack contents of " << object_path;
           return false;
         }
+        entry->object = std::move(object_str);
       } else {
         if (!base::ReadFile(object_path, &entry->object)) {
           return false;
@@ -301,7 +304,7 @@ void FileCache::DoStore(const HandledHash& hash, const Entry& entry) {
         return;
       }
 
-      if (!base::WriteFile(object_path, packed_content, &error)) {
+      if (!base::WriteFile(object_path, std::move(packed_content), &error)) {
         RemoveEntry(manifest_path);
         LOG(CACHE_ERROR) << "Failed to write to " << object_path << " : "
                          << error;
@@ -361,23 +364,24 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
     return;
   }
 
-  String direct_hash = orig_hash;
+  Immutable::Rope hash_rope = {orig_hash};
   proto::Manifest manifest;
   manifest.set_stderr(false);
   manifest.set_object(false);
   manifest.set_deps(false);
   for (const auto& header : headers) {
-    String header_hash, error;
-    if (!base::HashFile(header, &header_hash, {"__DATE__", "__TIME__"},
+    String error;
+    Immutable header_hash;
+    if (!base::HashFile(header, &header_hash, {"__DATE__"_l, "__TIME__"_l},
                         &error)) {
       LOG(CACHE_ERROR) << "Failed to hash " << header << ": " << error;
       return;
     }
-    direct_hash += header_hash;
+    hash_rope.push_back(header_hash);
     manifest.add_headers(header);
   }
 
-  direct_hash = base::Hexify(base::MakeHash(direct_hash));
+  auto direct_hash = base::Hexify(base::MakeHash(hash_rope));
   if (!database_.Set(direct_hash, hash)) {
     return;
   }

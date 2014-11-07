@@ -36,6 +36,7 @@ executable("unit_tests") {
 
   deps += [
     "//src/base:base",
+    "//src/base:const_string",
     "//src/base:logging",
     "//src/client:client",
     "//src/client:command",

@@ -4,15 +4,13 @@ namespace dist_clang {
 namespace base {
 
 UniquePtr<Process> TestProcess::Factory::Create(const String& exec_path,
-                                                const String& cwd_path,
-                                                ui32 uid) {
+                                                Immutable cwd_path, ui32 uid) {
   auto new_t = new TestProcess(exec_path, cwd_path, uid);
   on_create_(new_t);
   return UniquePtr<Process>(new_t);
 }
 
-TestProcess::TestProcess(const String& exec_path, const String& cwd_path,
-                         ui32 uid)
+TestProcess::TestProcess(const String& exec_path, Immutable cwd_path, ui32 uid)
     : Process(exec_path, cwd_path, uid) {
 }
 

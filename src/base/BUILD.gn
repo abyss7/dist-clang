@@ -13,8 +13,6 @@ shared_library("base") {
     "assert.h",
     "attributes.h",
     "c_utils.h",
-    "const_string.cc",
-    "const_string.h",
     "empty_lambda.h",
     "file_descriptor_utils.h",
     "file_utils.cc",
@@ -46,7 +44,19 @@ shared_library("base") {
     "//src/third_party/smhasher:murmur_hash3",
   ]
 
-  allow_circular_includes_from = [ ":logging" ]
+  public_deps = [ ":const_string" ]
+
+  allow_circular_includes_from = [
+    ":const_string",
+    ":logging",
+  ]
+}
+
+shared_library("const_string") {
+  sources = [
+    "const_string.cc",
+    "const_string.h",
+  ]
 }
 
 shared_library("constants") {
@@ -66,5 +76,8 @@ shared_library("logging") {
     "using_log.h",
   ]
 
-  deps += [ "//src/third_party/protobuf:protobuf" ]
+  deps += [
+    ":const_string",
+    "//src/third_party/protobuf:protobuf",
+  ]
 }

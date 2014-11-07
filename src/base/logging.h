@@ -47,8 +47,6 @@ enum {
 
 }  // namespace NamedLevels
 
-class ConstString;
-
 class Log {
  public:
   // First value is a right edge of interval, the second - a left edge.
@@ -85,7 +83,7 @@ class Log {
 
   Log& operator<<(std::ostream& (*func)(std::ostream&));  // for |std::endl|
 
-  Log& operator<<(const ConstString& info);
+  Log& operator<<(const Immutable& info);
 
  private:
   static ui32& error_mark();

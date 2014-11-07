@@ -300,30 +300,30 @@ void BaseDaemon::UpdateDirectCache(const proto::LocalExecute* message,
 
 // static
 base::ProcessPtr BaseDaemon::CreateProcess(const proto::Flags& flags,
-                                           ui32 user_id,
-                                           const String& cwd_path) {
+                                           ui32 user_id, Immutable cwd_path) {
   base::ProcessPtr process =
       base::Process::Create(flags.compiler().path(), cwd_path, user_id);
 
   // |flags.other()| always must go first, since it contains the "-cc1" flag.
   process->AppendArg(flags.other().begin(), flags.other().end());
-  process->AppendArg(flags.action());
+  process->AppendArg(Immutable(flags.action()));
   process->AppendArg(flags.non_cached().begin(), flags.non_cached().end());
   process->AppendArg(flags.non_direct().begin(), flags.non_direct().end());
   for (const auto& plugin : flags.compiler().plugins()) {
-    process->AppendArg("-load").AppendArg(plugin.path());
+    process->AppendArg("-load"_l).AppendArg(Immutable(plugin.path()));
   }
   if (flags.has_deps_file()) {
-    process->AppendArg("-dependency-file").AppendArg(flags.deps_file());
+    process->AppendArg("-dependency-file"_l)
+        .AppendArg(Immutable(flags.deps_file()));
   }
   if (flags.has_language()) {
-    process->AppendArg("-x").AppendArg(flags.language());
+    process->AppendArg("-x"_l).AppendArg(Immutable(flags.language()));
   }
   if (flags.has_output()) {
-    process->AppendArg("-o").AppendArg(flags.output());
+    process->AppendArg("-o"_l).AppendArg(Immutable(flags.output()));
   }
   if (flags.has_input()) {
-    process->AppendArg(flags.input());
+    process->AppendArg(Immutable(flags.input()));
   }
 
   return std::move(process);
@@ -331,7 +331,7 @@ base::ProcessPtr BaseDaemon::CreateProcess(const proto::Flags& flags,
 
 // static
 base::ProcessPtr BaseDaemon::CreateProcess(const proto::Flags& flags,
-                                           const String& cwd_path) {
+                                           Immutable cwd_path) {
   return std::move(CreateProcess(flags, base::Process::SAME_UID, cwd_path));
 }
 

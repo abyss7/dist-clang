@@ -16,7 +16,7 @@ class Database {
   ~Database();
 
   bool Set(const String& key, const String& value) THREAD_SAFE;
-  bool Get(const String& key, String* value) const THREAD_SAFE;
+  bool Get(const String& key, Immutable* value) const THREAD_SAFE;
 
  private:
   leveldb::DB* db_ = nullptr;

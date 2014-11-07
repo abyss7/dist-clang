@@ -1,5 +1,6 @@
 #pragma once
 
+#include <base/const_string.h>
 #include <base/process_forward.h>
 #include <base/testable.h>
 
@@ -28,25 +29,27 @@ namespace base {
 
 class ProcessImpl;
 
-class Process : public Testable<Process, ProcessImpl, const String&,
-                                const String&, ui32> {
+class Process
+    : public Testable<Process, ProcessImpl, const String&, Immutable, ui32> {
  public:
   enum { UNLIMITED = 0, SAME_UID = 0 };
 
-  explicit Process(const String& exec_path, const String& cwd_path = String(),
+  explicit Process(const String& exec_path, Immutable cwd_path = Immutable(),
                    ui32 uid = SAME_UID);
   virtual ~Process() {}
 
   template <class Iterator>
   Process& AppendArg(Iterator begin, Iterator end) {
-    args_.insert(args_.end(), begin, end);
+    for (auto it = begin; it != end; ++it) {
+      args_.push_back(Immutable(*it));
+    }
     return *this;
   }
-  Process& AppendArg(const String& arg);
-  Process& AddEnv(const char* name, const String& value);
+  Process& AppendArg(Immutable arg);
+  Process& AddEnv(const char* name, const char* value);
 
-  inline const String& stdout() const { return stdout_; }
-  inline const String& stderr() const { return stderr_; }
+  inline Immutable stdout() const { return stdout_; }
+  inline Immutable stderr() const { return stderr_; }
 
   // |sec_timeout| specifies the timeout in seconds - for how long we should
   // wait for another portion of the output from a child process.
@@ -55,10 +58,9 @@ class Process : public Testable<Process, ProcessImpl, const String&,
                    String* error = nullptr) = 0;
 
  protected:
-  const String exec_path_, cwd_path_;
-  List<String> args_;
-  List<String> envs_;
-  String stdout_, stderr_;
+  const Immutable exec_path_, cwd_path_;
+  List<Immutable> args_, envs_;
+  Immutable stdout_, stderr_;
   const ui32 uid_;
 
  private:

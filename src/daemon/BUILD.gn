@@ -6,6 +6,7 @@ executable("clangd") {
   deps += [
     ":configuration",
     ":daemon",
+    "//src/base:const_string",
     "//src/base:logging",
   ]
 }

@@ -1,5 +1,7 @@
 #include <file_cache/database_leveldb.h>
 
+#include <base/assert.h>
+#include <base/const_string.h>
 #include <base/logging.h>
 #include <third_party/leveldb/exported/include/leveldb/db.h>
 
@@ -53,8 +55,10 @@ bool Database::Set(const String& key, const String& value) {
   return true;
 }
 
-bool Database::Get(const String& key, String* value) const {
+bool Database::Get(const String& key, Immutable* value) const {
   using namespace leveldb;
+
+  DCHECK(value);
 
   ReadOptions options;
   options.fill_cache = true;
@@ -63,7 +67,9 @@ bool Database::Get(const String& key, String* value) const {
     return false;
   }
 
-  Status status = db_->Get(options, key, value);
+  String str_value;
+  Status status = db_->Get(options, key, &str_value);
+  value->assign(Immutable(std::move(str_value)));
   if (!status.ok()) {
     LOG(DB_ERROR) << "Failed to get " << key
                   << " with error: " << status.ToString();

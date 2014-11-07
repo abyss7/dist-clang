@@ -230,13 +230,14 @@ void DriverCommand::FillFlags(proto::Flags* flags,
   }
 }
 
-base::ProcessPtr DriverCommand::CreateProcess(const String& current_dir,
+base::ProcessPtr DriverCommand::CreateProcess(Immutable current_dir,
                                               ui32 user_id) const {
   CHECK(command_);
   auto process =
       base::Process::Create(command_->getExecutable(), current_dir, user_id);
-  process->AppendArg(command_->getArguments().begin(),
-                     command_->getArguments().end());
+  for (const auto& it : command_->getArguments()) {
+    process->AppendArg(Immutable(String(it)));
+  }
   return process;
 }
 
@@ -269,10 +270,12 @@ String DriverCommand::RenderAllArgs() const {
   return result.substr(1);
 }
 
-base::ProcessPtr CleanCommand::CreateProcess(const String& current_dir,
+base::ProcessPtr CleanCommand::CreateProcess(Immutable current_dir,
                                              ui32 user_id) const {
   auto process = base::Process::Create(rm_path, current_dir, user_id);
-  process->AppendArg(temp_files_.begin(), temp_files_.end());
+  for (const auto& it : temp_files_) {
+    process->AppendArg(Immutable(String(it)));
+  }
   return process;
 }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <base/aliases.h>
+#include <base/const_string.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -44,13 +45,13 @@ inline String SetEnv(const char* env_name, const String& value,
   return old_value;
 }
 
-inline String GetCurrentDir(String* error = nullptr) {
-  char buf[PATH_MAX];
-  if (!getcwd(buf, sizeof(buf))) {
+inline Immutable GetCurrentDir(String* error = nullptr) {
+  UniquePtr<char[]> buf(new char[PATH_MAX]);
+  if (!getcwd(buf.get(), PATH_MAX)) {
     GetLastError(error);
-    return String();
+    return Immutable();
   }
-  return String(buf);
+  return buf;
 }
 
 inline String CreateTempFile(String* error = nullptr) {
@@ -74,27 +75,25 @@ inline String CreateTempFile(String* error = nullptr) {
 inline String CreateTempFile(const char suffix[], String* error = nullptr) {
   const char prefix[] = "/tmp/clangd-XXXXXX";
   const size_t prefix_size = sizeof(prefix) - 1;
-  char* buf = new char[prefix_size + strlen(suffix) + 1];
-  memcpy(&buf[0], prefix, prefix_size);
-  memcpy(&buf[prefix_size], suffix, strlen(suffix));
+  UniquePtr<char[]> buf(new char[prefix_size + strlen(suffix) + 1]);
+  memcpy(buf.get(), prefix, prefix_size);
+  memcpy(buf.get() + prefix_size, suffix, strlen(suffix));
   buf[prefix_size + strlen(suffix)] = 0;
 
 #if defined(OS_LINUX)
-  const int fd = mkostemps(buf, strlen(suffix), O_CLOEXEC);
+  const int fd = mkostemps(buf.get(), strlen(suffix), O_CLOEXEC);
 #elif defined(OS_MACOSX)
   // FIXME: On MacOSX the temp file isn't closed on exec.
-  const int fd = mkstemps(buf, strlen(suffix));
+  const int fd = mkstemps(buf.get(), strlen(suffix));
 #else
 #error Don't know, how to create a temp file: this platform is unsupported!
 #endif
   if (fd == -1) {
     GetLastError(error);
-    delete[] buf;
     return String();
   }
   close(fd);
-  const auto result = String(buf);
-  delete[] buf;
+  const auto result = String(buf.get());
   return result;
 }
 

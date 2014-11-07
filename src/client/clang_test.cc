@@ -128,8 +128,8 @@ TEST_F(ClientTest, CannotSendMessage) {
   connect_callback =
       [](net::TestConnection* connection) { connection->AbortOnSend(); };
   run_callback = [](base::TestProcess* process) {
-    EXPECT_EQ((List<String>{"--version"}), process->args_);
-    process->stdout_ = "test_version\nline2\nline3";
+    EXPECT_EQ((Immutable::Rope{"--version"_l}), process->args_);
+    process->stdout_ = "test_version\nline2\nline3"_l;
   };
 
   EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++", "version"));
@@ -152,7 +152,7 @@ TEST_F(ClientTest, CannotReadMessage) {
 
       const auto& extension =
           message.GetExtension(proto::LocalExecute::extension);
-      EXPECT_EQ(base::GetCurrentDir(), extension.current_dir());
+      EXPECT_EQ(base::GetCurrentDir(), Immutable(extension.current_dir()));
       ASSERT_TRUE(extension.has_flags());
 
       const auto& cc_flags = extension.flags();
@@ -193,8 +193,8 @@ TEST_F(ClientTest, CannotReadMessage) {
     });
   };
   run_callback = [](base::TestProcess* process) {
-    EXPECT_EQ((List<String>{"--version"}), process->args_);
-    process->stdout_ = "test_version\nline2\nline3";
+    EXPECT_EQ((Immutable::Rope{"--version"_l}), process->args_);
+    process->stdout_ = "test_version\nline2\nline3"_l;
   };
 
   EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++", "version"));
@@ -211,8 +211,8 @@ TEST_F(ClientTest, ReadMessageWithoutStatus) {
   const int argc = 3;
 
   run_callback = [](base::TestProcess* process) {
-    EXPECT_EQ((List<String>{"--version"}), process->args_);
-    process->stdout_ = "test_version\nline2\nline3";
+    EXPECT_EQ((Immutable::Rope{"--version"_l}), process->args_);
+    process->stdout_ = "test_version\nline2\nline3"_l;
   };
 
   EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++", "version"));
@@ -235,8 +235,8 @@ TEST_F(ClientTest, ReadMessageWithBadStatus) {
     });
   };
   run_callback = [](base::TestProcess* process) {
-    EXPECT_EQ((List<String>{"--version"}), process->args_);
-    process->stdout_ = "test_version\nline2\nline3";
+    EXPECT_EQ((Immutable::Rope{"--version"_l}), process->args_);
+    process->stdout_ = "test_version\nline2\nline3"_l;
   };
 
   EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++", "version"));
@@ -259,8 +259,8 @@ TEST_F(ClientTest, SuccessfulCompilation) {
     });
   };
   run_callback = [](base::TestProcess* process) {
-    EXPECT_EQ((List<String>{"--version"}), process->args_);
-    process->stdout_ = "test_version\nline2\nline3";
+    EXPECT_EQ((Immutable::Rope{"--version"_l}), process->args_);
+    process->stdout_ = "test_version\nline2\nline3"_l;
   };
 
   EXPECT_FALSE(client::DoMain(argc, argv, String(), "clang++", "version"));
@@ -283,8 +283,8 @@ TEST_F(ClientTest, FailedCompilation) {
     });
   };
   run_callback = [](base::TestProcess* process) {
-    EXPECT_EQ((List<String>{"--version"}), process->args_);
-    process->stdout_ = "test_version\nline2\nline3";
+    EXPECT_EQ((Immutable::Rope{"--version"_l}), process->args_);
+    process->stdout_ = "test_version\nline2\nline3"_l;
   };
 
   EXPECT_EXIT(client::DoMain(argc, argv, String(), "clang++", "version"),

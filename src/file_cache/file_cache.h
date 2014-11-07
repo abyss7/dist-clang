@@ -1,5 +1,6 @@
 #pragma once
 
+#include <base/const_string.h>
 #include <base/thread_pool.h>
 #include <file_cache/database_leveldb.h>
 
@@ -19,10 +20,14 @@ namespace string {
 #define DEFINE_STRING_TYPE(type)                   \
   struct type {                                    \
     type() = default;                              \
+    explicit type(Immutable str) : str(str) {}     \
+    operator Immutable() const { return str; }     \
+                                                   \
+    /* TODO: remove these */                       \
     explicit type(const String& str) : str(str) {} \
     operator String() const { return str; }        \
                                                    \
-    String str;                                    \
+    Immutable str;                                 \
   }
 
 DEFINE_STRING_TYPE(HandledSource);
@@ -45,9 +50,9 @@ class FileCache {
   };
 
   struct Entry {
-    String object;
-    String deps;
-    String stderr;
+    Immutable object;
+    Immutable deps;
+    Immutable stderr;
   };
 
   using Optional = base::ThreadPool::Optional;

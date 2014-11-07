@@ -54,7 +54,7 @@ Log& Log::operator<<(std::ostream& (*func)(std::ostream&)) {
   return *this;
 }
 
-Log& Log::operator<<(const ConstString& info) {
+Log& Log::operator<<(const Immutable& info) {
   stream_ << String(info);
   return *this;
 }

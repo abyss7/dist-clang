@@ -1,5 +1,6 @@
 #include <base/file_utils.h>
 
+#include <base/const_string.h>
 #include <base/temporary_dir.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest.h>
@@ -11,7 +12,7 @@ namespace dist_clang {
 namespace base {
 
 TEST(FileUtilsTest, LinkFile) {
-  const String expected_content = "All your base are belong to us";
+  const auto expected_content = "All your base are belong to us"_l;
   const TemporaryDir temp_dir;
   const String file1 = String(temp_dir) + "/1";
   const String file2 = String(temp_dir) + "/2";
@@ -54,8 +55,8 @@ TEST(FileUtilsTest, LinkFile) {
 }
 
 TEST(FileUtilsTest, CopyFile) {
-  const String expected_content1 = "All your base are belong to us";
-  const String expected_content2 = "Nothing lasts forever";
+  const auto expected_content1 = "All your base are belong to us"_l;
+  const auto expected_content2 = "Nothing lasts forever"_l;
   const TemporaryDir temp_dir;
   const String file1 = String(temp_dir) + "/1";
   const String file2 = String(temp_dir) + "/2";
@@ -66,7 +67,7 @@ TEST(FileUtilsTest, CopyFile) {
 
   struct stat st;
   const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-  String content;
+  Immutable content;
 
   ASSERT_EQ(0, stat(file1.c_str(), &st));
   EXPECT_EQ(1u, st.st_nlink);
@@ -89,17 +90,17 @@ TEST(FileUtilsTest, CopyFile) {
 }
 
 TEST(FileUtilsTest, ReadFile) {
-  const String expected_content = "All your base are belong to us";
+  const auto expected_content = "All your base are belong to us"_l;
 
   const base::TemporaryDir temp_dir;
   const String file_path = String(temp_dir) + "/file";
   int fd = open(file_path.c_str(), O_CREAT | O_WRONLY, 0777);
   ASSERT_NE(-1, fd);
-  int size = write(fd, expected_content.data(), expected_content.size());
+  int size = write(fd, expected_content, expected_content.size());
   ASSERT_EQ(expected_content.size(), static_cast<size_t>(size));
   close(fd);
 
-  String content;
+  Immutable content;
   String error;
   EXPECT_TRUE(ReadFile(file_path, &content, &error)) << error;
   EXPECT_EQ(expected_content, content);
