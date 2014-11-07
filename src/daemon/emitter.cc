@@ -275,7 +275,7 @@ void Emitter::DoLocalExecute(const std::atomic<bool>& is_shutting_down) {
 
 void Emitter::DoRemoteExecute(const std::atomic<bool>& is_shutting_down,
                               net::EndPointResolver::Optional end_point) {
-  if (!end_point || !(*end_point)) {
+  if (!end_point) {
     // TODO: do re-resolve |end_point| periodically, since the network
     // configuration may change on runtime.
     return;

@@ -31,22 +31,20 @@ class Future {
   friend class Promise<T>;
 
   struct State {
-    ~State() {
-      if (async.joinable()) {
-        async.join();
-      }
-    }
-
     std::mutex mutex;
     std::condition_variable condition;
     bool fulfilled = false;
+    Thread::id async_id;
     T value;
-    Thread async;
   };
 
-  Future(std::shared_ptr<State> state) : state_(state) { CHECK(state_); }
+  Future(SharedPtr<State> state, SharedPtr<Thread> async)
+      : state_(state), async_(async) {
+    CHECK(state_);
+  }
 
-  std::shared_ptr<State> state_;
+  SharedPtr<State> state_;
+  SharedPtr<Thread> async_;
 };
 
 template <class T>
@@ -59,7 +57,14 @@ class Promise {
   // The |default_value| is set on object's destruction, if no other value was
   // ever set.
   Promise(const T& default_value)
-      : state_(new typename Future<T>::State), on_exit_value_(default_value) {}
+      : state_(new typename Future<T>::State),
+        async_(new Thread, [](Thread* thread) {
+          if (thread->joinable()) {
+            thread->join();
+          }
+          delete thread;
+        }),
+        on_exit_value_(default_value) {}
   Promise(Promise<T>&& other) = default;
   ~Promise() {
     if (state_) {
@@ -67,19 +72,20 @@ class Promise {
     }
   }
 
-  Optional GetFuture() {
-    DCHECK(state_);
-    return Future<T>(state_);
-  }
+  Optional GetFuture() { return Future<T>(state_, async_); }
 
-  void SetValue(const T& value) { SetStateValue(state_, value); }
+  void SetValue(const T& value) {
+    DCHECK(state_);
+    SetStateValue(state_, value);
+  }
 
   void SetValue(Fn<T(void)> fn) {
     DCHECK(state_);
     UniqueLock lock(state_->mutex);
-    if (!state_->fulfilled && !state_->async.joinable()) {
-      state_->async =
-          Thread([fn](StatePtr state) { SetStateValue(state, fn()); }, state_);
+    if (!state_->fulfilled && state_->async_id == Thread::id()) {
+      Thread([fn](StatePtr state) { SetStateValue(state, fn()); }, state_)
+          .swap(*async_);
+      state_->async_id = async_->get_id();
     }
   }
 
@@ -87,18 +93,16 @@ class Promise {
   static void SetStateValue(StatePtr state, const T& value) {
     DCHECK(state);
     UniqueLock lock(state->mutex);
-    if (!state->fulfilled && !state->async.joinable()) {
+    if (!state->fulfilled && (state->async_id == Thread::id() ||
+                              state->async_id == std::this_thread::get_id())) {
       state->value = value;
       state->fulfilled = true;
       state->condition.notify_all();
     }
-
-    if (state->async.joinable()) {
-      state->async.detach();
-    }
   }
 
   StatePtr state_;
+  SharedPtr<Thread> async_;
   T on_exit_value_;
 };
 
