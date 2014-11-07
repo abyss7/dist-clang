@@ -85,6 +85,7 @@ ConstString ConstString::substr(size_t index, size_t length) const {
   DCHECK(index < size_);
   DCHECK(length == 0 || length + index <= size_);
 
+  // FIXME: returned slices doesn't share the pointed data.
   if (null_end_ && (length == 0 || length + index == size_)) {
     return ConstString(str_.get() + index, length, true);
   } else {

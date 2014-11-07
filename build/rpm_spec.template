@@ -22,6 +22,7 @@ Distributed clang-based compilation system.
 /usr/lib/dist-clang/libc++abi.so
 /usr/lib/dist-clang/libcommand.so
 /usr/lib/dist-clang/libconfiguration.so
+/usr/lib/dist-clang/libconst_string.so
 /usr/lib/dist-clang/libconstants.so
 /usr/lib/dist-clang/libfile_cache.so
 /usr/lib/dist-clang/liblogging.so
