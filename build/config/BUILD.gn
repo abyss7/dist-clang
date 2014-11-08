@@ -39,10 +39,6 @@ config("debug") {
   ]
 
   defines = [ "_DEBUG" ]
-
-  ldflags = [
-    "-rpath", rebase_path("$root_out_dir"),
-  ]
 }
 
 config("release") {
@@ -53,12 +49,7 @@ config("release") {
 
   defines = [ "NDEBUG" ]
 
-  ldflags = [
-    "-rpath", "/usr/lib/dist-clang",
-
-    # TODO: remove it when building for distribution.
-    "-rpath", rebase_path("$root_out_dir"),
-  ]
+  ldflags = [ "-rpath", "/usr/lib/dist-clang" ]
 }
 
 config("no_stdlibs") {

@@ -5,6 +5,7 @@ config("base") {
 
   ldflags = [
     "-rdynamic",      # for |backtrace()|
+    "-rpath", "\$ORIGIN",
   ]
   # Can't use this flag with ASan: http://llvm.org/bugs/show_bug.cgi?id=21341
   if (use_asan == false) {
