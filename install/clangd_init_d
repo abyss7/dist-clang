@@ -24,13 +24,14 @@ test -x $DAEMON || exit 0
 
 clangd_start() {
   log_daemon_msg "Starting clangd"
-  start-stop-daemon --start -p $PIDFILE -x $DAEMON -n $NAME --startas ${DAEMON}_wrapper -- $DAEMON_ARGS 
+  start-stop-daemon --start -m -o -p $PIDFILE -x $DAEMON -n $NAME --startas ${DAEMON}_wrapper -- $DAEMON_ARGS 
   log_end_msg $?
 }
 
 clangd_stop() {
   log_daemon_msg "Stopping clangd"
-  start-stop-daemon -p $PIDFILE --stop --retry 3 || echo -n "...which is not running"
+  start-stop-daemon -o -p $PIDFILE --stop --retry 3
+  rm -f $PIDFILE
   log_end_msg $?
 }
 

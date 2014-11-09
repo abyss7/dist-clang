@@ -32,7 +32,8 @@ class ProcessImpl;
 class Process
     : public Testable<Process, ProcessImpl, const String&, Immutable, ui32> {
  public:
-  enum { UNLIMITED = 0, SAME_UID = 0 };
+  enum : ui16 { UNLIMITED = 0 };
+  enum : ui32 { SAME_UID = 0 };
 
   explicit Process(const String& exec_path, Immutable cwd_path = Immutable(),
                    ui32 uid = SAME_UID);
