@@ -8,6 +8,7 @@
 namespace dist_clang {
 namespace daemon {
 
+#if __has_feature(cxx_exceptions)
 TEST(EmitterConfigurationTest, NoEmitterSection) {
   ASSERT_ANY_THROW((Emitter((proto::Configuration()))));
 }
@@ -27,6 +28,7 @@ TEST(EmitterConfigurationTest, NoSocketPath) {
 
   ASSERT_ANY_THROW(Emitter emitter(conf));
 }
+#endif
 
 TEST(EmitterConfigurationTest, OnlyFailedWithoutRemotes) {
   proto::Configuration conf;
@@ -141,9 +143,11 @@ TEST_F(EmitterTest, LocalMessageWithoutCommand) {
     proto::Status status;
     status.set_code(proto::Status::OK);
 
+#if __has_feature(cxx_exceptions)
     EXPECT_THROW_STD(
         test_connection->TriggerReadAsync(std::move(message), status),
         "Assertion failed: false");
+#endif
   }
 
   EXPECT_EQ(0u, run_count);

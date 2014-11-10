@@ -6,6 +6,7 @@
 namespace dist_clang {
 namespace daemon {
 
+#if __has_feature(cxx_exceptions)
 TEST(AbsorberConfigurationTest, NoAbsorberSection) {
   ASSERT_ANY_THROW((Absorber((proto::Configuration()))));
 }
@@ -16,6 +17,7 @@ TEST(AbsorberConfigurationTest, NoLocalHost) {
 
   ASSERT_ANY_THROW(Absorber absorber(conf));
 }
+#endif
 
 TEST(AbsorberConfigurationTest, DISABLED_IgnoreDirectCache) {
   // TODO: implement this test. Check that "cache.direct" is really ignored.
