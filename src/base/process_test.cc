@@ -98,6 +98,7 @@ TEST_F(ProcessTest, ReadTimeout) {
   ASSERT_FALSE(process->Run(1));
 }
 
+#if __has_feature(cxx_exceptions)
 TEST_F(ProcessTest, TooManyArgs) {
   ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
   for (auto i = 0u; i < ProcessImpl::MAX_ARGS + 2; ++i) {
@@ -105,6 +106,7 @@ TEST_F(ProcessTest, TooManyArgs) {
   }
   ASSERT_THROW_STD(process->Run(1), "Assertion failed: .* < MAX_ARGS");
 }
+#endif
 
 TEST_F(ProcessTest, RunWithEnvironment) {
   const auto expected_value = "some_value"_l;
