@@ -35,6 +35,7 @@ enum {
   WARNING = 20u,
   INFO = 30u,
   VERBOSE = 40u,
+  TRACE = 50u,
   CACHE_ERROR = 110u,
   CACHE_WARNING = 120u,
   CACHE_INFO = 130u,

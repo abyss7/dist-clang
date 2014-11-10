@@ -30,6 +30,8 @@ using ui32 = uint32_t;
 using i64 = int64_t;
 using ui64 = uint64_t;
 
+using Clock = std::chrono::steady_clock;
+
 using Immutable = base::ConstString;
 
 template <typename Signature>
@@ -55,6 +57,8 @@ using SharedPtr = std::shared_ptr<T>;
 using String = std::string;
 
 using Thread = std::thread;
+
+using TimePoint = std::chrono::time_point<Clock>;
 
 template <typename... Args>
 using Tuple = std::tuple<Args...>;

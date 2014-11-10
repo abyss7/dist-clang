@@ -9,6 +9,7 @@
 #undef WARNING
 #undef INFO
 #undef VERBOSE
+#undef TRACE
 
 #undef CACHE_ERROR
 #undef CACHE_WARNING

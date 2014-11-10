@@ -21,10 +21,18 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   template <class M>
   bool SendAsync(UniquePtr<M> message,
-                 SendCallback callback = CloseAfterSend());
+                 SendCallback callback = CloseAfterSend()) {
+    message_.reset(new Message);
+    message_->SetAllocatedExtension(M::extension, message.release());
+    return SendAsyncImpl(callback);
+  }
 
   template <class M>
-  bool SendSync(UniquePtr<M> message, Status* status = nullptr);
+  bool SendSync(UniquePtr<M> message, Status* status = nullptr) {
+    message_.reset(new Message);
+    message_->SetAllocatedExtension(M::extension, message.release());
+    return SendSyncImpl(status);
+  }
 
   static SendCallback CloseAfterSend();
 
@@ -39,22 +47,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
   virtual bool SendSyncImpl(Status* status) = 0;
 };
 
-template <class M>
-bool Connection::SendAsync(UniquePtr<M> message, SendCallback callback) {
-  message_.reset(new Message);
-  message_->SetAllocatedExtension(M::extension, message.release());
-  return SendAsyncImpl(callback);
-}
-
 template <>
 bool Connection::SendAsync(ScopedMessage message, SendCallback callback);
-
-template <class M>
-bool Connection::SendSync(UniquePtr<M> message, Status* status) {
-  message_.reset(new Message);
-  message_->SetAllocatedExtension(M::extension, message.release());
-  return SendSyncImpl(status);
-}
 
 template <>
 bool Connection::SendSync(ScopedMessage message, Status* status);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <net/connection.h>
+#include <perf/log_reporter.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest_prod.h>
 #include <third_party/libcxx/exported/include/atomic>
@@ -78,6 +79,8 @@ class ConnectionImpl : public Connection {
   FileOutputStream file_output_stream_;
   UniquePtr<GzipOutputStream> gzip_output_stream_;
   BindedSendCallback send_callback_;
+
+  perf::Counter<perf::LogReporter> counter_;
 
   FRIEND_TEST(ConnectionTest, Sync_ReadFromClosedConnection);
   FRIEND_TEST(ConnectionTest, Sync_ReadIncompleteMessage);

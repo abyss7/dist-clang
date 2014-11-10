@@ -4,6 +4,7 @@ visibility = [
   "//src/daemon/*",
   "//src/file_cache/*",
   "//src/net/*",
+  "//src/perf/*",
   "//src/test/*",
 ]
 

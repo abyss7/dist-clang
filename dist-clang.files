@@ -2522,3 +2522,7 @@ src/third_party/protobuf/BUILD.gn
 src/base/const_string.h
 src/base/const_string.cc
 src/base/const_string_test.cc
+src/perf/BUILD.gn
+src/perf/log_reporter.h
+src/perf/counter.h
+src/perf/log_reporter.cc

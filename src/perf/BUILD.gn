@@ -1,0 +1,12 @@
+shared_library("counter") {
+  sources = [
+    "counter.h",
+    "log_reporter.cc",
+    "log_reporter.h",
+  ]
+
+  deps += [
+    "//src/base:base",
+    "//src/base:logging",
+  ]
+}
