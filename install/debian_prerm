@@ -1,0 +1,4 @@
+#!/bin/sh
+
+service clangd stop
+rm -f /var/run/clangd.pid

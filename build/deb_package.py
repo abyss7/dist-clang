@@ -51,6 +51,10 @@ os.makedirs(os.path.join(product_dir, "deb", "debian", "tmp", "DEBIAN"))
 args = ['dpkg-gencontrol']
 subprocess.Popen(args).wait()
 
+# Copy 'DEBIAN/prerm' file
+shutil.copy(os.path.join(top_dir, "install", "debian_prerm"), \
+            os.path.join(product_dir, "deb", "debian", "tmp", "DEBIAN", "prerm"))
+
 # Create .deb file
 args = ['dpkg-deb', '-z9', '-Zxz', '-b']
 args.append(os.path.join(product_dir, "deb", "debian", "tmp"))
