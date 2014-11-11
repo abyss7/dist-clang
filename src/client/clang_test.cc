@@ -75,14 +75,20 @@ class ClientTest : public ::testing::Test {
   Fn<void(base::TestProcess*)> run_callback = EmptyLambda<>();
 };
 
+namespace {
+
+Literal clang_path = "fake_clang++"_l;
+Literal version = "fake_version"_l;
+
+}  // namespace
+
 TEST_F(ClientTest, NoConnection) {
   const String temp_input = base::CreateTempFile(".cc");
   const char* argv[] = {"clang++", "-c", temp_input.c_str(), nullptr};
   const int argc = 3;
 
   do_connect = false;
-  EXPECT_TRUE(
-      client::DoMain(argc, argv, "socket_path", "clang_path", "version"));
+  EXPECT_TRUE(client::DoMain(argc, argv, "socket_path"_l, clang_path, version));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -95,7 +101,8 @@ TEST_F(ClientTest, NoEnvironmentVariable) {
   const char* argv[] = {"clang++", "-c", temp_input.c_str(), nullptr};
   const int argc = 3;
 
-  EXPECT_TRUE(client::DoMain(argc, argv, String(), String(), String()));
+  EXPECT_TRUE(
+      client::DoMain(argc, argv, Immutable(), Immutable(), Immutable()));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -112,7 +119,7 @@ TEST_F(ClientTest, NoInputFile) {
   const char* argv[] = {"clang++", "-c", "/tmp/qwerty", nullptr};
   const int argc = 3;
 
-  EXPECT_TRUE(client::DoMain(argc, argv, "socket_path", "clang++", "version"));
+  EXPECT_TRUE(client::DoMain(argc, argv, "socket_path"_l, clang_path, version));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -132,7 +139,7 @@ TEST_F(ClientTest, CannotSendMessage) {
     process->stdout_ = "test_version\nline2\nline3"_l;
   };
 
-  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++", "version"));
+  EXPECT_TRUE(client::DoMain(argc, argv, String(), clang_path, version));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -197,7 +204,7 @@ TEST_F(ClientTest, CannotReadMessage) {
     process->stdout_ = "test_version\nline2\nline3"_l;
   };
 
-  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++", "version"));
+  EXPECT_TRUE(client::DoMain(argc, argv, Immutable(), clang_path, version));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -215,7 +222,7 @@ TEST_F(ClientTest, ReadMessageWithoutStatus) {
     process->stdout_ = "test_version\nline2\nline3"_l;
   };
 
-  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++", "version"));
+  EXPECT_TRUE(client::DoMain(argc, argv, Immutable(), clang_path, version));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -239,7 +246,7 @@ TEST_F(ClientTest, ReadMessageWithBadStatus) {
     process->stdout_ = "test_version\nline2\nline3"_l;
   };
 
-  EXPECT_TRUE(client::DoMain(argc, argv, String(), "clang++", "version"));
+  EXPECT_TRUE(client::DoMain(argc, argv, Immutable(), clang_path, version));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -263,7 +270,7 @@ TEST_F(ClientTest, SuccessfulCompilation) {
     process->stdout_ = "test_version\nline2\nline3"_l;
   };
 
-  EXPECT_FALSE(client::DoMain(argc, argv, String(), "clang++", "version"));
+  EXPECT_FALSE(client::DoMain(argc, argv, Immutable(), clang_path, version));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -287,7 +294,7 @@ TEST_F(ClientTest, FailedCompilation) {
     process->stdout_ = "test_version\nline2\nline3"_l;
   };
 
-  EXPECT_EXIT(client::DoMain(argc, argv, String(), "clang++", "version"),
+  EXPECT_EXIT(client::DoMain(argc, argv, String(), clang_path, version),
               ::testing::ExitedWithCode(1), ".*");
 }
 

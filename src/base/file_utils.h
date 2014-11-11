@@ -28,6 +28,14 @@ inline bool FileExists(const String& path, String* error = nullptr) {
   return true;
 }
 
+inline bool IsExecutable(const String& path, String* error = nullptr) {
+  if (access(path.c_str(), X_OK)) {
+    GetLastError(error);
+    return false;
+  }
+  return true;
+}
+
 inline bool MoveFile(const String& src, const String& dst) {
   return rename(src.c_str(), dst.c_str()) != -1;
 }

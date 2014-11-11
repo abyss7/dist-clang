@@ -15,8 +15,8 @@
 namespace dist_clang {
 namespace client {
 
-bool DoMain(int argc, const char* const argv[], const String& socket_path,
-            const String& clang_path, String version) {
+bool DoMain(int argc, const char* const argv[], Immutable socket_path,
+            Immutable clang_path, Immutable version) {
   if (clang_path.empty()) {
     return true;
   }
@@ -80,7 +80,7 @@ bool DoMain(int argc, const char* const argv[], const String& socket_path,
         return true;
       }
 
-      version = *output.begin();
+      version = Immutable(*output.begin());
     }
     flags->mutable_compiler()->set_version(version);
     flags->mutable_compiler()->set_path(clang_path);

@@ -3,12 +3,12 @@
 namespace dist_clang {
 namespace base {
 
-const char* kDefaultSocketPath = "/tmp/clangd.socket";
-const char* kEnvClangPath = "DC_CLANG_PATH";
-const char* kEnvClangVersion = "DC_CLANG_VERSION";
-const char* kEnvLogLevels = "DC_LOG_LEVELS";
-const char* kEnvLogErrorMark = "DC_LOG_ERROR_MARK";
-const char* kEnvSocketPath = "DC_SOCKET_PATH";
+Literal kDefaultSocketPath = "/tmp/clangd.socket"_l;
+Literal kEnvClangPath = "DC_CLANG_PATH"_l;
+Literal kEnvClangVersion = "DC_CLANG_VERSION"_l;
+Literal kEnvLogLevels = "DC_LOG_LEVELS"_l;
+Literal kEnvLogErrorMark = "DC_LOG_ERROR_MARK"_l;
+Literal kEnvSocketPath = "DC_SOCKET_PATH"_l;
 
 }  // namespace base
 }  // namespace dist_clang

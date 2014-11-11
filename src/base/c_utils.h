@@ -18,15 +18,15 @@
 namespace dist_clang {
 namespace base {
 
-inline String GetEnv(const char* env_name, const char* default_env = nullptr) {
-  const char* env_value = getenv(env_name);
+inline Literal GetEnv(Literal env_name, Literal default_env = Literal::empty) {
+  Literal env_value = getenv(env_name);
   if (!env_value) {
     if (default_env) {
-      return String(default_env);
+      return default_env;
     }
-    return String();
+    return Literal::empty;
   }
-  return String(env_value);
+  return env_value;
 }
 
 inline void GetLastError(String* error) {
@@ -35,12 +35,12 @@ inline void GetLastError(String* error) {
   }
 }
 
-inline String SetEnv(const char* env_name, const String& value,
-                     String* error = nullptr) {
-  const String old_value = GetEnv(env_name);
+inline Literal SetEnv(Literal env_name, const String& value,
+                      String* error = nullptr) {
+  Literal old_value = GetEnv(env_name);
   if (setenv(env_name, value.c_str(), 1) == -1) {
     GetLastError(error);
-    return String();
+    return Literal::empty;
   }
   return old_value;
 }

@@ -1,6 +1,7 @@
 #include <base/assert.h>
 #include <base/c_utils.h>
 #include <base/constants.h>
+#include <base/file_utils.h>
 #include <base/logging.h>
 #include <base/string_utils.h>
 #include <client/clang.h>
@@ -37,10 +38,10 @@ int main(int argc, char* argv[]) {
 
   // It's safe to use |base::Log|, since its internal static objects don't need
   // special destruction on |exec|.
-  String clangd_log_levels = base::GetEnv(base::kEnvLogLevels);
+  Immutable clangd_log_levels = base::GetEnv(base::kEnvLogLevels);
 
   if (!clangd_log_levels.empty()) {
-    String clangd_log_mark = base::GetEnv(base::kEnvLogErrorMark);
+    Immutable clangd_log_mark = base::GetEnv(base::kEnvLogErrorMark);
     List<String> numbers;
 
     base::SplitString<' '>(clangd_log_levels, numbers);
@@ -57,16 +58,29 @@ int main(int argc, char* argv[]) {
   }
 
   // FIXME: Make default socket path the build param - for consistent packaging.
-  String socket_path =
+  Immutable socket_path =
       base::GetEnv(base::kEnvSocketPath, base::kDefaultSocketPath);
+  Immutable version = base::GetEnv(base::kEnvClangVersion);
+  Immutable clang_path = base::GetEnv(base::kEnvClangPath);
 
-  String version = base::GetEnv(base::kEnvClangVersion);
+  if (clang_path.empty()) {
+    Immutable path = base::GetEnv("PATH"_l);
+    List<String> path_dirs;
+    base::SplitString<':'>(path, path_dirs);
+
+    for (const auto& dir : path_dirs) {
+      // TODO: convert |dir + "/clang"| to canonical path.
+      if (base::IsExecutable(dir + "/clang") && dir != base::GetSelfPath()) {
+        clang_path = Immutable(dir + "/clang");
+        break;
+      }
+    }
+  }
 
   // NOTICE: Use separate |DoMain| function to make sure that all local objects
   //         get destructed before the invokation of |exec|. Do not use global
   //         objects!
-  String&& clang_path = base::GetEnv(base::kEnvClangPath);
-  if (client::DoMain(argc, argv, socket_path, clang_path, std::move(version))) {
+  if (client::DoMain(argc, argv, socket_path, clang_path, version)) {
     return ExecuteLocally(argv, clang_path);
   }
 

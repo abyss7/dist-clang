@@ -12,6 +12,9 @@ auto CharArrayDeleter = std::default_delete<const char[]>();
 
 namespace base {
 
+// static
+const Literal Literal::empty = "";
+
 ConstString::ConstString(Literal str)
     : str_(str.str_, NoopDeleter), size_(strlen(str.str_)), null_end_(true) {
   DCHECK(str.str_[size_] == '\0');

@@ -27,9 +27,12 @@ class Literal {
   inline bool operator!=(const ConstString& other) const;
   inline bool operator==(const String& other) const { return other == str_; }
 
+  static const Literal empty;
+
  private:
   friend Literal dist_clang::operator"" _l(const char*, size_t);
   friend class ConstString;
+  friend Literal GetEnv(Literal, Literal);
 
   Literal(const char* str) : str_(str) {}
 

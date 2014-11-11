@@ -65,6 +65,8 @@ shared_library("constants") {
     "constants.cc",
     "constants.h",
   ]
+
+  public_deps = [ ":const_string" ]
 }
 
 shared_library("logging") {
