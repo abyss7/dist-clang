@@ -176,7 +176,6 @@ void DriverCommand::FillFlags(proto::Flags* flags,
       flags->set_deps_file(arg->getValue());
     } else if (arg->getOption().matches(OPT_load)) {
       // FIXME: maybe claim this type of args right after generation?
-      continue;
     } else if (arg->getOption().matches(OPT_mrelax_all)) {
       flags->add_cc_only(arg->getSpelling());
     } else if (arg->getOption().matches(OPT_o)) {

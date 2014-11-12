@@ -96,10 +96,14 @@ TEST(CommandTest, ParseSimpleArgs) {
 }
 
 TEST(CommandTest, FillFlags) {
-  const String temp_input = base::CreateTempFile(".cc");
-  const char* argv[] = {"clang++", "-c", temp_input.c_str(), "-o",
-                        "/tmp/output.o", nullptr};
-  const int argc = 5;
+  const String input = "/test_file.cc";
+  const String output = "/tmp/output.o";
+  const String plugin_name = "plugin";
+  const char* argv[] = {"clang++", "-Xclang", "-load", "-Xclang",
+                        "/tmp/plugin/path", "-Xclang", "-add-plugin", "-Xclang",
+                        plugin_name.c_str(), "-c", input.c_str(), "-o",
+                        output.c_str(), nullptr};
+  const int argc = 13;
 
   Command::List commands;
   ASSERT_TRUE(DriverCommand::GenerateFromArgs(argc, argv, commands));
@@ -109,11 +113,13 @@ TEST(CommandTest, FillFlags) {
   proto::Flags flags;
   command->AsDriverCommand()->FillFlags(&flags, "/some/clang/path");
 
-  EXPECT_EQ(temp_input, flags.input());
-  EXPECT_EQ("/tmp/output.o", flags.output());
+  EXPECT_EQ(input, flags.input());
+  EXPECT_EQ(output, flags.output());
   EXPECT_EQ("-emit-obj", flags.action());
   EXPECT_EQ("c++", flags.language());
   EXPECT_EQ("-cc1", *flags.other().begin());
+  EXPECT_EQ(1, flags.compiler().plugins_size());
+  EXPECT_EQ(plugin_name, flags.compiler().plugins(0).name());
   // TODO: add more expectations on flags.
 
   if (HasNonfatalFailure()) {

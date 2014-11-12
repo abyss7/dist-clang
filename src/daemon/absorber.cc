@@ -64,6 +64,7 @@ bool Absorber::HandleNewMessage(net::ConnectionPtr connection,
 
   if (message->HasExtension(proto::RemoteExecute::extension)) {
     Message execute(message->ReleaseExtension(proto::RemoteExecute::extension));
+    DCHECK(!execute->flags().compiler().has_path());
     if (execute->has_source()) {
       return tasks_->Push(Task{connection, std::move(execute)});
     }

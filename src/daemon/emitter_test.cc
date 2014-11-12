@@ -345,13 +345,19 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
   const String socket_path = "/tmp/test.socket";
   const proto::Status::Code expected_code = proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
-  const String compiler_path = "fake_compiler_path";
+  const auto compiler_path = "fake_compiler_path"_l;
   const String current_dir = "fake_current_dir";
+  const String plugin_name = "fake_plugin";
+  const auto plugin_path = "fake_plugin_path"_l;
+  const auto action = "fake_action"_l;
 
   conf.mutable_emitter()->set_socket_path(socket_path);
   auto* version = conf.add_versions();
   version->set_version(compiler_version);
   version->set_path(compiler_path);
+  auto* plugin = version->add_plugins();
+  plugin->set_name(plugin_name);
+  plugin->set_path(plugin_path);
 
   listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
@@ -364,6 +370,11 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
       const auto& status = message.GetExtension(proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
+  };
+  run_callback = [&](base::TestProcess* process) {
+    EXPECT_EQ(compiler_path, process->exec_path_);
+    EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path}),
+              process->args_);
   };
 
   emitter.reset(new Emitter(conf));
@@ -379,7 +390,8 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
     extension->set_current_dir(current_dir);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
-    extension->mutable_flags()->set_action("fake_action");
+    compiler->add_plugins()->set_name(plugin_name);
+    extension->mutable_flags()->set_action(action);
 
     proto::Status status;
     status.set_code(proto::Status::OK);
@@ -476,6 +488,8 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
   const auto input_path1 = "test1.cc"_l;
   const auto input_path2 = "test2.cc"_l;
   const auto output_path1 = "test1.o"_l;
+  const auto plugin_name = "fake_plugin"_l;
+  const auto plugin_path = "fake_plugin_path"_l;
 
   const String output_path2 = String(temp_dir) + "/test2.o";
   // |output_path2| checks that everything works fine with absolute paths.
@@ -488,6 +502,9 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
   auto* version = conf.add_versions();
   version->set_version(compiler_version);
   version->set_path(compiler_path);
+  auto* plugin = version->add_plugins();
+  plugin->set_name(plugin_name);
+  plugin->set_path(plugin_path);
 
   listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
@@ -512,8 +529,8 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
                 process->args_);
       process->stdout_ = source;
     } else if (run_count == 2) {
-      EXPECT_EQ((Immutable::Rope{action, "-x"_l, language, "-o"_l, output_path1,
-                                 input_path1}),
+      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-x"_l,
+                                 language, "-o"_l, output_path1, input_path1}),
                 process->args_);
       EXPECT_TRUE(base::WriteFile(process->cwd_path_ + "/"_l + output_path1,
                                   object_code));
@@ -541,6 +558,7 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
     extension->mutable_flags()->set_output(output_path1);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
+    compiler->add_plugins()->set_name(plugin_name);
     extension->mutable_flags()->set_action(action);
     extension->mutable_flags()->set_language(language);
 
@@ -567,6 +585,7 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
     extension->mutable_flags()->set_output(output_path2);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
+    compiler->add_plugins()->set_name(plugin_name);
     extension->mutable_flags()->set_action(action);
     extension->mutable_flags()->set_language(language);
 
@@ -618,6 +637,8 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
   const auto input_path1 = "test1.cc"_l;
   const auto input_path2 = "test2.cc"_l;
   const String output_path1 = "test1.o";
+  const auto plugin_name = "fake_plugin"_l;
+  const auto plugin_path = "fake_plugin_path"_l;
 
   const String output_path2 = String(temp_dir) + "/test2.o";
   // |output_path2| checks that everything works fine with absolute paths.
@@ -636,6 +657,9 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
   auto* version = conf.add_versions();
   version->set_version(compiler_version);
   version->set_path(compiler_path);
+  auto* plugin = version->add_plugins();
+  plugin->set_name(plugin_name);
+  plugin->set_path(plugin_path);
 
   listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
@@ -713,6 +737,7 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
     extension->mutable_flags()->set_output(output_path1);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
+    compiler->add_plugins()->set_name(plugin_name);
     extension->mutable_flags()->set_action(action);
     extension->mutable_flags()->set_language(language);
 
@@ -739,6 +764,7 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
     extension->mutable_flags()->set_output(output_path2);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
+    compiler->add_plugins()->set_name(plugin_name);
     extension->mutable_flags()->set_action(action);
     extension->mutable_flags()->set_language(language);
 

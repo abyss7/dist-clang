@@ -301,6 +301,7 @@ void BaseDaemon::UpdateDirectCache(const proto::LocalExecute* message,
 // static
 base::ProcessPtr BaseDaemon::CreateProcess(const proto::Flags& flags,
                                            ui32 user_id, Immutable cwd_path) {
+  DCHECK(flags.compiler().has_path());
   base::ProcessPtr process =
       base::Process::Create(flags.compiler().path(), cwd_path, user_id);
 

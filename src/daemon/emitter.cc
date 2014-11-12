@@ -42,6 +42,9 @@ inline bool GenerateSource(const proto::LocalExecute* WEAK_PTR message,
   pp_flags.set_output("-");
   pp_flags.set_action("-E");
 
+  // Clang plugins can't affect source code.
+  pp_flags.mutable_compiler()->clear_plugins();
+
   base::ProcessPtr process = daemon::BaseDaemon::CreateProcess(
       pp_flags, Immutable(message->current_dir()));
   if (!process->Run(10)) {
@@ -201,6 +204,13 @@ void Emitter::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
 
     if (SearchDirectCache(incoming->flags(), incoming->current_dir(), &entry) &&
         RestoreFromCache(HandledSource())) {
+      continue;
+    }
+
+    // Check that we have a compiler of a requested version.
+    proto::Status status;
+    if (!SetupCompiler(incoming->mutable_flags(), &status)) {
+      std::get<CONNECTION>(*task)->ReportStatus(status);
       continue;
     }
 

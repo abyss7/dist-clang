@@ -83,8 +83,7 @@ Literal version = "fake_version"_l;
 }  // namespace
 
 TEST_F(ClientTest, NoConnection) {
-  const String temp_input = base::CreateTempFile(".cc");
-  const char* argv[] = {"clang++", "-c", temp_input.c_str(), nullptr};
+  const char* argv[] = {"clang++", "-c", "/tmp/test_file.cc", nullptr};
   const int argc = 3;
 
   do_connect = false;
@@ -96,9 +95,8 @@ TEST_F(ClientTest, NoConnection) {
   EXPECT_EQ(0u, connections_created);
 }
 
-TEST_F(ClientTest, NoEnvironmentVariable) {
-  const String temp_input = base::CreateTempFile(".cc");
-  const char* argv[] = {"clang++", "-c", temp_input.c_str(), nullptr};
+TEST_F(ClientTest, EmptyClangPath) {
+  const char* argv[] = {"clang++", "-c", "/tmp/test_file.cc", nullptr};
   const int argc = 3;
 
   EXPECT_TRUE(
@@ -110,9 +108,14 @@ TEST_F(ClientTest, NoEnvironmentVariable) {
   EXPECT_EQ(0u, connections_created);
 }
 
-TEST_F(ClientTest, DISABLED_NoVersionEnvVariable) {
+TEST_F(ClientTest, DISABLED_EmptyVersion) {
   // TODO: implement this test.
   //       - Check that we take version from clang itself.
+
+  //  run_callback = [](base::TestProcess* process) {
+  //    EXPECT_EQ((Immutable::Rope{"--version"_l}), process->args_);
+  //    process->stdout_ = "test_version\nline2\nline3"_l;
+  //  };
 }
 
 TEST_F(ClientTest, NoInputFile) {
@@ -128,8 +131,7 @@ TEST_F(ClientTest, NoInputFile) {
 }
 
 TEST_F(ClientTest, CannotSendMessage) {
-  const String temp_input = base::CreateTempFile(".cc");
-  const char* argv[] = {"clang++", "-c", temp_input.c_str(), nullptr};
+  const char* argv[] = {"clang++", "-c", "/tmp/test_file.cc", nullptr};
   const int argc = 3;
 
   connect_callback =
@@ -148,7 +150,7 @@ TEST_F(ClientTest, CannotSendMessage) {
 }
 
 TEST_F(ClientTest, CannotReadMessage) {
-  const String temp_input = base::CreateTempFile(".cc");
+  const String temp_input = "/tmp/test_file.cc";
   const char* argv[] = {"clang++", "-c", temp_input.c_str(), nullptr};
   const int argc = 3;
 
@@ -213,8 +215,7 @@ TEST_F(ClientTest, CannotReadMessage) {
 }
 
 TEST_F(ClientTest, ReadMessageWithoutStatus) {
-  const String temp_input = base::CreateTempFile(".cc");
-  const char* argv[] = {"clang++", "-c", temp_input.c_str(), nullptr};
+  const char* argv[] = {"clang++", "-c", "/tmp/test_file.cc", nullptr};
   const int argc = 3;
 
   run_callback = [](base::TestProcess* process) {
@@ -231,8 +232,7 @@ TEST_F(ClientTest, ReadMessageWithoutStatus) {
 }
 
 TEST_F(ClientTest, ReadMessageWithBadStatus) {
-  const String temp_input = base::CreateTempFile(".cc");
-  const char* argv[] = {"clang++", "-c", temp_input.c_str(), nullptr};
+  const char* argv[] = {"clang++", "-c", "/tmp/test_file.cc", nullptr};
   const int argc = 3;
 
   connect_callback = [](net::TestConnection* connection) {
@@ -255,8 +255,7 @@ TEST_F(ClientTest, ReadMessageWithBadStatus) {
 }
 
 TEST_F(ClientTest, SuccessfulCompilation) {
-  const String temp_input = base::CreateTempFile(".cc");
-  const char* argv[] = {"clang++", "-c", temp_input.c_str(), nullptr};
+  const char* argv[] = {"clang++", "-c", "/test_file.cc", nullptr};
   const int argc = 3;
 
   connect_callback = [](net::TestConnection* connection) {
@@ -279,8 +278,7 @@ TEST_F(ClientTest, SuccessfulCompilation) {
 }
 
 TEST_F(ClientTest, FailedCompilation) {
-  const String temp_input = base::CreateTempFile(".cc");
-  const char* argv[] = {"clang++", "-c", temp_input.c_str(), nullptr};
+  const char* argv[] = {"clang++", "-c", "/test.cc", nullptr};
   const int argc = 3;
 
   connect_callback = [](net::TestConnection* connection) {
