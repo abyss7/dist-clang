@@ -68,7 +68,16 @@ void EpollEventLoop::DoListenWork(const std::atomic<bool>& is_shutting_down,
       while (true) {
         auto new_fd = accept4(fd, nullptr, nullptr, SOCK_CLOEXEC);
         if (new_fd == -1) {
-          CHECK(errno == EAGAIN || errno == EWOULDBLOCK);
+          // Linux accept4() passes already-pending network errors on the new
+          // socket as an error code from accept(). For  reliable  operation
+          // the application should detect the network errors defined for the
+          // protocol after accept() and treat them like EAGAIN by retrying.
+          if (errno == ENETDOWN || errno == EPROTO || errno == ENOPROTOOPT ||
+              errno == EHOSTDOWN || errno == ENONET || errno == EHOSTUNREACH ||
+              errno == EOPNOTSUPP || errno == ENETUNREACH) {
+            errno = EAGAIN;
+          }
+          DCHECK(errno == EAGAIN || errno == EWOULDBLOCK);
           break;
         }
         callback_(fd, ConnectionImpl::Create(*this, new_fd));
