@@ -97,7 +97,7 @@ inline String CreateTempFile(const char suffix[], String* error = nullptr) {
   return result;
 }
 
-inline bool ChangeCurrentDir(const String& path, String* error = nullptr) {
+inline bool ChangeCurrentDir(Immutable path, String* error = nullptr) {
   if (chdir(path.c_str()) == -1) {
     GetLastError(error);
     return false;
