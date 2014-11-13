@@ -19,6 +19,8 @@ int main(int argc, char* argv[]) {
   daemon::Configuration configuration(argc, argv);
   UniquePtr<daemon::BaseDaemon> daemon;
 
+// The function |daemon()| is deprecated on Mac. Use launchd instead.
+#if !defined(OS_MACOSX)
   if (configuration.daemonize()) {
     if (::daemon(0, 1) != 0) {
       String error;
@@ -28,6 +30,7 @@ int main(int argc, char* argv[]) {
 
     base::Log::SetMode(base::Log::SYSLOG);
   }
+#endif  // !defined(OS_MACOSX)
 
   if (configuration.config().has_user_id() &&
       setuid(configuration.config().user_id()) == -1) {
