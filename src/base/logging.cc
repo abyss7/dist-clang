@@ -6,8 +6,21 @@
 #include <third_party/libcxx/exported/include/iostream>
 #include <third_party/protobuf/exported/src/google/protobuf/text_format.h>
 
+#include <syslog.h>
+
 namespace dist_clang {
 namespace base {
+
+// static
+void Log::SetMode(Mode mode) {
+  if (Log::mode() == CONSOLE && mode == SYSLOG) {
+    openlog(nullptr, 0, LOG_DAEMON);
+  } else if (Log::mode() == SYSLOG && mode == CONSOLE) {
+    closelog();
+  }
+
+  Log::mode() = mode;
+}
 
 // static
 void Log::Reset(ui32 error_mark, RangeSet&& ranges) {
@@ -25,15 +38,43 @@ void Log::Reset(ui32 error_mark, RangeSet&& ranges) {
 }
 
 Log::Log(ui32 level)
-    : level_(level), error_mark_(error_mark()), ranges_(ranges()) {
+    : level_(level),
+      error_mark_(error_mark()),
+      ranges_(ranges()),
+      mode_(mode()) {
 }
 
 Log::~Log() {
-  auto& output_stream = (level_ <= error_mark_) ? std::cerr : std::cout;
   auto it = ranges_->lower_bound(std::make_pair(level_, 0));
   if (it != ranges_->end() && level_ >= it->second) {
     stream_ << std::endl;
-    output_stream << stream_.str();
+
+    if (mode_ == CONSOLE) {
+      auto& output_stream = (level_ <= error_mark_) ? std::cerr : std::cout;
+      output_stream << stream_.str();
+    } else if (mode_ == SYSLOG) {
+      // FIXME: not really a fair mapping.
+      switch (level_) {
+        case named_levels::FATAL:
+          syslog(LOG_CRIT, "%s", stream_.str().c_str());
+          break;
+
+        case named_levels::ERROR:
+          syslog(LOG_ERR, "%s", stream_.str().c_str());
+          break;
+
+        case named_levels::WARNING:
+          syslog(LOG_WARNING, "%s", stream_.str().c_str());
+          break;
+
+        case named_levels::INFO:
+          syslog(LOG_NOTICE, "%s", stream_.str().c_str());
+          break;
+
+        default:
+          syslog(LOG_INFO, "%s", stream_.str().c_str());
+      }
+    }
   }
 
   if (level_ == named_levels::FATAL) {
@@ -72,10 +113,10 @@ std::shared_ptr<Log::RangeSet>& Log::ranges() {
   return ranges;
 }
 
-DLog::DLog(ui32 level) {
-#if !defined(NDEBUG)
-  log_.reset(new Log(level));
-#endif
+// static
+Log::Mode& Log::mode() {
+  static Mode mode = CONSOLE;
+  return mode;
 }
 
 }  // namespace base

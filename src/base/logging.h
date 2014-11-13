@@ -29,7 +29,7 @@ namespace named_levels {
 
 // The |FATAL| is a special value: after LOG(FATAL) the program terminates with
 // |exit(1)|.
-enum {
+enum : ui32 {
   FATAL = 0u,
   ERROR = 10u,
   WARNING = 20u,
@@ -52,6 +52,14 @@ class Log {
  public:
   // First value is a right edge of interval, the second - a left edge.
   using RangeSet = std::set<Pair<ui32>>;
+
+  enum Mode {
+    CONSOLE,
+    SYSLOG,
+  };
+
+  // We need a separate method to be able to change mode before daemonizing.
+  static void SetMode(Mode mode);
 
   // Expects, that ranges are already filtered.
   static void Reset(ui32 error_mark, RangeSet&& ranges);
@@ -89,20 +97,13 @@ class Log {
  private:
   static ui32& error_mark();
   static std::shared_ptr<RangeSet>& ranges();
+  static Mode& mode();
 
   ui32 level_;
   ui32 error_mark_;
   std::shared_ptr<RangeSet> ranges_;
   std::stringstream stream_;
-};
-
-// Use this class, if for some reason you can't include "using_log.h".
-class DLog {
- public:
-  DLog(ui32 level);
-
- private:
-  UniquePtr<Log> log_;
+  Mode mode_ = CONSOLE;
 };
 
 }  // namespace base

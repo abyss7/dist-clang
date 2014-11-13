@@ -19,6 +19,16 @@ int main(int argc, char* argv[]) {
   daemon::Configuration configuration(argc, argv);
   UniquePtr<daemon::BaseDaemon> daemon;
 
+  if (configuration.daemonize()) {
+    if (::daemon(0, 1) != 0) {
+      String error;
+      base::GetLastError(&error);
+      LOG(FATAL) << "Failed to daemonize: " << error;
+    }
+
+    base::Log::SetMode(base::Log::SYSLOG);
+  }
+
   if (configuration.config().has_user_id() &&
       setuid(configuration.config().user_id()) == -1) {
     LOG(FATAL) << "Can't run as another user with id "
@@ -36,14 +46,6 @@ int main(int argc, char* argv[]) {
 
   if (!daemon->Initialize()) {
     LOG(FATAL) << "Daemon failed to initialize.";
-  }
-
-  if (configuration.daemonize()) {
-    if (::daemon(0, 1) != 0) {
-      String error;
-      base::GetLastError(&error);
-      LOG(FATAL) << "Failed to daemonize: " << error;
-    }
   }
 
   sigset_t signal_mask;
