@@ -20,19 +20,17 @@ Configuration::Configuration(int argc, char* argv[]) {
     CmdLine cmd("Daemon from Clang distributed system - Clangd.", ' ', VERSION);
     ValueArg<String> config_arg("", "config", "Path to the configuration file.",
                                 false, String(), "path", cmd);
+    SwitchArg daemon_arg("", "daemon", "Daemonize after start.", cmd, false);
     cmd.parse(argc, argv);
 
     if (config_arg.isSet() && !LoadFromFile(config_arg.getValue())) {
       LOG(ERROR) << "Failed to read config file: " << config_arg.getValue();
     }
+    daemonize_ = daemon_arg.getValue();
   } catch (ArgException& e) {
     LOG(ERROR) << e.argId() << std::endl << e.error();
     return;
   }
-}
-
-Configuration::Configuration(const proto::Configuration& config)
-    : config_(config) {
 }
 
 bool Configuration::LoadFromFile(const String& config_path) {
@@ -47,10 +45,6 @@ bool Configuration::LoadFromFile(const String& config_path) {
     return false;
   }
   return true;
-}
-
-const proto::Configuration& Configuration::config() const {
-  return config_;
 }
 
 }  // namespace daemon

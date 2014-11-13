@@ -1,3 +1,4 @@
+#include <base/c_utils.h>
 #include <base/logging.h>
 #include <daemon/absorber.h>
 #include <daemon/configuration.h>
@@ -35,6 +36,14 @@ int main(int argc, char* argv[]) {
 
   if (!daemon->Initialize()) {
     LOG(FATAL) << "Daemon failed to initialize.";
+  }
+
+  if (configuration.daemonize()) {
+    if (::daemon(0, 1) != 0) {
+      String error;
+      base::GetLastError(&error);
+      LOG(FATAL) << "Failed to daemonize: " << error;
+    }
   }
 
   sigset_t signal_mask;

@@ -1,9 +1,7 @@
 #!/bin/sh
 
-PIDFILE=/var/run/clangd.pid
+clangd --daemon $@ 1>/var/log/clangd-out.log 2>/var/log/clangd-err.log
 
-test -z `pidof $NAME` || exit 0
-
-nohup clangd $@ 1>/var/log/clangd-out.log 2>/var/log/clangd-err.log &
-rm -rf $PIDFILE
-pidof clangd > $PIDFILE
+if [ -n "$PIDFILE" ]; then
+  echo $! > $PIDFILE
+fi
