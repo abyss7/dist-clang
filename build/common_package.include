@@ -14,7 +14,6 @@ def MakeInstall(top_dir, product_dir, package_dir):
   os.makedirs(os.path.join(pylib_dir, "daemon"))
 
   # Copy executables
-  shutil.copy(os.path.join(top_dir, "install", "clangd_wrapper"), bin_dir)
   shutil.copy(os.path.join(product_dir, "clang"), bin_dir)
   shutil.copy(os.path.join(product_dir, "clangd"), bin_dir)
   os.symlink("clang", os.path.join(bin_dir, "clang++"))

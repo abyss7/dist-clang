@@ -1,7 +1,0 @@
-#!/bin/sh
-
-clangd --daemon $@ 1>/var/log/clangd-out.log 2>/var/log/clangd-err.log
-
-if [ -n "$PIDFILE" ]; then
-  echo $! > $PIDFILE
-fi

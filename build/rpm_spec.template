@@ -16,7 +16,6 @@ Distributed clang-based compilation system.
 /usr/bin/dist-clang/clang
 /usr/bin/dist-clang/clang++
 /usr/bin/dist-clang/clangd
-/usr/bin/dist-clang/clangd_wrapper
 /usr/lib/dist-clang/libbase.so
 /usr/lib/dist-clang/libc++.so
 /usr/lib/dist-clang/libc++abi.so

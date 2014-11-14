@@ -13,8 +13,7 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/bin/dist-clang
 NAME=clangd
 DAEMON=/usr/bin/dist-clang/${NAME}
 DESC="Distributed Clang Daemon"
-DAEMON_ARGS="--config /etc/${NAME}.conf"
-PIDFILE="/var/run/${NAME}.pid"
+DAEMON_ARGS="--daemon --config /etc/${NAME}.conf"
 
 set -e
 
@@ -24,14 +23,13 @@ test -x $DAEMON || exit 0
 
 clangd_start() {
   log_daemon_msg "Starting clangd"
-  start-stop-daemon --start -m -o -p $PIDFILE -x $DAEMON -n $NAME --startas ${DAEMON}_wrapper -- $DAEMON_ARGS 
+  start-stop-daemon --start -o -x $DAEMON -n $NAME -- $DAEMON_ARGS 
   log_end_msg $?
 }
 
 clangd_stop() {
   log_daemon_msg "Stopping clangd"
-  start-stop-daemon -o -p $PIDFILE --stop --retry 3
-  rm -f $PIDFILE
+  start-stop-daemon --stop -o -x $DAEMON -n $NAME
   log_end_msg $?
 }
 
@@ -40,19 +38,18 @@ case "$1" in
     ${NAME}_${1}
     ;;
   restart|reload|force-reload)
-    if [ -s $PIDFILE ] && kill -0 $(cat $PIDFILE) >/dev/null 2>&1; then
-      ${NAME}_stop
-      ${NAME}_start
-    fi
+    ${NAME}_stop
+    ${NAME}_start
     ;;
   force-stop)
     ${NAME}_stop
+    sleep 3
     killall ${NAME} || true
     sleep 3
     killall -9 ${NAME} || true
     ;;
   status)
-    status_of_proc -p $PIDFILE "$DAEMON" "system-wide ${NAME}" && exit 0 || exit $?
+    status_of_proc "$DAEMON" "system-wide ${NAME}" && exit 0 || exit $?
     ;;
   *)
     echo "Usage: /etc/init.d/${NAME} {start|stop|force-stop|restart|reload|force-reload|status}"

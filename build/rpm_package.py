@@ -14,7 +14,7 @@ MakeInstall(top_dir, product_dir, "rpm")
 # RPM specific install.
 systemd_dir = os.path.join(product_dir, "rpm", "usr", "lib", "systemd", "system")
 os.makedirs(systemd_dir)
-shutil.copy(os.path.join(top_dir, "install", "clangd.service"), systemd_dir)
+shutil.copy(os.path.join(top_dir, "install", "systemd_service"), os.path.join(systemd_dir, "clangd.service"))
 
 # Create RPM-spec file
 args = ['sh']
