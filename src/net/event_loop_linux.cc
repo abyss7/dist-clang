@@ -42,7 +42,7 @@ bool EpollEventLoop::ReadyForSend(ConnectionImplPtr connection) {
 
 void EpollEventLoop::DoListenWork(const std::atomic<bool>& is_shutting_down,
                                   FileDescriptor self_pipe) {
-  const int MAX_EVENTS = 10;  // This should be enought in most cases.
+  const int MAX_EVENTS = 64;  // This should be enought in most cases.
   struct epoll_event events[MAX_EVENTS];
 
   {
@@ -69,9 +69,9 @@ void EpollEventLoop::DoListenWork(const std::atomic<bool>& is_shutting_down,
         auto new_fd = accept4(fd, nullptr, nullptr, SOCK_CLOEXEC);
         if (new_fd == -1) {
           // Linux accept4() passes already-pending network errors on the new
-          // socket as an error code from accept(). For  reliable  operation
+          // socket as an error code from accept4(). For  reliable  operation
           // the application should detect the network errors defined for the
-          // protocol after accept() and treat them like EAGAIN by retrying.
+          // protocol after accept4() and treat them like EAGAIN by retrying.
           if (errno == ENETDOWN || errno == EPROTO || errno == ENOPROTOOPT ||
               errno == EHOSTDOWN || errno == ENONET || errno == EHOSTUNREACH ||
               errno == EOPNOTSUPP || errno == ENETUNREACH) {
