@@ -143,7 +143,7 @@ class FileCache {
     return FirstPath(hash) + "/" + hash[1];
   }
   inline String CommonPath(Immutable hash) const {
-    return SecondPath(hash) + "/" + hash.substr(2).string_copy();
+    return SecondPath(hash) + "/" + hash.string_copy().substr(2);
   }
 
   bool FindByHash(const file_cache::string::HandledHash& hash,
