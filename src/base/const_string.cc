@@ -79,6 +79,11 @@ ConstString::ConstString(const String& str)
   DCHECK(str.data()[size_] == '\0');
 }
 
+// static
+ConstString ConstString::WrapString(const String& str) {
+  return ConstString(str.c_str(), str.size(), true);
+}
+
 String ConstString::string_copy() const {
   CollapseRope();
   return String(str_.get(), size_);
@@ -152,7 +157,7 @@ ConstString ConstString::operator+(const ConstString& other) const {
   return Rope{*this, other};
 }
 
-ConstString::ConstString(const char* str, size_t size, bool null_end)
+ConstString::ConstString(const char* WEAK_PTR str, size_t size, bool null_end)
     : str_(str, NoopDeleter), size_(size), null_end_(null_end) {
 }
 

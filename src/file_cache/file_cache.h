@@ -23,9 +23,8 @@ namespace string {
     explicit type(Immutable str) : str(str) {}     \
     operator Immutable() const { return str; }     \
                                                    \
-    /* TODO: remove these */                       \
+    /* TODO: remove this */                        \
     explicit type(const String& str) : str(str) {} \
-    operator String() const { return str; }        \
                                                    \
     Immutable str;                                 \
   }
@@ -137,14 +136,14 @@ class FileCache {
   friend class ReadLock;
   friend class WriteLock;
 
-  inline String FirstPath(const String& hash) const {
+  inline String FirstPath(Immutable hash) const {
     return path_ + "/" + hash[0];
   }
-  inline String SecondPath(const String& hash) const {
+  inline String SecondPath(Immutable hash) const {
     return FirstPath(hash) + "/" + hash[1];
   }
-  inline String CommonPath(const String& hash) const {
-    return SecondPath(hash) + "/" + hash.substr(2);
+  inline String CommonPath(Immutable hash) const {
+    return SecondPath(hash) + "/" + hash.substr(2).string_copy();
   }
 
   bool FindByHash(const file_cache::string::HandledHash& hash,

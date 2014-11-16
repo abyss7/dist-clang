@@ -22,7 +22,7 @@ bool TestProcess::Run(ui16 sec_timeout, String* error) {
   return on_run_(sec_timeout, String(), error);
 }
 
-bool TestProcess::Run(ui16 sec_timeout, const String& input, String* error) {
+bool TestProcess::Run(ui16 sec_timeout, Immutable input, String* error) {
   if (run_attempts_) {
     (*run_attempts_)++;
   }

@@ -10,7 +10,7 @@ class ProcessImpl : public Process {
   enum : ui32 { MAX_ARGS = 4096 };
 
   virtual bool Run(ui16 sec_timeout, String* error = nullptr) override;
-  virtual bool Run(ui16 sec_timeout, const String& input,
+  virtual bool Run(ui16 sec_timeout, Immutable input,
                    String* error = nullptr) override;
 
  private:

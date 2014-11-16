@@ -10,7 +10,7 @@ namespace base {
 
 class TestProcess : public Process {
  public:
-  using OnRunCallback = Fn<bool(ui16, const String&, String*)>;
+  using OnRunCallback = Fn<bool(ui16, Immutable, String*)>;
 
   class Factory : public Process::Factory {
    public:
@@ -28,8 +28,7 @@ class TestProcess : public Process {
   };
 
   virtual bool Run(ui16 sec_timeout, String* error) override;
-  virtual bool Run(ui16 sec_timeout, const String& input,
-                   String* error) override;
+  virtual bool Run(ui16 sec_timeout, Immutable input, String* error) override;
 
   inline void CallOnRun(OnRunCallback callback) { on_run_ = callback; }
   inline void CountRuns(ui32* counter) { run_attempts_ = counter; }

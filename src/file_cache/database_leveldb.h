@@ -15,7 +15,7 @@ class Database {
   Database(const String& path, const String& name);
   ~Database();
 
-  bool Set(const String& key, const String& value) THREAD_SAFE;
+  bool Set(const String& key, Immutable value) THREAD_SAFE;
   bool Get(const String& key, Immutable* value) const THREAD_SAFE;
 
  private:

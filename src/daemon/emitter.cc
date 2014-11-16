@@ -314,7 +314,7 @@ void Emitter::DoRemoteExecute(const std::atomic<bool>& is_shutting_down,
     }
 
     outgoing->mutable_flags()->CopyFrom(incoming->flags());
-    outgoing->set_source(source);
+    outgoing->set_source(source.str.string_copy());
 
     // Filter outgoing flags.
     outgoing->mutable_flags()->mutable_compiler()->clear_path();

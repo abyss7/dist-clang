@@ -56,7 +56,8 @@ class ConstString {
   ConstString(const Rope& rope);                     // 0-copy
   ConstString(const Rope& rope, size_t hint_size);   // 0-copy
 
-  explicit ConstString(const String& str);  // 1-copy
+  explicit ConstString(const String& str);           // 1-copy
+  static ConstString WrapString(const String& str);  // 0-copy
 
   inline operator String() const { return string_copy(); }  // 1-copy
   String string_copy() const;                               // 1-copy
@@ -79,7 +80,7 @@ class ConstString {
   ConstString operator+(const ConstString& other) const;  // 0-copy
 
  private:
-  ConstString(const char* str, size_t size, bool null_end);  // 0-copy
+  ConstString(const char* WEAK_PTR str, size_t size, bool null_end);  // 0-copy
 
   void CollapseRope() const;
   void NullTerminate() const;

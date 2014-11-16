@@ -83,10 +83,10 @@ void Absorber::DoExecute(const std::atomic<bool>& is_shutting_down) {
       break;
     }
     proto::RemoteExecute* incoming = task->second.get();
+    auto source = Immutable::WrapString(incoming->source());
 
     FileCache::Entry entry;
-    if (SearchSimpleCache(incoming->flags(), HandledSource(incoming->source()),
-                          &entry)) {
+    if (SearchSimpleCache(incoming->flags(), HandledSource(source), &entry)) {
       Universal outgoing(new proto::Universal);
       auto* result = outgoing->MutableExtension(proto::RemoteResult::extension);
       result->set_obj(entry.object);
@@ -127,7 +127,7 @@ void Absorber::DoExecute(const std::atomic<bool>& is_shutting_down) {
     // compiler's stdout.
     String error;
     base::ProcessPtr process = CreateProcess(incoming->flags());
-    if (!process->Run(10, incoming->source(), &error)) {
+    if (!process->Run(10, source, &error)) {
       status.set_code(proto::Status::EXECUTION);
       if (!process->stdout().empty() || !process->stderr().empty()) {
         status.set_description(process->stderr());
@@ -161,9 +161,7 @@ void Absorber::DoExecute(const std::atomic<bool>& is_shutting_down) {
       entry.object = process->stdout();
       entry.stderr = Immutable(status.description());
 
-      UpdateSimpleCache(incoming->flags(),
-                        file_cache::string::HandledSource(incoming->source()),
-                        entry);
+      UpdateSimpleCache(incoming->flags(), HandledSource(source), entry);
     }
 
     task->first->SendAsync(std::move(outgoing));

@@ -56,7 +56,7 @@ class Process
   // |sec_timeout| specifies the timeout in seconds - for how long we should
   // wait for another portion of the output from a child process.
   virtual bool Run(ui16 sec_timeout, String* error = nullptr) = 0;
-  virtual bool Run(ui16 sec_timeout, const String& input,
+  virtual bool Run(ui16 sec_timeout, Immutable input,
                    String* error = nullptr) = 0;
 
  protected:

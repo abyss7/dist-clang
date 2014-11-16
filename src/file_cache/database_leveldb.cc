@@ -34,7 +34,7 @@ Database::~Database() {
   }
 }
 
-bool Database::Set(const String& key, const String& value) {
+bool Database::Set(const String& key, Immutable value) {
   using namespace leveldb;
 
   WriteOptions options;
@@ -44,7 +44,7 @@ bool Database::Set(const String& key, const String& value) {
     return false;
   }
 
-  Status status = db_->Put(options, key, value);
+  Status status = db_->Put(options, key, Slice(value.data(), value.size()));
   if (!status.ok()) {
     LOG(DB_ERROR) << "Failed to set " << key << " => " << value
                   << " with error: " << status.ToString();

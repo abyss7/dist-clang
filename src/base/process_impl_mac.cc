@@ -123,7 +123,7 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
   }
 }
 
-bool ProcessImpl::Run(ui16 sec_timeout, const String& input, String* error) {
+bool ProcessImpl::Run(ui16 sec_timeout, Immutable input, String* error) {
   CHECK(args_.size() + 1 < MAX_ARGS);
 
   FileDescriptor in_pipe_fd[2];
