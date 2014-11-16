@@ -78,7 +78,7 @@ TEST_F(ProcessTest, EchoSmallInput) {
   const String test_data(10, 'a');
   ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
   process->AppendArg("-c"_l).AppendArg("cat"_l);
-  ASSERT_TRUE(process->Run(1, test_data));
+  ASSERT_TRUE(process->Run(1, Immutable(test_data)));
   EXPECT_EQ(Immutable(test_data), process->stdout());
   EXPECT_TRUE(process->stderr().empty());
 }
@@ -87,7 +87,7 @@ TEST_F(ProcessTest, EchoLargeInput) {
   const String test_data(67000, 'a');
   ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
   process->AppendArg("-c"_l).AppendArg("cat"_l);
-  ASSERT_TRUE(process->Run(1, test_data));
+  ASSERT_TRUE(process->Run(1, Immutable(test_data)));
   EXPECT_EQ(Immutable(test_data), process->stdout());
   EXPECT_TRUE(process->stderr().empty());
 }

@@ -14,10 +14,10 @@ using namespace string;
 
 TEST(FileCacheTest, HashCompliesWithRegex) {
   std::regex hash_regex("[a-z0-9]{32}-[a-z0-9]{8}-[a-z0-9]{8}");
-  EXPECT_TRUE(std::regex_match(
-      static_cast<String>(FileCache::Hash(HandledSource("1"_l),
-                                          CommandLine("2"_l), Version("3"_l))),
-      hash_regex));
+  EXPECT_TRUE(
+      std::regex_match(FileCache::Hash(HandledSource("1"_l), CommandLine("2"_l),
+                                       Version("3"_l)).str.string_copy(),
+                       hash_regex));
 }
 
 TEST(FileCacheTest, LockNonExistentFile) {
@@ -530,7 +530,7 @@ TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
   ASSERT_TRUE(future->GetValue());
 
   // Restore the entry.
-  const UnhandledSource bad_orig_code(String(orig_code) + " ");
+  const UnhandledSource bad_orig_code(orig_code.str.string_copy() + " ");
   EXPECT_FALSE(cache.Find(bad_orig_code, cl, version, &entry));
 }
 
