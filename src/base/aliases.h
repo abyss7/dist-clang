@@ -6,7 +6,6 @@
 #include <third_party/libcxx/exported/include/memory>
 #include <third_party/libcxx/exported/include/mutex>
 #include <third_party/libcxx/exported/include/string>
-#include <third_party/libcxx/exported/include/thread>
 #include <third_party/libcxx/exported/include/tuple>
 #include <third_party/libcxx/exported/include/unordered_map>
 #include <third_party/libcxx/exported/include/unordered_set>
@@ -17,6 +16,7 @@ namespace dist_clang {
 namespace base {
 class ConstString;
 class Literal;
+class Thread;
 }
 
 using FileDescriptor = int;
@@ -56,7 +56,7 @@ using SharedPtr = std::shared_ptr<T>;
 
 using String = std::string;
 
-using Thread = std::thread;
+using Thread = base::Thread;
 
 using TimePoint = std::chrono::time_point<Clock>;
 

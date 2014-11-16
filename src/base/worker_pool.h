@@ -21,7 +21,7 @@ class WorkerPool {
   void AddWorker(const SimpleWorker& worker, ui32 count = 1);
 
  private:
-  std::vector<std::thread> workers_;
+  Vector<Thread> workers_;
   std::atomic<bool> is_shutting_down_, force_shut_down_;
   FileDescriptor self_pipe_[2];
 };

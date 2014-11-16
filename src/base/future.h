@@ -1,6 +1,7 @@
 #pragma once
 
 #include <base/assert.h>
+#include <base/thread.h>
 
 #include <third_party/libcxx/exported/include/condition_variable>
 #include <third_party/libcxx/exported/include/experimental/optional>

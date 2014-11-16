@@ -2526,3 +2526,4 @@ src/perf/BUILD.gn
 src/perf/log_reporter.h
 src/perf/counter.h
 src/perf/log_reporter.cc
+src/base/thread.h

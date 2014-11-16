@@ -1,10 +1,10 @@
 #pragma once
 
 #include <base/locked_queue.h>
+#include <base/thread.h>
 
 #include <third_party/libcxx/exported/include/condition_variable>
 #include <third_party/libcxx/exported/include/mutex>
-#include <third_party/libcxx/exported/include/thread>
 
 namespace dist_clang {
 namespace base {
@@ -99,7 +99,7 @@ class QueueAggregator {
     }
   }
 
-  List<std::thread> threads_;
+  List<Thread> threads_;
   List<LockedQueue<T> * WEAK_PTR> queues_;
 
   std::mutex orders_mutex_;

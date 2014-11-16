@@ -23,13 +23,9 @@ bool EventLoop::Run() {
     return false;
   }
 
-  auto old_signals = BlockSignals();
-
   pool_.reset(new base::WorkerPool(true));
   pool_->AddWorker(std::bind(&EventLoop::DoListenWork, this, _1, _2));
   pool_->AddWorker(std::bind(&EventLoop::DoIOWork, this, _1, _2), concurrency_);
-
-  UnblockSignals(old_signals);
 
   return true;
 }

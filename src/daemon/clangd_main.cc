@@ -58,7 +58,7 @@ int main(int argc, char* argv[]) {
 
   int sig;
   sigwait(&signal_mask, &sig);
-  std::cout << std::endl;
+  LOG(INFO) << "Received " << sig << " signal before quit";
 
   return 0;
 }
