@@ -10,14 +10,14 @@
 namespace dist_clang {
 namespace file_cache {
 
-Database::Database(const String& path, const String& name) {
+Database::Database(const String& path, const String& name)
+    : path_(path + "/leveldb_" + name) {
   using namespace leveldb;
 
   Options options;
   options.create_if_missing = true;
 
-  String leveldb_path = path + "/leveldb_" + name;
-  Status status = DB::Open(options, leveldb_path, &db_);
+  Status status = DB::Open(options, path_, &db_);
   if (!status.ok()) {
     LOG(DB_ERROR) << "Failed to open database with error: "
                   << status.ToString();
@@ -25,7 +25,7 @@ Database::Database(const String& path, const String& name) {
     return;
   }
 
-  LOG(DB_INFO) << "Database is created on path " << leveldb_path;
+  LOG(DB_INFO) << "Database is created on path " << path_;
 }
 
 Database::~Database() {

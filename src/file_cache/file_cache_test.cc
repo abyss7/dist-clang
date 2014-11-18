@@ -80,22 +80,22 @@ TEST(FileCacheTest, RemoveEntry) {
     ASSERT_TRUE(base::WriteFile(deps_path, "1"_l));
     ASSERT_TRUE(base::WriteFile(stderr_path, "1"_l));
     FileCache cache(tmp_dir, 100, false);
+    ASSERT_TRUE(cache.Run());
     EXPECT_TRUE(cache.RemoveEntry(manifest_path));
-    auto db_size =
-        base::CalculateDirectorySize(String(tmp_dir) + "/leveldb_direct");
+    auto db_size = cache.database_->SizeOnDisk();
     ASSERT_EQ(0u, base::CalculateDirectorySize(tmp_dir) - db_size);
-    EXPECT_EQ(0u, cache.cached_size_ - db_size);
+    EXPECT_EQ(0u, cache.cached_size_);
   }
 
   {
     ASSERT_TRUE(base::WriteFile(manifest_path, "1"_l));
     ASSERT_TRUE(base::WriteFile(object_path, "1"_l));
     FileCache cache(tmp_dir, 100, false);
+    ASSERT_TRUE(cache.Run());
     EXPECT_TRUE(cache.RemoveEntry(manifest_path));
-    auto db_size =
-        base::CalculateDirectorySize(String(tmp_dir) + "/leveldb_direct");
+    auto db_size = cache.database_->SizeOnDisk();
     ASSERT_EQ(0u, base::CalculateDirectorySize(tmp_dir) - db_size);
-    EXPECT_EQ(0u, cache.cached_size_ - db_size);
+    EXPECT_EQ(0u, cache.cached_size_);
   }
 
   // TODO: check that |RemoveEntry()| fails, if at least one file can't be
@@ -111,6 +111,7 @@ TEST(FileCacheTest, RestoreSingleEntry) {
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
   FileCache cache(path);
+  ASSERT_TRUE(cache.Run());
   FileCache::Entry entry;
 
   const HandledSource code("int main() { return 0; }"_l);
@@ -152,6 +153,7 @@ TEST(FileCacheTest, RestoreSingleEntry_Sync) {
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
   FileCache cache(path);
+  ASSERT_TRUE(cache.Run());
   FileCache::Entry entry;
 
   const HandledSource code("int main() { return 0; }"_l);
@@ -189,6 +191,7 @@ TEST(FileCacheTest, RestoreEntryWithMissingFile) {
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
   FileCache cache(path);
+  ASSERT_TRUE(cache.Run());
   FileCache::Entry entry;
 
   const HandledSource code("int main() { return 0; }"_l);
@@ -262,6 +265,8 @@ TEST(FileCacheTest, ExceedCacheSize) {
   const Version version("3.5 (revision 100000)"_l);
 
   FileCache cache(cache_path, 30, false);
+  ASSERT_TRUE(cache.Run());
+  auto db_size = cache.database_->SizeOnDisk();
 
   {
     FileCache::Entry entry{obj_content[0], String(), String()};
@@ -269,7 +274,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
     ASSERT_TRUE(!!future);
     future->Wait();
     ASSERT_TRUE(future->GetValue());
-    EXPECT_EQ(14u, base::CalculateDirectorySize(cache_path));
+    EXPECT_EQ(14u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
   std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -280,7 +285,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
     ASSERT_TRUE(!!future);
     future->Wait();
     ASSERT_TRUE(future->GetValue());
-    EXPECT_EQ(29u, base::CalculateDirectorySize(cache_path));
+    EXPECT_EQ(29u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
   std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -291,7 +296,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
     ASSERT_TRUE(!!future);
     future->Wait();
     ASSERT_TRUE(future->GetValue());
-    EXPECT_EQ(16u, base::CalculateDirectorySize(cache_path));
+    EXPECT_EQ(16u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
   FileCache::Entry entry;
@@ -312,6 +317,8 @@ TEST(FileCacheTest, ExceedCacheSize_Sync) {
   const Version version("3.5 (revision 100000)"_l);
 
   FileCache cache(cache_path, 30, false);
+  ASSERT_TRUE(cache.Run());
+  auto db_size = cache.database_->SizeOnDisk();
 
   {
     FileCache::Entry entry{obj_content[0], String(), String()};
@@ -319,7 +326,7 @@ TEST(FileCacheTest, ExceedCacheSize_Sync) {
     ASSERT_TRUE(!!future);
     future->Wait();
     ASSERT_TRUE(future->GetValue());
-    EXPECT_EQ(14u, base::CalculateDirectorySize(cache_path));
+    EXPECT_EQ(14u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
   std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -330,7 +337,7 @@ TEST(FileCacheTest, ExceedCacheSize_Sync) {
     ASSERT_TRUE(!!future);
     future->Wait();
     ASSERT_TRUE(future->GetValue());
-    EXPECT_EQ(29u, base::CalculateDirectorySize(cache_path));
+    EXPECT_EQ(29u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
   std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -341,7 +348,7 @@ TEST(FileCacheTest, ExceedCacheSize_Sync) {
     ASSERT_TRUE(!!future);
     future->Wait();
     ASSERT_TRUE(future->GetValue());
-    EXPECT_EQ(16u, base::CalculateDirectorySize(cache_path));
+    EXPECT_EQ(16u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
   FileCache::Entry entry;
@@ -361,6 +368,7 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
   FileCache cache(path);
+  ASSERT_TRUE(cache.Run());
   FileCache::Entry entry;
 
   const HandledSource code("int main() { return 0; }"_l);
@@ -409,6 +417,7 @@ TEST(FileCacheTest, RestoreDirectEntry_Sync) {
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
   FileCache cache(path);
+  ASSERT_TRUE(cache.Run());
   FileCache::Entry entry;
 
   const HandledSource code("int main() { return 0; }"_l);
@@ -451,6 +460,7 @@ TEST(FileCacheTest, DirectEntry_ChangedHeader) {
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
   FileCache cache(path);
+  ASSERT_TRUE(cache.Run());
   FileCache::Entry entry;
 
   const HandledSource code("int main() { return 0; }"_l);
@@ -499,6 +509,7 @@ TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
   FileCache cache(path);
+  ASSERT_TRUE(cache.Run());
   FileCache::Entry entry;
 
   const HandledSource code("int main() { return 0; }"_l);

@@ -21,15 +21,25 @@ FileCache::FileCache(const String& path, ui64 size, bool snappy)
       pool_(base::ThreadPool::TaskQueue::UNLIMITED, 1 + snappy),
       max_size_(size),
       cached_size_(0),
-      database_(path, "direct"),
       snappy_(snappy) {
+}
+
+FileCache::FileCache(const String& path) : FileCache(path, UNLIMITED, false) {
+}
+
+bool FileCache::Run() {
+  String error;
+  if (!base::CreateDirectory(path_, &error)) {
+    LOG(CACHE_ERROR) << "Failed to create directory " << path_ << " : "
+                     << error;
+    return false;
+  }
+
+  database_.reset(new file_cache::Database(path_, "direct"));
+
   if (max_size_ != UNLIMITED) {
-    String error;
-
-    // FIXME: refactor to portable solution.
-    system((String("mkdir -p ") + path).c_str());
-
-    cached_size_ = base::CalculateDirectorySize(path, &error);
+    cached_size_ =
+        base::CalculateDirectorySize(path_, &error) - database_->SizeOnDisk();
     if (!error.empty()) {
       max_size_ = UNLIMITED;
       LOG(CACHE_WARNING)
@@ -38,9 +48,8 @@ FileCache::FileCache(const String& path, ui64 size, bool snappy)
   }
 
   pool_.Run();
-}
 
-FileCache::FileCache(const String& path) : FileCache(path, UNLIMITED, false) {
+  return true;
 }
 
 using namespace file_cache::string;
@@ -100,7 +109,8 @@ bool FileCache::Find(const UnhandledSource& code,
   }
   hash = base::Hexify(base::MakeHash(hash_rope));
 
-  if (database_.Get(hash, &hash)) {
+  DCHECK(database_);
+  if (database_->Get(hash, &hash)) {
     return FindByHash(HandledHash(hash), entry);
   }
 
@@ -264,10 +274,8 @@ void FileCache::DoStore(const HandledHash& hash, const Entry& entry) {
     return;
   }
 
-  // FIXME: refactor to portable solution.
-  if (system((String("mkdir -p ") + SecondPath(hash)).c_str()) == -1) {
-    // "mkdir -p" doesn't fail if the path already exists.
-    LOG(CACHE_ERROR) << "Failed to `mkdir -p` for " << SecondPath(hash);
+  if (!base::CreateDirectory(SecondPath(hash))) {
+    LOG(CACHE_ERROR) << "Failed to create directory " << SecondPath(hash);
     return;
   }
 
@@ -357,10 +365,8 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
     return;
   }
 
-  // FIXME: refactor to portable solution.
-  if (system((String("mkdir -p ") + SecondPath(orig_hash)).c_str()) == -1) {
-    // "mkdir -p" doesn't fail if the path already exists.
-    LOG(CACHE_ERROR) << "Failed to `mkdir -p` for " << SecondPath(orig_hash);
+  if (!base::CreateDirectory(SecondPath(orig_hash))) {
+    LOG(CACHE_ERROR) << "Failed to create directory " << SecondPath(orig_hash);
     return;
   }
 
@@ -382,7 +388,8 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
   }
 
   auto direct_hash = base::Hexify(base::MakeHash(hash_rope));
-  if (!database_.Set(direct_hash, hash)) {
+  DCHECK(database_);
+  if (!database_->Set(direct_hash, hash)) {
     return;
   }
 

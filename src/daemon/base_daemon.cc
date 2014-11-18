@@ -82,6 +82,9 @@ bool BaseDaemon::Initialize() {
   if (conf_.has_cache() && !conf_.cache().disabled()) {
     cache_.reset(new FileCache(conf_.cache().path(), conf_.cache().size(),
                                conf_.cache().snappy()));
+    if (!cache_->Run()) {
+      cache_.reset();
+    }
   }
 
   for (const auto& version : conf_.versions()) {

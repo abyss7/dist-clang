@@ -86,5 +86,7 @@ inline bool ChangeOwner(const String& path, ui32 uid, String* error = nullptr) {
   return true;
 }
 
+bool CreateDirectory(const String& path, String* error = nullptr);
+
 }  // namespace base
 }  // namespace dist_clang

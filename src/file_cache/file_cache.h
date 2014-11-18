@@ -10,8 +10,10 @@ namespace dist_clang {
 
 namespace file_cache {
 
-FORWARD_TEST(FileCacheTest, LockNonExistentFile);
 FORWARD_TEST(FileCacheTest, DoubleLocks);
+FORWARD_TEST(FileCacheTest, ExceedCacheSize);
+FORWARD_TEST(FileCacheTest, ExceedCacheSize_Sync);
+FORWARD_TEST(FileCacheTest, LockNonExistentFile);
 FORWARD_TEST(FileCacheTest, RemoveEntry);
 FORWARD_TEST(FileCacheTest, RestoreEntryWithMissingFile);
 
@@ -59,6 +61,8 @@ class FileCache {
   FileCache(const String& path, ui64 size, bool snappy);
   explicit FileCache(const String& path);
 
+  bool Run();
+
   static file_cache::string::HandledHash Hash(
       const file_cache::string::HandledSource& code,
       const file_cache::string::CommandLine& command_line,
@@ -100,8 +104,10 @@ class FileCache {
                     const file_cache::string::HandledHash& hash);
 
  private:
-  FRIEND_TEST(file_cache::FileCacheTest, LockNonExistentFile);
   FRIEND_TEST(file_cache::FileCacheTest, DoubleLocks);
+  FRIEND_TEST(file_cache::FileCacheTest, ExceedCacheSize);
+  FRIEND_TEST(file_cache::FileCacheTest, ExceedCacheSize_Sync);
+  FRIEND_TEST(file_cache::FileCacheTest, LockNonExistentFile);
   FRIEND_TEST(file_cache::FileCacheTest, RemoveEntry);
   FRIEND_TEST(file_cache::FileCacheTest, RestoreEntryWithMissingFile);
 
@@ -159,7 +165,7 @@ class FileCache {
   base::ThreadPool pool_;
   ui64 max_size_;
   std::atomic<ui64> cached_size_;
-  file_cache::Database database_;
+  UniquePtr<file_cache::Database> database_;
   bool snappy_;
 
   mutable std::mutex locks_mutex_;
