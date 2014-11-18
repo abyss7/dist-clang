@@ -33,6 +33,7 @@ class Literal {
   friend Literal dist_clang::operator"" _l(const char*, size_t);
   friend class ConstString;
   friend Literal GetEnv(Literal, Literal);
+  friend Literal GetHomeDir(String*);
 
   Literal(const char* str) : str_(str) {}
 

@@ -16,8 +16,19 @@
 
 namespace dist_clang {
 
+namespace {
+
+String ReplaceTildeInPath(const String& path) {
+  if (path[0] == '~' && path[1] == '/') {
+    return String(base::GetHomeDir()) + path.substr(1);
+  }
+  return path;
+}
+
+}  // namespace
+
 FileCache::FileCache(const String& path, ui64 size, bool snappy)
-    : path_(path),
+    : path_(ReplaceTildeInPath(path)),
       pool_(base::ThreadPool::TaskQueue::UNLIMITED, 1 + snappy),
       max_size_(size),
       cached_size_(0),

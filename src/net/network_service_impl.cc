@@ -3,6 +3,7 @@
 #include <base/assert.h>
 #include <base/c_utils.h>
 #include <base/file_descriptor_utils.h>
+#include <base/file_utils.h>
 #include <net/connection_impl.h>
 #include <net/end_point.h>
 
@@ -16,6 +17,12 @@ using namespace ::std::placeholders;
 
 namespace dist_clang {
 namespace net {
+
+NetworkServiceImpl::~NetworkServiceImpl() {
+  for (const auto& socket : unix_sockets_) {
+    base::DeleteFile(socket);
+  }
+}
 
 bool NetworkServiceImpl::Run() {
   return event_loop_->Run();
@@ -60,6 +67,7 @@ bool NetworkServiceImpl::Listen(const String& path, ListenCallback callback,
     return false;
   }
 
+  unix_sockets_.push_back(path);
   return true;
 }
 

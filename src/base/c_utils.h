@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <pwd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -52,6 +53,15 @@ inline Immutable GetCurrentDir(String* error = nullptr) {
     return Immutable();
   }
   return buf;
+}
+
+inline Literal GetHomeDir(String* error = nullptr) {
+  auto* pw = getpwuid(getuid());
+  if (!pw) {
+    GetLastError(error);
+    return Literal::empty;
+  }
+  return Literal(pw->pw_dir);
 }
 
 inline String CreateTempFile(String* error = nullptr) {

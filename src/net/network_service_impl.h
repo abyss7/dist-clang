@@ -8,6 +8,8 @@ namespace net {
 
 class NetworkServiceImpl : public NetworkService {
  public:
+  virtual ~NetworkServiceImpl();
+
   // We need the method |Run()| to allow user to add all listening sockets in
   // a non-threadsafe way, thus, prevent locking inside |HandleNewConnection|.
   virtual bool Run() THREAD_UNSAFE override;
@@ -37,6 +39,7 @@ class NetworkServiceImpl : public NetworkService {
 
   UniquePtr<EventLoop> event_loop_;
   HashMap<FileDescriptor, ListenCallback> listen_callbacks_;
+  List<String> unix_sockets_;
 };
 
 }  // namespace net

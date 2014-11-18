@@ -6,6 +6,7 @@
 #include <third_party/gtest/exported/include/gtest/gtest.h>
 #include <third_party/libcxx/exported/include/thread>
 
+#include <dirent.h>
 #include <fcntl.h>
 
 namespace dist_clang {
@@ -107,9 +108,8 @@ TEST(FileUtilsTest, ReadFile) {
 }
 
 TEST(FileUtilsTest, WriteFile) {
-  const String expected_content = "All your base are belong to us";
-
-  base::TemporaryDir temp_dir;
+  const auto expected_content = "All your base are belong to us"_l;
+  const base::TemporaryDir temp_dir;
   const String file_path = String(temp_dir) + "/file";
   EXPECT_TRUE(WriteFile(file_path, expected_content));
 
@@ -123,7 +123,7 @@ TEST(FileUtilsTest, WriteFile) {
 }
 
 TEST(FileUtilsTest, CalculateDirectorySize) {
-  base::TemporaryDir temp_dir;
+  const base::TemporaryDir temp_dir;
   const String dir1 = String(temp_dir) + "/1";
   const String dir2 = String(temp_dir) + "/2";
   const String file1 = String(temp_dir) + "/file1";
@@ -156,7 +156,7 @@ TEST(FileUtilsTest, CalculateDirectorySize) {
 }
 
 TEST(FileUtilsTest, FileSize) {
-  base::TemporaryDir temp_dir;
+  const base::TemporaryDir temp_dir;
   const String file = String(temp_dir) + "/file";
   const String content = "1234567890";
 
@@ -170,7 +170,7 @@ TEST(FileUtilsTest, FileSize) {
 }
 
 TEST(FileUtilsTest, LeastRecentPath) {
-  base::TemporaryDir temp_dir;
+  const base::TemporaryDir temp_dir;
   const String dir = String(temp_dir) + "/1";
   const String file1 = String(temp_dir) + "/2";
   const String file2 = dir + "/3";
@@ -219,7 +219,7 @@ TEST(FileUtilsTest, LeastRecentPath) {
 }
 
 TEST(FileUtilsTest, LeastRecentPathWithRegex) {
-  base::TemporaryDir temp_dir;
+  const base::TemporaryDir temp_dir;
   const String file1 = String(temp_dir) + "/1";
   const String file2 = String(temp_dir) + "/2";
 
@@ -239,7 +239,7 @@ TEST(FileUtilsTest, LeastRecentPathWithRegex) {
 
 TEST(FileUtilsTest, TempFile) {
   String error;
-  String temp_file = CreateTempFile(&error);
+  const String temp_file = CreateTempFile(&error);
 
   ASSERT_FALSE(temp_file.empty())
       << "Failed to create temporary file: " << error;
@@ -250,6 +250,20 @@ TEST(FileUtilsTest, TempFile) {
 TEST(FileUtilsTest, DISABLED_HashFile) {
   // TODO: implement this test.
   //       - Check skip list.
+}
+
+TEST(FileUtilsTest, CreateDirectory) {
+  String error;
+  const base::TemporaryDir temp_dir;
+  const String temp = String(temp_dir) + "/1/2/3";
+
+  ASSERT_TRUE(CreateDirectory(temp, &error)) << error;
+
+  DIR* dir = opendir(temp.c_str());
+  EXPECT_TRUE(dir);
+  if (dir) {
+    closedir(dir);
+  }
 }
 
 }  // namespace base
