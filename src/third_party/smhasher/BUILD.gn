@@ -1,6 +1,0 @@
-static_library("murmur_hash3") {
-  sources = [
-    "exported/MurmurHash3.cpp",
-    "exported/MurmurHash3.h",
-  ]
-}

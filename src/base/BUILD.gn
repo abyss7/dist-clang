@@ -41,10 +41,7 @@ shared_library("base") {
     "worker_pool.h",
   ]
 
-  deps += [
-    ":logging",
-    "//src/third_party/smhasher:murmur_hash3",
-  ]
+  deps += [ ":logging" ]
 
   public_deps = [ ":const_string" ]
 

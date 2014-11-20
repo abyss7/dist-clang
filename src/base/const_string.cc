@@ -84,9 +84,24 @@ ConstString ConstString::WrapString(const String& str) {
   return ConstString(str.c_str(), str.size(), true);
 }
 
-String ConstString::string_copy() const {
-  CollapseRope();
-  return String(str_.get(), size_);
+String ConstString::string_copy(bool collapse) const {
+  if (collapse) {
+    CollapseRope();
+    return String(str_.get(), size_);
+  }
+
+  if (rope_.empty()) {
+    return String(str_.get(), size_);
+  }
+
+  String result;
+  result.reserve(size_);
+
+  for (const auto& str : rope_) {
+    result += str;
+  }
+
+  return result;
 }
 
 const char* ConstString::data() const {
@@ -169,6 +184,21 @@ ConstString ConstString::operator+(const ConstString& other) const {
   }
 
   return Rope{*this, other};
+}
+
+ui64 ConstString::GetBlock64(ui64 block_num) const {
+  DCHECK(block_num < size_ / 8);
+
+  union {
+    char str[8];
+    ui64 num;
+  } value;
+
+  for (int i = 0; i < 8; ++i) {
+    value.str[i] = this->operator[](block_num * 8 + i);
+  }
+
+  return value.num;
 }
 
 ConstString::ConstString(const char* WEAK_PTR str, size_t size, bool null_end)

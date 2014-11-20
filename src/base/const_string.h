@@ -61,7 +61,7 @@ class ConstString {
   static ConstString WrapString(const String& str);  // 0-copy
 
   inline operator String() const { return string_copy(); }  // 1-copy
-  String string_copy() const;                               // 1-copy
+  String string_copy(bool collapse = true) const;           // 1-copy
 
   // Minimal interface for |std::string| compatibility.
   inline void assign(const ConstString& other) { this->operator=(other); }
@@ -78,6 +78,8 @@ class ConstString {
 
   const char& operator[](size_t index) const;             // 0-copy
   ConstString operator+(const ConstString& other) const;  // 0-copy
+
+  ui64 GetBlock64(ui64 block_num) const;  // 0-copy
 
  private:
   ConstString(const char* WEAK_PTR str, size_t size, bool null_end);  // 0-copy

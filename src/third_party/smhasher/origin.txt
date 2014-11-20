@@ -1,3 +1,0 @@
-scm: svn
-url: http://smhasher.googlecode.com/svn/trunk/
-rev: 152
