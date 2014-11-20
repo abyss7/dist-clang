@@ -39,6 +39,7 @@ case "$1" in
     ;;
   restart|reload|force-reload)
     ${NAME}_stop
+    sleep 3
     ${NAME}_start
     ;;
   force-stop)
