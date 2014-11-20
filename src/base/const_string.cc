@@ -114,9 +114,35 @@ bool ConstString::operator==(const ConstString& other) const {
 }
 
 size_t ConstString::find(const char* str) const {
-  // TODO: make it a 0-copy.
-  String tmp = this->operator String();
-  return tmp.find(str);
+  i64 str_size = strlen(str);
+  Vector<i64> t(str_size + 1, -1);
+
+  if (str_size == 0) {
+    return 0;
+  }
+
+  for (i64 i = 1; i <= str_size; ++i) {
+    auto pos = t[i - 1];
+    while (pos != -1 && str[pos] != str[i - 1]) {
+      pos = t[pos];
+    }
+    t[i] = pos + 1;
+  }
+
+  size_t sp = 0;
+  i64 kp = 0;
+  while (sp < size_) {
+    while (kp != -1 && (kp == str_size || str[kp] != this->operator[](sp))) {
+      kp = t[kp];
+    }
+    kp++;
+    sp++;
+    if (kp == str_size) {
+      return sp - str_size;
+    }
+  }
+
+  return String::npos;
 }
 
 const char& ConstString::operator[](size_t index) const {

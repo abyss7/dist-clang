@@ -1,5 +1,5 @@
 *.autosave
 *.pyc
 /out
-/*.creator.user
+/*.creator.user*
 /.project

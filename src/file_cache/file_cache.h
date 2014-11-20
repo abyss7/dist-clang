@@ -143,12 +143,15 @@ class FileCache {
   friend class WriteLock;
 
   inline String FirstPath(Immutable hash) const {
+    DCHECK(hash.size() > 0);
     return path_ + "/" + hash[0];
   }
   inline String SecondPath(Immutable hash) const {
+    DCHECK(hash.size() > 1);
     return FirstPath(hash) + "/" + hash[1];
   }
   inline String CommonPath(Immutable hash) const {
+    DCHECK(hash.size() > 2);
     return SecondPath(hash) + "/" + hash.string_copy().substr(2);
   }
 

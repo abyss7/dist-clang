@@ -65,12 +65,12 @@ class ConstString {
 
   // Minimal interface for |std::string| compatibility.
   inline void assign(const ConstString& other) { this->operator=(other); }
-  const char* data() const;                                   // 0,1-copy
-  const char* c_str() const;                                  // 0,1-copy
-  inline size_t size() const { return size_; }                // 0-copy
-  inline bool empty() const { return size_ == 0; }            // 0-copy
-  bool operator==(const ConstString& other) const;            // 0-copy
-  inline bool operator!=(const ConstString& other) const {    // 0-copy
+  const char* data() const;                                 // 0,1-copy
+  const char* c_str() const;                                // 0,1-copy
+  inline size_t size() const { return size_; }              // 0-copy
+  inline bool empty() const { return size_ == 0; }          // 0-copy
+  bool operator==(const ConstString& other) const;          // 0-copy
+  inline bool operator!=(const ConstString& other) const {  // 0-copy
     return !this->operator==(other);
   }
 

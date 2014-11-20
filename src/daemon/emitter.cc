@@ -355,11 +355,16 @@ void Emitter::DoRemoteExecute(const std::atomic<bool>& is_shutting_down,
 
         FileCache::Entry entry;
         auto GenerateEntry = [&] {
+          String error;
+
           entry.object = result->release_obj();
           if (result->has_deps()) {
             entry.deps = result->release_deps();
           } else if (incoming->flags().has_deps_file() &&
-                     !base::ReadFile(GetDepsPath(incoming), &entry.deps)) {
+                     !base::ReadFile(GetDepsPath(incoming), &entry.deps,
+                                     &error)) {
+            LOG(CACHE_WARNING) << "Can't read deps file "
+                               << GetDepsPath(incoming) << " : " << error;
             return false;
           }
           entry.stderr = Immutable(status.description());
