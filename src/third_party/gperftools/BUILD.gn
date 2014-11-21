@@ -131,26 +131,44 @@ source_set("stacktrace") {
 
 source_set("tcmalloc_internal") {
   sources = [
-    "exported/src/common.cc",
-    "exported/src/internal_logging.cc",
-    "exported/src/system-alloc.cc",
-    "exported/src/memfs_malloc.cc",
+    "exported/src/base/low_level_alloc.cc",
     "exported/src/central_freelist.cc",
+    "exported/src/common.cc",
+    "exported/src/heap-profile-table.cc",
+    "exported/src/heap-profiler.cc",
+    "exported/src/internal_logging.cc",
+    "exported/src/malloc_hook.cc",
+    "exported/src/malloc_extension.cc",
+    "exported/src/maybe_threads.cc",
+    "exported/src/memfs_malloc.cc",
+    "exported/src/memory_region_map.cc",
     "exported/src/page_heap.cc",
+    "exported/src/raw_printer.cc",
     "exported/src/sampler.cc",
     "exported/src/span.cc",
     "exported/src/stack_trace_table.cc",
     "exported/src/static_vars.cc",
     "exported/src/symbolize.cc",
+    "exported/src/system-alloc.cc",
     "exported/src/thread_cache.cc",
-    "exported/src/malloc_hook.cc",
-    "exported/src/malloc_extension.cc",
-    "exported/src/maybe_threads.cc",
-    "exported/src/base/low_level_alloc.cc",
-    "exported/src/heap-profile-table.cc",
-    "exported/src/heap-profiler.cc",
-    "exported/src/raw_printer.cc",
-    "exported/src/memory_region_map.cc",
+  ]
+
+  include_dirs = [ "exported/src" ]
+
+  configs += [
+    ":flags",
+    ":no_warnings",
+  ]
+
+  deps -= [ "//src/third_party/gperftools:tcmalloc" ]
+  deps += [ ":stacktrace" ]
+}
+
+source_set("profiler") {
+  sources = [
+    "exported/src/profile-handler.cc",
+    "exported/src/profiledata.cc",
+    "exported/src/profiler.cc",
   ]
 
   include_dirs = [ "exported/src" ]
@@ -193,5 +211,8 @@ shared_library("tcmalloc") {
   ]
 
   deps -= [ "//src/third_party/gperftools:tcmalloc" ]
-  deps += [ ":tcmalloc_internal" ]
+  deps += [
+    ":profiler",
+    ":tcmalloc_internal",
+  ]
 }
