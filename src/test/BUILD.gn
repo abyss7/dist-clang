@@ -7,7 +7,6 @@ executable("unit_tests") {
     "//src/base/const_string_test.cc",
     "//src/base/file_utils_test.cc",
     "//src/base/future_test.cc",
-    "//src/base/hash_test.cc",
     "//src/base/locked_queue_test.cc",
     "//src/base/process_test.cc",
     "//src/base/queue_aggregator_test.cc",

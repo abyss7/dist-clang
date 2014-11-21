@@ -1,7 +1,6 @@
 #pragma once
 
 #include <base/empty_lambda.h>
-#include <base/hash.h>
 #include <net/network_service.h>
 
 namespace std {
@@ -11,9 +10,16 @@ struct hash<pair<T, U>> {
  public:
   size_t operator()(const pair<T, U>& value) const {
     size_t seed = 0;
-    dist_clang::base::HashCombine(seed, value.first);
-    dist_clang::base::HashCombine(seed, value.second);
+    HashCombine(seed, value.first);
+    HashCombine(seed, value.second);
     return seed;
+  }
+
+ private:
+  template <class V, class Hash = std::hash<V>>
+  inline void HashCombine(std::size_t& seed, const V& value) const {
+    Hash hash;
+    seed ^= hash(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
   }
 };
 

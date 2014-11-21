@@ -27,9 +27,6 @@ src/base/file_utils.h
 src/base/file_utils_test.cc
 src/base/future.h
 src/base/future_test.cc
-src/base/hash.cc
-src/base/hash.h
-src/base/hash_test.cc
 src/base/locked_queue.h
 src/base/locked_queue_test.cc
 src/base/logging.cc

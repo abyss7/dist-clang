@@ -19,8 +19,6 @@ shared_library("base") {
     "file_utils.cc",
     "file_utils.h",
     "future.h",
-    "hash.cc",
-    "hash.h",
     "locked_queue.h",
     "process.cc",
     "process.h",

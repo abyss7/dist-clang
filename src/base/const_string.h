@@ -79,13 +79,13 @@ class ConstString {
   const char& operator[](size_t index) const;             // 0-copy
   ConstString operator+(const ConstString& other) const;  // 0-copy
 
-  ui64 GetBlock64(ui64 block_num) const;  // 0-copy
+  ConstString Hash(ui8 output_size = 16) const;  // 0-copy
 
  private:
   ConstString(const char* WEAK_PTR str, size_t size, bool null_end);  // 0-copy
 
-  void CollapseRope() const;
-  void NullTerminate() const;
+  void CollapseRope() const THREAD_UNSAFE;
+  void NullTerminate() const THREAD_UNSAFE;
 
   mutable SharedPtr<String> medium_;
   mutable SharedPtr<const char> str_;

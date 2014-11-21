@@ -1,7 +1,6 @@
 #include <file_cache/file_cache.h>
 
 #include <base/file_utils.h>
-#include <base/hash.h>
 #include <base/logging.h>
 #include <base/string_utils.h>
 #include <file_cache/manifest.pb.h>
@@ -69,18 +68,18 @@ using namespace file_cache::string;
 HandledHash FileCache::Hash(const HandledSource& code,
                             const CommandLine& command_line,
                             const Version& version) {
-  return HandledHash(base::Hexify(base::MakeHash(code)) + "-" +
-                     base::Hexify(base::MakeHash(command_line, 4)) + "-" +
-                     base::Hexify(base::MakeHash(version, 4)));
+  return HandledHash(base::Hexify(code.str.Hash()) + "-" +
+                     base::Hexify(command_line.str.Hash(4)) + "-" +
+                     base::Hexify(version.str.Hash(4)));
 }
 
 // static
 UnhandledHash FileCache::Hash(const UnhandledSource& code,
                               const CommandLine& command_line,
                               const Version& version) {
-  return UnhandledHash(base::Hexify(base::MakeHash(code)) + "-" +
-                       base::Hexify(base::MakeHash(command_line, 4)) + "-" +
-                       base::Hexify(base::MakeHash(version, 4)));
+  return UnhandledHash(base::Hexify(code.str.Hash()) + "-" +
+                       base::Hexify(command_line.str.Hash(4)) + "-" +
+                       base::Hexify(version.str.Hash(4)));
 }
 
 bool FileCache::Find(const HandledSource& code, const CommandLine& command_line,
@@ -118,7 +117,7 @@ bool FileCache::Find(const UnhandledSource& code,
     }
     hash_rope.push_back(header_hash);
   }
-  hash = base::Hexify(base::MakeHash(hash_rope));
+  hash = base::Hexify(Immutable(hash_rope).Hash());
 
   DCHECK(database_);
   if (database_->Get(hash, &hash)) {
@@ -398,7 +397,7 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
     manifest.add_headers(header);
   }
 
-  auto direct_hash = base::Hexify(base::MakeHash(hash_rope));
+  auto direct_hash = base::Hexify(Immutable(hash_rope).Hash());
   DCHECK(database_);
   if (!database_->Set(direct_hash, hash)) {
     return;

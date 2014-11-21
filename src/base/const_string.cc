@@ -186,19 +186,204 @@ ConstString ConstString::operator+(const ConstString& other) const {
   return Rope{*this, other};
 }
 
-ui64 ConstString::GetBlock64(ui64 block_num) const {
-  DCHECK(block_num < size_ / 8);
+ConstString ConstString::Hash(ui8 output_size) const {
+  const ui64 block_size = 8;
 
-  union {
-    char str[8];
-    ui64 num;
-  } value;
+  char* buf = new char[16];
+  const ui64 double_blocks = size() / 16;
+  ui64 h1 = 0, h2 = 0;
+  const ui64 c1 = 0x87c37b91114253d5LLU, c2 = 0x4cf5ad432745937fLLU;
 
-  for (int i = 0; i < 8; ++i) {
-    value.str[i] = this->operator[](block_num * 8 + i);
+  const ui64* ptr = nullptr;
+  Rope::const_iterator it;
+  ui64 ptr_size = 0;
+
+  if (rope_.empty()) {
+    ptr = reinterpret_cast<const ui64*>(str_.get());
+    it = rope_.end();
+    ptr_size = size();
+  } else {
+    it = rope_.begin();
+    it->CollapseRope();
+    ptr = reinterpret_cast<const ui64*>(rope_.front().str_.get());
+    ptr_size = it->size();
   }
 
-  return value.num;
+  auto NextBlock = [this, &ptr, &it, &ptr_size]() -> ui64 {
+    DCHECK(ptr);
+
+    // ...[===P========...
+    if (ptr_size > block_size) {
+      ptr_size -= block_size;
+      return *ptr++;
+    }
+
+    // ...[===P=======][===...
+    if (ptr_size == block_size) {
+      ui64 result = *ptr;
+
+      if (it != rope_.end()) {
+        ++it;
+      }
+
+      if (it == rope_.end()) {
+        ptr_size = 0;
+        ptr = nullptr;
+      } else {
+        it->CollapseRope();
+        ptr = reinterpret_cast<const ui64*>(it->str_.get());
+        ptr_size = it->size();
+      }
+
+      return result;
+    }
+
+    // ...[======P===][===...
+    DCHECK(it != rope_.end());
+
+    union {
+      char str[block_size];
+      ui64 num;
+    } result;
+    ui64 i = ptr_size;
+
+    memcpy(result.str, ptr, ptr_size);
+
+    ++it;
+    DCHECK(it != rope_.end());
+    it->CollapseRope();
+    ptr = reinterpret_cast<const ui64*>(it->str_.get());
+    ptr_size = it->size();
+
+    while (i < block_size) {
+      if (ptr_size <= block_size - i) {
+        memcpy(result.str + i, ptr, ptr_size);
+        i += ptr_size;
+        ++it;
+        if (it == rope_.end()) {
+          ptr_size = 0;
+          ptr = nullptr;
+          DCHECK(i == block_size);
+        } else {
+          it->CollapseRope();
+          ptr = reinterpret_cast<const ui64*>(it->str_.get());
+          ptr_size = it->size();
+        }
+      } else {
+        memcpy(result.str + i, ptr, block_size - i);
+        i = block_size;
+        ptr_size -= block_size - i;
+        ptr = reinterpret_cast<const ui64*>(it->str_.get() + block_size - i);
+      }
+    }
+
+    DCHECK(i == block_size);
+
+    return result.num;
+  };
+
+  // Body.
+
+  auto rotl64 = [](ui64 x, i8 r) -> ui64 { return (x << r) | (x >> (64 - r)); };
+
+  auto fmix64 = [](ui64 k) -> ui64 {
+    k ^= k >> 33;
+    k *= 0xff51afd7ed558ccdLLU;
+    k ^= k >> 33;
+    k *= 0xc4ceb9fe1a85ec53LLU;
+    k ^= k >> 33;
+
+    return k;
+  };
+
+  for (ui64 i = 0; i < double_blocks; ++i) {
+    ui64 k1 = NextBlock(), k2 = NextBlock();
+
+    k1 *= c1;
+    k1 = rotl64(k1, 31);
+    k1 *= c2;
+    h1 ^= k1;
+
+    h1 = rotl64(h1, 27);
+    h1 += h2;
+    h1 = h1 * 5 + 0x52dce729;
+
+    k2 *= c2;
+    k2 = rotl64(k2, 33);
+    k2 *= c1;
+    h2 ^= k2;
+
+    h2 = rotl64(h2, 31);
+    h2 += h1;
+    h2 = h2 * 5 + 0x38495ab5;
+  }
+
+  // Tail.
+
+  const ui64 tail = double_blocks * 16;
+
+  ui64 k1 = 0, k2 = 0;
+
+  switch (size() & 15) {
+    case 15:
+      k2 ^= ((ui64)this->operator[](tail + 14)) << 48;
+    case 14:
+      k2 ^= ((ui64)this->operator[](tail + 13)) << 40;
+    case 13:
+      k2 ^= ((ui64)this->operator[](tail + 12)) << 32;
+    case 12:
+      k2 ^= ((ui64)this->operator[](tail + 11)) << 24;
+    case 11:
+      k2 ^= ((ui64)this->operator[](tail + 10)) << 16;
+    case 10:
+      k2 ^= ((ui64)this->operator[](tail + 9)) << 8;
+    case 9:
+      k2 ^= ((ui64)this->operator[](tail + 8)) << 0;
+      k2 *= c2;
+      k2 = rotl64(k2, 33);
+      k2 *= c1;
+      h2 ^= k2;
+
+    case 8:
+      k1 ^= ((ui64)this->operator[](tail + 7)) << 56;
+    case 7:
+      k1 ^= ((ui64)this->operator[](tail + 6)) << 48;
+    case 6:
+      k1 ^= ((ui64)this->operator[](tail + 5)) << 40;
+    case 5:
+      k1 ^= ((ui64)this->operator[](tail + 4)) << 32;
+    case 4:
+      k1 ^= ((ui64)this->operator[](tail + 3)) << 24;
+    case 3:
+      k1 ^= ((ui64)this->operator[](tail + 2)) << 16;
+    case 2:
+      k1 ^= ((ui64)this->operator[](tail + 1)) << 8;
+    case 1:
+      k1 ^= ((ui64)this->operator[](tail + 0)) << 0;
+      k1 *= c1;
+      k1 = rotl64(k1, 31);
+      k1 *= c2;
+      h1 ^= k1;
+  };
+
+  // Finalization.
+
+  h1 ^= size();
+  h2 ^= size();
+
+  h1 += h2;
+  h2 += h1;
+
+  h1 = fmix64(h1);
+  h2 = fmix64(h2);
+
+  h1 += h2;
+  h2 += h1;
+
+  ((ui64*)buf)[0] = h1;
+  ((ui64*)buf)[1] = h2;
+
+  return Immutable(buf, std::min<ui8>(16u, output_size));
 }
 
 ConstString::ConstString(const char* WEAK_PTR str, size_t size, bool null_end)

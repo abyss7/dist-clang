@@ -2,7 +2,6 @@
 
 #include <base/assert.h>
 #include <base/const_string.h>
-#include <base/hash.h>
 
 #include <third_party/libcxx/exported/include/map>
 #include <third_party/libcxx/exported/include/regex>
@@ -255,7 +254,7 @@ bool HashFile(const String& path, Immutable* output,
     }
   }
 
-  output->assign(base::Hexify(MakeHash(*output)));
+  output->assign(base::Hexify(output->Hash()));
   return true;
 }
 
