@@ -81,6 +81,9 @@ bool DoMain(int argc, const char* const argv[], Immutable socket_path,
       List<String> output;
       base::SplitString<'\n'>(process->stdout(), output);
       if (output.size() != 3) {
+        if (!process->stderr().empty()) {
+          LOG(ERROR) << process->stderr();
+        }
         LOG(WARNING) << "Clang binary has unknown version format : "
                      << process->stdout();
         return true;

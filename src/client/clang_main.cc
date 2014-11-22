@@ -13,14 +13,14 @@
 namespace dist_clang {
 namespace {
 
-int ExecuteLocally(char* argv[], const String& clangd_cxx_path) {
-  if (clangd_cxx_path.empty()) {
+int ExecuteLocally(char* argv[], const String& clang_path) {
+  if (clang_path.empty()) {
     LOG(FATAL) << "Provide real clang driver path via " << base::kEnvClangPath;
   }
 
   LOG(INFO) << "Running locally.";
 
-  if (execv(clangd_cxx_path.c_str(), argv) == -1) {
+  if (execv(clang_path.c_str(), argv) == -1) {
     LOG(FATAL) << "Local execution failed: " << strerror(errno);
   }
 
