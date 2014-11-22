@@ -75,17 +75,24 @@ bool ConnectionImpl::ReadSync(Message* message, Status* status) {
     if (!coded_stream.ReadVarint32(&size)) {
       if (status) {
         status->set_code(Status::NETWORK);
-        status->set_description("Can't read incoming message size (read " +
-                                std::to_string(file_input_stream_.ByteCount()) +
-                                " raw bytes)");
-        if (file_input_stream_.GetErrno()) {
-          status->mutable_description()->append(": ");
-          status->mutable_description()->append(
-              strerror(file_input_stream_.GetErrno()));
-        } else if (gzip_input_stream_->ZlibErrorMessage()) {
-          status->mutable_description()->append(": ");
-          status->mutable_description()->append(
-              gzip_input_stream_->ZlibErrorMessage());
+
+        if (file_input_stream_.ByteCount() == 0 &&
+            (file_input_stream_.GetErrno() == EAGAIN ||
+             file_input_stream_.GetErrno() == EWOULDBLOCK)) {
+          status->set_description("Read operation timeout");
+        } else {
+          status->set_description(
+              "Can't read incoming message size (read " +
+              std::to_string(file_input_stream_.ByteCount()) + " raw bytes)");
+          if (file_input_stream_.GetErrno()) {
+            status->mutable_description()->append(": ");
+            status->mutable_description()->append(
+                strerror(file_input_stream_.GetErrno()));
+          } else if (gzip_input_stream_->ZlibErrorMessage()) {
+            status->mutable_description()->append(": ");
+            status->mutable_description()->append(
+                gzip_input_stream_->ZlibErrorMessage());
+          }
         }
       }
       return false;

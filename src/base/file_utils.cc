@@ -45,8 +45,8 @@ bool CopyFile(const String& src, const String& dst, String* error) {
   // We need write-access even on object files after introduction of the
   // "split-dwarf" option, see
   // https://sourceware.org/bugzilla/show_bug.cgi?id=971
-  auto dst_fd =
-      open(dst.c_str(), O_CREAT | O_WRONLY | O_EXCL, src_stats.st_mode);
+  auto dst_fd = open(dst.c_str(), O_CREAT | O_WRONLY | O_EXCL | O_CLOEXEC,
+                     src_stats.st_mode);
   if (dst_fd == -1) {
     GetLastError(error);
     close(src_fd);
@@ -151,8 +151,8 @@ bool WriteFile(const String& path, Immutable input, String* error) {
   // https://sourceware.org/bugzilla/show_bug.cgi?id=971
   const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
-  auto src_fd =
-      open((path + ".tmp").c_str(), O_WRONLY | O_CREAT | O_TRUNC, mode);
+  auto src_fd = open((path + ".tmp").c_str(),
+                     O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, mode);
   if (src_fd == -1) {
     GetLastError(error);
     return false;
@@ -198,8 +198,8 @@ bool WriteFile(const String& path, const String& input, String* error) {
   // https://sourceware.org/bugzilla/show_bug.cgi?id=971
   const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
-  auto src_fd =
-      open((path + ".tmp").c_str(), O_WRONLY | O_CREAT | O_TRUNC, mode);
+  auto src_fd = open((path + ".tmp").c_str(),
+                     O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, mode);
   if (src_fd == -1) {
     GetLastError(error);
     return false;

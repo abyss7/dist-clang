@@ -24,8 +24,10 @@ bool DoMain(int argc, const char* const argv[], Immutable socket_path,
   auto service = net::NetworkService::Create();
   auto end_point = net::EndPoint::UnixSocket(socket_path);
 
-  auto current_dir = base::GetCurrentDir();
+  String error;
+  auto current_dir = base::GetCurrentDir(&error);
   if (current_dir.empty()) {
+    LOG(WARNING) << "Can't get current directory : " << error;
     return true;
   }
 
@@ -36,7 +38,6 @@ bool DoMain(int argc, const char* const argv[], Immutable socket_path,
     return true;
   }
 
-  String error;
   auto connection = service->Connect(end_point, &error);
   if (!connection) {
     LOG(WARNING) << "Failed to connect to daemon: " << error;
@@ -63,6 +64,8 @@ bool DoMain(int argc, const char* const argv[], Immutable socket_path,
     command->AsDriverCommand()->FillFlags(flags, clang_path);
 
     if (!flags->has_action() || flags->input() == "-") {
+      LOG(WARNING) << "Command line contains unknown action or requires input "
+                      "from stdin";
       return true;
     }
 
@@ -71,12 +74,15 @@ bool DoMain(int argc, const char* const argv[], Immutable socket_path,
           base::Process::Create(clang_path, String(), base::Process::SAME_UID);
       process->AppendArg("--version"_l);
       if (!process->Run(1)) {
+        LOG(WARNING) << "Can't get compiler version : " << process->stderr();
         return true;
       }
 
       List<String> output;
       base::SplitString<'\n'>(process->stdout(), output);
       if (output.size() != 3) {
+        LOG(WARNING) << "Clang binary has unknown version format : "
+                     << process->stdout();
         return true;
       }
 
@@ -98,6 +104,8 @@ bool DoMain(int argc, const char* const argv[], Immutable socket_path,
     }
 
     if (!top_message.HasExtension(proto::Status::extension)) {
+      LOG(ERROR)
+          << "Message from daemon has wrong format : no Status extension";
       return true;
     }
 
