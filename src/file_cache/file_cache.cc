@@ -28,10 +28,10 @@ String ReplaceTildeInPath(const String& path) {
 
 FileCache::FileCache(const String& path, ui64 size, bool snappy)
     : path_(ReplaceTildeInPath(path)),
-      pool_(base::ThreadPool::TaskQueue::UNLIMITED, 1 + snappy),
       max_size_(size),
       cached_size_(0),
-      snappy_(snappy) {
+      snappy_(snappy),
+      pool_(base::ThreadPool::TaskQueue::UNLIMITED, 1 + snappy) {
 }
 
 FileCache::FileCache(const String& path) : FileCache(path, UNLIMITED, false) {

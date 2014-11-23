@@ -164,16 +164,17 @@ class FileCache {
                const file_cache::string::HandledHash& hash);
   void Clean();
 
-  const String path_;
-  base::ThreadPool pool_;
-  ui64 max_size_;
-  std::atomic<ui64> cached_size_;
-  UniquePtr<file_cache::Database> database_;
-  bool snappy_;
-
   mutable std::mutex locks_mutex_;
   mutable HashMap<String, ui32> read_locks_;
   mutable HashSet<String> write_locks_;
+
+  const String path_;
+  ui64 max_size_;
+  std::atomic<ui64> cached_size_;
+  bool snappy_;
+
+  UniquePtr<file_cache::Database> database_;
+  base::ThreadPool pool_;
 };
 
 }  // namespace dist_clang
