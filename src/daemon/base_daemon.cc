@@ -228,14 +228,16 @@ bool BaseDaemon::SearchDirectCache(const proto::Flags& flags,
                                    const String& current_dir,
                                    FileCache::Entry* entry) const {
   DCHECK(conf_.has_emitter() && !conf_.has_absorber());
-  DCHECK(flags.has_input() && flags.input()[0] != '/');
+  DCHECK(flags.has_input());
 
   if (!cache_ || !conf_.cache().direct()) {
     return false;
   }
 
   const Version version(flags.compiler().version());
-  const String input = current_dir + "/" + flags.input();
+  const String input = flags.input()[0] != '/'
+                           ? current_dir + "/" + flags.input()
+                           : flags.input();
   const CommandLine command_line(CommandLineForDirect(flags));
 
   UnhandledSource code;
@@ -274,7 +276,7 @@ void BaseDaemon::UpdateDirectCache(const proto::LocalExecute* message,
   const auto& flags = message->flags();
 
   DCHECK(conf_.has_emitter() && !conf_.has_absorber());
-  DCHECK(flags.has_input() && flags.input()[0] != '/');
+  DCHECK(flags.has_input());
 
   if (!cache_ || !conf_.cache().direct()) {
     return;
@@ -289,7 +291,9 @@ void BaseDaemon::UpdateDirectCache(const proto::LocalExecute* message,
   const Version version(flags.compiler().version());
   const auto hash = cache_->Hash(source, CommandLineForCache(flags), version);
   const auto command_line = CommandLineForDirect(flags);
-  const String input_path = message->current_dir() + "/" + flags.input();
+  const String input_path = flags.input()[0] != '/'
+                                ? message->current_dir() + "/" + flags.input()
+                                : flags.input();
   List<String> headers;
   UnhandledSource original_code;
 
