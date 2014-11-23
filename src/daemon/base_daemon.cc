@@ -46,24 +46,19 @@ inline CommandLine CommandLineForDirect(const proto::Flags& flags) {
   return CommandLine(command_line);
 }
 
-bool ParseDeps(const String& deps, const String& base_path,
-               List<String>& headers) {
+bool ParseDeps(String deps, const String& base_path, List<String>& headers) {
+  base::Replace(deps, "\\\n", "");
+
   List<String> lines;
   base::SplitString<'\n'>(deps, lines);
-  if (lines.empty()) {
+
+  auto deps_start = lines.front().find(':');
+  if (deps_start == String::npos) {
     return false;
   }
+  deps_start++;
 
-  String last_line = lines.back();
-  lines.pop_front();
-  if (lines.empty()) {
-    return true;
-  }
-  lines.pop_back();
-  for (const auto& line : lines) {
-    base::SplitString<' '>(line.substr(2, line.size() - 4), headers);
-  }
-  base::SplitString<' '>(last_line.substr(2, last_line.size() - 2), headers);
+  base::SplitString<' '>(lines.front().substr(deps_start), headers);
 
   for (auto& header : headers) {
     if (header[0] != '/') {

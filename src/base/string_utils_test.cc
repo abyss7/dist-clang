@@ -11,12 +11,10 @@ TEST(StringUtilsTest, SplitStringByChar) {
   SplitString<' '>(text, output);
 
   auto it = output.begin();
-  ASSERT_EQ(6u, output.size());
-  EXPECT_EQ(String(), *it++);
+  ASSERT_EQ(4u, output.size());
   EXPECT_EQ("abc", *it++);
   EXPECT_EQ("d", *it++);
   EXPECT_EQ("e", *it++);
-  EXPECT_EQ(String(), *it++);
   EXPECT_EQ("f", *it++);
 }
 
@@ -26,12 +24,10 @@ TEST(StringUtilsTest, SplitStringByEOL) {
   SplitString<'\n'>(text, output);
 
   auto it = output.begin();
-  ASSERT_EQ(6u, output.size());
-  EXPECT_EQ(String(), *it++);
+  ASSERT_EQ(4u, output.size());
   EXPECT_EQ("abc", *it++);
   EXPECT_EQ("d", *it++);
   EXPECT_EQ("e", *it++);
-  EXPECT_EQ(String(), *it++);
   EXPECT_EQ("f", *it++);
 }
 
@@ -41,11 +37,10 @@ TEST(StringUtilsTest, SplitStringByString) {
   SplitString(text, "aa", output);
 
   auto it = output.begin();
-  ASSERT_EQ(4u, output.size());
+  ASSERT_EQ(3u, output.size());
   EXPECT_EQ(" ", *it++);
   EXPECT_EQ("abc ada e", *it++);
   EXPECT_EQ("  f", *it++);
-  EXPECT_EQ(String(), *it++);
 }
 
 TEST(StringUtilsTest, JoinString) {

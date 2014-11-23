@@ -14,11 +14,16 @@ inline void SplitString(const String& input, List<String>& tokens) {
   size_t prev = 0;
   size_t i = input.find(delimiter);
   while (i != String::npos) {
-    tokens.push_back(input.substr(prev, i - prev));
+    if (i > prev) {
+      tokens.push_back(input.substr(prev, i - prev));
+    }
     prev = i + sizeof(delimiter);
     i = input.find(delimiter, prev);
   }
-  tokens.push_back(input.substr(prev));
+
+  if (prev < input.size()) {
+    tokens.push_back(input.substr(prev));
+  }
 }
 
 template <>
@@ -26,7 +31,9 @@ inline void SplitString<'\n'>(const String& input, List<String>& tokens) {
   std::istringstream ss(input);
   String line;
   while (std::getline(ss, line)) {
-    tokens.push_back(line);
+    if (!line.empty()) {
+      tokens.push_back(line);
+    }
   }
 }
 
@@ -35,11 +42,16 @@ inline void SplitString(const String& input, const String& delimiter,
   size_t prev = 0;
   size_t i = input.find(delimiter);
   while (i != String::npos) {
-    tokens.push_back(input.substr(prev, i - prev));
+    if (i > prev) {
+      tokens.push_back(input.substr(prev, i - prev));
+    }
     prev = i + delimiter.size();
     i = input.find(delimiter, prev);
   }
-  tokens.push_back(input.substr(prev));
+
+  if (prev < input.size()) {
+    tokens.push_back(input.substr(prev));
+  }
 }
 
 template <char delimiter, class T>
