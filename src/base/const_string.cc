@@ -3,12 +3,14 @@
 #include <base/assert.h>
 #include <base/attributes.h>
 
+#include <sys/mman.h>
+
 namespace dist_clang {
 
 namespace {
 auto NoopDeleter = [](const char*) {};
 auto CharArrayDeleter = std::default_delete<const char[]>();
-}
+}  // namespace
 
 namespace base {
 
@@ -32,6 +34,12 @@ ConstString::ConstString(UniquePtr<char[]>& str)
 
 ConstString::ConstString(char str[], size_t size)
     : str_(str, CharArrayDeleter), size_(size) {
+}
+
+ConstString::ConstString(void* str, size_t size)
+    : str_(reinterpret_cast<char*>(str),
+           [str, size](const char*) { munmap(str, size); }),
+      size_(size) {
 }
 
 ConstString::ConstString(UniquePtr<char[]>& str, size_t size)
@@ -326,40 +334,40 @@ ConstString ConstString::Hash(ui8 output_size) const {
 
   switch (size() & 15) {
     case 15:
-      k2 ^= ((ui64)this->operator[](tail + 14)) << 48;
+      k2 ^= ((ui64) this->operator[](tail + 14)) << 48;
     case 14:
-      k2 ^= ((ui64)this->operator[](tail + 13)) << 40;
+      k2 ^= ((ui64) this->operator[](tail + 13)) << 40;
     case 13:
-      k2 ^= ((ui64)this->operator[](tail + 12)) << 32;
+      k2 ^= ((ui64) this->operator[](tail + 12)) << 32;
     case 12:
-      k2 ^= ((ui64)this->operator[](tail + 11)) << 24;
+      k2 ^= ((ui64) this->operator[](tail + 11)) << 24;
     case 11:
-      k2 ^= ((ui64)this->operator[](tail + 10)) << 16;
+      k2 ^= ((ui64) this->operator[](tail + 10)) << 16;
     case 10:
-      k2 ^= ((ui64)this->operator[](tail + 9)) << 8;
+      k2 ^= ((ui64) this->operator[](tail + 9)) << 8;
     case 9:
-      k2 ^= ((ui64)this->operator[](tail + 8)) << 0;
+      k2 ^= ((ui64) this->operator[](tail + 8)) << 0;
       k2 *= c2;
       k2 = rotl64(k2, 33);
       k2 *= c1;
       h2 ^= k2;
 
     case 8:
-      k1 ^= ((ui64)this->operator[](tail + 7)) << 56;
+      k1 ^= ((ui64) this->operator[](tail + 7)) << 56;
     case 7:
-      k1 ^= ((ui64)this->operator[](tail + 6)) << 48;
+      k1 ^= ((ui64) this->operator[](tail + 6)) << 48;
     case 6:
-      k1 ^= ((ui64)this->operator[](tail + 5)) << 40;
+      k1 ^= ((ui64) this->operator[](tail + 5)) << 40;
     case 5:
-      k1 ^= ((ui64)this->operator[](tail + 4)) << 32;
+      k1 ^= ((ui64) this->operator[](tail + 4)) << 32;
     case 4:
-      k1 ^= ((ui64)this->operator[](tail + 3)) << 24;
+      k1 ^= ((ui64) this->operator[](tail + 3)) << 24;
     case 3:
-      k1 ^= ((ui64)this->operator[](tail + 2)) << 16;
+      k1 ^= ((ui64) this->operator[](tail + 2)) << 16;
     case 2:
-      k1 ^= ((ui64)this->operator[](tail + 1)) << 8;
+      k1 ^= ((ui64) this->operator[](tail + 1)) << 8;
     case 1:
-      k1 ^= ((ui64)this->operator[](tail + 0)) << 0;
+      k1 ^= ((ui64) this->operator[](tail + 0)) << 0;
       k1 *= c1;
       k1 = rotl64(k1, 31);
       k1 *= c2;
@@ -415,6 +423,8 @@ void ConstString::CollapseRope() const {
 }
 
 void ConstString::NullTerminate() const {
+  DCHECK(rope_.empty());
+
   if (null_end_) {
     return;
   }

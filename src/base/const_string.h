@@ -49,6 +49,7 @@ class ConstString {
   ConstString(char str[]);                           // 0-copy
   ConstString(UniquePtr<char[]>& str);               // 0-copy
   ConstString(char str[], size_t size);              // 0-copy
+  ConstString(void* str, size_t size);               // 0-copy
   ConstString(UniquePtr<char[]>& str, size_t size);  // 0-copy
   ConstString(String&& str);                         // 0-copy
   ConstString(String* str);                          // 0-copy

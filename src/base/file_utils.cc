@@ -8,6 +8,7 @@
 
 #include <dirent.h>
 #include <fcntl.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -128,21 +129,18 @@ bool ReadFile(const String& path, Immutable* output, String* error) {
   }
 #endif  // defined(OS_LINUX)
 
-  const size_t buffer_size = 8192;
-  Immutable::Rope rope;
-  auto buffer = UniquePtr<char[]>(new char[buffer_size]);
-  int size = 0;
-  while ((size = read(src_fd, buffer.get(), buffer_size)) > 0) {
-    rope.emplace_back(buffer, size);
-    buffer.reset(new char[buffer_size]);
-  }
-  output->assign(rope);
-  if (size == -1) {
+  auto size = FileSize(path);
+  void* map =
+      mmap64(nullptr, size, PROT_READ, MAP_PRIVATE | MAP_POPULATE, src_fd, 0);
+  if (map == MAP_FAILED) {
     GetLastError(error);
+    return false;
   }
+
+  output->assign(Immutable(map, size));
   close(src_fd);
 
-  return !size;
+  return true;
 }
 
 bool WriteFile(const String& path, Immutable input, String* error) {
