@@ -72,10 +72,14 @@ if (os == "mac") {
 
 default_deps = []
 default_deps += [
-  "//src/third_party/gperftools:tcmalloc",
   "//src/third_party/libcxx:c++",
   "//src/third_party/libcxxabi:c++abi",
 ]
+
+# Mac OS X 10.10 doesn't work with tcmalloc anymore.
+if (os != "mac") {
+  default_deps += [ "//src/third_party/gperftools:tcmalloc" ]
+}
 
 # =============================================================================
 # Set defaults.
