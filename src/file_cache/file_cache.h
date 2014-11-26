@@ -64,14 +64,14 @@ class FileCache {
   bool Run();
 
   static file_cache::string::HandledHash Hash(
-      const file_cache::string::HandledSource& code,
-      const file_cache::string::CommandLine& command_line,
-      const file_cache::string::Version& version);
+      file_cache::string::HandledSource code,
+      file_cache::string::CommandLine command_line,
+      file_cache::string::Version version);
 
   static file_cache::string::UnhandledHash Hash(
-      const file_cache::string::UnhandledSource& code,
-      const file_cache::string::CommandLine& command_line,
-      const file_cache::string::Version& version);
+      file_cache::string::UnhandledSource code,
+      file_cache::string::CommandLine command_line,
+      file_cache::string::Version version);
 
   bool Find(const file_cache::string::HandledSource& code,
             const file_cache::string::CommandLine& command_line,

@@ -33,6 +33,7 @@ shared_library("base") {
     "temporary_dir.h",
     "testable.h",
     "thread.h",
+    "thread_fixed.h",
     "thread_pool.cc",
     "thread_pool.h",
     "worker_pool.cc",

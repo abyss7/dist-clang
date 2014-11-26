@@ -2,6 +2,7 @@
 
 #include <base/aliases.h>
 #include <base/attributes.h>
+#include <base/thread_fixed.h>
 
 namespace dist_clang {
 
@@ -40,7 +41,7 @@ class Literal {
   const char* WEAK_PTR str_ = nullptr;
 };
 
-class ConstString {
+class ConstString THREAD_UNSAFE : public ThreadFixed {
  public:
   using Rope = List<ConstString>;
 
@@ -85,8 +86,8 @@ class ConstString {
  private:
   ConstString(const char* WEAK_PTR str, size_t size, bool null_end);  // 0-copy
 
-  void CollapseRope() const THREAD_UNSAFE;
-  void NullTerminate() const THREAD_UNSAFE;
+  void CollapseRope() const;
+  void NullTerminate() const;
 
   mutable SharedPtr<String> medium_;
   mutable SharedPtr<const char> str_;

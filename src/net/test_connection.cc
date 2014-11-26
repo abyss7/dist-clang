@@ -49,11 +49,11 @@ void TestConnection::AbortOnRead() {
   abort_on_read_ = true;
 }
 
-void TestConnection::CountSendAttempts(ui32* counter) {
+void TestConnection::CountSendAttempts(std::atomic<ui32>* counter) {
   send_attempts_ = counter;
 }
 
-void TestConnection::CountReadAttempts(ui32* counter) {
+void TestConnection::CountReadAttempts(std::atomic<ui32>* counter) {
   read_attempts_ = counter;
 }
 

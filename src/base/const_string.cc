@@ -98,6 +98,8 @@ String ConstString::string_copy(bool collapse) const {
     return String(str_.get(), size_);
   }
 
+  CheckThread();
+
   if (rope_.empty()) {
     return String(str_.get(), size_);
   }
@@ -171,6 +173,8 @@ size_t ConstString::find(const char* str) const {
 const char& ConstString::operator[](size_t index) const {
   DCHECK(index < size_);
 
+  CheckThread();
+
   if (!rope_.empty()) {
     for (const auto& str : rope_) {
       if (index < str.size()) {
@@ -185,6 +189,8 @@ const char& ConstString::operator[](size_t index) const {
 }
 
 ConstString ConstString::operator+(const ConstString& other) const {
+  CheckThread();
+
   if (!rope_.empty()) {
     Rope rope = rope_;
     rope.push_back(other);
@@ -195,6 +201,8 @@ ConstString ConstString::operator+(const ConstString& other) const {
 }
 
 ConstString ConstString::Hash(ui8 output_size) const {
+  CheckThread();
+
   const ui64 block_size = 8;
 
   char* buf = new char[16];
@@ -399,6 +407,8 @@ ConstString::ConstString(const char* WEAK_PTR str, size_t size, bool null_end)
 }
 
 void ConstString::CollapseRope() const {
+  CheckThread();
+
   if (rope_.empty()) {
     return;
   }
@@ -423,7 +433,10 @@ void ConstString::CollapseRope() const {
 }
 
 void ConstString::NullTerminate() const {
-  DCHECK(rope_.empty());
+  DCHECK([this] {
+    CheckThread();
+    return rope_.empty();
+  }());
 
   if (null_end_) {
     return;

@@ -65,18 +65,16 @@ bool FileCache::Run() {
 using namespace file_cache::string;
 
 // static
-HandledHash FileCache::Hash(const HandledSource& code,
-                            const CommandLine& command_line,
-                            const Version& version) {
+HandledHash FileCache::Hash(HandledSource code, CommandLine command_line,
+                            Version version) {
   return HandledHash(base::Hexify(code.str.Hash()) + "-" +
                      base::Hexify(command_line.str.Hash(4)) + "-" +
                      base::Hexify(version.str.Hash(4)));
 }
 
 // static
-UnhandledHash FileCache::Hash(const UnhandledSource& code,
-                              const CommandLine& command_line,
-                              const Version& version) {
+UnhandledHash FileCache::Hash(UnhandledSource code, CommandLine command_line,
+                              Version version) {
   return UnhandledHash(base::Hexify(code.str.Hash()) + "-" +
                        base::Hexify(command_line.str.Hash(4)) + "-" +
                        base::Hexify(version.str.Hash(4)));
