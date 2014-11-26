@@ -1,0 +1,6 @@
+[program:clangd]
+command=/usr/bin/dist-clang/clangd --config /etc/clangd.conf
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/clangd.err.log
+stdout_logfile=/var/log/clangd.out.log
