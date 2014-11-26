@@ -8,7 +8,7 @@ config("base") {
     "-rpath", "\$ORIGIN",
   ]
   # Can't use this flag with ASan: http://llvm.org/bugs/show_bug.cgi?id=21341
-  if (use_asan == false) {
+  if (!use_asan && !use_tsan) {
     ldflags += [ "--no-undefined" ]
   }
 }

@@ -130,3 +130,14 @@ config("asan") {
     }
   }
 }
+
+config("tsan") {
+  if (use_tsan) {
+    cflags = [ "-fsanitize=thread" ]
+    ldflags = [ "-fsanitize=thread" ]
+
+    if (os == "linux") {
+      libs = [ "dl" ]
+    }
+  }
+}

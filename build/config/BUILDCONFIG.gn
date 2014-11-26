@@ -14,7 +14,12 @@ declare_args() {
 
   # Use Clang ASan.
   use_asan = false
+
+  # Use Clang TSan.
+  use_tsan = false
 }
+
+assert(!(use_asan && use_tsan), "Use either ASan or TSan at the same time")
 
 # =============================================================================
 # Setup configurations.
@@ -24,13 +29,16 @@ default_configs = [
   "//build/config:asan",
   "//build/config:base",
   "//build/config:no_stdlibs",
+  "//build/config:tsan",
 ]
 
 if (config_for_tests) {
-  use_asan = true
-  if (os == "mac") {
-    # FIXME: ASan binaries doesn't run on Mac
-    use_asan = false
+  if (!use_tsan) {
+    use_asan = true
+    if (os == "mac") {
+      # FIXME: ASan binaries doesn't run on Mac
+      use_asan = false
+    }
   }
 
   default_configs += [
