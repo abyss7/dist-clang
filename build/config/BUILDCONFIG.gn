@@ -77,7 +77,8 @@ default_deps += [
 ]
 
 # Mac OS X 10.10 doesn't work with tcmalloc anymore.
-if (os != "mac") {
+# Thread Sanitizer doesn't like tcmalloc either.
+if (os != "mac" && !use_tsan) {
   default_deps += [ "//src/third_party/gperftools:tcmalloc" ]
 }
 
