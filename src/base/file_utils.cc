@@ -130,8 +130,16 @@ bool ReadFile(const String& path, Immutable* output, String* error) {
 #endif  // defined(OS_LINUX)
 
   auto size = FileSize(path);
-  void* map =
-      mmap64(nullptr, size, PROT_READ, MAP_PRIVATE | MAP_POPULATE, src_fd, 0);
+  auto flags = MAP_PRIVATE;
+#if defined(OS_LINUX)
+  flags |= MAP_POPULATE;
+  void* map = mmap64(nullptr, size, PROT_READ, flags, src_fd, 0);
+#elif defined(OS_MACOSX)
+  void* map = mmap(nullptr, size, PROT_READ, flags, src_fd, 0);
+#else
+#pragma message "This platform doesn't support mmap interface!"
+  void* map = MAP_FAILED;
+#endif
   if (map == MAP_FAILED) {
     GetLastError(error);
     return false;
