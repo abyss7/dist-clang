@@ -70,11 +70,23 @@ bool DoMain(int argc, const char* const argv[], Immutable socket_path,
     }
 
     if (version.empty()) {
+      String error;
       auto process =
           base::Process::Create(clang_path, String(), base::Process::SAME_UID);
       process->AppendArg("--version"_l);
-      if (!process->Run(1)) {
-        LOG(WARNING) << "Can't get compiler version : " << process->stderr();
+      if (!process->Run(1, &error)) {
+        if (error.empty()) {
+          error = process->stderr();
+        } else if (!process->stderr().empty()) {
+          error += Immutable(", "_l) + process->stderr();
+        }
+
+        if (!error.empty()) {
+          LOG(WARNING) << "Can't get compiler version : " << error;
+        } else {
+          LOG(WARNING) << "Can't get compiler version by unknown reason";
+        }
+
         return true;
       }
 

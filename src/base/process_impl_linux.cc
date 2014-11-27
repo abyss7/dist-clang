@@ -3,10 +3,13 @@
 #include <base/assert.h>
 #include <base/c_utils.h>
 #include <base/file_descriptor_utils.h>
+#include <base/logging.h>
 
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
+
+#include <base/using_log.h>
 
 namespace dist_clang {
 namespace base {
@@ -26,6 +29,8 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
     close(out_pipe_fd[1]);
     return false;
   }
+
+  LOG(VERBOSE) << "Running process: " << exec_path_ << " " << args_;
 
   int child_pid;
   if ((child_pid = fork()) == 0) {  // Child process.

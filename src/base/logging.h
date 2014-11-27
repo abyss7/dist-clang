@@ -80,10 +80,11 @@ class Log {
   template <class T>
   Log& operator<<(const List<T>& info) {
     auto it = info.begin();
-    stream_ << *it;
+    this->operator<<(*it);
     ++it;
     for (; it != info.end(); ++it) {
-      stream_ << " " << *it;
+      stream_ << " ";
+      this->operator<<(*it);
     }
     return *this;
   }
