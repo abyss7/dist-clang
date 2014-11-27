@@ -1,4 +1,6 @@
 #!/bin/sh
 
+if [ -x `which supervisorctl` ]; then
+  supervisorctl stop clangd
+fi
 service clangd stop
-rm -f /var/run/clangd.pid
