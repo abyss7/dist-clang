@@ -25,7 +25,7 @@ bool LoadManifest(const String& path, proto::Manifest* manifest) {
 }
 
 bool SaveManifest(const String& path, const proto::Manifest& manifest) {
-  auto fd = open(path.c_str(), O_CREAT | O_WRONLY | O_CLOEXEC, 0644);
+  auto fd = open(path.c_str(), O_CREAT | O_TRUNC | O_WRONLY | O_CLOEXEC, 0644);
   if (fd == -1) {
     return false;
   }

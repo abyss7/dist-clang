@@ -365,6 +365,11 @@ void FileCache::DoStore(const HandledHash& hash, const Entry& entry) {
 
 void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
                         const HandledHash& hash) {
+  // We have to store manifest on the path based only on the hash of unhandled
+  // source code. Otherwise, we won't be able to get list of the dependent
+  // headers, while checking the direct cache. Such approach has a little
+  // drawback, because the changes in the dependent headers will make a
+  // false-positive direct cache hit, followed by true cache miss.
   const String manifest_path = CommonPath(orig_hash) + ".manifest";
   WriteLock lock(this, manifest_path);
 

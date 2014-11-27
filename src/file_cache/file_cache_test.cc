@@ -449,7 +449,7 @@ TEST(FileCacheTest, RestoreDirectEntry_Sync) {
   EXPECT_EQ(expected_stderr, entry.stderr);
 }
 
-TEST(FileCacheTest, DirectEntry_ChangedHeader) {
+TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
   const base::TemporaryDir tmp_dir;
   const String path = tmp_dir;
   const String object_path = path + "/test.o";
@@ -496,6 +496,62 @@ TEST(FileCacheTest, DirectEntry_ChangedHeader) {
 
   // Restore the entry.
   EXPECT_FALSE(cache.Find(orig_code, cl, version, &entry));
+}
+
+TEST(FileCacheTest, DirectEntry_RewriteManifest) {
+  const base::TemporaryDir tmp_dir;
+  const String path = tmp_dir;
+  const String object_path = path + "/test.o";
+  const String deps_path = path + "/test.d";
+  const String header1_path = path + "/test1.h";
+  const String header2_path = path + "/test2.h";
+
+  const auto expected_stderr = "some warning"_l;
+  const auto expected_object_code = "some object code"_l;
+  const auto expected_deps = "some deps"_l;
+  FileCache cache(path);
+  ASSERT_TRUE(cache.Run());
+  FileCache::Entry entry;
+
+  const HandledSource code("int main() { return 0; }"_l);
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+
+  ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
+  ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
+  ASSERT_TRUE(base::WriteFile(header1_path, "#define A"_l));
+  ASSERT_TRUE(base::WriteFile(header2_path, "#define B"_l));
+
+  entry.object = expected_object_code;
+  entry.deps = expected_deps;
+  entry.stderr = expected_stderr;
+
+  // Store the entry.
+  auto future = cache.Store(code, cl, version, entry);
+  ASSERT_TRUE(!!future);
+  future->Wait();
+  ASSERT_TRUE(future->GetValue());
+
+  // Store the direct entry.
+  const UnhandledSource orig_code("int main() {}"_l);
+  List<String> headers = {header1_path, header2_path};
+  future = cache.Store(orig_code, cl, version, headers,
+                       FileCache::Hash(code, cl, version));
+  ASSERT_TRUE(!!future);
+  future->Wait();
+  ASSERT_TRUE(future->GetValue());
+
+  headers.pop_back();
+
+  // Store the direct entry - again.
+  future = cache.Store(orig_code, cl, version, headers,
+                       FileCache::Hash(code, cl, version));
+  ASSERT_TRUE(!!future);
+  future->Wait();
+  ASSERT_TRUE(future->GetValue());
+
+  // Restore the entry.
+  EXPECT_TRUE(cache.Find(orig_code, cl, version, &entry));
 }
 
 TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
