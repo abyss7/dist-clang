@@ -33,7 +33,7 @@ inline String GetDepsPath(const proto::LocalExecute* WEAK_PTR message) {
 }
 
 inline bool GenerateSource(const proto::LocalExecute* WEAK_PTR message,
-                           file_cache::string::HandledSource* source) {
+                           cache::string::HandledSource* source) {
   proto::Flags pp_flags;
 
   DCHECK(message);
@@ -136,7 +136,7 @@ bool Emitter::Initialize() {
 
 bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
                                const proto::Status& status) {
-  using namespace file_cache::string;
+  using namespace cache::string;
 
   if (!message->IsInitialized()) {
     LOG(INFO) << message->InitializationErrorString();
@@ -164,7 +164,7 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
 }
 
 void Emitter::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
-  using namespace file_cache::string;
+  using namespace cache::string;
 
   while (!is_shutting_down) {
     Optional&& task = cache_tasks_->Pop();
@@ -172,7 +172,7 @@ void Emitter::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
       break;
     }
     proto::LocalExecute* incoming = std::get<MESSAGE>(*task).get();
-    FileCache::Entry entry;
+    cache::FileCache::Entry entry;
 
     auto RestoreFromCache = [&](const HandledSource& source) {
       String error;
@@ -268,7 +268,7 @@ void Emitter::DoLocalExecute(const std::atomic<bool>& is_shutting_down) {
       const auto& source = std::get<SOURCE>(*task);
 
       if (!source.str.empty()) {
-        FileCache::Entry entry;
+        cache::FileCache::Entry entry;
         if (base::ReadFile(GetOutputPath(incoming), &entry.object) &&
             (!incoming->flags().has_deps_file() ||
              base::ReadFile(GetDepsPath(incoming), &entry.deps))) {
@@ -353,7 +353,7 @@ void Emitter::DoRemoteExecute(const std::atomic<bool>& is_shutting_down,
         LOG(INFO) << "Remote compilation successful: "
                   << incoming->flags().input();
 
-        FileCache::Entry entry;
+        cache::FileCache::Entry entry;
         auto GenerateEntry = [&] {
           String error;
 

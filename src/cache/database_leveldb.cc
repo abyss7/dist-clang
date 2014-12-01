@@ -1,4 +1,4 @@
-#include <file_cache/database_leveldb.h>
+#include <cache/database_leveldb.h>
 
 #include <base/assert.h>
 #include <base/const_string.h>
@@ -8,7 +8,7 @@
 #include <base/using_log.h>
 
 namespace dist_clang {
-namespace file_cache {
+namespace cache {
 
 Database::Database(const String& path, const String& name)
     : path_(path + "/leveldb_" + name) {
@@ -79,5 +79,5 @@ bool Database::Get(const String& key, Immutable* value) const {
   return true;
 }
 
-}  // namespace file_cache
+}  // namespace cache
 }  // namespace dist_clang

@@ -9,7 +9,7 @@ class DB;
 }
 
 namespace dist_clang {
-namespace file_cache {
+namespace cache {
 
 class Database {
  public:
@@ -26,5 +26,5 @@ class Database {
   const String path_;
 };
 
-}  // namespace file_cache
+}  // namespace cache
 }  // namespace dist_clang

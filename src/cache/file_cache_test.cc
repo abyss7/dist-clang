@@ -1,4 +1,4 @@
-#include <file_cache/file_cache.h>
+#include <cache/file_cache.h>
 
 #include <base/file_utils.h>
 #include <base/future.h>
@@ -8,7 +8,7 @@
 #include <third_party/libcxx/exported/include/regex>
 
 namespace dist_clang {
-namespace file_cache {
+namespace cache {
 
 using namespace string;
 
@@ -605,5 +605,5 @@ TEST(FileCacheTest, DISABLED_RestoreSnappyEntry) {
   // TODO: implement this test.
 }
 
-}  // namespace file_cache
+}  // namespace cache
 }  // namespace dist_clang

@@ -1,8 +1,8 @@
 visibility = [
   "//src/base/*",
+  "//src/cache/*",
   "//src/client/*",
   "//src/daemon/*",
-  "//src/file_cache/*",
   "//src/net/*",
   "//src/perf/*",
   "//src/test/*",

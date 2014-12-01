@@ -10,7 +10,7 @@
 
 namespace dist_clang {
 
-using namespace file_cache::string;
+using namespace cache::string;
 
 namespace {
 
@@ -75,8 +75,8 @@ namespace daemon {
 
 bool BaseDaemon::Initialize() {
   if (conf_.has_cache() && !conf_.cache().disabled()) {
-    cache_.reset(new FileCache(conf_.cache().path(), conf_.cache().size(),
-                               conf_.cache().snappy()));
+    cache_.reset(new cache::FileCache(
+        conf_.cache().path(), conf_.cache().size(), conf_.cache().snappy()));
     if (!cache_->Run()) {
       cache_.reset();
     }
@@ -153,7 +153,7 @@ BaseDaemon::~BaseDaemon() {
 HandledHash BaseDaemon::GenerateHash(const proto::Flags& flags,
                                      const HandledSource& code) const {
   const Version version(flags.compiler().version());
-  return FileCache::Hash(code, CommandLineForCache(flags), version);
+  return cache::FileCache::Hash(code, CommandLineForCache(flags), version);
 }
 
 bool BaseDaemon::SetupCompiler(proto::Flags* flags,
@@ -201,7 +201,7 @@ bool BaseDaemon::SetupCompiler(proto::Flags* flags,
 
 bool BaseDaemon::SearchSimpleCache(const proto::Flags& flags,
                                    const HandledSource& source,
-                                   FileCache::Entry* entry) const {
+                                   cache::FileCache::Entry* entry) const {
   DCHECK(entry);
 
   if (!cache_) {
@@ -221,7 +221,7 @@ bool BaseDaemon::SearchSimpleCache(const proto::Flags& flags,
 
 bool BaseDaemon::SearchDirectCache(const proto::Flags& flags,
                                    const String& current_dir,
-                                   FileCache::Entry* entry) const {
+                                   cache::FileCache::Entry* entry) const {
   DCHECK(conf_.has_emitter() && !conf_.has_absorber());
   DCHECK(flags.has_input());
 
@@ -250,7 +250,7 @@ bool BaseDaemon::SearchDirectCache(const proto::Flags& flags,
 
 void BaseDaemon::UpdateSimpleCache(const proto::Flags& flags,
                                    const HandledSource& source,
-                                   const FileCache::Entry& entry) {
+                                   const cache::FileCache::Entry& entry) {
   const Version version(flags.compiler().version());
   const auto command_line = CommandLineForCache(flags);
 
@@ -267,7 +267,7 @@ void BaseDaemon::UpdateSimpleCache(const proto::Flags& flags,
 
 void BaseDaemon::UpdateDirectCache(const proto::LocalExecute* message,
                                    const HandledSource& source,
-                                   const FileCache::Entry& entry) {
+                                   const cache::FileCache::Entry& entry) {
   const auto& flags = message->flags();
 
   DCHECK(conf_.has_emitter() && !conf_.has_absorber());

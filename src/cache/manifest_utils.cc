@@ -1,6 +1,6 @@
-#include <file_cache/manifest_utils.h>
+#include <cache/manifest_utils.h>
 
-#include <file_cache/manifest.pb.h>
+#include <cache/manifest.pb.h>
 
 #include <third_party/protobuf/exported/src/google/protobuf/io/zero_copy_stream_impl.h>
 #include <third_party/protobuf/exported/src/google/protobuf/text_format.h>
@@ -8,7 +8,7 @@
 #include <fcntl.h>
 
 namespace dist_clang {
-namespace file_cache {
+namespace cache {
 
 bool LoadManifest(const String& path, proto::Manifest* manifest) {
   auto fd = open(path.c_str(), O_RDONLY);
@@ -37,5 +37,5 @@ bool SaveManifest(const String& path, const proto::Manifest& manifest) {
   return true;
 }
 
-}  // namespace file_cache
+}  // namespace cache
 }  // namespace dist_clang

@@ -75,7 +75,7 @@ bool Absorber::HandleNewMessage(net::ConnectionPtr connection,
 }
 
 void Absorber::DoExecute(const std::atomic<bool>& is_shutting_down) {
-  using namespace file_cache::string;
+  using namespace cache::string;
 
   while (!is_shutting_down) {
     Optional&& task = tasks_->Pop();
@@ -85,7 +85,7 @@ void Absorber::DoExecute(const std::atomic<bool>& is_shutting_down) {
     proto::RemoteExecute* incoming = task->second.get();
     auto source = Immutable::WrapString(incoming->source());
 
-    FileCache::Entry entry;
+    cache::FileCache::Entry entry;
     if (SearchSimpleCache(incoming->flags(), HandledSource(source), &entry)) {
       Universal outgoing(new proto::Universal);
       auto* result = outgoing->MutableExtension(proto::RemoteResult::extension);
@@ -156,7 +156,7 @@ void Absorber::DoExecute(const std::atomic<bool>& is_shutting_down) {
     outgoing->MutableExtension(proto::Status::extension)->CopyFrom(status);
 
     if (status.code() == proto::Status::OK) {
-      FileCache::Entry entry;
+      cache::FileCache::Entry entry;
 
       entry.object = process->stdout();
       entry.stderr = Immutable(status.description());

@@ -21,8 +21,6 @@
 
 #include <base/using_log.h>
 
-#include <iostream>
-
 namespace dist_clang {
 
 namespace {

@@ -21,8 +21,7 @@ class Emitter : public BaseDaemon {
   };
 
   using Message = UniquePtr<proto::LocalExecute>;
-  using Task =
-      Tuple<net::ConnectionPtr, Message, file_cache::string::HandledSource>;
+  using Task = Tuple<net::ConnectionPtr, Message, cache::string::HandledSource>;
   using Queue = base::LockedQueue<Task>;
   using QueueAggregator = base::QueueAggregator<Task>;
   using Optional = Queue::Optional;

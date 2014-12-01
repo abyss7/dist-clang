@@ -21,15 +21,12 @@ bool Connection::SendSync(ScopedMessage message, Status* status) {
 
 // static
 Connection::SendCallback Connection::CloseAfterSend() {
-  using namespace std::placeholders;
-
-  auto callback = [](ConnectionPtr, const Status& status) -> bool {
+  return [](ConnectionPtr, const Status& status) {
     if (status.code() != Status::OK) {
       LOG(ERROR) << "Failed to send message: " << status.description();
     }
     return false;
   };
-  return std::bind(callback, _1, _2);
 }
 
 bool Connection::ReportStatus(const Status& message, SendCallback callback) {

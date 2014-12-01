@@ -1,10 +1,10 @@
-#include <file_cache/file_cache.h>
+#include <cache/file_cache.h>
 
 #include <base/file_utils.h>
 #include <base/logging.h>
 #include <base/string_utils.h>
-#include <file_cache/manifest.pb.h>
-#include <file_cache/manifest_utils.h>
+#include <cache/manifest.pb.h>
+#include <cache/manifest_utils.h>
 
 #include <third_party/snappy/exported/snappy.h>
 
@@ -26,6 +26,8 @@ String ReplaceTildeInPath(const String& path) {
 
 }  // namespace
 
+namespace cache {
+
 FileCache::FileCache(const String& path, ui64 size, bool snappy)
     : path_(ReplaceTildeInPath(path)),
       max_size_(size),
@@ -45,7 +47,7 @@ bool FileCache::Run() {
     return false;
   }
 
-  database_.reset(new file_cache::Database(path_, "direct"));
+  database_.reset(new Database(path_, "direct"));
 
   if (max_size_ != UNLIMITED) {
     cached_size_ =
@@ -62,7 +64,7 @@ bool FileCache::Run() {
   return true;
 }
 
-using namespace file_cache::string;
+using namespace string;
 
 // static
 HandledHash FileCache::Hash(HandledSource code, CommandLine command_line,
@@ -99,7 +101,7 @@ bool FileCache::Find(const UnhandledSource& code,
   }
 
   proto::Manifest manifest;
-  if (!file_cache::LoadManifest(manifest_path, &manifest)) {
+  if (!LoadManifest(manifest_path, &manifest)) {
     return false;
   }
 
@@ -171,7 +173,7 @@ bool FileCache::FindByHash(const HandledHash& hash, Entry* entry) const {
   }
 
   proto::Manifest manifest;
-  if (!file_cache::LoadManifest(manifest_path, &manifest)) {
+  if (!LoadManifest(manifest_path, &manifest)) {
     return false;
   }
 
@@ -349,7 +351,7 @@ void FileCache::DoStore(const HandledHash& hash, const Entry& entry) {
     manifest.set_deps(false);
   }
 
-  if (!file_cache::SaveManifest(manifest_path, manifest)) {
+  if (!SaveManifest(manifest_path, manifest)) {
     RemoveEntry(manifest_path);
     LOG(CACHE_ERROR) << "Failed to save manifest to " << manifest_path;
     return;
@@ -406,7 +408,7 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
     return;
   }
 
-  if (!file_cache::SaveManifest(manifest_path, manifest)) {
+  if (!SaveManifest(manifest_path, manifest)) {
     RemoveEntry(manifest_path);
     return;
   }
@@ -535,4 +537,5 @@ void FileCache::WriteLock::Unlock() {
   }
 }
 
+}  // namespace cache
 }  // namespace dist_clang

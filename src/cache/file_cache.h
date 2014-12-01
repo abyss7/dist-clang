@@ -2,13 +2,13 @@
 
 #include <base/const_string.h>
 #include <base/thread_pool.h>
-#include <file_cache/database_leveldb.h>
+#include <cache/database_leveldb.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest_prod.h>
 
 namespace dist_clang {
 
-namespace file_cache {
+namespace cache {
 
 FORWARD_TEST(FileCacheTest, DoubleLocks);
 FORWARD_TEST(FileCacheTest, ExceedCacheSize);
@@ -42,8 +42,6 @@ DEFINE_STRING_TYPE(Version);
 
 }  // namespace string
 
-}  // namespace file_cache
-
 class FileCache {
  public:
   enum : ui64 {
@@ -63,57 +61,57 @@ class FileCache {
 
   bool Run();
 
-  static file_cache::string::HandledHash Hash(
-      file_cache::string::HandledSource code,
-      file_cache::string::CommandLine command_line,
-      file_cache::string::Version version);
+  static cache::string::HandledHash Hash(
+      cache::string::HandledSource code,
+      cache::string::CommandLine command_line,
+      cache::string::Version version);
 
-  static file_cache::string::UnhandledHash Hash(
-      file_cache::string::UnhandledSource code,
-      file_cache::string::CommandLine command_line,
-      file_cache::string::Version version);
+  static cache::string::UnhandledHash Hash(
+      cache::string::UnhandledSource code,
+      cache::string::CommandLine command_line,
+      cache::string::Version version);
 
-  bool Find(const file_cache::string::HandledSource& code,
-            const file_cache::string::CommandLine& command_line,
-            const file_cache::string::Version& version, Entry* entry) const;
+  bool Find(const cache::string::HandledSource& code,
+            const cache::string::CommandLine& command_line,
+            const cache::string::Version& version, Entry* entry) const;
 
-  bool Find(const file_cache::string::UnhandledSource& code,
-            const file_cache::string::CommandLine& command_line,
-            const file_cache::string::Version& version, Entry* entry) const;
+  bool Find(const cache::string::UnhandledSource& code,
+            const cache::string::CommandLine& command_line,
+            const cache::string::Version& version, Entry* entry) const;
 
-  Optional Store(const file_cache::string::HandledSource& code,
-                 const file_cache::string::CommandLine& command_line,
-                 const file_cache::string::Version& version,
+  Optional Store(const cache::string::HandledSource& code,
+                 const cache::string::CommandLine& command_line,
+                 const cache::string::Version& version,
                  const Entry& entry);
 
-  Optional Store(const file_cache::string::UnhandledSource& code,
-                 const file_cache::string::CommandLine& command_line,
-                 const file_cache::string::Version& version,
+  Optional Store(const cache::string::UnhandledSource& code,
+                 const cache::string::CommandLine& command_line,
+                 const cache::string::Version& version,
                  const List<String>& headers,
-                 const file_cache::string::HandledHash& hash);
+                 const cache::string::HandledHash& hash);
 
-  Optional StoreNow(const file_cache::string::HandledSource& code,
-                    const file_cache::string::CommandLine& command_line,
-                    const file_cache::string::Version& version,
+  Optional StoreNow(const cache::string::HandledSource& code,
+                    const cache::string::CommandLine& command_line,
+                    const cache::string::Version& version,
                     const Entry& entry);
 
-  Optional StoreNow(const file_cache::string::UnhandledSource& code,
-                    const file_cache::string::CommandLine& command_line,
-                    const file_cache::string::Version& version,
+  Optional StoreNow(const cache::string::UnhandledSource& code,
+                    const cache::string::CommandLine& command_line,
+                    const cache::string::Version& version,
                     const List<String>& headers,
-                    const file_cache::string::HandledHash& hash);
+                    const cache::string::HandledHash& hash);
 
  private:
-  FRIEND_TEST(file_cache::FileCacheTest, DoubleLocks);
-  FRIEND_TEST(file_cache::FileCacheTest, ExceedCacheSize);
-  FRIEND_TEST(file_cache::FileCacheTest, ExceedCacheSize_Sync);
-  FRIEND_TEST(file_cache::FileCacheTest, LockNonExistentFile);
-  FRIEND_TEST(file_cache::FileCacheTest, RemoveEntry);
-  FRIEND_TEST(file_cache::FileCacheTest, RestoreEntryWithMissingFile);
+  FRIEND_TEST(cache::FileCacheTest, DoubleLocks);
+  FRIEND_TEST(cache::FileCacheTest, ExceedCacheSize);
+  FRIEND_TEST(cache::FileCacheTest, ExceedCacheSize_Sync);
+  FRIEND_TEST(cache::FileCacheTest, LockNonExistentFile);
+  FRIEND_TEST(cache::FileCacheTest, RemoveEntry);
+  FRIEND_TEST(cache::FileCacheTest, RestoreEntryWithMissingFile);
 
   class ReadLock {
    public:
-    ReadLock(const FileCache* WEAK_PTR file_cache, const String& path);
+    ReadLock(const FileCache* WEAK_PTR cache, const String& path);
     ~ReadLock() { Unlock(); }
 
     inline operator bool() const { return locked_; }
@@ -127,7 +125,7 @@ class FileCache {
 
   class WriteLock {
    public:
-    WriteLock(const FileCache* WEAK_PTR file_cache, const String& path);
+    WriteLock(const FileCache* WEAK_PTR cache, const String& path);
     ~WriteLock() { Unlock(); }
 
     inline operator bool() const { return locked_; }
@@ -155,13 +153,13 @@ class FileCache {
     return SecondPath(hash) + "/" + hash.string_copy().substr(2);
   }
 
-  bool FindByHash(const file_cache::string::HandledHash& hash,
+  bool FindByHash(const cache::string::HandledHash& hash,
                   Entry* entry) const;
   bool RemoveEntry(const String& manifest_path);
-  void DoStore(const file_cache::string::HandledHash& hash, const Entry& entry);
-  void DoStore(file_cache::string::UnhandledHash orig_hash,
+  void DoStore(const cache::string::HandledHash& hash, const Entry& entry);
+  void DoStore(cache::string::UnhandledHash orig_hash,
                const List<String>& headers,
-               const file_cache::string::HandledHash& hash);
+               const cache::string::HandledHash& hash);
   void Clean();
 
   mutable std::mutex locks_mutex_;
@@ -173,8 +171,9 @@ class FileCache {
   std::atomic<ui64> cached_size_;
   bool snappy_;
 
-  UniquePtr<file_cache::Database> database_;
+  UniquePtr<cache::Database> database_;
   base::ThreadPool pool_;
 };
 
+}  // namespace cache
 }  // namespace dist_clang

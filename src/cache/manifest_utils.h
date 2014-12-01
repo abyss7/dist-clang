@@ -8,10 +8,10 @@ namespace proto {
 class Manifest;
 }
 
-namespace file_cache {
+namespace cache {
 
 bool LoadManifest(const String& path, proto::Manifest* manifest);
 bool SaveManifest(const String& path, const proto::Manifest& manifest);
 
-}  // namespace file_cache
+}  // namespace cache
 }  // namespace dist_clang

@@ -2,8 +2,8 @@
 
 #include <base/aliases.h>
 #include <base/process_forward.h>
+#include <cache/file_cache.h>
 #include <daemon/configuration.pb.h>
-#include <file_cache/file_cache.h>
 #include <net/connection_forward.h>
 #include <net/end_point_resolver.h>
 #include <net/network_service.h>
@@ -48,26 +48,26 @@ class BaseDaemon {
     return network_service_->Connect(end_point, error);
   }
 
-  file_cache::string::HandledHash GenerateHash(
+  cache::string::HandledHash GenerateHash(
       const proto::Flags& flags,
-      const file_cache::string::HandledSource& code) const;
+      const cache::string::HandledSource& code) const;
 
   bool SetupCompiler(proto::Flags* flags, proto::Status* status) const;
 
   bool SearchSimpleCache(const proto::Flags& flags,
-                         const file_cache::string::HandledSource& source,
-                         FileCache::Entry* entry) const;
+                         const cache::string::HandledSource& source,
+                         cache::FileCache::Entry* entry) const;
 
   bool SearchDirectCache(const proto::Flags& flags, const String& current_dir,
-                         FileCache::Entry* entry) const;
+                         cache::FileCache::Entry* entry) const;
 
   void UpdateSimpleCache(const proto::Flags& flags,
-                         const file_cache::string::HandledSource& source,
-                         const FileCache::Entry& entry);
+                         const cache::string::HandledSource& source,
+                         const cache::FileCache::Entry& entry);
 
   void UpdateDirectCache(const proto::LocalExecute* message,
-                         const file_cache::string::HandledSource& source,
-                         const FileCache::Entry& entry);
+                         const cache::string::HandledSource& source,
+                         const cache::FileCache::Entry& entry);
 
   const proto::Configuration conf_;
   UniquePtr<net::EndPointResolver> resolver_;
@@ -80,7 +80,7 @@ class BaseDaemon {
   void HandleNewConnection(net::ConnectionPtr connection);
 
   UniquePtr<net::NetworkService> network_service_;
-  UniquePtr<FileCache> cache_;
+  UniquePtr<cache::FileCache> cache_;
   CompilerMap compilers_;
   PluginMap plugins_;
 };

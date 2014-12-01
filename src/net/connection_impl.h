@@ -24,8 +24,8 @@ class ConnectionImpl : public Connection {
                                   const EndPointPtr& end_point = EndPointPtr());
   ~ConnectionImpl();
 
-  virtual bool ReadAsync(ReadCallback callback) override;
-  virtual bool ReadSync(Message* message, Status* status = nullptr) override;
+  bool ReadAsync(ReadCallback callback) override;
+  bool ReadSync(Message* message, Status* status = nullptr) override;
 
   using Connection::SendSync;
 
@@ -57,8 +57,8 @@ class ConnectionImpl : public Connection {
   ConnectionImpl(EventLoop& event_loop, FileDescriptor fd,
                  const EndPointPtr& end_point);
 
-  virtual bool SendAsyncImpl(SendCallback callback) override;
-  virtual bool SendSyncImpl(Status* status) override;
+  bool SendAsyncImpl(SendCallback callback) override;
+  bool SendSyncImpl(Status* status) override;
 
   void DoRead();
   void DoSend();
