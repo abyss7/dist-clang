@@ -1,0 +1,26 @@
+diff --git a/tools/gn/c_include_iterator.cc b/tools/gn/c_include_iterator.cc
+index 25eba9d..861ef6f 100644
+--- a/tools/gn/c_include_iterator.cc
++++ b/tools/gn/c_include_iterator.cc
+@@ -129,7 +129,7 @@ bool CIncludeIterator::GetNextIncludeString(base::StringPiece* out,
+     base::StringPiece include_contents;
+     int begin_char;
+     IncludeType type = ExtractInclude(line, &include_contents, &begin_char);
+-    if (type == INCLUDE_USER) {
++    if (type == INCLUDE_SYSTEM) {
+       // Only count user includes for now.
+       *out = include_contents;
+       *location = LocationRange(
+diff --git a/tools/gn/header_checker.cc b/tools/gn/header_checker.cc
+index ea63844..e979007 100644
+--- a/tools/gn/header_checker.cc
++++ b/tools/gn/header_checker.cc
+@@ -251,7 +251,7 @@ bool HeaderChecker::IsFileInOuputDir(const SourceFile& file) const {
+ // handle the cases where people do weird things with the paths.
+ SourceFile HeaderChecker::SourceFileForInclude(
+     const base::StringPiece& input) const {
+-  std::string str("//");
++  std::string str("//src/");
+   input.AppendToString(&str);
+   return SourceFile(str);
+ }
