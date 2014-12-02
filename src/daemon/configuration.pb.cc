@@ -53,11 +53,12 @@ void protobuf_AssignDesc_daemon_2fconfiguration_2eproto() {
       "daemon/configuration.proto");
   GOOGLE_CHECK(file != NULL);
   Host_descriptor_ = file->message_type(0);
-  static const int Host_offsets_[4] = {
+  static const int Host_offsets_[5] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Host, host_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Host, port_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Host, threads_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Host, disabled_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Host, ipv6_),
   };
   Host_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
@@ -234,29 +235,30 @@ void protobuf_AddDesc_daemon_2fconfiguration_2eproto() {
   ::dist_clang::proto::protobuf_AddDesc_proto_2fbase_2eproto();
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
     "\n\032daemon/configuration.proto\022\020dist_clang"
-    ".proto\032\020proto/base.proto\"U\n\004Host\022\014\n\004host"
+    ".proto\032\020proto/base.proto\"i\n\004Host\022\014\n\004host"
     "\030\001 \002(\t\022\022\n\004port\030\002 \001(\r:\0046000\022\022\n\007threads\030\003 "
-    "\001(\r:\0012\022\027\n\010disabled\030\004 \001(\010:\005false\"|\n\tVerbo"
-    "sity\022\026\n\nerror_mark\030\001 \001(\r:\00220\0221\n\006levels\030\002"
-    " \003(\0132!.dist_clang.proto.Verbosity.Range\032"
-    "$\n\005Range\022\r\n\005right\030\001 \002(\r\022\014\n\004left\030\002 \001(\r\"\240\005"
-    "\n\rConfiguration\0228\n\007emitter\030\001 \001(\0132\'.dist_"
-    "clang.proto.Configuration.Emitter\022:\n\010abs"
-    "orber\030\002 \001(\0132(.dist_clang.proto.Configura"
-    "tion.Absorber\022\031\n\rpool_capacity\030\003 \001(\r:\00216"
-    "\022,\n\010versions\030\004 \003(\0132\032.dist_clang.proto.Co"
-    "mpiler\022.\n\tverbosity\030\005 \001(\0132\033.dist_clang.p"
-    "roto.Verbosity\022\017\n\007user_id\030\006 \001(\r\022\023\n\013confi"
-    "g_path\030\007 \001(\t\0224\n\005cache\030\010 \001(\0132%.dist_clang"
-    ".proto.Configuration.Cache\032\227\001\n\005Cache\022\014\n\004"
-    "path\030\001 \002(\t\022\017\n\004size\030\002 \001(\004:\0010\022\023\n\004sync\030\003 \001("
-    "\010:\005false\022\025\n\006direct\030\004 \001(\010:\005false\022\024\n\005mtime"
-    "\030\005 \001(\010:\005false\022\027\n\010disabled\030\006 \001(\010:\005false\022\024"
-    "\n\006snappy\030\007 \001(\010:\004true\032w\n\007Emitter\022\023\n\013socke"
-    "t_path\030\001 \002(\t\022\'\n\007remotes\030\002 \003(\0132\026.dist_cla"
-    "ng.proto.Host\022\022\n\007threads\030\003 \001(\r:\0012\022\032\n\013onl"
-    "y_failed\030\004 \001(\010:\005false\0321\n\010Absorber\022%\n\005loc"
-    "al\030\001 \002(\0132\026.dist_clang.proto.Host", 952);
+    "\001(\r:\0012\022\027\n\010disabled\030\004 \001(\010:\005false\022\022\n\004ipv6\030"
+    "\005 \001(\010:\004true\"|\n\tVerbosity\022\026\n\nerror_mark\030\001"
+    " \001(\r:\00220\0221\n\006levels\030\002 \003(\0132!.dist_clang.pr"
+    "oto.Verbosity.Range\032$\n\005Range\022\r\n\005right\030\001 "
+    "\002(\r\022\014\n\004left\030\002 \001(\r\"\240\005\n\rConfiguration\0228\n\007e"
+    "mitter\030\001 \001(\0132\'.dist_clang.proto.Configur"
+    "ation.Emitter\022:\n\010absorber\030\002 \001(\0132(.dist_c"
+    "lang.proto.Configuration.Absorber\022\031\n\rpoo"
+    "l_capacity\030\003 \001(\r:\00216\022,\n\010versions\030\004 \003(\0132\032"
+    ".dist_clang.proto.Compiler\022.\n\tverbosity\030"
+    "\005 \001(\0132\033.dist_clang.proto.Verbosity\022\017\n\007us"
+    "er_id\030\006 \001(\r\022\023\n\013config_path\030\007 \001(\t\0224\n\005cach"
+    "e\030\010 \001(\0132%.dist_clang.proto.Configuration"
+    ".Cache\032\227\001\n\005Cache\022\014\n\004path\030\001 \002(\t\022\017\n\004size\030\002"
+    " \001(\004:\0010\022\023\n\004sync\030\003 \001(\010:\005false\022\025\n\006direct\030\004"
+    " \001(\010:\005false\022\024\n\005mtime\030\005 \001(\010:\005false\022\027\n\010dis"
+    "abled\030\006 \001(\010:\005false\022\024\n\006snappy\030\007 \001(\010:\004true"
+    "\032w\n\007Emitter\022\023\n\013socket_path\030\001 \002(\t\022\'\n\007remo"
+    "tes\030\002 \003(\0132\026.dist_clang.proto.Host\022\022\n\007thr"
+    "eads\030\003 \001(\r:\0012\022\032\n\013only_failed\030\004 \001(\010:\005fals"
+    "e\0321\n\010Absorber\022%\n\005local\030\001 \002(\0132\026.dist_clan"
+    "g.proto.Host", 972);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "daemon/configuration.proto", &protobuf_RegisterTypes);
   Host::default_instance_ = new Host();
@@ -290,6 +292,7 @@ const int Host::kHostFieldNumber;
 const int Host::kPortFieldNumber;
 const int Host::kThreadsFieldNumber;
 const int Host::kDisabledFieldNumber;
+const int Host::kIpv6FieldNumber;
 #endif  // !_MSC_VER
 
 Host::Host()
@@ -315,6 +318,7 @@ void Host::SharedCtor() {
   port_ = 6000u;
   threads_ = 2u;
   disabled_ = false;
+  ipv6_ = true;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -353,7 +357,7 @@ Host* Host::New() const {
 }
 
 void Host::Clear() {
-  if (_has_bits_[0 / 32] & 15) {
+  if (_has_bits_[0 / 32] & 31) {
     if (has_host()) {
       if (host_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
         host_->clear();
@@ -362,6 +366,7 @@ void Host::Clear() {
     port_ = 6000u;
     threads_ = 2u;
     disabled_ = false;
+    ipv6_ = true;
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   mutable_unknown_fields()->Clear();
@@ -434,6 +439,21 @@ bool Host::MergePartialFromCodedStream(
         } else {
           goto handle_unusual;
         }
+        if (input->ExpectTag(40)) goto parse_ipv6;
+        break;
+      }
+
+      // optional bool ipv6 = 5 [default = true];
+      case 5: {
+        if (tag == 40) {
+         parse_ipv6:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   bool, ::google::protobuf::internal::WireFormatLite::TYPE_BOOL>(
+                 input, &ipv6_)));
+          set_has_ipv6();
+        } else {
+          goto handle_unusual;
+        }
         if (input->ExpectAtEnd()) goto success;
         break;
       }
@@ -488,6 +508,11 @@ void Host::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteBool(4, this->disabled(), output);
   }
 
+  // optional bool ipv6 = 5 [default = true];
+  if (has_ipv6()) {
+    ::google::protobuf::internal::WireFormatLite::WriteBool(5, this->ipv6(), output);
+  }
+
   if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
@@ -522,6 +547,11 @@ void Host::SerializeWithCachedSizes(
   // optional bool disabled = 4 [default = false];
   if (has_disabled()) {
     target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(4, this->disabled(), target);
+  }
+
+  // optional bool ipv6 = 5 [default = true];
+  if (has_ipv6()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(5, this->ipv6(), target);
   }
 
   if (!unknown_fields().empty()) {
@@ -559,6 +589,11 @@ int Host::ByteSize() const {
 
     // optional bool disabled = 4 [default = false];
     if (has_disabled()) {
+      total_size += 1 + 1;
+    }
+
+    // optional bool ipv6 = 5 [default = true];
+    if (has_ipv6()) {
       total_size += 1 + 1;
     }
 
@@ -601,6 +636,9 @@ void Host::MergeFrom(const Host& from) {
     if (from.has_disabled()) {
       set_disabled(from.disabled());
     }
+    if (from.has_ipv6()) {
+      set_ipv6(from.ipv6());
+    }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
@@ -629,6 +667,7 @@ void Host::Swap(Host* other) {
     std::swap(port_, other->port_);
     std::swap(threads_, other->threads_);
     std::swap(disabled_, other->disabled_);
+    std::swap(ipv6_, other->ipv6_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);

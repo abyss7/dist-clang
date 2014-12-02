@@ -91,7 +91,8 @@ Emitter::Emitter(const proto::Configuration& configuration)
 
   for (const auto& remote : conf_.emitter().remotes()) {
     if (!remote.disabled()) {
-      auto end_point = resolver_->Resolve(remote.host(), remote.port());
+      auto end_point =
+          resolver_->Resolve(remote.host(), remote.port(), remote.ipv6());
       Worker worker = std::bind(&Emitter::DoRemoteExecute, this, _1, end_point);
       workers_->AddWorker(worker, remote.threads());
     }

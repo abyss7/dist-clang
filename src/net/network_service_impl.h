@@ -12,12 +12,12 @@ class NetworkServiceImpl : public NetworkService {
 
   // We need the method |Run()| to allow user to add all listening sockets in
   // a non-threadsafe way, thus, prevent locking inside |HandleNewConnection|.
-  virtual bool Run() THREAD_UNSAFE override;
+  bool Run() THREAD_UNSAFE override;
 
-  virtual bool Listen(const String& path, ListenCallback callback,
-                      String* error) THREAD_UNSAFE override;
-  virtual bool Listen(const String& host, ui16 port, ListenCallback callback,
-                      String* error) THREAD_UNSAFE override;
+  bool Listen(const String& path, ListenCallback callback,
+              String* error) THREAD_UNSAFE override;
+  bool Listen(const String& host, ui16 port, bool ipv6, ListenCallback callback,
+              String* error) THREAD_UNSAFE override;
 
   virtual ConnectionPtr Connect(EndPointPtr end_point,
                                 String* error) THREAD_SAFE override;

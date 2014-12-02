@@ -12,7 +12,7 @@ namespace net {
 
 class EndPoint : public std::enable_shared_from_this<EndPoint> {
  public:
-  static EndPointPtr TcpHost(const String& host, ui16 port);
+  static EndPointPtr TcpHost(const String& host, ui16 port, bool ipv6);
   static EndPointPtr UnixSocket(const String& path);
 
   operator const sockaddr*() const {
@@ -22,10 +22,13 @@ class EndPoint : public std::enable_shared_from_this<EndPoint> {
   socklen_t size() const { return size_; }
 
   int domain() const { return address_.ss_family; }
+  int type() const { return SOCK_STREAM; }
+  int protocol() const { return protocol_; }
 
  private:
   sockaddr_storage address_;
-  socklen_t size_;
+  socklen_t size_ = 0;
+  int protocol_ = 0;
 };
 
 }  // namespace net

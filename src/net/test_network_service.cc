@@ -22,7 +22,7 @@ bool TestNetworkService::Listen(const String& path, ListenCallback callback,
   return on_listen_(path, 0, error);
 }
 
-bool TestNetworkService::Listen(const String& host, ui16 port,
+bool TestNetworkService::Listen(const String& host, ui16 port, bool,
                                 ListenCallback callback, String* error) {
   if (listen_attempts_) {
     (*listen_attempts_)++;

@@ -19,7 +19,8 @@ class NetworkService
 
   virtual bool Listen(const String& path, ListenCallback callback,
                       String* error = nullptr) THREAD_UNSAFE = 0;
-  virtual bool Listen(const String& host, ui16 port, ListenCallback callback,
+  virtual bool Listen(const String& host, ui16 port, bool ipv6,
+                      ListenCallback callback,
                       String* error = nullptr) THREAD_UNSAFE = 0;
 
   virtual ConnectionPtr Connect(EndPointPtr end_point,

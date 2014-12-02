@@ -1,5 +1,7 @@
 #include <net/end_point.h>
 
+#include <base/assert.h>
+
 #include <netdb.h>
 #include <sys/un.h>
 
@@ -7,22 +9,43 @@ namespace dist_clang {
 namespace net {
 
 // static
-EndPointPtr EndPoint::TcpHost(const String& host, ui16 port) {
-  hostent* host_entry;
-  in_addr** address_list;
+EndPointPtr EndPoint::TcpHost(const String& host, ui16 port, bool ipv6) {
+  struct addrinfo hints, *result;
+  hints.ai_addr = nullptr;
+  hints.ai_addrlen = 0;
+  hints.ai_canonname = nullptr;
+  if (ipv6) {
+    hints.ai_family = AF_INET6;
+  } else {
+    hints.ai_family = AF_UNSPEC;
+  }
+  hints.ai_flags = 0;
+  hints.ai_next = nullptr;
+  hints.ai_protocol = 0;
+  hints.ai_socktype = SOCK_STREAM;
 
-  if ((host_entry = gethostbyname(host.c_str())) == NULL) {
+  if (getaddrinfo(host.c_str(), nullptr, &hints, &result) == -1) {
     return EndPointPtr();
   }
 
-  address_list = reinterpret_cast<in_addr**>(host_entry->h_addr_list);
+  CHECK(result->ai_socktype == SOCK_STREAM);
 
   EndPointPtr end_point(new EndPoint);
-  sockaddr_in* address = reinterpret_cast<sockaddr_in*>(&end_point->address_);
-  address->sin_family = AF_INET;
-  address->sin_addr.s_addr = address_list[0]->s_addr;
-  address->sin_port = htons(port);
-  end_point->size_ = sizeof(*address);
+  DCHECK(sizeof(end_point->address_) >= result->ai_addrlen);
+  memcpy(&end_point->address_, result->ai_addr, result->ai_addrlen);
+  end_point->size_ = result->ai_addrlen;
+  end_point->protocol_ = result->ai_protocol;
+  freeaddrinfo(result);
+
+  if (ipv6) {
+    auto* address = reinterpret_cast<sockaddr_in6*>(&end_point->address_);
+    CHECK(address->sin6_family == AF_INET6);
+    address->sin6_port = htons(port);
+  } else {
+    auto* address = reinterpret_cast<sockaddr_in*>(&end_point->address_);
+    address->sin_port = htons(port);
+  }
+
   return end_point;
 }
 

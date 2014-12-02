@@ -37,10 +37,11 @@ class BaseDaemon {
         path, std::bind(&BaseDaemon::HandleNewConnection, this, _1), error);
   }
 
-  inline bool Listen(const String& host, ui32 port, String* error = nullptr) {
+  inline bool Listen(const String& host, ui32 port, bool ipv6,
+                     String* error = nullptr) {
     using namespace std::placeholders;
     return network_service_->Listen(
-        host, port, std::bind(&BaseDaemon::HandleNewConnection, this, _1),
+        host, port, ipv6, std::bind(&BaseDaemon::HandleNewConnection, this, _1),
         error);
   }
 

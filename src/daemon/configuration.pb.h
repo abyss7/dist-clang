@@ -131,6 +131,13 @@ class Host : public ::google::protobuf::Message {
   inline bool disabled() const;
   inline void set_disabled(bool value);
 
+  // optional bool ipv6 = 5 [default = true];
+  inline bool has_ipv6() const;
+  inline void clear_ipv6();
+  static const int kIpv6FieldNumber = 5;
+  inline bool ipv6() const;
+  inline void set_ipv6(bool value);
+
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Host)
  private:
   inline void set_has_host();
@@ -141,6 +148,8 @@ class Host : public ::google::protobuf::Message {
   inline void clear_has_threads();
   inline void set_has_disabled();
   inline void clear_has_disabled();
+  inline void set_has_ipv6();
+  inline void clear_has_ipv6();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -150,6 +159,7 @@ class Host : public ::google::protobuf::Message {
   ::google::protobuf::uint32 port_;
   ::google::protobuf::uint32 threads_;
   bool disabled_;
+  bool ipv6_;
   friend void  protobuf_AddDesc_daemon_2fconfiguration_2eproto();
   friend void protobuf_AssignDesc_daemon_2fconfiguration_2eproto();
   friend void protobuf_ShutdownFile_daemon_2fconfiguration_2eproto();
@@ -1004,6 +1014,30 @@ inline void Host::set_disabled(bool value) {
   set_has_disabled();
   disabled_ = value;
   // @@protoc_insertion_point(field_set:dist_clang.proto.Host.disabled)
+}
+
+// optional bool ipv6 = 5 [default = true];
+inline bool Host::has_ipv6() const {
+  return (_has_bits_[0] & 0x00000010u) != 0;
+}
+inline void Host::set_has_ipv6() {
+  _has_bits_[0] |= 0x00000010u;
+}
+inline void Host::clear_has_ipv6() {
+  _has_bits_[0] &= ~0x00000010u;
+}
+inline void Host::clear_ipv6() {
+  ipv6_ = true;
+  clear_has_ipv6();
+}
+inline bool Host::ipv6() const {
+  // @@protoc_insertion_point(field_get:dist_clang.proto.Host.ipv6)
+  return ipv6_;
+}
+inline void Host::set_ipv6(bool value) {
+  set_has_ipv6();
+  ipv6_ = value;
+  // @@protoc_insertion_point(field_set:dist_clang.proto.Host.ipv6)
 }
 
 // -------------------------------------------------------------------

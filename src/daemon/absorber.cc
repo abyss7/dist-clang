@@ -35,7 +35,7 @@ Absorber::~Absorber() {
 bool Absorber::Initialize() {
   String error;
   const auto& local = conf_.absorber().local();
-  if (!Listen(local.host(), local.port(), &error)) {
+  if (!Listen(local.host(), local.port(), local.ipv6(), &error)) {
     LOG(ERROR) << "Failed to listen on " << local.host() << ":" << local.port()
                << " : " << error;
     return false;

@@ -39,28 +39,36 @@ class TestNetworkService : public NetworkService {
 
     virtual UniquePtr<NetworkService> Create() override;
 
-    inline void CallOnCreate(OnCreateCallback callback);
+    inline void CallOnCreate(OnCreateCallback callback) {
+      on_create_ = callback;
+    }
 
    private:
     OnCreateCallback on_create_ = EmptyLambda<>();
   };
 
-  inline virtual bool Run() override;
+  inline bool Run() override { return true; }
 
-  virtual bool Listen(const String& path, ListenCallback callback,
-                      String* error) override;
+  bool Listen(const String& path, ListenCallback callback,
+              String* error) override;
 
-  virtual bool Listen(const String& host, ui16 port, ListenCallback callback,
-                      String* error) override;
+  bool Listen(const String& host, ui16 port, bool ipv6, ListenCallback callback,
+              String* error) override;
 
   virtual ConnectionPtr Connect(EndPointPtr end_point, String* error) override;
 
   ConnectionPtr TriggerListen(const String& host, ui16 port = 0);
 
-  inline void CallOnConnect(OnConnectCallback callback);
-  inline void CallOnListen(OnListenCallback callback);
-  inline void CountConnectAttempts(std::atomic<ui32>* counter);
-  inline void CountListenAttempts(std::atomic<ui32>* counter);
+  inline void CallOnConnect(OnConnectCallback callback) {
+    on_connect_ = callback;
+  }
+  inline void CallOnListen(OnListenCallback callback) { on_listen_ = callback; }
+  inline void CountConnectAttempts(std::atomic<ui32>* counter) {
+    connect_attempts_ = counter;
+  }
+  inline void CountListenAttempts(std::atomic<ui32>* counter) {
+    listen_attempts_ = counter;
+  }
 
  private:
   using HostPortPair = Pair<String, ui16>;
@@ -71,30 +79,6 @@ class TestNetworkService : public NetworkService {
   std::atomic<ui32>* listen_attempts_ = nullptr;
   HashMap<HostPortPair, ListenCallback> listen_callbacks_;
 };
-
-void TestNetworkService::Factory::CallOnCreate(OnCreateCallback callback) {
-  on_create_ = callback;
-}
-
-bool TestNetworkService::Run() {
-  return true;
-}
-
-void TestNetworkService::CallOnConnect(OnConnectCallback callback) {
-  on_connect_ = callback;
-}
-
-void TestNetworkService::CallOnListen(OnListenCallback callback) {
-  on_listen_ = callback;
-}
-
-void TestNetworkService::CountConnectAttempts(std::atomic<ui32>* counter) {
-  connect_attempts_ = counter;
-}
-
-void TestNetworkService::CountListenAttempts(std::atomic<ui32>* counter) {
-  listen_attempts_ = counter;
-}
 
 }  // namespace net
 }  // namespace dist_clang

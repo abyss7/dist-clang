@@ -30,9 +30,10 @@ bool NetworkServiceImpl::Run() {
 
 bool NetworkServiceImpl::Listen(const String& path, ListenCallback callback,
                                 String* error) {
-  sockaddr_un address;
-  address.sun_family = AF_UNIX;
-  strcpy(address.sun_path, path.c_str());
+  auto peer = EndPoint::UnixSocket(path);
+  if (!peer) {
+    return false;
+  }
   unlink(path.c_str());
 
   auto fd = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -43,8 +44,7 @@ bool NetworkServiceImpl::Listen(const String& path, ListenCallback callback,
   base::MakeCloseOnExec(fd);
   base::MakeNonBlocking(fd);
 
-  auto socket_address = reinterpret_cast<sockaddr*>(&address);
-  if (bind(fd, socket_address, sizeof(address)) == -1) {
+  if (::bind(fd, *peer, peer->size()) == -1) {
     base::GetLastError(error);
     close(fd);
     return false;
@@ -71,24 +71,14 @@ bool NetworkServiceImpl::Listen(const String& path, ListenCallback callback,
   return true;
 }
 
-bool NetworkServiceImpl::Listen(const String& host, ui16 port,
+bool NetworkServiceImpl::Listen(const String& host, ui16 port, bool ipv6,
                                 ListenCallback callback, String* error) {
-  struct hostent* host_entry;
-  struct in_addr** address_list;
-
-  if ((host_entry = gethostbyname(host.c_str())) == NULL) {
-    base::GetLastError(error);
+  auto peer = EndPoint::TcpHost(host, port, ipv6);
+  if (!peer) {
     return false;
   }
 
-  address_list = reinterpret_cast<struct in_addr**>(host_entry->h_addr_list);
-
-  sockaddr_in address;
-  address.sin_family = AF_INET;
-  address.sin_addr.s_addr = address_list[0]->s_addr;
-  address.sin_port = htons(port);
-
-  auto fd = socket(AF_INET, SOCK_STREAM, 0);
+  auto fd = socket(peer->domain(), peer->type(), peer->protocol());
   if (fd == -1) {
     base::GetLastError(error);
     return false;
@@ -103,8 +93,7 @@ bool NetworkServiceImpl::Listen(const String& host, ui16 port,
     return false;
   }
 
-  auto socket_address = reinterpret_cast<sockaddr*>(&address);
-  if (bind(fd, socket_address, sizeof(address)) == -1) {
+  if (::bind(fd, *peer, peer->size()) == -1) {
     base::GetLastError(error);
     close(fd);
     return false;
@@ -131,7 +120,8 @@ bool NetworkServiceImpl::Listen(const String& host, ui16 port,
 
 ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point,
                                           String* error) {
-  auto fd = socket(end_point->domain(), SOCK_STREAM, 0);
+  auto fd =
+      socket(end_point->domain(), end_point->type(), end_point->protocol());
   if (fd == -1) {
     base::GetLastError(error);
     return ConnectionPtr();
