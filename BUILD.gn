@@ -22,7 +22,6 @@ if (os == "linux") {
       "//install/clangd.conf",
       "//install/debian_prerm",
       "//install/supervisord_service",
-      "//install/sysvinit_service",
       "//src/daemon/configuration_pb2.py",
       "//src/proto/base_pb2.py",
       "$root_out_dir/clang",
@@ -43,6 +42,7 @@ if (os == "linux") {
       "$root_out_dir/libprotobuf.so",
       "$root_out_dir/libsnappy.so",
       "$root_out_dir/libtcmalloc.so",
+      # FIXME: source python protobuf files.
     ]
     outputs = [
       "$root_out_dir/deb/debian/control",
@@ -75,6 +75,41 @@ if (os == "linux") {
       "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/dist_clang/daemon/configuration_pb2.py",
       "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/dist_clang/proto/__init__.py",
       "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/dist_clang/proto/base_pb2.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/compiler/__init__.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/compiler/plugin_pb2.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/descriptor_database.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/descriptor_pb2.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/descriptor_pool.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/descriptor.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/__init__.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/internal/api_implementation.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/internal/containers.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/internal/cpp_message.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/internal/decoder.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/internal/encoder.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/internal/enum_type_wrapper.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/internal/__init__.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/internal/message_listener.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/internal/python_message.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/internal/type_checkers.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/internal/wire_format.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/message_factory.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/message.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/pyext/cpp_message.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/pyext/__init__.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/reflection.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/service.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/service_reflection.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/symbol_database.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/text_encoding.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/google/protobuf/text_format.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/protobuf-2.6.2_pre-py2.7.egg-info/dependency_links.txt",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/protobuf-2.6.2_pre-py2.7.egg-info/namespace_packages.txt",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/protobuf-2.6.2_pre-py2.7.egg-info/PKG-INFO",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/protobuf-2.6.2_pre-py2.7.egg-info/requires.txt",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/protobuf-2.6.2_pre-py2.7.egg-info/SOURCES.txt",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/protobuf-2.6.2_pre-py2.7.egg-info/top_level.txt",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/protobuf-2.6.2_pre-py2.7-nspkg.pth",
       "$root_out_dir/deb/debian/tmp/DEBIAN/control",
       "$root_out_dir/deb/debian/tmp/DEBIAN/prerm",
       "$root_out_dir/dist-clang_${version}_amd64.deb",
@@ -84,6 +119,8 @@ if (os == "linux") {
       rebase_path("$root_out_dir"),
       "$version",
     ]
+
+    data_deps = [ "//src/third_party/protobuf:protoc" ]
   }
 
   action("rpm_package") {
@@ -114,6 +151,7 @@ if (os == "linux") {
       "$root_out_dir/libprotobuf.so",
       "$root_out_dir/libsnappy.so",
       "$root_out_dir/libtcmalloc.so",
+      # FIXME: source python protobuf files.
     ]
     outputs = [
       "$root_out_dir/rpm.spec",
@@ -142,6 +180,41 @@ if (os == "linux") {
       "$root_out_dir/rpm/usr/lib/python2.7/dist_clang/daemon/configuration_pb2.py",
       "$root_out_dir/rpm/usr/lib/python2.7/dist_clang/proto/__init__.py",
       "$root_out_dir/rpm/usr/lib/python2.7/dist_clang/proto/base_pb2.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/compiler/__init__.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/compiler/plugin_pb2.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/descriptor_database.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/descriptor_pb2.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/descriptor_pool.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/descriptor.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/__init__.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/internal/api_implementation.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/internal/containers.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/internal/cpp_message.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/internal/decoder.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/internal/encoder.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/internal/enum_type_wrapper.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/internal/__init__.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/internal/message_listener.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/internal/python_message.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/internal/type_checkers.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/internal/wire_format.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/message_factory.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/message.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/pyext/cpp_message.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/pyext/__init__.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/reflection.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/service.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/service_reflection.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/symbol_database.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/text_encoding.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/google/protobuf/text_format.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/protobuf-2.6.2_pre-py2.7.egg-info/dependency_links.txt",
+      "$root_out_dir/rpm/usr/lib/python2.7/protobuf-2.6.2_pre-py2.7.egg-info/namespace_packages.txt",
+      "$root_out_dir/rpm/usr/lib/python2.7/protobuf-2.6.2_pre-py2.7.egg-info/PKG-INFO",
+      "$root_out_dir/rpm/usr/lib/python2.7/protobuf-2.6.2_pre-py2.7.egg-info/requires.txt",
+      "$root_out_dir/rpm/usr/lib/python2.7/protobuf-2.6.2_pre-py2.7.egg-info/SOURCES.txt",
+      "$root_out_dir/rpm/usr/lib/python2.7/protobuf-2.6.2_pre-py2.7.egg-info/top_level.txt",
+      "$root_out_dir/rpm/usr/lib/python2.7/protobuf-2.6.2_pre-py2.7-nspkg.pth",
       "$root_out_dir/rpm/usr/lib/systemd/system/clangd.service",
       "$root_out_dir/rpmbuild/RPMS/x86_64/dist-clang-${version}-1.x86_64.rpm",
     ]
@@ -149,5 +222,7 @@ if (os == "linux") {
       rebase_path("$root_out_dir"),
       "$version",
     ]
+
+    data_deps = [ "//src/third_party/protobuf:protoc" ]
   }
 }

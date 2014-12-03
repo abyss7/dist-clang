@@ -45,3 +45,10 @@ def MakeInstall(top_dir, product_dir, package_dir):
   open(os.path.join(pylib_dir, "__init__.py"), 'a').close()
   open(os.path.join(pylib_dir, "proto", "__init__.py"), 'a').close()
   open(os.path.join(pylib_dir, "daemon", "__init__.py"), 'a').close()
+
+  # Install python protobuf
+  os.chdir(os.path.join(top_dir, "src", "third_party", "protobuf", "exported", "python"))
+  os.environ["PROTOC"] = os.path.join(product_dir, "protoc")
+  subprocess.call(["python", "setup.py", "build"])
+  subprocess.call(["python", "setup.py", "install", "--root", pylib_dir, "--install-purelib=/", "--no-compile"])
+  open(os.path.join(pylib_dir, "google", "__init__.py"), 'a').close()
