@@ -8,43 +8,81 @@
 namespace dist_clang {
 namespace net {
 
-// static
-EndPointPtr EndPoint::TcpHost(const String& host, ui16 port, bool ipv6) {
-  struct addrinfo hints, *result;
-  hints.ai_addr = nullptr;
-  hints.ai_addrlen = 0;
-  hints.ai_canonname = nullptr;
-  if (ipv6) {
-    hints.ai_family = AF_INET6;
-  } else {
-    hints.ai_family = AF_UNSPEC;
-  }
-  hints.ai_flags = 0;
-  hints.ai_next = nullptr;
-  hints.ai_protocol = 0;
+namespace {
+
+struct addrinfo* GetPeerAddress(const char* host, ui16 port, bool ipv6,
+                                bool bind) {
+  struct addrinfo hints, * result = nullptr;
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = ipv6 ? AF_INET6 : AF_UNSPEC;
+  hints.ai_flags = bind ? AI_PASSIVE : 0;
   hints.ai_socktype = SOCK_STREAM;
 
-  if (getaddrinfo(host.c_str(), nullptr, &hints, &result) == -1) {
+  auto port_str = std::to_string(port);
+  auto error = getaddrinfo(host, port_str.c_str(), &hints, &result);
+
+  if (!error) {
+    return result;
+  }
+
+  if (bind) {
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = ipv6 ? AF_INET6 : AF_UNSPEC;
+    hints.ai_flags = bind ? AI_PASSIVE : 0;
+    hints.ai_socktype = SOCK_STREAM;
+
+    error = getaddrinfo(nullptr, port_str.c_str(), &hints, &result);
+
+    if (!error) {
+      return result;
+    }
+  }
+
+  return nullptr;
+}
+
+}  // namespace
+
+// static
+EndPointPtr EndPoint::TcpHost(const String& host, ui16 port, bool ipv6) {
+  auto result = GetPeerAddress(host.c_str(), port, ipv6, false);
+  if (!result) {
     return EndPointPtr();
   }
 
   CHECK(result->ai_socktype == SOCK_STREAM);
+  CHECK(sizeof(EndPoint::address_) >= result->ai_addrlen);
+  if (ipv6) {
+    CHECK(result->ai_family == AF_INET6);
+  }
 
   EndPointPtr end_point(new EndPoint);
-  DCHECK(sizeof(end_point->address_) >= result->ai_addrlen);
   memcpy(&end_point->address_, result->ai_addr, result->ai_addrlen);
   end_point->size_ = result->ai_addrlen;
   end_point->protocol_ = result->ai_protocol;
   freeaddrinfo(result);
 
-  if (ipv6) {
-    auto* address = reinterpret_cast<sockaddr_in6*>(&end_point->address_);
-    CHECK(address->sin6_family == AF_INET6);
-    address->sin6_port = htons(port);
-  } else {
-    auto* address = reinterpret_cast<sockaddr_in*>(&end_point->address_);
-    address->sin_port = htons(port);
+  return end_point;
+}
+
+// static
+EndPointPtr EndPoint::LocalHost(const String& host, ui16 port, bool ipv6) {
+  auto result = GetPeerAddress(host.c_str(), port, ipv6, true);
+  if (!result) {
+    return EndPointPtr();
   }
+
+  CHECK(result->ai_socktype == SOCK_STREAM);
+  CHECK(sizeof(EndPoint::address_) >= result->ai_addrlen);
+  if (ipv6) {
+    CHECK(result->ai_family == AF_INET6);
+  }
+
+  EndPointPtr end_point(new EndPoint);
+  memcpy(&end_point->address_, result->ai_addr, result->ai_addrlen);
+  end_point->size_ = result->ai_addrlen;
+  end_point->protocol_ = result->ai_protocol;
+  freeaddrinfo(result);
 
   return end_point;
 }

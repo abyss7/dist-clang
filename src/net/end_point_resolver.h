@@ -14,7 +14,8 @@ class EndPointResolver : public base::Testable<EndPointResolver> {
 
   virtual ~EndPointResolver() {}
 
-  // Resolve only tcp hosts, since there is no need for anything else for now.
+  // Resolve only remote tcp hosts, since there is no need for anything else
+  // right now.
   virtual Optional Resolve(const String& host, ui16 port, bool ipv6);
 };
 

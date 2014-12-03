@@ -13,6 +13,7 @@ namespace net {
 class EndPoint : public std::enable_shared_from_this<EndPoint> {
  public:
   static EndPointPtr TcpHost(const String& host, ui16 port, bool ipv6);
+  static EndPointPtr LocalHost(const String& host, ui16 port, bool ipv6);
   static EndPointPtr UnixSocket(const String& path);
 
   operator const sockaddr*() const {

@@ -73,7 +73,7 @@ bool NetworkServiceImpl::Listen(const String& path, ListenCallback callback,
 
 bool NetworkServiceImpl::Listen(const String& host, ui16 port, bool ipv6,
                                 ListenCallback callback, String* error) {
-  auto peer = EndPoint::TcpHost(host, port, ipv6);
+  auto peer = EndPoint::LocalHost(host, port, ipv6);
   if (!peer) {
     return false;
   }
