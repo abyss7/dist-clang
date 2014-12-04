@@ -26,6 +26,8 @@ class EndPoint : public std::enable_shared_from_this<EndPoint> {
   int type() const { return SOCK_STREAM; }
   int protocol() const { return protocol_; }
 
+  String Print() const;
+
  private:
   sockaddr_storage address_;
   socklen_t size_ = 0;

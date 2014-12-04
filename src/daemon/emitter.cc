@@ -294,6 +294,12 @@ void Emitter::DoRemoteExecute(const std::atomic<bool>& is_shutting_down,
 
   end_point->Wait();
 
+  if (!end_point->GetValue()) {
+    // TODO: do re-resolve |end_point| periodically, since the network
+    // configuration may change on runtime.
+    return;
+  }
+
   while (!is_shutting_down) {
     Optional&& task = all_tasks_->Pop();
     if (!task) {
@@ -308,8 +314,11 @@ void Emitter::DoRemoteExecute(const std::atomic<bool>& is_shutting_down,
       continue;
     }
 
-    auto connection = Connect(end_point->GetValue());
+    String error;
+    auto connection = Connect(end_point->GetValue(), &error);
     if (!connection) {
+      LOG(WARNING) << "Failed to connect to " << end_point->GetValue()->Print()
+                   << ": " << error;
       all_tasks_->Push(std::move(*task));
       continue;
     }

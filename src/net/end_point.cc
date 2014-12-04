@@ -1,9 +1,13 @@
 #include <net/end_point.h>
 
 #include <base/assert.h>
+#include <base/logging.h>
 
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <sys/un.h>
+
+#include <base/using_log.h>
 
 namespace dist_clang {
 namespace net {
@@ -37,6 +41,9 @@ struct addrinfo* GetPeerAddress(const char* host, ui16 port, bool ipv6,
       return result;
     }
   }
+
+  LOG(ERROR) << "Failed to resolve \"" << host << ":" << port
+             << "\": " << gai_strerror(error);
 
   return nullptr;
 }
@@ -95,6 +102,14 @@ EndPointPtr EndPoint::UnixSocket(const String& path) {
   strncpy(address->sun_path, path.c_str(), sizeof(address->sun_path) - 1);
   end_point->size_ = sizeof(*address);
   return end_point;
+}
+
+String EndPoint::Print() const {
+  char buf[INET6_ADDRSTRLEN];
+  if (inet_ntop(domain(), &address_, buf, INET6_ADDRSTRLEN)) {
+    return buf;
+  }
+  return String();
 }
 
 }  // namespace net
