@@ -18,7 +18,7 @@ struct addrinfo* GetPeerAddress(const char* host, ui16 port, bool ipv6,
                                 bool bind) {
   struct addrinfo hints, * result = nullptr;
   memset(&hints, 0, sizeof(hints));
-  hints.ai_family = ipv6 ? AF_INET6 : AF_UNSPEC;
+  hints.ai_family = ipv6 ? AF_INET6 : AF_INET;
   hints.ai_flags = bind ? AI_PASSIVE : 0;
   hints.ai_socktype = SOCK_STREAM;
 
@@ -31,7 +31,7 @@ struct addrinfo* GetPeerAddress(const char* host, ui16 port, bool ipv6,
 
   if (bind) {
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family = ipv6 ? AF_INET6 : AF_UNSPEC;
+    hints.ai_family = ipv6 ? AF_INET6 : AF_INET;
     hints.ai_flags = bind ? AI_PASSIVE : 0;
     hints.ai_socktype = SOCK_STREAM;
 
