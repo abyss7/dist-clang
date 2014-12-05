@@ -1,5 +1,6 @@
 #pragma once
 
+#include <net/end_point.h>
 #include <net/end_point_resolver.h>
 
 namespace dist_clang {
@@ -15,7 +16,7 @@ class TestEndPointResolver : public EndPointResolver {
   };
 
   Optional Resolve(const String&, ui16, bool) override {
-    return Promise((EndPointPtr())).GetFuture();
+    return Promise(EndPointPtr(new EndPoint)).GetFuture();
   }
 };
 
