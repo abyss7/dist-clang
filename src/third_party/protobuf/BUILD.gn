@@ -134,6 +134,7 @@ shared_library("protobuf") {
 executable("protoc") {
   visibility = [
     "//:deb_package",
+    "//:pkg_package",
     "//:rpm_package",
   ]
 

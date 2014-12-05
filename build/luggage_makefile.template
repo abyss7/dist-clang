@@ -1,0 +1,12 @@
+USE_PKGBUILD=1
+
+include /usr/local/share/luggage/luggage.make
+
+TITLE=dist-clang
+PACKAGE_VERSION=${VERSION}
+REVERSE_DOMAIN=ru.yandex
+
+PAYLOAD=pack-script-postinstall pack-install
+
+pack-install:
+	cp -r ${PROD_DIR}/pkg/* ${WORK_D}/

@@ -1,4 +1,10 @@
+import platform
+
 def MakeInstall(top_dir, product_dir, package_dir):
+  ext = 'so'
+  if platform.system() == 'Darwin':
+    ext = 'dylib'
+
   # Cleanup tree
   bin_dir = os.path.join(product_dir, package_dir, "usr", "bin", "dist-clang")
   lib_dir = os.path.join(product_dir, package_dir, "usr", "lib", "dist-clang")
@@ -19,22 +25,23 @@ def MakeInstall(top_dir, product_dir, package_dir):
   os.symlink("clang", os.path.join(bin_dir, "clang++"))
 
   # Copy libraries
-  shutil.copy(os.path.join(product_dir, "libbase.so"), lib_dir)
-  shutil.copy(os.path.join(product_dir, "libc++.so"), lib_dir)
-  shutil.copy(os.path.join(product_dir, "libc++abi.so"), lib_dir)
-  shutil.copy(os.path.join(product_dir, "libcommand.so"), lib_dir)
-  shutil.copy(os.path.join(product_dir, "libconfiguration.so"), lib_dir)
-  shutil.copy(os.path.join(product_dir, "libconst_string.so"), lib_dir)
-  shutil.copy(os.path.join(product_dir, "libconstants.so"), lib_dir)
-  shutil.copy(os.path.join(product_dir, "libcounter.so"), lib_dir)
-  shutil.copy(os.path.join(product_dir, "libfile_cache.so"), lib_dir)
-  shutil.copy(os.path.join(product_dir, "liblogging.so"), lib_dir)
-  shutil.copy(os.path.join(product_dir, "libmanifest.so"), lib_dir)
-  shutil.copy(os.path.join(product_dir, "libnet.so"), lib_dir)
-  shutil.copy(os.path.join(product_dir, "libproto.so"), lib_dir)
-  shutil.copy(os.path.join(product_dir, "libprotobuf.so"), lib_dir)
-  shutil.copy(os.path.join(product_dir, "libsnappy.so"), lib_dir)
-  shutil.copy(os.path.join(product_dir, "libtcmalloc.so"), lib_dir)
+  shutil.copy(os.path.join(product_dir, "libbase."+ext), lib_dir)
+  shutil.copy(os.path.join(product_dir, "libc++."+ext), lib_dir)
+  shutil.copy(os.path.join(product_dir, "libc++abi."+ext), lib_dir)
+  shutil.copy(os.path.join(product_dir, "libcommand."+ext), lib_dir)
+  shutil.copy(os.path.join(product_dir, "libconfiguration."+ext), lib_dir)
+  shutil.copy(os.path.join(product_dir, "libconst_string."+ext), lib_dir)
+  shutil.copy(os.path.join(product_dir, "libconstants."+ext), lib_dir)
+  shutil.copy(os.path.join(product_dir, "libcounter."+ext), lib_dir)
+  shutil.copy(os.path.join(product_dir, "libfile_cache."+ext), lib_dir)
+  shutil.copy(os.path.join(product_dir, "liblogging."+ext), lib_dir)
+  shutil.copy(os.path.join(product_dir, "libmanifest."+ext), lib_dir)
+  shutil.copy(os.path.join(product_dir, "libnet."+ext), lib_dir)
+  shutil.copy(os.path.join(product_dir, "libproto."+ext), lib_dir)
+  shutil.copy(os.path.join(product_dir, "libprotobuf."+ext), lib_dir)
+  shutil.copy(os.path.join(product_dir, "libsnappy."+ext), lib_dir)
+  if platform.system() != 'Darwin':
+    shutil.copy(os.path.join(product_dir, "libtcmalloc."+ext), lib_dir)
 
   # Copy configs
   shutil.copy(os.path.join(top_dir, "install", "clangd.conf"), etc_dir)
@@ -47,8 +54,11 @@ def MakeInstall(top_dir, product_dir, package_dir):
   open(os.path.join(pylib_dir, "daemon", "__init__.py"), 'a').close()
 
   # Install python protobuf
+  cwd = os.getcwd()
   os.chdir(os.path.join(top_dir, "src", "third_party", "protobuf", "exported", "python"))
   os.environ["PROTOC"] = os.path.join(product_dir, "protoc")
   subprocess.call(["python", "setup.py", "build"])
   subprocess.call(["python", "setup.py", "install", "--root", pylib_dir, "--install-purelib=/", "--no-compile"])
+  subprocess.call(["git", "clean", "-df", "."])
   open(os.path.join(pylib_dir, "google", "__init__.py"), 'a').close()
+  os.chdir(cwd)

@@ -6,10 +6,10 @@ import time
 
 argv = sys.argv[1:]
 product_dir = argv[0]
+version = argv[1]
 top_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..")
 
 # Environment variables
-version = argv[1]
 date = time.strftime("%a, %d %b %Y %H:%M:%S")
 package_name = "dist-clang_{}_amd64".format(version)
 env_vars = {'VERSION': version, 'DATE': date, 'PACKAGE_NAME': package_name + '.deb'}
