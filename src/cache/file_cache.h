@@ -168,7 +168,7 @@ class FileCache {
 
   const String path_;
   ui64 max_size_;
-  std::atomic<ui64> cached_size_;
+  Atomic<ui64> cached_size_;
   bool snappy_;
 
   UniquePtr<cache::Database> database_;

@@ -28,6 +28,7 @@ shared_library("base") {
     "process_impl_linux.cc",
     "process_impl_mac.cc",
     "queue_aggregator.h",
+    "stl_include.h",
     "string_utils.h",
     "temporary_dir.cc",
     "temporary_dir.h",

@@ -38,7 +38,7 @@ ThreadPool::Optional ThreadPool::Push(Closure&& task) {
   return Optional();
 }
 
-void ThreadPool::DoWork(const std::atomic<bool>& is_shutting_down) {
+void ThreadPool::DoWork(const Atomic<bool>& is_shutting_down) {
   while (!is_shutting_down) {
     TaskQueue::Optional&& task = tasks_.Pop(active_task_count_);
     if (!task) {

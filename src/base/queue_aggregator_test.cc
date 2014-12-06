@@ -52,9 +52,9 @@ TEST(QueueAggregatorTest, UniquePtrFriendliness) {
 }
 
 TEST(QueueAggregatorTest, SharedPtrFriendliness) {
-  QueueAggregator<std::shared_ptr<int>> aggregator;
-  LockedQueue<std::shared_ptr<int>> queue;
-  std::shared_ptr<int> ptr(new int);
+  QueueAggregator<SharedPtr<int>> aggregator;
+  LockedQueue<SharedPtr<int>> queue;
+  SharedPtr<int> ptr(new int);
   aggregator.Aggregate(&queue);
 
   ASSERT_TRUE(queue.Push(ptr));

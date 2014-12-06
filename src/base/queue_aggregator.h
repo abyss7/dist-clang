@@ -3,8 +3,7 @@
 #include <base/locked_queue.h>
 #include <base/thread.h>
 
-#include <third_party/libcxx/exported/include/condition_variable>
-#include <third_party/libcxx/exported/include/mutex>
+#include STL(condition_variable)
 
 namespace dist_clang {
 namespace base {
@@ -103,7 +102,7 @@ class QueueAggregator {
   List<LockedQueue<T> * WEAK_PTR> queues_;
 
   std::mutex orders_mutex_;
-  std::atomic<bool> closed_ = {false};
+  Atomic<bool> closed_ = {false};
   size_t order_count_ = 0;
   List<T> orders_;
   std::condition_variable pop_condition_;

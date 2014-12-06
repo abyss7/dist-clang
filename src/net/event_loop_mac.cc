@@ -38,7 +38,7 @@ bool KqueueEventLoop::ReadyForSend(ConnectionImplPtr connection) {
   return ReadyFor(connection, EVFILT_WRITE);
 }
 
-void KqueueEventLoop::DoListenWork(const std::atomic<bool>& is_shutting_down,
+void KqueueEventLoop::DoListenWork(const Atomic<bool>& is_shutting_down,
                                    FileDescriptor self_pipe) {
   const int MAX_EVENTS = 10;  // This should be enought in most cases.
   struct kevent events[MAX_EVENTS];
@@ -82,7 +82,7 @@ void KqueueEventLoop::DoListenWork(const std::atomic<bool>& is_shutting_down,
   }
 }
 
-void KqueueEventLoop::DoIOWork(const std::atomic<bool>& is_shutting_down,
+void KqueueEventLoop::DoIOWork(const Atomic<bool>& is_shutting_down,
                                FileDescriptor self_pipe) {
   struct kevent event;
   EV_SET(&event, self_pipe, EVFILT_READ, EV_ADD, 0, 0, 0);

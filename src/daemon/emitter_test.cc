@@ -98,7 +98,7 @@ TEST_F(EmitterTest, BadLocalMessage) {
 
   auto connection = test_service->TriggerListen(socket_path);
   {
-    std::shared_ptr<net::TestConnection> test_connection =
+    SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
@@ -134,7 +134,7 @@ TEST_F(EmitterTest, LocalMessageWithoutCommand) {
 
   auto connection = test_service->TriggerListen(socket_path);
   {
-    std::shared_ptr<net::TestConnection> test_connection =
+    SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
@@ -192,7 +192,7 @@ TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
 
   auto connection = test_service->TriggerListen(socket_path);
   {
-    std::shared_ptr<net::TestConnection> test_connection =
+    SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
@@ -249,7 +249,7 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin) {
 
   auto connection = test_service->TriggerListen(socket_path);
   {
-    std::shared_ptr<net::TestConnection> test_connection =
+    SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
@@ -313,7 +313,7 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin2) {
 
   auto connection = test_service->TriggerListen(socket_path);
   {
-    std::shared_ptr<net::TestConnection> test_connection =
+    SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
@@ -382,7 +382,7 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
 
   auto connection = test_service->TriggerListen(socket_path);
   {
-    std::shared_ptr<net::TestConnection> test_connection =
+    SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
@@ -443,7 +443,7 @@ TEST_F(EmitterTest, LocalFailedCompilation) {
 
   auto connection = test_service->TriggerListen(socket_path);
   {
-    std::shared_ptr<net::TestConnection> test_connection =
+    SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
@@ -547,7 +547,7 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
 
   auto connection1 = test_service->TriggerListen(socket_path);
   {
-    std::shared_ptr<net::TestConnection> test_connection =
+    SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
@@ -574,7 +574,7 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
 
   auto connection2 = test_service->TriggerListen(socket_path);
   {
-    std::shared_ptr<net::TestConnection> test_connection =
+    SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection2);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
@@ -726,7 +726,7 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
 
   auto connection1 = test_service->TriggerListen(socket_path);
   {
-    std::shared_ptr<net::TestConnection> test_connection =
+    SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
@@ -753,7 +753,7 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
 
   auto connection2 = test_service->TriggerListen(socket_path);
   {
-    std::shared_ptr<net::TestConnection> test_connection =
+    SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection2);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);

@@ -4,7 +4,6 @@
 #include <perf/log_reporter.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest_prod.h>
-#include <third_party/libcxx/exported/include/atomic>
 #include <third_party/protobuf/exported/src/google/protobuf/io/coded_stream.h>
 #include <third_party/protobuf/exported/src/google/protobuf/io/gzip_stream.h>
 #include <third_party/protobuf/exported/src/google/protobuf/io/zero_copy_stream_impl.h>
@@ -67,7 +66,7 @@ class ConnectionImpl : public Connection {
   const FileDescriptor fd_;
 
   EventLoop& event_loop_;
-  std::atomic<bool> is_closed_, added_;
+  Atomic<bool> is_closed_, added_;
   EndPointPtr end_point_;
 
   // Read members.

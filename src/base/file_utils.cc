@@ -3,8 +3,8 @@
 #include <base/assert.h>
 #include <base/const_string.h>
 
-#include <third_party/libcxx/exported/include/map>
-#include <third_party/libcxx/exported/include/regex>
+#include STL(map)
+#include STL(regex)
 
 #include <dirent.h>
 #include <fcntl.h>

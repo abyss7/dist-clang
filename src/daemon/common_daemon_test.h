@@ -79,9 +79,8 @@ struct CommonDaemonTest : public ::testing::Test {
   std::mutex send_mutex;
   std::condition_variable send_condition;
 
-  std::atomic<ui32> listen_count = {0}, connect_count = {0}, read_count = {0},
-                    send_count = {0}, run_count = {0},
-                    connections_created = {0};
+  Atomic<ui32> listen_count = {0}, connect_count = {0}, read_count = {0},
+               send_count = {0}, run_count = {0}, connections_created = {0};
 };
 
 }  // namespace daemon

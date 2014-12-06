@@ -74,7 +74,7 @@ bool Absorber::HandleNewMessage(net::ConnectionPtr connection,
   return false;
 }
 
-void Absorber::DoExecute(const std::atomic<bool>& is_shutting_down) {
+void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
   using namespace cache::string;
 
   while (!is_shutting_down) {

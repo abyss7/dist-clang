@@ -16,8 +16,8 @@ class TestConnection : public Connection {
 
   void AbortOnSend();
   void AbortOnRead();
-  void CountSendAttempts(std::atomic<ui32>* counter);
-  void CountReadAttempts(std::atomic<ui32>* counter);
+  void CountSendAttempts(Atomic<ui32>* counter);
+  void CountReadAttempts(Atomic<ui32>* counter);
   void CallOnSend(Fn<void(const Message&)> callback);
   void CallOnRead(Fn<void(Message*)> callback);
 
@@ -29,8 +29,8 @@ class TestConnection : public Connection {
   virtual bool SendSyncImpl(Status* status) override;
 
   bool abort_on_send_, abort_on_read_;
-  std::atomic<ui32>* send_attempts_;
-  std::atomic<ui32>* read_attempts_;
+  Atomic<ui32>* send_attempts_;
+  Atomic<ui32>* read_attempts_;
   Fn<void(const Message&)> on_send_;
   Fn<void(Message*)> on_read_;
   ReadCallback read_callback_;

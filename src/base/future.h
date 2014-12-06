@@ -3,8 +3,8 @@
 #include <base/assert.h>
 #include <base/thread.h>
 
-#include <third_party/libcxx/exported/include/condition_variable>
-#include <third_party/libcxx/exported/include/experimental/optional>
+#include STL(condition_variable)
+#include STL(experimental/optional)
 
 namespace dist_clang {
 namespace base {
@@ -50,7 +50,7 @@ class Future {
 
 template <class T>
 class Promise {
-  using StatePtr = std::shared_ptr<typename Future<T>::State>;
+  using StatePtr = SharedPtr<typename Future<T>::State>;
 
  public:
   using Optional = std::experimental::optional<Future<T>>;
@@ -59,12 +59,13 @@ class Promise {
   // ever set.
   Promise(const T& default_value)
       : state_(new typename Future<T>::State),
-        async_(new Thread, [](Thread* thread) {
-          if (thread->joinable()) {
-            thread->join();
-          }
-          delete thread;
-        }),
+        async_(
+            new Thread, [](Thread* thread) {
+              if (thread->joinable()) {
+                thread->join();
+              }
+              delete thread;
+            }),
         on_exit_value_(default_value) {}
   Promise(Promise<T>&& other) = default;
   ~Promise() {

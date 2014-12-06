@@ -2,9 +2,9 @@
 
 #include <base/aliases.h>
 
-#include <third_party/libcxx/exported/include/iomanip>
-#include <third_party/libcxx/exported/include/regex>
-#include <third_party/libcxx/exported/include/sstream>
+#include STL(iomanip)
+#include STL(regex)
+#include STL(sstream)
 
 namespace dist_clang {
 namespace base {

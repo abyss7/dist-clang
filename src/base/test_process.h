@@ -31,13 +31,13 @@ class TestProcess : public Process {
   virtual bool Run(ui16 sec_timeout, Immutable input, String* error) override;
 
   inline void CallOnRun(OnRunCallback callback) { on_run_ = callback; }
-  inline void CountRuns(std::atomic<ui32>* counter) { run_attempts_ = counter; }
+  inline void CountRuns(Atomic<ui32>* counter) { run_attempts_ = counter; }
 
  private:
   TestProcess(const String& exec_path, Immutable cwd_path, ui32 uid);
 
   OnRunCallback on_run_ = EmptyLambda<bool>(false);
-  std::atomic<ui32>* run_attempts_ = nullptr;
+  Atomic<ui32>* run_attempts_ = nullptr;
 };
 
 }  // namespace base

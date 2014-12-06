@@ -30,9 +30,9 @@ class Emitter : public BaseDaemon {
                                 Universal message,
                                 const proto::Status& status) override;
 
-  void DoCheckCache(const std::atomic<bool>& is_shutting_down);
-  void DoLocalExecute(const std::atomic<bool>& is_shutting_down);
-  void DoRemoteExecute(const std::atomic<bool>& is_shutting_down,
+  void DoCheckCache(const Atomic<bool>& is_shutting_down);
+  void DoLocalExecute(const Atomic<bool>& is_shutting_down);
+  void DoRemoteExecute(const Atomic<bool>& is_shutting_down,
                        net::EndPointResolver::Optional end_point);
 
   UniquePtr<Queue> all_tasks_, cache_tasks_, failed_tasks_;

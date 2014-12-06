@@ -3,11 +3,9 @@
 #include <base/assert.h>
 #include <base/attributes.h>
 
-#include <third_party/libcxx/exported/include/atomic>
-#include <third_party/libcxx/exported/include/condition_variable>
-#include <third_party/libcxx/exported/include/experimental/optional>
-#include <third_party/libcxx/exported/include/mutex>
-#include <third_party/libcxx/exported/include/queue>
+#include STL(condition_variable)
+#include STL(experimental/optional)
+#include STL(queue)
 
 namespace dist_clang {
 namespace base {
@@ -70,7 +68,7 @@ class LockedQueue {
     return std::move(obj);
   }
 
-  Optional Pop(std::atomic<ui64>& external_counter) THREAD_SAFE {
+  Optional Pop(Atomic<ui64>& external_counter) THREAD_SAFE {
     UniqueLock lock(pop_mutex_);
     pop_condition_.wait(lock, [this] { return closed_ || !queue_.empty(); });
     if (closed_ && queue_.empty()) {
@@ -90,9 +88,9 @@ class LockedQueue {
   std::condition_variable pop_condition_;
   std::queue<T> queue_;
 
-  std::atomic<ui64> size_ = {0};
+  Atomic<ui64> size_ = {0};
   const ui64 capacity_ = UNLIMITED;
-  std::atomic<bool> closed_ = {false};
+  Atomic<bool> closed_ = {false};
 };
 
 }  // namespace base

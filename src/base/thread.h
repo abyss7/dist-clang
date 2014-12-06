@@ -2,7 +2,7 @@
 
 #include <base/aliases.h>
 
-#include <third_party/libcxx/exported/include/thread>
+#include STL(thread)
 
 #include <signal.h>
 

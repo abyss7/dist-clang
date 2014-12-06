@@ -2,8 +2,8 @@
 
 #include <base/aliases.h>
 
-#include <third_party/libcxx/exported/include/set>
-#include <third_party/libcxx/exported/include/sstream>
+#include STL(set)
+#include STL(sstream)
 
 // The whole log facility should be minimalistic, since it may be used in a
 // third-party libraries, like gtest.
@@ -97,12 +97,12 @@ class Log {
 
  private:
   static ui32& error_mark();
-  static std::shared_ptr<RangeSet>& ranges();
+  static SharedPtr<RangeSet>& ranges();
   static Mode& mode();
 
   ui32 level_;
   ui32 error_mark_;
-  std::shared_ptr<RangeSet> ranges_;
+  SharedPtr<RangeSet> ranges_;
   std::stringstream stream_;
   Mode mode_ = CONSOLE;
 };

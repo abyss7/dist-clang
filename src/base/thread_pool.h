@@ -26,12 +26,12 @@ class ThreadPool {
   inline ui64 TaskCount() const { return tasks_.Size() + active_task_count_; }
 
  private:
-  void DoWork(const std::atomic<bool>& is_shutting_down);
+  void DoWork(const Atomic<bool>& is_shutting_down);
 
   TaskQueue tasks_;
   WorkerPool pool_;
   ui32 concurrency_;
-  std::atomic<ui64> active_task_count_ = {0};
+  Atomic<ui64> active_task_count_ = {0};
 };
 
 }  // namespace base

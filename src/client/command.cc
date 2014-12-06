@@ -71,7 +71,7 @@ bool DriverCommand::GenerateFromArgs(int argc, const char* const raw_argv[],
 
   diags = new DiagnosticsEngine(diag_id, &*diag_opts, diag_client);
 
-  std::string path = argv[0];
+  String path = argv[0];
   driver.reset(new Driver(path, llvm::sys::getDefaultTargetTriple(), *diags));
   driver->setCheckInputsExist(false);
   compilation.reset(driver->BuildCompilation(argv));

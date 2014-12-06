@@ -3,7 +3,7 @@
 #include <base/assert.h>
 #include <base/const_string.h>
 
-#include <third_party/libcxx/exported/include/iostream>
+#include STL(iostream)
 #include <third_party/protobuf/exported/src/google/protobuf/text_format.h>
 
 #include <syslog.h>
@@ -107,8 +107,8 @@ ui32& Log::error_mark() {
 }
 
 // static
-std::shared_ptr<Log::RangeSet>& Log::ranges() {
-  static std::shared_ptr<RangeSet> ranges(
+SharedPtr<Log::RangeSet>& Log::ranges() {
+  static SharedPtr<RangeSet> ranges(
       new RangeSet{std::make_pair(named_levels::WARNING, named_levels::FATAL)});
   return ranges;
 }

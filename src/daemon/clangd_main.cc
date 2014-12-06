@@ -4,7 +4,7 @@
 #include <daemon/configuration.h>
 #include <daemon/emitter.h>
 
-#include <third_party/libcxx/exported/include/iostream>
+#include STL(iostream)
 
 #include <signal.h>
 #include <unistd.h>

@@ -4,8 +4,7 @@
 #include <base/worker_pool.h>
 #include <net/connection_forward.h>
 
-#include <third_party/libcxx/exported/include/thread>
-#include <third_party/libcxx/exported/include/vector>
+#include STL(thread)
 
 namespace dist_clang {
 namespace net {
@@ -36,12 +35,12 @@ class EventLoop {
     STOPPED,
   };
 
-  virtual void DoListenWork(const std::atomic<bool>& is_shutting_down,
+  virtual void DoListenWork(const Atomic<bool>& is_shutting_down,
                             FileDescriptor self_pipe) = 0;
-  virtual void DoIOWork(const std::atomic<bool>& is_shutting_down,
+  virtual void DoIOWork(const Atomic<bool>& is_shutting_down,
                         FileDescriptor self_pipe) = 0;
 
-  std::atomic<Status> is_running_;
+  Atomic<Status> is_running_;
   ui32 concurrency_;
   UniquePtr<base::WorkerPool> pool_;
 };

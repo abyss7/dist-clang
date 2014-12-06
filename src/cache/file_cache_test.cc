@@ -5,7 +5,7 @@
 #include <base/temporary_dir.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest.h>
-#include <third_party/libcxx/exported/include/regex>
+#include STL(regex)
 
 namespace dist_clang {
 namespace cache {

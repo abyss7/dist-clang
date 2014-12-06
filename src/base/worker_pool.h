@@ -2,17 +2,15 @@
 
 #include <base/aliases.h>
 
-#include <third_party/libcxx/exported/include/atomic>
-#include <third_party/libcxx/exported/include/thread>
-#include <third_party/libcxx/exported/include/vector>
+#include STL(thread)
 
 namespace dist_clang {
 namespace base {
 
 class WorkerPool {
  public:
-  using NetWorker = Fn<void(const std::atomic<bool>&, FileDescriptor)>;
-  using SimpleWorker = Fn<void(const std::atomic<bool>&)>;
+  using NetWorker = Fn<void(const Atomic<bool>&, FileDescriptor)>;
+  using SimpleWorker = Fn<void(const Atomic<bool>&)>;
 
   explicit WorkerPool(bool force_shut_down = false);
   ~WorkerPool();
@@ -22,7 +20,7 @@ class WorkerPool {
 
  private:
   Vector<Thread> workers_;
-  std::atomic<bool> is_shutting_down_, force_shut_down_;
+  Atomic<bool> is_shutting_down_, force_shut_down_;
   FileDescriptor self_pipe_[2];
 };
 

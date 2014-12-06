@@ -1,15 +1,18 @@
 #pragma once
 
-#include <third_party/libcxx/exported/include/cstdint>
-#include <third_party/libcxx/exported/include/functional>
-#include <third_party/libcxx/exported/include/list>
-#include <third_party/libcxx/exported/include/memory>
-#include <third_party/libcxx/exported/include/mutex>
-#include <third_party/libcxx/exported/include/string>
-#include <third_party/libcxx/exported/include/tuple>
-#include <third_party/libcxx/exported/include/unordered_map>
-#include <third_party/libcxx/exported/include/unordered_set>
-#include <third_party/libcxx/exported/include/vector>
+#include <base/stl_include.h>
+
+#include STL(atomic)
+#include STL(cstdint)
+#include STL(functional)
+#include STL(list)
+#include STL(memory)
+#include STL(mutex)
+#include STL(string)
+#include STL(tuple)
+#include STL(unordered_map)
+#include STL(unordered_set)
+#include STL(vector)
 
 namespace dist_clang {
 
@@ -29,6 +32,9 @@ using i32 = int32_t;
 using ui32 = uint32_t;
 using i64 = int64_t;
 using ui64 = uint64_t;
+
+template <class T>
+using Atomic = std::atomic<T>;
 
 using Clock = std::chrono::steady_clock;
 

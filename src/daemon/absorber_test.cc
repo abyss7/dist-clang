@@ -61,7 +61,7 @@ TEST_F(AbsorberTest, SuccessfulCompilation) {
 
   auto connection = test_service->TriggerListen(expected_host, expected_port);
   {
-    std::shared_ptr<net::TestConnection> test_connection =
+    SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
@@ -123,7 +123,7 @@ TEST_F(AbsorberTest, FailedCompilation) {
 
   auto connection = test_service->TriggerListen(expected_host, expected_port);
   {
-    std::shared_ptr<net::TestConnection> test_connection =
+    SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
@@ -205,7 +205,7 @@ TEST_F(AbsorberTest, StoreLocalCache) {
 
   auto connection1 = test_service->TriggerListen(expected_host, expected_port);
   {
-    std::shared_ptr<net::TestConnection> test_connection =
+    SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
@@ -230,7 +230,7 @@ TEST_F(AbsorberTest, StoreLocalCache) {
 
   auto connection2 = test_service->TriggerListen(expected_host, expected_port);
   {
-    std::shared_ptr<net::TestConnection> test_connection =
+    SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection2);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);

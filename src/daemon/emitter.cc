@@ -164,7 +164,7 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
   return false;
 }
 
-void Emitter::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
+void Emitter::DoCheckCache(const Atomic<bool>& is_shutting_down) {
   using namespace cache::string;
 
   while (!is_shutting_down) {
@@ -230,7 +230,7 @@ void Emitter::DoCheckCache(const std::atomic<bool>& is_shutting_down) {
   }
 }
 
-void Emitter::DoLocalExecute(const std::atomic<bool>& is_shutting_down) {
+void Emitter::DoLocalExecute(const Atomic<bool>& is_shutting_down) {
   while (!is_shutting_down) {
     Optional&& task = local_tasks_->Pop();
     if (!task) {
@@ -284,7 +284,7 @@ void Emitter::DoLocalExecute(const std::atomic<bool>& is_shutting_down) {
   }
 }
 
-void Emitter::DoRemoteExecute(const std::atomic<bool>& is_shutting_down,
+void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
                               net::EndPointResolver::Optional end_point) {
   if (!end_point) {
     // TODO: do re-resolve |end_point| periodically, since the network

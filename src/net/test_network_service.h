@@ -63,10 +63,10 @@ class TestNetworkService : public NetworkService {
     on_connect_ = callback;
   }
   inline void CallOnListen(OnListenCallback callback) { on_listen_ = callback; }
-  inline void CountConnectAttempts(std::atomic<ui32>* counter) {
+  inline void CountConnectAttempts(Atomic<ui32>* counter) {
     connect_attempts_ = counter;
   }
-  inline void CountListenAttempts(std::atomic<ui32>* counter) {
+  inline void CountListenAttempts(Atomic<ui32>* counter) {
     listen_attempts_ = counter;
   }
 
@@ -75,8 +75,8 @@ class TestNetworkService : public NetworkService {
 
   OnConnectCallback on_connect_ = EmptyLambda<TestConnectionPtr>();
   OnListenCallback on_listen_ = EmptyLambda<bool>(false);
-  std::atomic<ui32>* connect_attempts_ = nullptr;
-  std::atomic<ui32>* listen_attempts_ = nullptr;
+  Atomic<ui32>* connect_attempts_ = nullptr;
+  Atomic<ui32>* listen_attempts_ = nullptr;
   HashMap<HostPortPair, ListenCallback> listen_callbacks_;
 };
 

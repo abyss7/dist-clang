@@ -69,8 +69,8 @@ class ClientTest : public ::testing::Test {
   bool do_connect = true;
   bool do_run = true;
   net::ConnectionWeakPtr weak_ptr;
-  std::atomic<ui32> send_count = {0}, read_count = {0}, connect_count = {0},
-                    connections_created = {0}, run_count = {0};
+  Atomic<ui32> send_count = {0}, read_count = {0}, connect_count = {0},
+               connections_created = {0}, run_count = {0};
   Fn<void(net::TestConnection*)> connect_callback = EmptyLambda<>();
   Fn<void(base::TestProcess*)> run_callback = EmptyLambda<>();
 };

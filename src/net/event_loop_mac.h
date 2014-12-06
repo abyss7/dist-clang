@@ -17,9 +17,9 @@ class KqueueEventLoop : public EventLoop {
   virtual bool ReadyForSend(ConnectionImplPtr connection) THREAD_SAFE override;
 
  private:
-  virtual void DoListenWork(const std::atomic<bool>& is_shutting_down,
+  virtual void DoListenWork(const Atomic<bool>& is_shutting_down,
                             FileDescriptor self_pipe) override;
-  virtual void DoIOWork(const std::atomic<bool>& is_shutting_down,
+  virtual void DoIOWork(const Atomic<bool>& is_shutting_down,
                         FileDescriptor self_pipe) override;
 
   bool ReadyForListen(FileDescriptor fd);

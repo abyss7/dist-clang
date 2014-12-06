@@ -4,7 +4,7 @@
 #include <base/temporary_dir.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest.h>
-#include <third_party/libcxx/exported/include/thread>
+#include STL(thread)
 
 #include <dirent.h>
 #include <fcntl.h>

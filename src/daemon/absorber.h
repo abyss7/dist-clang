@@ -24,7 +24,7 @@ class Absorber : public BaseDaemon {
                                 Universal message,
                                 const proto::Status& status) override;
 
-  void DoExecute(const std::atomic<bool>& is_shutting_down);
+  void DoExecute(const Atomic<bool>& is_shutting_down);
 
   UniquePtr<Queue> tasks_;
   UniquePtr<base::WorkerPool> workers_;

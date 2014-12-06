@@ -27,7 +27,7 @@ class Counter final {
 
  private:
   static ui64 next_id() {
-    static std::atomic<ui64> next_id(1);
+    static Atomic<ui64> next_id(1);
     return next_id++;
   }
 
