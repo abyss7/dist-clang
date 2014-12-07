@@ -1,7 +1,6 @@
 #pragma once
 
 #include <base/locked_queue.h>
-#include <base/thread.h>
 
 #include STL(condition_variable)
 

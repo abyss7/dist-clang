@@ -1,7 +1,6 @@
 #include <base/worker_pool.h>
 
 #include <base/assert.h>
-#include <base/thread.h>
 
 #include <unistd.h>
 

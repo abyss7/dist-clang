@@ -1,7 +1,6 @@
 #pragma once
 
 #include <base/assert.h>
-#include <base/thread.h>
 
 #include STL(condition_variable)
 #include STL(experimental/optional)
