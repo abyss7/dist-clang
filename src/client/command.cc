@@ -4,6 +4,7 @@
 #include <base/c_utils.h>
 #include <base/logging.h>
 #include <base/process_impl.h>
+#include <base/string_utils.h>
 #include <proto/remote.pb.h>
 
 #include <clang/Basic/Diagnostic.h>

@@ -2529,3 +2529,6 @@ build/config/win/BUILD.gn
 build/toolchain/win/BUILD.gn
 src/base/stl_include.h
 src/base/thread_fixed.h
+src/base/assert_linux.cc
+src/base/assert_mac.cc
+src/base/assert_win.cc

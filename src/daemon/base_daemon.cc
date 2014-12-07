@@ -3,6 +3,7 @@
 #include <base/file_utils.h>
 #include <base/logging.h>
 #include <base/process_impl.h>
+#include <base/string_utils.h>
 #include <net/connection.h>
 #include <net/network_service_impl.h>
 

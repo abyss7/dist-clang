@@ -2,6 +2,7 @@
 
 #include <base/assert.h>
 #include <base/const_string.h>
+#include <base/string_utils.h>
 
 #include STL(map)
 #include STL(regex)

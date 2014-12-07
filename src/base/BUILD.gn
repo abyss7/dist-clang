@@ -12,6 +12,9 @@ shared_library("base") {
   sources = [
     "aliases.h",
     "assert.h",
+    "assert_linux.cc",
+    "assert_mac.cc",
+    "assert_win.cc",
     "attributes.h",
     "c_utils.h",
     "empty_lambda.h",
