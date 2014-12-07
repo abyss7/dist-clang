@@ -2,7 +2,7 @@
 
 #include <base/assert.h>
 
-#include <third_party/libcxx/exported/include/thread>
+#include STL(thread)
 
 namespace dist_clang {
 namespace base {

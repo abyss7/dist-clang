@@ -50,6 +50,11 @@ class Process
   Process& AppendArg(Immutable arg);
   Process& AddEnv(const char* name, const char* value);
 
+#if defined(OS_WIN)
+// FIXME: cursed Windows STL defines these as macros.
+#undef stdout
+#undef stderr
+#endif  // defined(OS_WIN)
   inline Immutable stdout() const { return stdout_; }
   inline Immutable stderr() const { return stderr_; }
 
