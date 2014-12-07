@@ -65,20 +65,25 @@ if (os == "mac") {
   default_configs += [ "//build/config/mac:base" ]
   default_configs -= [ "//build/config:no_stdlibs" ]
 }
+if (os == "win") {
+  default_configs += [ "//build/config/win:base" ]
+}
 
 # =============================================================================
 # Setup dependencies.
 # =============================================================================
 
 default_deps = []
-default_deps += [
-  "//src/third_party/libcxx:c++",
-  "//src/third_party/libcxxabi:c++abi",
-]
+if (os != "win") {
+  default_deps += [
+    "//src/third_party/libcxx:c++",
+    "//src/third_party/libcxxabi:c++abi",
+  ]
+}
 
 # Mac OS X 10.10 doesn't work with tcmalloc anymore.
 # Thread Sanitizer doesn't like tcmalloc either.
-if (os != "mac" && !use_tsan) {
+if (os != "mac" && os != "win" && !use_tsan) {
   default_deps += [ "//src/third_party/gperftools:tcmalloc" ]
 }
 
@@ -124,12 +129,22 @@ mac_sources_filters = [
   "*_mac_test.cc",
 ]
 
+win_sources_filters = [
+  "*_win.h",
+  "*_win.cc",
+  "*_win_test.h",
+  "*_win_test.cc",
+]
+
 sources_assignment_filter = []
 if (os != "mac") {
   sources_assignment_filter += mac_sources_filters
 }
 if (os != "linux") {
   sources_assignment_filter += linux_sources_filters
+}
+if (os != "win") {
+  sources_assignment_filter += win_sources_filters
 }
 
 set_sources_assignment_filter(sources_assignment_filter)
@@ -143,4 +158,7 @@ if (os == "linux") {
 }
 if (os == "mac") {
   set_default_toolchain("//build/toolchain/mac:clang")
+}
+if (os == "win") {
+  set_default_toolchain("//build/toolchain/win:clang")
 }
