@@ -1,10 +1,8 @@
 #include <base/logging.h>
 
-#include <base/assert.h>
 #include <base/const_string.h>
 
 #include STL(iostream)
-#include <third_party/protobuf/exported/src/google/protobuf/text_format.h>
 
 #include <syslog.h>
 
@@ -27,7 +25,8 @@ void Log::Reset(ui32 error_mark, RangeSet&& ranges) {
   ui32 prev = 0;
   for (const auto& range : ranges) {
     if ((prev > 0 && range.second <= prev) || range.second > range.first) {
-      NOTREACHED();
+      // FIXME: there should be NOTREACHED(), but it will add dependency on the
+      // |assert_*.cc| part of the base target.
       return;
     }
     prev = range.first;
@@ -82,21 +81,8 @@ Log::~Log() {
   }
 }
 
-Log& Log::operator<<(const google::protobuf::Message& info) {
-  String str;
-  if (google::protobuf::TextFormat::PrintToString(info, &str)) {
-    stream_ << str;
-  }
-  return *this;
-}
-
 Log& Log::operator<<(std::ostream& (*func)(std::ostream&)) {
   stream_ << func;
-  return *this;
-}
-
-Log& Log::operator<<(const Immutable& info) {
-  stream_ << String(info);
   return *this;
 }
 

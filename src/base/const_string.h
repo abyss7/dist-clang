@@ -2,6 +2,7 @@
 
 #include <base/aliases.h>
 #include <base/attributes.h>
+#include <base/logging.h>
 #include <base/thread_fixed.h>
 
 namespace dist_clang {
@@ -102,6 +103,12 @@ bool Literal::operator==(const ConstString& other) const {
 
 bool Literal::operator!=(const ConstString& other) const {
   return other != *this;
+}
+
+template <>
+inline Log& Log::operator<<(const ConstString& info) {
+  stream_ << String(info);
+  return *this;
 }
 
 }  // namespace base

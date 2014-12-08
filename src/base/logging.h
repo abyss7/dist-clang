@@ -89,11 +89,7 @@ class Log {
     return *this;
   }
 
-  Log& operator<<(const google::protobuf::Message& info);
-
   Log& operator<<(std::ostream& (*func)(std::ostream&));  // for |std::endl|
-
-  Log& operator<<(const Immutable& info);
 
  private:
   static ui32& error_mark();

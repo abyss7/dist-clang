@@ -30,8 +30,6 @@ def MakeInstall(top_dir, product_dir, package_dir):
   shutil.copy(os.path.join(product_dir, "libc++abi."+ext), lib_dir)
   shutil.copy(os.path.join(product_dir, "libcommand."+ext), lib_dir)
   shutil.copy(os.path.join(product_dir, "libconfiguration."+ext), lib_dir)
-  shutil.copy(os.path.join(product_dir, "libconst_string."+ext), lib_dir)
-  shutil.copy(os.path.join(product_dir, "libconstants."+ext), lib_dir)
   shutil.copy(os.path.join(product_dir, "libcounter."+ext), lib_dir)
   shutil.copy(os.path.join(product_dir, "libfile_cache."+ext), lib_dir)
   shutil.copy(os.path.join(product_dir, "liblogging."+ext), lib_dir)

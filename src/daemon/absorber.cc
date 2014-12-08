@@ -5,11 +5,28 @@
 #include <base/process.h>
 #include <net/connection.h>
 
+#include <third_party/protobuf/exported/src/google/protobuf/text_format.h>
+
 #include <base/using_log.h>
 
 using namespace std::placeholders;
 
 namespace dist_clang {
+
+namespace base {
+
+template <>
+base::Log& base::Log::operator<<<google::protobuf::Message>(
+    const google::protobuf::Message& info) {
+  String str;
+  if (google::protobuf::TextFormat::PrintToString(info, &str)) {
+    stream_ << str;
+  }
+  return *this;
+}
+
+}  // namespace base
+
 namespace daemon {
 
 Absorber::Absorber(const proto::Configuration& configuration)

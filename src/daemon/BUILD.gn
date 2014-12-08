@@ -7,7 +7,6 @@ executable("clangd") {
     ":configuration",
     ":daemon",
     "//src/base:base",
-    "//src/base:const_string",
     "//src/base:logging",
   ]
 }
@@ -30,7 +29,6 @@ source_set("daemon") {
   deps += [
     ":configuration",
     "//src/base:base",
-    "//src/base:constants",
     "//src/base:logging",
     "//src/cache:file_cache",
     "//src/net:net",
@@ -60,7 +58,6 @@ shared_library("configuration") {
 
   deps += [
     "//src/base:base",
-    "//src/base:constants",
     "//src/base:logging",
     "//src/third_party/protobuf:protobuf",
     "//src/third_party/tclap:tclap",

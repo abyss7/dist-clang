@@ -38,7 +38,7 @@ TEST(AssertReleaseTest, FailureStackTrace) {
   ASSERT_THROW_STD(CHECK(false), expected);
   ASSERT_NO_THROW(DCHECK(false));
   ASSERT_NO_THROW(DCHECK_O_EVAL(false));
-  ASSERT_NO_THROW(NOTREACHED());
+  // |NOTREACHED()| has undefined behavior - don't test it.
 }
 
 TEST(AssertReleaseTest, ExpressionEvaluation) {

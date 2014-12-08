@@ -17,6 +17,10 @@ shared_library("base") {
     "assert_win.cc",
     "attributes.h",
     "c_utils.h",
+    "const_string.cc",
+    "const_string.h",
+    "constants.cc",
+    "constants.h",
     "empty_lambda.h",
     "file_descriptor_utils.h",
     "file_utils.cc",
@@ -44,30 +48,9 @@ shared_library("base") {
     "worker_pool.h",
   ]
 
-  deps += [ ":logging" ]
+  public_deps = [ ":logging" ]
 
-  public_deps = [ ":const_string" ]
-
-  allow_circular_includes_from = [
-    ":const_string",
-    ":logging",
-  ]
-}
-
-shared_library("const_string") {
-  sources = [
-    "const_string.cc",
-    "const_string.h",
-  ]
-}
-
-shared_library("constants") {
-  sources = [
-    "constants.cc",
-    "constants.h",
-  ]
-
-  public_deps = [ ":const_string" ]
+  allow_circular_includes_from = [ ":logging" ]
 }
 
 shared_library("logging") {
@@ -78,10 +61,5 @@ shared_library("logging") {
     "logging.cc",
     "logging.h",
     "using_log.h",
-  ]
-
-  deps += [
-    ":const_string",
-    "//src/third_party/protobuf:protobuf",
   ]
 }
