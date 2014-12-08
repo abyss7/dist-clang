@@ -23,7 +23,6 @@ shared_library("snappy") {
     "exported/snappy-sinksource.h",
     "exported/snappy-stubs-internal.cc",
     "exported/snappy-stubs-internal.h",
-    os + "/config.h",
     os + "/snappy-stubs-public.h",
   ]
 
