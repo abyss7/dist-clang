@@ -55,12 +55,14 @@ void GetStackTrace(ui8 depth, Vector<String>& strings);
 //                              ^^
 //
 #if defined(NDEBUG)
-#define DCHECK_O_EVAL(expr) (void)(expr)
+// TODO: investigate why clang can't link with |__builtin_assume()|.
+#define DCHECK_O_EVAL(expr) (void)(expr);
 #define DCHECK(expr)
+#define NOTREACHED() __builtin_unreachable()
 #else
 #define DCHECK_O_EVAL(expr) CHECK(expr)
 #define DCHECK(expr) CHECK(expr)
-#endif
 #define NOTREACHED() DCHECK(false)
+#endif
 
 }  // namespace dist_clang

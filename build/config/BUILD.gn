@@ -6,6 +6,7 @@ config("base") {
     "-Wall",
     "-Wsign-compare",
     "-Wno-unknown-warning-option",
+    "-Wno-error=assume",
     "-Wno-error=unused-command-line-argument",
     "-Werror",
   ]
