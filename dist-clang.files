@@ -1070,7 +1070,7 @@ src/base/file/handle_win.h
 src/base/file/pipe.h
 src/base/file/pipe_linux.cc
 src/base/file/pipe_mac.cc
-src/base/file_utils.cc
+src/base/file_utils_posix.cc
 src/base/file_utils.h
 src/base/file_utils_test.cc
 src/base/future.h

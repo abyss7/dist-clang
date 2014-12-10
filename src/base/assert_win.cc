@@ -2,6 +2,8 @@
 
 #include <windows.h>
 
+#include <DbgHelp.h>
+
 namespace dist_clang {
 namespace base {
 
@@ -18,7 +20,7 @@ void GetStackTrace(ui8 depth, Vector<String>& strings) {
   auto size = CaptureStackBackTrace(1, depth, buffer, nullptr);
   strings.resize(size);
   for (ui8 i = 0; i < size; ++i) {
-    SymFromAddr(process, reinterpret_cast<DWORD64>(stack[i]), 0, symbol);
+    SymFromAddr(process, reinterpret_cast<DWORD64>(buffer[i]), 0, symbol);
     strings[i] = String(symbol->Name, symbol->NameLen);
   }
   free(symbol);

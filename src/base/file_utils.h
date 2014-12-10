@@ -3,7 +3,6 @@
 #include <base/c_utils.h>
 
 #include <stdio.h>
-#include <unistd.h>
 
 namespace dist_clang {
 namespace base {
