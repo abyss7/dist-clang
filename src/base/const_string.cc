@@ -3,7 +3,11 @@
 #include <base/assert.h>
 #include <base/attributes.h>
 
+#include STL(algorithm)
+
+#if !defined(OS_WIN)
 #include <sys/mman.h>
+#endif
 
 namespace dist_clang {
 
@@ -36,11 +40,13 @@ ConstString::ConstString(char str[], size_t size)
     : str_(str, CharArrayDeleter), size_(size) {
 }
 
+#if !defined(OS_WIN)
 ConstString::ConstString(void* str, size_t size)
     : str_(reinterpret_cast<char*>(str),
            [str, size](const char*) { munmap(str, size); }),
       size_(size) {
 }
+#endif
 
 ConstString::ConstString(UniquePtr<char[]>& str, size_t size)
     : str_(str.release(), CharArrayDeleter), size_(size) {

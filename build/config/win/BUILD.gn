@@ -1,5 +1,6 @@
 config("base") {
   defines = [
+    "_CRT_SECURE_NO_WARNINGS",
     "OS_WIN",
   ]
 }

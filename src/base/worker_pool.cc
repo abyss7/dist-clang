@@ -2,8 +2,6 @@
 
 #include <base/assert.h>
 
-#include <unistd.h>
-
 namespace dist_clang {
 namespace base {
 

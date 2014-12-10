@@ -2,6 +2,8 @@
 
 #if defined(OS_LINUX) || defined(OS_MACOSX)
 #include <base/file/handle_posix.h>
+#elif defined(OS_WIN)
+#include <base/file/handle_win.h>
 #endif
 
 namespace dist_clang {

@@ -1,6 +1,6 @@
 #include <base/assert.h>
 
-#include <WinBase.h>
+#include <windows.h>
 
 namespace dist_clang {
 namespace base {

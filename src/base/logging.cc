@@ -4,18 +4,24 @@
 
 #include STL(iostream)
 
+#if !defined(OS_WIN)
 #include <syslog.h>
+#endif
 
 namespace dist_clang {
 namespace base {
 
 // static
 void Log::SetMode(Mode mode) {
+#if !defined(OS_WIN)
   if (Log::mode() == CONSOLE && mode == SYSLOG) {
     openlog(nullptr, 0, LOG_DAEMON);
   } else if (Log::mode() == SYSLOG && mode == CONSOLE) {
     closelog();
   }
+#else
+// TODO: implement syslog alternative on Windows.
+#endif  // !defined(OS_WIN)
 
   Log::mode() = mode;
 }
@@ -52,6 +58,7 @@ Log::~Log() {
       auto& output_stream = (level_ <= error_mark_) ? std::cerr : std::cout;
       output_stream << stream_.str();
     } else if (mode_ == SYSLOG) {
+#if !defined(OS_WIN)
       // FIXME: not really a fair mapping.
       switch (level_) {
         case named_levels::FATAL:
@@ -73,6 +80,7 @@ Log::~Log() {
         default:
           syslog(LOG_INFO, "%s", stream_.str().c_str());
       }
+#endif  // !defined(OS_WIN)
     }
   }
 

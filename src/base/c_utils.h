@@ -3,14 +3,18 @@
 #include <base/aliases.h>
 #include <base/const_string.h>
 
+#if defined(OS_WIN)
+#include <base/c_utils_win.h>
+#elif defined(OS_LINUX) || defined(OS_MACOSX)
+#include <base/c_utils_posix.h>
+#endif
+
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <pwd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
 #if defined(OS_MACOSX)
 #include <mach-o/dyld.h>
@@ -36,15 +40,7 @@ inline void GetLastError(String* error) {
   }
 }
 
-inline Literal SetEnv(Literal env_name, const String& value,
-                      String* error = nullptr) {
-  Literal old_value = GetEnv(env_name);
-  if (setenv(env_name, value.c_str(), 1) == -1) {
-    GetLastError(error);
-    return Literal::empty;
-  }
-  return old_value;
-}
+inline Literal SetEnv(Literal env_name, const String& value, String* error);
 
 inline Immutable GetCurrentDir(String* error = nullptr) {
   UniquePtr<char[]> buf(new char[PATH_MAX]);
