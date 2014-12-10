@@ -23,6 +23,8 @@ class ConnectionImpl : public Connection {
                                   const EndPointPtr& end_point = EndPointPtr());
   ~ConnectionImpl();
 
+  inline bool IsClosed() const override { return is_closed_; }
+
   bool ReadAsync(ReadCallback callback) override;
   bool ReadSync(Message* message, Status* status = nullptr) override;
 

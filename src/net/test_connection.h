@@ -11,8 +11,10 @@ class TestConnection : public Connection {
  public:
   TestConnection();
 
-  virtual bool ReadAsync(ReadCallback callback) override;
-  virtual bool ReadSync(Message* message, Status* status) override;
+  inline bool IsClosed() const override { return false; }
+
+  bool ReadAsync(ReadCallback callback) override;
+  bool ReadSync(Message* message, Status* status) override;
 
   void AbortOnSend();
   void AbortOnRead();
@@ -25,8 +27,8 @@ class TestConnection : public Connection {
                         const proto::Status& status);
 
  private:
-  virtual bool SendAsyncImpl(SendCallback callback) override;
-  virtual bool SendSyncImpl(Status* status) override;
+  bool SendAsyncImpl(SendCallback callback) override;
+  bool SendSyncImpl(Status* status) override;
 
   bool abort_on_send_, abort_on_read_;
   Atomic<ui32>* send_attempts_;

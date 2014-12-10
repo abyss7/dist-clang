@@ -99,6 +99,11 @@ void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
     if (!task) {
       break;
     }
+
+    if (task->first->IsClosed()) {
+      continue;
+    }
+
     proto::RemoteExecute* incoming = task->second.get();
     auto source = Immutable::WrapString(incoming->source());
 

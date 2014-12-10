@@ -269,5 +269,10 @@ TEST_F(AbsorberTest, StoreLocalCache) {
   // TODO: check with deps file.
 }
 
+TEST_F(AbsorberTest, DISABLED_SkipTaskWithClosedConnection) {
+  // TODO: implement this test.
+  //       - Tasks should be skipped before any execution or sending attempt.
+}
+
 }  // namespace daemon
 }  // namespace dist_clang

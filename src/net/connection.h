@@ -16,6 +16,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   virtual ~Connection() {}
 
+  virtual bool IsClosed() const = 0;
+
   virtual bool ReadAsync(ReadCallback callback) = 0;
   virtual bool ReadSync(Message* message, Status* status = nullptr) = 0;
 

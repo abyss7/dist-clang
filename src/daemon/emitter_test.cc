@@ -821,5 +821,12 @@ TEST_F(EmitterTest, DISABLED_UpdateDirectCacheFromLocalCache) {
   //         miss, but there is hit in normal cache.
 }
 
+TEST_F(EmitterTest, DISABLED_SkipTaskWithClosedConnection) {
+  // TODO: implement this test.
+  //       - Tasks should be skipped before any execution or sending attempt.
+  //       - Tasks should be skipped during the cache check, local and remote
+  //         executions.
+}
+
 }  // namespace daemon
 }  // namespace dist_clang

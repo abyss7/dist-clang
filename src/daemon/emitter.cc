@@ -172,6 +172,11 @@ void Emitter::DoCheckCache(const Atomic<bool>& is_shutting_down) {
     if (!task) {
       break;
     }
+
+    if (std::get<CONNECTION>(*task)->IsClosed()) {
+      continue;
+    }
+
     proto::LocalExecute* incoming = std::get<MESSAGE>(*task).get();
     cache::FileCache::Entry entry;
 
@@ -236,6 +241,11 @@ void Emitter::DoLocalExecute(const Atomic<bool>& is_shutting_down) {
     if (!task) {
       break;
     }
+
+    if (std::get<CONNECTION>(*task)->IsClosed()) {
+      continue;
+    }
+
     proto::LocalExecute* incoming = std::get<MESSAGE>(*task).get();
 
     // Check that we have a compiler of a requested version.
@@ -305,6 +315,11 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
     if (!task) {
       break;
     }
+
+    if (std::get<CONNECTION>(*task)->IsClosed()) {
+      continue;
+    }
+
     proto::LocalExecute* incoming = std::get<MESSAGE>(*task).get();
     auto& source = std::get<SOURCE>(*task);
 
@@ -320,11 +335,15 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
       LOG(WARNING) << "Failed to connect to " << end_point->GetValue()->Print()
                    << ": " << error;
       all_tasks_->Push(std::move(*task));
+
+      // TODO: wait some time before next attempt. Increase a wait-time
+      // exponentially.
+
       continue;
     }
 
     outgoing->mutable_flags()->CopyFrom(incoming->flags());
-    outgoing->set_source(source.str.string_copy(false));
+    outgoing->set_source(Immutable(source.str).string_copy(false));
 
     // Filter outgoing flags.
     outgoing->mutable_flags()->mutable_compiler()->clear_path();
