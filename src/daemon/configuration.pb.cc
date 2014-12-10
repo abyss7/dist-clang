@@ -235,30 +235,30 @@ void protobuf_AddDesc_daemon_2fconfiguration_2eproto() {
   ::dist_clang::proto::protobuf_AddDesc_proto_2fbase_2eproto();
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
     "\n\032daemon/configuration.proto\022\020dist_clang"
-    ".proto\032\020proto/base.proto\"i\n\004Host\022\014\n\004host"
+    ".proto\032\020proto/base.proto\"j\n\004Host\022\014\n\004host"
     "\030\001 \002(\t\022\022\n\004port\030\002 \001(\r:\0046000\022\022\n\007threads\030\003 "
-    "\001(\r:\0012\022\027\n\010disabled\030\004 \001(\010:\005false\022\022\n\004ipv6\030"
-    "\005 \001(\010:\004true\"|\n\tVerbosity\022\026\n\nerror_mark\030\001"
-    " \001(\r:\00220\0221\n\006levels\030\002 \003(\0132!.dist_clang.pr"
-    "oto.Verbosity.Range\032$\n\005Range\022\r\n\005right\030\001 "
-    "\002(\r\022\014\n\004left\030\002 \001(\r\"\240\005\n\rConfiguration\0228\n\007e"
-    "mitter\030\001 \001(\0132\'.dist_clang.proto.Configur"
-    "ation.Emitter\022:\n\010absorber\030\002 \001(\0132(.dist_c"
-    "lang.proto.Configuration.Absorber\022\031\n\rpoo"
-    "l_capacity\030\003 \001(\r:\00216\022,\n\010versions\030\004 \003(\0132\032"
-    ".dist_clang.proto.Compiler\022.\n\tverbosity\030"
-    "\005 \001(\0132\033.dist_clang.proto.Verbosity\022\017\n\007us"
-    "er_id\030\006 \001(\r\022\023\n\013config_path\030\007 \001(\t\0224\n\005cach"
-    "e\030\010 \001(\0132%.dist_clang.proto.Configuration"
-    ".Cache\032\227\001\n\005Cache\022\014\n\004path\030\001 \002(\t\022\017\n\004size\030\002"
-    " \001(\004:\0010\022\023\n\004sync\030\003 \001(\010:\005false\022\025\n\006direct\030\004"
-    " \001(\010:\005false\022\024\n\005mtime\030\005 \001(\010:\005false\022\027\n\010dis"
-    "abled\030\006 \001(\010:\005false\022\024\n\006snappy\030\007 \001(\010:\004true"
-    "\032w\n\007Emitter\022\023\n\013socket_path\030\001 \002(\t\022\'\n\007remo"
-    "tes\030\002 \003(\0132\026.dist_clang.proto.Host\022\022\n\007thr"
-    "eads\030\003 \001(\r:\0012\022\032\n\013only_failed\030\004 \001(\010:\005fals"
-    "e\0321\n\010Absorber\022%\n\005local\030\001 \002(\0132\026.dist_clan"
-    "g.proto.Host", 972);
+    "\001(\r:\0012\022\027\n\010disabled\030\004 \001(\010:\005false\022\023\n\004ipv6\030"
+    "\005 \001(\010:\005false\"|\n\tVerbosity\022\026\n\nerror_mark\030"
+    "\001 \001(\r:\00220\0221\n\006levels\030\002 \003(\0132!.dist_clang.p"
+    "roto.Verbosity.Range\032$\n\005Range\022\r\n\005right\030\001"
+    " \002(\r\022\014\n\004left\030\002 \001(\r\"\240\005\n\rConfiguration\0228\n\007"
+    "emitter\030\001 \001(\0132\'.dist_clang.proto.Configu"
+    "ration.Emitter\022:\n\010absorber\030\002 \001(\0132(.dist_"
+    "clang.proto.Configuration.Absorber\022\031\n\rpo"
+    "ol_capacity\030\003 \001(\r:\00216\022,\n\010versions\030\004 \003(\0132"
+    "\032.dist_clang.proto.Compiler\022.\n\tverbosity"
+    "\030\005 \001(\0132\033.dist_clang.proto.Verbosity\022\017\n\007u"
+    "ser_id\030\006 \001(\r\022\023\n\013config_path\030\007 \001(\t\0224\n\005cac"
+    "he\030\010 \001(\0132%.dist_clang.proto.Configuratio"
+    "n.Cache\032\227\001\n\005Cache\022\014\n\004path\030\001 \002(\t\022\017\n\004size\030"
+    "\002 \001(\004:\0010\022\023\n\004sync\030\003 \001(\010:\005false\022\025\n\006direct\030"
+    "\004 \001(\010:\005false\022\024\n\005mtime\030\005 \001(\010:\005false\022\027\n\010di"
+    "sabled\030\006 \001(\010:\005false\022\024\n\006snappy\030\007 \001(\010:\004tru"
+    "e\032w\n\007Emitter\022\023\n\013socket_path\030\001 \002(\t\022\'\n\007rem"
+    "otes\030\002 \003(\0132\026.dist_clang.proto.Host\022\022\n\007th"
+    "reads\030\003 \001(\r:\0012\022\032\n\013only_failed\030\004 \001(\010:\005fal"
+    "se\0321\n\010Absorber\022%\n\005local\030\001 \002(\0132\026.dist_cla"
+    "ng.proto.Host", 973);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "daemon/configuration.proto", &protobuf_RegisterTypes);
   Host::default_instance_ = new Host();
@@ -318,7 +318,7 @@ void Host::SharedCtor() {
   port_ = 6000u;
   threads_ = 2u;
   disabled_ = false;
-  ipv6_ = true;
+  ipv6_ = false;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -357,7 +357,18 @@ Host* Host::New() const {
 }
 
 void Host::Clear() {
+#define OFFSET_OF_FIELD_(f) (reinterpret_cast<char*>(      \
+  &reinterpret_cast<Host*>(16)->f) - \
+   reinterpret_cast<char*>(16))
+
+#define ZR_(first, last) do {                              \
+    size_t f = OFFSET_OF_FIELD_(first);                    \
+    size_t n = OFFSET_OF_FIELD_(last) - f + sizeof(last);  \
+    ::memset(&first, 0, n);                                \
+  } while (0)
+
   if (_has_bits_[0 / 32] & 31) {
+    ZR_(disabled_, ipv6_);
     if (has_host()) {
       if (host_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
         host_->clear();
@@ -365,9 +376,11 @@ void Host::Clear() {
     }
     port_ = 6000u;
     threads_ = 2u;
-    disabled_ = false;
-    ipv6_ = true;
   }
+
+#undef OFFSET_OF_FIELD_
+#undef ZR_
+
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   mutable_unknown_fields()->Clear();
 }
@@ -443,7 +456,7 @@ bool Host::MergePartialFromCodedStream(
         break;
       }
 
-      // optional bool ipv6 = 5 [default = true];
+      // optional bool ipv6 = 5 [default = false];
       case 5: {
         if (tag == 40) {
          parse_ipv6:
@@ -508,7 +521,7 @@ void Host::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteBool(4, this->disabled(), output);
   }
 
-  // optional bool ipv6 = 5 [default = true];
+  // optional bool ipv6 = 5 [default = false];
   if (has_ipv6()) {
     ::google::protobuf::internal::WireFormatLite::WriteBool(5, this->ipv6(), output);
   }
@@ -549,7 +562,7 @@ void Host::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(4, this->disabled(), target);
   }
 
-  // optional bool ipv6 = 5 [default = true];
+  // optional bool ipv6 = 5 [default = false];
   if (has_ipv6()) {
     target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(5, this->ipv6(), target);
   }
@@ -592,7 +605,7 @@ int Host::ByteSize() const {
       total_size += 1 + 1;
     }
 
-    // optional bool ipv6 = 5 [default = true];
+    // optional bool ipv6 = 5 [default = false];
     if (has_ipv6()) {
       total_size += 1 + 1;
     }

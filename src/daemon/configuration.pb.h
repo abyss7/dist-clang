@@ -131,7 +131,7 @@ class Host : public ::google::protobuf::Message {
   inline bool disabled() const;
   inline void set_disabled(bool value);
 
-  // optional bool ipv6 = 5 [default = true];
+  // optional bool ipv6 = 5 [default = false];
   inline bool has_ipv6() const;
   inline void clear_ipv6();
   static const int kIpv6FieldNumber = 5;
@@ -1016,7 +1016,7 @@ inline void Host::set_disabled(bool value) {
   // @@protoc_insertion_point(field_set:dist_clang.proto.Host.disabled)
 }
 
-// optional bool ipv6 = 5 [default = true];
+// optional bool ipv6 = 5 [default = false];
 inline bool Host::has_ipv6() const {
   return (_has_bits_[0] & 0x00000010u) != 0;
 }
@@ -1027,7 +1027,7 @@ inline void Host::clear_has_ipv6() {
   _has_bits_[0] &= ~0x00000010u;
 }
 inline void Host::clear_ipv6() {
-  ipv6_ = true;
+  ipv6_ = false;
   clear_has_ipv6();
 }
 inline bool Host::ipv6() const {

@@ -19,7 +19,7 @@ import proto.base_pb2
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='daemon/configuration.proto',
   package='dist_clang.proto',
-  serialized_pb=_b('\n\x1a\x64\x61\x65mon/configuration.proto\x12\x10\x64ist_clang.proto\x1a\x10proto/base.proto\"i\n\x04Host\x12\x0c\n\x04host\x18\x01 \x02(\t\x12\x12\n\x04port\x18\x02 \x01(\r:\x04\x36\x30\x30\x30\x12\x12\n\x07threads\x18\x03 \x01(\r:\x01\x32\x12\x17\n\x08\x64isabled\x18\x04 \x01(\x08:\x05\x66\x61lse\x12\x12\n\x04ipv6\x18\x05 \x01(\x08:\x04true\"|\n\tVerbosity\x12\x16\n\nerror_mark\x18\x01 \x01(\r:\x02\x32\x30\x12\x31\n\x06levels\x18\x02 \x03(\x0b\x32!.dist_clang.proto.Verbosity.Range\x1a$\n\x05Range\x12\r\n\x05right\x18\x01 \x02(\r\x12\x0c\n\x04left\x18\x02 \x01(\r\"\xa0\x05\n\rConfiguration\x12\x38\n\x07\x65mitter\x18\x01 \x01(\x0b\x32\'.dist_clang.proto.Configuration.Emitter\x12:\n\x08\x61\x62sorber\x18\x02 \x01(\x0b\x32(.dist_clang.proto.Configuration.Absorber\x12\x19\n\rpool_capacity\x18\x03 \x01(\r:\x02\x31\x36\x12,\n\x08versions\x18\x04 \x03(\x0b\x32\x1a.dist_clang.proto.Compiler\x12.\n\tverbosity\x18\x05 \x01(\x0b\x32\x1b.dist_clang.proto.Verbosity\x12\x0f\n\x07user_id\x18\x06 \x01(\r\x12\x13\n\x0b\x63onfig_path\x18\x07 \x01(\t\x12\x34\n\x05\x63\x61\x63he\x18\x08 \x01(\x0b\x32%.dist_clang.proto.Configuration.Cache\x1a\x97\x01\n\x05\x43\x61\x63he\x12\x0c\n\x04path\x18\x01 \x02(\t\x12\x0f\n\x04size\x18\x02 \x01(\x04:\x01\x30\x12\x13\n\x04sync\x18\x03 \x01(\x08:\x05\x66\x61lse\x12\x15\n\x06\x64irect\x18\x04 \x01(\x08:\x05\x66\x61lse\x12\x14\n\x05mtime\x18\x05 \x01(\x08:\x05\x66\x61lse\x12\x17\n\x08\x64isabled\x18\x06 \x01(\x08:\x05\x66\x61lse\x12\x14\n\x06snappy\x18\x07 \x01(\x08:\x04true\x1aw\n\x07\x45mitter\x12\x13\n\x0bsocket_path\x18\x01 \x02(\t\x12\'\n\x07remotes\x18\x02 \x03(\x0b\x32\x16.dist_clang.proto.Host\x12\x12\n\x07threads\x18\x03 \x01(\r:\x01\x32\x12\x1a\n\x0bonly_failed\x18\x04 \x01(\x08:\x05\x66\x61lse\x1a\x31\n\x08\x41\x62sorber\x12%\n\x05local\x18\x01 \x02(\x0b\x32\x16.dist_clang.proto.Host')
+  serialized_pb=_b('\n\x1a\x64\x61\x65mon/configuration.proto\x12\x10\x64ist_clang.proto\x1a\x10proto/base.proto\"j\n\x04Host\x12\x0c\n\x04host\x18\x01 \x02(\t\x12\x12\n\x04port\x18\x02 \x01(\r:\x04\x36\x30\x30\x30\x12\x12\n\x07threads\x18\x03 \x01(\r:\x01\x32\x12\x17\n\x08\x64isabled\x18\x04 \x01(\x08:\x05\x66\x61lse\x12\x13\n\x04ipv6\x18\x05 \x01(\x08:\x05\x66\x61lse\"|\n\tVerbosity\x12\x16\n\nerror_mark\x18\x01 \x01(\r:\x02\x32\x30\x12\x31\n\x06levels\x18\x02 \x03(\x0b\x32!.dist_clang.proto.Verbosity.Range\x1a$\n\x05Range\x12\r\n\x05right\x18\x01 \x02(\r\x12\x0c\n\x04left\x18\x02 \x01(\r\"\xa0\x05\n\rConfiguration\x12\x38\n\x07\x65mitter\x18\x01 \x01(\x0b\x32\'.dist_clang.proto.Configuration.Emitter\x12:\n\x08\x61\x62sorber\x18\x02 \x01(\x0b\x32(.dist_clang.proto.Configuration.Absorber\x12\x19\n\rpool_capacity\x18\x03 \x01(\r:\x02\x31\x36\x12,\n\x08versions\x18\x04 \x03(\x0b\x32\x1a.dist_clang.proto.Compiler\x12.\n\tverbosity\x18\x05 \x01(\x0b\x32\x1b.dist_clang.proto.Verbosity\x12\x0f\n\x07user_id\x18\x06 \x01(\r\x12\x13\n\x0b\x63onfig_path\x18\x07 \x01(\t\x12\x34\n\x05\x63\x61\x63he\x18\x08 \x01(\x0b\x32%.dist_clang.proto.Configuration.Cache\x1a\x97\x01\n\x05\x43\x61\x63he\x12\x0c\n\x04path\x18\x01 \x02(\t\x12\x0f\n\x04size\x18\x02 \x01(\x04:\x01\x30\x12\x13\n\x04sync\x18\x03 \x01(\x08:\x05\x66\x61lse\x12\x15\n\x06\x64irect\x18\x04 \x01(\x08:\x05\x66\x61lse\x12\x14\n\x05mtime\x18\x05 \x01(\x08:\x05\x66\x61lse\x12\x17\n\x08\x64isabled\x18\x06 \x01(\x08:\x05\x66\x61lse\x12\x14\n\x06snappy\x18\x07 \x01(\x08:\x04true\x1aw\n\x07\x45mitter\x12\x13\n\x0bsocket_path\x18\x01 \x02(\t\x12\'\n\x07remotes\x18\x02 \x03(\x0b\x32\x16.dist_clang.proto.Host\x12\x12\n\x07threads\x18\x03 \x01(\r:\x01\x32\x12\x1a\n\x0bonly_failed\x18\x04 \x01(\x08:\x05\x66\x61lse\x1a\x31\n\x08\x41\x62sorber\x12%\n\x05local\x18\x01 \x02(\x0b\x32\x16.dist_clang.proto.Host')
   ,
   dependencies=[proto.base_pb2.DESCRIPTOR,])
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
@@ -65,7 +65,7 @@ _HOST = _descriptor.Descriptor(
     _descriptor.FieldDescriptor(
       name='ipv6', full_name='dist_clang.proto.Host.ipv6', index=4,
       number=5, type=8, cpp_type=7, label=1,
-      has_default_value=True, default_value=True,
+      has_default_value=True, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
@@ -81,7 +81,7 @@ _HOST = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=66,
-  serialized_end=171,
+  serialized_end=172,
 )
 
 
@@ -117,8 +117,8 @@ _VERBOSITY_RANGE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=261,
-  serialized_end=297,
+  serialized_start=262,
+  serialized_end=298,
 )
 
 _VERBOSITY = _descriptor.Descriptor(
@@ -153,8 +153,8 @@ _VERBOSITY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=173,
-  serialized_end=297,
+  serialized_start=174,
+  serialized_end=298,
 )
 
 
@@ -225,8 +225,8 @@ _CONFIGURATION_CACHE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=649,
-  serialized_end=800,
+  serialized_start=650,
+  serialized_end=801,
 )
 
 _CONFIGURATION_EMITTER = _descriptor.Descriptor(
@@ -275,8 +275,8 @@ _CONFIGURATION_EMITTER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=802,
-  serialized_end=921,
+  serialized_start=803,
+  serialized_end=922,
 )
 
 _CONFIGURATION_ABSORBER = _descriptor.Descriptor(
@@ -304,8 +304,8 @@ _CONFIGURATION_ABSORBER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=923,
-  serialized_end=972,
+  serialized_start=924,
+  serialized_end=973,
 )
 
 _CONFIGURATION = _descriptor.Descriptor(
@@ -382,8 +382,8 @@ _CONFIGURATION = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=300,
-  serialized_end=972,
+  serialized_start=301,
+  serialized_end=973,
 )
 
 _VERBOSITY_RANGE.containing_type = _VERBOSITY
