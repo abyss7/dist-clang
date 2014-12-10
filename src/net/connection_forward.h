@@ -5,6 +5,8 @@
 namespace dist_clang {
 namespace net {
 
+using FileDescriptor = int;
+
 class Connection;
 using ConnectionPtr = SharedPtr<Connection>;
 using ConnectionWeakPtr = WeakPtr<Connection>;

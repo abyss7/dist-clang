@@ -2,7 +2,6 @@
 
 #include <base/assert.h>
 #include <base/c_utils.h>
-#include <base/file_descriptor_utils.h>
 #include <net/connection_impl.h>
 #include <net/net_utils.h>
 
@@ -27,7 +26,7 @@ EpollEventLoop::~EpollEventLoop() {
 
 bool EpollEventLoop::HandlePassive(FileDescriptor fd) {
   DCHECK(IsListening(fd));
-  DCHECK(base::IsNonBlocking(fd));
+  // TODO: DCHECK(base::IsNonBlocking(fd));
   listening_fds_.insert(fd);
   return ReadyForListen(fd);
 }

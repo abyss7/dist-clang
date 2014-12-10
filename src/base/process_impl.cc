@@ -2,31 +2,13 @@
 
 #include <base/assert.h>
 #include <base/c_utils.h>
+#include <base/file/pipe.h>
 
 #include <signal.h>
 #include <unistd.h>
 
 namespace dist_clang {
 namespace base {
-
-ProcessImpl::ScopedDescriptor::ScopedDescriptor(FileDescriptor fd) : fd_(fd) {
-}
-
-ProcessImpl::ScopedDescriptor::~ScopedDescriptor() {
-  if (fd_ >= 0) {
-    close(fd_);
-  }
-}
-
-ProcessImpl::ScopedDescriptor::operator FileDescriptor() {
-  return fd_;
-}
-
-FileDescriptor ProcessImpl::ScopedDescriptor::Release() {
-  auto old_fd = fd_;
-  fd_ = -1;
-  return old_fd;
-}
 
 ProcessImpl::ProcessImpl(const String& exec_path, Immutable cwd_path, ui32 uid)
     : Process(exec_path, cwd_path, uid), killed_(false) {
@@ -37,26 +19,22 @@ ProcessImpl::ProcessImpl(const String& exec_path, Immutable cwd_path, ui32 uid)
 // calling only async-signal-safe functions ( see http://goo.gl/kfGvPV ). Also,
 // if we use heap-checker then we can't do any heap allocations either, since
 // this library may deadlock somewhere inside libunwind.
-bool ProcessImpl::RunChild(FileDescriptor(&out_pipe)[2],
-                           FileDescriptor(&err_pipe)[2],
-                           FileDescriptor* in_pipe) {
+bool ProcessImpl::RunChild(Pipe& out, Pipe& err, Pipe* in) {
   // TODO: replace the std::cerr and std::cout with async-signal-safe analogues.
   // FIXME: replace all this stuff with a call to |posix_spawn()|.
-  if ((in_pipe && dup2(in_pipe[0], STDIN_FILENO) == -1) ||
-      dup2(out_pipe[1], STDOUT_FILENO) == -1 ||
-      dup2(err_pipe[1], STDERR_FILENO) == -1) {
-    std::cerr << "dup2: " << strerror(errno) << std::endl;
+  String error;
+  if ((in && !(*in)[0].Duplicate(Handle(STDIN_FILENO), &error)) ||
+      !out[1].Duplicate(Handle(STDOUT_FILENO), &error) ||
+      !err[1].Duplicate(Handle(STDERR_FILENO), &error)) {
+    std::cerr << "Failed to duplicate: " << error << std::endl;
     exit(1);
   }
 
-  if (in_pipe) {
-    close(in_pipe[0]);
-    close(in_pipe[1]);
+  if (in) {
+    (*in)[1].Close();
   }
-  close(out_pipe[0]);
-  close(out_pipe[1]);
-  close(err_pipe[0]);
-  close(err_pipe[1]);
+  out[0].Close();
+  err[0].Close();
 
   if (!cwd_path_.empty() && !ChangeCurrentDir(cwd_path_)) {
     std::cerr << "Can't change current directory to " << cwd_path_.c_str()

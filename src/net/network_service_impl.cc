@@ -2,7 +2,6 @@
 
 #include <base/assert.h>
 #include <base/c_utils.h>
-#include <base/file_descriptor_utils.h>
 #include <base/file_utils.h>
 #include <net/connection_impl.h>
 #include <net/end_point.h>
@@ -12,8 +11,6 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/un.h>
-
-using namespace ::std::placeholders;
 
 namespace dist_clang {
 namespace net {
@@ -36,13 +33,11 @@ bool NetworkServiceImpl::Listen(const String& path, ListenCallback callback,
   }
   unlink(path.c_str());
 
-  auto fd = socket(AF_UNIX, SOCK_STREAM, 0);
+  auto fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
   if (fd == -1) {
     base::GetLastError(error);
     return false;
   }
-  base::MakeCloseOnExec(fd);
-  base::MakeNonBlocking(fd);
 
   if (::bind(fd, *peer, peer->size()) == -1) {
     base::GetLastError(error);
@@ -78,13 +73,12 @@ bool NetworkServiceImpl::Listen(const String& host, ui16 port, bool ipv6,
     return false;
   }
 
-  auto fd = socket(peer->domain(), peer->type(), peer->protocol());
+  auto fd = socket(peer->domain(), peer->type() | SOCK_CLOEXEC | SOCK_NONBLOCK,
+                   peer->protocol());
   if (fd == -1) {
     base::GetLastError(error);
     return false;
   }
-  base::MakeCloseOnExec(fd);
-  base::MakeNonBlocking(fd);
 
   int on = 1;
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1) {
@@ -120,13 +114,12 @@ bool NetworkServiceImpl::Listen(const String& host, ui16 port, bool ipv6,
 
 ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point,
                                           String* error) {
-  auto fd =
-      socket(end_point->domain(), end_point->type(), end_point->protocol());
+  auto fd = socket(end_point->domain(), end_point->type() | SOCK_CLOEXEC,
+                   end_point->protocol());
   if (fd == -1) {
     base::GetLastError(error);
     return ConnectionPtr();
   }
-  base::MakeCloseOnExec(fd);
 
   if (connect(fd, *end_point, end_point->size()) == -1) {
     base::GetLastError(error);

@@ -113,13 +113,16 @@ shared_library("c++") {
   ]
 
   public = [
+    "exported/include/array",
     "exported/include/atomic",
+    "exported/include/bitset",
     "exported/include/condition_variable",
     "exported/include/cstdint",
     "exported/include/experimental/optional",
     "exported/include/functional",
     "exported/include/iomanip",
     "exported/include/iostream",
+    "exported/include/limits",
     "exported/include/list",
     "exported/include/map",
     "exported/include/memory",

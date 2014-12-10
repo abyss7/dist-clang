@@ -2,7 +2,7 @@
 
 #include <base/assert.h>
 #include <base/c_utils.h>
-#include <base/file_descriptor_utils.h>
+#include <base/file/pipe.h>
 
 #include <signal.h>
 #include <sys/event.h>
@@ -13,30 +13,25 @@ namespace base {
 bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
   CHECK(args_.size() + 1 < MAX_ARGS);
 
-  FileDescriptor out_pipe_fd[2];
-  FileDescriptor err_pipe_fd[2];
-  if (pipe(out_pipe_fd) == -1) {
-    GetLastError(error);
+  Pipe out, err;
+  if (!out.IsValid()) {
+    out.GetError(error);
     return false;
   }
-  if (pipe(err_pipe_fd) == -1) {
-    GetLastError(error);
-    close(out_pipe_fd[0]);
-    close(out_pipe_fd[1]);
+  if (!err.IsValid()) {
+    err.GetError(error);
     return false;
   }
 
   int child_pid;
   if ((child_pid = fork()) == 0) {  // Child process.
-    return RunChild(out_pipe_fd, err_pipe_fd, nullptr);
+    return RunChild(out, err, nullptr);
   } else if (child_pid != -1) {  // Main process.
-    close(out_pipe_fd[1]);
-    close(err_pipe_fd[1]);
-    ScopedDescriptor out_fd(out_pipe_fd[0]);
-    ScopedDescriptor err_fd(err_pipe_fd[0]);
+    out[1].Close();
+    err[1].Close();
 
-    ScopedDescriptor kq_fd(kqueue());
-    if (kq_fd == -1) {
+    Handle kq(kqueue());
+    if (!kq.IsValid()) {
       GetLastError(error);
       ::kill(child_pid, SIGTERM);
       return false;
@@ -44,9 +39,9 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
 
     const int MAX_EVENTS = 2;
     struct kevent events[MAX_EVENTS];
-    EV_SET(events + 0, out_fd, EVFILT_READ, EV_ADD, 0, 0, 0);
-    EV_SET(events + 1, err_fd, EVFILT_READ, EV_ADD, 0, 0, 0);
-    if (kevent(kq_fd, events, MAX_EVENTS, nullptr, 0, nullptr) == -1) {
+    EV_SET(events + 0, out[0].native(), EVFILT_READ, EV_ADD, 0, 0, &out[0]);
+    EV_SET(events + 1, err[0].native(), EVFILT_READ, EV_ADD, 0, 0, &err[0]);
+    if (kevent(kq.native(), events, MAX_EVENTS, nullptr, 0, nullptr) == -1) {
       GetLastError(error);
       ::kill(child_pid, SIGTERM);
       return false;
@@ -63,7 +58,7 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
     int exhausted_fds = 0;
     while (exhausted_fds < 2 && !killed_) {
       auto event_count =
-          kevent(kq_fd, nullptr, 0, events, MAX_EVENTS, timeout_ptr);
+          kevent(kq.native(), nullptr, 0, events, MAX_EVENTS, timeout_ptr);
 
       if (event_count == -1) {
         if (errno == EINTR) {
@@ -80,21 +75,22 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
       }
 
       for (int i = 0; i < event_count; ++i) {
-        FileDescriptor fd = events[i].ident;
+        auto* fd = reinterpret_cast<Handle*>(events[i].udata);
+
         if (events[i].filter == EVFILT_READ && events[i].data) {
           auto buffer_size = events[i].data;
           auto buffer = UniquePtr<char[]>(new char[buffer_size]);
-          auto bytes_read = read(fd, buffer.get(), buffer_size);
+          auto bytes_read = read(fd->native(), buffer.get(), buffer_size);
           if (!bytes_read) {
-            EV_SET(events + i, fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
-            kevent(kq_fd, events + i, 1, nullptr, 0, nullptr);
+            EV_SET(events + i, fd->native(), EVFILT_READ, EV_DELETE, 0, 0, 0);
+            kevent(kq.native(), events + i, 1, nullptr, 0, nullptr);
             exhausted_fds++;
           } else if (bytes_read == -1) {
             GetLastError(error);
             kill(child_pid);
             break;
           } else {
-            if (fd == out_fd) {
+            if (fd == &out[0]) {
               stdout.emplace_back(buffer, bytes_read);
               stdout_size += bytes_read;
             } else {
@@ -104,8 +100,8 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
           }
         } else if (events[i].filter == EVFILT_READ &&
                    events[i].flags & EV_EOF) {
-          EV_SET(events + i, fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
-          kevent(kq_fd, events + i, 1, nullptr, 0, nullptr);
+          EV_SET(events + i, fd->native(), EVFILT_READ, EV_DELETE, 0, 0, 0);
+          kevent(kq.native(), events + i, 1, nullptr, 0, nullptr);
           exhausted_fds++;
         }
       }
@@ -126,43 +122,32 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
 bool ProcessImpl::Run(ui16 sec_timeout, Immutable input, String* error) {
   CHECK(args_.size() + 1 < MAX_ARGS);
 
-  FileDescriptor in_pipe_fd[2];
-  FileDescriptor out_pipe_fd[2];
-  FileDescriptor err_pipe_fd[2];
-  if (pipe(in_pipe_fd) == -1) {
-    GetLastError(error);
+  Pipe in, out, err;
+  if (!in.IsValid()) {
+    in.GetError(error);
     return false;
   }
-  if (pipe(out_pipe_fd) == -1) {
-    GetLastError(error);
-    close(in_pipe_fd[0]);
-    close(in_pipe_fd[1]);
+  if (!out.IsValid()) {
+    out.GetError(error);
     return false;
   }
-  if (pipe(err_pipe_fd) == -1) {
-    GetLastError(error);
-    close(in_pipe_fd[0]);
-    close(in_pipe_fd[1]);
-    close(out_pipe_fd[0]);
-    close(out_pipe_fd[1]);
+  if (!err.IsValid()) {
+    err.GetError(error);
     return false;
   }
 
   int child_pid;
   if ((child_pid = fork()) == 0) {  // Child process.
-    return RunChild(out_pipe_fd, err_pipe_fd, in_pipe_fd);
+    return RunChild(out, err, &in);
   } else if (child_pid != -1) {  // Main process.
-    close(in_pipe_fd[0]);
-    close(out_pipe_fd[1]);
-    close(err_pipe_fd[1]);
-    ScopedDescriptor in_fd(in_pipe_fd[1]);
-    ScopedDescriptor out_fd(out_pipe_fd[0]);
-    ScopedDescriptor err_fd(err_pipe_fd[0]);
+    in[0].Close();
+    out[1].Close();
+    err[1].Close();
 
-    base::MakeNonBlocking(in_fd);
+    in[1].MakeNonBlocking();
 
-    ScopedDescriptor kq_fd(kqueue());
-    if (kq_fd == -1) {
+    Handle kq(kqueue());
+    if (!kq.IsValid()) {
       GetLastError(error);
       ::kill(child_pid, SIGTERM);
       return false;
@@ -170,10 +155,10 @@ bool ProcessImpl::Run(ui16 sec_timeout, Immutable input, String* error) {
 
     const int MAX_EVENTS = 3;
     struct kevent events[MAX_EVENTS];
-    EV_SET(events + 0, in_fd, EVFILT_WRITE, EV_ADD, 0, 0, 0);
-    EV_SET(events + 1, out_fd, EVFILT_READ, EV_ADD, 0, 0, 0);
-    EV_SET(events + 2, err_fd, EVFILT_READ, EV_ADD, 0, 0, 0);
-    if (kevent(kq_fd, events, MAX_EVENTS, nullptr, 0, nullptr) == -1) {
+    EV_SET(events + 0, in[1].native(), EVFILT_WRITE, EV_ADD, 0, 0, &in[1]);
+    EV_SET(events + 1, out[0].native(), EVFILT_READ, EV_ADD, 0, 0, &out[0]);
+    EV_SET(events + 2, err[0].native(), EVFILT_READ, EV_ADD, 0, 0, &err[0]);
+    if (kevent(kq.native(), events, MAX_EVENTS, nullptr, 0, nullptr) == -1) {
       GetLastError(error);
       ::kill(child_pid, SIGTERM);
       return false;
@@ -190,7 +175,7 @@ bool ProcessImpl::Run(ui16 sec_timeout, Immutable input, String* error) {
     int exhausted_fds = 0;
     while (exhausted_fds < 3 && !killed_) {
       auto event_count =
-          kevent(kq_fd, nullptr, 0, events, MAX_EVENTS, timeout_ptr);
+          kevent(kq.native(), nullptr, 0, events, MAX_EVENTS, timeout_ptr);
 
       if (event_count == -1) {
         if (errno == EINTR) {
@@ -211,22 +196,22 @@ bool ProcessImpl::Run(ui16 sec_timeout, Immutable input, String* error) {
       }
 
       for (int i = 0; i < event_count; ++i) {
-        FileDescriptor fd = events[i].ident;
+        auto* fd = reinterpret_cast<Handle*>(events[i].udata);
 
         if (events[i].filter == EVFILT_READ && events[i].data) {
           auto buffer_size = events[i].data;
           auto buffer = UniquePtr<char[]>(new char[buffer_size]);
-          auto bytes_read = read(fd, buffer.get(), buffer_size);
+          auto bytes_read = read(fd->native(), buffer.get(), buffer_size);
           if (!bytes_read) {
-            EV_SET(events + i, fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
-            kevent(kq_fd, events + i, 1, nullptr, 0, nullptr);
+            EV_SET(events + i, fd->native(), EVFILT_READ, EV_DELETE, 0, 0, 0);
+            kevent(kq.native(), events + i, 1, nullptr, 0, nullptr);
             exhausted_fds++;
           } else if (bytes_read == -1) {
             GetLastError(error);
             kill(child_pid);
             break;
           } else {
-            if (fd == out_fd) {
+            if (fd == &out[0]) {
               stdout.emplace_back(buffer, bytes_read);
               stdout_size += bytes_read;
             } else {
@@ -235,26 +220,28 @@ bool ProcessImpl::Run(ui16 sec_timeout, Immutable input, String* error) {
             }
           }
         } else if (events[i].filter == EVFILT_WRITE && events[i].data) {
-          DCHECK(fd == in_fd);
+          DCHECK(fd == &in[1]);
 
-          auto bytes_sent =
-              write(fd, input.data() + stdin_size, input.size() - stdin_size);
+          auto bytes_sent = write(fd->native(), input.data() + stdin_size,
+                                  input.size() - stdin_size);
           if (bytes_sent < 1) {
-            EV_SET(events + i, fd, EVFILT_WRITE, EV_DELETE, 0, 0, 0);
-            kevent(kq_fd, events + i, 1, nullptr, 0, nullptr);
+            EV_SET(events + i, fd->native(), EVFILT_WRITE, EV_DELETE, 0, 0, 0);
+            kevent(kq.native(), events + i, 1, nullptr, 0, nullptr);
             exhausted_fds++;
           } else {
             stdin_size += bytes_sent;
             if (stdin_size == input.size()) {
-              EV_SET(events + i, fd, EVFILT_WRITE, EV_DELETE, 0, 0, 0);
-              kevent(kq_fd, events + i, 1, nullptr, 0, nullptr);
-              close(in_fd.Release());
+              EV_SET(events + i, fd->native(), EVFILT_WRITE, EV_DELETE, 0, 0,
+                     0);
+              kevent(kq.native(), events + i, 1, nullptr, 0, nullptr);
+              in[1].Close();
               exhausted_fds++;
             }
           }
         } else if (events[i].flags & EV_EOF) {
-          EV_SET(events + i, fd, events[i].filter, EV_DELETE, 0, 0, 0);
-          kevent(kq_fd, events + i, 1, nullptr, 0, nullptr);
+          EV_SET(events + i, fd->native(), events[i].filter, EV_DELETE, 0, 0,
+                 0);
+          kevent(kq.native(), events + i, 1, nullptr, 0, nullptr);
           exhausted_fds++;
         }
       }

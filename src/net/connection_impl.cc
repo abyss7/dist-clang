@@ -1,7 +1,6 @@
 #include <net/connection_impl.h>
 
 #include <base/assert.h>
-#include <base/file_descriptor_utils.h>
 #include <base/logging.h>
 #include <net/event_loop.h>
 #include <net/net_utils.h>
@@ -20,7 +19,7 @@ ConnectionImplPtr ConnectionImpl::Create(EventLoop& event_loop,
 #if !defined(OS_MACOSX)
   DCHECK(!IsListening(fd));
 #endif
-  DCHECK(!base::IsNonBlocking(fd));
+  // TODO: DCHECK(!base::IsNonBlocking(fd));
   return ConnectionImplPtr(new ConnectionImpl(event_loop, fd, end_point));
 }
 

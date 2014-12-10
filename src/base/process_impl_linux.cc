@@ -2,11 +2,10 @@
 
 #include <base/assert.h>
 #include <base/c_utils.h>
-#include <base/file_descriptor_utils.h>
+#include <base/file/epoll.h>
+#include <base/file/pipe.h>
 #include <base/logging.h>
 
-#include <sys/epoll.h>
-#include <sys/ioctl.h>
 #include <sys/wait.h>
 
 #include <base/using_log.h>
@@ -17,16 +16,13 @@ namespace base {
 bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
   CHECK(args_.size() + 1 < MAX_ARGS);
 
-  FileDescriptor out_pipe_fd[2];
-  FileDescriptor err_pipe_fd[2];
-  if (pipe(out_pipe_fd) == -1) {
-    GetLastError(error);
+  Pipe out, err;
+  if (!out.IsValid()) {
+    out.GetCreationError(error);
     return false;
   }
-  if (pipe(err_pipe_fd) == -1) {
-    GetLastError(error);
-    close(out_pipe_fd[0]);
-    close(out_pipe_fd[1]);
+  if (!err.IsValid()) {
+    err.GetCreationError(error);
     return false;
   }
 
@@ -34,51 +30,34 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
 
   int child_pid;
   if ((child_pid = fork()) == 0) {  // Child process.
-    return RunChild(out_pipe_fd, err_pipe_fd, nullptr);
+    return RunChild(out, err, nullptr);
   } else if (child_pid != -1) {  // Main process.
-    close(out_pipe_fd[1]);
-    close(err_pipe_fd[1]);
-    ScopedDescriptor out_fd(out_pipe_fd[0]);
-    ScopedDescriptor err_fd(err_pipe_fd[0]);
+    out[1].Close();
+    err[1].Close();
 
-    ScopedDescriptor epoll_fd = epoll_create1(EPOLL_CLOEXEC);
-    if (epoll_fd == -1) {
-      GetLastError(error);
+    Epoll epoll;
+    if (!epoll.IsValid()) {
+      epoll.GetCreationError(error);
+      ::kill(child_pid, SIGTERM);
+      return false;
+    }
+    if (!epoll.Add(out[0], EPOLLIN, error)) {
+      ::kill(child_pid, SIGTERM);
+      return false;
+    }
+    if (!epoll.Add(err[0], EPOLLIN, error)) {
       ::kill(child_pid, SIGTERM);
       return false;
     }
 
-    {
-      struct epoll_event event;
-      event.events = EPOLLIN;
-      event.data.fd = out_fd;
-      if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, out_fd, &event) == -1) {
-        GetLastError(error);
-        ::kill(child_pid, SIGTERM);
-        return false;
-      }
-    }
-    {
-      struct epoll_event event;
-      event.events = EPOLLIN;
-      event.data.fd = err_fd;
-      if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, err_fd, &event) == -1) {
-        GetLastError(error);
-        ::kill(child_pid, SIGTERM);
-        return false;
-      }
-    }
-
     size_t stdout_size = 0, stderr_size = 0;
     Immutable::Rope stdout, stderr;
-    const int MAX_EVENTS = 2;
-    struct epoll_event events[MAX_EVENTS];
+    std::array<struct epoll_event, 2> events;
 
     int epoll_timeout = sec_timeout == UNLIMITED ? -1 : sec_timeout * 1000;
     int exhausted_fds = 0;
     while (exhausted_fds < 2 && !killed_) {
-      auto event_count =
-          epoll_wait(epoll_fd, events, MAX_EVENTS, epoll_timeout);
+      auto event_count = epoll.Wait(events, epoll_timeout);
 
       if (event_count == -1) {
         if (errno == EINTR) {
@@ -99,27 +78,26 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
       }
 
       for (int i = 0; i < event_count; ++i) {
-        FileDescriptor fd = events[i].data.fd;
+        auto* fd = reinterpret_cast<Data*>(events[i].data.ptr);
 
         if (events[i].events & EPOLLIN) {
           int bytes_available = 0;
-          if (ioctl(fd, FIONREAD, &bytes_available) == -1) {
-            GetLastError(error);
+          if (!fd->ReadyForRead(bytes_available, error)) {
             kill(child_pid);
             break;
           }
 
           auto buffer = UniquePtr<char[]>(new char[bytes_available]);
-          auto bytes_read = read(fd, buffer.get(), bytes_available);
+          auto bytes_read = read(fd->native(), buffer.get(), bytes_available);
           if (!bytes_read) {
-            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
+            epoll.Delete(*fd);
             exhausted_fds++;
           } else if (bytes_read == -1) {
             GetLastError(error);
             kill(child_pid);
             break;
           } else {
-            if (fd == out_fd) {
+            if (fd == &out[0]) {
               stdout.emplace_back(buffer, bytes_read);
               stdout_size += bytes_read;
             } else {
@@ -128,7 +106,7 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
             }
           }
         } else {
-          epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
+          epoll.Delete(*fd);
           exhausted_fds++;
         }
       }
@@ -149,89 +127,58 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
 bool ProcessImpl::Run(ui16 sec_timeout, Immutable input, String* error) {
   CHECK(args_.size() + 1 < MAX_ARGS);
 
-  int in_pipe_fd[2];
-  int out_pipe_fd[2];
-  int err_pipe_fd[2];
-  if (pipe(in_pipe_fd) == -1) {
-    GetLastError(error);
+  Pipe in, out, err;
+  if (!in.IsValid()) {
+    in.GetCreationError(error);
     return false;
   }
-  if (pipe(out_pipe_fd) == -1) {
-    GetLastError(error);
-    close(in_pipe_fd[0]);
-    close(in_pipe_fd[1]);
+  if (!out.IsValid()) {
+    out.GetCreationError(error);
     return false;
   }
-  if (pipe(err_pipe_fd) == -1) {
-    GetLastError(error);
-    close(in_pipe_fd[0]);
-    close(in_pipe_fd[1]);
-    close(out_pipe_fd[0]);
-    close(out_pipe_fd[1]);
+  if (!err.IsValid()) {
+    err.GetCreationError(error);
     return false;
   }
 
   int child_pid;
   if ((child_pid = fork()) == 0) {  // Child process.
-    return RunChild(out_pipe_fd, err_pipe_fd, in_pipe_fd);
+    return RunChild(out, err, &in);
   } else if (child_pid != -1) {  // Main process.
-    close(in_pipe_fd[0]);
-    close(out_pipe_fd[1]);
-    close(err_pipe_fd[1]);
-    ScopedDescriptor in_fd(in_pipe_fd[1]);
-    ScopedDescriptor out_fd(out_pipe_fd[0]);
-    ScopedDescriptor err_fd(err_pipe_fd[0]);
+    in[0].Close();
+    out[1].Close();
+    err[1].Close();
 
-    base::MakeNonBlocking(in_fd);
+    in[1].MakeBlocking(false);
 
-    ScopedDescriptor epoll_fd = epoll_create1(EPOLL_CLOEXEC);
-    if (epoll_fd == -1) {
-      GetLastError(error);
+    Epoll epoll;
+    if (!epoll.IsValid()) {
+      epoll.GetCreationError(error);
       ::kill(child_pid, SIGTERM);
       return false;
     }
 
-    {
-      struct epoll_event event;
-      event.events = EPOLLOUT;
-      event.data.fd = in_fd;
-      if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, in_fd, &event) == -1) {
-        GetLastError(error);
-        ::kill(child_pid, SIGTERM);
-        return false;
-      }
+    if (!epoll.Add(in[1], EPOLLOUT, error)) {
+      ::kill(child_pid, SIGTERM);
+      return false;
     }
-    {
-      struct epoll_event event;
-      event.events = EPOLLIN;
-      event.data.fd = out_fd;
-      if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, out_fd, &event) == -1) {
-        GetLastError(error);
-        ::kill(child_pid, SIGTERM);
-        return false;
-      }
+    if (!epoll.Add(out[0], EPOLLIN, error)) {
+      ::kill(child_pid, SIGTERM);
+      return false;
     }
-    {
-      struct epoll_event event;
-      event.events = EPOLLIN;
-      event.data.fd = err_fd;
-      if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, err_fd, &event) == -1) {
-        GetLastError(error);
-        ::kill(child_pid, SIGTERM);
-        return false;
-      }
+    if (!epoll.Add(err[0], EPOLLIN, error)) {
+      ::kill(child_pid, SIGTERM);
+      return false;
     }
 
     size_t stdin_size = 0, stdout_size = 0, stderr_size = 0;
     Immutable::Rope stdout, stderr;
-    const int MAX_EVENTS = 3;
-    struct epoll_event events[MAX_EVENTS];
+    std::array<struct epoll_event, 3> events;
 
     int epoll_timeout = sec_timeout == UNLIMITED ? -1 : sec_timeout * 1000;
     int exhausted_fds = 0;
     while (exhausted_fds < 3 && !killed_) {
-      auto event_count =
-          epoll_wait(epoll_fd, events, MAX_EVENTS, epoll_timeout);
+      auto event_count = epoll.Wait(events, epoll_timeout);
 
       if (event_count == -1) {
         if (errno == EINTR) {
@@ -252,52 +199,51 @@ bool ProcessImpl::Run(ui16 sec_timeout, Immutable input, String* error) {
       }
 
       for (int i = 0; i < event_count; ++i) {
-        FileDescriptor fd = events[i].data.fd;
+        auto* fd = reinterpret_cast<Data*>(events[i].data.ptr);
 
         if (events[i].events & EPOLLIN) {
           int bytes_available = 0;
-          if (ioctl(fd, FIONREAD, &bytes_available) == -1) {
-            GetLastError(error);
+          if (!fd->ReadyForRead(bytes_available, error)) {
             kill(child_pid);
             break;
           }
 
           auto buffer = UniquePtr<char[]>(new char[bytes_available]);
-          auto bytes_read = read(fd, buffer.get(), bytes_available);
+          auto bytes_read = read(fd->native(), buffer.get(), bytes_available);
           if (!bytes_read) {
-            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
+            epoll.Delete(*fd);
             exhausted_fds++;
           } else if (bytes_read == -1) {
             GetLastError(error);
             kill(child_pid);
             break;
           } else {
-            if (fd == out_fd) {
+            if (fd == &out[0]) {
               stdout.emplace_back(buffer, bytes_read);
               stdout_size += bytes_read;
-            } else if (fd == err_fd) {
+            } else if (fd == &err[0]) {
               stderr.emplace_back(buffer, bytes_read);
               stderr_size += bytes_read;
             }
           }
         } else if (events[i].events & EPOLLOUT) {
-          DCHECK(fd == in_fd);
+          DCHECK(fd == &in[1]);
 
-          auto bytes_sent = write(in_fd, input.data() + stdin_size,
+          auto bytes_sent = write(in[1].native(), input.data() + stdin_size,
                                   input.size() - stdin_size);
           if (bytes_sent < 1) {
-            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, in_fd, nullptr);
+            epoll.Delete(in[1]);
             exhausted_fds++;
           } else {
             stdin_size += bytes_sent;
             if (stdin_size == input.size()) {
-              epoll_ctl(epoll_fd, EPOLL_CTL_DEL, in_fd, nullptr);
-              close(in_fd.Release());
+              epoll.Delete(in[1]);
+              in[1].Close();
               exhausted_fds++;
             }
           }
         } else {
-          epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
+          epoll.Delete(*fd);
           exhausted_fds++;
         }
       }

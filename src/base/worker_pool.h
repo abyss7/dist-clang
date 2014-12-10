@@ -1,11 +1,14 @@
 #pragma once
 
 #include <base/aliases.h>
+#include <base/file/pipe.h>
 
 #include STL(thread)
 
 namespace dist_clang {
 namespace base {
+
+using FileDescriptor = int;
 
 class WorkerPool {
  public:
@@ -21,7 +24,7 @@ class WorkerPool {
  private:
   Vector<Thread> workers_;
   Atomic<bool> is_shutting_down_, force_shut_down_;
-  FileDescriptor self_pipe_[2];
+  Pipe self_;
 };
 
 }  // namespace base

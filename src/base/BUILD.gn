@@ -22,7 +22,12 @@ shared_library("base") {
     "constants.cc",
     "constants.h",
     "empty_lambda.h",
-    "file_descriptor_utils.h",
+    "file/data.cc",
+    "file/data.h",
+    "file/handle_posix.cc",
+    "file/handle_posix.h",
+    "file/pipe.cc",
+    "file/pipe.h",
     "file_utils.cc",
     "file_utils.h",
     "future.h",
@@ -47,6 +52,12 @@ shared_library("base") {
     "worker_pool.cc",
     "worker_pool.h",
   ]
+  if (os == "linux") {
+    sources += [
+      "file/epoll.cc",
+      "file/epoll.h",
+    ]
+  }
 
   public_deps = [ ":logging" ]
 

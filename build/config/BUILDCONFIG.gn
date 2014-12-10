@@ -129,6 +129,13 @@ mac_sources_filters = [
   "*_mac_test.cc",
 ]
 
+posix_sources_filters = [
+  "*_posix.h",
+  "*_posix.cc",
+  "*_posix_test.h",
+  "*_posix_test.cc",
+]
+
 win_sources_filters = [
   "*_win.h",
   "*_win.cc",
@@ -142,6 +149,9 @@ if (os != "mac") {
 }
 if (os != "linux") {
   sources_assignment_filter += linux_sources_filters
+}
+if (os != "mac" && os != "linux") {
+  sources_assignment_filter += posix_sources_filters
 }
 if (os != "win") {
   sources_assignment_filter += win_sources_filters

@@ -27,8 +27,6 @@ class ConstString;
 class Literal;
 }  // namespace base
 
-using FileDescriptor = int;
-
 using i8 = int8_t;
 using ui8 = uint8_t;
 using i16 = int16_t;
