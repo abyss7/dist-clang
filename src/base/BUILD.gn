@@ -17,6 +17,7 @@ shared_library("base") {
     "assert_win.cc",
     "attributes.h",
     "c_utils.h",
+    "c_utils_forward.h",
     "c_utils_posix.h",
     "c_utils_win.h",
     "const_string.cc",
@@ -62,6 +63,32 @@ shared_library("base") {
       "file/epoll.h",
     ]
   }
+
+  public = [
+    "aliases.h",
+    "assert.h",
+    "attributes.h",
+    "c_utils.h",
+    "const_string.h",
+    "constants.h",
+    "empty_lambda.h",
+    "file/data.h",
+    "file/pipe.h",
+    "file_utils.h",
+    "future.h",
+    "locked_queue.h",
+    "process.h",
+    "process_forward.h",
+    "process_impl.h",
+    "queue_aggregator.h",
+    "string_utils.h",
+    "temporary_dir.h",
+    "testable.h",
+    "thread.h",
+    "thread_fixed.h",
+    "thread_pool.h",
+    "worker_pool.h",
+  ]
 
   public_deps = [ ":logging" ]
 

@@ -3,6 +3,7 @@
 #include <base/aliases.h>
 #include <base/const_string.h>
 
+#include <base/c_utils_forward.h>
 #if defined(OS_WIN)
 #include <base/c_utils_win.h>
 #elif defined(OS_LINUX) || defined(OS_MACOSX)
@@ -23,44 +24,15 @@
 namespace dist_clang {
 namespace base {
 
-inline Literal GetEnv(Literal env_name, Literal default_env = Literal::empty) {
-  Literal env_value = getenv(env_name);
-  if (!env_value) {
-    if (default_env) {
-      return default_env;
-    }
-    return Literal::empty;
-  }
-  return env_value;
-}
-
-inline void GetLastError(String* error) {
-  if (error) {
-    error->assign(strerror(errno));
-  }
-}
-
-inline Literal SetEnv(Literal env_name, const String& value, String* error);
-
-inline Immutable GetCurrentDir(String* error = nullptr) {
-  UniquePtr<char[]> buf(new char[PATH_MAX]);
-  if (!getcwd(buf.get(), PATH_MAX)) {
+inline bool ChangeCurrentDir(Immutable path, String* error) {
+  if (chdir(path.c_str()) == -1) {
     GetLastError(error);
-    return Immutable();
+    return false;
   }
-  return buf;
+  return true;
 }
 
-inline Literal GetHomeDir(String* error = nullptr) {
-  auto* pw = getpwuid(getuid());
-  if (!pw) {
-    GetLastError(error);
-    return Literal::empty;
-  }
-  return Literal(pw->pw_dir);
-}
-
-inline String CreateTempFile(String* error = nullptr) {
+inline String CreateTempFile(String* error) {
   char buf[] = "/tmp/clangd-XXXXXX.files";
 #if defined(OS_LINUX)
   const int fd = mkostemps(buf, 6, O_CLOEXEC);
@@ -78,7 +50,7 @@ inline String CreateTempFile(String* error = nullptr) {
   return String(buf);
 }
 
-inline String CreateTempFile(const char suffix[], String* error = nullptr) {
+inline String CreateTempFile(const char suffix[], String* error) {
   const char prefix[] = "/tmp/clangd-XXXXXX";
   const size_t prefix_size = sizeof(prefix) - 1;
   UniquePtr<char[]> buf(new char[prefix_size + strlen(suffix) + 1]);
@@ -103,24 +75,42 @@ inline String CreateTempFile(const char suffix[], String* error = nullptr) {
   return result;
 }
 
-inline bool ChangeCurrentDir(Immutable path, String* error = nullptr) {
-  if (chdir(path.c_str()) == -1) {
+inline Immutable GetCurrentDir(String* error) {
+  UniquePtr<char[]> buf(new char[PATH_MAX]);
+  if (!getcwd(buf.get(), PATH_MAX)) {
     GetLastError(error);
-    return false;
+    return Immutable();
   }
-  return true;
+  return buf;
 }
 
-inline bool SetPermissions(const String& path, int mask,
-                           String* error = nullptr) {
-  if (chmod(path.c_str(), mask) == -1) {
-    GetLastError(error);
-    return false;
+inline Literal GetEnv(Literal env_name, Literal default_env) {
+  Literal env_value = getenv(env_name);
+  if (!env_value) {
+    if (default_env) {
+      return default_env;
+    }
+    return Literal::empty;
   }
-  return true;
+  return env_value;
 }
 
-inline String GetSelfPath(String* error = nullptr) {
+inline Literal GetHomeDir(String* error) {
+  auto* pw = getpwuid(getuid());
+  if (!pw) {
+    GetLastError(error);
+    return Literal::empty;
+  }
+  return Literal(pw->pw_dir);
+}
+
+inline void GetLastError(String* error) {
+  if (error) {
+    error->assign(strerror(errno));
+  }
+}
+
+inline String GetSelfPath(String* error) {
   char path[PATH_MAX];
 #if defined(OS_LINUX)
   ssize_t read = readlink("/proc/self/exe", path, PATH_MAX);
@@ -141,6 +131,14 @@ inline String GetSelfPath(String* error = nullptr) {
 
   String&& result = String(path);
   return result.substr(0, result.find_last_of('/'));
+}
+
+inline bool SetPermissions(const String& path, int mask, String* error) {
+  if (chmod(path.c_str(), mask) == -1) {
+    GetLastError(error);
+    return false;
+  }
+  return true;
 }
 
 }  // namespace base

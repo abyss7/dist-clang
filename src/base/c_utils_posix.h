@@ -1,13 +1,14 @@
 #pragma once
 
+#include <base/const_string.h>
+
 #include <pwd.h>
 #include <unistd.h>
 
 namespace dist_clang {
 namespace base {
 
-inline Literal SetEnv(Literal env_name, const String& value,
-                      String* error = nullptr) {
+inline Literal SetEnv(Literal env_name, const String& value, String* error) {
   Literal old_value = GetEnv(env_name);
   if (setenv(env_name, value.c_str(), 1) == -1) {
     GetLastError(error);
