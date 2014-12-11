@@ -6,8 +6,6 @@
 #include <base/file/pipe.h>
 #include <base/logging.h>
 
-#include <sys/wait.h>
-
 #include <base/using_log.h>
 
 namespace dist_clang {
@@ -115,9 +113,10 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
     stdout_ = Immutable(stdout, stdout_size);
     stderr_ = Immutable(stderr, stderr_size);
 
-    int status;
-    CHECK(waitpid(child_pid, &status, 0) == child_pid);
-    return !WEXITSTATUS(status) && !killed_;
+    out[0].Close();
+    err[0].Close();
+
+    return WaitPid(child_pid, sec_timeout, error) && !killed_;
   } else {  // Failed to fork.
     GetLastError(error);
     return false;
@@ -233,6 +232,7 @@ bool ProcessImpl::Run(ui16 sec_timeout, Immutable input, String* error) {
                                   input.size() - stdin_size);
           if (bytes_sent < 1) {
             epoll.Delete(in[1]);
+            in[1].Close();
             exhausted_fds++;
           } else {
             stdin_size += bytes_sent;
@@ -252,9 +252,10 @@ bool ProcessImpl::Run(ui16 sec_timeout, Immutable input, String* error) {
     stdout_ = Immutable(stdout, stdout_size);
     stderr_ = Immutable(stderr, stderr_size);
 
-    int status;
-    CHECK(waitpid(child_pid, &status, 0) == child_pid);
-    return !WEXITSTATUS(status) && !killed_;
+    out[0].Close();
+    err[0].Close();
+
+    return WaitPid(child_pid, sec_timeout, error) && !killed_;
   } else {  // Failed to fork.
     GetLastError(error);
     return false;

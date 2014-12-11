@@ -5,6 +5,7 @@
 #include <base/file/pipe.h>
 
 #include <signal.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 namespace dist_clang {
@@ -75,6 +76,20 @@ bool ProcessImpl::RunChild(Pipe& out, Pipe& err, Pipe* in) {
 
   NOTREACHED();
   return false;
+}
+
+bool ProcessImpl::WaitPid(int pid, ui64 sec_timeout, String* error) {
+  // TODO: implement killing child on timeout.
+
+  int status;
+  int result = waitpid(pid, &status, 0);
+  if (result == -1) {
+    GetLastError(error);
+    return false;
+  }
+
+  CHECK(result == pid);
+  return !WEXITSTATUS(status);
 }
 
 void ProcessImpl::kill(int pid) {

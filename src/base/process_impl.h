@@ -21,6 +21,7 @@ class ProcessImpl : public Process {
                        Immutable cwd_path = Immutable(), ui32 uid = SAME_UID);
 
   bool RunChild(Pipe& out, Pipe& err, Pipe* in);
+  bool WaitPid(int pid, ui64 sec_timeout, String* error = nullptr);
   void kill(int pid);
 
   bool killed_;

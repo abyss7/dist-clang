@@ -115,6 +115,12 @@ TEST_F(ProcessTest, RunWithEnvironment) {
   ASSERT_TRUE(process->Run(1));
   EXPECT_EQ(expected_value, process->stdout());
   EXPECT_TRUE(process->stderr().empty());
+
+  // TODO: check that environment is preserved.
+}
+
+TEST_F(ProcessTest, DISABLED_WaitPidWithTimeOut) {
+  // TODO: implement this test.
 }
 
 }  // namespace base

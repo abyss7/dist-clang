@@ -15,11 +15,11 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
 
   Pipe out, err;
   if (!out.IsValid()) {
-    out.GetError(error);
+    out.GetCreationError(error);
     return false;
   }
   if (!err.IsValid()) {
-    err.GetError(error);
+    err.GetCreationError(error);
     return false;
   }
 
@@ -110,9 +110,10 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
     stdout_ = Immutable(stdout, stdout_size);
     stderr_ = Immutable(stderr, stderr_size);
 
-    int status;
-    CHECK(waitpid(child_pid, &status, 0) == child_pid);
-    return !WEXITSTATUS(status) && !killed_;
+    out[0].Close();
+    err[0].Close();
+
+    return WaitPid(child_pid, sec_timeout, error) && !killed_;
   } else {  // Failed to fork.
     GetLastError(error);
     return false;
@@ -124,15 +125,15 @@ bool ProcessImpl::Run(ui16 sec_timeout, Immutable input, String* error) {
 
   Pipe in, out, err;
   if (!in.IsValid()) {
-    in.GetError(error);
+    in.GetCreationError(error);
     return false;
   }
   if (!out.IsValid()) {
-    out.GetError(error);
+    out.GetCreationError(error);
     return false;
   }
   if (!err.IsValid()) {
-    err.GetError(error);
+    err.GetCreationError(error);
     return false;
   }
 
@@ -144,7 +145,7 @@ bool ProcessImpl::Run(ui16 sec_timeout, Immutable input, String* error) {
     out[1].Close();
     err[1].Close();
 
-    in[1].MakeNonBlocking();
+    in[1].MakeBlocking(false);
 
     Handle kq(kqueue());
     if (!kq.IsValid()) {
@@ -227,6 +228,7 @@ bool ProcessImpl::Run(ui16 sec_timeout, Immutable input, String* error) {
           if (bytes_sent < 1) {
             EV_SET(events + i, fd->native(), EVFILT_WRITE, EV_DELETE, 0, 0, 0);
             kevent(kq.native(), events + i, 1, nullptr, 0, nullptr);
+            in[1].Close();
             exhausted_fds++;
           } else {
             stdin_size += bytes_sent;
@@ -250,9 +252,10 @@ bool ProcessImpl::Run(ui16 sec_timeout, Immutable input, String* error) {
     stdout_ = Immutable(stdout, stdout_size);
     stderr_ = Immutable(stderr, stderr_size);
 
-    int status;
-    CHECK(waitpid(child_pid, &status, 0) == child_pid);
-    return !WEXITSTATUS(status) && !killed_;
+    out[0].Close();
+    err[0].Close();
+
+    return WaitPid(child_pid, sec_timeout, error) && !killed_;
   } else {  // Failed to fork.
     GetLastError(error);
     return false;

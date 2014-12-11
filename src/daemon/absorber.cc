@@ -16,8 +16,7 @@ namespace dist_clang {
 namespace base {
 
 template <>
-base::Log& base::Log::operator<<<google::protobuf::Message>(
-    const google::protobuf::Message& info) {
+base::Log& base::Log::operator<<(const google::protobuf::Message& info) {
   String str;
   if (google::protobuf::TextFormat::PrintToString(info, &str)) {
     stream_ << str;
@@ -149,7 +148,7 @@ void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
     // compiler's stdout.
     String error;
     base::ProcessPtr process = CreateProcess(incoming->flags());
-    if (!process->Run(10, source, &error)) {
+    if (!process->Run(30, source, &error)) {
       status.set_code(proto::Status::EXECUTION);
       if (!process->stdout().empty() || !process->stderr().empty()) {
         status.set_description(process->stderr());
