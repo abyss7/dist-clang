@@ -1,6 +1,5 @@
 #include <base/file/pipe.h>
 
-#include <base/assert.h>
 #include <base/c_utils.h>
 
 namespace dist_clang {
@@ -21,12 +20,6 @@ Pipe::Pipe(bool blocking) {
 
   fds_[0] = Data(fds[0]);
   fds_[1] = Data(fds[1]);
-}
-
-Data& Pipe::operator[](ui8 index) {
-  DCHECK(index < 2);
-
-  return fds_[index];
 }
 
 }  // namespace base

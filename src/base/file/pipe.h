@@ -1,5 +1,6 @@
 #pragma once
 
+#include <base/assert.h>
 #include <base/file/data.h>
 
 namespace dist_clang {
@@ -9,7 +10,10 @@ class Pipe {
  public:
   explicit Pipe(bool blocking = true);
 
-  Data& operator[](ui8 index);
+  inline Data& operator[](ui8 index) {
+    DCHECK(index < 2);
+    return fds_[index];
+  }
 
   inline bool IsValid() const { return error_.empty(); }
   inline void GetCreationError(String* error) const {
