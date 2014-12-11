@@ -8,6 +8,8 @@
 #include <syslog.h>
 #endif
 
+#include <base/using_log.h>
+
 namespace dist_clang {
 namespace base {
 
