@@ -16,6 +16,13 @@ class TestConnection : public Connection {
   bool ReadAsync(ReadCallback callback) override;
   bool ReadSync(Message* message, Status* status) override;
 
+  inline bool SendTimeout(ui32 sec_timeout, String* error) override {
+    return true;
+  }
+  inline bool ReadTimeout(ui32 sec_timeout, String* error) override {
+    return true;
+  }
+
   void AbortOnSend();
   void AbortOnRead();
   void CountSendAttempts(Atomic<ui32>* counter);

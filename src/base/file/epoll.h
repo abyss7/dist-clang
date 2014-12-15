@@ -1,8 +1,6 @@
 #pragma once
 
-#if defined(OS_LINUX) || defined(OS_MACOSX)
 #include <base/file/handle_posix.h>
-#endif
 
 #include STL(array)
 

@@ -3,7 +3,8 @@
 #include <base/assert.h>
 #include <base/logging.h>
 #include <net/event_loop.h>
-#include <net/net_utils.h>
+
+#include <sys/socket.h>
 
 #include <base/using_log.h>
 
@@ -13,27 +14,24 @@ namespace dist_clang {
 namespace net {
 
 // static
-ConnectionImplPtr ConnectionImpl::Create(EventLoop& event_loop,
-                                         FileDescriptor fd,
+ConnectionImplPtr ConnectionImpl::Create(EventLoop& event_loop, Socket&& fd,
                                          const EndPointPtr& end_point) {
-#if !defined(OS_MACOSX)
-  DCHECK(!IsListening(fd));
-#endif
-  // TODO: DCHECK(!base::IsNonBlocking(fd));
-  return ConnectionImplPtr(new ConnectionImpl(event_loop, fd, end_point));
+  DCHECK(fd.IsBlocking());
+  return ConnectionImplPtr(
+      new ConnectionImpl(event_loop, std::move(fd), end_point));
 }
 
-ConnectionImpl::ConnectionImpl(EventLoop& event_loop, FileDescriptor fd,
+ConnectionImpl::ConnectionImpl(EventLoop& event_loop, Socket&& fd,
                                const EndPointPtr& end_point)
-    : fd_(fd),
+    : fd_(std::move(fd)),
       event_loop_(event_loop),
       is_closed_(false),
       added_(false),
       end_point_(end_point),
-      file_input_stream_(fd_, buffer_size),
+      file_input_stream_(fd_.native(), buffer_size),
       gzip_input_stream_(
           new GzipInputStream(&file_input_stream_, GzipInputStream::ZLIB)),
-      file_output_stream_(fd_, buffer_size),
+      file_output_stream_(fd_.native(), buffer_size),
       counter_("Connection"_l, perf::LogReporter::TEAMCITY) {
 }
 
@@ -237,11 +235,10 @@ void ConnectionImpl::Close() {
     gzip_output_stream_.reset();
     gzip_input_stream_.reset();
     file_output_stream_.Flush();
-    shutdown(fd_, SHUT_RDWR);
+    shutdown(fd_.native(), SHUT_RDWR);
     char discard[buffer_size];
-    while (read(fd_, discard, buffer_size) > 0) {
+    while (read(fd_.native(), discard, buffer_size) > 0) {
     }
-    close(fd_);
   }
 }
 

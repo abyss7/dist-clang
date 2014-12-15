@@ -1,6 +1,7 @@
 #pragma once
 
 #include <net/event_loop.h>
+#include <net/passive.h>
 #include <net/network_service.h>
 
 namespace dist_clang {
@@ -35,10 +36,13 @@ class NetworkServiceImpl : public NetworkService {
   NetworkServiceImpl();
 
   // |fd| is a descriptor of a listening socket, which accepts new connection.
-  void HandleNewConnection(FileDescriptor fd, ConnectionPtr connection);
+  void HandleNewConnection(const Passive& fd, ConnectionPtr connection);
 
   UniquePtr<EventLoop> event_loop_;
-  HashMap<FileDescriptor, ListenCallback> listen_callbacks_;
+
+  // FIXME: implement true |Passive::Ref|.
+  HashMap<Passive::NativeType, ListenCallback> listen_callbacks_;
+
   List<String> unix_sockets_;
 };
 

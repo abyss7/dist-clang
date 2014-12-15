@@ -7,7 +7,14 @@
 #include STL(thread)
 
 namespace dist_clang {
+
+namespace base {
+class Data;
+}
+
 namespace net {
+
+class Passive;
 
 class EventLoop {
  public:
@@ -15,7 +22,7 @@ class EventLoop {
                                         2);
   virtual ~EventLoop();
 
-  virtual bool HandlePassive(FileDescriptor fd) = 0;
+  virtual bool HandlePassive(Passive&& fd) = 0;
   virtual bool ReadyForRead(ConnectionImplPtr connection) = 0;
   virtual bool ReadyForSend(ConnectionImplPtr connection) = 0;
 
@@ -23,7 +30,6 @@ class EventLoop {
   void Stop() THREAD_SAFE;
 
  protected:
-  int GetConnectionDescriptor(ConnectionImplPtr connection);
   void ConnectionDoRead(ConnectionImplPtr connection);
   void ConnectionDoSend(ConnectionImplPtr connection);
   void ConnectionClose(ConnectionImplPtr connection);
@@ -36,9 +42,9 @@ class EventLoop {
   };
 
   virtual void DoListenWork(const Atomic<bool>& is_shutting_down,
-                            FileDescriptor self_pipe) = 0;
+                            base::Data& self) = 0;
   virtual void DoIOWork(const Atomic<bool>& is_shutting_down,
-                        FileDescriptor self_pipe) = 0;
+                        base::Data& self) = 0;
 
   Atomic<Status> is_running_;
   ui32 concurrency_;

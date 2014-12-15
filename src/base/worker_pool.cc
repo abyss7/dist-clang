@@ -26,8 +26,7 @@ WorkerPool::~WorkerPool() {
 
 void WorkerPool::AddWorker(const NetWorker& worker, ui32 count) {
   CHECK(count);
-  auto closure =
-      std::bind(worker, std::cref(is_shutting_down_), self_[0].native());
+  auto closure = [this, worker] { worker(is_shutting_down_, self_[0]); };
   for (ui32 i = 0; i < count; ++i) {
     workers_.emplace_back(closure);
   }
@@ -35,7 +34,7 @@ void WorkerPool::AddWorker(const NetWorker& worker, ui32 count) {
 
 void WorkerPool::AddWorker(const SimpleWorker& worker, ui32 count) {
   CHECK(count);
-  auto closure = std::bind(worker, std::cref(is_shutting_down_));
+  auto closure = [this, worker] { worker(is_shutting_down_); };
   for (ui32 i = 0; i < count; ++i) {
     workers_.emplace_back(closure);
   }

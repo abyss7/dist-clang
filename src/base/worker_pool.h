@@ -8,11 +8,9 @@
 namespace dist_clang {
 namespace base {
 
-using FileDescriptor = int;
-
 class WorkerPool {
  public:
-  using NetWorker = Fn<void(const Atomic<bool>&, FileDescriptor)>;
+  using NetWorker = Fn<void(const Atomic<bool>&, Data&)>;
   using SimpleWorker = Fn<void(const Atomic<bool>&)>;
 
   explicit WorkerPool(bool force_shut_down = false);

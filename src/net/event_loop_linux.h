@@ -1,35 +1,39 @@
 #pragma once
 
+#include <base/file/epoll.h>
 #include <net/event_loop.h>
+#include <net/passive.h>
 
 namespace dist_clang {
 namespace net {
 
 class EpollEventLoop : public EventLoop {
  public:
-  using ConnectionCallback = Fn<void(FileDescriptor, ConnectionPtr)>;
+  using ConnectionCallback = Fn<void(const Passive&, ConnectionPtr)>;
 
   EpollEventLoop(ConnectionCallback callback);
   ~EpollEventLoop();
 
-  virtual bool HandlePassive(FileDescriptor fd) THREAD_UNSAFE override;
-  virtual bool ReadyForRead(ConnectionImplPtr connection) THREAD_SAFE override;
-  virtual bool ReadyForSend(ConnectionImplPtr connection) THREAD_SAFE override;
+  bool HandlePassive(Passive&& fd) THREAD_UNSAFE override;
+  bool ReadyForRead(ConnectionImplPtr connection) THREAD_SAFE override;
+  bool ReadyForSend(ConnectionImplPtr connection) THREAD_SAFE override;
 
  private:
-  virtual void DoListenWork(const Atomic<bool>& is_shutting_down,
-                            FileDescriptor self_pipe) override;
-  virtual void DoIOWork(const Atomic<bool>& is_shutting_down,
-                        FileDescriptor self_pipe) override;
+  void DoListenWork(const Atomic<bool>& is_shutting_down,
+                    base::Data& self) override;
+  void DoIOWork(const Atomic<bool>& is_shutting_down,
+                base::Data& self) override;
 
-  bool ReadyForListen(FileDescriptor fd);
+  inline bool ReadyForListen(const Passive& fd) {
+    return listen_.Update(fd, EPOLLIN | EPOLLONESHOT);
+  }
   bool ReadyFor(ConnectionImplPtr connection, ui32 events);
 
-  FileDescriptor listen_fd_, io_fd_;
+  base::Epoll listen_, io_;
   ConnectionCallback callback_;
 
   // We need to store listening fds - to be able to close them at shutdown.
-  HashSet<FileDescriptor> listening_fds_;
+  HashSet<Passive> listening_fds_;
 };
 
 }  // namespace net

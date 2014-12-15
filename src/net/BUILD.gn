@@ -21,12 +21,15 @@ shared_library("net") {
     "event_loop_linux.h",
     "event_loop_mac.cc",
     "event_loop_mac.h",
-    "net_utils.h",
     "network_service.h",
     "network_service_impl.cc",
     "network_service_impl.h",
     "network_service_linux.cc",
     "network_service_mac.cc",
+    "passive.cc",
+    "passive.h",
+    "socket.cc",
+    "socket.h",
   ]
 
   deps += [

@@ -2,7 +2,6 @@
 
 #include <base/assert.h>
 #include <net/connection_impl.h>
-#include <net/net_utils.h>
 
 namespace dist_clang {
 namespace net {
@@ -35,10 +34,6 @@ void EventLoop::Stop() {
   if (is_running_.compare_exchange_strong(old_running, STOPPED)) {
     pool_.reset();
   }
-}
-
-int EventLoop::GetConnectionDescriptor(ConnectionImplPtr connection) {
-  return connection->fd_;
 }
 
 void EventLoop::ConnectionDoRead(ConnectionImplPtr connection) {

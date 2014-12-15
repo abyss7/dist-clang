@@ -5,6 +5,7 @@
 #include <base/file_utils.h>
 #include <net/connection_impl.h>
 #include <net/end_point.h>
+#include <net/socket.h>
 
 #include <netdb.h>
 #include <netinet/in.h>
@@ -33,32 +34,31 @@ bool NetworkServiceImpl::Listen(const String& path, ListenCallback callback,
   }
   unlink(path.c_str());
 
-  auto fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
-  if (fd == -1) {
+  Socket fd(socket(AF_UNIX, SOCK_STREAM, 0));
+  if (!fd.IsValid()) {
     base::GetLastError(error);
     return false;
   }
 
-  if (::bind(fd, *peer, peer->size()) == -1) {
-    base::GetLastError(error);
-    close(fd);
+  fd.CloseOnExec();
+  fd.MakeBlocking(false);
+
+  if (!fd.Bind(peer, error)) {
     return false;
   }
   base::SetPermissions(path, 0777);
 
-  if (listen(fd, 100) == -1) {  // FIXME: hardcode.
-    base::GetLastError(error);
-    close(fd);
+  Passive passive(std::move(fd));
+  if (!passive.IsValid()) {
+    passive.GetCreationError(error);
     return false;
   }
 
-  if (!listen_callbacks_.insert(std::make_pair(fd, callback)).second) {
-    close(fd);
+  if (!listen_callbacks_.emplace(passive.native(), callback).second) {
     return false;
   }
 
-  if (!event_loop_->HandlePassive(fd)) {
-    close(fd);
+  if (!event_loop_->HandlePassive(std::move(passive))) {
     return false;
   }
 
@@ -73,39 +73,34 @@ bool NetworkServiceImpl::Listen(const String& host, ui16 port, bool ipv6,
     return false;
   }
 
-  auto fd = socket(peer->domain(), peer->type() | SOCK_CLOEXEC | SOCK_NONBLOCK,
-                   peer->protocol());
-  if (fd == -1) {
+  Socket fd(peer);
+  if (!fd.IsValid()) {
     base::GetLastError(error);
     return false;
   }
 
-  int on = 1;
-  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1) {
-    base::GetLastError(error);
-    close(fd);
+  fd.CloseOnExec();
+  fd.MakeBlocking(false);
+
+  if (!fd.ReuseAddress(error)) {
     return false;
   }
 
-  if (::bind(fd, *peer, peer->size()) == -1) {
-    base::GetLastError(error);
-    close(fd);
+  if (!fd.Bind(peer, error)) {
     return false;
   }
 
-  if (listen(fd, 100) == -1) {  // FIXME: hardcode.
-    base::GetLastError(error);
-    close(fd);
+  Passive passive(std::move(fd));
+  if (!passive.IsValid()) {
+    passive.GetCreationError(error);
     return false;
   }
 
-  if (!listen_callbacks_.insert(std::make_pair(fd, callback)).second) {
-    close(fd);
+  if (!listen_callbacks_.emplace(passive.native(), callback).second) {
     return false;
   }
 
-  if (!event_loop_->HandlePassive(fd)) {
-    close(fd);
+  if (!event_loop_->HandlePassive(std::move(passive))) {
     return false;
   }
 
@@ -114,58 +109,31 @@ bool NetworkServiceImpl::Listen(const String& host, ui16 port, bool ipv6,
 
 ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point,
                                           String* error) {
-  auto fd = socket(end_point->domain(), end_point->type() | SOCK_CLOEXEC,
-                   end_point->protocol());
-  if (fd == -1) {
+  Socket fd(end_point);
+  if (!fd.IsValid()) {
     base::GetLastError(error);
     return ConnectionPtr();
   }
 
-  if (connect(fd, *end_point, end_point->size()) == -1) {
-    base::GetLastError(error);
-    close(fd);
+  fd.CloseOnExec();
+
+  if (!fd.Connect(end_point, error) ||
+      !fd.SendTimeout(send_timeout_secs, error) ||
+      !fd.ReadTimeout(read_timeout_secs, error) ||
+      !fd.ReadLowWatermark(read_min_bytes, error)) {
     return ConnectionPtr();
   }
 
-  struct timeval timeout = {send_timeout_secs, 0};
-  constexpr auto timeout_size = sizeof(timeout);
-  if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, timeout_size) == -1) {
-    base::GetLastError(error);
-    close(fd);
-    return ConnectionPtr();
-  }
-
-  timeout = {read_timeout_secs, 0};
-  if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, timeout_size) == -1) {
-    base::GetLastError(error);
-    close(fd);
-    return ConnectionPtr();
-  }
-
-  auto low_watermark = read_min_bytes;
-  if (setsockopt(fd, SOL_SOCKET, SO_RCVLOWAT, &low_watermark,
-                 sizeof(low_watermark))) {
-    base::GetLastError(error);
-    close(fd);
-    return ConnectionPtr();
-  }
-
-  return ConnectionImpl::Create(*event_loop_, fd, end_point);
+  return ConnectionImpl::Create(*event_loop_, std::move(fd), end_point);
 }
 
-void NetworkServiceImpl::HandleNewConnection(FileDescriptor fd,
+void NetworkServiceImpl::HandleNewConnection(const Passive& fd,
                                              ConnectionPtr connection) {
-  auto callback = listen_callbacks_.find(fd);
+  auto callback = listen_callbacks_.find(fd.native());
   DCHECK(callback != listen_callbacks_.end());
 
-  struct timeval timeout = {send_timeout_secs, 0};
-  constexpr auto timeout_size = sizeof(timeout);
-  if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, timeout_size) == -1) {
-    callback->second(ConnectionPtr());
-  }
-
-  timeout = {read_timeout_secs, 0};
-  if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, timeout_size) == -1) {
+  if (!connection->SendTimeout(send_timeout_secs) ||
+      !connection->ReadTimeout(read_timeout_secs)) {
     callback->second(ConnectionPtr());
   }
 

@@ -41,6 +41,9 @@ class Connection : public std::enable_shared_from_this<Connection> {
   bool ReportStatus(const Status& message,
                     SendCallback callback = CloseAfterSend());
 
+  virtual bool SendTimeout(ui32 sec_timeout, String* error = nullptr) = 0;
+  virtual bool ReadTimeout(ui32 sec_timeout, String* error = nullptr) = 0;
+
  protected:
   ScopedMessage message_;
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <net/connection.h>
+#include <net/socket.h>
 #include <perf/log_reporter.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest_prod.h>
@@ -19,7 +20,7 @@ class ConnectionImpl : public Connection {
  public:
   // Create connection only on a socket with a pending connection -
   // i.e. after connect() or accept().
-  static ConnectionImplPtr Create(EventLoop& event_loop, FileDescriptor fd,
+  static ConnectionImplPtr Create(EventLoop& event_loop, Socket&& fd,
                                   const EndPointPtr& end_point = EndPointPtr());
   ~ConnectionImpl();
 
@@ -30,7 +31,18 @@ class ConnectionImpl : public Connection {
 
   using Connection::SendSync;
 
-  inline bool IsOnEventLoop(const EventLoop* event_loop) const;
+  inline bool IsOnEventLoop(const EventLoop* event_loop) const {
+    return &event_loop_ == event_loop;
+  }
+
+  inline const Socket& socket() const { return fd_; }
+
+  inline bool SendTimeout(ui32 sec_timeout, String* error) override {
+    return fd_.SendTimeout(sec_timeout, error);
+  }
+  inline bool ReadTimeout(ui32 sec_timeout, String* error) override {
+    return fd_.ReadTimeout(sec_timeout, error);
+  }
 
  private:
   friend class EventLoop;
@@ -55,7 +67,7 @@ class ConnectionImpl : public Connection {
   // FIXME: make this value configurable.
   enum : ui32 { buffer_size = 1024 };
 
-  ConnectionImpl(EventLoop& event_loop, FileDescriptor fd,
+  ConnectionImpl(EventLoop& event_loop, Socket&& fd,
                  const EndPointPtr& end_point);
 
   bool SendAsyncImpl(SendCallback callback) override;
@@ -65,7 +77,7 @@ class ConnectionImpl : public Connection {
   void DoSend();
   void Close();
 
-  const FileDescriptor fd_;
+  Socket fd_;
 
   EventLoop& event_loop_;
   Atomic<bool> is_closed_, added_;
@@ -87,10 +99,6 @@ class ConnectionImpl : public Connection {
   FRIEND_TEST(ConnectionTest, Sync_ReadIncompleteMessage);
   FRIEND_TEST(ConnectionTest, Sync_SendToClosedConnection);
 };
-
-bool ConnectionImpl::IsOnEventLoop(const EventLoop* event_loop) const {
-  return &event_loop_ == event_loop;
-}
 
 }  // namespace net
 }  // namespace dist_clang

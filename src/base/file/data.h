@@ -9,7 +9,7 @@
 namespace dist_clang {
 namespace base {
 
-class Data final : public Handle {
+class Data : public Handle {
  public:
   Data() = default;
   explicit Data(NativeType fd);

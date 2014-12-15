@@ -1,10 +1,10 @@
 #include <base/assert.h>
+#include <base/file/epoll.h>
 #include <base/logging.h>
 #include <base/string_utils.h>
 #include <base/temporary_dir.h>
 #include <net/connection_impl.h>
 #include <net/event_loop.h>
-#include <net/net_utils.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest.h>
 
@@ -51,6 +51,7 @@ class TestMessage {
   Connection::ScopedMessage message_;
 };
 
+// static
 int TestMessage::number_ = 1;
 
 class TestServer : public EventLoop {
@@ -79,10 +80,7 @@ class TestServer : public EventLoop {
 
     return true;
   }
-  TestServer()
-      : listen_fd_(-1),
-        server_fd_(-1),
-        epoll_fd_(epoll_create1(EPOLL_CLOEXEC)) {}
+  TestServer() : listen_fd_(-1), server_fd_(-1) {}
   ~TestServer() {
     if (listen_fd_ != -1) {
       close(listen_fd_);
@@ -98,20 +96,20 @@ class TestServer : public EventLoop {
     address.sun_family = AF_UNIX;
     strcpy(address.sun_path, socket_path_.c_str());
 
-    int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-    if (-1 == fd) {
+    Socket fd(socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0));
+    if (!fd.IsValid()) {
       LOG(ERROR) << strerror(errno) << std::endl;
       return ConnectionImplPtr();
     }
 
-    auto connection = ConnectionImpl::Create(*this, fd);
-
-    if (connect(fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) ==
-            -1 &&
+    if (connect(fd.native(), reinterpret_cast<sockaddr*>(&address),
+                sizeof(address)) == -1 &&
         errno != EINPROGRESS) {
       LOG(ERROR) << strerror(errno) << std::endl;
       return ConnectionImplPtr();
     }
+
+    auto connection = ConnectionImpl::Create(*this, std::move(fd));
 
     server_fd_ = accept(listen_fd_, nullptr, nullptr);
     if (server_fd_ == -1) {
@@ -226,58 +224,57 @@ class TestServer : public EventLoop {
   }
 
  private:
-  virtual bool HandlePassive(FileDescriptor fd) override {
+  bool HandlePassive(Passive&& fd) override {
     // TODO: implement this.
     return false;
   }
 
-  virtual bool ReadyForRead(ConnectionImplPtr connection) override {
+  bool ReadyForRead(ConnectionImplPtr connection) override {
     struct epoll_event event;
     event.events = EPOLLIN | EPOLLONESHOT;
     event.data.ptr = connection.get();
-    auto fd = GetConnectionDescriptor(connection);
-    if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
+    const auto& fd = connection->socket();
+    if (epoll_ctl(epoll_fd_.native(), EPOLL_CTL_MOD, fd.native(), &event) ==
+        -1) {
       DCHECK(errno == ENOENT);
-      if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
+      if (epoll_ctl(epoll_fd_.native(), EPOLL_CTL_ADD, fd.native(), &event) ==
+          -1) {
         return false;
       }
     }
     return true;
   }
 
-  virtual bool ReadyForSend(ConnectionImplPtr connection) override {
+  bool ReadyForSend(ConnectionImplPtr connection) override {
     struct epoll_event event;
     event.events = EPOLLOUT | EPOLLONESHOT;
     event.data.ptr = connection.get();
-    auto fd = GetConnectionDescriptor(connection);
-    if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) == -1) {
+    const auto& fd = connection->socket();
+    if (epoll_ctl(epoll_fd_.native(), EPOLL_CTL_MOD, fd.native(), &event) ==
+        -1) {
       DCHECK(errno == ENOENT);
-      if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, fd, &event) == -1) {
+      if (epoll_ctl(epoll_fd_.native(), EPOLL_CTL_ADD, fd.native(), &event) ==
+          -1) {
         return false;
       }
     }
     return true;
   }
 
-  virtual void RemoveConnection(FileDescriptor fd) {
-    // Do nothing.
-  }
-
-  virtual void DoListenWork(const Atomic<bool>& is_shutting_down,
-                            FileDescriptor self_pipe) override {
+  void DoListenWork(const Atomic<bool>& is_shutting_down,
+                    base::Data& self) override {
     // Test server doesn't do listening work.
   }
 
-  virtual void DoIOWork(const Atomic<bool>& is_shutting_down,
-                        FileDescriptor self_pipe) override {
+  void DoIOWork(const Atomic<bool>& is_shutting_down,
+                base::Data& self) override {
     const int TIMEOUT = 1 * 1000;  // In milliseconds.
-    struct epoll_event event;
-    event.events = EPOLLIN;
-    event.data.fd = self_pipe;
-    epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, self_pipe, &event);
+    std::array<struct epoll_event, 1> event;
+
+    epoll_fd_.Add(self, EPOLLIN);
 
     while (!is_shutting_down) {
-      auto events_count = epoll_wait(epoll_fd_, &event, 1, TIMEOUT);
+      auto events_count = epoll_fd_.Wait(event, TIMEOUT);
       if (events_count == -1) {
         if (errno != EINTR) {
           break;
@@ -287,31 +284,30 @@ class TestServer : public EventLoop {
       }
 
       DCHECK(events_count == 1);
-      FileDescriptor fd = event.data.fd;
+      auto* fd = reinterpret_cast<base::Handle*>(event[0].data.ptr);
 
-      // FIXME: it's a little bit hacky, but should work almost always.
-      if (fd == self_pipe) {
+      if (fd == &self) {
         continue;
       }
 
-      auto ptr = reinterpret_cast<Connection*>(event.data.ptr);
+      auto ptr = reinterpret_cast<Connection*>(event[0].data.ptr);
       auto connection =
           std::static_pointer_cast<ConnectionImpl>(ptr->shared_from_this());
 
-      if (event.events & (EPOLLHUP | EPOLLERR)) {
-        auto fd = GetConnectionDescriptor(connection);
-        DCHECK_O_EVAL(!epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr));
+      if (event[0].events & (EPOLLHUP | EPOLLERR)) {
+        DCHECK_O_EVAL(epoll_fd_.Delete(connection->socket()));
       }
 
-      if (event.events & EPOLLIN) {
+      if (event[0].events & EPOLLIN) {
         ConnectionDoRead(connection);
-      } else if (event.events & EPOLLOUT) {
+      } else if (event[0].events & EPOLLOUT) {
         ConnectionDoSend(connection);
       }
     }
   }
 
-  int listen_fd_, server_fd_, epoll_fd_;
+  int listen_fd_, server_fd_;
+  base::Epoll epoll_fd_;
   base::TemporaryDir tmp_dir_;
   String socket_path_;
 };

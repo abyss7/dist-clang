@@ -13,7 +13,7 @@ class Handle {
 
   Handle() = default;
   explicit Handle(NativeType fd);
-  Handle(Handle&& other);
+  explicit Handle(Handle&& other);
   Handle& operator=(Handle&& other);
 
   Handle(const Handle&) = delete;
