@@ -60,6 +60,7 @@ void EpollEventLoop::DoListenWork(const Atomic<bool>& is_shutting_down,
         if (!new_fd.IsValid()) {
           break;
         }
+        DCHECK(new_fd.IsBlocking());
 
         callback_(*passive, ConnectionImpl::Create(*this, std::move(new_fd)));
       }

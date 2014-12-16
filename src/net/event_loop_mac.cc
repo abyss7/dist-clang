@@ -1,9 +1,7 @@
 #include <net/event_loop_mac.h>
 
 #include <base/assert.h>
-#include <base/file_descriptor_utils.h>
 #include <net/connection_impl.h>
-#include <net/net_utils.h>
 
 #include <sys/event.h>
 
@@ -11,23 +9,18 @@ namespace dist_clang {
 namespace net {
 
 KqueueEventLoop::KqueueEventLoop(ConnectionCallback callback)
-    : listen_fd_(kqueue()), io_fd_(kqueue()), callback_(callback) {
+    : listen_(kqueue()), io_(kqueue()), callback_(callback) {
 }
 
 KqueueEventLoop::~KqueueEventLoop() {
   Stop();
-  close(listen_fd_);
-  close(io_fd_);
 }
 
-bool KqueueEventLoop::HandlePassive(FileDescriptor fd) {
-#if !defined(OS_MACOSX)
-  // TODO: don't know why, but assertion fails on Mac.
-  DCHECK(IsListening(fd));
-#endif
-  DCHECK(base::IsNonBlocking(fd));
-  listening_fds_.insert(fd);
-  return ReadyForListen(fd);
+bool KqueueEventLoop::HandlePassive(Passive&& fd) {
+  DCHECK(fd.IsValid());
+  auto result = listening_fds_.emplace(std::move(fd));
+  DCHECK(result.second);
+  return ReadyForListen(*result.first);
 }
 
 bool KqueueEventLoop::ReadyForRead(ConnectionImplPtr connection) {
@@ -39,57 +32,53 @@ bool KqueueEventLoop::ReadyForSend(ConnectionImplPtr connection) {
 }
 
 void KqueueEventLoop::DoListenWork(const Atomic<bool>& is_shutting_down,
-                                   FileDescriptor self_pipe) {
+                                   base::Data& self) {
   const int MAX_EVENTS = 10;  // This should be enought in most cases.
   struct kevent events[MAX_EVENTS];
 
   {
     struct kevent event;
-    EV_SET(&event, self_pipe, EVFILT_READ, EV_ADD, 0, 0, 0);
-    kevent(listen_fd_, &event, 1, nullptr, 0, nullptr);
+    EV_SET(&event, self.native(), EVFILT_READ, EV_ADD, 0, 0, 0);
+    kevent(listen_.native(), &event, 1, nullptr, 0, nullptr);
   }
 
   while (!is_shutting_down) {
     auto events_count =
-        kevent(listen_fd_, nullptr, 0, events, MAX_EVENTS, nullptr);
+        kevent(listen_.native(), nullptr, 0, events, MAX_EVENTS, nullptr);
     if (events_count == -1 && errno != EINTR) {
       break;
     }
 
     for (int i = 0; i < events_count; ++i) {
-      FileDescriptor fd = events[i].ident;
-      if (fd == self_pipe) {
+      if (self.native() == base::Handle::NativeType(events[i].ident)) {
         continue;
       }
 
+      auto* passive = reinterpret_cast<Passive*>(events[i].udata);
+
       DCHECK(events[i].filter == EVFILT_READ);
       while (true) {
-        auto new_fd = accept(fd, nullptr, nullptr);
-        if (new_fd == -1) {
-          DCHECK(errno == EAGAIN || errno == EWOULDBLOCK);
+        Socket&& new_fd = passive->Accept();
+        if (!new_fd.IsValid()) {
           break;
         }
-        base::MakeCloseOnExec(new_fd);
-        base::MakeNonBlocking(new_fd, true);
-        callback_(fd, ConnectionImpl::Create(*this, new_fd));
-      }
-      ReadyForListen(fd);
-    }
-  }
+        DCHECK(new_fd.IsBlocking());
 
-  for (auto fd : listening_fds_) {
-    close(fd);
+        callback_(*passive, ConnectionImpl::Create(*this, std::move(new_fd)));
+      }
+      ReadyForListen(*passive);
+    }
   }
 }
 
 void KqueueEventLoop::DoIOWork(const Atomic<bool>& is_shutting_down,
-                               FileDescriptor self_pipe) {
+                               base::Data& self) {
   struct kevent event;
-  EV_SET(&event, self_pipe, EVFILT_READ, EV_ADD, 0, 0, 0);
-  kevent(io_fd_, &event, 1, nullptr, 0, nullptr);
+  EV_SET(&event, self.native(), EVFILT_READ, EV_ADD, 0, 0, 0);
+  kevent(io_.native(), &event, 1, nullptr, 0, nullptr);
 
   while (!is_shutting_down) {
-    auto events_count = kevent(io_fd_, nullptr, 0, &event, 1, nullptr);
+    auto events_count = kevent(io_.native(), nullptr, 0, &event, 1, nullptr);
     if (events_count == -1) {
       if (errno != EINTR) {
         break;
@@ -99,9 +88,7 @@ void KqueueEventLoop::DoIOWork(const Atomic<bool>& is_shutting_down,
     }
 
     DCHECK(events_count == 1);
-    FileDescriptor fd = event.ident;
-
-    if (fd == self_pipe) {
+    if (self.native() == base::Handle::NativeType(event.ident)) {
       continue;
     }
 
@@ -121,19 +108,21 @@ void KqueueEventLoop::DoIOWork(const Atomic<bool>& is_shutting_down,
   }
 }
 
-bool KqueueEventLoop::ReadyForListen(FileDescriptor fd) {
+bool KqueueEventLoop::ReadyForListen(const Passive& fd) {
   struct kevent event;
-  EV_SET(&event, fd, EVFILT_READ, EV_ADD | EV_ENABLE | EV_ONESHOT, 0, 0, 0);
-  return kevent(listen_fd_, &event, 1, nullptr, 0, nullptr) != -1;
+  EV_SET(&event, fd.native(), EVFILT_READ, EV_ADD | EV_ENABLE | EV_ONESHOT, 0,
+         0, const_cast<Passive*>(&fd));
+  return kevent(listen_.native(), &event, 1, nullptr, 0, nullptr) != -1;
 }
 
 bool KqueueEventLoop::ReadyFor(ConnectionImplPtr connection, i16 filter) {
   DCHECK(connection->IsOnEventLoop(this));
 
-  auto fd = GetConnectionDescriptor(connection);
+  const auto& fd = connection->socket();
   struct kevent event;
-  EV_SET(&event, fd, filter, EV_ADD | EV_ONESHOT, 0, 0, connection.get());
-  return kevent(io_fd_, &event, 1, nullptr, 0, nullptr) != -1;
+  EV_SET(&event, fd.native(), filter, EV_ADD | EV_ONESHOT, 0, 0,
+         connection.get());
+  return kevent(io_.native(), &event, 1, nullptr, 0, nullptr) != -1;
 }
 
 }  // namespace net

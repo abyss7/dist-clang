@@ -26,22 +26,27 @@ Passive::Passive(Socket&& fd, ui32 backlog)
 }
 
 Socket Passive::Accept() {
-  auto fd = accept4(native(), nullptr, nullptr, SOCK_CLOEXEC);
+  auto fd = accept(native(), nullptr, nullptr);
 
   if (fd == -1) {
-    // Linux accept4() passes already-pending network errors on the new
-    // socket as an error code from accept4(). For reliable operation the
+#if defined(OS_LINUX)
+    // Linux accept() passes already-pending network errors on the new
+    // socket as an error code from accept(). For reliable operation the
     // application should detect the network errors defined for the
-    // protocol after accept4() and treat them like EAGAIN by retrying.
+    // protocol after accept() and treat them like EAGAIN by retrying.
     if (errno == ENETDOWN || errno == EPROTO || errno == ENOPROTOOPT ||
         errno == EHOSTDOWN || errno == ENONET || errno == EHOSTUNREACH ||
         errno == EOPNOTSUPP || errno == ENETUNREACH) {
       errno = EAGAIN;
     }
+#endif  // defined(OS_LINUX)
     DCHECK(errno == EAGAIN || errno == EWOULDBLOCK);
   }
 
-  return std::move(Socket(fd));
+  Socket socket(fd);
+  socket.CloseOnExec();
+
+  return std::move(socket);
 }
 
 }  // namespace net
