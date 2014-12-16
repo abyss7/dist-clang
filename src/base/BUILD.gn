@@ -27,8 +27,8 @@ shared_library("base") {
     "empty_lambda.h",
     "file/data.cc",
     "file/data.h",
-    "file/epoll.cc",
-    "file/epoll.h",
+    "file/epoll_linux.cc",
+    "file/epoll_linux.h",
     "file/handle_posix.cc",
     "file/handle_posix.h",
     "file/handle_win.cc",
@@ -70,6 +70,7 @@ shared_library("base") {
     "constants.h",
     "empty_lambda.h",
     "file/data.h",
+    "file/epoll_linux.h",
     "file/handle_posix.h",
     "file/handle_win.h",
     "file/pipe.h",
@@ -88,9 +89,6 @@ shared_library("base") {
     "thread_pool.h",
     "worker_pool.h",
   ]
-  if (os == "linux") {
-    public += [ "file/epoll.h" ]
-  }
 
   public_deps = [ ":logging" ]
 
