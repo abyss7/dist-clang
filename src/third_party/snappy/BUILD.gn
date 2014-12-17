@@ -26,8 +26,8 @@ shared_library("snappy") {
     os + "/snappy-stubs-public.h",
   ]
 
-  if (os == "win") {
-    sources -= [ os + "/config.h" ]
+  if (os != "win") {
+    sources += [ os + "/config.h" ]
   }
 
   public = [ "exported/snappy.h" ]
