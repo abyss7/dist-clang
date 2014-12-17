@@ -1,8 +1,14 @@
 config("includes") {
   include_dirs = [
     "exported/src",
-    os,
   ]
+
+  # For config.h
+  if (os == "win") {
+    include_dirs += [ "exported/vsprojects" ]
+  } else {
+    include_dirs += [ os ]
+  }
 }
 
 config("warnings") {
@@ -13,6 +19,12 @@ config("warnings") {
     "-Wno-unused-local-typedef",
     "-Wwrite-strings",
   ]
+
+  if (os == "win") {
+    cflags += [ "-Wno-unknown-pragmas",
+                "-Wno-unused-const-variable",
+                "-Wno-deprecated-declarations" ]
+  }
 }
 
 protobuf_lite_sources = [
