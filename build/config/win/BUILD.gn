@@ -2,5 +2,7 @@ config("base") {
   defines = [
     "_CRT_SECURE_NO_WARNINGS",
     "OS_WIN",
+    "_HAS_EXCEPTIONS=0",
+    "NOMINMAX=1"
   ]
 }
