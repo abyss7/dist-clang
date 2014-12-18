@@ -2,6 +2,7 @@
 
 #include <base/const_string.h>
 
+#include <fcntl.h>
 #include <pwd.h>
 #include <sys/stat.h>
 #include <unistd.h>
