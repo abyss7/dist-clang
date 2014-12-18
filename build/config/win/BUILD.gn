@@ -1,6 +1,12 @@
 config("base") {
+  cflags = [
+    "-fno-ms-compatibility",
+    "-Wno-deprecated-declarations",
+  ]
+
   defines = [
     "_CRT_SECURE_NO_WARNINGS",
+    "_HAS_CHAR16_T_LANGUAGE_SUPPORT",
     "OS_WIN",
     "NOMINMAX=1"
   ]
