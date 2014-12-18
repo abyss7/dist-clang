@@ -3,7 +3,12 @@
 #include <base/const_string.h>
 
 #include <pwd.h>
+#include <sys/stat.h>
 #include <unistd.h>
+
+#if defined(OS_MACOSX)
+#include <mach-o/dyld.h>
+#endif
 
 namespace dist_clang {
 namespace base {

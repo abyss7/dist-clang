@@ -15,11 +15,6 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-
-#if defined(OS_MACOSX)
-#include <mach-o/dyld.h>
-#endif
 
 namespace dist_clang {
 namespace base {
