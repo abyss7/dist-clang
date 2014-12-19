@@ -6,6 +6,7 @@
 #include STL(bitset)
 #include STL(limits)
 
+#include <pthread.h>
 #include <sys/socket.h>
 
 namespace dist_clang {
@@ -15,6 +16,16 @@ namespace {
 
 std::mutex used_fds_mutex;
 std::bitset<std::numeric_limits<Handle::NativeType>::max()> used_fds;
+
+void before_fork() {
+  used_fds_mutex.lock();
+}
+
+void after_fork() {
+  used_fds_mutex.unlock();
+}
+
+int atfork_result = pthread_atfork(before_fork, after_fork, after_fork);
 
 }  // namespace
 
