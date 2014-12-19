@@ -56,7 +56,7 @@ shutil.copy(os.path.join(top_dir, "install", "debian_prerm"), \
             os.path.join(product_dir, "deb", "debian", "tmp", "DEBIAN", "prerm"))
 
 # Create .deb file
-args = ['dpkg-deb', '-z9', '-Zxz', '-b']
+args = ['fakeroot', 'dpkg-deb', '-z9', '-Zxz', '-b']
 args.append(os.path.join(product_dir, "deb", "debian", "tmp"))
 args.append(os.path.join(product_dir, package_name + '.deb'))
 subprocess.Popen(args).wait()
