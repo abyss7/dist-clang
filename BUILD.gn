@@ -9,6 +9,7 @@ if (config_for_tests) {
   group("Tests") {
     deps = [
       "//src/test:unit_tests",
+      "//src/third_party/leveldb:leveldb_tests",
     ]
   }
 }

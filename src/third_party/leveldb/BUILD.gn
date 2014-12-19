@@ -126,3 +126,157 @@ static_library("leveldb") {
 
   deps += [ "//src/third_party/snappy:snappy" ]
 }
+
+source_set("leveldb_test_utils") {
+  visibility = [ ":*" ]
+
+  sources = [
+    "exported/util/testharness.cc",
+    "exported/util/testharness.h",
+    "exported/util/testutil.cc",
+    "exported/util/testutil.h",
+  ]
+
+  include_dirs = [ "exported" ]
+
+  configs += [
+    ":flags",
+    ":includes",
+  ]
+}
+
+template("leveldb_test") {
+  executable("leveldb_${target_name}") {
+    visibility = [ ":leveldb_tests" ]
+
+    sources = invoker.sources
+
+    include_dirs = [ "exported" ]
+
+    configs += [
+      ":flags",
+      ":includes",
+    ]
+
+    deps += [
+      ":leveldb",
+      ":leveldb_test_utils",
+      "//src/third_party/snappy:snappy"
+    ]
+  }
+}
+
+leveldb_test("arena_test") {
+  sources = [ "exported/util/arena_test.cc" ]
+}
+
+leveldb_test("autocompact_test") {
+  sources = [ "exported/db/autocompact_test.cc" ]
+}
+
+leveldb_test("bloom_test") {
+  sources = [ "exported/util/bloom_test.cc" ]
+}
+
+leveldb_test("cache_test") {
+  sources = [ "exported/util/cache_test.cc" ]
+}
+
+leveldb_test("coding_test") {
+  sources = [ "exported/util/coding_test.cc" ]
+}
+
+leveldb_test("corruption_test") {
+  sources = [ "exported/db/corruption_test.cc" ]
+}
+
+leveldb_test("crc32c_test") {
+  sources = [ "exported/util/crc32c_test.cc" ]
+}
+
+leveldb_test("db_test") {
+  sources = [ "exported/db/db_test.cc" ]
+}
+
+leveldb_test("dbformat_test") {
+  sources = [ "exported/db/dbformat_test.cc" ]
+}
+
+leveldb_test("env_test") {
+  sources = [ "exported/util/env_test.cc" ]
+}
+
+leveldb_test("filename_test") {
+  sources = [ "exported/db/filename_test.cc" ]
+}
+
+leveldb_test("filter_block_test") {
+  sources = [ "exported/table/filter_block_test.cc" ]
+}
+
+leveldb_test("hash_test") {
+  sources = [ "exported/util/hash_test.cc" ]
+}
+
+leveldb_test("issue178_test") {
+  sources = [ "exported/issues/issue178_test.cc" ]
+}
+
+leveldb_test("issue200_test") {
+  sources = [ "exported/issues/issue200_test.cc" ]
+}
+
+leveldb_test("log_test") {
+  sources = [ "exported/db/log_test.cc" ]
+}
+
+leveldb_test("memenv_test") {
+  sources = [ "exported/helpers/memenv/memenv_test.cc" ]
+}
+
+leveldb_test("skiplist_test") {
+  sources = [ "exported/db/skiplist_test.cc" ]
+}
+
+leveldb_test("table_test") {
+  sources = [ "exported/table/table_test.cc" ]
+}
+
+leveldb_test("version_edit_test") {
+  sources = [ "exported/db/version_edit_test.cc" ]
+}
+
+leveldb_test("version_set_test") {
+  sources = [ "exported/db/version_set_test.cc" ]
+}
+
+leveldb_test("write_batch_test") {
+  sources = [ "exported/db/write_batch_test.cc" ]
+}
+
+group("leveldb_tests") {
+  deps = [
+    ":leveldb_arena_test",
+    ":leveldb_autocompact_test",
+    ":leveldb_bloom_test",
+    ":leveldb_cache_test",
+    ":leveldb_coding_test",
+    ":leveldb_corruption_test",
+    ":leveldb_crc32c_test",
+    ":leveldb_db_test",
+    ":leveldb_dbformat_test",
+    ":leveldb_env_test",
+    ":leveldb_filename_test",
+    ":leveldb_filter_block_test",
+    ":leveldb_hash_test",
+    ":leveldb_issue178_test",
+    ":leveldb_issue200_test",
+    ":leveldb_log_test",
+    ":leveldb_memenv_test",
+    ":leveldb_skiplist_test",
+    ":leveldb_table_test",
+    ":leveldb_version_edit_test",
+    ":leveldb_version_set_test",
+    ":leveldb_write_batch_test",
+  ]
+}
