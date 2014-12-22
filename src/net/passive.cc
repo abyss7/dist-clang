@@ -41,6 +41,7 @@ Socket Passive::Accept() {
     }
 #endif  // defined(OS_LINUX)
     DCHECK(errno == EAGAIN || errno == EWOULDBLOCK);
+    return Socket();
   }
 
   Socket socket(fd);
