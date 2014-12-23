@@ -8,7 +8,6 @@
   <key>ProgramArguments</key>
   <array>
     <string>/usr/bin/dist-clang/clangd</string>
-    <string>--daemon</string>
     <string>--config</string>
     <string>/etc/clangd.conf</string>
   </array>
@@ -21,5 +20,11 @@
 
   <key>ThrottleInterval</key>
   <integer>3</integer>
+
+  <key>StandardOutPath</key>
+  <string>/var/log/clangd.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/var/log/clangd.err.log</string>
 </dict>
 </plist>
