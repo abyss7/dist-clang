@@ -46,6 +46,7 @@ Socket Passive::Accept() {
 
   Socket socket(fd);
   socket.CloseOnExec();
+  socket.MakeBlocking(true);
 
   return std::move(socket);
 }
