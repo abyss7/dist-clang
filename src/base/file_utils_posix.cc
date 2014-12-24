@@ -129,7 +129,13 @@ bool ReadFile(const String& path, Immutable* output, String* error) {
     close(src_fd);
     return false;
   }
-#endif  // defined(OS_LINUX)
+#elif defined(OS_MACOSX)
+  if (fcntl(src_fd, F_RDAHEAD, 1) == -1) {
+    GetLastError(error);
+    close(src_fd);
+    return false;
+  }
+#endif
 
   auto size = FileSize(path);
   auto flags = MAP_PRIVATE;
@@ -178,7 +184,17 @@ bool WriteFile(const String& path, Immutable input, String* error) {
     close(src_fd);
     return false;
   }
-#endif  // defined(OS_LINUX)
+#elif defined(OS_MACOSX)
+  fstore_t store = {
+      F_ALLOCATECONTIG, F_PEOFPOSMODE, 0, static_cast<off_t>(input.size()),
+  };
+
+  if (fcntl(src_fd, F_PREALLOCATE, &store) == -1) {
+    GetLastError(error);
+    close(src_fd);
+    return false;
+  }
+#endif
 
   size_t total_bytes = 0;
   int size = 0;
@@ -225,7 +241,17 @@ bool WriteFile(const String& path, const String& input, String* error) {
     close(src_fd);
     return false;
   }
-#endif  // defined(OS_LINUX)
+#elif defined(OS_MACOSX)
+  fstore_t store = {
+      F_ALLOCATECONTIG, F_PEOFPOSMODE, 0, static_cast<off_t>(input.size()),
+  };
+
+  if (fcntl(src_fd, F_PREALLOCATE, &store) == -1) {
+    GetLastError(error);
+    close(src_fd);
+    return false;
+  }
+#endif
 
   size_t total_bytes = 0;
   int size = 0;
@@ -319,6 +345,7 @@ Pair<time_t> GetLastModificationTime(const String& path, String* error) {
 #elif defined(OS_LINUX)
   time_spec = buffer.st_mtim;
 #else
+#pragma message "Don't know how to get modification time on this platform!"
   NOTREACHED();
 #endif
   return {time_spec.tv_sec, time_spec.tv_nsec};
