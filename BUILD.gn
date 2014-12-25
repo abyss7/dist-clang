@@ -7,6 +7,8 @@ group("All") {
 
 if (config_for_tests) {
   group("Tests") {
+    testonly = true
+
     deps = [
       "//src/test:unit_tests",
       "//src/third_party/leveldb:leveldb_tests",

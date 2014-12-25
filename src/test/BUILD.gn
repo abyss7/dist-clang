@@ -1,5 +1,5 @@
 executable("unit_tests") {
-  visibility = [ "//:Tests" ]
+  testonly = true
 
   sources = [
     "//src/base/assert_debug_linux_test.cc",
