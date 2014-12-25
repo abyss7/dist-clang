@@ -232,7 +232,6 @@ if (os == "mac") {
       "//build/luggage_makefile.template",
       "//install/clangd.conf",
       "//install/launchd_service",
-      "//install/pkg_postinstall",
       "//src/daemon/configuration_pb2.py",
       "//src/proto/base_pb2.py",
       "$root_out_dir/clang",
@@ -254,7 +253,6 @@ if (os == "mac") {
     ]
     outputs = [
       "$root_out_dir/Makefile",
-      "$root_out_dir/postinstall",
       "$root_out_dir/pkg/etc/clangd.conf",
       "$root_out_dir/pkg/usr/bin/dist-clang/clang",
       "$root_out_dir/pkg/usr/bin/dist-clang/clang++",

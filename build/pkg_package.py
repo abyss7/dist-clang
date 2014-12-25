@@ -15,7 +15,6 @@ MakeInstall(top_dir, product_dir, "pkg")
 launchd_dir = os.path.join(product_dir, "pkg", "Library", "LaunchDaemons")
 os.makedirs(launchd_dir)
 shutil.copy(os.path.join(top_dir, "install", "launchd_service"), os.path.join(launchd_dir, "ru.yandex.clangd.plist"))
-shutil.copy(os.path.join(top_dir, "install", "pkg_postinstall"), os.path.join(product_dir, "postinstall"))
 
 # Check plist with linter.
 subprocess.call(['plutil', '-lint', os.path.join(launchd_dir, "ru.yandex.clangd.plist")])

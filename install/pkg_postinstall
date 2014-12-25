@@ -1,4 +1,0 @@
-#!/bin/sh
-
-launchctl unload -w /Library/LaunchDaemons/ru.yandex.clangd.plist || true
-launchctl load -w /Library/LaunchDaemons/ru.yandex.clangd.plist || true
