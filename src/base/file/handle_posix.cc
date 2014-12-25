@@ -38,7 +38,7 @@ Handle::Handle(NativeType fd) : fd_(fd) {
 
   DCHECK(fd >= 0);
 
-  // FIXME: check that |fd| is opened.
+// FIXME: check that |fd| is opened.
 
 #if !defined(NDEBUG)
   // FIXME: may deadlock here on Mac, when doing fork. Don't know why.
@@ -80,6 +80,24 @@ bool Handle::CloseOnExec(String* error) {
   }
 
   return true;
+}
+
+// static
+Handle& Handle::stdin() {
+  static Handle stdin(STDIN_FILENO);
+  return stdin;
+}
+
+// static
+Handle& Handle::stdout() {
+  static Handle stdout(STDOUT_FILENO);
+  return stdout;
+}
+
+// static
+Handle& Handle::stderr() {
+  static Handle stderr(STDERR_FILENO);
+  return stderr;
 }
 
 bool Handle::Duplicate(Handle&& other, String* error) {

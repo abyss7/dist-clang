@@ -20,7 +20,6 @@ executable("unit_tests") {
     "//src/daemon/base_daemon_test.cc",
     "//src/daemon/common_daemon_test.h",
     "//src/daemon/emitter_test.cc",
-    "//src/net/connection_linux_test.cc",  # TODO: make this test cross-platform.
     "//src/net/event_loop_linux_test.cc",
     "//src/net/event_loop_mac_test.cc",
     "//src/net/test_connection.cc",

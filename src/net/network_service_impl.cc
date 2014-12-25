@@ -34,7 +34,7 @@ bool NetworkServiceImpl::Listen(const String& path, ListenCallback callback,
   }
   unlink(path.c_str());
 
-  Socket fd(socket(AF_UNIX, SOCK_STREAM, 0));
+  Socket fd(peer);
   if (!fd.IsValid()) {
     base::GetLastError(error);
     return false;

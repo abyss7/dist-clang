@@ -9,15 +9,14 @@ class Handle {
  public:
   using NativeType = int;
 
-  Handle() = default;
-  explicit Handle(NativeType fd);
-  explicit Handle(Handle&& other);
-  Handle& operator=(Handle&& other);
-
   Handle(const Handle&) = delete;
   Handle& operator=(const Handle& other) = delete;
 
   ~Handle();
+
+  static Handle& stdin();
+  static Handle& stdout();
+  static Handle& stderr();
 
   inline bool operator==(const Handle& other) const { return fd_ == other.fd_; }
 
@@ -30,6 +29,11 @@ class Handle {
   inline NativeType native() const { return fd_; }
 
  protected:
+  Handle() = default;
+  explicit Handle(NativeType fd);
+  explicit Handle(Handle&& other);
+  Handle& operator=(Handle&& other);
+
   bool IsPassive() const;
 
  private:

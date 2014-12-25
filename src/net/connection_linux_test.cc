@@ -14,6 +14,9 @@
 
 #include <base/using_log.h>
 
+// TODO: reimplement using mock_network, when it gets ready.
+#error "Reimplement using mock_network!"
+
 namespace dist_clang {
 namespace net {
 

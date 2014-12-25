@@ -8,8 +8,6 @@ namespace net {
 
 class Socket final : public base::Data {
  public:
-  Socket() = default;
-  explicit Socket(NativeType fd) : Data(fd) {}
   explicit Socket(EndPointPtr peer);
 
   bool Bind(EndPointPtr peer, String* error = nullptr);
@@ -19,6 +17,12 @@ class Socket final : public base::Data {
   bool SendTimeout(ui32 sec_timeout, String* error = nullptr);
   bool ReadTimeout(ui32 sec_timeout, String* error = nullptr);
   bool ReadLowWatermark(ui64 bytes_min, String* error = nullptr);
+
+ private:
+  friend class Passive;
+
+  Socket() = default;
+  explicit Socket(NativeType fd) : Data(fd) {}
 };
 
 }  // namespace net

@@ -24,9 +24,9 @@ bool ProcessImpl::RunChild(Pipe& out, Pipe& err, Pipe* in) {
   // TODO: replace the std::cerr and std::cout with async-signal-safe analogues.
   // FIXME: replace all this stuff with a call to |posix_spawn()|.
   String error;
-  if ((in && !(*in)[0].Duplicate(Handle(STDIN_FILENO), &error)) ||
-      !out[1].Duplicate(Handle(STDOUT_FILENO), &error) ||
-      !err[1].Duplicate(Handle(STDERR_FILENO), &error)) {
+  if ((in && !(*in)[0].Duplicate(std::move(Handle::stdin()), &error)) ||
+      !out[1].Duplicate(std::move(Handle::stdout()), &error) ||
+      !err[1].Duplicate(std::move(Handle::stderr()), &error)) {
     std::cerr << "Failed to duplicate: " << error << std::endl;
     exit(1);
   }

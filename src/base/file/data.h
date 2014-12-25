@@ -11,13 +11,16 @@ namespace base {
 
 class Data : public Handle {
  public:
-  Data() = default;
-  explicit Data(NativeType fd);
-
   bool MakeBlocking(bool blocking, String* error = nullptr);
   bool IsBlocking() const;
 
   bool ReadyForRead(int& size, String* error = nullptr) const;
+
+ protected:
+  friend class Pipe;
+
+  Data() = default;
+  explicit Data(NativeType fd);
 };
 
 }  // namespace base
