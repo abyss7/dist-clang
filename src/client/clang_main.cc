@@ -63,6 +63,20 @@ int main(int argc, char* argv[]) {
   Immutable version = base::GetEnv(base::kEnvClangVersion);
   Immutable clang_path = base::GetEnv(base::kEnvClangPath);
 
+  if (argc > 3) {
+    String argv1 = String(argv[1]);
+    String argv2 = String(argv[2]);
+
+    if (base::IsExecutable(argv1)) {
+      clang_path = Immutable(argv1);
+      version = Immutable(argv2);
+
+      argc = argc - 2;
+      argv[2] = argv[0];
+      argv = argv + 2;
+    }
+  }
+
   if (clang_path.empty()) {
     Immutable path = base::GetEnv("PATH"_l);
     List<String> path_dirs;
