@@ -1,5 +1,6 @@
 #pragma once
 
+#include <base/file/kqueue_mac.h>
 #include <net/event_loop.h>
 #include <net/passive.h>
 
@@ -23,11 +24,12 @@ class KqueueEventLoop : public EventLoop {
   void DoIOWork(const Atomic<bool>& is_shutting_down,
                 base::Data& self_pipe) override;
 
-  bool ReadyForListen(const Passive& fd);
+  inline bool ReadyForListen(const Passive& fd) {
+    return listen_.Update(fd, EVFILT_READ);
+  }
   bool ReadyFor(ConnectionImplPtr connection, i16 filter);
 
-  // FIXME: implement |KQueue| based on |base::Handle|.
-  base::Handle listen_, io_;
+  base::Kqueue listen_, io_;
   ConnectionCallback callback_;
 
   // We need to store listening fds - to be able to close them at shutdown.

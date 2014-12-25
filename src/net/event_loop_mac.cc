@@ -9,7 +9,7 @@ namespace dist_clang {
 namespace net {
 
 KqueueEventLoop::KqueueEventLoop(ConnectionCallback callback)
-    : listen_(kqueue()), io_(kqueue()), callback_(callback) {
+    : callback_(callback) {
 }
 
 KqueueEventLoop::~KqueueEventLoop() {
@@ -33,18 +33,12 @@ bool KqueueEventLoop::ReadyForSend(ConnectionImplPtr connection) {
 
 void KqueueEventLoop::DoListenWork(const Atomic<bool>& is_shutting_down,
                                    base::Data& self) {
-  const int MAX_EVENTS = 10;  // This should be enought in most cases.
-  struct kevent events[MAX_EVENTS];
+  std::array<struct kevent, 64> events;
 
-  {
-    struct kevent event;
-    EV_SET(&event, self.native(), EVFILT_READ, EV_ADD, 0, 0, 0);
-    kevent(listen_.native(), &event, 1, nullptr, 0, nullptr);
-  }
+  listen_.Add(self, EVFILT_READ);
 
   while (!is_shutting_down) {
-    auto events_count =
-        kevent(listen_.native(), nullptr, 0, events, MAX_EVENTS, nullptr);
+    auto events_count = listen_.Wait(events, base::Kqueue::UNLIMITED);
     if (events_count == -1 && errno != EINTR) {
       break;
     }
@@ -57,6 +51,7 @@ void KqueueEventLoop::DoListenWork(const Atomic<bool>& is_shutting_down,
       auto* passive = reinterpret_cast<Passive*>(events[i].udata);
 
       DCHECK(events[i].filter == EVFILT_READ);
+
       while (true) {
         Socket&& new_fd = passive->Accept();
         if (!new_fd.IsValid()) {
@@ -73,12 +68,12 @@ void KqueueEventLoop::DoListenWork(const Atomic<bool>& is_shutting_down,
 
 void KqueueEventLoop::DoIOWork(const Atomic<bool>& is_shutting_down,
                                base::Data& self) {
-  struct kevent event;
-  EV_SET(&event, self.native(), EVFILT_READ, EV_ADD, 0, 0, 0);
-  kevent(io_.native(), &event, 1, nullptr, 0, nullptr);
+  io_.Add(self, EVFILT_READ);
+
+  std::array<struct kevent, 1> event;
 
   while (!is_shutting_down) {
-    auto events_count = kevent(io_.native(), nullptr, 0, &event, 1, nullptr);
+    auto events_count = io_.Wait(event, base::Kqueue::UNLIMITED);
     if (events_count == -1) {
       if (errno != EINTR) {
         break;
@@ -88,31 +83,25 @@ void KqueueEventLoop::DoIOWork(const Atomic<bool>& is_shutting_down,
     }
 
     DCHECK(events_count == 1);
-    if (self.native() == base::Handle::NativeType(event.ident)) {
+    if (self.native() == base::Handle::NativeType(event[0].ident)) {
       continue;
     }
 
     auto raw_connection =
-        reinterpret_cast<Connection*>(event.udata)->shared_from_this();
+        reinterpret_cast<Connection*>(event[0].udata)->shared_from_this();
     auto connection = std::static_pointer_cast<ConnectionImpl>(raw_connection);
 
-    if (event.flags & EV_ERROR || (event.flags & EV_EOF && event.data == 0)) {
+    if (event[0].flags & EV_ERROR ||
+        (event[0].flags & EV_EOF && event[0].data == 0)) {
       ConnectionClose(connection);
-    } else if (event.filter == EVFILT_READ) {
+    } else if (event[0].filter == EVFILT_READ) {
       ConnectionDoRead(connection);
-    } else if (event.filter == EVFILT_WRITE) {
+    } else if (event[0].filter == EVFILT_WRITE) {
       ConnectionDoSend(connection);
     } else {
       NOTREACHED();
     }
   }
-}
-
-bool KqueueEventLoop::ReadyForListen(const Passive& fd) {
-  struct kevent event;
-  EV_SET(&event, fd.native(), EVFILT_READ, EV_ADD | EV_ENABLE | EV_ONESHOT, 0,
-         0, const_cast<Passive*>(&fd));
-  return kevent(listen_.native(), &event, 1, nullptr, 0, nullptr) != -1;
 }
 
 bool KqueueEventLoop::ReadyFor(ConnectionImplPtr connection, i16 filter) {
