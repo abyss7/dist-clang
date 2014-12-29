@@ -1,6 +1,6 @@
 #include <daemon/base_daemon.h>
 
-#include <base/file_utils.h>
+#include <base/file/file.h>
 #include <base/logging.h>
 #include <base/process_impl.h>
 #include <base/string_utils.h>
@@ -240,7 +240,7 @@ bool BaseDaemon::SearchDirectCache(const proto::Flags& flags,
   const CommandLine command_line(CommandLineForDirect(flags));
 
   UnhandledSource code;
-  if (!base::ReadFile(input, &code.str)) {
+  if (!base::File::Read(input, &code.str)) {
     return false;
   }
 
@@ -297,7 +297,7 @@ void BaseDaemon::UpdateDirectCache(const proto::LocalExecute* message,
   UnhandledSource original_code;
 
   if (ParseDeps(entry.deps, message->current_dir(), headers) &&
-      base::ReadFile(input_path, &original_code.str)) {
+      base::File::Read(input_path, &original_code.str)) {
     cache_->Store(original_code, command_line, version, headers, hash);
   } else {
     LOG(CACHE_ERROR) << "Failed to parse deps or read input " << input_path;

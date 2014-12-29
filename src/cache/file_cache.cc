@@ -1,6 +1,6 @@
 #include <cache/file_cache.h>
 
-#include <base/file_utils.h>
+#include <base/file/file.h>
 #include <base/logging.h>
 #include <base/string_utils.h>
 #include <cache/manifest.pb.h>
@@ -112,7 +112,7 @@ bool FileCache::Find(const UnhandledSource& code,
   Immutable::Rope hash_rope = {hash};
   for (const auto& header : manifest.headers()) {
     Immutable header_hash;
-    if (!base::HashFile(header, &header_hash)) {
+    if (!base::File::Hash(header, &header_hash)) {
       return false;
     }
     hash_rope.push_back(header_hash);
@@ -184,7 +184,7 @@ bool FileCache::FindByHash(const HandledHash& hash, Entry* entry) const {
   if (entry) {
     if (manifest.stderr()) {
       const String stderr_path = CommonPath(hash) + ".stderr";
-      if (!base::ReadFile(stderr_path, &entry->stderr)) {
+      if (!base::File::Read(stderr_path, &entry->stderr)) {
         return false;
       }
     }
@@ -196,7 +196,7 @@ bool FileCache::FindByHash(const HandledHash& hash, Entry* entry) const {
         String error;
 
         Immutable packed_content;
-        if (!base::ReadFile(object_path, &packed_content, &error)) {
+        if (!base::File::Read(object_path, &packed_content, &error)) {
           LOG(CACHE_ERROR) << "Failed to read " << object_path << " : "
                            << error;
           return false;
@@ -210,7 +210,7 @@ bool FileCache::FindByHash(const HandledHash& hash, Entry* entry) const {
         }
         entry->object = std::move(object_str);
       } else {
-        if (!base::ReadFile(object_path, &entry->object)) {
+        if (!base::File::Read(object_path, &entry->object)) {
           return false;
         }
       }
@@ -218,7 +218,7 @@ bool FileCache::FindByHash(const HandledHash& hash, Entry* entry) const {
 
     if (manifest.deps()) {
       const String deps_path = CommonPath(hash) + ".d";
-      if (!base::ReadFile(deps_path, &entry->deps)) {
+      if (!base::File::Read(deps_path, &entry->deps)) {
         return false;
       }
     }
@@ -393,8 +393,8 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
   for (const auto& header : headers) {
     String error;
     Immutable header_hash;
-    if (!base::HashFile(header, &header_hash, {"__DATE__"_l, "__TIME__"_l},
-                        &error)) {
+    if (!base::File::Hash(header, &header_hash, {"__DATE__"_l, "__TIME__"_l},
+                          &error)) {
       LOG(CACHE_ERROR) << "Failed to hash " << header << ": " << error;
       return;
     }

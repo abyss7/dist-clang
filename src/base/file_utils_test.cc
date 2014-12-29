@@ -1,6 +1,7 @@
 #include <base/file_utils.h>
 
 #include <base/const_string.h>
+#include <base/file/file.h>
 #include <base/temporary_dir.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest.h>
@@ -77,7 +78,7 @@ TEST(FileUtilsTest, CopyFile) {
   ASSERT_EQ(0, stat(file2.c_str(), &st));
   EXPECT_EQ(1u, st.st_nlink);
   EXPECT_EQ(mode, st.st_mode & mode);
-  ASSERT_TRUE(ReadFile(file2, &content));
+  ASSERT_TRUE(File::Read(file2, &content));
   EXPECT_EQ(expected_content1, content);
 
   ASSERT_TRUE(WriteFile(file3, expected_content2));
@@ -86,7 +87,7 @@ TEST(FileUtilsTest, CopyFile) {
   ASSERT_EQ(0, stat(file2.c_str(), &st));
   EXPECT_EQ(1u, st.st_nlink);
   EXPECT_EQ(mode, st.st_mode & mode);
-  ASSERT_TRUE(ReadFile(file2, &content));
+  ASSERT_TRUE(File::Read(file2, &content));
   EXPECT_EQ(expected_content2, content);
 }
 
@@ -103,7 +104,7 @@ TEST(FileUtilsTest, ReadFile) {
 
   Immutable content;
   String error;
-  EXPECT_TRUE(ReadFile(file_path, &content, &error)) << error;
+  EXPECT_TRUE(File::Read(file_path, &content, &error)) << error;
   EXPECT_EQ(expected_content, content);
 }
 

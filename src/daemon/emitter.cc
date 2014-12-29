@@ -1,6 +1,6 @@
 #include <daemon/emitter.h>
 
-#include <base/file_utils.h>
+#include <base/file/file.h>
 #include <base/logging.h>
 #include <base/process.h>
 #include <net/connection.h>
@@ -280,9 +280,9 @@ void Emitter::DoLocalExecute(const Atomic<bool>& is_shutting_down) {
 
       if (!source.str.empty()) {
         cache::FileCache::Entry entry;
-        if (base::ReadFile(GetOutputPath(incoming), &entry.object) &&
+        if (base::File::Read(GetOutputPath(incoming), &entry.object) &&
             (!incoming->flags().has_deps_file() ||
-             base::ReadFile(GetDepsPath(incoming), &entry.deps))) {
+             base::File::Read(GetDepsPath(incoming), &entry.deps))) {
           entry.stderr = process->stderr();
           UpdateSimpleCache(incoming->flags(), source, entry);
           UpdateDirectCache(incoming, source, entry);
@@ -390,8 +390,8 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
           if (result->has_deps()) {
             entry.deps = result->release_deps();
           } else if (incoming->flags().has_deps_file() &&
-                     !base::ReadFile(GetDepsPath(incoming), &entry.deps,
-                                     &error)) {
+                     !base::File::Read(GetDepsPath(incoming), &entry.deps,
+                                       &error)) {
             LOG(CACHE_WARNING) << "Can't read deps file "
                                << GetDepsPath(incoming) << " : " << error;
             return false;

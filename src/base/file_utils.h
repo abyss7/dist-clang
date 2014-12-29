@@ -39,15 +39,9 @@ inline bool MoveFile(const String& src, const String& dst) {
   return rename(src.c_str(), dst.c_str()) != -1;
 }
 
-bool ReadFile(const String& file, Immutable* output, String* error = nullptr);
-
 bool WriteFile(const String& path, Immutable input, String* error = nullptr);
 bool WriteFile(const String& path, const String& input,
                String* error = nullptr);
-
-bool HashFile(const String& file, Immutable* output,
-              const List<Literal>& skip_list = List<Literal>(),
-              String* error = nullptr);
 
 ui64 CalculateDirectorySize(const String& path, String* error = nullptr);
 

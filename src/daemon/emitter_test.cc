@@ -1,6 +1,7 @@
 #include <daemon/emitter.h>
 
 #include <base/file_utils.h>
+#include <base/file/file.h>
 #include <base/temporary_dir.h>
 #include <daemon/common_daemon_test.h>
 #include <net/test_connection.h>
@@ -603,7 +604,7 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
 
   Immutable cache_output;
   EXPECT_TRUE(base::FileExists(output_path2));
-  EXPECT_TRUE(base::ReadFile(output_path2, &cache_output));
+  EXPECT_TRUE(base::File::Read(output_path2, &cache_output));
   EXPECT_EQ(object_code, cache_output);
 
   EXPECT_EQ(3u, run_count);
@@ -782,7 +783,7 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
 
   Immutable cache_output;
   ASSERT_TRUE(base::FileExists(output_path2));
-  ASSERT_TRUE(base::ReadFile(output_path2, &cache_output));
+  ASSERT_TRUE(base::File::Read(output_path2, &cache_output));
   EXPECT_EQ(object_code, cache_output);
 
   EXPECT_EQ(2u, run_count);

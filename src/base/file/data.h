@@ -7,6 +7,11 @@
 #endif
 
 namespace dist_clang {
+
+namespace net {
+class EpollEventLoop;
+}
+
 namespace base {
 
 class Data : public Handle {
@@ -14,13 +19,16 @@ class Data : public Handle {
   bool MakeBlocking(bool blocking, String* error = nullptr);
   bool IsBlocking() const;
 
-  bool ReadyForRead(int& size, String* error = nullptr) const;
+  bool Read(Immutable* output, String* error = nullptr);
 
  protected:
   friend class Pipe;
+  friend class net::EpollEventLoop;
 
   Data() = default;
   explicit Data(NativeType fd);
+
+  bool ReadyForRead(int& size, String* error = nullptr) const;
 };
 
 }  // namespace base

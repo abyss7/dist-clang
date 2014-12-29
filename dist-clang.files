@@ -2530,3 +2530,5 @@ src/base/file/kqueue_mac.cc
 src/client/configuration.pb.cc
 src/client/configuration.pb.h
 src/client/configuration.proto
+src/base/file/file.h
+src/base/file/file_posix.cc

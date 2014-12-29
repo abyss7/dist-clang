@@ -113,52 +113,6 @@ bool LinkFile(const String& src, const String& dst, String* error) {
   return CopyFile(src, dst, error);
 }
 
-bool ReadFile(const String& path, Immutable* output, String* error) {
-  if (!output) {
-    return false;
-  }
-
-  auto src_fd = open(path.c_str(), O_RDONLY);
-  if (src_fd == -1) {
-    GetLastError(error);
-    return false;
-  }
-#if defined(OS_LINUX)
-  if (posix_fadvise(src_fd, 0, 0, POSIX_FADV_SEQUENTIAL) == -1) {
-    GetLastError(error);
-    close(src_fd);
-    return false;
-  }
-#elif defined(OS_MACOSX)
-  if (fcntl(src_fd, F_RDAHEAD, 1) == -1) {
-    GetLastError(error);
-    close(src_fd);
-    return false;
-  }
-#endif
-
-  auto size = FileSize(path);
-  auto flags = MAP_PRIVATE;
-#if defined(OS_LINUX)
-  flags |= MAP_POPULATE;
-  void* map = mmap64(nullptr, size, PROT_READ, flags, src_fd, 0);
-#elif defined(OS_MACOSX)
-  void* map = mmap(nullptr, size, PROT_READ, flags, src_fd, 0);
-#else
-#pragma message "This platform doesn't support mmap interface!"
-  void* map = MAP_FAILED;
-#endif
-  if (map == MAP_FAILED) {
-    GetLastError(error);
-    return false;
-  }
-
-  output->assign(Immutable(map, size));
-  close(src_fd);
-
-  return true;
-}
-
 bool WriteFile(const String& path, Immutable input, String* error) {
   // We need write-access even on object files after introduction of the
   // "split-dwarf" option, see
@@ -271,25 +225,6 @@ bool WriteFile(const String& path, const String& input, String* error) {
   }
 
   return total_bytes == input.size();
-}
-
-bool HashFile(const String& path, Immutable* output,
-              const List<Literal>& skip_list, String* error) {
-  if (!ReadFile(path, output, error)) {
-    return false;
-  }
-
-  for (const char* skip : skip_list) {
-    if (output->find(skip) != String::npos) {
-      if (error) {
-        error->assign("Skip-list hit: " + String(skip));
-      }
-      return false;
-    }
-  }
-
-  output->assign(base::Hexify(output->Hash()));
-  return true;
 }
 
 ui64 CalculateDirectorySize(const String& path, String* error) {

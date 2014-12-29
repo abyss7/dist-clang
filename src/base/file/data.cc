@@ -59,5 +59,25 @@ bool Data::ReadyForRead(int& size, String* error) const {
   return true;
 }
 
+bool Data::Read(Immutable* output, String* error) {
+  DCHECK(IsValid())
+
+  int bytes_available;
+  if (!output || !ReadyForRead(bytes_available, error)) {
+    return false;
+  }
+
+  auto buffer = UniquePtr<char[]>(new char[bytes_available]);
+  auto bytes_read = read(native(), buffer.get(), bytes_available);
+  if (bytes_read == -1) {
+    GetLastError(error);
+    return false;
+  }
+
+  output->assign(Immutable(buffer, bytes_read));
+
+  return true;
+}
+
 }  // namespace base
 }  // namespace dist_clang

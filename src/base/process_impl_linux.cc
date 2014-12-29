@@ -79,28 +79,22 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
         auto* fd = reinterpret_cast<Data*>(events[i].data.ptr);
 
         if (events[i].events & EPOLLIN) {
-          int bytes_available = 0;
-          if (!fd->ReadyForRead(bytes_available, error)) {
+          Immutable buffer;
+          if (!fd->Read(&buffer, error)) {
             kill(child_pid);
             break;
           }
 
-          auto buffer = UniquePtr<char[]>(new char[bytes_available]);
-          auto bytes_read = read(fd->native(), buffer.get(), bytes_available);
-          if (!bytes_read) {
+          if (buffer.empty()) {
             epoll.Delete(*fd);
             exhausted_fds++;
-          } else if (bytes_read == -1) {
-            GetLastError(error);
-            kill(child_pid);
-            break;
           } else {
             if (fd == &out[0]) {
-              stdout.emplace_back(buffer, bytes_read);
-              stdout_size += bytes_read;
+              stdout_size += buffer.size();
+              stdout.emplace_back(buffer);
             } else {
-              stderr.emplace_back(buffer, bytes_read);
-              stderr_size += bytes_read;
+              stderr_size += buffer.size();
+              stderr.emplace_back(buffer);
             }
           }
         } else {
@@ -201,44 +195,38 @@ bool ProcessImpl::Run(ui16 sec_timeout, Immutable input, String* error) {
         auto* fd = reinterpret_cast<Data*>(events[i].data.ptr);
 
         if (events[i].events & EPOLLIN) {
-          int bytes_available = 0;
-          if (!fd->ReadyForRead(bytes_available, error)) {
+          Immutable buffer;
+          if (!fd->Read(&buffer, error)) {
             kill(child_pid);
             break;
           }
 
-          auto buffer = UniquePtr<char[]>(new char[bytes_available]);
-          auto bytes_read = read(fd->native(), buffer.get(), bytes_available);
-          if (!bytes_read) {
+          if (buffer.empty()) {
             epoll.Delete(*fd);
             exhausted_fds++;
-          } else if (bytes_read == -1) {
-            GetLastError(error);
-            kill(child_pid);
-            break;
           } else {
             if (fd == &out[0]) {
-              stdout.emplace_back(buffer, bytes_read);
-              stdout_size += bytes_read;
-            } else if (fd == &err[0]) {
-              stderr.emplace_back(buffer, bytes_read);
-              stderr_size += bytes_read;
+              stdout_size += buffer.size();
+              stdout.emplace_back(buffer);
+            } else {
+              stderr_size += buffer.size();
+              stderr.emplace_back(buffer);
             }
           }
         } else if (events[i].events & EPOLLOUT) {
           DCHECK(fd == &in[1]);
 
-          auto bytes_sent = write(in[1].native(), input.data() + stdin_size,
+          auto bytes_sent = write(fd->native(), input.data() + stdin_size,
                                   input.size() - stdin_size);
           if (bytes_sent < 1) {
-            epoll.Delete(in[1]);
-            in[1].Close();
+            epoll.Delete(*fd);
+            fd->Close();
             exhausted_fds++;
           } else {
             stdin_size += bytes_sent;
             if (stdin_size == input.size()) {
-              epoll.Delete(in[1]);
-              in[1].Close();
+              epoll.Delete(*fd);
+              fd->Close();
               exhausted_fds++;
             }
           }
