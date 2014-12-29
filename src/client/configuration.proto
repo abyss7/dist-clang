@@ -1,0 +1,6 @@
+package dist_clang.client.proto;
+
+message Configuration {
+  required string path    = 1;
+  optional string version = 2;
+}

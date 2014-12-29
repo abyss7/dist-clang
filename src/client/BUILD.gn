@@ -5,8 +5,10 @@ executable("clang") {
 
   deps += [
     ":client",
+    ":configuration",
     "//src/base:base",
     "//src/base:logging",
+    "//src/third_party/protobuf:protobuf",
   ]
 }
 
@@ -53,4 +55,21 @@ shared_library("command") {
   ]
 
   public_configs = [ "//build/config:libclang_includes" ]
+}
+
+shared_library("configuration") {
+  output_name = "conf_client"
+
+  visibility = [ ":*" ]
+
+  sources = [
+    "configuration.pb.cc",
+    "configuration.pb.h",
+  ]
+
+  if (!config_for_tests) {
+    configs -= [ "//build/config:no_rtti" ]
+  }
+
+  deps += [ "//src/third_party/protobuf:protobuf" ]
 }

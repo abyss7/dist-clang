@@ -169,7 +169,8 @@ bool BaseDaemon::SetupCompiler(proto::Flags* flags,
     if (compiler == compilers_.end()) {
       if (status) {
         status->set_code(proto::Status::NO_VERSION);
-        status->set_description("Compiler of the required version not found");
+        status->set_description("Compiler not found: " +
+                                flags->compiler().version());
       }
       return false;
     }
@@ -182,7 +183,8 @@ bool BaseDaemon::SetupCompiler(proto::Flags* flags,
     if (!plugin.has_path() && plugin_map == plugins_.end()) {
       if (status) {
         status->set_code(proto::Status::NO_VERSION);
-        status->set_description("Plugin " + plugin.name() + " not found");
+        status->set_description("Plugin " + plugin.name() + " not found: " +
+                                flags->compiler().version());
       }
       return false;
     }
@@ -190,7 +192,8 @@ bool BaseDaemon::SetupCompiler(proto::Flags* flags,
     if (plugin_by_name == plugin_map->second.end()) {
       if (status) {
         status->set_code(proto::Status::NO_VERSION);
-        status->set_description("Plugin " + plugin.name() + " not found");
+        status->set_description("Plugin " + plugin.name() + " not found: " +
+                                flags->compiler().version());
       }
       return false;
     }

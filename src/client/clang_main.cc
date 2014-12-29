@@ -5,7 +5,12 @@
 #include <base/logging.h>
 #include <base/string_utils.h>
 #include <client/clang.h>
+#include <client/configuration.pb.h>
 
+#include <third_party/protobuf/exported/src/google/protobuf/io/zero_copy_stream_impl.h>
+#include <third_party/protobuf/exported/src/google/protobuf/text_format.h>
+
+#include <fcntl.h>
 #include <signal.h>
 
 #include <base/using_log.h>
@@ -57,11 +62,57 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  Immutable version, clang_path;
+
+  // Try to load config file first.
+  String dir = base::GetCurrentDir();
+  do {
+    String config_path = dir + "/.distclang";
+    if (base::FileExists(config_path)) {
+      client::proto::Configuration config;
+
+      auto fd = open(config_path.c_str(), O_RDONLY);
+      if (fd == -1) {
+        break;
+      }
+
+      google::protobuf::io::FileInputStream input(fd);
+      input.SetCloseOnDelete(true);
+      if (!google::protobuf::TextFormat::Parse(&input, &config)) {
+        LOG(INFO) << "Found " << config_path << " but it's broken!";
+        break;
+      }
+
+      clang_path = config.release_path();
+      if (clang_path[0] != '/') {
+        clang_path = Immutable(std::move(dir)) + "/"_l + clang_path;
+      }
+      LOG(VERBOSE) << "Took compiler path from " << config_path << " : "
+                   << clang_path;
+
+      if (config.has_version()) {
+        version = config.release_version();
+        LOG(VERBOSE) << "Took version from " << config_path << " : " << version;
+      }
+
+      break;
+    }
+
+    dir = dir.substr(0, dir.find_last_of("/"));
+  } while (!dir.empty());
+
   // FIXME: Make default socket path the build param - for consistent packaging.
   Immutable socket_path =
       base::GetEnv(base::kEnvSocketPath, base::kDefaultSocketPath);
-  Immutable version = base::GetEnv(base::kEnvClangVersion);
-  Immutable clang_path = base::GetEnv(base::kEnvClangPath);
+
+  Immutable version_env = base::GetEnv(base::kEnvClangVersion);
+  Immutable clang_path_env = base::GetEnv(base::kEnvClangPath);
+  if (!version_env.empty()) {
+    version = version_env;
+  }
+  if (!clang_path_env.empty()) {
+    clang_path = clang_path_env;
+  }
 
   if (clang_path.empty()) {
     Immutable path = base::GetEnv("PATH"_l);

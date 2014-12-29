@@ -2527,3 +2527,6 @@ src/third_party/tclap/exported/include/tclap/XorHandler.h
 src/third_party/tclap/exported/include/tclap/ZshCompletionOutput.h
 src/base/file/kqueue_mac.h
 src/base/file/kqueue_mac.cc
+src/client/configuration.pb.cc
+src/client/configuration.pb.h
+src/client/configuration.proto

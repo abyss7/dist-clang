@@ -38,6 +38,8 @@ source_set("daemon") {
 }
 
 shared_library("configuration") {
+  output_name = "conf_daemon"
+
   visibility = [
     ":*",
     "//src/test:unit_tests",
