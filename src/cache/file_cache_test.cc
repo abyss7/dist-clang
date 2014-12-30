@@ -1,6 +1,6 @@
 #include <cache/file_cache.h>
 
-#include <base/file_utils.h>
+#include <base/file/file.h>
 #include <base/future.h>
 #include <base/temporary_dir.h>
 
@@ -40,7 +40,7 @@ TEST(FileCacheTest, DoubleLocks) {
   const String file_path = String(tmp_dir) + "/file";
   FileCache cache(tmp_dir);
 
-  ASSERT_TRUE(base::WriteFile(file_path, "1"_l));
+  ASSERT_TRUE(base::File::Write(file_path, "1"_l));
   {
     FileCache::ReadLock lock1(&cache, file_path);
     ASSERT_TRUE(lock1);
@@ -75,10 +75,10 @@ TEST(FileCacheTest, RemoveEntry) {
   const String stderr_path = String(tmp_dir) + "/123.stderr";
 
   {
-    ASSERT_TRUE(base::WriteFile(manifest_path, "1"_l));
-    ASSERT_TRUE(base::WriteFile(object_path, "1"_l));
-    ASSERT_TRUE(base::WriteFile(deps_path, "1"_l));
-    ASSERT_TRUE(base::WriteFile(stderr_path, "1"_l));
+    ASSERT_TRUE(base::File::Write(manifest_path, "1"_l));
+    ASSERT_TRUE(base::File::Write(object_path, "1"_l));
+    ASSERT_TRUE(base::File::Write(deps_path, "1"_l));
+    ASSERT_TRUE(base::File::Write(stderr_path, "1"_l));
     FileCache cache(tmp_dir, 100, false);
     ASSERT_TRUE(cache.Run());
     EXPECT_TRUE(cache.RemoveEntry(manifest_path));
@@ -88,8 +88,8 @@ TEST(FileCacheTest, RemoveEntry) {
   }
 
   {
-    ASSERT_TRUE(base::WriteFile(manifest_path, "1"_l));
-    ASSERT_TRUE(base::WriteFile(object_path, "1"_l));
+    ASSERT_TRUE(base::File::Write(manifest_path, "1"_l));
+    ASSERT_TRUE(base::File::Write(object_path, "1"_l));
     FileCache cache(tmp_dir, 100, false);
     ASSERT_TRUE(cache.Run());
     EXPECT_TRUE(cache.RemoveEntry(manifest_path));
@@ -118,8 +118,8 @@ TEST(FileCacheTest, RestoreSingleEntry) {
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
 
-  ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
-  ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
+  ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
+  ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
 
   // Check that entrie's content is not changed on cache miss.
   EXPECT_FALSE(cache.Find(code, cl, version, &entry));
@@ -160,8 +160,8 @@ TEST(FileCacheTest, RestoreSingleEntry_Sync) {
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
 
-  ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
-  ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
+  ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
+  ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
   EXPECT_FALSE(cache.Find(code, cl, version, &entry));
   EXPECT_TRUE(entry.object.empty());
   EXPECT_TRUE(entry.deps.empty());
@@ -198,8 +198,8 @@ TEST(FileCacheTest, RestoreEntryWithMissingFile) {
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
 
-  ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
-  ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
+  ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
+  ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
 
   entry.object = expected_object_code;
   entry.deps = expected_deps;
@@ -211,7 +211,8 @@ TEST(FileCacheTest, RestoreEntryWithMissingFile) {
   future->Wait();
   ASSERT_TRUE(future->GetValue());
 
-  base::DeleteFile(cache.CommonPath(FileCache::Hash(code, cl, version)) + ".d");
+  base::File::Delete(cache.CommonPath(FileCache::Hash(code, cl, version)) +
+                     ".d");
 
   // Restore the entry.
   ASSERT_FALSE(cache.Find(code, cl, version, &entry));
@@ -375,10 +376,10 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
 
-  ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
-  ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
-  ASSERT_TRUE(base::WriteFile(header1_path, "#define A"_l));
-  ASSERT_TRUE(base::WriteFile(header2_path, "#define B"_l));
+  ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
+  ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
+  ASSERT_TRUE(base::File::Write(header1_path, "#define A"_l));
+  ASSERT_TRUE(base::File::Write(header2_path, "#define B"_l));
 
   entry.object = expected_object_code;
   entry.deps = expected_deps;
@@ -424,10 +425,10 @@ TEST(FileCacheTest, RestoreDirectEntry_Sync) {
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
 
-  ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
-  ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
-  ASSERT_TRUE(base::WriteFile(header1_path, "#define A"_l));
-  ASSERT_TRUE(base::WriteFile(header2_path, "#define B"_l));
+  ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
+  ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
+  ASSERT_TRUE(base::File::Write(header1_path, "#define A"_l));
+  ASSERT_TRUE(base::File::Write(header2_path, "#define B"_l));
 
   entry.object = expected_object_code;
   entry.deps = expected_deps;
@@ -467,10 +468,10 @@ TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
 
-  ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
-  ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
-  ASSERT_TRUE(base::WriteFile(header1_path, "#define A"_l));
-  ASSERT_TRUE(base::WriteFile(header2_path, "#define B"_l));
+  ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
+  ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
+  ASSERT_TRUE(base::File::Write(header1_path, "#define A"_l));
+  ASSERT_TRUE(base::File::Write(header2_path, "#define B"_l));
 
   entry.object = expected_object_code;
   entry.deps = expected_deps;
@@ -492,7 +493,7 @@ TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
   ASSERT_TRUE(future->GetValue());
 
   // Change header contents.
-  ASSERT_TRUE(base::WriteFile(header1_path, "#define C"_l));
+  ASSERT_TRUE(base::File::Write(header1_path, "#define C"_l));
 
   // Restore the entry.
   EXPECT_FALSE(cache.Find(orig_code, cl, version, &entry));
@@ -517,10 +518,10 @@ TEST(FileCacheTest, DirectEntry_RewriteManifest) {
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
 
-  ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
-  ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
-  ASSERT_TRUE(base::WriteFile(header1_path, "#define A"_l));
-  ASSERT_TRUE(base::WriteFile(header2_path, "#define B"_l));
+  ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
+  ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
+  ASSERT_TRUE(base::File::Write(header1_path, "#define A"_l));
+  ASSERT_TRUE(base::File::Write(header2_path, "#define B"_l));
 
   entry.object = expected_object_code;
   entry.deps = expected_deps;
@@ -572,10 +573,10 @@ TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
 
-  ASSERT_TRUE(base::WriteFile(object_path, expected_object_code));
-  ASSERT_TRUE(base::WriteFile(deps_path, expected_deps));
-  ASSERT_TRUE(base::WriteFile(header1_path, "#define A"_l));
-  ASSERT_TRUE(base::WriteFile(header2_path, "#define B"_l));
+  ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
+  ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
+  ASSERT_TRUE(base::File::Write(header1_path, "#define A"_l));
+  ASSERT_TRUE(base::File::Write(header2_path, "#define B"_l));
 
   entry.object = expected_object_code;
   entry.deps = expected_deps;

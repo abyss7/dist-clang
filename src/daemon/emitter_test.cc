@@ -533,8 +533,8 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
       EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-x"_l,
                                  language, "-o"_l, output_path1, input_path1}),
                 process->args_);
-      EXPECT_TRUE(base::WriteFile(process->cwd_path_ + "/"_l + output_path1,
-                                  object_code));
+      EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + output_path1,
+                                    object_code));
     } else if (run_count == 3) {
       EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l,
                                  input_path2}),
@@ -603,7 +603,7 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
   emitter.reset();
 
   Immutable cache_output;
-  EXPECT_TRUE(base::FileExists(output_path2));
+  EXPECT_TRUE(base::File::Exists(output_path2));
   EXPECT_TRUE(base::File::Read(output_path2, &cache_output));
   EXPECT_EQ(object_code, cache_output);
 
@@ -782,7 +782,7 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
   emitter.reset();
 
   Immutable cache_output;
-  ASSERT_TRUE(base::FileExists(output_path2));
+  ASSERT_TRUE(base::File::Exists(output_path2));
   ASSERT_TRUE(base::File::Read(output_path2, &cache_output));
   EXPECT_EQ(object_code, cache_output);
 

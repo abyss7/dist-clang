@@ -2,7 +2,7 @@
 
 #include <base/assert.h>
 #include <base/c_utils.h>
-#include <base/file_utils.h>
+#include <base/file/file.h>
 #include <net/connection_impl.h>
 #include <net/end_point.h>
 #include <net/socket.h>
@@ -18,7 +18,7 @@ namespace net {
 
 NetworkServiceImpl::~NetworkServiceImpl() {
   for (const auto& socket : unix_sockets_) {
-    base::DeleteFile(socket);
+    base::File::Delete(socket);
   }
 }
 

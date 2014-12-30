@@ -2532,3 +2532,4 @@ src/client/configuration.pb.h
 src/client/configuration.proto
 src/base/file/file.h
 src/base/file/file_posix.cc
+src/base/file/file_test.cc

@@ -5,6 +5,7 @@
 
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/sendfile.h>
 #include <sys/stat.h>
 
 namespace dist_clang {
@@ -13,10 +14,71 @@ namespace base {
 File::File(const String& path) : Data(open(path.c_str(), O_RDONLY)) {
   if (!IsValid()) {
     GetLastError(&error_);
+    return;
   }
+
+  if (!IsFile(path)) {
+    error_ = path + " is a directory";
+    Handle::Close();
+    return;
+  }
+
+#if defined(OS_LINUX)
+  if (posix_fadvise(native(), 0, 0, POSIX_FADV_SEQUENTIAL) == -1) {
+    GetLastError(&error_);
+    Handle::Close();
+    return;
+  }
+#elif defined(OS_MACOSX)
+  if (fcntl(native(), F_RDAHEAD, 1) == -1) {
+    GetLastError(&error_);
+    Handle::Close();
+    return;
+  }
+#endif
+}
+
+// static
+bool File::IsFile(const String& path, String* error) {
+  struct stat buffer;
+  if (stat(path.c_str(), &buffer)) {
+    GetLastError(error);
+    return false;
+  }
+
+  return (buffer.st_mode & S_IFDIR) == 0;
+}
+
+// static
+bool File::IsExecutable(const String& path, String* error) {
+  if (!IsFile(path, error)) {
+    return false;
+  }
+
+  if (access(path.c_str(), X_OK)) {
+    GetLastError(error);
+    return false;
+  }
+  return true;
+}
+
+// static
+bool File::Exists(const String& path, String* error) {
+  if (access(path.c_str(), F_OK)) {
+    GetLastError(error);
+    return false;
+  }
+
+  if (!IsFile(path, error)) {
+    return false;
+  }
+
+  return true;
 }
 
 ui64 File::Size(String* error) const {
+  DCHECK(IsValid());
+
   struct stat buffer;
   if (fstat(native(), &buffer)) {
     GetLastError(error);
@@ -32,18 +94,6 @@ bool File::Read(Immutable* output, String* error) {
   if (!output) {
     return false;
   }
-
-#if defined(OS_LINUX)
-  if (posix_fadvise(native(), 0, 0, POSIX_FADV_SEQUENTIAL) == -1) {
-    GetLastError(error);
-    return false;
-  }
-#elif defined(OS_MACOSX)
-  if (fcntl(native(), F_RDAHEAD, 1) == -1) {
-    GetLastError(error);
-    return false;
-  }
-#endif
 
   auto size = Size();
   auto flags = MAP_PRIVATE;
@@ -68,6 +118,8 @@ bool File::Read(Immutable* output, String* error) {
 
 bool File::Hash(Immutable* output, const List<Literal>& skip_list,
                 String* error) {
+  DCHECK(IsValid());
+
   if (!Read(output, error)) {
     return false;
   }
@@ -83,6 +135,52 @@ bool File::Hash(Immutable* output, const List<Literal>& skip_list,
 
   output->assign(base::Hexify(output->Hash()));
   return true;
+}
+
+bool File::CopyInto(const String& dst_path, String* error) {
+  DCHECK(IsValid());
+
+  // Force unlinking of |dst|, since it may be hard-linked with other places.
+  if (unlink(dst_path.c_str()) == -1 && errno != ENOENT) {
+    GetLastError(error);
+    return false;
+  }
+
+  const auto src_size = Size();
+  File dst(dst_path, src_size);
+
+  if (!dst.IsValid()) {
+    dst.GetCreationError(error);
+    return false;
+  }
+
+  size_t total_bytes = 0;
+  ssize_t size = 0;
+  while (total_bytes < src_size) {
+    size = sendfile(dst.native(), native(), nullptr, src_size - total_bytes);
+    if (size <= 0) {
+      break;
+    }
+    total_bytes += size;
+  }
+
+  if (!dst.Close(error)) {
+    return false;
+  }
+
+  return total_bytes == src_size;
+}
+
+// static
+ui64 File::Size(const String& path, String* error) {
+  File file(path);
+
+  if (!file.IsValid()) {
+    file.GetCreationError(error);
+    return 0;
+  }
+
+  return file.Size(error);
 }
 
 // static
@@ -108,6 +206,149 @@ bool File::Hash(const String& path, Immutable* output,
   }
 
   return file.Hash(output, skip_list, error);
+}
+
+// static
+bool File::Delete(const String& path, String* error) {
+  if (unlink(path.c_str()) == -1) {
+    GetLastError(error);
+    return false;
+  }
+
+  return true;
+}
+
+// static
+bool File::Write(const String& path, Immutable input, String* error) {
+  File dst(path, input.size());
+
+  if (!dst.IsValid()) {
+    GetLastError(error);
+    return false;
+  }
+
+  size_t total_bytes = 0;
+  int size = 0;
+  while (total_bytes < input.size()) {
+    size = write(dst.native(), input.data() + total_bytes,
+                 input.size() - total_bytes);
+    if (size <= 0) {
+      break;
+    }
+    total_bytes += size;
+  }
+
+  if (!dst.Close(error)) {
+    return false;
+  }
+
+  return total_bytes == input.size();
+}
+
+// static
+bool File::Copy(const String& src_path, const String& dst_path, String* error) {
+  File src(src_path);
+
+  if (!src.IsValid()) {
+    src.GetCreationError(error);
+    return false;
+  }
+
+  return src.CopyInto(dst_path, error);
+}
+
+// static
+bool File::Link(const String& src, const String& dst, String* error) {
+  auto Link = [&src, &dst]() -> int {
+#if defined(OS_LINUX)
+    // Linux doesn't guarantee that |link()| do dereferences symlinks, thus
+    // we use |linkat()| which does for sure.
+    return linkat(AT_FDCWD, src.c_str(), AT_FDCWD, dst.c_str(),
+                  AT_SYMLINK_FOLLOW);
+#elif defined(OS_MACOSX)
+    return link(src.c_str(), dst.c_str());
+#else
+#pragma message "This platform doesn't support hardlinks!"
+    errno = EACCES;
+    return -1;
+#endif
+  };
+
+  // Try to create hard-link at first.
+  if (Link() == 0 ||
+      (errno == EEXIST && unlink(dst.c_str()) == 0 && Link() == 0)) {
+    return true;
+  }
+
+  return File::Copy(src, dst, error);
+}
+
+// static
+bool File::Move(const String& src, const String& dst, String* error) {
+  if (rename(src.c_str(), dst.c_str()) == -1) {
+    GetLastError(error);
+    return false;
+  }
+
+  return true;
+}
+
+File::File(const String& path, ui64 size)
+    : Data([=] {
+      // We need write-access even on object files after introduction of the
+      // "split-dwarf" option, see
+      // https://sourceware.org/bugzilla/show_bug.cgi?id=971
+      const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+      const auto flags = O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC;
+      const String tmp_path = path + ".tmp";
+      return open(tmp_path.c_str(), flags, mode);
+    }()),
+      move_on_close_(path) {
+  if (!IsValid()) {
+    GetLastError(&error_);
+    return;
+  }
+
+  // FIXME: we should respect umask somehow.
+  DCHECK([&] {
+    struct stat st;
+    const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    return fstat(native(), &st) == 0 && (st.st_mode & mode) == mode;
+  }());
+
+#if defined(OS_LINUX)
+  if (posix_fallocate(native(), 0, size) == -1) {
+    GetLastError(&error_);
+    Handle::Close();
+    return;
+  }
+#elif defined(OS_MACOSX)
+  fstore_t store = {
+      F_ALLOCATECONTIG, F_PEOFPOSMODE, 0, static_cast<off_t>(size),
+  };
+
+  if (fcntl(native(), F_PREALLOCATE, &store) == -1) {
+    GetLastError(&error_);
+    Handle::Close();
+    return;
+  }
+#endif
+}
+
+bool File::Close(String* error) {
+  Handle::Close();
+
+  if (move_on_close_.empty()) {
+    return true;
+  }
+
+  const String tmp_path = move_on_close_ + ".tmp";
+  if (!Move(tmp_path, move_on_close_, error)) {
+    Delete(tmp_path);
+    return false;
+  }
+
+  return true;
 }
 
 }  // namespace base

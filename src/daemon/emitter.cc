@@ -184,7 +184,7 @@ void Emitter::DoCheckCache(const Atomic<bool>& is_shutting_down) {
       String error;
       const String output_path = GetOutputPath(incoming);
 
-      if (!base::WriteFile(output_path, entry.object)) {
+      if (!base::File::Write(output_path, entry.object)) {
         LOG(ERROR) << "Failed to restore file from cache: " << output_path;
         return false;
       }
@@ -376,7 +376,8 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
     const String output_path = GetOutputPath(incoming);
     if (reply->HasExtension(proto::RemoteResult::extension)) {
       auto* result = reply->MutableExtension(proto::RemoteResult::extension);
-      if (base::WriteFile(output_path, result->obj())) {
+      if (base::File::Write(output_path,
+                            Immutable::WrapString(result->obj()))) {
         proto::Status status;
         status.set_code(proto::Status::OK);
         LOG(INFO) << "Remote compilation successful: "

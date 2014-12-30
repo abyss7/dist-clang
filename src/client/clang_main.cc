@@ -1,7 +1,7 @@
 #include <base/assert.h>
 #include <base/c_utils.h>
 #include <base/constants.h>
-#include <base/file_utils.h>
+#include <base/file/file.h>
 #include <base/logging.h>
 #include <base/string_utils.h>
 #include <client/clang.h>
@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
   String dir = base::GetCurrentDir();
   do {
     String config_path = dir + "/.distclang";
-    if (base::FileExists(config_path)) {
+    if (base::File::Exists(config_path)) {
       client::proto::Configuration config;
 
       auto fd = open(config_path.c_str(), O_RDONLY);
@@ -121,7 +121,8 @@ int main(int argc, char* argv[]) {
 
     for (const auto& dir : path_dirs) {
       // TODO: convert |dir + "/clang"| to canonical path.
-      if (base::IsExecutable(dir + "/clang") && dir != base::GetSelfPath()) {
+      if (base::File::IsExecutable(dir + "/clang") &&
+          dir != base::GetSelfPath()) {
         clang_path = Immutable(dir + "/clang");
         break;
       }

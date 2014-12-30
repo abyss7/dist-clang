@@ -22,8 +22,9 @@ class Data : public Handle {
   bool Read(Immutable* output, String* error = nullptr);
 
  protected:
-  friend class Pipe;
-  friend class net::EpollEventLoop;
+  friend class File;                 // Data(NativeType)
+  friend class Pipe;                 // Data()
+  friend class net::EpollEventLoop;  // ReadyForRead(...)
 
   Data() = default;
   explicit Data(NativeType fd);

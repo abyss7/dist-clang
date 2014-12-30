@@ -235,9 +235,9 @@ bool FileCache::RemoveEntry(const String& manifest_path) {
   const String stderr_path = common_path + ".stderr";
   bool result = true;
 
-  if (base::FileExists(object_path)) {
-    auto size = base::FileSize(object_path);
-    if (!base::DeleteFile(object_path)) {
+  if (base::File::Exists(object_path)) {
+    auto size = base::File::Size(object_path);
+    if (!base::File::Delete(object_path)) {
       result = false;
     } else {
       DCHECK(size <= cached_size_);
@@ -245,9 +245,9 @@ bool FileCache::RemoveEntry(const String& manifest_path) {
     }
   }
 
-  if (base::FileExists(deps_path)) {
-    auto size = base::FileSize(deps_path);
-    if (!base::DeleteFile(deps_path)) {
+  if (base::File::Exists(deps_path)) {
+    auto size = base::File::Size(deps_path);
+    if (!base::File::Delete(deps_path)) {
       result = false;
     } else {
       DCHECK(size <= cached_size_);
@@ -255,9 +255,9 @@ bool FileCache::RemoveEntry(const String& manifest_path) {
     }
   }
 
-  if (base::FileExists(stderr_path)) {
-    auto size = base::FileSize(stderr_path);
-    if (!base::DeleteFile(stderr_path)) {
+  if (base::File::Exists(stderr_path)) {
+    auto size = base::File::Size(stderr_path);
+    if (!base::File::Delete(stderr_path)) {
       result = false;
     } else {
       DCHECK(size <= cached_size_);
@@ -265,8 +265,8 @@ bool FileCache::RemoveEntry(const String& manifest_path) {
     }
   }
 
-  auto size = base::FileSize(manifest_path);
-  if (!base::DeleteFile(manifest_path)) {
+  auto size = base::File::Size(manifest_path);
+  if (!base::File::Delete(manifest_path)) {
     result = false;
   } else {
     DCHECK(size <= cached_size_);
@@ -293,14 +293,14 @@ void FileCache::DoStore(const HandledHash& hash, const Entry& entry) {
   if (!entry.stderr.empty()) {
     const String stderr_path = CommonPath(hash) + ".stderr";
 
-    if (!base::WriteFile(stderr_path, entry.stderr)) {
+    if (!base::File::Write(stderr_path, entry.stderr)) {
       RemoveEntry(manifest_path);
       LOG(CACHE_ERROR) << "Failed to save stderr to " << stderr_path;
       return;
     }
     manifest.set_stderr(true);
 
-    cached_size_ += base::FileSize(stderr_path);
+    cached_size_ += base::File::Size(stderr_path);
   }
 
   if (!entry.object.empty()) {
@@ -308,7 +308,7 @@ void FileCache::DoStore(const HandledHash& hash, const Entry& entry) {
     String error;
 
     if (!snappy_) {
-      if (!base::WriteFile(object_path, entry.object)) {
+      if (!base::File::Write(object_path, entry.object)) {
         RemoveEntry(manifest_path);
         LOG(CACHE_ERROR) << "Failed to save object to " << object_path;
         return;
@@ -322,7 +322,7 @@ void FileCache::DoStore(const HandledHash& hash, const Entry& entry) {
         return;
       }
 
-      if (!base::WriteFile(object_path, std::move(packed_content), &error)) {
+      if (!base::File::Write(object_path, std::move(packed_content), &error)) {
         RemoveEntry(manifest_path);
         LOG(CACHE_ERROR) << "Failed to write to " << object_path << " : "
                          << error;
@@ -332,7 +332,7 @@ void FileCache::DoStore(const HandledHash& hash, const Entry& entry) {
       manifest.set_snappy(true);
     }
 
-    cached_size_ += base::FileSize(object_path);
+    cached_size_ += base::File::Size(object_path);
   } else {
     manifest.set_object(false);
   }
@@ -340,13 +340,13 @@ void FileCache::DoStore(const HandledHash& hash, const Entry& entry) {
   if (!entry.deps.empty()) {
     const String deps_path = CommonPath(hash) + ".d";
 
-    if (!base::WriteFile(deps_path, entry.deps)) {
+    if (!base::File::Write(deps_path, entry.deps)) {
       RemoveEntry(manifest_path);
       LOG(CACHE_ERROR) << "Failed to save deps to " << deps_path;
       return;
     }
 
-    cached_size_ += base::FileSize(deps_path);
+    cached_size_ += base::File::Size(deps_path);
   } else {
     manifest.set_deps(false);
   }
@@ -356,7 +356,7 @@ void FileCache::DoStore(const HandledHash& hash, const Entry& entry) {
     LOG(CACHE_ERROR) << "Failed to save manifest to " << manifest_path;
     return;
   }
-  cached_size_ += base::FileSize(manifest_path);
+  cached_size_ += base::File::Size(manifest_path);
 
   utime(manifest_path.c_str(), nullptr);
   utime(SecondPath(hash).c_str(), nullptr);
@@ -412,7 +412,7 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
     RemoveEntry(manifest_path);
     return;
   }
-  cached_size_ += base::FileSize(manifest_path);
+  cached_size_ += base::File::Size(manifest_path);
 
   utime(manifest_path.c_str(), nullptr);
   utime(SecondPath(hash).c_str(), nullptr);
@@ -477,7 +477,7 @@ void FileCache::Clean() {
 
 FileCache::ReadLock::ReadLock(const FileCache* file_cache, const String& path)
     : cache_(file_cache), path_(path) {
-  if (!base::FileExists(path)) {
+  if (!base::File::Exists(path)) {
     return;
   }
 
