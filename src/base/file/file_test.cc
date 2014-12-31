@@ -21,7 +21,9 @@ TEST(FileTest, Read) {
   ASSERT_EQ(expected_content.size(), static_cast<size_t>(size));
   close(fd);
 
-  Immutable content;
+  Immutable content(true);
+  // |content| is assignable since we use it many times during test.
+
   String error;
   EXPECT_TRUE(File::Read(file_path, &content, &error)) << error;
   EXPECT_EQ(expected_content, content);
@@ -89,7 +91,9 @@ TEST(FileTest, Hash) {
   ASSERT_EQ(content.size(), static_cast<size_t>(size));
   close(fd);
 
-  Immutable hash;
+  Immutable hash(true);
+  // |hash| is assignable since we use it many times during test.
+
   String error;
   EXPECT_TRUE(File::Hash(file_path, &hash, List<Literal>(), &error)) << error;
   EXPECT_EQ(expected_hash, hash);
@@ -121,7 +125,9 @@ TEST(FileTest, Copy) {
 
   struct stat st;
   const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-  Immutable content;
+
+  Immutable content(true);
+  // |content| is assignable since we use it many times during test.
 
   ASSERT_EQ(0, stat(file1.c_str(), &st));
   EXPECT_EQ(1u, st.st_nlink);

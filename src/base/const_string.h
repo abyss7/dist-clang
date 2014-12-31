@@ -46,7 +46,8 @@ class ConstString THREAD_UNSAFE : public ThreadFixed {
  public:
   using Rope = List<ConstString>;
 
-  ConstString() = default;                           // 0-copy
+  ConstString();                                     // 0-copy
+  explicit ConstString(bool assignable);             // 0-copy
   ConstString(Literal str);                          // 0-copy
   ConstString(char str[]);                           // 0-copy
   ConstString(UniquePtr<char[]>& str);               // 0-copy
@@ -67,20 +68,21 @@ class ConstString THREAD_UNSAFE : public ThreadFixed {
   String string_copy(bool collapse = true) const;           // 1-copy
 
   // Minimal interface for |std::string| compatibility.
-  inline void assign(const ConstString& other) { this->operator=(other); }
-  const char* data() const;                                 // 0,1-copy
-  const char* c_str() const;                                // 0,1-copy
-  inline size_t size() const { return size_; }              // 0-copy
-  inline bool empty() const { return size_ == 0; }          // 0-copy
-  bool operator==(const ConstString& other) const;          // 0-copy
-  inline bool operator!=(const ConstString& other) const {  // 0-copy
-    return !this->operator==(other);
-  }
+  void assign(const ConstString& other);            // 0-copy
+  const char* data() const;                         // 0,1-copy
+  const char* c_str() const;                        // 0,1-copy
+  inline size_t size() const { return size_; }      // 0-copy
+  inline bool empty() const { return size_ == 0; }  // 0-copy
 
   size_t find(const char* str) const;  // 1-copy
 
-  const char& operator[](size_t index) const;             // 0-copy
-  ConstString operator+(const ConstString& other) const;  // 0-copy
+  inline void operator=(const ConstString& other) { assign(other); }  // 0-copy
+  const char& operator[](size_t index) const;                         // 0-copy
+  ConstString operator+(const ConstString& other) const;              // 0-copy
+  bool operator==(const ConstString& other) const;                    // 0-copy
+  inline bool operator!=(const ConstString& other) const {            // 0-copy
+    return !this->operator==(other);
+  }
 
   ConstString Hash(ui8 output_size = 16) const;  // 0-copy
 
@@ -95,6 +97,8 @@ class ConstString THREAD_UNSAFE : public ThreadFixed {
   mutable Rope rope_;
   mutable size_t size_ = 0;
   mutable bool null_end_ = false;
+  bool assignable_ = false;
+  const bool assign_once_ = false;
 };
 
 bool Literal::operator==(const ConstString& other) const {

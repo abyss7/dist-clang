@@ -120,12 +120,13 @@ bool File::Hash(Immutable* output, const List<Literal>& skip_list,
                 String* error) {
   DCHECK(IsValid());
 
-  if (!Read(output, error)) {
+  Immutable tmp_output;
+  if (!Read(&tmp_output, error)) {
     return false;
   }
 
   for (const char* skip : skip_list) {
-    if (output->find(skip) != String::npos) {
+    if (tmp_output.find(skip) != String::npos) {
       if (error) {
         error->assign("Skip-list hit: " + String(skip));
       }
@@ -133,7 +134,7 @@ bool File::Hash(Immutable* output, const List<Literal>& skip_list,
     }
   }
 
-  output->assign(base::Hexify(output->Hash()));
+  output->assign(base::Hexify(tmp_output.Hash()));
   return true;
 }
 

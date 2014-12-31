@@ -90,10 +90,10 @@ bool FileCache::Find(const HandledSource& code, const CommandLine& command_line,
 bool FileCache::Find(const UnhandledSource& code,
                      const CommandLine& command_line, const Version& version,
                      Entry* entry) const {
-  Immutable hash = Hash(code, command_line, version);
-  const String first_path = FirstPath(hash);
-  const String second_path = SecondPath(hash);
-  const String manifest_path = CommonPath(hash) + ".manifest";
+  Immutable hash1 = Hash(code, command_line, version);
+  const String first_path = FirstPath(hash1);
+  const String second_path = SecondPath(hash1);
+  const String manifest_path = CommonPath(hash1) + ".manifest";
   const ReadLock lock(this, manifest_path);
 
   if (!lock) {
@@ -109,7 +109,7 @@ bool FileCache::Find(const UnhandledSource& code,
   utime(second_path.c_str(), nullptr);
   utime(first_path.c_str(), nullptr);
 
-  Immutable::Rope hash_rope = {hash};
+  Immutable::Rope hash_rope = {hash1};
   for (const auto& header : manifest.headers()) {
     Immutable header_hash;
     if (!base::File::Hash(header, &header_hash)) {
@@ -117,11 +117,11 @@ bool FileCache::Find(const UnhandledSource& code,
     }
     hash_rope.push_back(header_hash);
   }
-  hash = base::Hexify(Immutable(hash_rope).Hash());
+  Immutable hash2 = base::Hexify(Immutable(hash_rope).Hash()), hash3;
 
   DCHECK(database_);
-  if (database_->Get(hash, &hash)) {
-    return FindByHash(HandledHash(hash), entry);
+  if (database_->Get(hash2, &hash3)) {
+    return FindByHash(HandledHash(hash3), entry);
   }
 
   return false;
@@ -208,6 +208,7 @@ bool FileCache::FindByHash(const HandledHash& hash, Entry* entry) const {
           LOG(CACHE_ERROR) << "Failed to unpack contents of " << object_path;
           return false;
         }
+
         entry->object = std::move(object_str);
       } else {
         if (!base::File::Read(object_path, &entry->object)) {

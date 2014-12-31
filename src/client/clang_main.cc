@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  Immutable version, clang_path;
+  Immutable version(true), clang_path(true);
 
   // Try to load config file first.
   String dir = base::GetCurrentDir();

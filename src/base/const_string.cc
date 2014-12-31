@@ -21,6 +21,13 @@ namespace base {
 // static
 const Literal Literal::empty = "";
 
+ConstString::ConstString() : assignable_(true), assign_once_(true) {
+}
+
+ConstString::ConstString(bool assignable) : assignable_(assignable) {
+  DCHECK(assignable);
+}
+
 ConstString::ConstString(Literal str)
     : str_(str.str_, NoopDeleter), size_(strlen(str.str_)), null_end_(true) {
   DCHECK(str.str_[size_] == '\0');
@@ -42,9 +49,9 @@ ConstString::ConstString(char str[], size_t size)
 
 #if !defined(OS_WIN)
 ConstString::ConstString(void* str, size_t size)
-    : str_(reinterpret_cast<char*>(str),
-           [str, size](const char*) { munmap(str, size); }),
-      size_(size) {
+    : str_(reinterpret_cast<char*>(str), [str, size](const char*) {
+      munmap(str, size);
+    }), size_(size) {
 }
 #endif
 
@@ -118,6 +125,22 @@ String ConstString::string_copy(bool collapse) const {
   }
 
   return result;
+}
+
+void ConstString::assign(const ConstString& other) {
+  DCHECK(assignable_);
+
+  CheckThread();
+
+  medium_ = other.medium_;
+  str_ = other.str_;
+  rope_ = other.rope_;
+  size_ = other.size_;
+  null_end_ = other.null_end_;
+
+  if (assign_once_) {
+    assignable_ = false;
+  }
 }
 
 const char* ConstString::data() const {

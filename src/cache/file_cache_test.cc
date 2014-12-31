@@ -112,7 +112,7 @@ TEST(FileCacheTest, RestoreSingleEntry) {
   const auto expected_deps = "some deps"_l;
   FileCache cache(path);
   ASSERT_TRUE(cache.Run());
-  FileCache::Entry entry;
+  FileCache::Entry entry1, entry2;
 
   const HandledSource code("int main() { return 0; }"_l);
   const CommandLine cl("-c"_l);
@@ -122,26 +122,26 @@ TEST(FileCacheTest, RestoreSingleEntry) {
   ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
 
   // Check that entrie's content is not changed on cache miss.
-  EXPECT_FALSE(cache.Find(code, cl, version, &entry));
-  EXPECT_TRUE(entry.object.empty());
-  EXPECT_TRUE(entry.deps.empty());
-  EXPECT_TRUE(entry.stderr.empty());
+  EXPECT_FALSE(cache.Find(code, cl, version, &entry1));
+  EXPECT_TRUE(entry1.object.empty());
+  EXPECT_TRUE(entry1.deps.empty());
+  EXPECT_TRUE(entry1.stderr.empty());
 
-  entry.object = expected_object_code;
-  entry.deps = expected_deps;
-  entry.stderr = expected_stderr;
+  entry1.object = expected_object_code;
+  entry1.deps = expected_deps;
+  entry1.stderr = expected_stderr;
 
   // Store the entry.
-  auto future = cache.Store(code, cl, version, entry);
+  auto future = cache.Store(code, cl, version, entry1);
   ASSERT_TRUE(!!future);
   future->Wait();
   ASSERT_TRUE(future->GetValue());
 
   // Restore the entry.
-  ASSERT_TRUE(cache.Find(code, cl, version, &entry));
-  EXPECT_EQ(expected_object_code, entry.object);
-  EXPECT_EQ(expected_deps, entry.deps);
-  EXPECT_EQ(expected_stderr, entry.stderr);
+  ASSERT_TRUE(cache.Find(code, cl, version, &entry2));
+  EXPECT_EQ(expected_object_code, entry2.object);
+  EXPECT_EQ(expected_deps, entry2.deps);
+  EXPECT_EQ(expected_stderr, entry2.stderr);
 }
 
 TEST(FileCacheTest, RestoreSingleEntry_Sync) {
@@ -154,7 +154,7 @@ TEST(FileCacheTest, RestoreSingleEntry_Sync) {
   const auto expected_deps = "some deps"_l;
   FileCache cache(path);
   ASSERT_TRUE(cache.Run());
-  FileCache::Entry entry;
+  FileCache::Entry entry1, entry2;
 
   const HandledSource code("int main() { return 0; }"_l);
   const CommandLine cl("-c"_l);
@@ -162,24 +162,24 @@ TEST(FileCacheTest, RestoreSingleEntry_Sync) {
 
   ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
   ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
-  EXPECT_FALSE(cache.Find(code, cl, version, &entry));
-  EXPECT_TRUE(entry.object.empty());
-  EXPECT_TRUE(entry.deps.empty());
-  EXPECT_TRUE(entry.stderr.empty());
+  EXPECT_FALSE(cache.Find(code, cl, version, &entry1));
+  EXPECT_TRUE(entry1.object.empty());
+  EXPECT_TRUE(entry1.deps.empty());
+  EXPECT_TRUE(entry1.stderr.empty());
 
-  entry.object = expected_object_code;
-  entry.deps = expected_deps;
-  entry.stderr = expected_stderr;
+  entry1.object = expected_object_code;
+  entry1.deps = expected_deps;
+  entry1.stderr = expected_stderr;
 
-  auto future = cache.StoreNow(code, cl, version, entry);
+  auto future = cache.StoreNow(code, cl, version, entry1);
   ASSERT_TRUE(!!future);
   future->Wait();
   ASSERT_TRUE(future->GetValue());
 
-  ASSERT_TRUE(cache.Find(code, cl, version, &entry));
-  EXPECT_EQ(expected_object_code, entry.object);
-  EXPECT_EQ(expected_deps, entry.deps);
-  EXPECT_EQ(expected_stderr, entry.stderr);
+  ASSERT_TRUE(cache.Find(code, cl, version, &entry2));
+  EXPECT_EQ(expected_object_code, entry2.object);
+  EXPECT_EQ(expected_deps, entry2.deps);
+  EXPECT_EQ(expected_stderr, entry2.stderr);
 }
 
 TEST(FileCacheTest, RestoreEntryWithMissingFile) {
@@ -192,7 +192,7 @@ TEST(FileCacheTest, RestoreEntryWithMissingFile) {
   const auto expected_deps = "some deps"_l;
   FileCache cache(path);
   ASSERT_TRUE(cache.Run());
-  FileCache::Entry entry;
+  FileCache::Entry entry1, entry2;
 
   const HandledSource code("int main() { return 0; }"_l);
   const CommandLine cl("-c"_l);
@@ -201,12 +201,12 @@ TEST(FileCacheTest, RestoreEntryWithMissingFile) {
   ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
   ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
 
-  entry.object = expected_object_code;
-  entry.deps = expected_deps;
-  entry.stderr = expected_stderr;
+  entry1.object = expected_object_code;
+  entry1.deps = expected_deps;
+  entry1.stderr = expected_stderr;
 
   // Store the entry.
-  auto future = cache.Store(code, cl, version, entry);
+  auto future = cache.Store(code, cl, version, entry1);
   ASSERT_TRUE(!!future);
   future->Wait();
   ASSERT_TRUE(future->GetValue());
@@ -215,7 +215,7 @@ TEST(FileCacheTest, RestoreEntryWithMissingFile) {
                      ".d");
 
   // Restore the entry.
-  ASSERT_FALSE(cache.Find(code, cl, version, &entry));
+  ASSERT_FALSE(cache.Find(code, cl, version, &entry2));
 }
 
 TEST(FileCacheTest, DISABLED_RestoreEntryWithMalfordedManifest) {
@@ -370,7 +370,7 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   const auto expected_deps = "some deps"_l;
   FileCache cache(path);
   ASSERT_TRUE(cache.Run());
-  FileCache::Entry entry;
+  FileCache::Entry entry1, entry2;
 
   const HandledSource code("int main() { return 0; }"_l);
   const CommandLine cl("-c"_l);
@@ -381,12 +381,12 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   ASSERT_TRUE(base::File::Write(header1_path, "#define A"_l));
   ASSERT_TRUE(base::File::Write(header2_path, "#define B"_l));
 
-  entry.object = expected_object_code;
-  entry.deps = expected_deps;
-  entry.stderr = expected_stderr;
+  entry1.object = expected_object_code;
+  entry1.deps = expected_deps;
+  entry1.stderr = expected_stderr;
 
   // Store the entry.
-  auto future = cache.Store(code, cl, version, entry);
+  auto future = cache.Store(code, cl, version, entry1);
   ASSERT_TRUE(!!future);
   future->Wait();
   ASSERT_TRUE(future->GetValue());
@@ -401,10 +401,10 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   ASSERT_TRUE(future->GetValue());
 
   // Restore the entry.
-  ASSERT_TRUE(cache.Find(orig_code, cl, version, &entry));
-  EXPECT_EQ(expected_object_code, entry.object);
-  EXPECT_EQ(expected_deps, entry.deps);
-  EXPECT_EQ(expected_stderr, entry.stderr);
+  ASSERT_TRUE(cache.Find(orig_code, cl, version, &entry2));
+  EXPECT_EQ(expected_object_code, entry2.object);
+  EXPECT_EQ(expected_deps, entry2.deps);
+  EXPECT_EQ(expected_stderr, entry2.stderr);
 }
 
 TEST(FileCacheTest, RestoreDirectEntry_Sync) {
@@ -419,7 +419,7 @@ TEST(FileCacheTest, RestoreDirectEntry_Sync) {
   const auto expected_deps = "some deps"_l;
   FileCache cache(path);
   ASSERT_TRUE(cache.Run());
-  FileCache::Entry entry;
+  FileCache::Entry entry1, entry2;
 
   const HandledSource code("int main() { return 0; }"_l);
   const CommandLine cl("-c"_l);
@@ -430,12 +430,12 @@ TEST(FileCacheTest, RestoreDirectEntry_Sync) {
   ASSERT_TRUE(base::File::Write(header1_path, "#define A"_l));
   ASSERT_TRUE(base::File::Write(header2_path, "#define B"_l));
 
-  entry.object = expected_object_code;
-  entry.deps = expected_deps;
-  entry.stderr = expected_stderr;
+  entry1.object = expected_object_code;
+  entry1.deps = expected_deps;
+  entry1.stderr = expected_stderr;
 
   // Store the entry.
-  cache.StoreNow(code, cl, version, entry);
+  cache.StoreNow(code, cl, version, entry1);
 
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
@@ -444,10 +444,10 @@ TEST(FileCacheTest, RestoreDirectEntry_Sync) {
                  FileCache::Hash(code, cl, version));
 
   // Restore the entry.
-  ASSERT_TRUE(cache.Find(orig_code, cl, version, &entry));
-  EXPECT_EQ(expected_object_code, entry.object);
-  EXPECT_EQ(expected_deps, entry.deps);
-  EXPECT_EQ(expected_stderr, entry.stderr);
+  ASSERT_TRUE(cache.Find(orig_code, cl, version, &entry2));
+  EXPECT_EQ(expected_object_code, entry2.object);
+  EXPECT_EQ(expected_deps, entry2.deps);
+  EXPECT_EQ(expected_stderr, entry2.stderr);
 }
 
 TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
@@ -512,7 +512,7 @@ TEST(FileCacheTest, DirectEntry_RewriteManifest) {
   const auto expected_deps = "some deps"_l;
   FileCache cache(path);
   ASSERT_TRUE(cache.Run());
-  FileCache::Entry entry;
+  FileCache::Entry entry1, entry2;
 
   const HandledSource code("int main() { return 0; }"_l);
   const CommandLine cl("-c"_l);
@@ -523,12 +523,12 @@ TEST(FileCacheTest, DirectEntry_RewriteManifest) {
   ASSERT_TRUE(base::File::Write(header1_path, "#define A"_l));
   ASSERT_TRUE(base::File::Write(header2_path, "#define B"_l));
 
-  entry.object = expected_object_code;
-  entry.deps = expected_deps;
-  entry.stderr = expected_stderr;
+  entry1.object = expected_object_code;
+  entry1.deps = expected_deps;
+  entry1.stderr = expected_stderr;
 
   // Store the entry.
-  auto future = cache.Store(code, cl, version, entry);
+  auto future = cache.Store(code, cl, version, entry1);
   ASSERT_TRUE(!!future);
   future->Wait();
   ASSERT_TRUE(future->GetValue());
@@ -552,7 +552,7 @@ TEST(FileCacheTest, DirectEntry_RewriteManifest) {
   ASSERT_TRUE(future->GetValue());
 
   // Restore the entry.
-  EXPECT_TRUE(cache.Find(orig_code, cl, version, &entry));
+  EXPECT_TRUE(cache.Find(orig_code, cl, version, &entry2));
 }
 
 TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
