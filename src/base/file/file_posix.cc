@@ -5,8 +5,13 @@
 
 #include <fcntl.h>
 #include <sys/mman.h>
-#include <sys/sendfile.h>
 #include <sys/stat.h>
+
+#if defined(OS_LINUX)
+#include <sys/sendfile.h>
+#elif defined(OS_MACOSX)
+#include <copyfile.h>
+#endif
 
 namespace dist_clang {
 namespace base {
@@ -155,6 +160,8 @@ bool File::CopyInto(const String& dst_path, String* error) {
     return false;
   }
 
+  bool result = false;
+#if defined(OS_LINUX)
   size_t total_bytes = 0;
   ssize_t size = 0;
   while (total_bytes < src_size) {
@@ -164,12 +171,23 @@ bool File::CopyInto(const String& dst_path, String* error) {
     }
     total_bytes += size;
   }
+  result = (total_bytes == src_size);
+#elif defined(OS_MACOSX)
+  if (fcopyfile(native(), dst.native(), nullptr, COPYFILE_ALL) != 0) {
+    GetLastError(error);
+    return false;
+  }
+  result = true;
+#else
+#pragma message "Don't know how to make quick file copy on this platform!"
+// TODO: implement fallback file copy.
+#endif
 
   if (!dst.Close(error)) {
     return false;
   }
 
-  return total_bytes == src_size;
+  return result;
 }
 
 // static

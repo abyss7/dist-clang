@@ -133,10 +133,11 @@ TEST(FileTest, Copy) {
   EXPECT_EQ(1u, st.st_nlink);
   EXPECT_EQ(mode, st.st_mode & mode);
 
+  String error;
   ASSERT_EQ(0, stat(file2.c_str(), &st));
   EXPECT_EQ(1u, st.st_nlink);
   EXPECT_EQ(mode, st.st_mode & mode);
-  ASSERT_TRUE(File::Read(file2, &content));
+  ASSERT_TRUE(File::Read(file2, &content, &error)) << error;
   EXPECT_EQ(expected_content1, content);
 
   ASSERT_TRUE(File::Write(file3, expected_content2));
