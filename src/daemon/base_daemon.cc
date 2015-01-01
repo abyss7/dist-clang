@@ -262,11 +262,7 @@ void BaseDaemon::UpdateSimpleCache(const proto::Flags& flags,
     return;
   }
 
-  if (conf_.cache().sync()) {
-    cache_->StoreNow(source, command_line, version, entry);
-  } else {
-    cache_->Store(source, command_line, version, entry);
-  }
+  cache_->StoreNow(source, command_line, version, entry);
 }
 
 void BaseDaemon::UpdateDirectCache(const proto::LocalExecute* message,

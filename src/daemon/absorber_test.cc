@@ -166,7 +166,6 @@ TEST_F(AbsorberTest, StoreLocalCache) {
   conf.mutable_absorber()->mutable_local()->set_host(expected_host);
   conf.mutable_absorber()->mutable_local()->set_port(expected_port);
   conf.mutable_cache()->set_path(temp_dir);
-  conf.mutable_cache()->set_sync(true);
   conf.mutable_cache()->set_direct(false);
 
   auto* version = conf.add_versions();

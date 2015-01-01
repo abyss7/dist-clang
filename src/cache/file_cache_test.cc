@@ -120,48 +120,6 @@ TEST(FileCacheTest, RestoreSingleEntry) {
 
   ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
   ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
-
-  // Check that entrie's content is not changed on cache miss.
-  EXPECT_FALSE(cache.Find(code, cl, version, &entry1));
-  EXPECT_TRUE(entry1.object.empty());
-  EXPECT_TRUE(entry1.deps.empty());
-  EXPECT_TRUE(entry1.stderr.empty());
-
-  entry1.object = expected_object_code;
-  entry1.deps = expected_deps;
-  entry1.stderr = expected_stderr;
-
-  // Store the entry.
-  auto future = cache.Store(code, cl, version, entry1);
-  ASSERT_TRUE(!!future);
-  future->Wait();
-  ASSERT_TRUE(future->GetValue());
-
-  // Restore the entry.
-  ASSERT_TRUE(cache.Find(code, cl, version, &entry2));
-  EXPECT_EQ(expected_object_code, entry2.object);
-  EXPECT_EQ(expected_deps, entry2.deps);
-  EXPECT_EQ(expected_stderr, entry2.stderr);
-}
-
-TEST(FileCacheTest, RestoreSingleEntry_Sync) {
-  const base::TemporaryDir tmp_dir;
-  const String path = tmp_dir;
-  const String object_path = path + "/test.o";
-  const String deps_path = path + "/test.d";
-  const auto expected_stderr = "some warning"_l;
-  const auto expected_object_code = "some object code"_l;
-  const auto expected_deps = "some deps"_l;
-  FileCache cache(path);
-  ASSERT_TRUE(cache.Run());
-  FileCache::Entry entry1, entry2;
-
-  const HandledSource code("int main() { return 0; }"_l);
-  const CommandLine cl("-c"_l);
-  const Version version("3.5 (revision 100000)"_l);
-
-  ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
-  ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
   EXPECT_FALSE(cache.Find(code, cl, version, &entry1));
   EXPECT_TRUE(entry1.object.empty());
   EXPECT_TRUE(entry1.deps.empty());
@@ -206,7 +164,7 @@ TEST(FileCacheTest, RestoreEntryWithMissingFile) {
   entry1.stderr = expected_stderr;
 
   // Store the entry.
-  auto future = cache.Store(code, cl, version, entry1);
+  auto future = cache.StoreNow(code, cl, version, entry1);
   ASSERT_TRUE(!!future);
   future->Wait();
   ASSERT_TRUE(future->GetValue());
@@ -255,58 +213,6 @@ TEST(FileCacheTest, DISABLED_BadInitialCacheSize) {
 }
 
 TEST(FileCacheTest, ExceedCacheSize) {
-  const base::TemporaryDir tmp_dir;
-  const String path = tmp_dir;
-  const String cache_path = path + "/cache";
-  const Literal obj_content[] = {"22"_l, "333"_l, "4444"_l};
-  const HandledSource code[] = {HandledSource("int main() { return 0; }"_l),
-                                HandledSource("int main() { return 1; }"_l),
-                                HandledSource("int main() { return 2; }"_l)};
-  const CommandLine cl("-c"_l);
-  const Version version("3.5 (revision 100000)"_l);
-
-  FileCache cache(cache_path, 30, false);
-  ASSERT_TRUE(cache.Run());
-  auto db_size = cache.database_->SizeOnDisk();
-
-  {
-    FileCache::Entry entry{obj_content[0], String(), String()};
-    auto future = cache.Store(code[0], cl, version, entry);
-    ASSERT_TRUE(!!future);
-    future->Wait();
-    ASSERT_TRUE(future->GetValue());
-    EXPECT_EQ(14u, base::CalculateDirectorySize(cache_path) - db_size);
-  }
-
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-
-  {
-    FileCache::Entry entry{obj_content[1], String(), String()};
-    auto future = cache.Store(code[1], cl, version, entry);
-    ASSERT_TRUE(!!future);
-    future->Wait();
-    ASSERT_TRUE(future->GetValue());
-    EXPECT_EQ(29u, base::CalculateDirectorySize(cache_path) - db_size);
-  }
-
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-
-  {
-    FileCache::Entry entry{obj_content[2], String(), String()};
-    auto future = cache.Store(code[2], cl, version, entry);
-    ASSERT_TRUE(!!future);
-    future->Wait();
-    ASSERT_TRUE(future->GetValue());
-    EXPECT_EQ(16u, base::CalculateDirectorySize(cache_path) - db_size);
-  }
-
-  FileCache::Entry entry;
-  EXPECT_FALSE(cache.Find(code[0], cl, version, &entry));
-  EXPECT_FALSE(cache.Find(code[1], cl, version, &entry));
-  EXPECT_TRUE(cache.Find(code[2], cl, version, &entry));
-}
-
-TEST(FileCacheTest, ExceedCacheSize_Sync) {
   const base::TemporaryDir tmp_dir;
   const String path = tmp_dir;
   const String cache_path = path + "/cache";
@@ -386,7 +292,7 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   entry1.stderr = expected_stderr;
 
   // Store the entry.
-  auto future = cache.Store(code, cl, version, entry1);
+  auto future = cache.StoreNow(code, cl, version, entry1);
   ASSERT_TRUE(!!future);
   future->Wait();
   ASSERT_TRUE(future->GetValue());
@@ -399,49 +305,6 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   ASSERT_TRUE(!!future);
   future->Wait();
   ASSERT_TRUE(future->GetValue());
-
-  // Restore the entry.
-  ASSERT_TRUE(cache.Find(orig_code, cl, version, &entry2));
-  EXPECT_EQ(expected_object_code, entry2.object);
-  EXPECT_EQ(expected_deps, entry2.deps);
-  EXPECT_EQ(expected_stderr, entry2.stderr);
-}
-
-TEST(FileCacheTest, RestoreDirectEntry_Sync) {
-  const base::TemporaryDir tmp_dir;
-  const String path = tmp_dir;
-  const String object_path = path + "/test.o";
-  const String deps_path = path + "/test.d";
-  const String header1_path = path + "/test1.h";
-  const String header2_path = path + "/test2.h";
-  const auto expected_stderr = "some warning"_l;
-  const auto expected_object_code = "some object code"_l;
-  const auto expected_deps = "some deps"_l;
-  FileCache cache(path);
-  ASSERT_TRUE(cache.Run());
-  FileCache::Entry entry1, entry2;
-
-  const HandledSource code("int main() { return 0; }"_l);
-  const CommandLine cl("-c"_l);
-  const Version version("3.5 (revision 100000)"_l);
-
-  ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
-  ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
-  ASSERT_TRUE(base::File::Write(header1_path, "#define A"_l));
-  ASSERT_TRUE(base::File::Write(header2_path, "#define B"_l));
-
-  entry1.object = expected_object_code;
-  entry1.deps = expected_deps;
-  entry1.stderr = expected_stderr;
-
-  // Store the entry.
-  cache.StoreNow(code, cl, version, entry1);
-
-  // Store the direct entry.
-  const UnhandledSource orig_code("int main() {}"_l);
-  const List<String> headers = {header1_path, header2_path};
-  cache.StoreNow(orig_code, cl, version, headers,
-                 FileCache::Hash(code, cl, version));
 
   // Restore the entry.
   ASSERT_TRUE(cache.Find(orig_code, cl, version, &entry2));
@@ -478,7 +341,7 @@ TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
   entry.stderr = expected_stderr;
 
   // Store the entry.
-  auto future = cache.Store(code, cl, version, entry);
+  auto future = cache.StoreNow(code, cl, version, entry);
   ASSERT_TRUE(!!future);
   future->Wait();
   ASSERT_TRUE(future->GetValue());
@@ -528,7 +391,7 @@ TEST(FileCacheTest, DirectEntry_RewriteManifest) {
   entry1.stderr = expected_stderr;
 
   // Store the entry.
-  auto future = cache.Store(code, cl, version, entry1);
+  auto future = cache.StoreNow(code, cl, version, entry1);
   ASSERT_TRUE(!!future);
   future->Wait();
   ASSERT_TRUE(future->GetValue());
@@ -583,7 +446,7 @@ TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
   entry.stderr = expected_stderr;
 
   // Store the entry.
-  auto future = cache.Store(code, cl, version, entry);
+  auto future = cache.StoreNow(code, cl, version, entry);
   ASSERT_TRUE(!!future);
   future->Wait();
   ASSERT_TRUE(future->GetValue());

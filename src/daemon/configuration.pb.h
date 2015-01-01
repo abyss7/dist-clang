@@ -424,13 +424,6 @@ class Configuration_Cache : public ::google::protobuf::Message {
   inline ::google::protobuf::uint64 size() const;
   inline void set_size(::google::protobuf::uint64 value);
 
-  // optional bool sync = 3 [default = false];
-  inline bool has_sync() const;
-  inline void clear_sync();
-  static const int kSyncFieldNumber = 3;
-  inline bool sync() const;
-  inline void set_sync(bool value);
-
   // optional bool direct = 4 [default = false];
   inline bool has_direct() const;
   inline void clear_direct();
@@ -465,8 +458,6 @@ class Configuration_Cache : public ::google::protobuf::Message {
   inline void clear_has_path();
   inline void set_has_size();
   inline void clear_has_size();
-  inline void set_has_sync();
-  inline void clear_has_sync();
   inline void set_has_direct();
   inline void clear_has_direct();
   inline void set_has_mtime();
@@ -482,7 +473,6 @@ class Configuration_Cache : public ::google::protobuf::Message {
   mutable int _cached_size_;
   ::std::string* path_;
   ::google::protobuf::uint64 size_;
-  bool sync_;
   bool direct_;
   bool mtime_;
   bool disabled_;
@@ -1254,39 +1244,15 @@ inline void Configuration_Cache::set_size(::google::protobuf::uint64 value) {
   // @@protoc_insertion_point(field_set:dist_clang.proto.Configuration.Cache.size)
 }
 
-// optional bool sync = 3 [default = false];
-inline bool Configuration_Cache::has_sync() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
-}
-inline void Configuration_Cache::set_has_sync() {
-  _has_bits_[0] |= 0x00000004u;
-}
-inline void Configuration_Cache::clear_has_sync() {
-  _has_bits_[0] &= ~0x00000004u;
-}
-inline void Configuration_Cache::clear_sync() {
-  sync_ = false;
-  clear_has_sync();
-}
-inline bool Configuration_Cache::sync() const {
-  // @@protoc_insertion_point(field_get:dist_clang.proto.Configuration.Cache.sync)
-  return sync_;
-}
-inline void Configuration_Cache::set_sync(bool value) {
-  set_has_sync();
-  sync_ = value;
-  // @@protoc_insertion_point(field_set:dist_clang.proto.Configuration.Cache.sync)
-}
-
 // optional bool direct = 4 [default = false];
 inline bool Configuration_Cache::has_direct() const {
-  return (_has_bits_[0] & 0x00000008u) != 0;
+  return (_has_bits_[0] & 0x00000004u) != 0;
 }
 inline void Configuration_Cache::set_has_direct() {
-  _has_bits_[0] |= 0x00000008u;
+  _has_bits_[0] |= 0x00000004u;
 }
 inline void Configuration_Cache::clear_has_direct() {
-  _has_bits_[0] &= ~0x00000008u;
+  _has_bits_[0] &= ~0x00000004u;
 }
 inline void Configuration_Cache::clear_direct() {
   direct_ = false;
@@ -1304,13 +1270,13 @@ inline void Configuration_Cache::set_direct(bool value) {
 
 // optional bool mtime = 5 [default = false];
 inline bool Configuration_Cache::has_mtime() const {
-  return (_has_bits_[0] & 0x00000010u) != 0;
+  return (_has_bits_[0] & 0x00000008u) != 0;
 }
 inline void Configuration_Cache::set_has_mtime() {
-  _has_bits_[0] |= 0x00000010u;
+  _has_bits_[0] |= 0x00000008u;
 }
 inline void Configuration_Cache::clear_has_mtime() {
-  _has_bits_[0] &= ~0x00000010u;
+  _has_bits_[0] &= ~0x00000008u;
 }
 inline void Configuration_Cache::clear_mtime() {
   mtime_ = false;
@@ -1328,13 +1294,13 @@ inline void Configuration_Cache::set_mtime(bool value) {
 
 // optional bool disabled = 6 [default = false];
 inline bool Configuration_Cache::has_disabled() const {
-  return (_has_bits_[0] & 0x00000020u) != 0;
+  return (_has_bits_[0] & 0x00000010u) != 0;
 }
 inline void Configuration_Cache::set_has_disabled() {
-  _has_bits_[0] |= 0x00000020u;
+  _has_bits_[0] |= 0x00000010u;
 }
 inline void Configuration_Cache::clear_has_disabled() {
-  _has_bits_[0] &= ~0x00000020u;
+  _has_bits_[0] &= ~0x00000010u;
 }
 inline void Configuration_Cache::clear_disabled() {
   disabled_ = false;
@@ -1352,13 +1318,13 @@ inline void Configuration_Cache::set_disabled(bool value) {
 
 // optional bool snappy = 7 [default = true];
 inline bool Configuration_Cache::has_snappy() const {
-  return (_has_bits_[0] & 0x00000040u) != 0;
+  return (_has_bits_[0] & 0x00000020u) != 0;
 }
 inline void Configuration_Cache::set_has_snappy() {
-  _has_bits_[0] |= 0x00000040u;
+  _has_bits_[0] |= 0x00000020u;
 }
 inline void Configuration_Cache::clear_has_snappy() {
-  _has_bits_[0] &= ~0x00000040u;
+  _has_bits_[0] &= ~0x00000020u;
 }
 inline void Configuration_Cache::clear_snappy() {
   snappy_ = true;

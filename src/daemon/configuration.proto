@@ -27,7 +27,6 @@ message Configuration {
   message Cache {
     required string path   = 1;
     optional uint64 size   = 2 [ default = 0];  // 0 - is unlimited
-    optional bool sync     = 3 [ default = false];  // for testing.
     optional bool direct   = 4 [ default = false];
     optional bool mtime    = 5 [ default = false];  // TODO: not implemented yet.
     optional bool disabled = 6 [ default = false];

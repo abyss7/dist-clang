@@ -127,14 +127,6 @@ bool FileCache::Find(const UnhandledSource& code,
   return false;
 }
 
-FileCache::Optional FileCache::Store(const HandledSource& code,
-                                     const CommandLine& command_line,
-                                     const Version& version,
-                                     const Entry& entry) {
-  pool_.Push([=] { DoStore(Hash(code, command_line, version), entry); });
-  return pool_.Push(std::bind(&FileCache::Clean, this));
-}
-
 FileCache::Optional FileCache::Store(const UnhandledSource& code,
                                      const CommandLine& command_line,
                                      const Version& version,
@@ -150,15 +142,6 @@ FileCache::Optional FileCache::StoreNow(const HandledSource& code,
                                         const Version& version,
                                         const Entry& entry) {
   DoStore(Hash(code, command_line, version), entry);
-  return pool_.Push(std::bind(&FileCache::Clean, this));
-}
-
-FileCache::Optional FileCache::StoreNow(const UnhandledSource& code,
-                                        const CommandLine& command_line,
-                                        const Version& version,
-                                        const List<String>& headers,
-                                        const HandledHash& hash) {
-  DoStore(Hash(code, command_line, version), headers, hash);
   return pool_.Push(std::bind(&FileCache::Clean, this));
 }
 

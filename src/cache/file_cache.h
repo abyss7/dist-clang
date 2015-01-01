@@ -63,13 +63,11 @@ class FileCache {
 
   static cache::string::HandledHash Hash(
       cache::string::HandledSource code,
-      cache::string::CommandLine command_line,
-      cache::string::Version version);
+      cache::string::CommandLine command_line, cache::string::Version version);
 
   static cache::string::UnhandledHash Hash(
       cache::string::UnhandledSource code,
-      cache::string::CommandLine command_line,
-      cache::string::Version version);
+      cache::string::CommandLine command_line, cache::string::Version version);
 
   bool Find(const cache::string::HandledSource& code,
             const cache::string::CommandLine& command_line,
@@ -79,11 +77,6 @@ class FileCache {
             const cache::string::CommandLine& command_line,
             const cache::string::Version& version, Entry* entry) const;
 
-  Optional Store(const cache::string::HandledSource& code,
-                 const cache::string::CommandLine& command_line,
-                 const cache::string::Version& version,
-                 const Entry& entry);
-
   Optional Store(const cache::string::UnhandledSource& code,
                  const cache::string::CommandLine& command_line,
                  const cache::string::Version& version,
@@ -92,14 +85,7 @@ class FileCache {
 
   Optional StoreNow(const cache::string::HandledSource& code,
                     const cache::string::CommandLine& command_line,
-                    const cache::string::Version& version,
-                    const Entry& entry);
-
-  Optional StoreNow(const cache::string::UnhandledSource& code,
-                    const cache::string::CommandLine& command_line,
-                    const cache::string::Version& version,
-                    const List<String>& headers,
-                    const cache::string::HandledHash& hash);
+                    const cache::string::Version& version, const Entry& entry);
 
  private:
   FRIEND_TEST(cache::FileCacheTest, DoubleLocks);
@@ -153,8 +139,7 @@ class FileCache {
     return SecondPath(hash) + "/" + hash.string_copy().substr(2);
   }
 
-  bool FindByHash(const cache::string::HandledHash& hash,
-                  Entry* entry) const;
+  bool FindByHash(const cache::string::HandledHash& hash, Entry* entry) const;
   bool RemoveEntry(const String& manifest_path);
   void DoStore(const cache::string::HandledHash& hash, const Entry& entry);
   void DoStore(cache::string::UnhandledHash orig_hash,

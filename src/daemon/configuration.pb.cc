@@ -126,10 +126,9 @@ void protobuf_AssignDesc_daemon_2fconfiguration_2eproto() {
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(Configuration));
   Configuration_Cache_descriptor_ = Configuration_descriptor_->nested_type(0);
-  static const int Configuration_Cache_offsets_[7] = {
+  static const int Configuration_Cache_offsets_[6] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration_Cache, path_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration_Cache, size_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration_Cache, sync_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration_Cache, direct_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration_Cache, mtime_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration_Cache, disabled_),
@@ -241,7 +240,7 @@ void protobuf_AddDesc_daemon_2fconfiguration_2eproto() {
     "\005 \001(\010:\005false\"|\n\tVerbosity\022\026\n\nerror_mark\030"
     "\001 \001(\r:\00220\0221\n\006levels\030\002 \003(\0132!.dist_clang.p"
     "roto.Verbosity.Range\032$\n\005Range\022\r\n\005right\030\001"
-    " \002(\r\022\014\n\004left\030\002 \001(\r\"\240\005\n\rConfiguration\0228\n\007"
+    " \002(\r\022\014\n\004left\030\002 \001(\r\"\213\005\n\rConfiguration\0228\n\007"
     "emitter\030\001 \001(\0132\'.dist_clang.proto.Configu"
     "ration.Emitter\022:\n\010absorber\030\002 \001(\0132(.dist_"
     "clang.proto.Configuration.Absorber\022\031\n\rpo"
@@ -250,15 +249,14 @@ void protobuf_AddDesc_daemon_2fconfiguration_2eproto() {
     "\030\005 \001(\0132\033.dist_clang.proto.Verbosity\022\017\n\007u"
     "ser_id\030\006 \001(\r\022\023\n\013config_path\030\007 \001(\t\0224\n\005cac"
     "he\030\010 \001(\0132%.dist_clang.proto.Configuratio"
-    "n.Cache\032\227\001\n\005Cache\022\014\n\004path\030\001 \002(\t\022\017\n\004size\030"
-    "\002 \001(\004:\0010\022\023\n\004sync\030\003 \001(\010:\005false\022\025\n\006direct\030"
-    "\004 \001(\010:\005false\022\024\n\005mtime\030\005 \001(\010:\005false\022\027\n\010di"
-    "sabled\030\006 \001(\010:\005false\022\024\n\006snappy\030\007 \001(\010:\004tru"
-    "e\032w\n\007Emitter\022\023\n\013socket_path\030\001 \002(\t\022\'\n\007rem"
-    "otes\030\002 \003(\0132\026.dist_clang.proto.Host\022\022\n\007th"
-    "reads\030\003 \001(\r:\0012\022\032\n\013only_failed\030\004 \001(\010:\005fal"
-    "se\0321\n\010Absorber\022%\n\005local\030\001 \002(\0132\026.dist_cla"
-    "ng.proto.Host", 973);
+    "n.Cache\032\202\001\n\005Cache\022\014\n\004path\030\001 \002(\t\022\017\n\004size\030"
+    "\002 \001(\004:\0010\022\025\n\006direct\030\004 \001(\010:\005false\022\024\n\005mtime"
+    "\030\005 \001(\010:\005false\022\027\n\010disabled\030\006 \001(\010:\005false\022\024"
+    "\n\006snappy\030\007 \001(\010:\004true\032w\n\007Emitter\022\023\n\013socke"
+    "t_path\030\001 \002(\t\022\'\n\007remotes\030\002 \003(\0132\026.dist_cla"
+    "ng.proto.Host\022\022\n\007threads\030\003 \001(\r:\0012\022\032\n\013onl"
+    "y_failed\030\004 \001(\010:\005false\0321\n\010Absorber\022%\n\005loc"
+    "al\030\001 \002(\0132\026.dist_clang.proto.Host", 952);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "daemon/configuration.proto", &protobuf_RegisterTypes);
   Host::default_instance_ = new Host();
@@ -1238,7 +1236,6 @@ void Verbosity::Swap(Verbosity* other) {
 #ifndef _MSC_VER
 const int Configuration_Cache::kPathFieldNumber;
 const int Configuration_Cache::kSizeFieldNumber;
-const int Configuration_Cache::kSyncFieldNumber;
 const int Configuration_Cache::kDirectFieldNumber;
 const int Configuration_Cache::kMtimeFieldNumber;
 const int Configuration_Cache::kDisabledFieldNumber;
@@ -1266,7 +1263,6 @@ void Configuration_Cache::SharedCtor() {
   _cached_size_ = 0;
   path_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   size_ = GOOGLE_ULONGLONG(0);
-  sync_ = false;
   direct_ = false;
   mtime_ = false;
   disabled_ = false;
@@ -1319,7 +1315,7 @@ void Configuration_Cache::Clear() {
     ::memset(&first, 0, n);                                \
   } while (0)
 
-  if (_has_bits_[0 / 32] & 127) {
+  if (_has_bits_[0 / 32] & 63) {
     ZR_(size_, disabled_);
     if (has_path()) {
       if (path_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
@@ -1370,21 +1366,6 @@ bool Configuration_Cache::MergePartialFromCodedStream(
                    ::google::protobuf::uint64, ::google::protobuf::internal::WireFormatLite::TYPE_UINT64>(
                  input, &size_)));
           set_has_size();
-        } else {
-          goto handle_unusual;
-        }
-        if (input->ExpectTag(24)) goto parse_sync;
-        break;
-      }
-
-      // optional bool sync = 3 [default = false];
-      case 3: {
-        if (tag == 24) {
-         parse_sync:
-          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   bool, ::google::protobuf::internal::WireFormatLite::TYPE_BOOL>(
-                 input, &sync_)));
-          set_has_sync();
         } else {
           goto handle_unusual;
         }
@@ -1492,11 +1473,6 @@ void Configuration_Cache::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteUInt64(2, this->size(), output);
   }
 
-  // optional bool sync = 3 [default = false];
-  if (has_sync()) {
-    ::google::protobuf::internal::WireFormatLite::WriteBool(3, this->sync(), output);
-  }
-
   // optional bool direct = 4 [default = false];
   if (has_direct()) {
     ::google::protobuf::internal::WireFormatLite::WriteBool(4, this->direct(), output);
@@ -1543,11 +1519,6 @@ void Configuration_Cache::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(2, this->size(), target);
   }
 
-  // optional bool sync = 3 [default = false];
-  if (has_sync()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(3, this->sync(), target);
-  }
-
   // optional bool direct = 4 [default = false];
   if (has_direct()) {
     target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(4, this->direct(), target);
@@ -1592,11 +1563,6 @@ int Configuration_Cache::ByteSize() const {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::UInt64Size(
           this->size());
-    }
-
-    // optional bool sync = 3 [default = false];
-    if (has_sync()) {
-      total_size += 1 + 1;
     }
 
     // optional bool direct = 4 [default = false];
@@ -1652,9 +1618,6 @@ void Configuration_Cache::MergeFrom(const Configuration_Cache& from) {
     if (from.has_size()) {
       set_size(from.size());
     }
-    if (from.has_sync()) {
-      set_sync(from.sync());
-    }
     if (from.has_direct()) {
       set_direct(from.direct());
     }
@@ -1693,7 +1656,6 @@ void Configuration_Cache::Swap(Configuration_Cache* other) {
   if (other != this) {
     std::swap(path_, other->path_);
     std::swap(size_, other->size_);
-    std::swap(sync_, other->sync_);
     std::swap(direct_, other->direct_);
     std::swap(mtime_, other->mtime_);
     std::swap(disabled_, other->disabled_);
