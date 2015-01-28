@@ -323,6 +323,13 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
     proto::LocalExecute* incoming = std::get<MESSAGE>(*task).get();
     auto& source = std::get<SOURCE>(*task);
 
+    // Check that we have a compiler of a requested version.
+    proto::Status status;
+    if (!SetupCompiler(incoming->mutable_flags(), &status)) {
+      std::get<CONNECTION>(*task)->ReportStatus(status);
+      continue;
+    }
+
     UniquePtr<proto::RemoteExecute> outgoing(new proto::RemoteExecute);
     if (source.str.empty() && !GenerateSource(incoming, &source)) {
       failed_tasks_->Push(std::move(*task));

@@ -219,6 +219,78 @@ TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
       << "Daemon must not store references to the connection";
 }
 
+TEST_F(EmitterTest, RemoteMessageWithBadCompiler) {
+  const String socket_path = "/tmp/test.socket";
+  const proto::Status::Code expected_code = proto::Status::NO_VERSION;
+  const String compiler_version = "fake_compiler_version";
+  const String bad_version = "another_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const String plugin_name = "test_plugin";
+  const String plugin_path = "fake_plugin_path";
+  const String current_dir = "fake_current_dir";
+  const String host = "fake_host";
+  const ui16 port = 12345;
+
+  conf.mutable_emitter()->set_socket_path(socket_path);
+  conf.mutable_emitter()->set_only_failed(true);
+
+  auto* remote = conf.mutable_emitter()->add_remotes();
+  remote->set_host(host);
+  remote->set_port(port);
+  remote->set_threads(1);
+
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+
+  auto* plugin = version->add_plugins();
+  plugin->set_name(plugin_name);
+  plugin->set_path(plugin_path);
+
+  listen_callback = [&](const String& host, ui16 port, String*) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+    return true;
+  };
+  connect_callback = [&](net::TestConnection* connection) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(proto::Status::extension));
+      const auto& status = message.GetExtension(proto::Status::extension);
+      EXPECT_EQ(expected_code, status.code());
+    });
+  };
+
+  emitter.reset(new Emitter(conf));
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto connection = test_service->TriggerListen(socket_path);
+  {
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(proto::LocalExecute::extension);
+    extension->set_current_dir(current_dir);
+    extension->mutable_flags()->mutable_compiler()->set_version(bad_version);
+    extension->mutable_flags()->set_action("fake_action");
+
+    proto::Status status;
+    status.set_code(proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+    emitter.reset();
+  }
+
+  EXPECT_EQ(0u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(1u, connect_count);
+  EXPECT_EQ(1u, connections_created);
+  EXPECT_EQ(1u, read_count);
+  EXPECT_EQ(1u, send_count);
+  EXPECT_EQ(1, connection.use_count())
+      << "Daemon must not store references to the connection";
+}
+
 TEST_F(EmitterTest, LocalMessageWithBadPlugin) {
   const String socket_path = "/tmp/test.socket";
   const proto::Status::Code expected_code = proto::Status::NO_VERSION;
