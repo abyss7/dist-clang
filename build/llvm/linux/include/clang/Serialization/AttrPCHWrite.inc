@@ -62,6 +62,13 @@ Record.push_back(SA->getInterrupt());
     Record.push_back(A->getSpellingListIndex());
     break;
   }
+  case attr::AlignValue: {
+    const AlignValueAttr *SA = cast<AlignValueAttr>(A);
+    Record.push_back(A->isImplicit());
+    Record.push_back(A->getSpellingListIndex());
+    AddStmt(SA->getAlignment());
+    break;
+  }
   case attr::Aligned: {
     const AlignedAttr *SA = cast<AlignedAttr>(A);
     Record.push_back(SA->isInherited());
@@ -148,6 +155,15 @@ Record.push_back(SA->getInterrupt());
     Record.push_back(SA->args_size());
     for (auto &Val : SA->args())
       AddStmt(Val);
+    break;
+  }
+  case attr::AssumeAligned: {
+    const AssumeAlignedAttr *SA = cast<AssumeAlignedAttr>(A);
+    Record.push_back(SA->isInherited());
+    Record.push_back(A->isImplicit());
+    Record.push_back(A->getSpellingListIndex());
+    AddStmt(SA->getAlignment());
+    AddStmt(SA->getOffset());
     break;
   }
   case attr::Availability: {
@@ -248,6 +264,13 @@ Record.push_back(SA->getType());
     Record.push_back(A->getSpellingListIndex());
     break;
   }
+  case attr::CUDAInvalidTarget: {
+    const CUDAInvalidTargetAttr *SA = cast<CUDAInvalidTargetAttr>(A);
+    Record.push_back(SA->isInherited());
+    Record.push_back(A->isImplicit());
+    Record.push_back(A->getSpellingListIndex());
+    break;
+  }
   case attr::CUDALaunchBounds: {
     const CUDALaunchBoundsAttr *SA = cast<CUDALaunchBoundsAttr>(A);
     Record.push_back(SA->isInherited());
@@ -287,6 +310,13 @@ Record.push_back(SA->getType());
     Record.push_back(A->isImplicit());
     Record.push_back(A->getSpellingListIndex());
     AddString(SA->getName(), Record);
+    break;
+  }
+  case attr::CapturedRecord: {
+    const CapturedRecordAttr *SA = cast<CapturedRecordAttr>(A);
+    Record.push_back(SA->isInherited());
+    Record.push_back(A->isImplicit());
+    Record.push_back(A->getSpellingListIndex());
     break;
   }
   case attr::CarriesDependency: {
@@ -424,6 +454,13 @@ Record.push_back(SA->getDefaultState());
     Record.push_back(A->getSpellingListIndex());
     break;
   }
+  case attr::FlagEnum: {
+    const FlagEnumAttr *SA = cast<FlagEnumAttr>(A);
+    Record.push_back(SA->isInherited());
+    Record.push_back(A->isImplicit());
+    Record.push_back(A->getSpellingListIndex());
+    break;
+  }
   case attr::Flatten: {
     const FlattenAttr *SA = cast<FlattenAttr>(A);
     Record.push_back(SA->isInherited());
@@ -545,7 +582,8 @@ Record.push_back(SA->getDefaultState());
     Record.push_back(A->isImplicit());
     Record.push_back(A->getSpellingListIndex());
 Record.push_back(SA->getOption());
-    Record.push_back(SA->getValue());
+Record.push_back(SA->getState());
+    AddStmt(SA->getValue());
     break;
   }
   case attr::MSABI: {
@@ -770,6 +808,13 @@ Record.push_back(SA->getOption());
     Record.push_back(SA->args_size());
     for (auto &Val : SA->args())
       Record.push_back(Val);
+    break;
+  }
+  case attr::OMPThreadPrivateDecl: {
+    const OMPThreadPrivateDeclAttr *SA = cast<OMPThreadPrivateDeclAttr>(A);
+    Record.push_back(SA->isInherited());
+    Record.push_back(A->isImplicit());
+    Record.push_back(A->getSpellingListIndex());
     break;
   }
   case attr::ObjCBridge: {
@@ -1199,6 +1244,13 @@ Record.push_back(SA->getVisibility());
     Record.push_back(A->isImplicit());
     Record.push_back(A->getSpellingListIndex());
     AddTypeSourceInfo(SA->getTypeHintLoc(), Record);
+    break;
+  }
+  case attr::VectorCall: {
+    const VectorCallAttr *SA = cast<VectorCallAttr>(A);
+    Record.push_back(SA->isInherited());
+    Record.push_back(A->isImplicit());
+    Record.push_back(A->getSpellingListIndex());
     break;
   }
   case attr::Visibility: {

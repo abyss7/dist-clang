@@ -32,6 +32,10 @@
   bool VisitAlignMac68kAttr(AlignMac68kAttr *A) {
     return true; 
   };
+  bool TraverseAlignValueAttr(AlignValueAttr *A);
+  bool VisitAlignValueAttr(AlignValueAttr *A) {
+    return true; 
+  };
   bool TraverseAlignedAttr(AlignedAttr *A);
   bool VisitAlignedAttr(AlignedAttr *A) {
     return true; 
@@ -70,6 +74,10 @@
   };
   bool TraverseAssertSharedLockAttr(AssertSharedLockAttr *A);
   bool VisitAssertSharedLockAttr(AssertSharedLockAttr *A) {
+    return true; 
+  };
+  bool TraverseAssumeAlignedAttr(AssumeAlignedAttr *A);
+  bool VisitAssumeAlignedAttr(AssumeAlignedAttr *A) {
     return true; 
   };
   bool TraverseAvailabilityAttr(AvailabilityAttr *A);
@@ -124,6 +132,10 @@
   bool VisitCUDAHostAttr(CUDAHostAttr *A) {
     return true; 
   };
+  bool TraverseCUDAInvalidTargetAttr(CUDAInvalidTargetAttr *A);
+  bool VisitCUDAInvalidTargetAttr(CUDAInvalidTargetAttr *A) {
+    return true; 
+  };
   bool TraverseCUDALaunchBoundsAttr(CUDALaunchBoundsAttr *A);
   bool VisitCUDALaunchBoundsAttr(CUDALaunchBoundsAttr *A) {
     return true; 
@@ -142,6 +154,10 @@
   };
   bool TraverseCapabilityAttr(CapabilityAttr *A);
   bool VisitCapabilityAttr(CapabilityAttr *A) {
+    return true; 
+  };
+  bool TraverseCapturedRecordAttr(CapturedRecordAttr *A);
+  bool VisitCapturedRecordAttr(CapturedRecordAttr *A) {
     return true; 
   };
   bool TraverseCarriesDependencyAttr(CarriesDependencyAttr *A);
@@ -214,6 +230,10 @@
   };
   bool TraverseFinalAttr(FinalAttr *A);
   bool VisitFinalAttr(FinalAttr *A) {
+    return true; 
+  };
+  bool TraverseFlagEnumAttr(FlagEnumAttr *A);
+  bool VisitFlagEnumAttr(FlagEnumAttr *A) {
     return true; 
   };
   bool TraverseFlattenAttr(FlattenAttr *A);
@@ -402,6 +422,10 @@
   };
   bool TraverseNonNullAttr(NonNullAttr *A);
   bool VisitNonNullAttr(NonNullAttr *A) {
+    return true; 
+  };
+  bool TraverseOMPThreadPrivateDeclAttr(OMPThreadPrivateDeclAttr *A);
+  bool VisitOMPThreadPrivateDeclAttr(OMPThreadPrivateDeclAttr *A) {
     return true; 
   };
   bool TraverseObjCBridgeAttr(ObjCBridgeAttr *A);
@@ -628,6 +652,10 @@
   bool VisitVecTypeHintAttr(VecTypeHintAttr *A) {
     return true; 
   };
+  bool TraverseVectorCallAttr(VectorCallAttr *A);
+  bool VisitVectorCallAttr(VectorCallAttr *A) {
+    return true; 
+  };
   bool TraverseVisibilityAttr(VisibilityAttr *A);
   bool VisitVisibilityAttr(VisibilityAttr *A) {
     return true; 
@@ -742,6 +770,17 @@ bool VISITORCLASS<Derived>::TraverseAlignMac68kAttr(AlignMac68kAttr *A) {
 }
 
 template <typename Derived>
+bool VISITORCLASS<Derived>::TraverseAlignValueAttr(AlignValueAttr *A) {
+  if (!getDerived().VisitAttr(A))
+    return false;
+  if (!getDerived().VisitAlignValueAttr(A))
+    return false;
+  if (!getDerived().TraverseStmt(A->getAlignment()))
+    return false;
+  return true;
+}
+
+template <typename Derived>
 bool VISITORCLASS<Derived>::TraverseAlignedAttr(AlignedAttr *A) {
   if (!getDerived().VisitAttr(A))
     return false;
@@ -846,6 +885,19 @@ bool VISITORCLASS<Derived>::TraverseAssertSharedLockAttr(AssertSharedLockAttr *A
         return false;
     }
   }
+  return true;
+}
+
+template <typename Derived>
+bool VISITORCLASS<Derived>::TraverseAssumeAlignedAttr(AssumeAlignedAttr *A) {
+  if (!getDerived().VisitAttr(A))
+    return false;
+  if (!getDerived().VisitAssumeAlignedAttr(A))
+    return false;
+  if (!getDerived().TraverseStmt(A->getAlignment()))
+    return false;
+  if (!getDerived().TraverseStmt(A->getOffset()))
+    return false;
   return true;
 }
 
@@ -967,6 +1019,15 @@ bool VISITORCLASS<Derived>::TraverseCUDAHostAttr(CUDAHostAttr *A) {
 }
 
 template <typename Derived>
+bool VISITORCLASS<Derived>::TraverseCUDAInvalidTargetAttr(CUDAInvalidTargetAttr *A) {
+  if (!getDerived().VisitAttr(A))
+    return false;
+  if (!getDerived().VisitCUDAInvalidTargetAttr(A))
+    return false;
+  return true;
+}
+
+template <typename Derived>
 bool VISITORCLASS<Derived>::TraverseCUDALaunchBoundsAttr(CUDALaunchBoundsAttr *A) {
   if (!getDerived().VisitAttr(A))
     return false;
@@ -1007,6 +1068,15 @@ bool VISITORCLASS<Derived>::TraverseCapabilityAttr(CapabilityAttr *A) {
   if (!getDerived().VisitAttr(A))
     return false;
   if (!getDerived().VisitCapabilityAttr(A))
+    return false;
+  return true;
+}
+
+template <typename Derived>
+bool VISITORCLASS<Derived>::TraverseCapturedRecordAttr(CapturedRecordAttr *A) {
+  if (!getDerived().VisitAttr(A))
+    return false;
+  if (!getDerived().VisitCapturedRecordAttr(A))
     return false;
   return true;
 }
@@ -1186,6 +1256,15 @@ bool VISITORCLASS<Derived>::TraverseFinalAttr(FinalAttr *A) {
 }
 
 template <typename Derived>
+bool VISITORCLASS<Derived>::TraverseFlagEnumAttr(FlagEnumAttr *A) {
+  if (!getDerived().VisitAttr(A))
+    return false;
+  if (!getDerived().VisitFlagEnumAttr(A))
+    return false;
+  return true;
+}
+
+template <typename Derived>
 bool VISITORCLASS<Derived>::TraverseFlattenAttr(FlattenAttr *A) {
   if (!getDerived().VisitAttr(A))
     return false;
@@ -1337,6 +1416,8 @@ bool VISITORCLASS<Derived>::TraverseLoopHintAttr(LoopHintAttr *A) {
   if (!getDerived().VisitAttr(A))
     return false;
   if (!getDerived().VisitLoopHintAttr(A))
+    return false;
+  if (!getDerived().TraverseStmt(A->getValue()))
     return false;
   return true;
 }
@@ -1616,6 +1697,15 @@ bool VISITORCLASS<Derived>::TraverseNonNullAttr(NonNullAttr *A) {
   if (!getDerived().VisitAttr(A))
     return false;
   if (!getDerived().VisitNonNullAttr(A))
+    return false;
+  return true;
+}
+
+template <typename Derived>
+bool VISITORCLASS<Derived>::TraverseOMPThreadPrivateDeclAttr(OMPThreadPrivateDeclAttr *A) {
+  if (!getDerived().VisitAttr(A))
+    return false;
+  if (!getDerived().VisitOMPThreadPrivateDeclAttr(A))
     return false;
   return true;
 }
@@ -2163,6 +2253,15 @@ bool VISITORCLASS<Derived>::TraverseVecTypeHintAttr(VecTypeHintAttr *A) {
 }
 
 template <typename Derived>
+bool VISITORCLASS<Derived>::TraverseVectorCallAttr(VectorCallAttr *A) {
+  if (!getDerived().VisitAttr(A))
+    return false;
+  if (!getDerived().VisitVectorCallAttr(A))
+    return false;
+  return true;
+}
+
+template <typename Derived>
 bool VISITORCLASS<Derived>::TraverseVisibilityAttr(VisibilityAttr *A) {
   if (!getDerived().VisitAttr(A))
     return false;
@@ -2254,6 +2353,8 @@ bool VISITORCLASS<Derived>::TraverseAttr(Attr *A) {
       return getDerived().TraverseAliasAttr(cast<AliasAttr>(A));
     case attr::AlignMac68k:
       return getDerived().TraverseAlignMac68kAttr(cast<AlignMac68kAttr>(A));
+    case attr::AlignValue:
+      return getDerived().TraverseAlignValueAttr(cast<AlignValueAttr>(A));
     case attr::Aligned:
       return getDerived().TraverseAlignedAttr(cast<AlignedAttr>(A));
     case attr::AlwaysInline:
@@ -2274,6 +2375,8 @@ bool VISITORCLASS<Derived>::TraverseAttr(Attr *A) {
       return getDerived().TraverseAssertExclusiveLockAttr(cast<AssertExclusiveLockAttr>(A));
     case attr::AssertSharedLock:
       return getDerived().TraverseAssertSharedLockAttr(cast<AssertSharedLockAttr>(A));
+    case attr::AssumeAligned:
+      return getDerived().TraverseAssumeAlignedAttr(cast<AssumeAlignedAttr>(A));
     case attr::Availability:
       return getDerived().TraverseAvailabilityAttr(cast<AvailabilityAttr>(A));
     case attr::Blocks:
@@ -2300,6 +2403,8 @@ bool VISITORCLASS<Derived>::TraverseAttr(Attr *A) {
       return getDerived().TraverseCUDAGlobalAttr(cast<CUDAGlobalAttr>(A));
     case attr::CUDAHost:
       return getDerived().TraverseCUDAHostAttr(cast<CUDAHostAttr>(A));
+    case attr::CUDAInvalidTarget:
+      return getDerived().TraverseCUDAInvalidTargetAttr(cast<CUDAInvalidTargetAttr>(A));
     case attr::CUDALaunchBounds:
       return getDerived().TraverseCUDALaunchBoundsAttr(cast<CUDALaunchBoundsAttr>(A));
     case attr::CUDAShared:
@@ -2310,6 +2415,8 @@ bool VISITORCLASS<Derived>::TraverseAttr(Attr *A) {
       return getDerived().TraverseCallableWhenAttr(cast<CallableWhenAttr>(A));
     case attr::Capability:
       return getDerived().TraverseCapabilityAttr(cast<CapabilityAttr>(A));
+    case attr::CapturedRecord:
+      return getDerived().TraverseCapturedRecordAttr(cast<CapturedRecordAttr>(A));
     case attr::CarriesDependency:
       return getDerived().TraverseCarriesDependencyAttr(cast<CarriesDependencyAttr>(A));
     case attr::Cleanup:
@@ -2346,6 +2453,8 @@ bool VISITORCLASS<Derived>::TraverseAttr(Attr *A) {
       return getDerived().TraverseFastCallAttr(cast<FastCallAttr>(A));
     case attr::Final:
       return getDerived().TraverseFinalAttr(cast<FinalAttr>(A));
+    case attr::FlagEnum:
+      return getDerived().TraverseFlagEnumAttr(cast<FlagEnumAttr>(A));
     case attr::Flatten:
       return getDerived().TraverseFlattenAttr(cast<FlattenAttr>(A));
     case attr::Format:
@@ -2440,6 +2549,8 @@ bool VISITORCLASS<Derived>::TraverseAttr(Attr *A) {
       return getDerived().TraverseNoThrowAttr(cast<NoThrowAttr>(A));
     case attr::NonNull:
       return getDerived().TraverseNonNullAttr(cast<NonNullAttr>(A));
+    case attr::OMPThreadPrivateDecl:
+      return getDerived().TraverseOMPThreadPrivateDeclAttr(cast<OMPThreadPrivateDeclAttr>(A));
     case attr::ObjCBridge:
       return getDerived().TraverseObjCBridgeAttr(cast<ObjCBridgeAttr>(A));
     case attr::ObjCBridgeMutable:
@@ -2552,6 +2663,8 @@ bool VISITORCLASS<Derived>::TraverseAttr(Attr *A) {
       return getDerived().TraverseVecReturnAttr(cast<VecReturnAttr>(A));
     case attr::VecTypeHint:
       return getDerived().TraverseVecTypeHintAttr(cast<VecTypeHintAttr>(A));
+    case attr::VectorCall:
+      return getDerived().TraverseVectorCallAttr(cast<VectorCallAttr>(A));
     case attr::Visibility:
       return getDerived().TraverseVisibilityAttr(cast<VisibilityAttr>(A));
     case attr::WarnUnused:

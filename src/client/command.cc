@@ -84,10 +84,11 @@ bool DriverCommand::GenerateFromArgs(int argc, const char* const raw_argv[],
 
   SharedPtr<opt::OptTable> opts(createDriverOptTable());
   bool result = false;
-  const auto& jobs = compilation->getJobs();
+  const auto& job_list = compilation->getJobs();
+  const auto& jobs = job_list.getJobs();
   for (auto& job : jobs) {
     if (job->getKind() == Job::CommandClass) {
-      auto command = static_cast<clang::driver::Command*>(job);
+      auto command = static_cast<clang::driver::Command*>(job.get());
 
       // It's a kind of heuristics to skip non-Clang commands.
       if ((command->getSource().getKind() != Action::AssembleJobClass &&
