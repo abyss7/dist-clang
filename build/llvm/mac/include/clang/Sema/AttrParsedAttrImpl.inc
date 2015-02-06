@@ -82,6 +82,15 @@ static bool checkAcquiredBeforeAppertainsTo(Sema &S, const AttributeList &Attr, 
   return true;
 }
 
+static bool checkAlignValueAppertainsTo(Sema &S, const AttributeList &Attr, const Decl *D) {
+  if (!isa<VarDecl>(D) && !isa<TypedefNameDecl>(D)) {
+    S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type)
+      << Attr.getName() << ExpectedVariableOrTypedef;
+    return false;
+  }
+  return true;
+}
+
 static unsigned AlignedAttrSpellingMap(const AttributeList &Attr) {
   enum Spelling {
     GNU_aligned,
@@ -195,6 +204,15 @@ static bool checkAssertSharedLockAppertainsTo(Sema &S, const AttributeList &Attr
   return true;
 }
 
+static bool checkAssumeAlignedAppertainsTo(Sema &S, const AttributeList &Attr, const Decl *D) {
+  if (!isa<ObjCMethodDecl>(D) && !isa<FunctionDecl>(D)) {
+    S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type)
+      << Attr.getName() << ExpectedFunctionOrMethod;
+    return false;
+  }
+  return true;
+}
+
 static bool checkCFAuditedTransferAppertainsTo(Sema &S, const AttributeList &Attr, const Decl *D) {
   if (!isa<FunctionDecl>(D)) {
     S.Diag(Attr.getLoc(), diag::err_attribute_wrong_decl_type)
@@ -258,6 +276,15 @@ static bool checkCUDAGlobalAppertainsTo(Sema &S, const AttributeList &Attr, cons
 }
 
 static bool checkCUDAHostAppertainsTo(Sema &S, const AttributeList &Attr, const Decl *D) {
+  if (!isa<FunctionDecl>(D)) {
+    S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type)
+      << Attr.getName() << ExpectedFunction;
+    return false;
+  }
+  return true;
+}
+
+static bool checkCUDAInvalidTargetAppertainsTo(Sema &S, const AttributeList &Attr, const Decl *D) {
   if (!isa<FunctionDecl>(D)) {
     S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type)
       << Attr.getName() << ExpectedFunction;
@@ -473,6 +500,23 @@ static bool checkExtVectorTypeAppertainsTo(Sema &S, const AttributeList &Attr, c
   return true;
 }
 
+static bool checkFlagEnumAppertainsTo(Sema &S, const AttributeList &Attr, const Decl *D) {
+  if (!isa<EnumDecl>(D)) {
+    S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type)
+      << Attr.getName() << ExpectedEnum;
+    return false;
+  }
+  return true;
+}
+
+static bool checkCPlusPlusLangOpts(Sema &S, const AttributeList &Attr) {
+  if (!S.LangOpts.CPlusPlus)
+    return true;
+
+  S.Diag(Attr.getLoc(), diag::warn_attribute_ignored) << Attr.getName();
+  return false;
+}
+
 static bool checkFlattenAppertainsTo(Sema &S, const AttributeList &Attr, const Decl *D) {
   if (!isa<FunctionDecl>(D)) {
     S.Diag(Attr.getLoc(), diag::err_attribute_wrong_decl_type)
@@ -599,7 +643,8 @@ static bool checkLocksExcludedAppertainsTo(Sema &S, const AttributeList &Attr, c
 static unsigned LoopHintAttrSpellingMap(const AttributeList &Attr) {
   enum Spelling {
     Pragma_clang_loop,
-    Pragma_unroll
+    Pragma_unroll,
+    Pragma_nounroll
   };
 
   unsigned Idx = Attr.getAttributeSpellingListIndex();
@@ -607,6 +652,7 @@ static unsigned LoopHintAttrSpellingMap(const AttributeList &Attr) {
     default: llvm_unreachable("Unknown spelling list index");
     case 0: return Pragma_clang_loop;
     case 1: return Pragma_unroll;
+    case 2: return Pragma_nounroll;
   }
 }
 
@@ -1350,11 +1396,12 @@ static bool isTargetx86(const llvm::Triple &T) {
 
 static const ParsedAttrInfo AttrInfoMap[AttributeList::UnknownAttribute + 1] = {
   { 0, 1, 1, 1, 0, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, isTargetarmthumbmsp430, defaultSpellingIndexToSemanticSpelling },  // AT_Interrupt
-  { 0, 1, 0, 0, 0, 0, checkAcquireCapabilityAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, AcquireCapabilityAttrSpellingMap },  // AT_AcquireCapability
-  { 0, 1, 0, 0, 0, 0, checkAcquiredAfterAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_AcquiredAfter
-  { 0, 1, 0, 0, 0, 0, checkAcquiredBeforeAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_AcquiredBefore
+  { 0, 15, 0, 0, 0, 0, checkAcquireCapabilityAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, AcquireCapabilityAttrSpellingMap },  // AT_AcquireCapability
+  { 0, 15, 0, 0, 0, 0, checkAcquiredAfterAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_AcquiredAfter
+  { 0, 15, 0, 0, 0, 0, checkAcquiredBeforeAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_AcquiredBefore
   { 1, 0, 0, 0, 1, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_AddressSpace
   { 1, 0, 0, 0, 0, 1, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_Alias
+  { 1, 0, 0, 0, 0, 0, checkAlignValueAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_AlignValue
   { 0, 1, 0, 0, 0, 1, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, AlignedAttrSpellingMap },  // AT_Aligned
   { 0, 0, 0, 0, 0, 1, checkAlwaysInlineAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, AlwaysInlineAttrSpellingMap },  // AT_AlwaysInline
   { 0, 0, 0, 0, 0, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_AnalyzerNoReturn
@@ -1362,8 +1409,9 @@ static const ParsedAttrInfo AttrInfoMap[AttributeList::UnknownAttribute + 1] = {
   { 0, 0, 0, 0, 0, 0, checkArcWeakrefUnavailableAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_ArcWeakrefUnavailable
   { 4, 0, 1, 0, 0, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, ArgumentWithTypeTagAttrSpellingMap },  // AT_ArgumentWithTypeTag
   { 1, 0, 0, 0, 0, 0, checkAssertCapabilityAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, AssertCapabilityAttrSpellingMap },  // AT_AssertCapability
-  { 0, 1, 0, 0, 0, 0, checkAssertExclusiveLockAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_AssertExclusiveLock
-  { 0, 1, 0, 0, 0, 0, checkAssertSharedLockAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_AssertSharedLock
+  { 0, 15, 0, 0, 0, 0, checkAssertExclusiveLockAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_AssertExclusiveLock
+  { 0, 15, 0, 0, 0, 0, checkAssertSharedLockAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_AssertSharedLock
+  { 1, 1, 0, 0, 0, 1, checkAssumeAlignedAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_AssumeAligned
   { 6, 0, 1, 0, 0, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_Availability
   { 1, 0, 0, 0, 0, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_Blocks
   { 0, 0, 0, 0, 0, 1, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_CDecl
@@ -1376,10 +1424,11 @@ static const ParsedAttrInfo AttrInfoMap[AttributeList::UnknownAttribute + 1] = {
   { 0, 0, 0, 0, 0, 0, checkCUDADeviceAppertainsTo, checkCUDALangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_CUDADevice
   { 0, 0, 0, 0, 0, 0, checkCUDAGlobalAppertainsTo, checkCUDALangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_CUDAGlobal
   { 0, 0, 0, 0, 0, 0, checkCUDAHostAppertainsTo, checkCUDALangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_CUDAHost
+  { 0, 0, 0, 0, 0, 0, checkCUDAInvalidTargetAppertainsTo, checkCUDALangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_CUDAInvalidTarget
   { 1, 1, 0, 0, 0, 0, checkCUDALaunchBoundsAppertainsTo, checkCUDALangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_CUDALaunchBounds
   { 0, 0, 0, 0, 0, 0, checkCUDASharedAppertainsTo, checkCUDALangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_CUDAShared
   { 0, 0, 0, 0, 0, 0, checkCXX11NoReturnAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_CXX11NoReturn
-  { 0, 1, 0, 0, 0, 0, checkCallableWhenAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_CallableWhen
+  { 0, 15, 0, 0, 0, 0, checkCallableWhenAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_CallableWhen
   { 1, 0, 0, 0, 0, 0, checkCapabilityAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, CapabilityAttrSpellingMap },  // AT_Capability
   { 0, 0, 0, 0, 0, 0, checkCarriesDependencyAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_CarriesDependency
   { 1, 0, 0, 0, 0, 1, checkCleanupAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_Cleanup
@@ -1395,10 +1444,11 @@ static const ParsedAttrInfo AttrInfoMap[AttributeList::UnknownAttribute + 1] = {
   { 0, 1, 0, 0, 0, 1, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_Deprecated
   { 0, 1, 0, 0, 0, 1, checkDestructorAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_Destructor
   { 2, 0, 0, 0, 0, 0, checkEnableIfAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_EnableIf
-  { 1, 1, 0, 0, 0, 0, checkExclusiveTrylockFunctionAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_ExclusiveTrylockFunction
+  { 1, 15, 0, 0, 0, 0, checkExclusiveTrylockFunctionAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_ExclusiveTrylockFunction
   { 1, 0, 0, 0, 0, 0, checkExtVectorTypeAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_ExtVectorType
   { 0, 0, 0, 0, 0, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_FallThrough
   { 0, 0, 0, 0, 0, 1, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_FastCall
+  { 0, 0, 0, 0, 0, 0, checkFlagEnumAppertainsTo, checkCPlusPlusLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_FlagEnum
   { 0, 0, 0, 0, 0, 1, checkFlattenAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_Flatten
   { 3, 0, 0, 0, 0, 1, checkFormatAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_Format
   { 1, 0, 0, 0, 0, 1, checkFormatArgAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_FormatArg
@@ -1413,8 +1463,8 @@ static const ParsedAttrInfo AttrInfoMap[AttributeList::UnknownAttribute + 1] = {
   { 0, 0, 0, 0, 0, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_IntelOclBicc
   { 1, 0, 0, 0, 0, 0, checkLockReturnedAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_LockReturned
   { 0, 0, 0, 0, 0, 0, checkLockableAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_Lockable
-  { 0, 1, 0, 0, 0, 0, checkLocksExcludedAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_LocksExcluded
-  { 1, 1, 0, 0, 0, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, LoopHintAttrSpellingMap },  // AT_LoopHint
+  { 0, 15, 0, 0, 0, 0, checkLocksExcludedAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_LocksExcluded
+  { 3, 0, 0, 0, 0, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, LoopHintAttrSpellingMap },  // AT_LoopHint
   { 0, 0, 0, 0, 0, 1, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_MSABI
   { 0, 1, 0, 0, 0, 0, defaultAppertainsTo, checkMicrosoftExtLangOpts, defaultTargetRequirements, MSInheritanceAttrSpellingMap },  // AT_MSInheritance
   { 0, 0, 0, 0, 0, 1, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_Malloc
@@ -1432,7 +1482,7 @@ static const ParsedAttrInfo AttrInfoMap[AttributeList::UnknownAttribute + 1] = {
   { 1, 0, 0, 0, 1, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_NeonPolyVectorType
   { 1, 0, 0, 0, 1, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_NeonVectorType
   { 0, 0, 0, 0, 0, 1, checkNoCommonAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_NoCommon
-  { 0, 0, 0, 0, 0, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_NoDebug
+  { 0, 0, 0, 0, 0, 1, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_NoDebug
   { 0, 0, 0, 0, 0, 0, checkNoDuplicateAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_NoDuplicate
   { 0, 0, 0, 0, 0, 1, checkNoInlineAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_NoInline
   { 0, 0, 0, 0, 0, 1, checkNoInstrumentFunctionAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_NoInstrumentFunction
@@ -1444,7 +1494,7 @@ static const ParsedAttrInfo AttrInfoMap[AttributeList::UnknownAttribute + 1] = {
   { 0, 0, 0, 0, 0, 1, checkNoSplitStackAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_NoSplitStack
   { 0, 0, 0, 0, 0, 0, checkNoThreadSafetyAnalysisAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_NoThreadSafetyAnalysis
   { 0, 0, 0, 0, 0, 1, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_NoThrow
-  { 0, 1, 0, 0, 0, 1, checkNonNullAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_NonNull
+  { 0, 15, 0, 0, 0, 1, checkNonNullAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_NonNull
   { 1, 0, 0, 0, 0, 0, checkObjCBridgeAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_ObjCBridge
   { 1, 0, 0, 0, 0, 0, checkObjCBridgeMutableAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_ObjCBridgeMutable
   { 3, 0, 1, 0, 0, 0, checkObjCBridgeRelatedAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_ObjCBridgeRelated
@@ -1462,6 +1512,7 @@ static const ParsedAttrInfo AttrInfoMap[AttributeList::UnknownAttribute + 1] = {
   { 0, 0, 0, 0, 0, 0, checkObjCRootClassAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_ObjCRootClass
   { 1, 0, 0, 0, 0, 0, checkObjCRuntimeNameAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_ObjCRuntimeName
   { 0, 0, 0, 0, 1, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_OpenCLConstantAddressSpace
+  { 0, 0, 0, 0, 1, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_OpenCLGenericAddressSpace
   { 0, 0, 0, 0, 1, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_OpenCLGlobalAddressSpace
   { 0, 0, 0, 0, 0, 0, checkOpenCLImageAccessAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, OpenCLImageAccessAttrSpellingMap },  // AT_OpenCLImageAccess
   { 0, 0, 0, 0, 0, 0, checkOpenCLKernelAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_OpenCLKernel
@@ -1469,7 +1520,7 @@ static const ParsedAttrInfo AttrInfoMap[AttributeList::UnknownAttribute + 1] = {
   { 0, 0, 0, 0, 1, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_OpenCLPrivateAddressSpace
   { 0, 0, 0, 0, 0, 0, checkOptimizeNoneAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_OptimizeNone
   { 0, 0, 0, 0, 0, 0, checkOverloadableAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_Overloadable
-  { 1, 1, 0, 0, 0, 0, checkOwnershipAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, OwnershipAttrSpellingMap },  // AT_Ownership
+  { 1, 15, 0, 0, 0, 0, checkOwnershipAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, OwnershipAttrSpellingMap },  // AT_Ownership
   { 0, 0, 0, 0, 0, 1, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_Packed
   { 1, 0, 0, 0, 0, 0, checkParamTypestateAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_ParamTypestate
   { 0, 0, 0, 0, 0, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_Pascal
@@ -1481,9 +1532,9 @@ static const ParsedAttrInfo AttrInfoMap[AttributeList::UnknownAttribute + 1] = {
   { 0, 0, 0, 0, 1, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_Ptr64
   { 0, 0, 0, 0, 0, 1, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_Pure
   { 1, 0, 0, 0, 1, 1, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_Regparm
-  { 0, 1, 0, 0, 0, 0, checkReleaseCapabilityAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, ReleaseCapabilityAttrSpellingMap },  // AT_ReleaseCapability
+  { 0, 15, 0, 0, 0, 0, checkReleaseCapabilityAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, ReleaseCapabilityAttrSpellingMap },  // AT_ReleaseCapability
   { 3, 0, 0, 0, 0, 0, checkReqdWorkGroupSizeAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_ReqdWorkGroupSize
-  { 0, 1, 0, 0, 0, 0, checkRequiresCapabilityAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, RequiresCapabilityAttrSpellingMap },  // AT_RequiresCapability
+  { 0, 15, 0, 0, 0, 0, checkRequiresCapabilityAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, RequiresCapabilityAttrSpellingMap },  // AT_RequiresCapability
   { 1, 0, 0, 0, 0, 0, checkReturnTypestateAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_ReturnTypestate
   { 0, 0, 0, 0, 0, 1, checkReturnsNonNullAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_ReturnsNonNull
   { 0, 0, 0, 0, 0, 1, checkReturnsTwiceAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_ReturnsTwice
@@ -1493,7 +1544,7 @@ static const ParsedAttrInfo AttrInfoMap[AttributeList::UnknownAttribute + 1] = {
   { 0, 0, 0, 0, 0, 0, defaultAppertainsTo, checkMicrosoftExtLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_SelectAny
   { 0, 2, 0, 0, 0, 1, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_Sentinel
   { 1, 0, 0, 0, 0, 0, checkSetTypestateAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_SetTypestate
-  { 1, 1, 0, 0, 0, 0, checkSharedTrylockFunctionAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_SharedTrylockFunction
+  { 1, 15, 0, 0, 0, 0, checkSharedTrylockFunctionAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_SharedTrylockFunction
   { 0, 0, 0, 0, 0, 1, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_StdCall
   { 0, 0, 0, 0, 0, 1, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_SysVABI
   { 1, 0, 0, 0, 0, 1, checkTLSModelAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_TLSModel
@@ -1501,7 +1552,7 @@ static const ParsedAttrInfo AttrInfoMap[AttributeList::UnknownAttribute + 1] = {
   { 0, 0, 0, 0, 0, 1, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_ThisCall
   { 0, 0, 0, 0, 0, 0, checkThreadAppertainsTo, checkMicrosoftExtLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_Thread
   { 0, 0, 0, 0, 0, 1, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_TransparentUnion
-  { 1, 1, 0, 0, 0, 0, checkTryAcquireCapabilityAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, TryAcquireCapabilityAttrSpellingMap },  // AT_TryAcquireCapability
+  { 1, 15, 0, 0, 0, 0, checkTryAcquireCapabilityAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, TryAcquireCapabilityAttrSpellingMap },  // AT_TryAcquireCapability
   { 4, 0, 1, 0, 0, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_TypeTagForDatatype
   { 1, 0, 0, 0, 0, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_TypeVisibility
   { 0, 0, 0, 0, 1, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_UPtr
@@ -1511,6 +1562,7 @@ static const ParsedAttrInfo AttrInfoMap[AttributeList::UnknownAttribute + 1] = {
   { 1, 0, 0, 0, 0, 0, defaultAppertainsTo, checkMicrosoftExtBorlandLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_Uuid
   { 0, 0, 0, 0, 0, 0, checkVecReturnAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_VecReturn
   { 1, 0, 0, 0, 0, 0, checkVecTypeHintAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_VecTypeHint
+  { 0, 0, 0, 0, 0, 0, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_VectorCall
   { 1, 0, 0, 0, 1, 1, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_VectorSize
   { 1, 0, 0, 0, 0, 1, defaultAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_Visibility
   { 0, 0, 0, 0, 0, 0, checkWarnUnusedAppertainsTo, defaultDiagnoseLangOpts, defaultTargetRequirements, defaultSpellingIndexToSemanticSpelling },  // AT_WarnUnused

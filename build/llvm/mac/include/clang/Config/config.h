@@ -15,9 +15,6 @@
 /* Directories clang will search for headers */
 #define C_INCLUDE_DIRS ""
 
-/* Linker version detected at compile time. */
-#define HOST_LINK_VERSION "241.9"
-
 /* Default <path> to all compiler invocations for --sysroot=<path>. */
 #define DEFAULT_SYSROOT ""
 
@@ -27,9 +24,12 @@
 /* Define if we have libxml2 */
 #define CLANG_HAVE_LIBXML 1
 
-#define PACKAGE_STRING "LLVM 3.5.0"
+#define PACKAGE_STRING "LLVM 3.6.0svn"
 
 /* The LLVM product name and version */
 #define BACKEND_PACKAGE_STRING PACKAGE_STRING
+
+/* Linker version detected at compile time. */
+#define HOST_LINK_VERSION "236.3"
 
 #endif

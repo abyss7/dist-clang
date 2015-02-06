@@ -72,6 +72,18 @@ public:
     return false;
   }
 
+  static const char *ConvertInterruptTypeToStr(InterruptType Val) {
+    switch(Val) {
+    case ARMInterruptAttr::IRQ: return "IRQ";
+    case ARMInterruptAttr::FIQ: return "FIQ";
+    case ARMInterruptAttr::SWI: return "SWI";
+    case ARMInterruptAttr::ABORT: return "ABORT";
+    case ARMInterruptAttr::UNDEF: return "UNDEF";
+    case ARMInterruptAttr::Generic: return "";
+    }
+    llvm_unreachable("No enumerator with that value");
+  }
+
 
   static bool classof(const Attr *A) { return A->getKind() == attr::ARMInterrupt; }
   bool isLateParsed() const override { return 0; }
@@ -314,6 +326,41 @@ public:
 
 
   static bool classof(const Attr *A) { return A->getKind() == attr::AlignMac68k; }
+  bool isLateParsed() const override { return 0; }
+};
+
+class AlignValueAttr : public Attr {
+Expr * alignment;
+
+
+public:
+  static AlignValueAttr *CreateImplicit(ASTContext &Ctx, Expr * Alignment, SourceRange Loc = SourceRange()) {
+    AlignValueAttr *A = new (Ctx) AlignValueAttr(Loc, Ctx, Alignment, 0);
+    A->setImplicit(true);
+    return A;
+  }
+
+  AlignValueAttr(SourceRange R, ASTContext &Ctx
+              , Expr * Alignment
+              , unsigned SI
+             )
+    : Attr(attr::AlignValue, R, SI)
+              , alignment(Alignment)
+  {
+
+  }
+
+  AlignValueAttr *clone(ASTContext &C) const override;
+  void printPretty(raw_ostream &OS,
+                   const PrintingPolicy &Policy) const override;
+  const char *getSpelling() const override;
+  Expr * getAlignment() const {
+    return alignment;
+  }
+
+
+
+  static bool classof(const Attr *A) { return A->getKind() == attr::AlignValue; }
   bool isLateParsed() const override { return 0; }
 };
 
@@ -808,6 +855,61 @@ public:
 
 };
 
+class AssumeAlignedAttr : public InheritableAttr {
+Expr * alignment;
+
+Expr * offset;
+
+
+public:
+  static AssumeAlignedAttr *CreateImplicit(ASTContext &Ctx, Expr * Alignment, Expr * Offset, SourceRange Loc = SourceRange()) {
+    AssumeAlignedAttr *A = new (Ctx) AssumeAlignedAttr(Loc, Ctx, Alignment, Offset, 0);
+    A->setImplicit(true);
+    return A;
+  }
+
+  AssumeAlignedAttr(SourceRange R, ASTContext &Ctx
+              , Expr * Alignment
+              , Expr * Offset
+              , unsigned SI
+             )
+    : InheritableAttr(attr::AssumeAligned, R, SI)
+              , alignment(Alignment)
+              , offset(Offset)
+  {
+
+
+  }
+
+  AssumeAlignedAttr(SourceRange R, ASTContext &Ctx
+              , Expr * Alignment
+              , unsigned SI
+             )
+    : InheritableAttr(attr::AssumeAligned, R, SI)
+              , alignment()
+              , offset()
+  {
+
+  }
+
+  AssumeAlignedAttr *clone(ASTContext &C) const override;
+  void printPretty(raw_ostream &OS,
+                   const PrintingPolicy &Policy) const override;
+  const char *getSpelling() const override;
+  Expr * getAlignment() const {
+    return alignment;
+  }
+
+  Expr * getOffset() const {
+    return offset;
+  }
+
+
+
+  static bool classof(const Attr *A) { return A->getKind() == attr::AssumeAligned; }
+  bool isLateParsed() const override { return 0; }
+};
+
 class AvailabilityAttr : public InheritableAttr {
 IdentifierInfo * platform;
 
@@ -959,6 +1061,13 @@ public:
       return true;
     }
     return false;
+  }
+
+  static const char *ConvertBlockTypeToStr(BlockType Val) {
+    switch(Val) {
+    case BlocksAttr::ByRef: return "byref";
+    }
+    llvm_unreachable("No enumerator with that value");
   }
 
 
@@ -1252,6 +1361,32 @@ public:
   bool isLateParsed() const override { return 0; }
 };
 
+class CUDAInvalidTargetAttr : public InheritableAttr {
+
+public:
+  static CUDAInvalidTargetAttr *CreateImplicit(ASTContext &Ctx, SourceRange Loc = SourceRange()) {
+    CUDAInvalidTargetAttr *A = new (Ctx) CUDAInvalidTargetAttr(Loc, Ctx, 0);
+    A->setImplicit(true);
+    return A;
+  }
+
+  CUDAInvalidTargetAttr(SourceRange R, ASTContext &Ctx
+              , unsigned SI
+             )
+    : InheritableAttr(attr::CUDAInvalidTarget, R, SI)
+  {
+  }
+
+  CUDAInvalidTargetAttr *clone(ASTContext &C) const override;
+  void printPretty(raw_ostream &OS,
+                   const PrintingPolicy &Policy) const override;
+  const char *getSpelling() const override;
+
+
+  static bool classof(const Attr *A) { return A->getKind() == attr::CUDAInvalidTarget; }
+  bool isLateParsed() const override { return 0; }
+};
+
 class CUDALaunchBoundsAttr : public InheritableAttr {
 int maxThreads;
 
@@ -1422,6 +1557,15 @@ public:
     return false;
   }
 
+  static const char *ConvertConsumedStateToStr(ConsumedState Val) {
+    switch(Val) {
+    case CallableWhenAttr::Unknown: return "unknown";
+    case CallableWhenAttr::Consumed: return "consumed";
+    case CallableWhenAttr::Unconsumed: return "unconsumed";
+    }
+    llvm_unreachable("No enumerator with that value");
+  }
+
 
   static bool classof(const Attr *A) { return A->getKind() == attr::CallableWhen; }
   bool isLateParsed() const override { return 0; }
@@ -1489,6 +1633,32 @@ public:
   
 
   static bool classof(const Attr *A) { return A->getKind() == attr::Capability; }
+  bool isLateParsed() const override { return 0; }
+};
+
+class CapturedRecordAttr : public InheritableAttr {
+
+public:
+  static CapturedRecordAttr *CreateImplicit(ASTContext &Ctx, SourceRange Loc = SourceRange()) {
+    CapturedRecordAttr *A = new (Ctx) CapturedRecordAttr(Loc, Ctx, 0);
+    A->setImplicit(true);
+    return A;
+  }
+
+  CapturedRecordAttr(SourceRange R, ASTContext &Ctx
+              , unsigned SI
+             )
+    : InheritableAttr(attr::CapturedRecord, R, SI)
+  {
+  }
+
+  CapturedRecordAttr *clone(ASTContext &C) const override;
+  void printPretty(raw_ostream &OS,
+                   const PrintingPolicy &Policy) const override;
+  const char *getSpelling() const override;
+
+
+  static bool classof(const Attr *A) { return A->getKind() == attr::CapturedRecord; }
   bool isLateParsed() const override { return 0; }
 };
 
@@ -1723,6 +1893,15 @@ public:
       return true;
     }
     return false;
+  }
+
+  static const char *ConvertConsumedStateToStr(ConsumedState Val) {
+    switch(Val) {
+    case ConsumableAttr::Unknown: return "unknown";
+    case ConsumableAttr::Consumed: return "consumed";
+    case ConsumableAttr::Unconsumed: return "unconsumed";
+    }
+    llvm_unreachable("No enumerator with that value");
   }
 
 
@@ -2133,6 +2312,43 @@ public:
 
 
   static bool classof(const Attr *A) { return A->getKind() == attr::Final; }
+  bool isLateParsed() const override { return 0; }
+};
+
+class FlagEnumAttr : public InheritableAttr {
+
+public:
+  static FlagEnumAttr *CreateImplicit(ASTContext &Ctx, SourceRange Loc = SourceRange()) {
+    FlagEnumAttr *A = new (Ctx) FlagEnumAttr(Loc, Ctx, 0);
+    A->setImplicit(true);
+    return A;
+  }
+
+  FlagEnumAttr(SourceRange R, ASTContext &Ctx
+              , unsigned SI
+             )
+    : InheritableAttr(attr::FlagEnum, R, SI)
+  {
+  }
+
+  FlagEnumAttr *clone(ASTContext &C) const override;
+  void printPretty(raw_ostream &OS,
+                   const PrintingPolicy &Policy) const override;
+  const char *getSpelling() const override;
+
+private:
+    llvm::APInt FlagBits;
+public:
+    llvm::APInt &getFlagBits() {
+      return FlagBits;
+    }
+
+    const llvm::APInt &getFlagBits() const {
+      return FlagBits;
+    }
+
+
+  static bool classof(const Attr *A) { return A->getKind() == attr::FlagEnum; }
   bool isLateParsed() const override { return 0; }
 };
 
@@ -2668,42 +2884,44 @@ public:
 private:
   OptionType option;
 
-int value;
+public:
+  enum LoopHintState {
+    Default,
+    Enable,
+    Disable
+  };
+private:
+  LoopHintState state;
+
+Expr * value;
 
 
 public:
   enum Spelling {
     Pragma_clang_loop,
-    Pragma_unroll
+    Pragma_unroll,
+    Pragma_nounroll
   };
 
-  static LoopHintAttr *CreateImplicit(ASTContext &Ctx, Spelling S, OptionType Option, int Value, SourceRange Loc = SourceRange()) {
-    LoopHintAttr *A = new (Ctx) LoopHintAttr(Loc, Ctx, Option, Value, S);
+  static LoopHintAttr *CreateImplicit(ASTContext &Ctx, Spelling S, OptionType Option, LoopHintState State, Expr * Value, SourceRange Loc = SourceRange()) {
+    LoopHintAttr *A = new (Ctx) LoopHintAttr(Loc, Ctx, Option, State, Value, S);
     A->setImplicit(true);
     return A;
   }
 
   LoopHintAttr(SourceRange R, ASTContext &Ctx
               , OptionType Option
-              , int Value
+              , LoopHintState State
+              , Expr * Value
               , unsigned SI
              )
     : Attr(attr::LoopHint, R, SI)
               , option(Option)
+              , state(State)
               , value(Value)
   {
 
 
-  }
-
-  LoopHintAttr(SourceRange R, ASTContext &Ctx
-              , OptionType Option
-              , unsigned SI
-             )
-    : Attr(attr::LoopHint, R, SI)
-              , option(OptionType(0))
-              , value()
-  {
 
   }
 
@@ -2716,6 +2934,7 @@ public:
     default: llvm_unreachable("Unknown spelling list index");
     case 0: return Pragma_clang_loop;
     case 1: return Pragma_unroll;
+    case 2: return Pragma_nounroll;
   }
   }
   OptionType getOption() const {
@@ -2737,14 +2956,49 @@ public:
     }
     return false;
   }
-  int getValue() const {
+
+  static const char *ConvertOptionTypeToStr(OptionType Val) {
+    switch(Val) {
+    case LoopHintAttr::Vectorize: return "vectorize";
+    case LoopHintAttr::VectorizeWidth: return "vectorize_width";
+    case LoopHintAttr::Interleave: return "interleave";
+    case LoopHintAttr::InterleaveCount: return "interleave_count";
+    case LoopHintAttr::Unroll: return "unroll";
+    case LoopHintAttr::UnrollCount: return "unroll_count";
+    }
+    llvm_unreachable("No enumerator with that value");
+  }
+  LoopHintState getState() const {
+    return state;
+  }
+
+  static bool ConvertStrToLoopHintState(StringRef Val, LoopHintState &Out) {
+    Optional<LoopHintState> R = llvm::StringSwitch<Optional<LoopHintState>>(Val)
+      .Case("default", LoopHintAttr::Default)
+      .Case("enable", LoopHintAttr::Enable)
+      .Case("disable", LoopHintAttr::Disable)
+      .Default(Optional<LoopHintState>());
+    if (R) {
+      Out = *R;
+      return true;
+    }
+    return false;
+  }
+
+  static const char *ConvertLoopHintStateToStr(LoopHintState Val) {
+    switch(Val) {
+    case LoopHintAttr::Default: return "default";
+    case LoopHintAttr::Enable: return "enable";
+    case LoopHintAttr::Disable: return "disable";
+    }
+    llvm_unreachable("No enumerator with that value");
+  }
+  Expr * getValue() const {
     return value;
   }
 
-  static const int DefaultValue = 1;
 
-
-  static StringRef getOptionName(int Option) {
+  static const char *getOptionName(int Option) {
     switch(Option) {
     case Vectorize: return "vectorize";
     case VectorizeWidth: return "vectorize_width";
@@ -2756,57 +3010,52 @@ public:
     llvm_unreachable("Unhandled LoopHint option.");
   }
 
-  static StringRef getValueName(int Value) {
-    if (Value)
-      return "enable";
-    return "disable";
-  }
-
   void printPrettyPragma(raw_ostream &OS, const PrintingPolicy &Policy) const {
     unsigned SpellingIndex = getSpellingListIndex();
-    if (SpellingIndex == Pragma_unroll) {
-      // String "unroll" of "#pragma unroll" is already emitted as the
-      // pragma name.
-      if (option == UnrollCount)
-        printArgument(OS);
+    // For "#pragma unroll" and "#pragma nounroll" the string "unroll" or
+    // "nounroll" is already emitted as the pragma name.
+    if (SpellingIndex == Pragma_nounroll) {
       OS << "\n";
       return;
     }
+    else if (SpellingIndex == Pragma_unroll) {
+      OS << getValueString(Policy) << "\n";
+      return;
+    }
+
     assert(SpellingIndex == Pragma_clang_loop && "Unexpected spelling");
-    OS << getOptionName(option);
-    printArgument(OS);
-    OS << "\n";
+    OS << getOptionName(option) << getValueString(Policy) << "\n";
   }
 
-  // Prints the loop hint argument including the enclosing parentheses to OS.
-  void printArgument(raw_ostream &OS) const {
+  // Return a string containing the loop hint argument including the
+  // enclosing parentheses.
+  std::string getValueString(const PrintingPolicy &Policy) const {
+    std::string ValueName;
+    llvm::raw_string_ostream OS(ValueName);
     OS << "(";
     if (option == VectorizeWidth || option == InterleaveCount ||
         option == UnrollCount)
-      OS << value;
-    else if (value)
-      OS << "enable";
+      value->printPretty(OS, nullptr, Policy);
+    else if (state == Default)
+      return "";
+    else if (state == Enable)
+      OS << (option == Unroll ? "full" : "enable");
     else
       OS << "disable";
     OS << ")";
+    return OS.str();
   }
 
   // Return a string suitable for identifying this attribute in diagnostics.
-  std::string getDiagnosticName() const {
-    std::string DiagnosticName;
-    llvm::raw_string_ostream OS(DiagnosticName);
+  std::string getDiagnosticName(const PrintingPolicy &Policy) const {
     unsigned SpellingIndex = getSpellingListIndex();
-    if (SpellingIndex == Pragma_unroll && option == Unroll)
-      OS << "#pragma unroll";
-    else if (SpellingIndex == Pragma_unroll && option == UnrollCount) {
-      OS << "#pragma unroll";
-      printArgument(OS);
-    } else {
-      assert(SpellingIndex == Pragma_clang_loop && "Unexpected spelling");
-      OS << getOptionName(option);
-      printArgument(OS);
-    }
-    return OS.str();
+    if (SpellingIndex == Pragma_nounroll)
+      return "#pragma nounroll";
+    else if (SpellingIndex == Pragma_unroll)
+      return "#pragma unroll" + getValueString(Policy);
+
+    assert(SpellingIndex == Pragma_clang_loop && "Unexpected spelling");
+    return getOptionName(option) + getValueString(Policy);
   }
   
 
@@ -3752,6 +4001,8 @@ public:
 
 
 bool isNonNull(unsigned idx) const {
+    if (!args_size())
+      return true;
     for (const auto &V : args())
       if (V == idx)
         return true;
@@ -3759,6 +4010,34 @@ bool isNonNull(unsigned idx) const {
   } 
 
   static bool classof(const Attr *A) { return A->getKind() == attr::NonNull; }
+  bool isLateParsed() const override { return 0; }
+  bool duplicatesAllowed() const override { return true; }
+
+};
+
+class OMPThreadPrivateDeclAttr : public InheritableAttr {
+
+public:
+  static OMPThreadPrivateDeclAttr *CreateImplicit(ASTContext &Ctx, SourceRange Loc = SourceRange()) {
+    OMPThreadPrivateDeclAttr *A = new (Ctx) OMPThreadPrivateDeclAttr(Loc, Ctx, 0);
+    A->setImplicit(true);
+    return A;
+  }
+
+  OMPThreadPrivateDeclAttr(SourceRange R, ASTContext &Ctx
+              , unsigned SI
+             )
+    : InheritableAttr(attr::OMPThreadPrivateDecl, R, SI)
+  {
+  }
+
+  OMPThreadPrivateDeclAttr *clone(ASTContext &C) const override;
+  void printPretty(raw_ostream &OS,
+                   const PrintingPolicy &Policy) const override;
+  const char *getSpelling() const override;
+
+
+  static bool classof(const Attr *A) { return A->getKind() == attr::OMPThreadPrivateDecl; }
   bool isLateParsed() const override { return 0; }
 };
 
@@ -4016,6 +4295,18 @@ public:
       return true;
     }
     return false;
+  }
+
+  static const char *ConvertFamilyKindToStr(FamilyKind Val) {
+    switch(Val) {
+    case ObjCMethodFamilyAttr::OMF_None: return "none";
+    case ObjCMethodFamilyAttr::OMF_alloc: return "alloc";
+    case ObjCMethodFamilyAttr::OMF_copy: return "copy";
+    case ObjCMethodFamilyAttr::OMF_init: return "init";
+    case ObjCMethodFamilyAttr::OMF_mutableCopy: return "mutableCopy";
+    case ObjCMethodFamilyAttr::OMF_new: return "new";
+    }
+    llvm_unreachable("No enumerator with that value");
   }
 
 
@@ -4534,6 +4825,15 @@ public:
     return false;
   }
 
+  static const char *ConvertConsumedStateToStr(ConsumedState Val) {
+    switch(Val) {
+    case ParamTypestateAttr::Unknown: return "unknown";
+    case ParamTypestateAttr::Consumed: return "consumed";
+    case ParamTypestateAttr::Unconsumed: return "unconsumed";
+    }
+    llvm_unreachable("No enumerator with that value");
+  }
+
 
   static bool classof(const Attr *A) { return A->getKind() == attr::ParamTypestate; }
   bool isLateParsed() const override { return 0; }
@@ -4610,6 +4910,14 @@ public:
       return true;
     }
     return false;
+  }
+
+  static const char *ConvertPCSTypeToStr(PCSType Val) {
+    switch(Val) {
+    case PcsAttr::AAPCS: return "aapcs";
+    case PcsAttr::AAPCS_VFP: return "aapcs-vfp";
+    }
+    llvm_unreachable("No enumerator with that value");
   }
 
 
@@ -4982,6 +5290,15 @@ public:
     return false;
   }
 
+  static const char *ConvertConsumedStateToStr(ConsumedState Val) {
+    switch(Val) {
+    case ReturnTypestateAttr::Unknown: return "unknown";
+    case ReturnTypestateAttr::Consumed: return "consumed";
+    case ReturnTypestateAttr::Unconsumed: return "unconsumed";
+    }
+    llvm_unreachable("No enumerator with that value");
+  }
+
 
   static bool classof(const Attr *A) { return A->getKind() == attr::ReturnTypestate; }
   bool isLateParsed() const override { return 0; }
@@ -5255,6 +5572,15 @@ public:
     return false;
   }
 
+  static const char *ConvertConsumedStateToStr(ConsumedState Val) {
+    switch(Val) {
+    case SetTypestateAttr::Unknown: return "unknown";
+    case SetTypestateAttr::Consumed: return "consumed";
+    case SetTypestateAttr::Unconsumed: return "unconsumed";
+    }
+    llvm_unreachable("No enumerator with that value");
+  }
+
 
   static bool classof(const Attr *A) { return A->getKind() == attr::SetTypestate; }
   bool isLateParsed() const override { return 0; }
@@ -5462,6 +5788,14 @@ public:
       return true;
     }
     return false;
+  }
+
+  static const char *ConvertConsumedStateToStr(ConsumedState Val) {
+    switch(Val) {
+    case TestTypestateAttr::Consumed: return "consumed";
+    case TestTypestateAttr::Unconsumed: return "unconsumed";
+    }
+    llvm_unreachable("No enumerator with that value");
   }
 
 
@@ -5740,6 +6074,15 @@ public:
     return false;
   }
 
+  static const char *ConvertVisibilityTypeToStr(VisibilityType Val) {
+    switch(Val) {
+    case TypeVisibilityAttr::Default: return "default";
+    case TypeVisibilityAttr::Hidden: return "hidden";
+    case TypeVisibilityAttr::Protected: return "protected";
+    }
+    llvm_unreachable("No enumerator with that value");
+  }
+
 
   static bool classof(const Attr *A) { return A->getKind() == attr::TypeVisibility; }
   bool isLateParsed() const override { return 0; }
@@ -5956,6 +6299,32 @@ public:
   bool isLateParsed() const override { return 0; }
 };
 
+class VectorCallAttr : public InheritableAttr {
+
+public:
+  static VectorCallAttr *CreateImplicit(ASTContext &Ctx, SourceRange Loc = SourceRange()) {
+    VectorCallAttr *A = new (Ctx) VectorCallAttr(Loc, Ctx, 0);
+    A->setImplicit(true);
+    return A;
+  }
+
+  VectorCallAttr(SourceRange R, ASTContext &Ctx
+              , unsigned SI
+             )
+    : InheritableAttr(attr::VectorCall, R, SI)
+  {
+  }
+
+  VectorCallAttr *clone(ASTContext &C) const override;
+  void printPretty(raw_ostream &OS,
+                   const PrintingPolicy &Policy) const override;
+  const char *getSpelling() const override;
+
+
+  static bool classof(const Attr *A) { return A->getKind() == attr::VectorCall; }
+  bool isLateParsed() const override { return 0; }
+};
+
 class VisibilityAttr : public InheritableAttr {
 public:
   enum VisibilityType {
@@ -6004,6 +6373,15 @@ public:
       return true;
     }
     return false;
+  }
+
+  static const char *ConvertVisibilityTypeToStr(VisibilityType Val) {
+    switch(Val) {
+    case VisibilityAttr::Default: return "default";
+    case VisibilityAttr::Hidden: return "hidden";
+    case VisibilityAttr::Protected: return "protected";
+    }
+    llvm_unreachable("No enumerator with that value");
   }
 
 

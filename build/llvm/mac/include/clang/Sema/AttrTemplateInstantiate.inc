@@ -71,6 +71,10 @@ Attr *instantiateTemplateAttribute(const Attr *At, ASTContext &C, Sema &S,
       const AlignMac68kAttr *A = cast<AlignMac68kAttr>(At);
       return A->clone(C);
     }
+    case attr::AlignValue: {
+      const AlignValueAttr *A = cast<AlignValueAttr>(At);
+      return A->clone(C);
+    }
     case attr::Aligned: {
       const AlignedAttr *A = cast<AlignedAttr>(At);
       return A->clone(C);
@@ -139,6 +143,10 @@ Attr *instantiateTemplateAttribute(const Attr *At, ASTContext &C, Sema &S,
       }
       return new (C) AssertSharedLockAttr(A->getLocation(), C, tempInstArgs, A->args_size(), A->getSpellingListIndex());
     }
+    case attr::AssumeAligned: {
+      const AssumeAlignedAttr *A = cast<AssumeAlignedAttr>(At);
+      return A->clone(C);
+    }
     case attr::Availability: {
       const AvailabilityAttr *A = cast<AvailabilityAttr>(At);
       return A->clone(C);
@@ -191,6 +199,10 @@ Attr *instantiateTemplateAttribute(const Attr *At, ASTContext &C, Sema &S,
       const CUDAHostAttr *A = cast<CUDAHostAttr>(At);
       return A->clone(C);
     }
+    case attr::CUDAInvalidTarget: {
+      const CUDAInvalidTargetAttr *A = cast<CUDAInvalidTargetAttr>(At);
+      return A->clone(C);
+    }
     case attr::CUDALaunchBounds: {
       const CUDALaunchBoundsAttr *A = cast<CUDALaunchBoundsAttr>(At);
       return A->clone(C);
@@ -209,6 +221,10 @@ Attr *instantiateTemplateAttribute(const Attr *At, ASTContext &C, Sema &S,
     }
     case attr::Capability: {
       const CapabilityAttr *A = cast<CapabilityAttr>(At);
+      return A->clone(C);
+    }
+    case attr::CapturedRecord: {
+      const CapturedRecordAttr *A = cast<CapturedRecordAttr>(At);
       return A->clone(C);
     }
     case attr::CarriesDependency: {
@@ -304,6 +320,10 @@ Attr *instantiateTemplateAttribute(const Attr *At, ASTContext &C, Sema &S,
     }
     case attr::Final: {
       const FinalAttr *A = cast<FinalAttr>(At);
+      return A->clone(C);
+    }
+    case attr::FlagEnum: {
+      const FlagEnumAttr *A = cast<FlagEnumAttr>(At);
       return A->clone(C);
     }
     case attr::Flatten: {
@@ -515,6 +535,10 @@ Attr *instantiateTemplateAttribute(const Attr *At, ASTContext &C, Sema &S,
     }
     case attr::NonNull: {
       const NonNullAttr *A = cast<NonNullAttr>(At);
+      return A->clone(C);
+    }
+    case attr::OMPThreadPrivateDecl: {
+      const OMPThreadPrivateDeclAttr *A = cast<OMPThreadPrivateDeclAttr>(At);
       return A->clone(C);
     }
     case attr::ObjCBridge: {
@@ -800,6 +824,10 @@ Attr *instantiateTemplateAttribute(const Attr *At, ASTContext &C, Sema &S,
     }
     case attr::VecTypeHint: {
       const VecTypeHintAttr *A = cast<VecTypeHintAttr>(At);
+      return A->clone(C);
+    }
+    case attr::VectorCall: {
+      const VectorCallAttr *A = cast<VectorCallAttr>(At);
       return A->clone(C);
     }
     case attr::Visibility: {

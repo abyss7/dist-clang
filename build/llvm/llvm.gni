@@ -79,6 +79,7 @@ llvm_libs = [
   "LLVMSparcInfo",
   "LLVMSparcAsmPrinter",
   "LLVMTableGen",
+  "LLVMDebugInfo",
   "LLVMOption",
   "LLVMX86Disassembler",
   "LLVMX86AsmParser",
@@ -91,24 +92,22 @@ llvm_libs = [
   "LLVMX86AsmPrinter",
   "LLVMX86Utils",
   "LLVMMCJIT",
-  "LLVMDebugInfoDWARF",
+  "LLVMRuntimeDyld",
   "LLVMLineEditor",
   "LLVMInstrumentation",
   "LLVMInterpreter",
+  "LLVMExecutionEngine",
   "LLVMCodeGen",
-  "LLVMTarget",
   "LLVMScalarOpts",
   "LLVMProfileData",
-  "LLVMInstCombine",
-  "LLVMOrcJIT",
-  "LLVMTransformUtils",
-  "LLVMipa",
-  "LLVMAnalysis",
-  "LLVMRuntimeDyld",
-  "LLVMExecutionEngine",
   "LLVMObject",
   "LLVMMCParser",
   "LLVMBitReader",
+  "LLVMInstCombine",
+  "LLVMTransformUtils",
+  "LLVMipa",
+  "LLVMAnalysis",
+  "LLVMTarget",
   "LLVMMC",
   "LLVMCore",
   "LLVMSupport",
@@ -122,11 +121,4 @@ llvm_system_libs = [
 
 if (os == "linux") {
   llvm_system_libs += [ "dl" ]
-}
-
-if (os == "mac") {
-  llvm_system_libs += [
-    "curses",
-    "edit",
-  ]
 }

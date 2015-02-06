@@ -52,6 +52,11 @@
         return 1;
     break;
   }
+  case AT_AlignValue: {
+    if (Name == "align_value" && SyntaxUsed == 0 && Scope == "")
+        return 0;
+    break;
+  }
   case AT_Aligned: {
     if (Name == "aligned" && SyntaxUsed == 0 && Scope == "")
         return 0;
@@ -115,6 +120,13 @@
   case AT_AssertSharedLock: {
     if (Name == "assert_shared_lock" && SyntaxUsed == 0 && Scope == "")
         return 0;
+    break;
+  }
+  case AT_AssumeAligned: {
+    if (Name == "assume_aligned" && SyntaxUsed == 0 && Scope == "")
+        return 0;
+    if (Name == "assume_aligned" && SyntaxUsed == 1 && Scope == "gnu")
+        return 1;
     break;
   }
   case AT_Availability: {
@@ -181,6 +193,9 @@
   case AT_CUDAHost: {
     if (Name == "host" && SyntaxUsed == 0 && Scope == "")
         return 0;
+    break;
+  }
+  case AT_CUDAInvalidTarget: {
     break;
   }
   case AT_CUDALaunchBounds: {
@@ -342,6 +357,11 @@
         return 3;
     break;
   }
+  case AT_FlagEnum: {
+    if (Name == "flag_enum" && SyntaxUsed == 0 && Scope == "")
+        return 0;
+    break;
+  }
   case AT_Flatten: {
     if (Name == "flatten" && SyntaxUsed == 0 && Scope == "")
         return 0;
@@ -432,6 +452,8 @@
         return 0;
     if (Name == "unroll" && SyntaxUsed == 4 && Scope == "")
         return 1;
+    if (Name == "nounroll" && SyntaxUsed == 4 && Scope == "")
+        return 2;
     break;
   }
   case AT_MSABI: {
@@ -546,6 +568,8 @@
   case AT_NoDebug: {
     if (Name == "nodebug" && SyntaxUsed == 0 && Scope == "")
         return 0;
+    if (Name == "nodebug" && SyntaxUsed == 1 && Scope == "gnu")
+        return 1;
     break;
   }
   case AT_NoDuplicate: {
@@ -720,6 +744,13 @@
     if (Name == "__constant" && SyntaxUsed == 3 && Scope == "")
         return 0;
     if (Name == "constant" && SyntaxUsed == 3 && Scope == "")
+        return 1;
+    break;
+  }
+  case AT_OpenCLGenericAddressSpace: {
+    if (Name == "__generic" && SyntaxUsed == 3 && Scope == "")
+        return 0;
+    if (Name == "generic" && SyntaxUsed == 3 && Scope == "")
         return 1;
     break;
   }
@@ -1064,6 +1095,15 @@
   case AT_VecTypeHint: {
     if (Name == "vec_type_hint" && SyntaxUsed == 0 && Scope == "")
         return 0;
+    break;
+  }
+  case AT_VectorCall: {
+    if (Name == "vectorcall" && SyntaxUsed == 0 && Scope == "")
+        return 0;
+    if (Name == "__vectorcall" && SyntaxUsed == 3 && Scope == "")
+        return 1;
+    if (Name == "_vectorcall" && SyntaxUsed == 3 && Scope == "")
+        return 2;
     break;
   }
   case AT_VectorSize: {

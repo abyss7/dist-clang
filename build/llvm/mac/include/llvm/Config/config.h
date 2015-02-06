@@ -455,22 +455,22 @@
 /* #undef HAVE____CHKSTK */
 
 /* Linker version detected at compile time. */
-#define HOST_LINK_VERSION "241.9"
+#define HOST_LINK_VERSION "236.3"
 
 /* Installation directory for binary executables */
-#define LLVM_BINDIR "/Users/ilezhankin/.local/opt/llvm/bin"
+#define LLVM_BINDIR "/Users/ilezhankin/llvm-install/bin"
 
 /* Time at which LLVM was configured */
-#define LLVM_CONFIGTIME "Sat Nov  1 23:07:36 MSK 2014"
+#define LLVM_CONFIGTIME "Fri Feb  6 14:53:23 MSK 2015"
 
 /* Installation directory for data files */
-#define LLVM_DATADIR "/Users/ilezhankin/.local/opt/llvm/share/llvm"
+#define LLVM_DATADIR "/Users/ilezhankin/llvm-install/share/llvm"
 
 /* Target triple LLVM will generate code for by default */
 #define LLVM_DEFAULT_TARGET_TRIPLE "x86_64-apple-darwin13.4.0"
 
 /* Installation directory for documentation */
-#define LLVM_DOCSDIR "/Users/ilezhankin/.local/opt/llvm/share/doc/llvm"
+#define LLVM_DOCSDIR "/Users/ilezhankin/llvm-install/share/doc/llvm"
 
 /* Define if threads enabled */
 #define LLVM_ENABLE_THREADS 1
@@ -479,7 +479,7 @@
 #define LLVM_ENABLE_ZLIB 1
 
 /* Installation directory for config files */
-#define LLVM_ETCDIR "/Users/ilezhankin/.local/opt/llvm/etc/llvm"
+#define LLVM_ETCDIR "/Users/ilezhankin/llvm-install/etc/llvm"
 
 /* Has gcc/MSVC atomic intrinsics */
 #define LLVM_HAS_ATOMICS 1
@@ -488,13 +488,13 @@
 #define LLVM_HOST_TRIPLE "x86_64-apple-darwin13.4.0"
 
 /* Installation directory for include files */
-#define LLVM_INCLUDEDIR "/Users/ilezhankin/.local/opt/llvm/include"
+#define LLVM_INCLUDEDIR "/Users/ilezhankin/llvm-install/include"
 
 /* Installation directory for .info files */
-#define LLVM_INFODIR "/Users/ilezhankin/.local/opt/llvm/info"
+#define LLVM_INFODIR "/Users/ilezhankin/llvm-install/info"
 
 /* Installation directory for man pages */
-#define LLVM_MANDIR "/Users/ilezhankin/.local/opt/llvm/man"
+#define LLVM_MANDIR "/Users/ilezhankin/llvm-install/man"
 
 /* LLVM architecture name for the native architecture, if available */
 #define LLVM_NATIVE_ARCH X86
@@ -527,7 +527,7 @@
 /* #undef LLVM_PATH_DOT */
 
 /* Installation prefix directory */
-#define LLVM_PREFIX "/Users/ilezhankin/.local/opt/llvm"
+#define LLVM_PREFIX "/Users/ilezhankin/llvm-install"
 
 /* Define if we have the Intel JIT API runtime support library */
 #define LLVM_USE_INTEL_JITEVENTS 0
@@ -539,10 +539,13 @@
 #define LLVM_VERSION_MAJOR 3
 
 /* Minor version of the LLVM API */
-#define LLVM_VERSION_MINOR 5
+#define LLVM_VERSION_MINOR 6
 
 /* Patch version of the LLVM API */
 #define LLVM_VERSION_PATCH 0
+
+/* LLVM version string */
+#define LLVM_VERSION_STRING "3.6.0svn"
 
 /* The shared library extension */
 #define LTDL_SHLIB_EXT ".dylib"
@@ -558,13 +561,13 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 3.5.0"
+#define PACKAGE_STRING "LLVM 3.6.0svn"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "llvm"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.5.0"
+#define PACKAGE_VERSION "3.6.0svn"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
