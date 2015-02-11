@@ -45,8 +45,15 @@ inline bool GenerateSource(const proto::LocalExecute* WEAK_PTR message,
   // Clang plugins can't affect source code.
   pp_flags.mutable_compiler()->clear_plugins();
 
-  base::ProcessPtr process = daemon::BaseDaemon::CreateProcess(
-      pp_flags, Immutable(message->current_dir()));
+  base::ProcessPtr process;
+  if (message->has_user_id()) {
+    process = daemon::BaseDaemon::CreateProcess(
+        pp_flags, message->user_id(), Immutable(message->current_dir()));
+  } else {
+    process = daemon::BaseDaemon::CreateProcess(
+        pp_flags, Immutable(message->current_dir()));
+  }
+
   if (!process->Run(10)) {
     return false;
   }
@@ -385,6 +392,12 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
       auto* result = reply->MutableExtension(proto::RemoteResult::extension);
       if (base::File::Write(output_path,
                             Immutable::WrapString(result->obj()))) {
+        if (incoming->has_user_id() &&
+            !base::ChangeOwner(output_path, incoming->user_id(), &error)) {
+          LOG(ERROR) << "Failed to change owner for " << output_path << ": "
+                     << error;
+        }
+
         proto::Status status;
         status.set_code(proto::Status::OK);
         LOG(INFO) << "Remote compilation successful: "

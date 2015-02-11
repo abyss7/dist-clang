@@ -423,6 +423,7 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
   const String plugin_name = "fake_plugin";
   const auto plugin_path = "fake_plugin_path"_l;
   const auto action = "fake_action"_l;
+  const ui32 user_id = 1234;
 
   conf.mutable_emitter()->set_socket_path(socket_path);
   auto* version = conf.add_versions();
@@ -448,6 +449,7 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
     EXPECT_EQ(compiler_path, process->exec_path_);
     EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path}),
               process->args_);
+    EXPECT_EQ(user_id, process->uid_);
   };
 
   emitter.reset(new Emitter(conf));
@@ -461,6 +463,7 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(proto::LocalExecute::extension);
     extension->set_current_dir(current_dir);
+    extension->set_user_id(user_id);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
     compiler->add_plugins()->set_name(plugin_name);
@@ -483,6 +486,12 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
       << "Daemon must not store references to the connection";
 
   // TODO: check absolute output path.
+}
+
+TEST_F(EmitterTest, RemoteSuccessfulCompilation) {
+  // TODO: implement this test.
+  //       - Check the permissions of object and deps files, if the client
+  //         provides the user_id.
 }
 
 TEST_F(EmitterTest, LocalFailedCompilation) {
