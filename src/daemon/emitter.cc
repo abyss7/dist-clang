@@ -274,6 +274,8 @@ void Emitter::DoLocalExecute(const Atomic<bool>& is_shutting_down) {
         status.set_description(process->stderr());
       } else if (!error.empty()) {
         status.set_description(error);
+      } else if (!process->stdout().empty()) {
+        status.set_description(process->stdout());
       } else {
         status.set_description("without errors");
       }

@@ -3,6 +3,7 @@
 #include <base/assert.h>
 #include <base/c_utils.h>
 #include <base/file/file.h>
+#include <base/logging.h>
 #include <net/connection_impl.h>
 #include <net/end_point.h>
 #include <net/socket.h>
@@ -12,6 +13,8 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/un.h>
+
+#include <base/using_log.h>
 
 namespace dist_clang {
 namespace net {
@@ -132,9 +135,13 @@ void NetworkServiceImpl::HandleNewConnection(const Passive& fd,
   auto callback = listen_callbacks_.find(fd.native());
   DCHECK(callback != listen_callbacks_.end());
 
-  if (!connection->SendTimeout(send_timeout_secs) ||
-      !connection->ReadTimeout(read_timeout_secs)) {
-    callback->second(ConnectionPtr());
+  String error;
+  if (!connection->SendTimeout(send_timeout_secs, &error) ||
+      !connection->ReadTimeout(read_timeout_secs, &error)) {
+    LOG(WARNING)
+        << "Failed to set the send or read timeout on incoming connection: "
+        << error;
+    return;
   }
 
   callback->second(connection);
