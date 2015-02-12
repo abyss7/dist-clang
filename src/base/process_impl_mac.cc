@@ -58,6 +58,7 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
         if (errno == EINTR) {
           continue;
         } else {
+          GetLastError(error);
           ::kill(child_pid, SIGTERM);
           return false;
         }
@@ -65,13 +66,17 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
 
       if (event_count == 0) {
         kill(child_pid);
+        if (error) {
+          error->assign("Timeout occured");
+        }
         break;
       }
 
       for (int i = 0; i < event_count; ++i) {
         auto* fd = reinterpret_cast<Data*>(events[i].udata);
 
-        if (events[i].filter == EVFILT_READ && events[i].data) {
+        DCHECK(events[i].filter == EVFILT_READ);
+        if (events[i].data) {
           auto buffer_size = events[i].data;
           auto buffer = UniquePtr<char[]>(new char[buffer_size]);
           auto bytes_read = read(fd->native(), buffer.get(), buffer_size);
@@ -91,10 +96,11 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
               stderr_size += bytes_read;
             }
           }
-        } else if (events[i].filter == EVFILT_READ &&
-                   events[i].flags & EV_EOF) {
+        } else if (events[i].flags & EV_EOF) {
           kq.Delete(*fd);
           exhausted_fds++;
+        } else {
+          NOTREACHED();
         }
       }
     }
