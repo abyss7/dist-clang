@@ -58,7 +58,7 @@ Log::~Log() {
 
     if (mode_ == CONSOLE) {
       auto& output_stream = (level_ <= error_mark_) ? std::cerr : std::cout;
-      output_stream << stream_.str();
+      output_stream << stream_.str() << std::flush;
     } else if (mode_ == SYSLOG) {
 #if !defined(OS_WIN)
       // FIXME: not really a fair mapping.

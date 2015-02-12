@@ -11,7 +11,7 @@ namespace base {
 
 class Kqueue final : public Handle {
  public:
-  enum : int { UNLIMITED = -1 };
+  enum : int { UNLIMITED = 0 };
 
   Kqueue();
 
@@ -25,9 +25,7 @@ class Kqueue final : public Handle {
       return kevent(native(), nullptr, 0, events.data(), array_size, nullptr);
     } else {
       struct timespec timeout = {sec_timeout, 0};
-      struct timespec* timeout_ptr = &timeout;
-      return kevent(native(), nullptr, 0, events.data(), array_size,
-                    timeout_ptr);
+      return kevent(native(), nullptr, 0, events.data(), array_size, &timeout);
     }
   }
 
