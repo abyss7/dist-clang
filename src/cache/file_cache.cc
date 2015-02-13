@@ -33,7 +33,7 @@ FileCache::FileCache(const String& path, ui64 size, bool snappy)
       max_size_(size),
       cached_size_(0),
       snappy_(snappy),
-      pool_(base::ThreadPool::TaskQueue::UNLIMITED, 1 + snappy) {
+      pool_(base::ThreadPool::TaskQueue::UNLIMITED, 1) {
 }
 
 FileCache::FileCache(const String& path) : FileCache(path, UNLIMITED, false) {
