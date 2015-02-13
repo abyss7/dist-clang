@@ -121,9 +121,9 @@ ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point,
   fd.CloseOnExec();
 
   if (!fd.Connect(end_point, error) ||
-      !fd.SendTimeout(send_timeout_secs, error) ||
-      !fd.ReadTimeout(read_timeout_secs, error) ||
-      !fd.ReadLowWatermark(read_min_bytes, error)) {
+      !fd.SendTimeout(send_timeout_secs_, error) ||
+      !fd.ReadTimeout(read_timeout_secs_, error) ||
+      !fd.ReadLowWatermark(read_min_bytes_, error)) {
     return ConnectionPtr();
   }
 
@@ -136,8 +136,8 @@ void NetworkServiceImpl::HandleNewConnection(const Passive& fd,
   DCHECK(callback != listen_callbacks_.end());
 
   String error;
-  if (!connection->SendTimeout(send_timeout_secs, &error) ||
-      !connection->ReadTimeout(read_timeout_secs, &error)) {
+  if (!connection->SendTimeout(send_timeout_secs_, &error) ||
+      !connection->ReadTimeout(read_timeout_secs_, &error)) {
     LOG(WARNING)
         << "Failed to set the send or read timeout on incoming connection: "
         << error;

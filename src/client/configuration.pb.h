@@ -116,12 +116,39 @@ class Configuration : public ::google::protobuf::Message {
   inline ::std::string* release_version();
   inline void set_allocated_version(::std::string* version);
 
+  // optional uint32 send_timeout = 3 [default = 60];
+  inline bool has_send_timeout() const;
+  inline void clear_send_timeout();
+  static const int kSendTimeoutFieldNumber = 3;
+  inline ::google::protobuf::uint32 send_timeout() const;
+  inline void set_send_timeout(::google::protobuf::uint32 value);
+
+  // optional uint32 read_timeout = 4 [default = 5];
+  inline bool has_read_timeout() const;
+  inline void clear_read_timeout();
+  static const int kReadTimeoutFieldNumber = 4;
+  inline ::google::protobuf::uint32 read_timeout() const;
+  inline void set_read_timeout(::google::protobuf::uint32 value);
+
+  // optional uint32 read_minimum = 5 [default = 32];
+  inline bool has_read_minimum() const;
+  inline void clear_read_minimum();
+  static const int kReadMinimumFieldNumber = 5;
+  inline ::google::protobuf::uint32 read_minimum() const;
+  inline void set_read_minimum(::google::protobuf::uint32 value);
+
   // @@protoc_insertion_point(class_scope:dist_clang.client.proto.Configuration)
  private:
   inline void set_has_path();
   inline void clear_has_path();
   inline void set_has_version();
   inline void clear_has_version();
+  inline void set_has_send_timeout();
+  inline void clear_has_send_timeout();
+  inline void set_has_read_timeout();
+  inline void clear_has_read_timeout();
+  inline void set_has_read_minimum();
+  inline void clear_has_read_minimum();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -129,6 +156,9 @@ class Configuration : public ::google::protobuf::Message {
   mutable int _cached_size_;
   ::std::string* path_;
   ::std::string* version_;
+  ::google::protobuf::uint32 send_timeout_;
+  ::google::protobuf::uint32 read_timeout_;
+  ::google::protobuf::uint32 read_minimum_;
   friend void  protobuf_AddDesc_client_2fconfiguration_2eproto();
   friend void protobuf_AssignDesc_client_2fconfiguration_2eproto();
   friend void protobuf_ShutdownFile_client_2fconfiguration_2eproto();
@@ -293,6 +323,78 @@ inline void Configuration::set_allocated_version(::std::string* version) {
     version_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   }
   // @@protoc_insertion_point(field_set_allocated:dist_clang.client.proto.Configuration.version)
+}
+
+// optional uint32 send_timeout = 3 [default = 60];
+inline bool Configuration::has_send_timeout() const {
+  return (_has_bits_[0] & 0x00000004u) != 0;
+}
+inline void Configuration::set_has_send_timeout() {
+  _has_bits_[0] |= 0x00000004u;
+}
+inline void Configuration::clear_has_send_timeout() {
+  _has_bits_[0] &= ~0x00000004u;
+}
+inline void Configuration::clear_send_timeout() {
+  send_timeout_ = 60u;
+  clear_has_send_timeout();
+}
+inline ::google::protobuf::uint32 Configuration::send_timeout() const {
+  // @@protoc_insertion_point(field_get:dist_clang.client.proto.Configuration.send_timeout)
+  return send_timeout_;
+}
+inline void Configuration::set_send_timeout(::google::protobuf::uint32 value) {
+  set_has_send_timeout();
+  send_timeout_ = value;
+  // @@protoc_insertion_point(field_set:dist_clang.client.proto.Configuration.send_timeout)
+}
+
+// optional uint32 read_timeout = 4 [default = 5];
+inline bool Configuration::has_read_timeout() const {
+  return (_has_bits_[0] & 0x00000008u) != 0;
+}
+inline void Configuration::set_has_read_timeout() {
+  _has_bits_[0] |= 0x00000008u;
+}
+inline void Configuration::clear_has_read_timeout() {
+  _has_bits_[0] &= ~0x00000008u;
+}
+inline void Configuration::clear_read_timeout() {
+  read_timeout_ = 5u;
+  clear_has_read_timeout();
+}
+inline ::google::protobuf::uint32 Configuration::read_timeout() const {
+  // @@protoc_insertion_point(field_get:dist_clang.client.proto.Configuration.read_timeout)
+  return read_timeout_;
+}
+inline void Configuration::set_read_timeout(::google::protobuf::uint32 value) {
+  set_has_read_timeout();
+  read_timeout_ = value;
+  // @@protoc_insertion_point(field_set:dist_clang.client.proto.Configuration.read_timeout)
+}
+
+// optional uint32 read_minimum = 5 [default = 32];
+inline bool Configuration::has_read_minimum() const {
+  return (_has_bits_[0] & 0x00000010u) != 0;
+}
+inline void Configuration::set_has_read_minimum() {
+  _has_bits_[0] |= 0x00000010u;
+}
+inline void Configuration::clear_has_read_minimum() {
+  _has_bits_[0] &= ~0x00000010u;
+}
+inline void Configuration::clear_read_minimum() {
+  read_minimum_ = 32u;
+  clear_has_read_minimum();
+}
+inline ::google::protobuf::uint32 Configuration::read_minimum() const {
+  // @@protoc_insertion_point(field_get:dist_clang.client.proto.Configuration.read_minimum)
+  return read_minimum_;
+}
+inline void Configuration::set_read_minimum(::google::protobuf::uint32 value) {
+  set_has_read_minimum();
+  read_minimum_ = value;
+  // @@protoc_insertion_point(field_set:dist_clang.client.proto.Configuration.read_minimum)
 }
 
 

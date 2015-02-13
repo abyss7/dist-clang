@@ -109,7 +109,9 @@ bool BaseDaemon::Initialize() {
 BaseDaemon::BaseDaemon(const proto::Configuration& configuration)
     : conf_(configuration),
       resolver_(net::EndPointResolver::Create()),
-      network_service_(net::NetworkService::Create()) {
+      network_service_(net::NetworkService::Create(
+          configuration.read_timeout(), configuration.send_timeout(),
+          configuration.read_minimum())) {
   conf_.CheckInitialized();
 
   // Setup log's verbosity early - even before configuration integrity check.

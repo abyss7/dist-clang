@@ -63,6 +63,7 @@ int main(int argc, char* argv[]) {
   }
 
   Immutable version(true), clang_path(true);
+  ui32 read_timeout_secs, send_timeout_secs, read_min_bytes;
 
   // Try to load config file first.
   String dir = base::GetCurrentDir();
@@ -94,6 +95,10 @@ int main(int argc, char* argv[]) {
         version = config.release_version();
         LOG(VERBOSE) << "Took version from " << config_path << " : " << version;
       }
+
+      read_timeout_secs = config.read_timeout();
+      send_timeout_secs = config.send_timeout();
+      read_min_bytes = config.read_minimum();
 
       break;
     }
@@ -129,10 +134,14 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  CHECK(read_timeout_secs);
+  CHECK(send_timeout_secs);
+
   // NOTICE: Use separate |DoMain| function to make sure that all local objects
   //         get destructed before the invokation of |exec|. Do not use global
   //         objects!
-  if (client::DoMain(argc, argv, socket_path, clang_path, version)) {
+  if (client::DoMain(argc, argv, socket_path, clang_path, version,
+                     read_timeout_secs, send_timeout_secs, read_min_bytes)) {
     return ExecuteLocally(argv, clang_path);
   }
 

@@ -9,7 +9,9 @@ namespace net {
 class NetworkServiceImpl;
 
 class NetworkService
-    : public base::Testable<NetworkService, NetworkServiceImpl> {
+    : public base::Testable<
+          NetworkService, NetworkServiceImpl, ui32 /* read timeout seconds */,
+          ui32 /* send timeout seconds */, ui32 /* read minimum bytes */> {
  public:
   using ListenCallback = Fn<void(ConnectionPtr)>;
 

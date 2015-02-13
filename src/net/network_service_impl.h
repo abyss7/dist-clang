@@ -26,16 +26,9 @@ class NetworkServiceImpl : public NetworkService {
  private:
   friend class DefaultFactory;
 
-  // FIXME: make these values configurable.
-  enum : int {
-    read_timeout_secs = 60,
-    send_timeout_secs = 5,
-    read_min_bytes = 32
-  };
+  NetworkServiceImpl(ui32 read_timeout_secs, ui32 send_timeout_secs,
+                     ui32 read_min_bytes);
 
-  NetworkServiceImpl();
-
-  // |fd| is a descriptor of a listening socket, which accepts new connection.
   void HandleNewConnection(const Passive& fd, ConnectionPtr connection);
 
   UniquePtr<EventLoop> event_loop_;
@@ -43,6 +36,7 @@ class NetworkServiceImpl : public NetworkService {
   // FIXME: implement true |Passive::Ref|.
   HashMap<Passive::NativeType, ListenCallback> listen_callbacks_;
 
+  const ui32 read_timeout_secs_, send_timeout_secs_, read_min_bytes_;
   List<String> unix_sockets_;
 };
 

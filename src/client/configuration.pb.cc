@@ -36,9 +36,12 @@ void protobuf_AssignDesc_client_2fconfiguration_2eproto() {
       "client/configuration.proto");
   GOOGLE_CHECK(file != NULL);
   Configuration_descriptor_ = file->message_type(0);
-  static const int Configuration_offsets_[2] = {
+  static const int Configuration_offsets_[5] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, path_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, version_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, send_timeout_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, read_timeout_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, read_minimum_),
   };
   Configuration_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
@@ -82,8 +85,10 @@ void protobuf_AddDesc_client_2fconfiguration_2eproto() {
 
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
     "\n\032client/configuration.proto\022\027dist_clang"
-    ".client.proto\".\n\rConfiguration\022\014\n\004path\030\001"
-    " \002(\t\022\017\n\007version\030\002 \001(\t", 101);
+    ".client.proto\"{\n\rConfiguration\022\014\n\004path\030\001"
+    " \002(\t\022\017\n\007version\030\002 \001(\t\022\030\n\014send_timeout\030\003 "
+    "\001(\r:\00260\022\027\n\014read_timeout\030\004 \001(\r:\0015\022\030\n\014read"
+    "_minimum\030\005 \001(\r:\00232", 178);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "client/configuration.proto", &protobuf_RegisterTypes);
   Configuration::default_instance_ = new Configuration();
@@ -103,6 +108,9 @@ struct StaticDescriptorInitializer_client_2fconfiguration_2eproto {
 #ifndef _MSC_VER
 const int Configuration::kPathFieldNumber;
 const int Configuration::kVersionFieldNumber;
+const int Configuration::kSendTimeoutFieldNumber;
+const int Configuration::kReadTimeoutFieldNumber;
+const int Configuration::kReadMinimumFieldNumber;
 #endif  // !_MSC_VER
 
 Configuration::Configuration()
@@ -126,6 +134,9 @@ void Configuration::SharedCtor() {
   _cached_size_ = 0;
   path_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   version_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  send_timeout_ = 60u;
+  read_timeout_ = 5u;
+  read_minimum_ = 32u;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -167,7 +178,7 @@ Configuration* Configuration::New() const {
 }
 
 void Configuration::Clear() {
-  if (_has_bits_[0 / 32] & 3) {
+  if (_has_bits_[0 / 32] & 31) {
     if (has_path()) {
       if (path_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
         path_->clear();
@@ -178,6 +189,9 @@ void Configuration::Clear() {
         version_->clear();
       }
     }
+    send_timeout_ = 60u;
+    read_timeout_ = 5u;
+    read_minimum_ = 32u;
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   mutable_unknown_fields()->Clear();
@@ -219,6 +233,51 @@ bool Configuration::MergePartialFromCodedStream(
             this->version().data(), this->version().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
             "version");
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(24)) goto parse_send_timeout;
+        break;
+      }
+
+      // optional uint32 send_timeout = 3 [default = 60];
+      case 3: {
+        if (tag == 24) {
+         parse_send_timeout:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
+                 input, &send_timeout_)));
+          set_has_send_timeout();
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(32)) goto parse_read_timeout;
+        break;
+      }
+
+      // optional uint32 read_timeout = 4 [default = 5];
+      case 4: {
+        if (tag == 32) {
+         parse_read_timeout:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
+                 input, &read_timeout_)));
+          set_has_read_timeout();
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(40)) goto parse_read_minimum;
+        break;
+      }
+
+      // optional uint32 read_minimum = 5 [default = 32];
+      case 5: {
+        if (tag == 40) {
+         parse_read_minimum:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
+                 input, &read_minimum_)));
+          set_has_read_minimum();
         } else {
           goto handle_unusual;
         }
@@ -271,6 +330,21 @@ void Configuration::SerializeWithCachedSizes(
       2, this->version(), output);
   }
 
+  // optional uint32 send_timeout = 3 [default = 60];
+  if (has_send_timeout()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(3, this->send_timeout(), output);
+  }
+
+  // optional uint32 read_timeout = 4 [default = 5];
+  if (has_read_timeout()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(4, this->read_timeout(), output);
+  }
+
+  // optional uint32 read_minimum = 5 [default = 32];
+  if (has_read_minimum()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(5, this->read_minimum(), output);
+  }
+
   if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
@@ -303,6 +377,21 @@ void Configuration::SerializeWithCachedSizes(
         2, this->version(), target);
   }
 
+  // optional uint32 send_timeout = 3 [default = 60];
+  if (has_send_timeout()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(3, this->send_timeout(), target);
+  }
+
+  // optional uint32 read_timeout = 4 [default = 5];
+  if (has_read_timeout()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(4, this->read_timeout(), target);
+  }
+
+  // optional uint32 read_minimum = 5 [default = 32];
+  if (has_read_minimum()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(5, this->read_minimum(), target);
+  }
+
   if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
@@ -327,6 +416,27 @@ int Configuration::ByteSize() const {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::StringSize(
           this->version());
+    }
+
+    // optional uint32 send_timeout = 3 [default = 60];
+    if (has_send_timeout()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt32Size(
+          this->send_timeout());
+    }
+
+    // optional uint32 read_timeout = 4 [default = 5];
+    if (has_read_timeout()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt32Size(
+          this->read_timeout());
+    }
+
+    // optional uint32 read_minimum = 5 [default = 32];
+    if (has_read_minimum()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt32Size(
+          this->read_minimum());
     }
 
   }
@@ -362,6 +472,15 @@ void Configuration::MergeFrom(const Configuration& from) {
     if (from.has_version()) {
       set_version(from.version());
     }
+    if (from.has_send_timeout()) {
+      set_send_timeout(from.send_timeout());
+    }
+    if (from.has_read_timeout()) {
+      set_read_timeout(from.read_timeout());
+    }
+    if (from.has_read_minimum()) {
+      set_read_minimum(from.read_minimum());
+    }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
@@ -388,6 +507,9 @@ void Configuration::Swap(Configuration* other) {
   if (other != this) {
     std::swap(path_, other->path_);
     std::swap(version_, other->version_);
+    std::swap(send_timeout_, other->send_timeout_);
+    std::swap(read_timeout_, other->read_timeout_);
+    std::swap(read_minimum_, other->read_minimum_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);

@@ -37,7 +37,9 @@ class TestNetworkService : public NetworkService {
    public:
     using OnCreateCallback = Fn<void(TestNetworkService*)>;
 
-    virtual UniquePtr<NetworkService> Create() override;
+    UniquePtr<NetworkService> Create(ui32 read_timeout_secs,
+                                     ui32 send_timeout_secs,
+                                     ui32 read_min_bytes) override;
 
     inline void CallOnCreate(OnCreateCallback callback) {
       on_create_ = callback;
