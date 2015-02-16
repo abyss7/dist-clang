@@ -63,7 +63,10 @@ int main(int argc, char* argv[]) {
   }
 
   Immutable version(true), clang_path(true);
-  ui32 read_timeout_secs, send_timeout_secs, read_min_bytes;
+  const auto& default_config = client::proto::Configuration::default_instance();
+  ui32 read_timeout_secs = default_config.read_timeout(),
+       send_timeout_secs = default_config.send_timeout(),
+       read_min_bytes = default_config.read_minimum();
 
   // Try to load config file first.
   String dir = base::GetCurrentDir();

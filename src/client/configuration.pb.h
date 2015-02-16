@@ -116,14 +116,14 @@ class Configuration : public ::google::protobuf::Message {
   inline ::std::string* release_version();
   inline void set_allocated_version(::std::string* version);
 
-  // optional uint32 send_timeout = 3 [default = 60];
+  // optional uint32 send_timeout = 3 [default = 5];
   inline bool has_send_timeout() const;
   inline void clear_send_timeout();
   static const int kSendTimeoutFieldNumber = 3;
   inline ::google::protobuf::uint32 send_timeout() const;
   inline void set_send_timeout(::google::protobuf::uint32 value);
 
-  // optional uint32 read_timeout = 4 [default = 5];
+  // optional uint32 read_timeout = 4 [default = 60];
   inline bool has_read_timeout() const;
   inline void clear_read_timeout();
   static const int kReadTimeoutFieldNumber = 4;
@@ -325,7 +325,7 @@ inline void Configuration::set_allocated_version(::std::string* version) {
   // @@protoc_insertion_point(field_set_allocated:dist_clang.client.proto.Configuration.version)
 }
 
-// optional uint32 send_timeout = 3 [default = 60];
+// optional uint32 send_timeout = 3 [default = 5];
 inline bool Configuration::has_send_timeout() const {
   return (_has_bits_[0] & 0x00000004u) != 0;
 }
@@ -336,7 +336,7 @@ inline void Configuration::clear_has_send_timeout() {
   _has_bits_[0] &= ~0x00000004u;
 }
 inline void Configuration::clear_send_timeout() {
-  send_timeout_ = 60u;
+  send_timeout_ = 5u;
   clear_has_send_timeout();
 }
 inline ::google::protobuf::uint32 Configuration::send_timeout() const {
@@ -349,7 +349,7 @@ inline void Configuration::set_send_timeout(::google::protobuf::uint32 value) {
   // @@protoc_insertion_point(field_set:dist_clang.client.proto.Configuration.send_timeout)
 }
 
-// optional uint32 read_timeout = 4 [default = 5];
+// optional uint32 read_timeout = 4 [default = 60];
 inline bool Configuration::has_read_timeout() const {
   return (_has_bits_[0] & 0x00000008u) != 0;
 }
@@ -360,7 +360,7 @@ inline void Configuration::clear_has_read_timeout() {
   _has_bits_[0] &= ~0x00000008u;
 }
 inline void Configuration::clear_read_timeout() {
-  read_timeout_ = 5u;
+  read_timeout_ = 60u;
   clear_has_read_timeout();
 }
 inline ::google::protobuf::uint32 Configuration::read_timeout() const {

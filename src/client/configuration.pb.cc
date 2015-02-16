@@ -86,8 +86,8 @@ void protobuf_AddDesc_client_2fconfiguration_2eproto() {
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
     "\n\032client/configuration.proto\022\027dist_clang"
     ".client.proto\"{\n\rConfiguration\022\014\n\004path\030\001"
-    " \002(\t\022\017\n\007version\030\002 \001(\t\022\030\n\014send_timeout\030\003 "
-    "\001(\r:\00260\022\027\n\014read_timeout\030\004 \001(\r:\0015\022\030\n\014read"
+    " \002(\t\022\017\n\007version\030\002 \001(\t\022\027\n\014send_timeout\030\003 "
+    "\001(\r:\0015\022\030\n\014read_timeout\030\004 \001(\r:\00260\022\030\n\014read"
     "_minimum\030\005 \001(\r:\00232", 178);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "client/configuration.proto", &protobuf_RegisterTypes);
@@ -134,8 +134,8 @@ void Configuration::SharedCtor() {
   _cached_size_ = 0;
   path_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   version_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  send_timeout_ = 60u;
-  read_timeout_ = 5u;
+  send_timeout_ = 5u;
+  read_timeout_ = 60u;
   read_minimum_ = 32u;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
@@ -189,8 +189,8 @@ void Configuration::Clear() {
         version_->clear();
       }
     }
-    send_timeout_ = 60u;
-    read_timeout_ = 5u;
+    send_timeout_ = 5u;
+    read_timeout_ = 60u;
     read_minimum_ = 32u;
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
@@ -240,7 +240,7 @@ bool Configuration::MergePartialFromCodedStream(
         break;
       }
 
-      // optional uint32 send_timeout = 3 [default = 60];
+      // optional uint32 send_timeout = 3 [default = 5];
       case 3: {
         if (tag == 24) {
          parse_send_timeout:
@@ -255,7 +255,7 @@ bool Configuration::MergePartialFromCodedStream(
         break;
       }
 
-      // optional uint32 read_timeout = 4 [default = 5];
+      // optional uint32 read_timeout = 4 [default = 60];
       case 4: {
         if (tag == 32) {
          parse_read_timeout:
@@ -330,12 +330,12 @@ void Configuration::SerializeWithCachedSizes(
       2, this->version(), output);
   }
 
-  // optional uint32 send_timeout = 3 [default = 60];
+  // optional uint32 send_timeout = 3 [default = 5];
   if (has_send_timeout()) {
     ::google::protobuf::internal::WireFormatLite::WriteUInt32(3, this->send_timeout(), output);
   }
 
-  // optional uint32 read_timeout = 4 [default = 5];
+  // optional uint32 read_timeout = 4 [default = 60];
   if (has_read_timeout()) {
     ::google::protobuf::internal::WireFormatLite::WriteUInt32(4, this->read_timeout(), output);
   }
@@ -377,12 +377,12 @@ void Configuration::SerializeWithCachedSizes(
         2, this->version(), target);
   }
 
-  // optional uint32 send_timeout = 3 [default = 60];
+  // optional uint32 send_timeout = 3 [default = 5];
   if (has_send_timeout()) {
     target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(3, this->send_timeout(), target);
   }
 
-  // optional uint32 read_timeout = 4 [default = 5];
+  // optional uint32 read_timeout = 4 [default = 60];
   if (has_read_timeout()) {
     target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(4, this->read_timeout(), target);
   }
@@ -418,14 +418,14 @@ int Configuration::ByteSize() const {
           this->version());
     }
 
-    // optional uint32 send_timeout = 3 [default = 60];
+    // optional uint32 send_timeout = 3 [default = 5];
     if (has_send_timeout()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::UInt32Size(
           this->send_timeout());
     }
 
-    // optional uint32 read_timeout = 4 [default = 5];
+    // optional uint32 read_timeout = 4 [default = 60];
     if (has_read_timeout()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::UInt32Size(
