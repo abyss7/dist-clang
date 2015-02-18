@@ -405,6 +405,13 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
 
 void FileCache::Clean() {
   if (max_size_ != UNLIMITED) {
+    // FIXME: find real problem behind |cached_size_| being out of sync with a
+    //        real size on disk.
+    LOG(CACHE_VERBOSE) << "Cached size: " << cached_size_;
+    cached_size_ =
+        base::CalculateDirectorySize(path_) - database_->SizeOnDisk();
+    LOG(CACHE_VERBOSE) << "Actual size: " << cached_size_;
+
     while (cached_size_ > max_size_) {
       String first_path, second_path;
 
@@ -456,6 +463,8 @@ void FileCache::Clean() {
         break;
       }
     }
+
+    LOG(CACHE_VERBOSE) << "Cached size after clean-up: " << cached_size_;
   }
 }
 
