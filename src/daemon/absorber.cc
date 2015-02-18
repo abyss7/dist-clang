@@ -106,6 +106,21 @@ void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
     proto::RemoteExecute* incoming = task->second.get();
     auto source = Immutable::WrapString(incoming->source());
 
+    incoming->mutable_flags()->set_output("-");
+    incoming->mutable_flags()->clear_input();
+    incoming->mutable_flags()->clear_deps_file();
+
+    // Optimize compilation for preprocessed code for some languages.
+    if (incoming->flags().has_language()) {
+      if (incoming->flags().language() == "c") {
+        incoming->mutable_flags()->set_language("cpp-output");
+      } else if (incoming->flags().language() == "c++") {
+        incoming->mutable_flags()->set_language("c++-cpp-output");
+      } else if (incoming->flags().language() == "objective-c++") {
+        incoming->mutable_flags()->set_language("objective-c++-cpp-output");
+      }
+    }
+
     cache::FileCache::Entry entry;
     if (SearchSimpleCache(incoming->flags(), HandledSource(source), &entry)) {
       Universal outgoing(new proto::Universal);
@@ -125,21 +140,6 @@ void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
     if (!SetupCompiler(incoming->mutable_flags(), &status)) {
       task->first->ReportStatus(status);
       continue;
-    }
-
-    incoming->mutable_flags()->set_output("-");
-    incoming->mutable_flags()->clear_input();
-    incoming->mutable_flags()->clear_deps_file();
-
-    // Optimize compilation for preprocessed code for some languages.
-    if (incoming->flags().has_language()) {
-      if (incoming->flags().language() == "c") {
-        incoming->mutable_flags()->set_language("cpp-output");
-      } else if (incoming->flags().language() == "c++") {
-        incoming->mutable_flags()->set_language("c++-cpp-output");
-      } else if (incoming->flags().language() == "objective-c++") {
-        incoming->mutable_flags()->set_language("objective-c++-cpp-output");
-      }
     }
 
     Universal outgoing(new proto::Universal);

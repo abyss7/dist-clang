@@ -160,7 +160,7 @@ TEST_F(AbsorberTest, StoreLocalCache) {
   const String compiler_path = "fake_compiler_path";
   const auto object_code = "fake_object_code"_l;
   const String source = "fake_source";
-  const auto language = "fake_language"_l;
+  const auto language = "c++"_l, converted_language = "c++-cpp-output"_l;
   const auto action = "fake_action"_l;
 
   conf.mutable_absorber()->mutable_local()->set_host(expected_host);
@@ -194,8 +194,9 @@ TEST_F(AbsorberTest, StoreLocalCache) {
   };
 
   run_callback = [&](base::TestProcess* process) {
-    EXPECT_EQ((Immutable::Rope{action, "-x"_l, language, "-o"_l, "-"_l}),
-              process->args_);
+    EXPECT_EQ(
+        (Immutable::Rope{action, "-x"_l, converted_language, "-o"_l, "-"_l}),
+        process->args_);
     process->stdout_ = object_code;
   };
 
