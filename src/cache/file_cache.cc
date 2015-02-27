@@ -57,6 +57,8 @@ bool FileCache::Run() {
       LOG(CACHE_WARNING)
           << "Error occured during calculation of the cache size: " << error;
     }
+
+    Clean();  // FIXME: maybe do it in async way?
   }
 
   pool_.Run();
