@@ -93,7 +93,11 @@ Emitter::Emitter(const proto::Configuration& configuration)
 
   if (conf_.has_cache() && !conf_.cache().disabled()) {
     Worker worker = std::bind(&Emitter::DoCheckCache, this, _1);
-    workers_->AddWorker(worker, std::thread::hardware_concurrency() * 2);
+    if (conf_.cache().has_threads()) {
+      workers_->AddWorker(worker, conf_.cache().threads());
+    } else {
+      workers_->AddWorker(worker, std::thread::hardware_concurrency());
+    }
   }
 
   for (const auto& remote : conf_.emitter().remotes()) {

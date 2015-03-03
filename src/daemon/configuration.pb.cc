@@ -129,13 +129,14 @@ void protobuf_AssignDesc_daemon_2fconfiguration_2eproto() {
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(Configuration));
   Configuration_Cache_descriptor_ = Configuration_descriptor_->nested_type(0);
-  static const int Configuration_Cache_offsets_[6] = {
+  static const int Configuration_Cache_offsets_[7] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration_Cache, path_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration_Cache, size_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration_Cache, direct_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration_Cache, mtime_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration_Cache, disabled_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration_Cache, snappy_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration_Cache, threads_),
   };
   Configuration_Cache_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
@@ -243,7 +244,7 @@ void protobuf_AddDesc_daemon_2fconfiguration_2eproto() {
     "\005 \001(\010:\005false\"|\n\tVerbosity\022\026\n\nerror_mark\030"
     "\001 \001(\r:\00220\0221\n\006levels\030\002 \003(\0132!.dist_clang.p"
     "roto.Verbosity.Range\032$\n\005Range\022\r\n\005right\030\001"
-    " \002(\r\022\014\n\004left\030\002 \001(\r\"\330\005\n\rConfiguration\0228\n\007"
+    " \002(\r\022\014\n\004left\030\002 \001(\r\"\351\005\n\rConfiguration\0228\n\007"
     "emitter\030\001 \001(\0132\'.dist_clang.proto.Configu"
     "ration.Emitter\022:\n\010absorber\030\002 \001(\0132(.dist_"
     "clang.proto.Configuration.Absorber\022\031\n\rpo"
@@ -254,14 +255,15 @@ void protobuf_AddDesc_daemon_2fconfiguration_2eproto() {
     "he\030\010 \001(\0132%.dist_clang.proto.Configuratio"
     "n.Cache\022\030\n\014read_timeout\030\t \001(\r:\00260\022\027\n\014sen"
     "d_timeout\030\n \001(\r:\0015\022\030\n\014read_minimum\030\013 \001(\r"
-    ":\00232\032\202\001\n\005Cache\022\014\n\004path\030\001 \002(\t\022\017\n\004size\030\002 \001"
+    ":\00232\032\223\001\n\005Cache\022\014\n\004path\030\001 \002(\t\022\017\n\004size\030\002 \001"
     "(\004:\0010\022\025\n\006direct\030\004 \001(\010:\005false\022\024\n\005mtime\030\005 "
     "\001(\010:\005false\022\027\n\010disabled\030\006 \001(\010:\005false\022\024\n\006s"
-    "nappy\030\007 \001(\010:\004true\032w\n\007Emitter\022\023\n\013socket_p"
-    "ath\030\001 \002(\t\022\'\n\007remotes\030\002 \003(\0132\026.dist_clang."
-    "proto.Host\022\022\n\007threads\030\003 \001(\r:\0012\022\032\n\013only_f"
-    "ailed\030\004 \001(\010:\005false\0321\n\010Absorber\022%\n\005local\030"
-    "\001 \002(\0132\026.dist_clang.proto.Host", 1029);
+    "nappy\030\007 \001(\010:\004true\022\017\n\007threads\030\010 \001(\r\032w\n\007Em"
+    "itter\022\023\n\013socket_path\030\001 \002(\t\022\'\n\007remotes\030\002 "
+    "\003(\0132\026.dist_clang.proto.Host\022\022\n\007threads\030\003"
+    " \001(\r:\0012\022\032\n\013only_failed\030\004 \001(\010:\005false\0321\n\010A"
+    "bsorber\022%\n\005local\030\001 \002(\0132\026.dist_clang.prot"
+    "o.Host", 1046);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "daemon/configuration.proto", &protobuf_RegisterTypes);
   Host::default_instance_ = new Host();
@@ -1245,6 +1247,7 @@ const int Configuration_Cache::kDirectFieldNumber;
 const int Configuration_Cache::kMtimeFieldNumber;
 const int Configuration_Cache::kDisabledFieldNumber;
 const int Configuration_Cache::kSnappyFieldNumber;
+const int Configuration_Cache::kThreadsFieldNumber;
 #endif  // !_MSC_VER
 
 Configuration_Cache::Configuration_Cache()
@@ -1272,6 +1275,7 @@ void Configuration_Cache::SharedCtor() {
   mtime_ = false;
   disabled_ = false;
   snappy_ = true;
+  threads_ = 0u;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -1320,7 +1324,7 @@ void Configuration_Cache::Clear() {
     ::memset(&first, 0, n);                                \
   } while (0)
 
-  if (_has_bits_[0 / 32] & 63) {
+  if (_has_bits_[0 / 32] & 127) {
     ZR_(size_, disabled_);
     if (has_path()) {
       if (path_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
@@ -1328,6 +1332,7 @@ void Configuration_Cache::Clear() {
       }
     }
     snappy_ = true;
+    threads_ = 0u;
   }
 
 #undef OFFSET_OF_FIELD_
@@ -1434,6 +1439,21 @@ bool Configuration_Cache::MergePartialFromCodedStream(
         } else {
           goto handle_unusual;
         }
+        if (input->ExpectTag(64)) goto parse_threads;
+        break;
+      }
+
+      // optional uint32 threads = 8;
+      case 8: {
+        if (tag == 64) {
+         parse_threads:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
+                 input, &threads_)));
+          set_has_threads();
+        } else {
+          goto handle_unusual;
+        }
         if (input->ExpectAtEnd()) goto success;
         break;
       }
@@ -1498,6 +1518,11 @@ void Configuration_Cache::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteBool(7, this->snappy(), output);
   }
 
+  // optional uint32 threads = 8;
+  if (has_threads()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(8, this->threads(), output);
+  }
+
   if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
@@ -1542,6 +1567,11 @@ void Configuration_Cache::SerializeWithCachedSizes(
   // optional bool snappy = 7 [default = true];
   if (has_snappy()) {
     target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(7, this->snappy(), target);
+  }
+
+  // optional uint32 threads = 8;
+  if (has_threads()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(8, this->threads(), target);
   }
 
   if (!unknown_fields().empty()) {
@@ -1590,6 +1620,13 @@ int Configuration_Cache::ByteSize() const {
       total_size += 1 + 1;
     }
 
+    // optional uint32 threads = 8;
+    if (has_threads()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt32Size(
+          this->threads());
+    }
+
   }
   if (!unknown_fields().empty()) {
     total_size +=
@@ -1635,6 +1672,9 @@ void Configuration_Cache::MergeFrom(const Configuration_Cache& from) {
     if (from.has_snappy()) {
       set_snappy(from.snappy());
     }
+    if (from.has_threads()) {
+      set_threads(from.threads());
+    }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
@@ -1665,6 +1705,7 @@ void Configuration_Cache::Swap(Configuration_Cache* other) {
     std::swap(mtime_, other->mtime_);
     std::swap(disabled_, other->disabled_);
     std::swap(snappy_, other->snappy_);
+    std::swap(threads_, other->threads_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);
