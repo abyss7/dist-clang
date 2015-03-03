@@ -1,7 +1,7 @@
 #pragma once
 
 #include <base/const_string.h>
-#include <base/thread_pool.h>
+#include <base/worker_pool.h>
 #include <cache/database_leveldb.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest_prod.h>
@@ -54,12 +54,10 @@ class FileCache {
     Immutable stderr;
   };
 
-  using Optional = base::ThreadPool::Optional;
-
   FileCache(const String& path, ui64 size, bool snappy);
   explicit FileCache(const String& path);
 
-  bool Run();
+  bool Run(ui64 clean_period);
 
   static cache::string::HandledHash Hash(
       cache::string::HandledSource code,
@@ -77,20 +75,18 @@ class FileCache {
             const cache::string::CommandLine& command_line,
             const cache::string::Version& version, Entry* entry) const;
 
-  Optional Store(const cache::string::UnhandledSource& code,
-                 const cache::string::CommandLine& command_line,
-                 const cache::string::Version& version,
-                 const List<String>& headers,
-                 const cache::string::HandledHash& hash);
+  void Store(const cache::string::UnhandledSource& code,
+             const cache::string::CommandLine& command_line,
+             const cache::string::Version& version, const List<String>& headers,
+             const cache::string::HandledHash& hash);
 
-  Optional StoreNow(const cache::string::HandledSource& code,
-                    const cache::string::CommandLine& command_line,
-                    const cache::string::Version& version, const Entry& entry);
+  void Store(const cache::string::HandledSource& code,
+             const cache::string::CommandLine& command_line,
+             const cache::string::Version& version, const Entry& entry);
 
  private:
   FRIEND_TEST(cache::FileCacheTest, DoubleLocks);
   FRIEND_TEST(cache::FileCacheTest, ExceedCacheSize);
-  FRIEND_TEST(cache::FileCacheTest, ExceedCacheSize_Sync);
   FRIEND_TEST(cache::FileCacheTest, LockNonExistentFile);
   FRIEND_TEST(cache::FileCacheTest, RemoveEntry);
   FRIEND_TEST(cache::FileCacheTest, RestoreEntryWithMissingFile);
@@ -140,12 +136,17 @@ class FileCache {
   }
 
   bool FindByHash(const cache::string::HandledHash& hash, Entry* entry) const;
-  bool RemoveEntry(const String& manifest_path);
+  bool RemoveEntry(const String& manifest_path, ui64& cached_size);
   void DoStore(const cache::string::HandledHash& hash, const Entry& entry);
   void DoStore(cache::string::UnhandledHash orig_hash,
                const List<String>& headers,
                const cache::string::HandledHash& hash);
-  void Clean();
+  void Clean(ui32 period, const Atomic<bool>& is_shutting_down);
+
+  inline bool RemoveEntry(const String& manifest_path) {
+    ui64 ignored = -1;
+    return RemoveEntry(manifest_path, ignored);
+  }
 
   mutable std::mutex locks_mutex_;
   mutable HashMap<String, ui32> read_locks_;
@@ -153,11 +154,10 @@ class FileCache {
 
   const String path_;
   ui64 max_size_;
-  Atomic<ui64> cached_size_;
   bool snappy_;
-
+  Atomic<bool> need_cleanup_;
   UniquePtr<cache::Database> database_;
-  base::ThreadPool pool_;
+  base::WorkerPool cleanup_;
 };
 
 }  // namespace cache

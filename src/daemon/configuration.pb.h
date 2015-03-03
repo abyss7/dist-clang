@@ -459,6 +459,13 @@ class Configuration_Cache : public ::google::protobuf::Message {
   inline ::google::protobuf::uint32 threads() const;
   inline void set_threads(::google::protobuf::uint32 value);
 
+  // optional uint32 clean_period = 9 [default = 600];
+  inline bool has_clean_period() const;
+  inline void clear_clean_period();
+  static const int kCleanPeriodFieldNumber = 9;
+  inline ::google::protobuf::uint32 clean_period() const;
+  inline void set_clean_period(::google::protobuf::uint32 value);
+
   // @@protoc_insertion_point(class_scope:dist_clang.proto.Configuration.Cache)
  private:
   inline void set_has_path();
@@ -475,6 +482,8 @@ class Configuration_Cache : public ::google::protobuf::Message {
   inline void clear_has_snappy();
   inline void set_has_threads();
   inline void clear_has_threads();
+  inline void set_has_clean_period();
+  inline void clear_has_clean_period();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -487,6 +496,7 @@ class Configuration_Cache : public ::google::protobuf::Message {
   bool disabled_;
   bool snappy_;
   ::google::protobuf::uint32 threads_;
+  ::google::protobuf::uint32 clean_period_;
   friend void  protobuf_AddDesc_daemon_2fconfiguration_2eproto();
   friend void protobuf_AssignDesc_daemon_2fconfiguration_2eproto();
   friend void protobuf_ShutdownFile_daemon_2fconfiguration_2eproto();
@@ -1402,6 +1412,30 @@ inline void Configuration_Cache::set_threads(::google::protobuf::uint32 value) {
   set_has_threads();
   threads_ = value;
   // @@protoc_insertion_point(field_set:dist_clang.proto.Configuration.Cache.threads)
+}
+
+// optional uint32 clean_period = 9 [default = 600];
+inline bool Configuration_Cache::has_clean_period() const {
+  return (_has_bits_[0] & 0x00000080u) != 0;
+}
+inline void Configuration_Cache::set_has_clean_period() {
+  _has_bits_[0] |= 0x00000080u;
+}
+inline void Configuration_Cache::clear_has_clean_period() {
+  _has_bits_[0] &= ~0x00000080u;
+}
+inline void Configuration_Cache::clear_clean_period() {
+  clean_period_ = 600u;
+  clear_has_clean_period();
+}
+inline ::google::protobuf::uint32 Configuration_Cache::clean_period() const {
+  // @@protoc_insertion_point(field_get:dist_clang.proto.Configuration.Cache.clean_period)
+  return clean_period_;
+}
+inline void Configuration_Cache::set_clean_period(::google::protobuf::uint32 value) {
+  set_has_clean_period();
+  clean_period_ = value;
+  // @@protoc_insertion_point(field_set:dist_clang.proto.Configuration.Cache.clean_period)
 }
 
 // -------------------------------------------------------------------

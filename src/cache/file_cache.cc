@@ -33,15 +33,15 @@ namespace cache {
 FileCache::FileCache(const String& path, ui64 size, bool snappy)
     : path_(ReplaceTildeInPath(path)),
       max_size_(size),
-      cached_size_(0),
       snappy_(snappy),
-      pool_(base::ThreadPool::TaskQueue::UNLIMITED, 1) {
+      need_cleanup_(true),
+      cleanup_(true) {
 }
 
 FileCache::FileCache(const String& path) : FileCache(path, UNLIMITED, false) {
 }
 
-bool FileCache::Run() {
+bool FileCache::Run(ui64 clean_period) {
   String error;
   if (!base::CreateDirectory(path_, &error)) {
     LOG(CACHE_ERROR) << "Failed to create directory " << path_ << " : "
@@ -51,19 +51,11 @@ bool FileCache::Run() {
 
   database_.reset(new Database(path_, "direct"));
 
-  if (max_size_ != UNLIMITED) {
-    cached_size_ =
-        base::CalculateDirectorySize(path_, &error) - database_->SizeOnDisk();
-    if (!error.empty()) {
-      max_size_ = UNLIMITED;
-      LOG(CACHE_WARNING)
-          << "Error occured during calculation of the cache size: " << error;
-    }
-
-    Clean();  // FIXME: maybe do it in async way?
-  }
-
-  pool_.Run();
+  CHECK(clean_period > 0);
+  using namespace std::placeholders;
+  base::WorkerPool::SimpleWorker worker =
+      std::bind(&FileCache::Clean, this, clean_period, _1);
+  cleanup_.AddWorker(worker);
 
   return true;
 }
@@ -132,22 +124,16 @@ bool FileCache::Find(const UnhandledSource& code,
   return false;
 }
 
-FileCache::Optional FileCache::Store(const UnhandledSource& code,
-                                     const CommandLine& command_line,
-                                     const Version& version,
-                                     const List<String>& headers,
-                                     const HandledHash& hash) {
-  pool_.Push(
-      [=] { DoStore(Hash(code, command_line, version), headers, hash); });
-  return pool_.Push(std::bind(&FileCache::Clean, this));
+void FileCache::Store(const UnhandledSource& code,
+                      const CommandLine& command_line, const Version& version,
+                      const List<String>& headers, const HandledHash& hash) {
+  DoStore(Hash(code, command_line, version), headers, hash);
 }
 
-FileCache::Optional FileCache::StoreNow(const HandledSource& code,
-                                        const CommandLine& command_line,
-                                        const Version& version,
-                                        const Entry& entry) {
+void FileCache::Store(const HandledSource& code,
+                      const CommandLine& command_line, const Version& version,
+                      const Entry& entry) {
   DoStore(Hash(code, command_line, version), entry);
-  return pool_.Push(std::bind(&FileCache::Clean, this));
 }
 
 bool FileCache::FindByHash(const HandledHash& hash, Entry* entry) const {
@@ -216,7 +202,7 @@ bool FileCache::FindByHash(const HandledHash& hash, Entry* entry) const {
   return true;
 }
 
-bool FileCache::RemoveEntry(const String& manifest_path) {
+bool FileCache::RemoveEntry(const String& manifest_path, ui64& cached_size) {
   const String common_path =
       manifest_path.substr(0, manifest_path.size() - sizeof(".manifest") + 1);
   const String object_path = common_path + ".o";
@@ -229,8 +215,8 @@ bool FileCache::RemoveEntry(const String& manifest_path) {
     if (!base::File::Delete(object_path)) {
       result = false;
     } else {
-      DCHECK(size <= cached_size_);
-      cached_size_ -= size;
+      DCHECK(size <= cached_size);
+      cached_size -= size;
     }
   }
 
@@ -239,8 +225,8 @@ bool FileCache::RemoveEntry(const String& manifest_path) {
     if (!base::File::Delete(deps_path)) {
       result = false;
     } else {
-      DCHECK(size <= cached_size_);
-      cached_size_ -= size;
+      DCHECK(size <= cached_size);
+      cached_size -= size;
     }
   }
 
@@ -249,8 +235,8 @@ bool FileCache::RemoveEntry(const String& manifest_path) {
     if (!base::File::Delete(stderr_path)) {
       result = false;
     } else {
-      DCHECK(size <= cached_size_);
-      cached_size_ -= size;
+      DCHECK(size <= cached_size);
+      cached_size -= size;
     }
   }
 
@@ -258,8 +244,8 @@ bool FileCache::RemoveEntry(const String& manifest_path) {
   if (!base::File::Delete(manifest_path)) {
     result = false;
   } else {
-    DCHECK(size <= cached_size_);
-    cached_size_ -= size;
+    DCHECK(size <= cached_size);
+    cached_size -= size;
   }
 
   return result;
@@ -288,8 +274,6 @@ void FileCache::DoStore(const HandledHash& hash, const Entry& entry) {
       return;
     }
     manifest.set_stderr(true);
-
-    cached_size_ += base::File::Size(stderr_path);
   }
 
   if (!entry.object.empty()) {
@@ -320,8 +304,6 @@ void FileCache::DoStore(const HandledHash& hash, const Entry& entry) {
 
       manifest.set_snappy(true);
     }
-
-    cached_size_ += base::File::Size(object_path);
   } else {
     manifest.set_object(false);
   }
@@ -334,8 +316,6 @@ void FileCache::DoStore(const HandledHash& hash, const Entry& entry) {
       LOG(CACHE_ERROR) << "Failed to save deps to " << deps_path;
       return;
     }
-
-    cached_size_ += base::File::Size(deps_path);
   } else {
     manifest.set_deps(false);
   }
@@ -345,11 +325,12 @@ void FileCache::DoStore(const HandledHash& hash, const Entry& entry) {
     LOG(CACHE_ERROR) << "Failed to save manifest to " << manifest_path;
     return;
   }
-  cached_size_ += base::File::Size(manifest_path);
 
   utime(manifest_path.c_str(), nullptr);
   utime(SecondPath(hash).c_str(), nullptr);
   utime(FirstPath(hash).c_str(), nullptr);
+
+  need_cleanup_ = true;
 
   LOG(CACHE_VERBOSE) << "File is cached on path " << CommonPath(hash);
 }
@@ -401,23 +382,30 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
     RemoveEntry(manifest_path);
     return;
   }
-  cached_size_ += base::File::Size(manifest_path);
 
   utime(manifest_path.c_str(), nullptr);
   utime(SecondPath(hash).c_str(), nullptr);
   utime(FirstPath(hash).c_str(), nullptr);
+
+  need_cleanup_ = true;
 }
 
-void FileCache::Clean() {
-  if (max_size_ != UNLIMITED) {
-    // FIXME: find real problem behind |cached_size_| being out of sync with a
-    //        real size on disk.
-    LOG(CACHE_VERBOSE) << "Cached size: " << cached_size_;
-    cached_size_ =
-        base::CalculateDirectorySize(path_) - database_->SizeOnDisk();
-    LOG(CACHE_VERBOSE) << "Actual size: " << cached_size_;
+void FileCache::Clean(ui32 period, const Atomic<bool>& is_shutting_down) {
+  if (max_size_ == UNLIMITED) {
+    return;
+  }
 
-    while (cached_size_ > max_size_) {
+  while (!is_shutting_down) {
+    std::this_thread::sleep_for(std::chrono::seconds(period));
+
+    if (!need_cleanup_) {
+      continue;
+    }
+
+    ui64 cached_size =
+        base::CalculateDirectorySize(path_) - database_->SizeOnDisk();
+
+    while (cached_size > max_size_) {
       String first_path, second_path;
 
       {
@@ -444,7 +432,7 @@ void FileCache::Clean() {
       }
 
       bool should_break = false;
-      while (cached_size_ > max_size_) {
+      while (cached_size > max_size_) {
         String manifest_path;
         String error;
         if (!base::GetLeastRecentPath(second_path, manifest_path,
@@ -460,7 +448,7 @@ void FileCache::Clean() {
 
         WriteLock lock(this, manifest_path);
         if (lock) {
-          should_break = !RemoveEntry(manifest_path);
+          should_break = !RemoveEntry(manifest_path, cached_size);
         }
       }
 
@@ -469,7 +457,7 @@ void FileCache::Clean() {
       }
     }
 
-    LOG(CACHE_VERBOSE) << "Cached size after clean-up: " << cached_size_;
+    need_cleanup_ = false;
   }
 }
 

@@ -78,7 +78,7 @@ bool BaseDaemon::Initialize() {
   if (conf_.has_cache() && !conf_.cache().disabled()) {
     cache_.reset(new cache::FileCache(
         conf_.cache().path(), conf_.cache().size(), conf_.cache().snappy()));
-    if (!cache_->Run()) {
+    if (!cache_->Run(conf_.cache().clean_period())) {
       cache_.reset();
     }
   }
@@ -264,7 +264,7 @@ void BaseDaemon::UpdateSimpleCache(const proto::Flags& flags,
     return;
   }
 
-  cache_->StoreNow(source, command_line, version, entry);
+  cache_->Store(source, command_line, version, entry);
 }
 
 void BaseDaemon::UpdateDirectCache(const proto::LocalExecute* message,

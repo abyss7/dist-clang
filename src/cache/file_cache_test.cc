@@ -80,22 +80,24 @@ TEST(FileCacheTest, RemoveEntry) {
     ASSERT_TRUE(base::File::Write(deps_path, "1"_l));
     ASSERT_TRUE(base::File::Write(stderr_path, "1"_l));
     FileCache cache(tmp_dir, 100, false);
-    ASSERT_TRUE(cache.Run());
-    EXPECT_TRUE(cache.RemoveEntry(manifest_path));
+    ASSERT_TRUE(cache.Run(1));
     auto db_size = cache.database_->SizeOnDisk();
+    auto cached_size = base::CalculateDirectorySize(tmp_dir) - db_size;
+    EXPECT_TRUE(cache.RemoveEntry(manifest_path, cached_size));
     ASSERT_EQ(0u, base::CalculateDirectorySize(tmp_dir) - db_size);
-    EXPECT_EQ(0u, cache.cached_size_);
+    EXPECT_EQ(0u, cached_size);
   }
 
   {
     ASSERT_TRUE(base::File::Write(manifest_path, "1"_l));
     ASSERT_TRUE(base::File::Write(object_path, "1"_l));
     FileCache cache(tmp_dir, 100, false);
-    ASSERT_TRUE(cache.Run());
-    EXPECT_TRUE(cache.RemoveEntry(manifest_path));
+    ASSERT_TRUE(cache.Run(1));
     auto db_size = cache.database_->SizeOnDisk();
+    auto cached_size = base::CalculateDirectorySize(tmp_dir) - db_size;
+    EXPECT_TRUE(cache.RemoveEntry(manifest_path, cached_size));
     ASSERT_EQ(0u, base::CalculateDirectorySize(tmp_dir) - db_size);
-    EXPECT_EQ(0u, cache.cached_size_);
+    EXPECT_EQ(0u, cached_size);
   }
 
   // TODO: check that |RemoveEntry()| fails, if at least one file can't be
@@ -111,7 +113,7 @@ TEST(FileCacheTest, RestoreSingleEntry) {
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
   FileCache cache(path);
-  ASSERT_TRUE(cache.Run());
+  ASSERT_TRUE(cache.Run(1));
   FileCache::Entry entry1, entry2;
 
   const HandledSource code("int main() { return 0; }"_l);
@@ -129,10 +131,7 @@ TEST(FileCacheTest, RestoreSingleEntry) {
   entry1.deps = expected_deps;
   entry1.stderr = expected_stderr;
 
-  auto future = cache.StoreNow(code, cl, version, entry1);
-  ASSERT_TRUE(!!future);
-  future->Wait();
-  ASSERT_TRUE(future->GetValue());
+  cache.Store(code, cl, version, entry1);
 
   ASSERT_TRUE(cache.Find(code, cl, version, &entry2));
   EXPECT_EQ(expected_object_code, entry2.object);
@@ -149,7 +148,7 @@ TEST(FileCacheTest, RestoreEntryWithMissingFile) {
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
   FileCache cache(path);
-  ASSERT_TRUE(cache.Run());
+  ASSERT_TRUE(cache.Run(1));
   FileCache::Entry entry1, entry2;
 
   const HandledSource code("int main() { return 0; }"_l);
@@ -164,10 +163,7 @@ TEST(FileCacheTest, RestoreEntryWithMissingFile) {
   entry1.stderr = expected_stderr;
 
   // Store the entry.
-  auto future = cache.StoreNow(code, cl, version, entry1);
-  ASSERT_TRUE(!!future);
-  future->Wait();
-  ASSERT_TRUE(future->GetValue());
+  cache.Store(code, cl, version, entry1);
 
   base::File::Delete(cache.CommonPath(FileCache::Hash(code, cl, version)) +
                      ".d");
@@ -195,7 +191,7 @@ TEST(FileCacheTest, DISABLED_RestoreEntryLockedForWriting) {
 TEST(FileCacheTest, DISABLED_StoreEntryLockedForWriting) {
   // TODO: implement this test.
   // This test is usefull for the sync mode, when multiple threads may call
-  // |StoreNow()| simultaneously.
+  // |Store()| simultaneously.
 }
 
 TEST(FileCacheTest, DISABLED_CleanEntryLockedForReading) {
@@ -224,15 +220,12 @@ TEST(FileCacheTest, ExceedCacheSize) {
   const Version version("3.5 (revision 100000)"_l);
 
   FileCache cache(cache_path, 30, false);
-  ASSERT_TRUE(cache.Run());
+  ASSERT_TRUE(cache.Run(1));
   auto db_size = cache.database_->SizeOnDisk();
 
   {
     FileCache::Entry entry{obj_content[0], String(), String()};
-    auto future = cache.StoreNow(code[0], cl, version, entry);
-    ASSERT_TRUE(!!future);
-    future->Wait();
-    ASSERT_TRUE(future->GetValue());
+    cache.Store(code[0], cl, version, entry);
     EXPECT_EQ(14u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
@@ -240,10 +233,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
 
   {
     FileCache::Entry entry{obj_content[1], String(), String()};
-    auto future = cache.StoreNow(code[1], cl, version, entry);
-    ASSERT_TRUE(!!future);
-    future->Wait();
-    ASSERT_TRUE(future->GetValue());
+    cache.Store(code[1], cl, version, entry);
     EXPECT_EQ(29u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
@@ -251,10 +241,10 @@ TEST(FileCacheTest, ExceedCacheSize) {
 
   {
     FileCache::Entry entry{obj_content[2], String(), String()};
-    auto future = cache.StoreNow(code[2], cl, version, entry);
-    ASSERT_TRUE(!!future);
-    future->Wait();
-    ASSERT_TRUE(future->GetValue());
+    cache.Store(code[2], cl, version, entry);
+    while (cache.need_cleanup_) {
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
     EXPECT_EQ(16u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
@@ -275,7 +265,7 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
   FileCache cache(path);
-  ASSERT_TRUE(cache.Run());
+  ASSERT_TRUE(cache.Run(1));
   FileCache::Entry entry1, entry2;
 
   const HandledSource code("int main() { return 0; }"_l);
@@ -292,19 +282,13 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   entry1.stderr = expected_stderr;
 
   // Store the entry.
-  auto future = cache.StoreNow(code, cl, version, entry1);
-  ASSERT_TRUE(!!future);
-  future->Wait();
-  ASSERT_TRUE(future->GetValue());
+  cache.Store(code, cl, version, entry1);
 
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   const List<String> headers = {header1_path, header2_path};
-  future = cache.Store(orig_code, cl, version, headers,
-                       FileCache::Hash(code, cl, version));
-  ASSERT_TRUE(!!future);
-  future->Wait();
-  ASSERT_TRUE(future->GetValue());
+  cache.Store(orig_code, cl, version, headers,
+              FileCache::Hash(code, cl, version));
 
   // Restore the entry.
   ASSERT_TRUE(cache.Find(orig_code, cl, version, &entry2));
@@ -324,7 +308,7 @@ TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
   FileCache cache(path);
-  ASSERT_TRUE(cache.Run());
+  ASSERT_TRUE(cache.Run(1));
   FileCache::Entry entry;
 
   const HandledSource code("int main() { return 0; }"_l);
@@ -341,19 +325,13 @@ TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
   entry.stderr = expected_stderr;
 
   // Store the entry.
-  auto future = cache.StoreNow(code, cl, version, entry);
-  ASSERT_TRUE(!!future);
-  future->Wait();
-  ASSERT_TRUE(future->GetValue());
+  cache.Store(code, cl, version, entry);
 
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   const List<String> headers = {header1_path, header2_path};
-  future = cache.Store(orig_code, cl, version, headers,
-                       FileCache::Hash(code, cl, version));
-  ASSERT_TRUE(!!future);
-  future->Wait();
-  ASSERT_TRUE(future->GetValue());
+  cache.Store(orig_code, cl, version, headers,
+              FileCache::Hash(code, cl, version));
 
   // Change header contents.
   ASSERT_TRUE(base::File::Write(header1_path, "#define C"_l));
@@ -374,7 +352,7 @@ TEST(FileCacheTest, DirectEntry_RewriteManifest) {
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
   FileCache cache(path);
-  ASSERT_TRUE(cache.Run());
+  ASSERT_TRUE(cache.Run(1));
   FileCache::Entry entry1, entry2;
 
   const HandledSource code("int main() { return 0; }"_l);
@@ -391,28 +369,19 @@ TEST(FileCacheTest, DirectEntry_RewriteManifest) {
   entry1.stderr = expected_stderr;
 
   // Store the entry.
-  auto future = cache.StoreNow(code, cl, version, entry1);
-  ASSERT_TRUE(!!future);
-  future->Wait();
-  ASSERT_TRUE(future->GetValue());
+  cache.Store(code, cl, version, entry1);
 
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   List<String> headers = {header1_path, header2_path};
-  future = cache.Store(orig_code, cl, version, headers,
-                       FileCache::Hash(code, cl, version));
-  ASSERT_TRUE(!!future);
-  future->Wait();
-  ASSERT_TRUE(future->GetValue());
+  cache.Store(orig_code, cl, version, headers,
+              FileCache::Hash(code, cl, version));
 
   headers.pop_back();
 
   // Store the direct entry - again.
-  future = cache.Store(orig_code, cl, version, headers,
-                       FileCache::Hash(code, cl, version));
-  ASSERT_TRUE(!!future);
-  future->Wait();
-  ASSERT_TRUE(future->GetValue());
+  cache.Store(orig_code, cl, version, headers,
+              FileCache::Hash(code, cl, version));
 
   // Restore the entry.
   EXPECT_TRUE(cache.Find(orig_code, cl, version, &entry2));
@@ -429,7 +398,7 @@ TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
   FileCache cache(path);
-  ASSERT_TRUE(cache.Run());
+  ASSERT_TRUE(cache.Run(1));
   FileCache::Entry entry;
 
   const HandledSource code("int main() { return 0; }"_l);
@@ -446,19 +415,13 @@ TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
   entry.stderr = expected_stderr;
 
   // Store the entry.
-  auto future = cache.StoreNow(code, cl, version, entry);
-  ASSERT_TRUE(!!future);
-  future->Wait();
-  ASSERT_TRUE(future->GetValue());
+  cache.Store(code, cl, version, entry);
 
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   const List<String> headers = {header1_path, header2_path};
-  future = cache.Store(orig_code, cl, version, headers,
-                       FileCache::Hash(code, cl, version));
-  ASSERT_TRUE(!!future);
-  future->Wait();
-  ASSERT_TRUE(future->GetValue());
+  cache.Store(orig_code, cl, version, headers,
+              FileCache::Hash(code, cl, version));
 
   // Restore the entry.
   const UnhandledSource bad_orig_code(orig_code.str.string_copy() + " ");

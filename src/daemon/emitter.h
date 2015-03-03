@@ -1,6 +1,7 @@
 #pragma once
 
 #include <base/queue_aggregator.h>
+#include <base/worker_pool.h>
 #include <daemon/base_daemon.h>
 
 namespace dist_clang {

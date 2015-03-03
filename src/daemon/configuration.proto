@@ -25,13 +25,14 @@ message Verbosity {
 
 message Configuration {
   message Cache {
-    required string path    = 1;
-    optional uint64 size    = 2 [ default = 0 ];  // 0 - is unlimited
-    optional bool direct    = 4 [ default = false ];
-    optional bool mtime     = 5 [ default = false ];  // TODO: not implemented yet.
-    optional bool disabled  = 6 [ default = false ];
-    optional bool snappy    = 7 [ default = true ];
-    optional uint32 threads = 8;  // |hardware_concurrency()| is default.
+    required string path         = 1;
+    optional uint64 size         = 2 [ default = 0 ];  // 0 - is unlimited
+    optional bool direct         = 4 [ default = false ];
+    optional bool mtime          = 5 [ default = false ];  // TODO: not implemented yet.
+    optional bool disabled       = 6 [ default = false ];
+    optional bool snappy         = 7 [ default = true ];
+    optional uint32 threads      = 8;  // |hardware_concurrency()| is default.
+    optional uint32 clean_period = 9 [ default = 600 ];  // in seconds.
   }
 
   message Emitter {
