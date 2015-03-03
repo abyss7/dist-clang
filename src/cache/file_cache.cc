@@ -8,6 +8,8 @@
 
 #include <third_party/snappy/exported/snappy.h>
 
+#include <clang/Basic/Version.h>
+
 #include <sys/types.h>
 #include <utime.h>
 
@@ -81,7 +83,8 @@ UnhandledHash FileCache::Hash(UnhandledSource code, CommandLine command_line,
                               Version version) {
   return UnhandledHash(base::Hexify(code.str.Hash()) + "-" +
                        base::Hexify(command_line.str.Hash(4)) + "-" +
-                       base::Hexify(version.str.Hash(4)));
+                       base::Hexify((version.str + "\n"_l +
+                                     clang::getClangFullVersion()).Hash(4)));
 }
 
 bool FileCache::Find(const HandledSource& code, const CommandLine& command_line,

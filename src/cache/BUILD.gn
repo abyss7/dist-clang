@@ -13,6 +13,8 @@ shared_library("file_cache") {
 
   public = [ "file_cache.h" ]
 
+  configs += [ "//build/config:libclang_includes" ]
+
   deps += [
     ":manifest",
     "//src/base:base",
