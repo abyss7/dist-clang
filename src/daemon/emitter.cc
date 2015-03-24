@@ -323,6 +323,8 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
     return;
   }
 
+  ui32 sleep_period = 1;
+
   while (!is_shutting_down) {
     Optional&& task = all_tasks_->Pop();
     if (!task) {
@@ -356,11 +358,17 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
                    << ": " << error;
       all_tasks_->Push(std::move(*task));
 
-      // TODO: wait some time before next attempt. Increase a wait-time
-      // exponentially.
+      LOG(INFO) << "Sleeping for " << sleep_period
+                << " seconds before next attempt";
+      std::this_thread::sleep_for(std::chrono::seconds(sleep_period));
+      if (sleep_period < static_cast<ui32>(-1) / 2) {
+        sleep_period <<= 1;
+      }
 
       continue;
     }
+
+    sleep_period = 1;
 
     outgoing->mutable_flags()->CopyFrom(incoming->flags());
     outgoing->set_source(Immutable(source.str).string_copy(false));
