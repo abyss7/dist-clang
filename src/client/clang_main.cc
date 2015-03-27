@@ -67,6 +67,7 @@ int main(int argc, char* argv[]) {
   ui32 read_timeout_secs = default_config.read_timeout(),
        send_timeout_secs = default_config.send_timeout(),
        read_min_bytes = default_config.read_minimum();
+  List<Pair<String>> plugins;
 
   // Try to load config file first.
   String dir = base::GetCurrentDir();
@@ -89,7 +90,7 @@ int main(int argc, char* argv[]) {
 
       clang_path = config.release_path();
       if (clang_path[0] != '/') {
-        clang_path = Immutable(std::move(dir)) + "/"_l + clang_path;
+        clang_path = Immutable(dir) + "/"_l + clang_path;
       }
       LOG(VERBOSE) << "Took compiler path from " << config_path << " : "
                    << clang_path;
@@ -102,6 +103,15 @@ int main(int argc, char* argv[]) {
       read_timeout_secs = config.read_timeout();
       send_timeout_secs = config.send_timeout();
       read_min_bytes = config.read_minimum();
+
+      for (const auto& plugin : config.plugins()) {
+        // FIXME: use |Immutable|.
+        String plugin_path = plugin.path();
+        if (plugin_path[0] != '/') {
+          plugin_path = dir + "/" + plugin_path;
+        }
+        plugins.emplace_back(plugin.name(), plugin_path);
+      }
 
       break;
     }
@@ -144,7 +154,8 @@ int main(int argc, char* argv[]) {
   //         get destructed before the invokation of |exec|. Do not use global
   //         objects!
   if (client::DoMain(argc, argv, socket_path, clang_path, version,
-                     read_timeout_secs, send_timeout_secs, read_min_bytes)) {
+                     read_timeout_secs, send_timeout_secs, read_min_bytes,
+                     plugins)) {
     return ExecuteLocally(argv, clang_path);
   }
 

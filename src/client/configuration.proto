@@ -1,9 +1,15 @@
 package dist_clang.client.proto;
 
+message Plugin {
+  required string name = 1;
+  required string path = 2;
+}
+
 message Configuration {
   required string path         = 1;
   optional string version      = 2;
   optional uint32 send_timeout = 3 [ default = 5  ];  // in seconds.
   optional uint32 read_timeout = 4 [ default = 60 ];  // in seconds.
   optional uint32 read_minimum = 5 [ default = 32 ];  // in bytes.
+  repeated Plugin plugins      = 6;
 }

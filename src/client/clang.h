@@ -7,7 +7,8 @@ namespace client {
 
 bool DoMain(int argc, const char* const argv[], Immutable socket_path,
             Immutable clang_path, Immutable version, ui32 read_timeout_secs,
-            ui32 send_timeout_secs, ui32 read_min_bytes);
+            ui32 send_timeout_secs, ui32 read_min_bytes,
+            const List<Pair<String>>& plugins);
 
 }  // namespace client
 }  // namespace dist_clang

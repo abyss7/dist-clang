@@ -182,24 +182,26 @@ bool BaseDaemon::SetupCompiler(proto::Flags* flags,
   auto plugin_map = plugins_.find(flags->compiler().version());
   auto& plugins = *flags->mutable_compiler()->mutable_plugins();
   for (auto& plugin : plugins) {
-    if (!plugin.has_path() && plugin_map == plugins_.end()) {
-      if (status) {
-        status->set_code(proto::Status::NO_VERSION);
-        status->set_description("Plugin " + plugin.name() + " not found: " +
-                                flags->compiler().version());
+    if (!plugin.has_path()) {
+      if (plugin_map == plugins_.end()) {
+        if (status) {
+          status->set_code(proto::Status::NO_VERSION);
+          status->set_description("Plugin " + plugin.name() + " not found: " +
+                                  flags->compiler().version());
+        }
+        return false;
       }
-      return false;
-    }
-    auto plugin_by_name = plugin_map->second.find(plugin.name());
-    if (plugin_by_name == plugin_map->second.end()) {
-      if (status) {
-        status->set_code(proto::Status::NO_VERSION);
-        status->set_description("Plugin " + plugin.name() + " not found: " +
-                                flags->compiler().version());
+      auto plugin_by_name = plugin_map->second.find(plugin.name());
+      if (plugin_by_name == plugin_map->second.end()) {
+        if (status) {
+          status->set_code(proto::Status::NO_VERSION);
+          status->set_description("Plugin " + plugin.name() + " not found: " +
+                                  flags->compiler().version());
+        }
+        return false;
       }
-      return false;
+      plugin.set_path(plugin_by_name->second);
     }
-    plugin.set_path(plugin_by_name->second);
   }
 
   return true;
