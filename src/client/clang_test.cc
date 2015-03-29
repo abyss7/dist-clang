@@ -312,5 +312,42 @@ TEST_F(ClientTest, DISABLED_MultipleCommands_Successful) {
   // TODO: implement this test.
 }
 
+TEST_F(ClientTest, SendPluginPath) {
+  const char* argv[] = {"clang++", "-c", "/test_file.cc", nullptr};
+  const int argc = 3;
+  const String plugin_name = "test-plugin";
+  const String plugin_path = "/test/plugin/path";
+
+  connect_callback = [=](net::TestConnection* connection) {
+    connection->CallOnRead([](net::Connection::Message* message) {
+      auto extension = message->MutableExtension(proto::Status::extension);
+      extension->set_code(proto::Status::OK);
+    });
+    connection->CallOnSend([=](const net::Connection::Message& message) {
+      ASSERT_TRUE(message.HasExtension(proto::LocalExecute::extension));
+      auto& extension = message.GetExtension(proto::LocalExecute::extension);
+      ASSERT_TRUE(extension.has_flags());
+      ASSERT_TRUE(extension.flags().has_compiler());
+      ASSERT_EQ(1, extension.flags().compiler().plugins_size());
+      EXPECT_EQ(plugin_name, extension.flags().compiler().plugins(0).name());
+      EXPECT_EQ(plugin_path, extension.flags().compiler().plugins(0).path());
+    });
+  };
+  run_callback = [](base::TestProcess* process) {
+    EXPECT_EQ((Immutable::Rope{"--version"_l}), process->args_);
+    process->stdout_ = "test_version\nline2\nline3"_l;
+  };
+
+  List<Pair<String>> plugins;
+  plugins.emplace_back(plugin_name, plugin_path);
+  EXPECT_FALSE(client::DoMain(argc, argv, Immutable(), clang_path, version, 0,
+                              0, 0, plugins));
+  EXPECT_TRUE(weak_ptr.expired());
+  EXPECT_EQ(1u, send_count);
+  EXPECT_EQ(1u, read_count);
+  EXPECT_EQ(1u, connect_count);
+  EXPECT_EQ(1u, connections_created);
+}
+
 }  // namespace client
 }  // namespace dist_clang
