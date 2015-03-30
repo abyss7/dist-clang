@@ -88,7 +88,7 @@ TEST_F(ClientTest, NoConnection) {
 
   do_connect = false;
   EXPECT_TRUE(client::DoMain(argc, argv, "socket_path"_l, clang_path, version,
-                             0, 0, 0, List<Pair<String>>()));
+                             0, 0, 0, HashMap<String, String>()));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -101,7 +101,7 @@ TEST_F(ClientTest, EmptyClangPath) {
   const int argc = 3;
 
   EXPECT_TRUE(client::DoMain(argc, argv, Immutable(), Immutable(), Immutable(),
-                             0, 0, 0, List<Pair<String>>()));
+                             0, 0, 0, HashMap<String, String>()));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -124,7 +124,7 @@ TEST_F(ClientTest, NoInputFile) {
   const int argc = 3;
 
   EXPECT_TRUE(client::DoMain(argc, argv, "socket_path"_l, clang_path, version,
-                             0, 0, 0, List<Pair<String>>()));
+                             0, 0, 0, HashMap<String, String>()));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -144,7 +144,7 @@ TEST_F(ClientTest, CannotSendMessage) {
   };
 
   EXPECT_TRUE(client::DoMain(argc, argv, String(), clang_path, version, 0, 0, 0,
-                             List<Pair<String>>()));
+                             HashMap<String, String>()));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -210,7 +210,7 @@ TEST_F(ClientTest, CannotReadMessage) {
   };
 
   EXPECT_TRUE(client::DoMain(argc, argv, Immutable(), clang_path, version, 0, 0,
-                             0, List<Pair<String>>()));
+                             0, HashMap<String, String>()));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -228,7 +228,7 @@ TEST_F(ClientTest, ReadMessageWithoutStatus) {
   };
 
   EXPECT_TRUE(client::DoMain(argc, argv, Immutable(), clang_path, version, 0, 0,
-                             0, List<Pair<String>>()));
+                             0, HashMap<String, String>()));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -252,7 +252,7 @@ TEST_F(ClientTest, ReadMessageWithBadStatus) {
   };
 
   EXPECT_TRUE(client::DoMain(argc, argv, Immutable(), clang_path, version, 0, 0,
-                             0, List<Pair<String>>()));
+                             0, HashMap<String, String>()));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -276,7 +276,7 @@ TEST_F(ClientTest, SuccessfulCompilation) {
   };
 
   EXPECT_FALSE(client::DoMain(argc, argv, Immutable(), clang_path, version, 0,
-                              0, 0, List<Pair<String>>()));
+                              0, 0, HashMap<String, String>()));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -300,7 +300,7 @@ TEST_F(ClientTest, FailedCompilation) {
   };
 
   EXPECT_EXIT(client::DoMain(argc, argv, String(), clang_path, version, 0, 0, 0,
-                             List<Pair<String>>()),
+                             HashMap<String, String>()),
               ::testing::ExitedWithCode(1), ".*");
 }
 
@@ -313,8 +313,9 @@ TEST_F(ClientTest, DISABLED_MultipleCommands_Successful) {
 }
 
 TEST_F(ClientTest, SendPluginPath) {
-  const char* argv[] = {"clang++", "-c", "/test_file.cc", nullptr};
-  const int argc = 3;
+  const char* argv[] = {"clang++",     "-c",      "/test_file.cc", "-Xclang",
+                        "-add-plugin", "-Xclang", "test-plugin",   nullptr};
+  const int argc = 7;
   const String plugin_name = "test-plugin";
   const String plugin_path = "/test/plugin/path";
 
@@ -338,8 +339,8 @@ TEST_F(ClientTest, SendPluginPath) {
     process->stdout_ = "test_version\nline2\nline3"_l;
   };
 
-  List<Pair<String>> plugins;
-  plugins.emplace_back(plugin_name, plugin_path);
+  HashMap<String, String> plugins;
+  plugins.emplace(plugin_name, plugin_path);
   EXPECT_FALSE(client::DoMain(argc, argv, Immutable(), clang_path, version, 0,
                               0, 0, plugins));
   EXPECT_TRUE(weak_ptr.expired());

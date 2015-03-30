@@ -67,7 +67,7 @@ int main(int argc, char* argv[]) {
   ui32 read_timeout_secs = default_config.read_timeout(),
        send_timeout_secs = default_config.send_timeout(),
        read_min_bytes = default_config.read_minimum();
-  List<Pair<String>> plugins;
+  HashMap<String, String> plugins;
 
   // Try to load config file first.
   String dir = base::GetCurrentDir();
@@ -110,7 +110,11 @@ int main(int argc, char* argv[]) {
         if (plugin_path[0] != '/') {
           plugin_path = dir + "/" + plugin_path;
         }
-        plugins.emplace_back(plugin.name(), plugin_path);
+
+        // FIXME: check, if plugin with the same name is not already in the map.
+        plugins.emplace(plugin.name(), plugin_path);
+        LOG(VERBOSE) << "Took plugin from " << config_path << " : "
+                     << plugin.name() << ", " << plugin.path();
       }
 
       break;

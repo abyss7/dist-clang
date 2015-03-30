@@ -18,7 +18,7 @@ namespace client {
 bool DoMain(int argc, const char* const argv[], Immutable socket_path,
             Immutable clang_path, Immutable version, ui32 read_timeout_secs,
             ui32 send_timeout_secs, ui32 read_min_bytes,
-            const List<Pair<String>>& plugins) {
+            const HashMap<String, String>& plugins) {
   if (clang_path.empty()) {
     return true;
   }
@@ -109,10 +109,12 @@ bool DoMain(int argc, const char* const argv[], Immutable socket_path,
     flags->mutable_compiler()->set_version(version);
     flags->mutable_compiler()->set_path(clang_path);
 
-    for (const auto& plugin: plugins) {
-      auto* new_plugin = flags->mutable_compiler()->add_plugins();
-      new_plugin->set_name(plugin.first);
-      new_plugin->set_path(plugin.second);
+    auto& mutable_plugins = *flags->mutable_compiler()->mutable_plugins();
+    for (auto& plugin : mutable_plugins) {
+      auto it = plugins.find(plugin.name());
+      if (it != plugins.end()) {
+        plugin.set_path(it->second);
+      }
     }
 
     proto::Status status;
