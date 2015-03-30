@@ -109,6 +109,12 @@ void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
     incoming->mutable_flags()->set_output("-");
     incoming->mutable_flags()->clear_input();
     incoming->mutable_flags()->clear_deps_file();
+    incoming->mutable_flags()->mutable_compiler()->clear_path();
+    auto& plugins =
+        *incoming->mutable_flags()->mutable_compiler()->mutable_plugins();
+    for (auto& plugin : plugins) {
+      plugin.clear_path();
+    }
 
     // Optimize compilation for preprocessed code for some languages.
     if (incoming->flags().has_language()) {
