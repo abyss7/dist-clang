@@ -374,11 +374,16 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
     outgoing->set_source(Immutable(source.str).string_copy(false));
 
     // Filter outgoing flags.
-    outgoing->mutable_flags()->mutable_compiler()->clear_path();
-    outgoing->mutable_flags()->clear_output();
-    outgoing->mutable_flags()->clear_input();
-    outgoing->mutable_flags()->clear_non_cached();
-    outgoing->mutable_flags()->clear_deps_file();
+    auto* flags = outgoing->mutable_flags();
+    auto& plugins = *flags->mutable_compiler()->mutable_plugins();
+    for (auto& plugin : plugins) {
+      plugin.clear_path();
+    }
+    flags->mutable_compiler()->clear_path();
+    flags->clear_output();
+    flags->clear_input();
+    flags->clear_non_cached();
+    flags->clear_deps_file();
 
     if (!connection->SendSync(std::move(outgoing))) {
       all_tasks_->Push(std::move(*task));

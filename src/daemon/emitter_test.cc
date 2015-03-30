@@ -561,10 +561,11 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
   // TODO: check absolute output path.
 }
 
-TEST_F(EmitterTest, RemoteSuccessfulCompilation) {
+TEST_F(EmitterTest, DISABLED_RemoteSuccessfulCompilation) {
   // TODO: implement this test.
   //       - Check the permissions of object and deps files, if the client
   //         provides the user_id.
+  //       - Check the outgoing message doesn't have compiler and plugins paths.
 }
 
 TEST_F(EmitterTest, LocalFailedCompilation) {
