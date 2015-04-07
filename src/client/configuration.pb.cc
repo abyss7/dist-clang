@@ -25,6 +25,7 @@ namespace {
 const ::google::protobuf::Descriptor* Plugin_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   Plugin_reflection_ = NULL;
+const ::google::protobuf::EnumDescriptor* Plugin_Platform_descriptor_ = NULL;
 const ::google::protobuf::Descriptor* Configuration_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   Configuration_reflection_ = NULL;
@@ -39,9 +40,10 @@ void protobuf_AssignDesc_client_2fconfiguration_2eproto() {
       "client/configuration.proto");
   GOOGLE_CHECK(file != NULL);
   Plugin_descriptor_ = file->message_type(0);
-  static const int Plugin_offsets_[2] = {
+  static const int Plugin_offsets_[3] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Plugin, name_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Plugin, path_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Plugin, os_),
   };
   Plugin_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
@@ -54,6 +56,7 @@ void protobuf_AssignDesc_client_2fconfiguration_2eproto() {
       ::google::protobuf::DescriptorPool::generated_pool(),
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(Plugin));
+  Plugin_Platform_descriptor_ = Plugin_descriptor_->enum_type(0);
   Configuration_descriptor_ = file->message_type(1);
   static const int Configuration_offsets_[6] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configuration, path_),
@@ -109,12 +112,15 @@ void protobuf_AddDesc_client_2fconfiguration_2eproto() {
 
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
     "\n\032client/configuration.proto\022\027dist_clang"
-    ".client.proto\"$\n\006Plugin\022\014\n\004name\030\001 \002(\t\022\014\n"
-    "\004path\030\002 \002(\t\"\255\001\n\rConfiguration\022\014\n\004path\030\001 "
+    ".client.proto\"\233\001\n\006Plugin\022\014\n\004name\030\001 \002(\t\022\014"
+    "\n\004path\030\002 \002(\t\022=\n\002os\030\003 \001(\0162(.dist_clang.cl"
+    "ient.proto.Plugin.Platform:\007UNKNOWN\"6\n\010P"
+    "latform\022\013\n\007UNKNOWN\020\000\022\t\n\005LINUX\020\001\022\t\n\005MACOS"
+    "\020\002\022\007\n\003WIN\020\003\"\255\001\n\rConfiguration\022\014\n\004path\030\001 "
     "\002(\t\022\017\n\007version\030\002 \001(\t\022\027\n\014send_timeout\030\003 \001"
     "(\r:\0015\022\030\n\014read_timeout\030\004 \001(\r:\00260\022\030\n\014read_"
     "minimum\030\005 \001(\r:\00232\0220\n\007plugins\030\006 \003(\0132\037.dis"
-    "t_clang.client.proto.Plugin", 267);
+    "t_clang.client.proto.Plugin", 387);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "client/configuration.proto", &protobuf_RegisterTypes);
   Plugin::default_instance_ = new Plugin();
@@ -133,9 +139,35 @@ struct StaticDescriptorInitializer_client_2fconfiguration_2eproto {
 
 // ===================================================================
 
+const ::google::protobuf::EnumDescriptor* Plugin_Platform_descriptor() {
+  protobuf_AssignDescriptorsOnce();
+  return Plugin_Platform_descriptor_;
+}
+bool Plugin_Platform_IsValid(int value) {
+  switch(value) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+      return true;
+    default:
+      return false;
+  }
+}
+
+#ifndef _MSC_VER
+const Plugin_Platform Plugin::UNKNOWN;
+const Plugin_Platform Plugin::LINUX;
+const Plugin_Platform Plugin::MACOS;
+const Plugin_Platform Plugin::WIN;
+const Plugin_Platform Plugin::Platform_MIN;
+const Plugin_Platform Plugin::Platform_MAX;
+const int Plugin::Platform_ARRAYSIZE;
+#endif  // _MSC_VER
 #ifndef _MSC_VER
 const int Plugin::kNameFieldNumber;
 const int Plugin::kPathFieldNumber;
+const int Plugin::kOsFieldNumber;
 #endif  // !_MSC_VER
 
 Plugin::Plugin()
@@ -159,6 +191,7 @@ void Plugin::SharedCtor() {
   _cached_size_ = 0;
   name_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   path_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  os_ = 0;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -200,7 +233,7 @@ Plugin* Plugin::New() const {
 }
 
 void Plugin::Clear() {
-  if (_has_bits_[0 / 32] & 3) {
+  if (_has_bits_[0 / 32] & 7) {
     if (has_name()) {
       if (name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
         name_->clear();
@@ -211,6 +244,7 @@ void Plugin::Clear() {
         path_->clear();
       }
     }
+    os_ = 0;
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   mutable_unknown_fields()->Clear();
@@ -252,6 +286,26 @@ bool Plugin::MergePartialFromCodedStream(
             this->path().data(), this->path().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
             "path");
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(24)) goto parse_os;
+        break;
+      }
+
+      // optional .dist_clang.client.proto.Plugin.Platform os = 3 [default = UNKNOWN];
+      case 3: {
+        if (tag == 24) {
+         parse_os:
+          int value;
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   int, ::google::protobuf::internal::WireFormatLite::TYPE_ENUM>(
+                 input, &value)));
+          if (::dist_clang::client::proto::Plugin_Platform_IsValid(value)) {
+            set_os(static_cast< ::dist_clang::client::proto::Plugin_Platform >(value));
+          } else {
+            mutable_unknown_fields()->AddVarint(3, value);
+          }
         } else {
           goto handle_unusual;
         }
@@ -304,6 +358,12 @@ void Plugin::SerializeWithCachedSizes(
       2, this->path(), output);
   }
 
+  // optional .dist_clang.client.proto.Plugin.Platform os = 3 [default = UNKNOWN];
+  if (has_os()) {
+    ::google::protobuf::internal::WireFormatLite::WriteEnum(
+      3, this->os(), output);
+  }
+
   if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
@@ -336,6 +396,12 @@ void Plugin::SerializeWithCachedSizes(
         2, this->path(), target);
   }
 
+  // optional .dist_clang.client.proto.Plugin.Platform os = 3 [default = UNKNOWN];
+  if (has_os()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteEnumToArray(
+      3, this->os(), target);
+  }
+
   if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
@@ -360,6 +426,12 @@ int Plugin::ByteSize() const {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::StringSize(
           this->path());
+    }
+
+    // optional .dist_clang.client.proto.Plugin.Platform os = 3 [default = UNKNOWN];
+    if (has_os()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::EnumSize(this->os());
     }
 
   }
@@ -395,6 +467,9 @@ void Plugin::MergeFrom(const Plugin& from) {
     if (from.has_path()) {
       set_path(from.path());
     }
+    if (from.has_os()) {
+      set_os(from.os());
+    }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
@@ -421,6 +496,7 @@ void Plugin::Swap(Plugin* other) {
   if (other != this) {
     std::swap(name_, other->name_);
     std::swap(path_, other->path_);
+    std::swap(os_, other->os_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);

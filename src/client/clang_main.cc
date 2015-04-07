@@ -105,6 +105,19 @@ int main(int argc, char* argv[]) {
       read_min_bytes = config.read_minimum();
 
       for (const auto& plugin : config.plugins()) {
+#if defined(OS_LINUX)
+        auto os = client::proto::Plugin::LINUX;
+#elif defined(OS_MACOSX)
+        auto os = client::proto::Plugin::MACOS;
+#elif defined(OS_WIN)
+        auto os = client::proto::Plugin::WIN;
+#else
+        auto os = client::proto::Plugin::UNKNOWN;
+#endif
+        if (plugin.os() != os) {
+          continue;
+        }
+
         // FIXME: use |Immutable|.
         String plugin_path = plugin.path();
         if (plugin_path[0] != '/') {

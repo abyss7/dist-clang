@@ -23,6 +23,7 @@
 #include <google/protobuf/message.h>
 #include <google/protobuf/repeated_field.h>
 #include <google/protobuf/extension_set.h>
+#include <google/protobuf/generated_enum_reflection.h>
 #include <google/protobuf/unknown_field_set.h>
 // @@protoc_insertion_point(includes)
 
@@ -38,6 +39,27 @@ void protobuf_ShutdownFile_client_2fconfiguration_2eproto();
 class Plugin;
 class Configuration;
 
+enum Plugin_Platform {
+  Plugin_Platform_UNKNOWN = 0,
+  Plugin_Platform_LINUX = 1,
+  Plugin_Platform_MACOS = 2,
+  Plugin_Platform_WIN = 3
+};
+bool Plugin_Platform_IsValid(int value);
+const Plugin_Platform Plugin_Platform_Platform_MIN = Plugin_Platform_UNKNOWN;
+const Plugin_Platform Plugin_Platform_Platform_MAX = Plugin_Platform_WIN;
+const int Plugin_Platform_Platform_ARRAYSIZE = Plugin_Platform_Platform_MAX + 1;
+
+const ::google::protobuf::EnumDescriptor* Plugin_Platform_descriptor();
+inline const ::std::string& Plugin_Platform_Name(Plugin_Platform value) {
+  return ::google::protobuf::internal::NameOfEnum(
+    Plugin_Platform_descriptor(), value);
+}
+inline bool Plugin_Platform_Parse(
+    const ::std::string& name, Plugin_Platform* value) {
+  return ::google::protobuf::internal::ParseNamedEnum<Plugin_Platform>(
+    Plugin_Platform_descriptor(), name, value);
+}
 // ===================================================================
 
 class Plugin : public ::google::protobuf::Message {
@@ -91,6 +113,32 @@ class Plugin : public ::google::protobuf::Message {
 
   // nested types ----------------------------------------------------
 
+  typedef Plugin_Platform Platform;
+  static const Platform UNKNOWN = Plugin_Platform_UNKNOWN;
+  static const Platform LINUX = Plugin_Platform_LINUX;
+  static const Platform MACOS = Plugin_Platform_MACOS;
+  static const Platform WIN = Plugin_Platform_WIN;
+  static inline bool Platform_IsValid(int value) {
+    return Plugin_Platform_IsValid(value);
+  }
+  static const Platform Platform_MIN =
+    Plugin_Platform_Platform_MIN;
+  static const Platform Platform_MAX =
+    Plugin_Platform_Platform_MAX;
+  static const int Platform_ARRAYSIZE =
+    Plugin_Platform_Platform_ARRAYSIZE;
+  static inline const ::google::protobuf::EnumDescriptor*
+  Platform_descriptor() {
+    return Plugin_Platform_descriptor();
+  }
+  static inline const ::std::string& Platform_Name(Platform value) {
+    return Plugin_Platform_Name(value);
+  }
+  static inline bool Platform_Parse(const ::std::string& name,
+      Platform* value) {
+    return Plugin_Platform_Parse(name, value);
+  }
+
   // accessors -------------------------------------------------------
 
   // required string name = 1;
@@ -117,12 +165,21 @@ class Plugin : public ::google::protobuf::Message {
   inline ::std::string* release_path();
   inline void set_allocated_path(::std::string* path);
 
+  // optional .dist_clang.client.proto.Plugin.Platform os = 3 [default = UNKNOWN];
+  inline bool has_os() const;
+  inline void clear_os();
+  static const int kOsFieldNumber = 3;
+  inline ::dist_clang::client::proto::Plugin_Platform os() const;
+  inline void set_os(::dist_clang::client::proto::Plugin_Platform value);
+
   // @@protoc_insertion_point(class_scope:dist_clang.client.proto.Plugin)
  private:
   inline void set_has_name();
   inline void clear_has_name();
   inline void set_has_path();
   inline void clear_has_path();
+  inline void set_has_os();
+  inline void clear_has_os();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -130,6 +187,7 @@ class Plugin : public ::google::protobuf::Message {
   mutable int _cached_size_;
   ::std::string* name_;
   ::std::string* path_;
+  int os_;
   friend void  protobuf_AddDesc_client_2fconfiguration_2eproto();
   friend void protobuf_AssignDesc_client_2fconfiguration_2eproto();
   friend void protobuf_ShutdownFile_client_2fconfiguration_2eproto();
@@ -438,6 +496,31 @@ inline void Plugin::set_allocated_path(::std::string* path) {
   // @@protoc_insertion_point(field_set_allocated:dist_clang.client.proto.Plugin.path)
 }
 
+// optional .dist_clang.client.proto.Plugin.Platform os = 3 [default = UNKNOWN];
+inline bool Plugin::has_os() const {
+  return (_has_bits_[0] & 0x00000004u) != 0;
+}
+inline void Plugin::set_has_os() {
+  _has_bits_[0] |= 0x00000004u;
+}
+inline void Plugin::clear_has_os() {
+  _has_bits_[0] &= ~0x00000004u;
+}
+inline void Plugin::clear_os() {
+  os_ = 0;
+  clear_has_os();
+}
+inline ::dist_clang::client::proto::Plugin_Platform Plugin::os() const {
+  // @@protoc_insertion_point(field_get:dist_clang.client.proto.Plugin.os)
+  return static_cast< ::dist_clang::client::proto::Plugin_Platform >(os_);
+}
+inline void Plugin::set_os(::dist_clang::client::proto::Plugin_Platform value) {
+  assert(::dist_clang::client::proto::Plugin_Platform_IsValid(value));
+  set_has_os();
+  os_ = value;
+  // @@protoc_insertion_point(field_set:dist_clang.client.proto.Plugin.os)
+}
+
 // -------------------------------------------------------------------
 
 // Configuration
@@ -707,6 +790,11 @@ Configuration::mutable_plugins() {
 namespace google {
 namespace protobuf {
 
+template <> struct is_proto_enum< ::dist_clang::client::proto::Plugin_Platform> : ::google::protobuf::internal::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor< ::dist_clang::client::proto::Plugin_Platform>() {
+  return ::dist_clang::client::proto::Plugin_Platform_descriptor();
+}
 
 }  // namespace google
 }  // namespace protobuf

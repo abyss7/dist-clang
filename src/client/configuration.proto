@@ -1,8 +1,16 @@
 package dist_clang.client.proto;
 
 message Plugin {
+  enum Platform {
+    UNKNOWN = 0;
+    LINUX   = 1;
+    MACOS   = 2;
+    WIN     = 3;
+  }
+
   required string name = 1;
   required string path = 2;
+  optional Platform os = 3 [ default = UNKNOWN ];
 }
 
 message Configuration {
