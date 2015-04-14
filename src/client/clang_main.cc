@@ -108,7 +108,7 @@ int main(int argc, char* argv[]) {
 #if defined(OS_LINUX)
         auto os = client::proto::Plugin::LINUX;
 #elif defined(OS_MACOSX)
-        auto os = client::proto::Plugin::MACOS;
+        auto os = client::proto::Plugin::MACOSX;
 #elif defined(OS_WIN)
         auto os = client::proto::Plugin::WIN;
 #else

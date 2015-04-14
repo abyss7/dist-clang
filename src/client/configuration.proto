@@ -4,7 +4,7 @@ message Plugin {
   enum Platform {
     UNKNOWN = 0;
     LINUX   = 1;
-    MACOS   = 2;
+    MACOSX  = 2;
     WIN     = 3;
   }
 

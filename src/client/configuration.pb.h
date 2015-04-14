@@ -42,7 +42,7 @@ class Configuration;
 enum Plugin_Platform {
   Plugin_Platform_UNKNOWN = 0,
   Plugin_Platform_LINUX = 1,
-  Plugin_Platform_MACOS = 2,
+  Plugin_Platform_MACOSX = 2,
   Plugin_Platform_WIN = 3
 };
 bool Plugin_Platform_IsValid(int value);
@@ -116,7 +116,7 @@ class Plugin : public ::google::protobuf::Message {
   typedef Plugin_Platform Platform;
   static const Platform UNKNOWN = Plugin_Platform_UNKNOWN;
   static const Platform LINUX = Plugin_Platform_LINUX;
-  static const Platform MACOS = Plugin_Platform_MACOS;
+  static const Platform MACOSX = Plugin_Platform_MACOSX;
   static const Platform WIN = Plugin_Platform_WIN;
   static inline bool Platform_IsValid(int value) {
     return Plugin_Platform_IsValid(value);

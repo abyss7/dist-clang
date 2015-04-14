@@ -112,15 +112,15 @@ void protobuf_AddDesc_client_2fconfiguration_2eproto() {
 
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
     "\n\032client/configuration.proto\022\027dist_clang"
-    ".client.proto\"\233\001\n\006Plugin\022\014\n\004name\030\001 \002(\t\022\014"
+    ".client.proto\"\234\001\n\006Plugin\022\014\n\004name\030\001 \002(\t\022\014"
     "\n\004path\030\002 \002(\t\022=\n\002os\030\003 \001(\0162(.dist_clang.cl"
-    "ient.proto.Plugin.Platform:\007UNKNOWN\"6\n\010P"
-    "latform\022\013\n\007UNKNOWN\020\000\022\t\n\005LINUX\020\001\022\t\n\005MACOS"
-    "\020\002\022\007\n\003WIN\020\003\"\255\001\n\rConfiguration\022\014\n\004path\030\001 "
-    "\002(\t\022\017\n\007version\030\002 \001(\t\022\027\n\014send_timeout\030\003 \001"
-    "(\r:\0015\022\030\n\014read_timeout\030\004 \001(\r:\00260\022\030\n\014read_"
-    "minimum\030\005 \001(\r:\00232\0220\n\007plugins\030\006 \003(\0132\037.dis"
-    "t_clang.client.proto.Plugin", 387);
+    "ient.proto.Plugin.Platform:\007UNKNOWN\"7\n\010P"
+    "latform\022\013\n\007UNKNOWN\020\000\022\t\n\005LINUX\020\001\022\n\n\006MACOS"
+    "X\020\002\022\007\n\003WIN\020\003\"\255\001\n\rConfiguration\022\014\n\004path\030\001"
+    " \002(\t\022\017\n\007version\030\002 \001(\t\022\027\n\014send_timeout\030\003 "
+    "\001(\r:\0015\022\030\n\014read_timeout\030\004 \001(\r:\00260\022\030\n\014read"
+    "_minimum\030\005 \001(\r:\00232\0220\n\007plugins\030\006 \003(\0132\037.di"
+    "st_clang.client.proto.Plugin", 388);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "client/configuration.proto", &protobuf_RegisterTypes);
   Plugin::default_instance_ = new Plugin();
@@ -158,7 +158,7 @@ bool Plugin_Platform_IsValid(int value) {
 #ifndef _MSC_VER
 const Plugin_Platform Plugin::UNKNOWN;
 const Plugin_Platform Plugin::LINUX;
-const Plugin_Platform Plugin::MACOS;
+const Plugin_Platform Plugin::MACOSX;
 const Plugin_Platform Plugin::WIN;
 const Plugin_Platform Plugin::Platform_MIN;
 const Plugin_Platform Plugin::Platform_MAX;
