@@ -10,3 +10,6 @@ PAYLOAD=pack-install
 
 pack-install:
 	cp -r ${PROD_DIR}/pkg/* ${WORK_D}/
+
+modify_packageroot:
+	chown -R root:wheel ${WORK_D}/*
