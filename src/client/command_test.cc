@@ -111,7 +111,7 @@ TEST(CommandTest, FillFlags) {
 
   auto& command = commands.front();
   proto::Flags flags;
-  command->AsDriverCommand()->FillFlags(&flags, "/some/clang/path");
+  command->AsDriverCommand()->FillFlags(&flags, "/some/clang/path", "1.0.0");
 
   EXPECT_EQ(input, flags.input());
   EXPECT_EQ(output, flags.output());
@@ -120,7 +120,7 @@ TEST(CommandTest, FillFlags) {
   EXPECT_EQ("-cc1", *flags.other().begin());
   EXPECT_EQ(1, flags.compiler().plugins_size());
   EXPECT_EQ(plugin_name, flags.compiler().plugins(0).name());
-  // TODO: add more expectations on flags.
+  // TODO: add more expectations on flags, especially about version replacement.
 
   if (HasNonfatalFailure()) {
     FAIL() << command->RenderAllArgs();

@@ -140,8 +140,8 @@ bool DriverCommand::GenerateFromArgs(int argc, const char* const raw_argv[],
   return result;
 }
 
-void DriverCommand::FillFlags(proto::Flags* flags,
-                              const String& clang_path) const {
+void DriverCommand::FillFlags(proto::Flags* flags, const String& clang_path,
+                              const String& clang_major_version) const {
   DCHECK(IsClang());
   CHECK(arg_list_);
 
@@ -205,11 +205,20 @@ void DriverCommand::FillFlags(proto::Flags* flags,
     } else if (arg->getOption().matches(OPT_internal_isystem) ||
                arg->getOption().matches(OPT_resource_dir)) {
       // Use --internal-isystem and --resource_dir based on real Clang path.
-      std::regex regex("(" + base::EscapeRegex(base::GetSelfPath()) + ")");
       non_cached_list.push_back(arg->getSpelling().data());
-      non_cached_list.push_back(arg_list_->MakeArgString(std::regex_replace(
-          arg->getValue(), regex,
-          clang_path.substr(0, clang_path.find_last_of('/')))));
+
+      std::regex path_regex("(" + base::EscapeRegex(base::GetSelfPath()) + ")");
+      auto replaced_command = std::regex_replace(
+          arg->getValue(), path_regex,
+          clang_path.substr(0, clang_path.find_last_of('/')));
+
+      std::regex version_regex("(\\/lib\\/clang\\/\\d+\\.\\d+\\.\\d+)");
+      // FIXME: Clang internally hardcodes path according to its major version.
+      replaced_command = std::regex_replace(
+          replaced_command, version_regex, "/lib/clang/" + clang_major_version);
+
+      non_cached_list.push_back(arg_list_->MakeArgString(replaced_command));
+      LOG(VERBOSE) << "Replaced command: " << non_cached_list.back();
     }
 
     // By default all other flags are cacheable.

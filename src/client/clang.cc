@@ -10,6 +10,8 @@
 #include <net/network_service_impl.h>
 #include <proto/remote.pb.h>
 
+#include <clang/Basic/Version.h>
+
 #include <base/using_log.h>
 
 namespace dist_clang {
@@ -52,7 +54,8 @@ bool DoMain(int argc, const char* const argv[], Immutable socket_path,
       auto process = command->CreateProcess(current_dir, getuid());
       if (!process->Run(base::Process::UNLIMITED)) {
         LOG(WARNING) << "Subcommand failed: " << command->GetExecutable()
-                     << std::endl << process->stderr();
+                     << std::endl
+                     << process->stderr();
         LOG(VERBOSE) << "Arguments: " << command->RenderAllArgs();
         return true;
       }
@@ -62,15 +65,6 @@ bool DoMain(int argc, const char* const argv[], Immutable socket_path,
     UniquePtr<proto::LocalExecute> message(new proto::LocalExecute);
     message->set_user_id(getuid());
     message->set_current_dir(current_dir);
-
-    auto* flags = message->mutable_flags();
-    command->AsDriverCommand()->FillFlags(flags, clang_path);
-
-    if (!flags->has_action() || flags->input() == "-") {
-      LOG(WARNING) << "Command line contains unknown action or requires input "
-                      "from stdin";
-      return true;
-    }
 
     if (version.empty()) {
       String error;
@@ -106,6 +100,27 @@ bool DoMain(int argc, const char* const argv[], Immutable socket_path,
 
       version = Immutable(*output.begin());
     }
+
+    String major_version;
+    std::regex version_regex("clang version (\\d+\\.\\d+\\.\\d+)");
+    std::cmatch match;
+    if (std::regex_search(version.c_str(), match, version_regex) &&
+        match.size() > 1 && match[1].matched) {
+      LOG(VERBOSE) << "Matched Clang major version: " << match[1];
+      major_version = match[1];
+    } else {
+      major_version = CLANG_VERSION_STRING;
+    }
+
+    auto* flags = message->mutable_flags();
+    command->AsDriverCommand()->FillFlags(flags, clang_path, major_version);
+
+    if (!flags->has_action() || flags->input() == "-") {
+      LOG(WARNING) << "Command line contains unknown action or requires input "
+                      "from stdin";
+      return true;
+    }
+
     flags->mutable_compiler()->set_version(version);
     flags->mutable_compiler()->set_path(clang_path);
 

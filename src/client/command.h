@@ -42,7 +42,8 @@ class DriverCommand : public Command {
                                List& commands);
 
   // Check |IsClang()| before calling this methods.
-  void FillFlags(proto::Flags* flags, const String& clang_path) const;
+  void FillFlags(proto::Flags* flags, const String& clang_path,
+                 const String& clang_major_version) const;
   virtual base::ProcessPtr CreateProcess(Immutable current_dir,
                                          ui32 user_id) const override;
 
