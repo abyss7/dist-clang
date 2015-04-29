@@ -1,7 +1,7 @@
 config("includes") {
   include_dirs = [
     "exported",
-    os,
+    host_os,
   ]
 }
 
@@ -23,7 +23,7 @@ shared_library("snappy") {
     "exported/snappy-sinksource.h",
     "exported/snappy-stubs-internal.cc",
     "exported/snappy-stubs-internal.h",
-    os + "/snappy-stubs-public.h",
+    host_os + "/snappy-stubs-public.h",
   ]
 
   public = [ "exported/snappy.h" ]

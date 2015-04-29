@@ -69,7 +69,7 @@ config("no_exceptions") {
   cflags_cc = [ "-fno-exceptions" ]
   ldflags = [ "-fno-exceptions" ]
 
-  if (os == "win") {
+  if (host_os == "win") {
     defines = [ "_HAS_EXCEPTIONS=0" ]
   }
 }
@@ -83,13 +83,13 @@ import("//build/llvm/llvm.gni")
 
 config("libclang_includes") {
   defines = llvm_defines
-  include_dirs = [ "//build/llvm/" + os + "/include" ]
+  include_dirs = [ "//build/llvm/" + host_os + "/include" ]
 }
 
 config("libclang") {
   defines = llvm_defines
-  include_dirs = [ "//build/llvm/" + os + "/include" ]
-  lib_dirs = [ "//build/llvm/" + os + "/lib" ]
+  include_dirs = [ "//build/llvm/" + host_os + "/include" ]
+  lib_dirs = [ "//build/llvm/" + host_os + "/lib" ]
 
   libs = [ "c" ]
   libs += [
@@ -130,7 +130,7 @@ config("asan") {
 
     ldflags = [ "-fsanitize=address" ]
 
-    if (os == "linux") {
+    if (host_os == "linux") {
       libs = [ "dl" ]
     }
   }
@@ -141,7 +141,7 @@ config("tsan") {
     cflags = [ "-fsanitize=thread" ]
     ldflags = [ "-fsanitize=thread" ]
 
-    if (os == "linux") {
+    if (host_os == "linux") {
       libs = [ "dl" ]
     }
   }

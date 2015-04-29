@@ -106,7 +106,7 @@ shared_library("c++abi") {
   public = [ "exported/include/cxxabi.h" ]
 
   libs = [ "pthread" ]  # TODO: may be move to "default_library" config?
-  if (os == "mac") {
+  if (host_os == "mac") {
     ldflags = exec_script("//build/macosx_sdk_libs.py", [], "list lines")
     ldflags += [
       "-compatibility_version", "1.0.0",
@@ -123,7 +123,7 @@ shared_library("c++abi") {
   ]
 
   deps = []
-  if (os == "linux") {
+  if (host_os == "linux") {
     deps = [ "//src/third_party/libunwind:unwind" ]
   }
 

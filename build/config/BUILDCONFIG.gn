@@ -35,7 +35,7 @@ default_configs = [
 if (config_for_tests) {
   if (!use_tsan) {
     use_asan = true
-    if (os == "mac") {
+    if (host_os == "mac") {
       # FIXME: ASan binaries doesn't run on Mac
       use_asan = false
     }
@@ -58,14 +58,14 @@ else {
   }
 }
 
-if (os == "linux") {
+if (host_os == "linux") {
   default_configs += [ "//build/config/linux:base" ]
 }
-if (os == "mac") {
+if (host_os == "mac") {
   default_configs += [ "//build/config/mac:base" ]
   default_configs -= [ "//build/config:no_stdlibs" ]
 }
-if (os == "win") {
+if (host_os == "win") {
   default_configs += [ "//build/config/win:base" ]
 }
 
@@ -74,7 +74,7 @@ if (os == "win") {
 # =============================================================================
 
 default_deps = []
-if (os != "win") {
+if (host_os != "win") {
   default_deps += [
     "//src/third_party/libcxx:c++",
     "//src/third_party/libcxxabi:c++abi",
@@ -83,7 +83,7 @@ if (os != "win") {
 
 # Mac OS X 10.10 doesn't work with tcmalloc anymore.
 # Thread Sanitizer doesn't like tcmalloc either.
-if (os != "mac" && os != "win" && !use_tsan) {
+if (host_os != "mac" && host_os != "win" && !use_tsan) {
   default_deps += [ "//src/third_party/gperftools:tcmalloc" ]
 }
 
@@ -144,16 +144,16 @@ win_sources_filters = [
 ]
 
 sources_assignment_filter = []
-if (os != "mac") {
+if (host_os != "mac") {
   sources_assignment_filter += mac_sources_filters
 }
-if (os != "linux") {
+if (host_os != "linux") {
   sources_assignment_filter += linux_sources_filters
 }
-if (os != "mac" && os != "linux") {
+if (host_os != "mac" && host_os != "linux") {
   sources_assignment_filter += posix_sources_filters
 }
-if (os != "win") {
+if (host_os != "win") {
   sources_assignment_filter += win_sources_filters
 }
 
@@ -163,12 +163,12 @@ set_sources_assignment_filter(sources_assignment_filter)
 # Setup toolchain.
 # =============================================================================
 
-if (os == "linux") {
+if (host_os == "linux") {
   set_default_toolchain("//build/toolchain/linux:clang")
 }
-if (os == "mac") {
+if (host_os == "mac") {
   set_default_toolchain("//build/toolchain/mac:clang")
 }
-if (os == "win") {
+if (host_os == "win") {
   set_default_toolchain("//build/toolchain/win:clang")
 }

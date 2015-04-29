@@ -16,7 +16,7 @@ if (config_for_tests) {
   }
 }
 
-if (os == "linux") {
+if (host_os == "linux") {
   action("deb_package") {
     script = "//build/deb_package.py"
     sources = [
@@ -228,7 +228,7 @@ if (os == "linux") {
   }
 }
 
-if (os == "mac") {
+if (host_os == "mac") {
   action("pkg_package") {
     script = "//build/pkg_package.py"
     sources = [

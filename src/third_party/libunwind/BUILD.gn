@@ -1,9 +1,9 @@
-assert(os == "linux", "libunwind is supported on Linux only")
+assert(host_os == "linux", "libunwind is supported on Linux only")
 
 config("includes") {
   include_dirs = [
     "exported/include",
-    os,
+    host_os,
   ]
 }
 
@@ -131,7 +131,7 @@ source_set("unwind") {
   include_dirs = [
     "exported/src",
     "exported/include",
-    os,
+    host_os,
     "exported/include/tdep-x86_64",
   ]
 

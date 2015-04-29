@@ -119,6 +119,6 @@ llvm_system_libs = [
   "m",
 ]
 
-if (os == "linux") {
+if (host_os == "linux") {
   llvm_system_libs += [ "dl" ]
 }

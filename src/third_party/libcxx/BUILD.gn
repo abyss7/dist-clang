@@ -148,15 +148,15 @@ shared_library("c++") {
     "-Wno-long-long",
     "-Wno-error",
   ]
-  if (os == "win") {
+  if (host_os == "win") {
     cflags += [ "-fno-ms-compatibility" ]
   }
 
-  if (os == "win") {
+  if (host_os == "win") {
     defines = [ "_HAS_CHAR16_T_LANGUAGE_SUPPORT" ]
   }
 
-  if (os == "mac") {
+  if (host_os == "mac") {
     ldflags = [
       "-compatibility_version", "1.0.0",
       "-current_version", "1.0.0",
@@ -164,13 +164,13 @@ shared_library("c++") {
   }
 
   libs = [ "m" ]
-  if (os == "linux") {
+  if (host_os == "linux") {
     libs += [ "rt" ]
   }
 
   configs = []
   configs += [ "//build/config:default_library" ]
-  if (os == "win") {
+  if (host_os == "win") {
     configs += [ "//build/config:no_exceptions" ]
   }
   public_configs = [ ":includes" ]

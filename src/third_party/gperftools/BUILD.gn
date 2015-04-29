@@ -14,7 +14,7 @@ config("flags") {
   ]
 
   defines = [ "HAVE_CONFIG_H" ]
-  if (os == "linux") {
+  if (host_os == "linux") {
     defines += [ "NO_FRAME_POINTER" ]
 
     # ASan contains it's own LeakSanitizer.
@@ -22,7 +22,7 @@ config("flags") {
       defines += [ "NO_HEAP_CHECK" ]
     }
   }
-  if (os == "mac") {
+  if (host_os == "mac") {
     defines += [
       "NO_HEAP_CHECK",
       "NO_TCMALLOC_SAMPLES",
@@ -30,7 +30,7 @@ config("flags") {
     ]
   }
 
-  include_dirs = [ os ]
+  include_dirs = [ host_os ]
 
   ldflags = [
     "-fno-builtin-calloc",
@@ -117,7 +117,7 @@ source_set("stacktrace") {
     ":flags",
     ":no_warnings",
   ]
-  if (os == "linux") {
+  if (host_os == "linux") {
     configs += [ "//src/third_party/libunwind:includes" ]
   }
 
@@ -188,7 +188,7 @@ shared_library("tcmalloc") {
   sources = [
     "exported/src/tcmalloc.cc",
   ]
-  if (os == "linux") {
+  if (host_os == "linux") {
     sources += [
       "exported/src/base/linuxthreads.cc",
       "exported/src/base/thread_lister.c",
