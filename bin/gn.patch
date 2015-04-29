@@ -12,10 +12,10 @@ index 25eba9d..861ef6f 100644
        *out = include_contents;
        *location = LocationRange(
 diff --git a/tools/gn/header_checker.cc b/tools/gn/header_checker.cc
-index ea63844..e979007 100644
+index 4d2f4cb..c7aee1d 100644
 --- a/tools/gn/header_checker.cc
 +++ b/tools/gn/header_checker.cc
-@@ -251,7 +251,7 @@ bool HeaderChecker::IsFileInOuputDir(const SourceFile& file) const {
+@@ -252,7 +252,7 @@ bool HeaderChecker::IsFileInOuputDir(const SourceFile& file) const {
  // handle the cases where people do weird things with the paths.
  SourceFile HeaderChecker::SourceFileForInclude(
      const base::StringPiece& input) const {
@@ -24,3 +24,17 @@ index ea63844..e979007 100644
    input.AppendToString(&str);
    return SourceFile(str);
  }
+diff --git a/tools/gn/source_file_type.cc b/tools/gn/source_file_type.cc
+index 35c8709..8474d75 100644
+--- a/tools/gn/source_file_type.cc
++++ b/tools/gn/source_file_type.cc
+@@ -9,7 +9,8 @@
+ 
+ SourceFileType GetSourceFileType(const SourceFile& file) {
+   base::StringPiece extension = FindExtension(&file.value());
+-  if (extension == "cc" || extension == "cpp" || extension == "cxx")
++  if (extension == "cc" || extension == "cpp" || extension == "cxx" ||
++      extension == "c++")
+     return SOURCE_CC;
+   if (extension == "h")
+     return SOURCE_H;
