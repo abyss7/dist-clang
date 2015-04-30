@@ -29,7 +29,7 @@ base::Log& base::Log::operator<<(const google::protobuf::Message& info) {
 namespace daemon {
 
 Absorber::Absorber(const proto::Configuration& configuration)
-    : BaseDaemon(configuration) {
+    : CompilationDaemon(configuration) {
   using Worker = base::WorkerPool::SimpleWorker;
 
   CHECK(conf_.has_absorber() && !conf_.absorber().local().disabled());
@@ -62,7 +62,7 @@ bool Absorber::Initialize() {
                     "\"cache.direct\" will be ignored";
   }
 
-  return BaseDaemon::Initialize();
+  return CompilationDaemon::Initialize();
 }
 
 bool Absorber::HandleNewMessage(net::ConnectionPtr connection,

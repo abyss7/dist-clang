@@ -1,8 +1,6 @@
 #pragma once
 
 #include <base/aliases.h>
-#include <base/process_forward.h>
-#include <cache/file_cache.h>
 #include <daemon/configuration.pb.h>
 #include <net/connection_forward.h>
 #include <net/end_point_resolver.h>
@@ -17,15 +15,10 @@ class BaseDaemon {
   virtual ~BaseDaemon();
   virtual bool Initialize() = 0;
 
-  static base::ProcessPtr CreateProcess(const proto::Flags& flags, ui32 user_id,
-                                        Immutable cwd_path = Immutable());
-  static base::ProcessPtr CreateProcess(const proto::Flags& flags,
-                                        Immutable cwd_path = Immutable());
-
  protected:
   using Universal = UniquePtr<proto::Universal>;
 
-  BaseDaemon(const proto::Configuration& configuration);
+  explicit BaseDaemon(const proto::Configuration& configuration);
 
   virtual bool HandleNewMessage(net::ConnectionPtr connection,
                                 Universal message,
@@ -49,41 +42,12 @@ class BaseDaemon {
     return network_service_->Connect(end_point, error);
   }
 
-  cache::string::HandledHash GenerateHash(
-      const proto::Flags& flags,
-      const cache::string::HandledSource& code) const;
-
-  bool SetupCompiler(proto::Flags* flags, proto::Status* status) const;
-
-  bool SearchSimpleCache(const proto::Flags& flags,
-                         const cache::string::HandledSource& source,
-                         cache::FileCache::Entry* entry) const;
-
-  bool SearchDirectCache(const proto::Flags& flags, const String& current_dir,
-                         cache::FileCache::Entry* entry) const;
-
-  void UpdateSimpleCache(const proto::Flags& flags,
-                         const cache::string::HandledSource& source,
-                         const cache::FileCache::Entry& entry);
-
-  void UpdateDirectCache(const proto::LocalExecute* message,
-                         const cache::string::HandledSource& source,
-                         const cache::FileCache::Entry& entry);
-
-  const proto::Configuration conf_;
   UniquePtr<net::EndPointResolver> resolver_;
 
  private:
-  using CompilerMap = HashMap<String /* version */, String /* path */>;
-  using PluginNameMap = HashMap<String /* name */, String /* path */>;
-  using PluginMap = HashMap<String /* version */, PluginNameMap>;
-
   void HandleNewConnection(net::ConnectionPtr connection);
 
   UniquePtr<net::NetworkService> network_service_;
-  UniquePtr<cache::FileCache> cache_;
-  CompilerMap compilers_;
-  PluginMap plugins_;
 };
 
 }  // namespace daemon

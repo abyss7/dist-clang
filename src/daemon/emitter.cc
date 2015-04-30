@@ -47,10 +47,10 @@ inline bool GenerateSource(const proto::LocalExecute* WEAK_PTR message,
 
   base::ProcessPtr process;
   if (message->has_user_id()) {
-    process = daemon::BaseDaemon::CreateProcess(
+    process = daemon::CompilationDaemon::CreateProcess(
         pp_flags, message->user_id(), Immutable(message->current_dir()));
   } else {
-    process = daemon::BaseDaemon::CreateProcess(
+    process = daemon::CompilationDaemon::CreateProcess(
         pp_flags, Immutable(message->current_dir()));
   }
 
@@ -70,7 +70,7 @@ inline bool GenerateSource(const proto::LocalExecute* WEAK_PTR message,
 namespace daemon {
 
 Emitter::Emitter(const proto::Configuration& configuration)
-    : BaseDaemon(configuration) {
+    : CompilationDaemon(configuration) {
   using Worker = base::WorkerPool::SimpleWorker;
 
   CHECK(conf_.has_emitter());
@@ -143,7 +143,7 @@ bool Emitter::Initialize() {
     }
   }
 
-  return BaseDaemon::Initialize();
+  return CompilationDaemon::Initialize();
 }
 
 bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,

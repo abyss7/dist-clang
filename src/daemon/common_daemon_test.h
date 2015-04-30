@@ -19,7 +19,7 @@ struct CommonDaemonTest : public ::testing::Test {
   using ConnectCallback = Fn<void(net::TestConnection*)>;
   using RunCallback = Fn<void(base::TestProcess*)>;
 
-  virtual void SetUp() override {
+  void SetUp() override {
     {
       auto factory = net::NetworkService::SetFactory<Service::Factory>();
       factory->CallOnCreate([this](Service* service) {
@@ -62,7 +62,7 @@ struct CommonDaemonTest : public ::testing::Test {
     net::EndPointResolver::SetFactory<net::TestEndPointResolver::Factory>();
   }
 
-  virtual void TearDown() override {
+  void TearDown() override {
     net::NetworkService::SetFactory<Service::Factory>();
     base::Process::SetFactory<base::TestProcess::Factory>();
     net::EndPointResolver::SetFactory<net::TestEndPointResolver::Factory>();

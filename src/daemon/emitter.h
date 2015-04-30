@@ -2,17 +2,17 @@
 
 #include <base/queue_aggregator.h>
 #include <base/worker_pool.h>
-#include <daemon/base_daemon.h>
+#include <daemon/compilation_daemon.h>
 
 namespace dist_clang {
 namespace daemon {
 
-class Emitter : public BaseDaemon {
+class Emitter : public CompilationDaemon {
  public:
-  Emitter(const proto::Configuration& configuration);
+  explicit Emitter(const proto::Configuration& configuration);
   virtual ~Emitter();
 
-  virtual bool Initialize() override;
+  bool Initialize() override;
 
  private:
   enum TaskIndex {
@@ -27,9 +27,8 @@ class Emitter : public BaseDaemon {
   using QueueAggregator = base::QueueAggregator<Task>;
   using Optional = Queue::Optional;
 
-  virtual bool HandleNewMessage(net::ConnectionPtr connection,
-                                Universal message,
-                                const proto::Status& status) override;
+  bool HandleNewMessage(net::ConnectionPtr connection, Universal message,
+                        const proto::Status& status) override;
 
   void DoCheckCache(const Atomic<bool>& is_shutting_down);
   void DoLocalExecute(const Atomic<bool>& is_shutting_down);

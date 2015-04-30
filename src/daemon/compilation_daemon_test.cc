@@ -1,4 +1,4 @@
-#include <daemon/base_daemon.h>
+#include <daemon/compilation_daemon.h>
 
 #include <base/process.h>
 
@@ -29,7 +29,7 @@ TEST(BaseDaemonTest, CreateProcessFromFlags) {
 
   {
     base::ProcessPtr process =
-        BaseDaemon::CreateProcess(flags, expected_user_id);
+        CompilationDaemon::CreateProcess(flags, expected_user_id);
     auto it = expected_args.begin();
     ASSERT_EQ(expected_args.size(), process->args_.size());
     for (const auto& arg : process->args_) {
@@ -40,7 +40,7 @@ TEST(BaseDaemonTest, CreateProcessFromFlags) {
   }
 
   {
-    base::ProcessPtr process = BaseDaemon::CreateProcess(flags);
+    base::ProcessPtr process = CompilationDaemon::CreateProcess(flags);
     auto it = expected_args.begin();
     ASSERT_EQ(expected_args.size(), process->args_.size());
     for (const auto& arg : process->args_) {

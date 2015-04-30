@@ -2,17 +2,17 @@
 
 #include <base/locked_queue.h>
 #include <base/worker_pool.h>
-#include <daemon/base_daemon.h>
+#include <daemon/compilation_daemon.h>
 
 namespace dist_clang {
 namespace daemon {
 
-class Absorber : public BaseDaemon {
+class Absorber : public CompilationDaemon {
  public:
-  Absorber(const proto::Configuration& configuration);
+  explicit Absorber(const proto::Configuration& configuration);
   virtual ~Absorber();
 
-  virtual bool Initialize() override;
+  bool Initialize() override;
 
  private:
   using Message = UniquePtr<proto::RemoteExecute>;
@@ -20,9 +20,8 @@ class Absorber : public BaseDaemon {
   using Queue = base::LockedQueue<Task>;
   using Optional = Queue::Optional;
 
-  virtual bool HandleNewMessage(net::ConnectionPtr connection,
-                                Universal message,
-                                const proto::Status& status) override;
+  bool HandleNewMessage(net::ConnectionPtr connection, Universal message,
+                        const proto::Status& status) override;
 
   void DoExecute(const Atomic<bool>& is_shutting_down);
 

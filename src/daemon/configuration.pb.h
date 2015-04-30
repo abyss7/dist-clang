@@ -42,6 +42,7 @@ class Configuration;
 class Configuration_Cache;
 class Configuration_Emitter;
 class Configuration_Absorber;
+class Configuration_Collector;
 
 // ===================================================================
 
@@ -704,6 +705,87 @@ class Configuration_Absorber : public ::google::protobuf::Message {
 };
 // -------------------------------------------------------------------
 
+class Configuration_Collector : public ::google::protobuf::Message {
+ public:
+  Configuration_Collector();
+  virtual ~Configuration_Collector();
+
+  Configuration_Collector(const Configuration_Collector& from);
+
+  inline Configuration_Collector& operator=(const Configuration_Collector& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
+    return _unknown_fields_;
+  }
+
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
+    return &_unknown_fields_;
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const Configuration_Collector& default_instance();
+
+  void Swap(Configuration_Collector* other);
+
+  // implements Message ----------------------------------------------
+
+  Configuration_Collector* New() const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const Configuration_Collector& from);
+  void MergeFrom(const Configuration_Collector& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  public:
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // required .dist_clang.proto.Host local = 1;
+  inline bool has_local() const;
+  inline void clear_local();
+  static const int kLocalFieldNumber = 1;
+  inline const ::dist_clang::proto::Host& local() const;
+  inline ::dist_clang::proto::Host* mutable_local();
+  inline ::dist_clang::proto::Host* release_local();
+  inline void set_allocated_local(::dist_clang::proto::Host* local);
+
+  // @@protoc_insertion_point(class_scope:dist_clang.proto.Configuration.Collector)
+ private:
+  inline void set_has_local();
+  inline void clear_has_local();
+
+  ::google::protobuf::UnknownFieldSet _unknown_fields_;
+
+  ::google::protobuf::uint32 _has_bits_[1];
+  mutable int _cached_size_;
+  ::dist_clang::proto::Host* local_;
+  friend void  protobuf_AddDesc_daemon_2fconfiguration_2eproto();
+  friend void protobuf_AssignDesc_daemon_2fconfiguration_2eproto();
+  friend void protobuf_ShutdownFile_daemon_2fconfiguration_2eproto();
+
+  void InitAsDefaultInstance();
+  static Configuration_Collector* default_instance_;
+};
+// -------------------------------------------------------------------
+
 class Configuration : public ::google::protobuf::Message {
  public:
   Configuration();
@@ -758,6 +840,7 @@ class Configuration : public ::google::protobuf::Message {
   typedef Configuration_Cache Cache;
   typedef Configuration_Emitter Emitter;
   typedef Configuration_Absorber Absorber;
+  typedef Configuration_Collector Collector;
 
   // accessors -------------------------------------------------------
 
@@ -779,17 +862,26 @@ class Configuration : public ::google::protobuf::Message {
   inline ::dist_clang::proto::Configuration_Absorber* release_absorber();
   inline void set_allocated_absorber(::dist_clang::proto::Configuration_Absorber* absorber);
 
-  // optional uint32 pool_capacity = 3 [default = 16];
+  // optional .dist_clang.proto.Configuration.Collector collector = 3;
+  inline bool has_collector() const;
+  inline void clear_collector();
+  static const int kCollectorFieldNumber = 3;
+  inline const ::dist_clang::proto::Configuration_Collector& collector() const;
+  inline ::dist_clang::proto::Configuration_Collector* mutable_collector();
+  inline ::dist_clang::proto::Configuration_Collector* release_collector();
+  inline void set_allocated_collector(::dist_clang::proto::Configuration_Collector* collector);
+
+  // optional uint32 pool_capacity = 4 [default = 16];
   inline bool has_pool_capacity() const;
   inline void clear_pool_capacity();
-  static const int kPoolCapacityFieldNumber = 3;
+  static const int kPoolCapacityFieldNumber = 4;
   inline ::google::protobuf::uint32 pool_capacity() const;
   inline void set_pool_capacity(::google::protobuf::uint32 value);
 
-  // repeated .dist_clang.proto.Compiler versions = 4;
+  // repeated .dist_clang.proto.Compiler versions = 5;
   inline int versions_size() const;
   inline void clear_versions();
-  static const int kVersionsFieldNumber = 4;
+  static const int kVersionsFieldNumber = 5;
   inline const ::dist_clang::proto::Compiler& versions(int index) const;
   inline ::dist_clang::proto::Compiler* mutable_versions(int index);
   inline ::dist_clang::proto::Compiler* add_versions();
@@ -798,26 +890,26 @@ class Configuration : public ::google::protobuf::Message {
   inline ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Compiler >*
       mutable_versions();
 
-  // optional .dist_clang.proto.Verbosity verbosity = 5;
+  // optional .dist_clang.proto.Verbosity verbosity = 6;
   inline bool has_verbosity() const;
   inline void clear_verbosity();
-  static const int kVerbosityFieldNumber = 5;
+  static const int kVerbosityFieldNumber = 6;
   inline const ::dist_clang::proto::Verbosity& verbosity() const;
   inline ::dist_clang::proto::Verbosity* mutable_verbosity();
   inline ::dist_clang::proto::Verbosity* release_verbosity();
   inline void set_allocated_verbosity(::dist_clang::proto::Verbosity* verbosity);
 
-  // optional uint32 user_id = 6;
+  // optional uint32 user_id = 7;
   inline bool has_user_id() const;
   inline void clear_user_id();
-  static const int kUserIdFieldNumber = 6;
+  static const int kUserIdFieldNumber = 7;
   inline ::google::protobuf::uint32 user_id() const;
   inline void set_user_id(::google::protobuf::uint32 value);
 
-  // optional string config_path = 7;
+  // optional string config_path = 8;
   inline bool has_config_path() const;
   inline void clear_config_path();
-  static const int kConfigPathFieldNumber = 7;
+  static const int kConfigPathFieldNumber = 8;
   inline const ::std::string& config_path() const;
   inline void set_config_path(const ::std::string& value);
   inline void set_config_path(const char* value);
@@ -826,33 +918,33 @@ class Configuration : public ::google::protobuf::Message {
   inline ::std::string* release_config_path();
   inline void set_allocated_config_path(::std::string* config_path);
 
-  // optional .dist_clang.proto.Configuration.Cache cache = 8;
+  // optional .dist_clang.proto.Configuration.Cache cache = 9;
   inline bool has_cache() const;
   inline void clear_cache();
-  static const int kCacheFieldNumber = 8;
+  static const int kCacheFieldNumber = 9;
   inline const ::dist_clang::proto::Configuration_Cache& cache() const;
   inline ::dist_clang::proto::Configuration_Cache* mutable_cache();
   inline ::dist_clang::proto::Configuration_Cache* release_cache();
   inline void set_allocated_cache(::dist_clang::proto::Configuration_Cache* cache);
 
-  // optional uint32 read_timeout = 9 [default = 60];
+  // optional uint32 read_timeout = 10 [default = 60];
   inline bool has_read_timeout() const;
   inline void clear_read_timeout();
-  static const int kReadTimeoutFieldNumber = 9;
+  static const int kReadTimeoutFieldNumber = 10;
   inline ::google::protobuf::uint32 read_timeout() const;
   inline void set_read_timeout(::google::protobuf::uint32 value);
 
-  // optional uint32 send_timeout = 10 [default = 5];
+  // optional uint32 send_timeout = 11 [default = 5];
   inline bool has_send_timeout() const;
   inline void clear_send_timeout();
-  static const int kSendTimeoutFieldNumber = 10;
+  static const int kSendTimeoutFieldNumber = 11;
   inline ::google::protobuf::uint32 send_timeout() const;
   inline void set_send_timeout(::google::protobuf::uint32 value);
 
-  // optional uint32 read_minimum = 11 [default = 32];
+  // optional uint32 read_minimum = 12 [default = 32];
   inline bool has_read_minimum() const;
   inline void clear_read_minimum();
-  static const int kReadMinimumFieldNumber = 11;
+  static const int kReadMinimumFieldNumber = 12;
   inline ::google::protobuf::uint32 read_minimum() const;
   inline void set_read_minimum(::google::protobuf::uint32 value);
 
@@ -862,6 +954,8 @@ class Configuration : public ::google::protobuf::Message {
   inline void clear_has_emitter();
   inline void set_has_absorber();
   inline void clear_has_absorber();
+  inline void set_has_collector();
+  inline void clear_has_collector();
   inline void set_has_pool_capacity();
   inline void clear_has_pool_capacity();
   inline void set_has_verbosity();
@@ -885,6 +979,7 @@ class Configuration : public ::google::protobuf::Message {
   mutable int _cached_size_;
   ::dist_clang::proto::Configuration_Emitter* emitter_;
   ::dist_clang::proto::Configuration_Absorber* absorber_;
+  ::dist_clang::proto::Configuration_Collector* collector_;
   ::google::protobuf::RepeatedPtrField< ::dist_clang::proto::Compiler > versions_;
   ::google::protobuf::uint32 pool_capacity_;
   ::google::protobuf::uint32 user_id_;
@@ -1643,6 +1738,51 @@ inline void Configuration_Absorber::set_allocated_local(::dist_clang::proto::Hos
 
 // -------------------------------------------------------------------
 
+// Configuration_Collector
+
+// required .dist_clang.proto.Host local = 1;
+inline bool Configuration_Collector::has_local() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+inline void Configuration_Collector::set_has_local() {
+  _has_bits_[0] |= 0x00000001u;
+}
+inline void Configuration_Collector::clear_has_local() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+inline void Configuration_Collector::clear_local() {
+  if (local_ != NULL) local_->::dist_clang::proto::Host::Clear();
+  clear_has_local();
+}
+inline const ::dist_clang::proto::Host& Configuration_Collector::local() const {
+  // @@protoc_insertion_point(field_get:dist_clang.proto.Configuration.Collector.local)
+  return local_ != NULL ? *local_ : *default_instance_->local_;
+}
+inline ::dist_clang::proto::Host* Configuration_Collector::mutable_local() {
+  set_has_local();
+  if (local_ == NULL) local_ = new ::dist_clang::proto::Host;
+  // @@protoc_insertion_point(field_mutable:dist_clang.proto.Configuration.Collector.local)
+  return local_;
+}
+inline ::dist_clang::proto::Host* Configuration_Collector::release_local() {
+  clear_has_local();
+  ::dist_clang::proto::Host* temp = local_;
+  local_ = NULL;
+  return temp;
+}
+inline void Configuration_Collector::set_allocated_local(::dist_clang::proto::Host* local) {
+  delete local_;
+  local_ = local;
+  if (local) {
+    set_has_local();
+  } else {
+    clear_has_local();
+  }
+  // @@protoc_insertion_point(field_set_allocated:dist_clang.proto.Configuration.Collector.local)
+}
+
+// -------------------------------------------------------------------
+
 // Configuration
 
 // optional .dist_clang.proto.Configuration.Emitter emitter = 1;
@@ -1727,15 +1867,56 @@ inline void Configuration::set_allocated_absorber(::dist_clang::proto::Configura
   // @@protoc_insertion_point(field_set_allocated:dist_clang.proto.Configuration.absorber)
 }
 
-// optional uint32 pool_capacity = 3 [default = 16];
-inline bool Configuration::has_pool_capacity() const {
+// optional .dist_clang.proto.Configuration.Collector collector = 3;
+inline bool Configuration::has_collector() const {
   return (_has_bits_[0] & 0x00000004u) != 0;
 }
-inline void Configuration::set_has_pool_capacity() {
+inline void Configuration::set_has_collector() {
   _has_bits_[0] |= 0x00000004u;
 }
-inline void Configuration::clear_has_pool_capacity() {
+inline void Configuration::clear_has_collector() {
   _has_bits_[0] &= ~0x00000004u;
+}
+inline void Configuration::clear_collector() {
+  if (collector_ != NULL) collector_->::dist_clang::proto::Configuration_Collector::Clear();
+  clear_has_collector();
+}
+inline const ::dist_clang::proto::Configuration_Collector& Configuration::collector() const {
+  // @@protoc_insertion_point(field_get:dist_clang.proto.Configuration.collector)
+  return collector_ != NULL ? *collector_ : *default_instance_->collector_;
+}
+inline ::dist_clang::proto::Configuration_Collector* Configuration::mutable_collector() {
+  set_has_collector();
+  if (collector_ == NULL) collector_ = new ::dist_clang::proto::Configuration_Collector;
+  // @@protoc_insertion_point(field_mutable:dist_clang.proto.Configuration.collector)
+  return collector_;
+}
+inline ::dist_clang::proto::Configuration_Collector* Configuration::release_collector() {
+  clear_has_collector();
+  ::dist_clang::proto::Configuration_Collector* temp = collector_;
+  collector_ = NULL;
+  return temp;
+}
+inline void Configuration::set_allocated_collector(::dist_clang::proto::Configuration_Collector* collector) {
+  delete collector_;
+  collector_ = collector;
+  if (collector) {
+    set_has_collector();
+  } else {
+    clear_has_collector();
+  }
+  // @@protoc_insertion_point(field_set_allocated:dist_clang.proto.Configuration.collector)
+}
+
+// optional uint32 pool_capacity = 4 [default = 16];
+inline bool Configuration::has_pool_capacity() const {
+  return (_has_bits_[0] & 0x00000008u) != 0;
+}
+inline void Configuration::set_has_pool_capacity() {
+  _has_bits_[0] |= 0x00000008u;
+}
+inline void Configuration::clear_has_pool_capacity() {
+  _has_bits_[0] &= ~0x00000008u;
 }
 inline void Configuration::clear_pool_capacity() {
   pool_capacity_ = 16u;
@@ -1751,7 +1932,7 @@ inline void Configuration::set_pool_capacity(::google::protobuf::uint32 value) {
   // @@protoc_insertion_point(field_set:dist_clang.proto.Configuration.pool_capacity)
 }
 
-// repeated .dist_clang.proto.Compiler versions = 4;
+// repeated .dist_clang.proto.Compiler versions = 5;
 inline int Configuration::versions_size() const {
   return versions_.size();
 }
@@ -1781,15 +1962,15 @@ Configuration::mutable_versions() {
   return &versions_;
 }
 
-// optional .dist_clang.proto.Verbosity verbosity = 5;
+// optional .dist_clang.proto.Verbosity verbosity = 6;
 inline bool Configuration::has_verbosity() const {
-  return (_has_bits_[0] & 0x00000010u) != 0;
+  return (_has_bits_[0] & 0x00000020u) != 0;
 }
 inline void Configuration::set_has_verbosity() {
-  _has_bits_[0] |= 0x00000010u;
+  _has_bits_[0] |= 0x00000020u;
 }
 inline void Configuration::clear_has_verbosity() {
-  _has_bits_[0] &= ~0x00000010u;
+  _has_bits_[0] &= ~0x00000020u;
 }
 inline void Configuration::clear_verbosity() {
   if (verbosity_ != NULL) verbosity_->::dist_clang::proto::Verbosity::Clear();
@@ -1822,15 +2003,15 @@ inline void Configuration::set_allocated_verbosity(::dist_clang::proto::Verbosit
   // @@protoc_insertion_point(field_set_allocated:dist_clang.proto.Configuration.verbosity)
 }
 
-// optional uint32 user_id = 6;
+// optional uint32 user_id = 7;
 inline bool Configuration::has_user_id() const {
-  return (_has_bits_[0] & 0x00000020u) != 0;
+  return (_has_bits_[0] & 0x00000040u) != 0;
 }
 inline void Configuration::set_has_user_id() {
-  _has_bits_[0] |= 0x00000020u;
+  _has_bits_[0] |= 0x00000040u;
 }
 inline void Configuration::clear_has_user_id() {
-  _has_bits_[0] &= ~0x00000020u;
+  _has_bits_[0] &= ~0x00000040u;
 }
 inline void Configuration::clear_user_id() {
   user_id_ = 0u;
@@ -1846,15 +2027,15 @@ inline void Configuration::set_user_id(::google::protobuf::uint32 value) {
   // @@protoc_insertion_point(field_set:dist_clang.proto.Configuration.user_id)
 }
 
-// optional string config_path = 7;
+// optional string config_path = 8;
 inline bool Configuration::has_config_path() const {
-  return (_has_bits_[0] & 0x00000040u) != 0;
+  return (_has_bits_[0] & 0x00000080u) != 0;
 }
 inline void Configuration::set_has_config_path() {
-  _has_bits_[0] |= 0x00000040u;
+  _has_bits_[0] |= 0x00000080u;
 }
 inline void Configuration::clear_has_config_path() {
-  _has_bits_[0] &= ~0x00000040u;
+  _has_bits_[0] &= ~0x00000080u;
 }
 inline void Configuration::clear_config_path() {
   if (config_path_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
@@ -1922,15 +2103,15 @@ inline void Configuration::set_allocated_config_path(::std::string* config_path)
   // @@protoc_insertion_point(field_set_allocated:dist_clang.proto.Configuration.config_path)
 }
 
-// optional .dist_clang.proto.Configuration.Cache cache = 8;
+// optional .dist_clang.proto.Configuration.Cache cache = 9;
 inline bool Configuration::has_cache() const {
-  return (_has_bits_[0] & 0x00000080u) != 0;
+  return (_has_bits_[0] & 0x00000100u) != 0;
 }
 inline void Configuration::set_has_cache() {
-  _has_bits_[0] |= 0x00000080u;
+  _has_bits_[0] |= 0x00000100u;
 }
 inline void Configuration::clear_has_cache() {
-  _has_bits_[0] &= ~0x00000080u;
+  _has_bits_[0] &= ~0x00000100u;
 }
 inline void Configuration::clear_cache() {
   if (cache_ != NULL) cache_->::dist_clang::proto::Configuration_Cache::Clear();
@@ -1963,15 +2144,15 @@ inline void Configuration::set_allocated_cache(::dist_clang::proto::Configuratio
   // @@protoc_insertion_point(field_set_allocated:dist_clang.proto.Configuration.cache)
 }
 
-// optional uint32 read_timeout = 9 [default = 60];
+// optional uint32 read_timeout = 10 [default = 60];
 inline bool Configuration::has_read_timeout() const {
-  return (_has_bits_[0] & 0x00000100u) != 0;
+  return (_has_bits_[0] & 0x00000200u) != 0;
 }
 inline void Configuration::set_has_read_timeout() {
-  _has_bits_[0] |= 0x00000100u;
+  _has_bits_[0] |= 0x00000200u;
 }
 inline void Configuration::clear_has_read_timeout() {
-  _has_bits_[0] &= ~0x00000100u;
+  _has_bits_[0] &= ~0x00000200u;
 }
 inline void Configuration::clear_read_timeout() {
   read_timeout_ = 60u;
@@ -1987,15 +2168,15 @@ inline void Configuration::set_read_timeout(::google::protobuf::uint32 value) {
   // @@protoc_insertion_point(field_set:dist_clang.proto.Configuration.read_timeout)
 }
 
-// optional uint32 send_timeout = 10 [default = 5];
+// optional uint32 send_timeout = 11 [default = 5];
 inline bool Configuration::has_send_timeout() const {
-  return (_has_bits_[0] & 0x00000200u) != 0;
+  return (_has_bits_[0] & 0x00000400u) != 0;
 }
 inline void Configuration::set_has_send_timeout() {
-  _has_bits_[0] |= 0x00000200u;
+  _has_bits_[0] |= 0x00000400u;
 }
 inline void Configuration::clear_has_send_timeout() {
-  _has_bits_[0] &= ~0x00000200u;
+  _has_bits_[0] &= ~0x00000400u;
 }
 inline void Configuration::clear_send_timeout() {
   send_timeout_ = 5u;
@@ -2011,15 +2192,15 @@ inline void Configuration::set_send_timeout(::google::protobuf::uint32 value) {
   // @@protoc_insertion_point(field_set:dist_clang.proto.Configuration.send_timeout)
 }
 
-// optional uint32 read_minimum = 11 [default = 32];
+// optional uint32 read_minimum = 12 [default = 32];
 inline bool Configuration::has_read_minimum() const {
-  return (_has_bits_[0] & 0x00000400u) != 0;
+  return (_has_bits_[0] & 0x00000800u) != 0;
 }
 inline void Configuration::set_has_read_minimum() {
-  _has_bits_[0] |= 0x00000400u;
+  _has_bits_[0] |= 0x00000800u;
 }
 inline void Configuration::clear_has_read_minimum() {
-  _has_bits_[0] &= ~0x00000400u;
+  _has_bits_[0] &= ~0x00000800u;
 }
 inline void Configuration::clear_read_minimum() {
   read_minimum_ = 32u;

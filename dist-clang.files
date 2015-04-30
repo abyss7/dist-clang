@@ -1128,7 +1128,7 @@ src/daemon/absorber.h
 src/daemon/absorber_test.cc
 src/daemon/base_daemon.cc
 src/daemon/base_daemon.h
-src/daemon/base_daemon_test.cc
+src/daemon/compilation_daemon_test.cc
 src/daemon/BUILD.gn
 src/daemon/clangd_main.cc
 src/daemon/common_daemon_test.h
@@ -2533,3 +2533,7 @@ src/client/configuration.proto
 src/base/file/file.h
 src/base/file/file_posix.cc
 src/base/file/file_test.cc
+src/daemon/collector.h
+src/daemon/compilation_daemon.h
+src/daemon/compilation_daemon.cc
+src/daemon/collector.cc
