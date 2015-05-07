@@ -14,8 +14,7 @@ config("no_warnings") {
 
 shared_library("snappy") {
   sources = [
-    "exported/snappy.cc",
-    "exported/snappy.h",
+    host_os + "/snappy-stubs-public.h",
     "exported/snappy-c.cc",
     "exported/snappy-c.h",
     "exported/snappy-internal.h",
@@ -23,10 +22,13 @@ shared_library("snappy") {
     "exported/snappy-sinksource.h",
     "exported/snappy-stubs-internal.cc",
     "exported/snappy-stubs-internal.h",
-    host_os + "/snappy-stubs-public.h",
+    "exported/snappy.cc",
+    "exported/snappy.h",
   ]
 
-  public = [ "exported/snappy.h" ]
+  public = [
+    "exported/snappy.h",
+  ]
 
   configs += [ ":no_warnings" ]
 

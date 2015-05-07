@@ -41,11 +41,8 @@ if (config_for_tests) {
     }
   }
 
-  default_configs += [
-    "//build/config:debug",
-  ]
-}
-else {
+  default_configs += [ "//build/config:debug" ]
+} else {
   default_configs += [
     "//build/config:no_exceptions",
     "//build/config:no_rtti",

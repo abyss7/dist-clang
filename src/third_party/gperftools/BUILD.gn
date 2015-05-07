@@ -137,8 +137,8 @@ source_set("tcmalloc_internal") {
     "exported/src/heap-profile-table.cc",
     "exported/src/heap-profiler.cc",
     "exported/src/internal_logging.cc",
-    "exported/src/malloc_hook.cc",
     "exported/src/malloc_extension.cc",
+    "exported/src/malloc_hook.cc",
     "exported/src/maybe_threads.cc",
     "exported/src/memfs_malloc.cc",
     "exported/src/memory_region_map.cc",
@@ -197,8 +197,8 @@ shared_library("tcmalloc") {
     # ASan contains it's own LeakSanitizer.
     if (!use_asan) {
       sources += [
-        "exported/src/heap-checker.cc",
         "exported/src/heap-checker-bcad.cc",
+        "exported/src/heap-checker.cc",
       ]
     }
   }

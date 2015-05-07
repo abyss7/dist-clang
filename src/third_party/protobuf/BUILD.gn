@@ -1,7 +1,5 @@
 config("includes") {
-  include_dirs = [
-    "exported/src",
-  ]
+  include_dirs = [ "exported/src" ]
 
   # For config.h
   if (host_os == "win") {
@@ -21,9 +19,11 @@ config("warnings") {
   ]
 
   if (host_os == "win") {
-    cflags += [ "-Wno-unknown-pragmas",
-                "-Wno-unused-const-variable",
-                "-Wno-deprecated-declarations" ]
+    cflags += [
+      "-Wno-unknown-pragmas",
+      "-Wno-unused-const-variable",
+      "-Wno-deprecated-declarations",
+    ]
   }
 }
 
@@ -112,11 +112,11 @@ shared_library("protobuf") {
     "exported/src/google/protobuf/reflection_ops.h",
     "exported/src/google/protobuf/service.cc",
     "exported/src/google/protobuf/service.h",
+    "exported/src/google/protobuf/stubs/structurally_valid.cc",
     "exported/src/google/protobuf/stubs/strutil.cc",
     "exported/src/google/protobuf/stubs/strutil.h",
     "exported/src/google/protobuf/stubs/substitute.cc",
     "exported/src/google/protobuf/stubs/substitute.h",
-    "exported/src/google/protobuf/stubs/structurally_valid.cc",
     "exported/src/google/protobuf/text_format.cc",
     "exported/src/google/protobuf/text_format.h",
     "exported/src/google/protobuf/unknown_field_set.cc",
@@ -206,10 +206,10 @@ executable("protoc") {
     "exported/src/google/protobuf/compiler/java/java_name_resolver.h",
     "exported/src/google/protobuf/compiler/java/java_primitive_field.cc",
     "exported/src/google/protobuf/compiler/java/java_primitive_field.h",
-    "exported/src/google/protobuf/compiler/java/java_shared_code_generator.cc",
-    "exported/src/google/protobuf/compiler/java/java_shared_code_generator.h",
     "exported/src/google/protobuf/compiler/java/java_service.cc",
     "exported/src/google/protobuf/compiler/java/java_service.h",
+    "exported/src/google/protobuf/compiler/java/java_shared_code_generator.cc",
+    "exported/src/google/protobuf/compiler/java/java_shared_code_generator.h",
     "exported/src/google/protobuf/compiler/java/java_string_field.cc",
     "exported/src/google/protobuf/compiler/java/java_string_field.h",
     "exported/src/google/protobuf/compiler/main.cc",

@@ -1,7 +1,9 @@
 executable("clangd") {
   visibility = [ "//:All" ]
 
-  sources = [ "clangd_main.cc" ]
+  sources = [
+    "clangd_main.cc",
+  ]
 
   deps += [
     ":configuration",
@@ -65,5 +67,7 @@ shared_library("configuration") {
     "//src/third_party/tclap:tclap",
   ]
 
-  public_deps = [ "//src/proto:proto" ]
+  public_deps = [
+    "//src/proto:proto",
+  ]
 }

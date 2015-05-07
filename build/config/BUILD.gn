@@ -11,9 +11,7 @@ config("base") {
     "-Werror",
   ]
 
-  cflags_cc = [
-    "-std=c++1y",
-  ]
+  cflags_cc = [ "-std=c++1y" ]
 
   include_dirs = [ "//src" ]
 }
@@ -50,7 +48,10 @@ config("release") {
 
   defines = [ "NDEBUG" ]
 
-  ldflags = [ "-rpath", "/usr/lib/dist-clang" ]
+  ldflags = [
+    "-rpath",
+    "/usr/lib/dist-clang",
+  ]
 }
 
 config("no_stdlibs") {
@@ -111,7 +112,7 @@ config("libclang") {
     "clangEdit",
     "clangAST",
     "clangLex",
-    "clangBasic"
+    "clangBasic",
   ]
   libs += llvm_libs
   libs += llvm_system_libs

@@ -8,6 +8,6 @@ config("base") {
     "_CRT_SECURE_NO_WARNINGS",
     "_HAS_CHAR16_T_LANGUAGE_SUPPORT",
     "OS_WIN",
-    "NOMINMAX=1"
+    "NOMINMAX=1",
   ]
 }

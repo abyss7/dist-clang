@@ -1,7 +1,9 @@
 executable("clang") {
   visibility = [ "//:All" ]
 
-  sources = [ "clang_main.cc" ]
+  sources = [
+    "clang_main.cc",
+  ]
 
   deps += [
     ":client",

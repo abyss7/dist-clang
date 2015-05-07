@@ -158,8 +158,10 @@ shared_library("c++") {
 
   if (host_os == "mac") {
     ldflags = [
-      "-compatibility_version", "1.0.0",
-      "-current_version", "1.0.0",
+      "-compatibility_version",
+      "1.0.0",
+      "-current_version",
+      "1.0.0",
     ]
   }
 

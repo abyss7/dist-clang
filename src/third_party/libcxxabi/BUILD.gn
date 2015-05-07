@@ -19,7 +19,7 @@ config("flags") {
     "-fdata-sections",
     "-ffunction-sections",
 
-   # Warnings:
+    # Warnings:
     "-Werror=date-time",
   ]
 
@@ -28,7 +28,7 @@ config("flags") {
     "-fvisibility-inlines-hidden",
     "-pedantic",
 
-   # Warnings:
+    # Warnings:
     "-Werror=return-type",
     "-W",
     "-Wall",
@@ -103,14 +103,18 @@ shared_library("c++abi") {
     "exported/src/typeinfo.cpp",
   ]
 
-  public = [ "exported/include/cxxabi.h" ]
+  public = [
+    "exported/include/cxxabi.h",
+  ]
 
   libs = [ "pthread" ]  # TODO: may be move to "default_library" config?
   if (host_os == "mac") {
     ldflags = exec_script("//build/macosx_sdk_libs.py", [], "list lines")
     ldflags += [
-      "-compatibility_version", "1.0.0",
-      "-current_version", "1.0.0",
+      "-compatibility_version",
+      "1.0.0",
+      "-current_version",
+      "1.0.0",
     ]
     libs += [ "System.framework" ]
   }
@@ -124,7 +128,9 @@ shared_library("c++abi") {
 
   deps = []
   if (host_os == "linux") {
-    deps = [ "//src/third_party/libunwind:unwind" ]
+    deps = [
+      "//src/third_party/libunwind:unwind",
+    ]
   }
 
   public_configs = [ ":includes" ]

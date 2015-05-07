@@ -6,14 +6,6 @@ static_library("gtest") {
   visibility = [ "//src/test/*" ]
 
   sources = [
-    "exported/src/gtest.cc",
-    "exported/src/gtest-death-test.cc",
-    "exported/src/gtest-filepath.cc",
-    "exported/src/gtest-internal-inl.h",
-    "exported/src/gtest-port.cc",
-    "exported/src/gtest-printers.cc",
-    "exported/src/gtest-test-part.cc",
-    "exported/src/gtest-typed-test.cc",
     "exported/include/gtest/internal/gtest-death-test-internal.h",
     "exported/include/gtest/internal/gtest-filepath.h",
     "exported/include/gtest/internal/gtest-internal.h",
@@ -24,6 +16,14 @@ static_library("gtest") {
     "exported/include/gtest/internal/gtest-string.h",
     "exported/include/gtest/internal/gtest-tuple.h",
     "exported/include/gtest/internal/gtest-type-util.h",
+    "exported/src/gtest-death-test.cc",
+    "exported/src/gtest-filepath.cc",
+    "exported/src/gtest-internal-inl.h",
+    "exported/src/gtest-port.cc",
+    "exported/src/gtest-printers.cc",
+    "exported/src/gtest-test-part.cc",
+    "exported/src/gtest-typed-test.cc",
+    "exported/src/gtest.cc",
   ]
 
   public = [

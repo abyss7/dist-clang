@@ -20,15 +20,6 @@ if (host_os == "linux") {
   action("deb_package") {
     script = "//build/deb_package.py"
     sources = [
-      "//build/common_package.include",
-      "//build/deb_changelog.template",
-      "//build/deb_control.template",
-      "//build/expand_env_vars.sh",
-      "//install/clangd.conf",
-      "//install/debian_prerm",
-      "//install/supervisord_service",
-      "//src/daemon/configuration_pb2.py",
-      "//src/proto/base_pb2.py",
       "$root_out_dir/clang",
       "$root_out_dir/clangd",
       "$root_out_dir/libbase.so",
@@ -46,6 +37,16 @@ if (host_os == "linux") {
       "$root_out_dir/libprotobuf.so",
       "$root_out_dir/libsnappy.so",
       "$root_out_dir/libtcmalloc.so",
+      "//build/common_package.include",
+      "//build/deb_changelog.template",
+      "//build/deb_control.template",
+      "//build/expand_env_vars.sh",
+      "//install/clangd.conf",
+      "//install/debian_prerm",
+      "//install/supervisord_service",
+      "//src/daemon/configuration_pb2.py",
+      "//src/proto/base_pb2.py",
+
       # FIXME: source python protobuf files.
     ]
     outputs = [
@@ -129,13 +130,6 @@ if (host_os == "linux") {
   action("rpm_package") {
     script = "//build/rpm_package.py"
     sources = [
-      "//build/common_package.include",
-      "//build/rpm_spec.template",
-      "//build/expand_env_vars.sh",
-      "//install/clangd.conf",
-      "//install/systemd_service",
-      "//src/daemon/configuration_pb2.py",
-      "//src/proto/base_pb2.py",
       "$root_out_dir/clang",
       "$root_out_dir/clangd",
       "$root_out_dir/libbase.so",
@@ -153,6 +147,14 @@ if (host_os == "linux") {
       "$root_out_dir/libprotobuf.so",
       "$root_out_dir/libsnappy.so",
       "$root_out_dir/libtcmalloc.so",
+      "//build/common_package.include",
+      "//build/expand_env_vars.sh",
+      "//build/rpm_spec.template",
+      "//install/clangd.conf",
+      "//install/systemd_service",
+      "//src/daemon/configuration_pb2.py",
+      "//src/proto/base_pb2.py",
+
       # FIXME: source python protobuf files.
     ]
     outputs = [
@@ -232,12 +234,6 @@ if (host_os == "mac") {
   action("pkg_package") {
     script = "//build/pkg_package.py"
     sources = [
-      "//build/common_package.include",
-      "//build/luggage_makefile.template",
-      "//install/clangd.conf",
-      "//install/launchd_service",
-      "//src/daemon/configuration_pb2.py",
-      "//src/proto/base_pb2.py",
       "$root_out_dir/clang",
       "$root_out_dir/clangd",
       "$root_out_dir/libbase.dylib",
@@ -254,6 +250,13 @@ if (host_os == "mac") {
       "$root_out_dir/libproto.dylib",
       "$root_out_dir/libprotobuf.dylib",
       "$root_out_dir/libsnappy.dylib",
+      "//build/common_package.include",
+      "//build/luggage_makefile.template",
+      "//install/clangd.conf",
+      "//install/launchd_service",
+      "//src/daemon/configuration_pb2.py",
+      "//src/proto/base_pb2.py",
+
       # FIXME: source python protobuf files.
     ]
     outputs = [

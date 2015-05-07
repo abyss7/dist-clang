@@ -19,5 +19,7 @@ shared_library("proto") {
     configs -= [ "//build/config:no_rtti" ]
   }
 
-  public_deps = [ "//src/third_party/protobuf:protobuf" ]
+  public_deps = [
+    "//src/third_party/protobuf:protobuf",
+  ]
 }

@@ -1,12 +1,16 @@
 config("base") {
-  defines = [
-    "OS_MACOSX",
-  ]
+  defines = [ "OS_MACOSX" ]
 
-  cflags = [ "-arch", "x86_64", ]
+  cflags = [
+    "-arch",
+    "x86_64",
+  ]
   ldflags = [
-    "-arch", "x86_64",
-    "-rpath", "@loader_path/.",
-    "-undefined", "error",
+    "-arch",
+    "x86_64",
+    "-rpath",
+    "@loader_path/.",
+    "-undefined",
+    "error",
   ]
 }

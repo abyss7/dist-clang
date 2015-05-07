@@ -12,7 +12,9 @@ toolchain("clang") {
     command = "$cc -MMD -MF $depfile {{defines}} {{include_dirs}} {{cflags}} {{cflags_c}} -c {{source}} -o {{output}}"
     depsformat = "gcc"
     description = "CC {{output}}"
-    outputs = [ "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.o" ]
+    outputs = [
+      "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.o",
+    ]
   }
 
   tool("cxx") {
@@ -20,7 +22,9 @@ toolchain("clang") {
     command = "$cxx -MMD -MF $depfile {{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}} -c {{source}} -o {{output}}"
     depsformat = "gcc"
     description = "CXX {{output}}"
-    outputs = [ "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.o" ]
+    outputs = [
+      "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.o",
+    ]
   }
 
   tool("asm") {
@@ -28,7 +32,9 @@ toolchain("clang") {
     command = "$cc -MMD -MF $depfile {{defines}} {{include_dirs}} {{cflags}} {{cflags_c}} -c {{source}} -o {{output}}"
     depsformat = "gcc"
     description = "ASM {{output}}"
-    outputs = [ "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.o" ]
+    outputs = [
+      "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.o",
+    ]
   }
 
   tool("stamp") {
@@ -44,7 +50,9 @@ toolchain("clang") {
   tool("alink") {
     command = "rm -f {{output}} && $ar rcs {{output}} {{inputs}}"
     description = "AR {{output}}"
-    outputs = [ "{{target_out_dir}}/{{target_output_name}}{{output_extension}}" ]
+    outputs = [
+      "{{target_out_dir}}/{{target_output_name}}{{output_extension}}",
+    ]
     default_output_extension = ".a"
     output_prefix = "lib"
   }
@@ -77,6 +85,8 @@ toolchain("clang") {
     outfile = "{{root_out_dir}}/{{target_output_name}}{{output_extension}}"
     command = "$ld {{ldflags}} -o $outfile -Wl,--start-group {{inputs}} {{solibs}} -Wl,--end-group {{libs}}"
     description = "LINK $outfile"
-    outputs = [ outfile ]
+    outputs = [
+      outfile,
+    ]
   }
 }
