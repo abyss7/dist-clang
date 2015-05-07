@@ -10,6 +10,9 @@ class Collector : public BaseDaemon {
   explicit Collector(const proto::Configuration& configuration);
 
   bool Initialize() override;
+
+ private:
+  const proto::Host local_;
 };
 
 }  // namespace daemon
