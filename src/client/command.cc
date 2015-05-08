@@ -207,8 +207,13 @@ void DriverCommand::FillFlags(proto::Flags* flags, const String& clang_path,
       // Use --internal-isystem and --resource_dir based on real Clang path.
       non_cached_list.push_back(arg->getSpelling().data());
 
+      String replaced_command = arg->getValue();
+      if (replaced_command[0] != '/') {
+        replaced_command = base::GetSelfPath() + '/' + replaced_command;
+      }
+
       std::regex path_regex("(" + base::EscapeRegex(base::GetSelfPath()) + ")");
-      auto replaced_command = std::regex_replace(
+      replaced_command = std::regex_replace(
           arg->getValue(), path_regex,
           clang_path.substr(0, clang_path.find_last_of('/')));
 
