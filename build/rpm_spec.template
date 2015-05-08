@@ -12,7 +12,7 @@ Distributed clang-based compilation system.
 
 %files
 %defattr(-,root,root)
-/etc/clangd.conf
+%config /etc/clangd.conf
 /usr/bin/dist-clang/clang
 /usr/bin/dist-clang/clang++
 /usr/bin/dist-clang/clangd

@@ -214,7 +214,7 @@ void DriverCommand::FillFlags(proto::Flags* flags, const String& clang_path,
 
       std::regex path_regex("(" + base::EscapeRegex(base::GetSelfPath()) + ")");
       replaced_command = std::regex_replace(
-          arg->getValue(), path_regex,
+          replaced_command, path_regex,
           clang_path.substr(0, clang_path.find_last_of('/')));
 
       std::regex version_regex("(\\/lib\\/clang\\/\\d+\\.\\d+\\.\\d+)");
