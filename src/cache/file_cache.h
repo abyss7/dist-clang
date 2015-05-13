@@ -7,7 +7,6 @@
 #include <third_party/gtest/exported/include/gtest/gtest_prod.h>
 
 namespace dist_clang {
-
 namespace cache {
 
 FORWARD_TEST(FileCacheTest, DoubleLocks);

@@ -43,6 +43,9 @@ const ::google::protobuf::internal::GeneratedMessageReflection*
 const ::google::protobuf::Descriptor* RemoteResult_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   RemoteResult_reflection_ = NULL;
+const ::google::protobuf::Descriptor* StatReport_descriptor_ = NULL;
+const ::google::protobuf::internal::GeneratedMessageReflection*
+  StatReport_reflection_ = NULL;
 
 }  // namespace
 
@@ -174,6 +177,21 @@ void protobuf_AssignDesc_proto_2fremote_2eproto() {
       ::google::protobuf::DescriptorPool::generated_pool(),
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(RemoteResult));
+  StatReport_descriptor_ = file->message_type(7);
+  static const int StatReport_offsets_[1] = {
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(StatReport, metric_),
+  };
+  StatReport_reflection_ =
+    new ::google::protobuf::internal::GeneratedMessageReflection(
+      StatReport_descriptor_,
+      StatReport::default_instance_,
+      StatReport_offsets_,
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(StatReport, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(StatReport, _unknown_fields_),
+      -1,
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(StatReport));
 }
 
 namespace {
@@ -200,6 +218,8 @@ void protobuf_RegisterTypes(const ::std::string&) {
     RemoteExecute_descriptor_, &RemoteExecute::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
     RemoteResult_descriptor_, &RemoteResult::default_instance());
+  ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
+    StatReport_descriptor_, &StatReport::default_instance());
 }
 
 }  // namespace
@@ -219,6 +239,8 @@ void protobuf_ShutdownFile_proto_2fremote_2eproto() {
   delete RemoteExecute_reflection_;
   delete RemoteResult::default_instance_;
   delete RemoteResult_reflection_;
+  delete StatReport::default_instance_;
+  delete StatReport_reflection_;
 }
 
 void protobuf_AddDesc_proto_2fremote_2eproto() {
@@ -227,37 +249,42 @@ void protobuf_AddDesc_proto_2fremote_2eproto() {
   already_here = true;
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
+  ::dist_clang::perf::proto::protobuf_AddDesc_perf_2fstat_2eproto();
   ::dist_clang::proto::protobuf_AddDesc_proto_2fbase_2eproto();
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-    "\n\022proto/remote.proto\022\020dist_clang.proto\032\020"
-    "proto/base.proto\"\022\n\tUniversal*\005\010\001\020\311\001\"~\n\004"
-    "Test\022\016\n\006field1\030\001 \002(\t\022\016\n\006field2\030\002 \001(\t\022\016\n\006"
-    "field3\030\003 \003(\t2F\n\textension\022\033.dist_clang.p"
-    "roto.Universal\030\001 \001(\0132\026.dist_clang.proto."
-    "Test\"\230\002\n\006Status\022/\n\004code\030\001 \002(\0162\035.dist_cla"
-    "ng.proto.Status.Code:\002OK\022\023\n\013description\030"
-    "\002 \001(\t\"~\n\004Code\022\006\n\002OK\020\000\022\020\n\014INCONSEQUENT\020\001\022"
-    "\013\n\007NETWORK\020\002\022\017\n\013BAD_MESSAGE\020\003\022\021\n\rEMPTY_M"
-    "ESSAGE\020\004\022\r\n\tEXECUTION\020\005\022\014\n\010OVERLOAD\020\006\022\016\n"
-    "\nNO_VERSION\020\0072H\n\textension\022\033.dist_clang."
-    "proto.Universal\030\002 \001(\0132\030.dist_clang.proto"
-    ".Status\"\321\001\n\005Flags\022,\n\010compiler\030\001 \002(\0132\032.di"
-    "st_clang.proto.Compiler\022\016\n\006output\030\002 \001(\t\022"
-    "\r\n\005input\030\003 \001(\t\022\r\n\005other\030\004 \003(\t\022\021\n\tdeps_fi"
-    "le\030\005 \001(\t\022\020\n\010language\030\006 \001(\t\022\022\n\nnon_cached"
-    "\030\007 \003(\t\022\017\n\007cc_only\030\010 \003(\t\022\016\n\006action\030\t \002(\t\022"
-    "\022\n\nnon_direct\030\n \003(\t\"\254\001\n\014LocalExecute\022&\n\005"
-    "flags\030\001 \002(\0132\027.dist_clang.proto.Flags\022\023\n\013"
-    "current_dir\030\002 \002(\t\022\017\n\007user_id\030\003 \001(\r2N\n\tex"
-    "tension\022\033.dist_clang.proto.Universal\030\005 \001"
-    "(\0132\036.dist_clang.proto.LocalExecute\"\230\001\n\rR"
-    "emoteExecute\022&\n\005flags\030\001 \001(\0132\027.dist_clang"
-    ".proto.Flags\022\016\n\006source\030\002 \001(\t2O\n\textensio"
-    "n\022\033.dist_clang.proto.Universal\030\006 \001(\0132\037.d"
-    "ist_clang.proto.RemoteExecute\"y\n\014RemoteR"
-    "esult\022\013\n\003obj\030\001 \002(\014\022\014\n\004deps\030\002 \001(\0142N\n\texte"
-    "nsion\022\033.dist_clang.proto.Universal\030\004 \001(\013"
-    "2\036.dist_clang.proto.RemoteResult", 1152);
+    "\n\022proto/remote.proto\022\020dist_clang.proto\032\017"
+    "perf/stat.proto\032\020proto/base.proto\"\022\n\tUni"
+    "versal*\005\010\001\020\311\001\"~\n\004Test\022\016\n\006field1\030\001 \002(\t\022\016\n"
+    "\006field2\030\002 \001(\t\022\016\n\006field3\030\003 \003(\t2F\n\textensi"
+    "on\022\033.dist_clang.proto.Universal\030\001 \001(\0132\026."
+    "dist_clang.proto.Test\"\230\002\n\006Status\022/\n\004code"
+    "\030\001 \002(\0162\035.dist_clang.proto.Status.Code:\002O"
+    "K\022\023\n\013description\030\002 \001(\t\"~\n\004Code\022\006\n\002OK\020\000\022\020"
+    "\n\014INCONSEQUENT\020\001\022\013\n\007NETWORK\020\002\022\017\n\013BAD_MES"
+    "SAGE\020\003\022\021\n\rEMPTY_MESSAGE\020\004\022\r\n\tEXECUTION\020\005"
+    "\022\014\n\010OVERLOAD\020\006\022\016\n\nNO_VERSION\020\0072H\n\textens"
+    "ion\022\033.dist_clang.proto.Universal\030\002 \001(\0132\030"
+    ".dist_clang.proto.Status\"\321\001\n\005Flags\022,\n\010co"
+    "mpiler\030\001 \002(\0132\032.dist_clang.proto.Compiler"
+    "\022\016\n\006output\030\002 \001(\t\022\r\n\005input\030\003 \001(\t\022\r\n\005other"
+    "\030\004 \003(\t\022\021\n\tdeps_file\030\005 \001(\t\022\020\n\010language\030\006 "
+    "\001(\t\022\022\n\nnon_cached\030\007 \003(\t\022\017\n\007cc_only\030\010 \003(\t"
+    "\022\016\n\006action\030\t \002(\t\022\022\n\nnon_direct\030\n \003(\t\"\254\001\n"
+    "\014LocalExecute\022&\n\005flags\030\001 \002(\0132\027.dist_clan"
+    "g.proto.Flags\022\023\n\013current_dir\030\002 \002(\t\022\017\n\007us"
+    "er_id\030\003 \001(\r2N\n\textension\022\033.dist_clang.pr"
+    "oto.Universal\030\005 \001(\0132\036.dist_clang.proto.L"
+    "ocalExecute\"\230\001\n\rRemoteExecute\022&\n\005flags\030\001"
+    " \001(\0132\027.dist_clang.proto.Flags\022\016\n\006source\030"
+    "\002 \001(\t2O\n\textension\022\033.dist_clang.proto.Un"
+    "iversal\030\006 \001(\0132\037.dist_clang.proto.RemoteE"
+    "xecute\"y\n\014RemoteResult\022\013\n\003obj\030\001 \002(\014\022\014\n\004d"
+    "eps\030\002 \001(\0142N\n\textension\022\033.dist_clang.prot"
+    "o.Universal\030\004 \001(\0132\036.dist_clang.proto.Rem"
+    "oteResult\"\211\001\n\nStatReport\022-\n\006metric\030\001 \003(\013"
+    "2\035.dist_clang.perf.proto.Metric2L\n\texten"
+    "sion\022\033.dist_clang.proto.Universal\030\007 \001(\0132"
+    "\034.dist_clang.proto.StatReport", 1309);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "proto/remote.proto", &protobuf_RegisterTypes);
   Universal::default_instance_ = new Universal();
@@ -267,6 +294,7 @@ void protobuf_AddDesc_proto_2fremote_2eproto() {
   LocalExecute::default_instance_ = new LocalExecute();
   RemoteExecute::default_instance_ = new RemoteExecute();
   RemoteResult::default_instance_ = new RemoteResult();
+  StatReport::default_instance_ = new StatReport();
   Universal::default_instance_->InitAsDefaultInstance();
   Test::default_instance_->InitAsDefaultInstance();
   ::google::protobuf::internal::ExtensionSet::RegisterMessageExtension(
@@ -294,6 +322,11 @@ void protobuf_AddDesc_proto_2fremote_2eproto() {
     &::dist_clang::proto::Universal::default_instance(),
     4, 11, false, false,
     &::dist_clang::proto::RemoteResult::default_instance());
+  StatReport::default_instance_->InitAsDefaultInstance();
+  ::google::protobuf::internal::ExtensionSet::RegisterMessageExtension(
+    &::dist_clang::proto::Universal::default_instance(),
+    7, 11, false, false,
+    &::dist_clang::proto::StatReport::default_instance());
   ::google::protobuf::internal::OnShutdown(&protobuf_ShutdownFile_proto_2fremote_2eproto);
 }
 
@@ -2840,6 +2873,232 @@ void RemoteResult::Swap(RemoteResult* other) {
   ::google::protobuf::Metadata metadata;
   metadata.descriptor = RemoteResult_descriptor_;
   metadata.reflection = RemoteResult_reflection_;
+  return metadata;
+}
+
+
+// ===================================================================
+
+#ifndef _MSC_VER
+const int StatReport::kMetricFieldNumber;
+#endif  // !_MSC_VER
+
+#ifndef _MSC_VER
+const int StatReport::kExtensionFieldNumber;
+#endif
+::google::protobuf::internal::ExtensionIdentifier< ::dist_clang::proto::Universal,
+    ::google::protobuf::internal::MessageTypeTraits< ::dist_clang::proto::StatReport >, 11, false >
+  StatReport::extension(kExtensionFieldNumber, ::dist_clang::proto::StatReport::default_instance());
+StatReport::StatReport()
+  : ::google::protobuf::Message() {
+  SharedCtor();
+  // @@protoc_insertion_point(constructor:dist_clang.proto.StatReport)
+}
+
+void StatReport::InitAsDefaultInstance() {
+}
+
+StatReport::StatReport(const StatReport& from)
+  : ::google::protobuf::Message() {
+  SharedCtor();
+  MergeFrom(from);
+  // @@protoc_insertion_point(copy_constructor:dist_clang.proto.StatReport)
+}
+
+void StatReport::SharedCtor() {
+  _cached_size_ = 0;
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+}
+
+StatReport::~StatReport() {
+  // @@protoc_insertion_point(destructor:dist_clang.proto.StatReport)
+  SharedDtor();
+}
+
+void StatReport::SharedDtor() {
+  if (this != default_instance_) {
+  }
+}
+
+void StatReport::SetCachedSize(int size) const {
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+}
+const ::google::protobuf::Descriptor* StatReport::descriptor() {
+  protobuf_AssignDescriptorsOnce();
+  return StatReport_descriptor_;
+}
+
+const StatReport& StatReport::default_instance() {
+  if (default_instance_ == NULL) protobuf_AddDesc_proto_2fremote_2eproto();
+  return *default_instance_;
+}
+
+StatReport* StatReport::default_instance_ = NULL;
+
+StatReport* StatReport::New() const {
+  return new StatReport;
+}
+
+void StatReport::Clear() {
+  metric_.Clear();
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+  mutable_unknown_fields()->Clear();
+}
+
+bool StatReport::MergePartialFromCodedStream(
+    ::google::protobuf::io::CodedInputStream* input) {
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
+  ::google::protobuf::uint32 tag;
+  // @@protoc_insertion_point(parse_start:dist_clang.proto.StatReport)
+  for (;;) {
+    ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
+    tag = p.first;
+    if (!p.second) goto handle_unusual;
+    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
+      // repeated .dist_clang.perf.proto.Metric metric = 1;
+      case 1: {
+        if (tag == 10) {
+         parse_metric:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
+                input, add_metric()));
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(10)) goto parse_metric;
+        if (input->ExpectAtEnd()) goto success;
+        break;
+      }
+
+      default: {
+      handle_unusual:
+        if (tag == 0 ||
+            ::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
+          goto success;
+        }
+        DO_(::google::protobuf::internal::WireFormat::SkipField(
+              input, tag, mutable_unknown_fields()));
+        break;
+      }
+    }
+  }
+success:
+  // @@protoc_insertion_point(parse_success:dist_clang.proto.StatReport)
+  return true;
+failure:
+  // @@protoc_insertion_point(parse_failure:dist_clang.proto.StatReport)
+  return false;
+#undef DO_
+}
+
+void StatReport::SerializeWithCachedSizes(
+    ::google::protobuf::io::CodedOutputStream* output) const {
+  // @@protoc_insertion_point(serialize_start:dist_clang.proto.StatReport)
+  // repeated .dist_clang.perf.proto.Metric metric = 1;
+  for (int i = 0; i < this->metric_size(); i++) {
+    ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
+      1, this->metric(i), output);
+  }
+
+  if (!unknown_fields().empty()) {
+    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
+        unknown_fields(), output);
+  }
+  // @@protoc_insertion_point(serialize_end:dist_clang.proto.StatReport)
+}
+
+::google::protobuf::uint8* StatReport::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
+  // @@protoc_insertion_point(serialize_to_array_start:dist_clang.proto.StatReport)
+  // repeated .dist_clang.perf.proto.Metric metric = 1;
+  for (int i = 0; i < this->metric_size(); i++) {
+    target = ::google::protobuf::internal::WireFormatLite::
+      WriteMessageNoVirtualToArray(
+        1, this->metric(i), target);
+  }
+
+  if (!unknown_fields().empty()) {
+    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
+        unknown_fields(), target);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:dist_clang.proto.StatReport)
+  return target;
+}
+
+int StatReport::ByteSize() const {
+  int total_size = 0;
+
+  // repeated .dist_clang.perf.proto.Metric metric = 1;
+  total_size += 1 * this->metric_size();
+  for (int i = 0; i < this->metric_size(); i++) {
+    total_size +=
+      ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+        this->metric(i));
+  }
+
+  if (!unknown_fields().empty()) {
+    total_size +=
+      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
+        unknown_fields());
+  }
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = total_size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+  return total_size;
+}
+
+void StatReport::MergeFrom(const ::google::protobuf::Message& from) {
+  GOOGLE_CHECK_NE(&from, this);
+  const StatReport* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const StatReport*>(
+      &from);
+  if (source == NULL) {
+    ::google::protobuf::internal::ReflectionOps::Merge(from, this);
+  } else {
+    MergeFrom(*source);
+  }
+}
+
+void StatReport::MergeFrom(const StatReport& from) {
+  GOOGLE_CHECK_NE(&from, this);
+  metric_.MergeFrom(from.metric_);
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
+}
+
+void StatReport::CopyFrom(const ::google::protobuf::Message& from) {
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+void StatReport::CopyFrom(const StatReport& from) {
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool StatReport::IsInitialized() const {
+
+  if (!::google::protobuf::internal::AllAreInitialized(this->metric())) return false;
+  return true;
+}
+
+void StatReport::Swap(StatReport* other) {
+  if (other != this) {
+    metric_.Swap(&other->metric_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
+}
+
+::google::protobuf::Metadata StatReport::GetMetadata() const {
+  protobuf_AssignDescriptorsOnce();
+  ::google::protobuf::Metadata metadata;
+  metadata.descriptor = StatReport_descriptor_;
+  metadata.reflection = StatReport_reflection_;
   return metadata;
 }
 

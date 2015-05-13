@@ -18,6 +18,7 @@ executable("unit_tests") {
     "//src/client/clang_test.cc",
     "//src/client/command_test.cc",
     "//src/daemon/absorber_test.cc",
+    "//src/daemon/collector_test.cc",
     "//src/daemon/common_daemon_test.h",
     "//src/daemon/compilation_daemon_test.cc",
     "//src/daemon/emitter_test.cc",
@@ -28,6 +29,7 @@ executable("unit_tests") {
     "//src/net/test_end_point_resolver.h",
     "//src/net/test_network_service.cc",
     "//src/net/test_network_service.h",
+    "//src/perf/stat_service_test.cc",
     "run_all_tests.cc",
   ]
 
@@ -42,6 +44,7 @@ executable("unit_tests") {
     "//src/daemon:configuration",
     "//src/daemon:daemon",
     "//src/net:net",
+    "//src/perf:stat_service",
     "//src/proto:proto",
     "//src/third_party/gtest:gtest",
     "//src/third_party/protobuf:protobuf",

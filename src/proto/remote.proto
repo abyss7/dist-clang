@@ -1,3 +1,4 @@
+import "perf/stat.proto";
 import "proto/base.proto";
 
 // It's not possible to optimize for LITE_RUNTIME, since the configuration uses
@@ -85,4 +86,12 @@ message RemoteResult {
   }
 }
 
-// Last unused extension index: 7.
+message StatReport {
+  repeated dist_clang.perf.proto.Metric metric = 1;
+
+  extend Universal {
+    optional StatReport extension = 7;
+  }
+}
+
+// Last unused extension index: 8.

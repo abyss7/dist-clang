@@ -10,3 +10,37 @@ shared_library("counter") {
     "//src/base:logging",
   ]
 }
+
+shared_library("stat_service") {
+  sources = [
+    "stat_service.cc",
+    "stat_service.h",
+  ]
+
+  deps += [
+    ":proto",
+    "//src/base:base",
+  ]
+
+  allow_circular_includes_from = [
+    "//src/base:base",
+  ]
+}
+
+static_library("proto") {
+  output_name = "stat_proto"
+
+  visibility = [ ":*", "//src/proto:proto" ]
+
+  sources = [
+    "stat.pb.cc",
+    "stat.pb.h",
+    "stat_proto",
+  ]
+
+  if (!config_for_tests) {
+    configs -= [ "//build/config:no_rtti" ]
+  }
+
+  public_deps = [ "//src/third_party/protobuf:protobuf" ]
+}

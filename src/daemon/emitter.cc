@@ -5,6 +5,7 @@
 #include <base/process.h>
 #include <net/connection.h>
 #include <net/end_point.h>
+#include <perf/stat_service.h>
 
 #include <base/using_log.h>
 
@@ -221,8 +222,11 @@ void Emitter::DoCheckCache(const Atomic<bool>& is_shutting_down) {
 
     if (SearchDirectCache(incoming->flags(), incoming->current_dir(), &entry) &&
         RestoreFromCache(HandledSource())) {
+      STAT(DIRECT_CACHE_HIT);
       continue;
     }
+
+    STAT(DIRECT_CACHE_MISS);
 
     // Check that we have a compiler of a requested version.
     proto::Status status;
@@ -239,8 +243,11 @@ void Emitter::DoCheckCache(const Atomic<bool>& is_shutting_down) {
 
     if (SearchSimpleCache(incoming->flags(), source, &entry) &&
         RestoreFromCache(source)) {
+      STAT(SIMPLE_CACHE_HIT);
       continue;
     }
+
+    STAT(SIMPLE_CACHE_MISS);
 
     all_tasks_->Push(std::move(*task));
   }

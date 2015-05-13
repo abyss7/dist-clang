@@ -7,7 +7,7 @@
 namespace dist_clang {
 namespace daemon {
 
-TEST(BaseDaemonTest, CreateProcessFromFlags) {
+TEST(CompilationDaemonTest, CreateProcessFromFlags) {
   const List<Literal> expected_args = {
       "-cc1"_l, "-emit-obj"_l, "-I."_l, "-load"_l, "/usr/lib/libplugin.so"_l,
       "-dependency-file"_l, "some_deps_file"_l, "-x"_l, "c++"_l, "-o"_l,

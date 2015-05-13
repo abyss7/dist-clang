@@ -2537,3 +2537,12 @@ src/daemon/collector.h
 src/daemon/compilation_daemon.h
 src/daemon/compilation_daemon.cc
 src/daemon/collector.cc
+src/base/singleton.cc
+src/base/singleton.h
+src/perf/stat_service.h
+src/perf/stat.proto
+src/perf/stat.pb.cc
+src/perf/stat.pb.h
+src/perf/stat_service.cc
+src/daemon/collector_test.cc
+src/perf/stat_service_test.cc

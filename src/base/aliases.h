@@ -3,6 +3,7 @@
 #include <base/stl_include.h>
 
 #if !defined(QT_CREATOR)
+#include STL(array)
 #include STL(atomic)
 #include STL(cstdint)
 #include STL(functional)
@@ -15,6 +16,7 @@
 #include STL(unordered_set)
 #include STL(vector)
 #else
+#include <third_party/libcxx/exported/include/array>
 #include <third_party/libcxx/exported/include/atomic>
 #include <third_party/libcxx/exported/include/cstdint>
 #include <third_party/libcxx/exported/include/functional>
@@ -50,6 +52,9 @@ using ui32 = uint32_t;
 using i64 = int64_t;
 using ui64 = uint64_t;
 
+template <class T, size_t S>
+using Array = std::array<T, S>;
+
 template <class T>
 using Atomic = std::atomic<T>;
 
@@ -70,6 +75,8 @@ template <class T>
 using List = std::list<T>;
 
 using Literal = base::Literal;
+
+using Mutex = std::mutex;
 
 template <class U, class V = U>
 using Pair = std::pair<U, V>;

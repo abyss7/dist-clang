@@ -21,7 +21,8 @@ FORWARD_TEST(ClientTest, SendPluginPath);
 
 namespace daemon {
 FORWARD_TEST(AbsorberTest, StoreLocalCache);
-FORWARD_TEST(BaseDaemonTest, CreateProcessFromFlags);
+FORWARD_TEST(CollectorTest, SimpleReport);
+FORWARD_TEST(CompilationDaemonTest, CreateProcessFromFlags);
 FORWARD_TEST(EmitterTest, LocalMessageWithPluginPath);
 FORWARD_TEST(EmitterTest, LocalSuccessfulCompilation);
 FORWARD_TEST(EmitterTest, StoreCacheForLocalResult);
@@ -82,7 +83,8 @@ class Process
   FRIEND_TEST(client::ClientTest, FailedCompilation);
   FRIEND_TEST(client::ClientTest, SendPluginPath);
   FRIEND_TEST(daemon::AbsorberTest, StoreLocalCache);
-  FRIEND_TEST(daemon::BaseDaemonTest, CreateProcessFromFlags);
+  FRIEND_TEST(daemon::CollectorTest, SimpleReport);
+  FRIEND_TEST(daemon::CompilationDaemonTest, CreateProcessFromFlags);
   FRIEND_TEST(daemon::EmitterTest, LocalMessageWithPluginPath);
   FRIEND_TEST(daemon::EmitterTest, LocalSuccessfulCompilation);
   FRIEND_TEST(daemon::EmitterTest, StoreCacheForLocalResult);

@@ -1,6 +1,9 @@
 #include <daemon/collector.h>
 
+#include <base/assert.h>
 #include <base/logging.h>
+#include <net/connection_impl.h>
+#include <perf/stat_service.h>
 
 #include <base/using_log.h>
 
@@ -21,6 +24,36 @@ bool Collector::Initialize() {
   }
 
   return BaseDaemon::Initialize();
+}
+
+bool Collector::HandleNewMessage(net::ConnectionPtr connection,
+                                 Universal message,
+                                 const proto::Status& status) {
+  if (!message->IsInitialized()) {
+    LOG(INFO) << message->InitializationErrorString();
+    return false;
+  }
+
+  if (status.code() != proto::Status::OK) {
+    LOG(ERROR) << status.description();
+    return connection->ReportStatus(status);
+  }
+
+  if (message->HasExtension(proto::StatReport::extension)) {
+    UniquePtr<proto::StatReport> report(
+        message->ReleaseExtension(proto::StatReport::extension));
+    for (auto& metric : *report->mutable_metric()) {
+      base::Singleton<perf::StatService>::Get().Dump(metric);
+    }
+    if (!connection->SendSync(std::move(report))) {
+      LOG(WARNING) << "Failed to send report message!";
+    }
+
+    return true;
+  }
+
+  NOTREACHED();
+  return false;
 }
 
 }  // namespace daemon

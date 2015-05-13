@@ -50,11 +50,12 @@ message Configuration {
     required Host local = 1;
   }
 
+  // FIXME: use new protobuf feature "anyof" for emitter and absorber.
   optional Emitter emitter      = 1;
   optional Absorber absorber    = 2;
   optional Collector collector  = 3;
   optional uint32 pool_capacity = 4  [ default = 16 ];  // 0 - is unlimited.
-  repeated Compiler versions    = 5;
+  repeated dist_clang.proto.Compiler versions = 5;
   optional Verbosity verbosity  = 6;
   optional uint32 user_id       = 7;
   optional string config_path   = 8;  // allows reloading of config changes.
