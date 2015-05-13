@@ -56,7 +56,7 @@ int main(int argc, char* argv[]) {
     collector.reset(new daemon::Collector(configuration.config()));
   }
 
-  if (!collector->Initialize()) {
+  if (collector && !collector->Initialize()) {
     LOG(FATAL) << "Collector failed to initialize.";
   }
 
