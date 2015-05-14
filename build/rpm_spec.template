@@ -30,10 +30,14 @@ Distributed clang-based compilation system.
 /usr/lib/dist-clang/libproto.so
 /usr/lib/dist-clang/libprotobuf.so
 /usr/lib/dist-clang/libsnappy.so
+/usr/lib/dist-clang/libstat_service.so
 /usr/lib/dist-clang/libtcmalloc.so
 /usr/lib/python2.7/dist_clang/__init__.py
+/usr/lib/python2.7/dist_clang/perf/__init__.py
+/usr/lib/python2.7/dist_clang/perf/stat_pb2.py
 /usr/lib/python2.7/dist_clang/proto/__init__.py
 /usr/lib/python2.7/dist_clang/proto/base_pb2.py
+/usr/lib/python2.7/dist_clang/proto/remote_pb2.py
 /usr/lib/python2.7/dist_clang/daemon/__init__.py
 /usr/lib/python2.7/dist_clang/daemon/configuration_pb2.py
 /usr/lib/python2.7/dist_clang/google/__init__.py
