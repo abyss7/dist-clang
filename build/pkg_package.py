@@ -14,16 +14,19 @@ MakeInstall(top_dir, product_dir, "pkg")
 # PKG specific install.
 launchd_dir = os.path.join(product_dir, "pkg", "Library", "LaunchDaemons")
 os.makedirs(launchd_dir)
-shutil.copy(os.path.join(top_dir, "install", "launchd_service"), os.path.join(launchd_dir, "ru.yandex.clangd.plist"))
+shutil.copy(os.path.join(top_dir, "install", "launchd_service"),
+            os.path.join(launchd_dir, "ru.yandex.clangd.plist"))
 
 # Check plist with linter.
-subprocess.call(['plutil', '-lint', os.path.join(launchd_dir, "ru.yandex.clangd.plist")])
+subprocess.call(
+    ['plutil', '-lint', os.path.join(launchd_dir, "ru.yandex.clangd.plist")])
 
 # Create makefile
-shutil.copy(os.path.join(top_dir, "build", "luggage_makefile.template"), os.path.join(product_dir, "Makefile"))
+shutil.copy(os.path.join(top_dir, "build", "luggage_makefile.template"),
+            os.path.join(product_dir, "Makefile"))
 
 # Create .pkg file.
-args = [ "make", "pkg" ]
+args = ["make", "pkg"]
 env = os.environ.copy()
 env.update({'VERSION': version, 'PROD_DIR': product_dir})
-subprocess.Popen(args, env = env).wait()
+subprocess.Popen(args, env=env).wait()

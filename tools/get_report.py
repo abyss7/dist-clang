@@ -20,9 +20,9 @@ def varint_decode(buf):
     result = 0
     i = 0
     while ord(buf[i]) > 0x7f:
-        result += (ord(buf[i]) & 0x7f) << 7*i
+        result += (ord(buf[i]) & 0x7f) << 7 * i
         i += 1
-    result += ord(buf[i]) << 7*i
+    result += ord(buf[i]) << 7 * i
     i += 1
     return result, buf[i:]
 
@@ -32,11 +32,12 @@ def get_message(sock, msgtype):
     buf = ''
     while True:
         buf = sock.recv(1024)
-        if not buf: break
+        if not buf:
+            break
         data += buf
     msg_buf = zlib.decompress(data)
     packed_len, msg_buf = varint_decode(msg_buf)
-                            
+
     msg = msgtype()
     msg.ParseFromString(msg_buf)
     return msg
@@ -60,7 +61,7 @@ def Main(args):
     print text_format.MessageToString(m)
 
     s.close()
-    
+
 
 if __name__ == '__main__':
     Main(sys.argv[1:])
