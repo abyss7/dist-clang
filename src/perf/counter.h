@@ -19,7 +19,11 @@ class Counter final {
   template <class... Args>
   Counter(Args... args)
       : reporter_(new T(args...)), id_(next_id()) {}
-  ~Counter() { reporter_->Report(start_, Clock::now()); }
+  ~Counter() {
+    if (report_on_destroy_) {
+      reporter_->Report(start_, Clock::now());
+    }
+  }
 
   Counter(const Counter&) = delete;
 
