@@ -13,7 +13,7 @@ class Reporter {
   virtual void Report(const TimePoint& start, const TimePoint& end) const = 0;
 };
 
-template <class T>
+template <class T, bool ReportByDefault = true>
 class Counter final {
  public:
   template <class... Args>
@@ -24,6 +24,7 @@ class Counter final {
   Counter(const Counter&) = delete;
 
   inline ui64 Id() const { return id_; }
+  inline void ReportOnDestroy(bool report) { report_on_destroy_ = report; }
 
  private:
   static ui64 next_id() {
@@ -34,6 +35,7 @@ class Counter final {
   UniquePtr<Reporter> reporter_;
   const TimePoint start_ = Clock::now();
   const ui64 id_;
+  bool report_on_destroy_ = ReportByDefault;
 };
 
 }  // namespace perf

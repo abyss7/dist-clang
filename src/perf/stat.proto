@@ -2,10 +2,13 @@ package dist_clang.perf.proto;
 
 message Metric {
   enum Name {
-    DIRECT_CACHE_HIT  = 1;
-    DIRECT_CACHE_MISS = 2;
-    SIMPLE_CACHE_HIT  = 3;
-    SIMPLE_CACHE_MISS = 4;
+    DIRECT_CACHE_HIT   = 1;
+    DIRECT_CACHE_MISS  = 2;
+    SIMPLE_CACHE_HIT   = 3;
+    SIMPLE_CACHE_MISS  = 4;
+    REMOTE_TIME_WASTED = 5;  // in milliseconds.
+    REMOTE_TASK_DONE   = 6;
+    LOCAL_TASK_DONE    = 7;
   }
 
   required Name name    = 1;

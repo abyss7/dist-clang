@@ -5,6 +5,8 @@
 #include <base/process.h>
 #include <net/connection.h>
 #include <net/end_point.h>
+#include <perf/counter.h>
+#include <perf/stat_reporter.h>
 #include <perf/stat_service.h>
 
 #include <base/using_log.h>
@@ -308,6 +310,8 @@ void Emitter::DoLocalExecute(const Atomic<bool>& is_shutting_down) {
           UpdateDirectCache(incoming, source, entry);
         }
       }
+
+      STAT(LOCAL_TASK_DONE)
     }
 
     std::get<CONNECTION>(*task)->ReportStatus(status);
@@ -392,14 +396,18 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
     flags->clear_non_cached();
     flags->clear_deps_file();
 
+    perf::Counter<perf::StatReporter, false> counter(
+        perf::proto::Metric::REMOTE_TIME_WASTED);
     if (!connection->SendSync(std::move(outgoing))) {
       all_tasks_->Push(std::move(*task));
+      counter.ReportOnDestroy(true);
       continue;
     }
 
     Universal reply(new proto::Universal);
     if (!connection->ReadSync(reply.get())) {
       all_tasks_->Push(std::move(*task));
+      counter.ReportOnDestroy(true);
       continue;
     }
 
@@ -409,6 +417,7 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
         LOG(WARNING) << "Remote compilation failed with error(s):" << std::endl
                      << status.description();
         failed_tasks_->Push(std::move(*task));
+        counter.ReportOnDestroy(true);
         continue;
       }
     }
@@ -454,6 +463,7 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
         }
 
         std::get<CONNECTION>(*task)->ReportStatus(status);
+        STAT(REMOTE_TASK_DONE)
         continue;
       }
     } else {
@@ -464,6 +474,7 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
     // In case this task has crashed the remote end, we will try only local
     // compilation next time.
     failed_tasks_->Push(std::move(*task));
+    counter.ReportOnDestroy(true);
   }
 }
 

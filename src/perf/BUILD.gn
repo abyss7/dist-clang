@@ -3,9 +3,12 @@ shared_library("counter") {
     "counter.h",
     "log_reporter.cc",
     "log_reporter.h",
+    "stat_reporter.cc",
+    "stat_reporter.h",
   ]
 
   deps += [
+    ":stat_service",
     "//src/base:base",
     "//src/base:logging",
   ]

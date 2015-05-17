@@ -18,7 +18,7 @@ _sym_db = _symbol_database.Default()
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='perf/stat.proto',
   package='dist_clang.perf.proto',
-  serialized_pb=_b('\n\x0fperf/stat.proto\x12\x15\x64ist_clang.perf.proto\"\xab\x01\n\x06Metric\x12\x30\n\x04name\x18\x01 \x02(\x0e\x32\".dist_clang.perf.proto.Metric.Name\x12\r\n\x05value\x18\x02 \x01(\x04\"`\n\x04Name\x12\x14\n\x10\x44IRECT_CACHE_HIT\x10\x01\x12\x15\n\x11\x44IRECT_CACHE_MISS\x10\x02\x12\x14\n\x10SIMPLE_CACHE_HIT\x10\x03\x12\x15\n\x11SIMPLE_CACHE_MISS\x10\x04')
+  serialized_pb=_b('\n\x0fperf/stat.proto\x12\x15\x64ist_clang.perf.proto\"\xef\x01\n\x06Metric\x12\x30\n\x04name\x18\x01 \x02(\x0e\x32\".dist_clang.perf.proto.Metric.Name\x12\r\n\x05value\x18\x02 \x01(\x04\"\xa3\x01\n\x04Name\x12\x14\n\x10\x44IRECT_CACHE_HIT\x10\x01\x12\x15\n\x11\x44IRECT_CACHE_MISS\x10\x02\x12\x14\n\x10SIMPLE_CACHE_HIT\x10\x03\x12\x15\n\x11SIMPLE_CACHE_MISS\x10\x04\x12\x16\n\x12REMOTE_TIME_WASTED\x10\x05\x12\x14\n\x10REMOTE_TASK_DONE\x10\x06\x12\x13\n\x0fLOCAL_TASK_DONE\x10\x07')
 )
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
@@ -46,11 +46,23 @@ _METRIC_NAME = _descriptor.EnumDescriptor(
       name='SIMPLE_CACHE_MISS', index=3, number=4,
       options=None,
       type=None),
+    _descriptor.EnumValueDescriptor(
+      name='REMOTE_TIME_WASTED', index=4, number=5,
+      options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='REMOTE_TASK_DONE', index=5, number=6,
+      options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='LOCAL_TASK_DONE', index=6, number=7,
+      options=None,
+      type=None),
   ],
   containing_type=None,
   options=None,
-  serialized_start=118,
-  serialized_end=214,
+  serialized_start=119,
+  serialized_end=282,
 )
 _sym_db.RegisterEnumDescriptor(_METRIC_NAME)
 
@@ -89,7 +101,7 @@ _METRIC = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=43,
-  serialized_end=214,
+  serialized_end=282,
 )
 
 _METRIC.fields_by_name['name'].enum_type = _METRIC_NAME

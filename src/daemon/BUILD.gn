@@ -38,6 +38,7 @@ source_set("daemon") {
     "//src/base:logging",
     "//src/cache:file_cache",
     "//src/net:net",
+    "//src/perf:counter",
     "//src/perf:stat_service",
     "//src/proto:proto",
     "//src/third_party/protobuf:protobuf",
