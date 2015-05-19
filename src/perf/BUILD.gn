@@ -25,6 +25,10 @@ shared_library("stat_service") {
     "//src/base:base",
   ]
 
+  public_deps = [
+    "//src/third_party/protobuf:protobuf",
+  ]
+
   allow_circular_includes_from = [ "//src/base:base" ]
 }
 
