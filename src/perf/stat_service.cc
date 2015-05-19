@@ -3,6 +3,9 @@
 #include <base/assert.h>
 
 namespace dist_clang {
+
+DEFINE_SINGLETON(perf::StatService)
+
 namespace perf {
 
 StatService::StatService() {

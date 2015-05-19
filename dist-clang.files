@@ -1094,7 +1094,6 @@ src/base/process_impl_mac.cc
 src/base/process_test.cc
 src/base/queue_aggregator.h
 src/base/queue_aggregator_test.cc
-src/base/singleton.cc
 src/base/singleton.h
 src/base/stl_include.h
 src/base/string_utils.h
