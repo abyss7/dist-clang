@@ -57,6 +57,7 @@ class FileCache {
   explicit FileCache(const String& path);
 
   bool Run(ui64 clean_period);
+  // |clean_period| is in seconds.
 
   static cache::string::HandledHash Hash(
       cache::string::HandledSource code,
@@ -141,6 +142,7 @@ class FileCache {
                const List<String>& headers,
                const cache::string::HandledHash& hash);
   void Clean(ui32 period, const Atomic<bool>& is_shutting_down);
+  // |period| is in seconds.
 
   inline bool RemoveEntry(const String& manifest_path) {
     ui64 ignored = -1;

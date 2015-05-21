@@ -18,6 +18,7 @@ class Database {
 
   bool Set(const String& key, Immutable value) THREAD_SAFE;
   bool Get(const String& key, Immutable* value) const THREAD_SAFE;
+  bool Delete(const String& key) THREAD_SAFE;
 
   inline ui64 SizeOnDisk() const { return base::CalculateDirectorySize(path_); }
 

@@ -79,5 +79,26 @@ bool Database::Get(const String& key, Immutable* value) const {
   return true;
 }
 
+bool Database::Delete(const String& key) {
+  using namespace leveldb;
+
+  WriteOptions options;
+  options.sync = true;
+
+  if (!db_) {
+    return false;
+  }
+
+  Status status = db_->Delete(options, key);
+  if (!status.ok()) {
+    LOG(DB_ERROR) << "Failed to delete " << key
+                  << " with error: " << status.ToString();
+    return false;
+  }
+
+  LOG(DB_VERBOSE) << "Database delete " << key;
+  return true;
+}
+
 }  // namespace cache
 }  // namespace dist_clang

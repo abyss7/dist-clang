@@ -52,9 +52,10 @@ bool FileCache::Run(ui64 clean_period) {
   database_.reset(new Database(path_, "direct"));
 
   CHECK(clean_period > 0);
-  using namespace std::placeholders;
   base::WorkerPool::SimpleWorker worker =
-      std::bind(&FileCache::Clean, this, clean_period, _1);
+      [this, clean_period](const Atomic<bool>& is_shutting_down) {
+        Clean(clean_period, is_shutting_down);
+      };
   cleanup_.AddWorker(worker);
 
   return true;
@@ -73,10 +74,11 @@ HandledHash FileCache::Hash(HandledSource code, CommandLine command_line,
 // static
 UnhandledHash FileCache::Hash(UnhandledSource code, CommandLine command_line,
                               Version version) {
-  return UnhandledHash(base::Hexify(code.str.Hash()) + "-" +
-                       base::Hexify(command_line.str.Hash(4)) + "-" +
-                       base::Hexify((version.str + "\n"_l +
-                                     clang::getClangFullVersion()).Hash(4)));
+  return UnhandledHash(
+      base::Hexify(code.str.Hash()) + "-" +
+      base::Hexify(command_line.str.Hash(4)) + "-" +
+      base::Hexify(
+          (version.str + "\n"_l + clang::getClangFullVersion()).Hash(4)));
 }
 
 bool FileCache::Find(const HandledSource& code, const CommandLine& command_line,
