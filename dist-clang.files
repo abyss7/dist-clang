@@ -1080,6 +1080,8 @@ src/base/file_utils_posix.cc
 src/base/file_utils_test.cc
 src/base/future.h
 src/base/future_test.cc
+src/base/locked_list.h
+src/base/locked_list_test.cc
 src/base/locked_queue.h
 src/base/locked_queue_test.cc
 src/base/logging.cc
