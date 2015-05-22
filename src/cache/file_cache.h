@@ -132,7 +132,7 @@ class FileCache {
   }
   inline String CommonPath(Immutable hash) const {
     DCHECK(hash.size() > 2);
-    return SecondPath(hash) + "/" + hash.string_copy().substr(2);
+    return SecondPath(hash) + "/" + hash.string_copy();
   }
 
   bool FindByHash(const cache::string::HandledHash& hash, Entry* entry) const;
