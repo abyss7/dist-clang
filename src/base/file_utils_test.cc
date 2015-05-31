@@ -62,11 +62,10 @@ TEST(FileUtilsTest, LeastRecentPath) {
 
   String path;
   EXPECT_TRUE(GetLeastRecentPath(temp_dir, path));
-  EXPECT_EQ(dir, path) << "dir mtime is " << GetLastModificationTime(dir).first
-                       << ":" << GetLastModificationTime(dir).second
-                       << " ; path mtime is "
-                       << GetLastModificationTime(path).first << ":"
-                       << GetLastModificationTime(path).second;
+  EXPECT_EQ(dir, path) << "dir mtime is " << GetModificationTime(dir).first
+                       << ":" << GetModificationTime(dir).second
+                       << " ; path mtime is " << GetModificationTime(path).first
+                       << ":" << GetModificationTime(path).second;
 
   std::this_thread::sleep_for(std::chrono::seconds(1));
   fd = open(file2.c_str(), O_CREAT, 0777);
@@ -75,11 +74,11 @@ TEST(FileUtilsTest, LeastRecentPath) {
 
   EXPECT_TRUE(GetLeastRecentPath(temp_dir, path));
   EXPECT_EQ(file1, path) << "file1 mtime is "
-                         << GetLastModificationTime(file1).first << ":"
-                         << GetLastModificationTime(file1).second
+                         << GetModificationTime(file1).first << ":"
+                         << GetModificationTime(file1).second
                          << " ; path mtime is "
-                         << GetLastModificationTime(path).first << ":"
-                         << GetLastModificationTime(path).second;
+                         << GetModificationTime(path).first << ":"
+                         << GetModificationTime(path).second;
 
   std::this_thread::sleep_for(std::chrono::seconds(1));
   fd = open(file3.c_str(), O_CREAT, 0777);
@@ -88,11 +87,11 @@ TEST(FileUtilsTest, LeastRecentPath) {
 
   EXPECT_TRUE(GetLeastRecentPath(dir, path));
   EXPECT_EQ(file2, path) << "file2 mtime is "
-                         << GetLastModificationTime(file2).first << ":"
-                         << GetLastModificationTime(file2).second
+                         << GetModificationTime(file2).first << ":"
+                         << GetModificationTime(file2).second
                          << " ; path mtime is "
-                         << GetLastModificationTime(path).first << ":"
-                         << GetLastModificationTime(path).second;
+                         << GetModificationTime(path).first << ":"
+                         << GetModificationTime(path).second;
 }
 
 TEST(FileUtilsTest, LeastRecentPathWithRegex) {

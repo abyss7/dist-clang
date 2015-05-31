@@ -44,7 +44,7 @@ TEST(LockedListTest, MoveSemantics) {
   list.Append(std::move(expected));
   auto&& actual = list.Pop();
   ASSERT_TRUE(!!actual);
-  EXPECT_EQ(2, actual->counter());  // |expected| and |list.head_|
+  EXPECT_EQ(2, actual->counter());  // |expected| + |list.head_| = 2
 
   actual->counter() = 0;
 }
@@ -75,6 +75,15 @@ TEST(LockedListTest, UniquePtrFriendliness) {
 TEST(LockedListTest, DISABLED_BasicMultiThreadedUsage) {
   LockedList<int> list;
   // TODO: implement this test.
+}
+
+TEST(LockedListTest, NoLeakOnDestruction) {
+  LockedList<int> list;
+  for (int i = 1; i < 10; ++i) {
+    list.Append(i);
+  }
+
+  // ASAN should trigger a failure here, if the test is broken.
 }
 
 }  // namespace base

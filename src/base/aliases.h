@@ -8,6 +8,7 @@
 #include STL(cstdint)
 #include STL(functional)
 #include STL(list)
+#include STL(map)
 #include STL(memory)
 #include STL(mutex)
 #include STL(string)
@@ -21,6 +22,7 @@
 #include <third_party/libcxx/exported/include/cstdint>
 #include <third_party/libcxx/exported/include/functional>
 #include <third_party/libcxx/exported/include/list>
+#include <third_party/libcxx/exported/include/map>
 #include <third_party/libcxx/exported/include/memory>
 #include <third_party/libcxx/exported/include/mutex>
 #include <third_party/libcxx/exported/include/string>
@@ -75,6 +77,9 @@ template <class T>
 using List = std::list<T>;
 
 using Literal = base::Literal;
+
+template <class U, class V>
+using MultiMap = std::multimap<U, V>;
 
 using Mutex = std::mutex;
 

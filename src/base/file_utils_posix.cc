@@ -18,8 +18,10 @@
 namespace dist_clang {
 namespace base {
 
-ui64 CalculateDirectorySize(const String& path, String* error) {
-  ui64 size = 0u;
+void WalkDirectory(
+    const String& path,
+    Fn<void(const String& file_path, ui64 mtime, ui64 size)> visitor,
+    String* error) {
   List<String> paths;
   paths.push_back(path);
 
@@ -38,7 +40,16 @@ ui64 CalculateDirectorySize(const String& path, String* error) {
             if (S_ISDIR(buffer.st_mode)) {
               paths.push_back(new_path);
             } else if (S_ISREG(buffer.st_mode)) {
-              size += buffer.st_size;
+              struct timespec time_spec;
+#if defined(OS_MACOSX)
+              time_spec = buffer.st_mtimespec;
+#elif defined(OS_LINUX)
+              time_spec = buffer.st_mtim;
+#else
+#pragma message "Don't know how to get modification time on this platform!"
+              NOTREACHED();
+#endif
+              visitor(new_path, time_spec.tv_sec, buffer.st_size);
             }
           } else {
             GetLastError(error);
@@ -54,11 +65,19 @@ ui64 CalculateDirectorySize(const String& path, String* error) {
 
     paths.pop_front();
   }
-
-  return size;
 }
 
-Pair<time_t> GetLastModificationTime(const String& path, String* error) {
+ui64 CalculateDirectorySize(const String& path, String* error) {
+  ui64 result = 0u;
+
+  WalkDirectory(path, [&result](const String&, ui64, ui64 size) {
+    result += size;
+  }, error);
+
+  return result;
+}
+
+Pair<time_t> GetModificationTime(const String& path, String* error) {
   struct stat buffer;
   if (stat(path.c_str(), &buffer) == -1) {
     GetLastError(error);
@@ -103,7 +122,7 @@ bool GetLeastRecentPath(const String& path, String& result, const char* regex,
     }
 
     const String new_path = path + "/" + entry_name;
-    auto current_mtime = GetLastModificationTime(new_path);
+    auto current_mtime = GetModificationTime(new_path);
     if (mtime == null_time ||
         (current_mtime != null_time && current_mtime < mtime)) {
       mtime = current_mtime;

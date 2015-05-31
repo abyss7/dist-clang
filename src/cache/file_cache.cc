@@ -7,6 +7,7 @@
 #include <cache/manifest_utils.h>
 
 #include <third_party/snappy/exported/snappy.h>
+#include STL(regex)
 
 #include <clang/Basic/Version.h>
 
@@ -31,14 +32,15 @@ String ReplaceTildeInPath(const String& path) {
 namespace cache {
 
 FileCache::FileCache(const String& path, ui64 size, bool snappy)
-    : path_(ReplaceTildeInPath(path)),
-      max_size_(size),
-      snappy_(snappy),
-      need_cleanup_(true),
-      cleanup_(true) {
+    : path_(ReplaceTildeInPath(path)), snappy_(snappy), max_size_(size) {
 }
 
 FileCache::FileCache(const String& path) : FileCache(path, UNLIMITED, false) {
+}
+
+FileCache::~FileCache() {
+  resetter_.reset();
+  new_entries_.reset();
 }
 
 bool FileCache::Run(ui64 clean_period) {
@@ -52,11 +54,52 @@ bool FileCache::Run(ui64 clean_period) {
   database_.reset(new Database(path_, "direct"));
 
   CHECK(clean_period > 0);
-  base::WorkerPool::SimpleWorker worker =
-      [this, clean_period](const Atomic<bool>& is_shutting_down) {
-        Clean(clean_period, is_shutting_down);
-      };
-  cleanup_.AddWorker(worker);
+
+  base::WorkerPool::SimpleWorker worker;
+  if (max_size_ == UNLIMITED) {
+    new_entries_.reset(new EntryList);
+
+    worker = [this, clean_period](const Atomic<bool>& is_shutting_down) {
+      while (!is_shutting_down) {
+        std::this_thread::sleep_for(std::chrono::seconds(clean_period));
+        new_entries_.reset(new EntryList);
+      }
+    };
+  } else {
+    base::WalkDirectory(
+        path_, [this](const String& file_path, ui64 mtime, ui64) {
+          std::regex regex("([a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8})\\.manifest");
+          std::cmatch match;
+          if (std::regex_search(file_path.c_str(), match, regex) &&
+              match.size() > 1 && match[1].matched) {
+            auto hash = string::Hash(String(match[1]));
+            auto size = GetEntrySize(hash);
+
+            if (size) {
+              auto entry = entries_.emplace(hash, TimeSizePair(mtime, size));
+              mtimes_.emplace(mtime, entry.first);
+              cache_size_ += size;
+
+              CHECK(entry.second);  // There should be no duplicate entries.
+              LOG(CACHE_VERBOSE) << hash.str << " is considered";
+            } else {
+              RemoveEntry(hash, true);
+              LOG(CACHE_WARNING) << hash.str << " is broken and removed";
+            }
+          }
+        });
+
+    new_entries_.reset(new EntryList, new_entries_deleter_);
+
+    worker = [this, clean_period](const Atomic<bool>& is_shutting_down) {
+      while (!is_shutting_down) {
+        std::this_thread::sleep_for(std::chrono::seconds(clean_period));
+        new_entries_.reset(new EntryList, new_entries_deleter_);
+      }
+    };
+  }
+  resetter_->AddWorker(worker);
+  cleaner_.Run();
 
   return true;
 }
@@ -89,9 +132,7 @@ bool FileCache::Find(const HandledSource& code, const CommandLine& command_line,
 bool FileCache::Find(const UnhandledSource& code,
                      const CommandLine& command_line, const Version& version,
                      Entry* entry) const {
-  Immutable hash1 = Hash(code, command_line, version);
-  const String first_path = FirstPath(hash1);
-  const String second_path = SecondPath(hash1);
+  auto hash1 = Hash(code, command_line, version);
   const String manifest_path = CommonPath(hash1) + ".manifest";
   const ReadLock lock(this, manifest_path);
 
@@ -105,8 +146,7 @@ bool FileCache::Find(const UnhandledSource& code,
   }
 
   utime(manifest_path.c_str(), nullptr);
-  utime(second_path.c_str(), nullptr);
-  utime(first_path.c_str(), nullptr);
+  new_entries_->Append({time(nullptr), hash1});
 
   Immutable::Rope hash_rope = {hash1};
   for (const auto& header : manifest.headers()) {
@@ -139,8 +179,6 @@ void FileCache::Store(const HandledSource& code,
 }
 
 bool FileCache::FindByHash(const HandledHash& hash, Entry* entry) const {
-  const String first_path = FirstPath(hash);
-  const String second_path = SecondPath(hash);
   const String manifest_path = CommonPath(hash) + ".manifest";
   const ReadLock lock(this, manifest_path);
 
@@ -154,8 +192,7 @@ bool FileCache::FindByHash(const HandledHash& hash, Entry* entry) const {
   }
 
   utime(manifest_path.c_str(), nullptr);
-  utime(second_path.c_str(), nullptr);
-  utime(first_path.c_str(), nullptr);
+  new_entries_->Append({time(nullptr), hash});
 
   if (entry) {
     if (manifest.stderr()) {
@@ -204,57 +241,113 @@ bool FileCache::FindByHash(const HandledHash& hash, Entry* entry) const {
   return true;
 }
 
-bool FileCache::RemoveEntry(const String& manifest_path, ui64& cached_size) {
-  const String common_path =
-      manifest_path.substr(0, manifest_path.size() - sizeof(".manifest") + 1);
+ui64 FileCache::GetEntrySize(string::Hash hash) const {
+  const String common_path = CommonPath(hash);
+  const String manifest_path = common_path + ".manifest";
+  const String object_path = common_path + ".o";
+  const String deps_path = common_path + ".d";
+  const String stderr_path = common_path + ".stderr";
+  ui64 result = 0u;
+
+  proto::Manifest manifest;
+  if (!LoadManifest(manifest_path, &manifest)) {
+    LOG(CACHE_VERBOSE) << "Can't load manifest for " << hash.str;
+    return 0u;
+  }
+
+  if (manifest.object()) {
+    if (!base::File::Exists(object_path)) {
+      LOG(CACHE_VERBOSE) << object_path << " should exist, but not found!";
+      return 0u;
+    }
+    result += base::File::Size(object_path);
+  }
+
+  if (manifest.deps()) {
+    if (!base::File::Exists(deps_path)) {
+      LOG(CACHE_VERBOSE) << deps_path << " should exist, but not found!";
+      return 0u;
+    }
+    result += base::File::Size(deps_path);
+  }
+
+  if (manifest.stderr()) {
+    if (!base::File::Exists(stderr_path)) {
+      LOG(CACHE_VERBOSE) << stderr_path << " should exist, but not found!";
+      return 0u;
+    }
+    result += base::File::Size(stderr_path);
+  }
+
+  result += base::File::Size(manifest_path);
+
+  return result;
+}
+
+bool FileCache::RemoveEntry(string::Hash hash, bool possibly_broken) {
+  auto entry_it = entries_.find(hash);
+  bool has_entry = entry_it != entries_.end();
+
+  CHECK(possibly_broken || has_entry);
+
+  const String common_path = CommonPath(hash);
+  const String manifest_path = common_path + ".manifest";
   const String object_path = common_path + ".o";
   const String deps_path = common_path + ".d";
   const String stderr_path = common_path + ".stderr";
   bool result = true;
+  auto entry_size = has_entry ? entry_it->second.second : 0u;
+
+  if (has_entry) {
+    entries_.erase(entry_it);
+  }
+
+  proto::Manifest manifest;
+  if (!LoadManifest(manifest_path, &manifest)) {
+    result = false;
+  }
 
   if (base::File::Exists(object_path)) {
-    auto size = base::File::Size(object_path);
     if (!base::File::Delete(object_path)) {
+      entry_size -= base::File::Size(object_path);
       result = false;
-    } else {
-      DCHECK(size <= cached_size);
-      cached_size -= size;
     }
+  } else {
+    DCHECK(possibly_broken || !manifest.object());
   }
 
   if (base::File::Exists(deps_path)) {
-    auto size = base::File::Size(deps_path);
     if (!base::File::Delete(deps_path)) {
+      entry_size -= base::File::Size(deps_path);
       result = false;
-    } else {
-      DCHECK(size <= cached_size);
-      cached_size -= size;
     }
+  } else {
+    DCHECK(possibly_broken || !manifest.deps());
   }
 
   if (base::File::Exists(stderr_path)) {
-    auto size = base::File::Size(stderr_path);
     if (!base::File::Delete(stderr_path)) {
+      entry_size -= base::File::Size(stderr_path);
       result = false;
-    } else {
-      DCHECK(size <= cached_size);
-      cached_size -= size;
     }
+  } else {
+    DCHECK(possibly_broken || !manifest.stderr());
   }
 
-  auto size = base::File::Size(manifest_path);
   if (!base::File::Delete(manifest_path)) {
+    entry_size -= base::File::Size(manifest_path);
     result = false;
-  } else {
-    DCHECK(size <= cached_size);
-    cached_size -= size;
+  }
+
+  if (has_entry) {
+    cache_size_ -= entry_size;
   }
 
   return result;
 }
 
 void FileCache::DoStore(const HandledHash& hash, const Entry& entry) {
-  const String manifest_path = CommonPath(hash) + ".manifest";
+  auto manifest_path = CommonPath(hash) + ".manifest";
   WriteLock lock(this, manifest_path);
 
   if (!lock) {
@@ -271,7 +364,7 @@ void FileCache::DoStore(const HandledHash& hash, const Entry& entry) {
     const String stderr_path = CommonPath(hash) + ".stderr";
 
     if (!base::File::Write(stderr_path, entry.stderr)) {
-      RemoveEntry(manifest_path);
+      RemoveEntry(hash);
       LOG(CACHE_ERROR) << "Failed to save stderr to " << stderr_path;
       return;
     }
@@ -284,7 +377,7 @@ void FileCache::DoStore(const HandledHash& hash, const Entry& entry) {
 
     if (!snappy_) {
       if (!base::File::Write(object_path, entry.object)) {
-        RemoveEntry(manifest_path);
+        RemoveEntry(hash);
         LOG(CACHE_ERROR) << "Failed to save object to " << object_path;
         return;
       }
@@ -292,13 +385,13 @@ void FileCache::DoStore(const HandledHash& hash, const Entry& entry) {
       String packed_content;
       if (!snappy::Compress(entry.object.data(), entry.object.size(),
                             &packed_content)) {
-        RemoveEntry(manifest_path);
+        RemoveEntry(hash);
         LOG(CACHE_ERROR) << "Failed to pack contents for " << object_path;
         return;
       }
 
       if (!base::File::Write(object_path, std::move(packed_content), &error)) {
-        RemoveEntry(manifest_path);
+        RemoveEntry(hash);
         LOG(CACHE_ERROR) << "Failed to write to " << object_path << " : "
                          << error;
         return;
@@ -314,7 +407,7 @@ void FileCache::DoStore(const HandledHash& hash, const Entry& entry) {
     const String deps_path = CommonPath(hash) + ".d";
 
     if (!base::File::Write(deps_path, entry.deps)) {
-      RemoveEntry(manifest_path);
+      RemoveEntry(hash);
       LOG(CACHE_ERROR) << "Failed to save deps to " << deps_path;
       return;
     }
@@ -323,16 +416,13 @@ void FileCache::DoStore(const HandledHash& hash, const Entry& entry) {
   }
 
   if (!SaveManifest(manifest_path, manifest)) {
-    RemoveEntry(manifest_path);
+    RemoveEntry(hash);
     LOG(CACHE_ERROR) << "Failed to save manifest to " << manifest_path;
     return;
   }
 
   utime(manifest_path.c_str(), nullptr);
-  utime(SecondPath(hash).c_str(), nullptr);
-  utime(FirstPath(hash).c_str(), nullptr);
-
-  need_cleanup_ = true;
+  new_entries_->Append({time(nullptr), hash});
 
   LOG(CACHE_VERBOSE) << "File is cached on path " << CommonPath(hash);
 }
@@ -381,85 +471,64 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
   }
 
   if (!SaveManifest(manifest_path, manifest)) {
-    RemoveEntry(manifest_path);
+    RemoveEntry(orig_hash);
     return;
   }
 
   utime(manifest_path.c_str(), nullptr);
-  utime(SecondPath(hash).c_str(), nullptr);
-  utime(FirstPath(hash).c_str(), nullptr);
-
-  need_cleanup_ = true;
+  new_entries_->Append({time(nullptr), orig_hash});
 }
 
-void FileCache::Clean(ui32 period, const Atomic<bool>& is_shutting_down) {
-  if (max_size_ == UNLIMITED) {
-    return;
+void FileCache::Clean(UniquePtr<EntryList> list) {
+  DCHECK(max_size_ != UNLIMITED);
+
+  while (auto new_entry = list->Pop()) {
+    auto entry_it = entries_.find(new_entry->second);
+    if (entry_it != entries_.end()) {
+      // Update mtime of an existing entry.
+      auto mtime_its = mtimes_.equal_range(entry_it->second.first);
+      auto mtime_it = mtime_its.first;
+      while (mtime_it != mtime_its.second) {
+        if (mtime_it->second == entry_it) {
+          break;
+        }
+        ++mtime_it;
+      }
+      CHECK(mtime_it != mtime_its.second);
+
+      mtimes_.erase(mtime_it);
+      auto old_mtime = entry_it->second.first;
+      entry_it->second.first = new_entry->first;
+      mtimes_.emplace(new_entry->first, entry_it);
+
+      LOG(CACHE_VERBOSE) << entry_it->first.str << " wasn't used for "
+                         << (new_entry->first - old_mtime) << " seconds";
+    } else {
+      // Insert new entry.
+      auto size = GetEntrySize(new_entry->second);
+      auto new_entry_it = entries_.emplace(
+          new_entry->second, TimeSizePair(new_entry->first, size));
+      mtimes_.emplace(new_entry->first, new_entry_it.first);
+      cache_size_ += size;
+
+      CHECK(size);
+      CHECK(new_entry_it.second);
+    }
   }
 
-  while (!is_shutting_down) {
-    std::this_thread::sleep_for(std::chrono::seconds(period));
+  while (cache_size_ > max_size_) {
+    auto mtime_it = mtimes_.begin();
+    auto entry_it = mtime_it->second;
 
-    if (!need_cleanup_) {
-      continue;
+    auto manifest_path = CommonPath(entry_it->first) + ".manifest";
+    WriteLock lock(this, manifest_path);
+    if (lock) {
+      LOG(CACHE_VERBOSE) << "Cache overuse is " << (cache_size_ - max_size_)
+                         << " bytes: removing " << entry_it->first.str;
+      DCHECK(RemoveEntry(entry_it->first));
     }
 
-    ui64 cached_size =
-        base::CalculateDirectorySize(path_) - database_->SizeOnDisk();
-
-    while (cached_size > max_size_) {
-      String first_path, second_path;
-
-      {
-        String error;
-        if (!base::GetLeastRecentPath(path_, first_path, "[0-9a-f]", &error)) {
-          LOG(CACHE_WARNING) << "Failed to get the recent path from " << path_
-                             << " : " << error;
-          LOG(CACHE_ERROR) << "Failed to clean the cache";
-          break;
-        }
-      }
-      {
-        String error;
-        if (!base::GetLeastRecentPath(first_path, second_path, "[0-9a-f]",
-                                      &error)) {
-          if (!base::RemoveEmptyDirectory(first_path)) {
-            LOG(CACHE_WARNING) << "Failed to get the recent path from "
-                               << first_path << " : " << error;
-            LOG(CACHE_ERROR) << "Failed to clean the cache";
-            break;
-          }
-          continue;
-        }
-      }
-
-      bool should_break = false;
-      while (cached_size > max_size_) {
-        String manifest_path;
-        String error;
-        if (!base::GetLeastRecentPath(second_path, manifest_path,
-                                      ".*\\.manifest", &error)) {
-          if (!base::RemoveEmptyDirectory(second_path)) {
-            LOG(CACHE_WARNING) << "Failed to get the recent path from "
-                               << second_path << " : " << error;
-            LOG(CACHE_ERROR) << "Failed to clean the cache";
-            should_break = true;
-          }
-          break;
-        }
-
-        WriteLock lock(this, manifest_path);
-        if (lock) {
-          should_break = !RemoveEntry(manifest_path, cached_size);
-        }
-      }
-
-      if (should_break) {
-        break;
-      }
-    }
-
-    need_cleanup_ = false;
+    mtimes_.erase(mtime_it);
   }
 }
 

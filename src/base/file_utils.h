@@ -7,9 +7,13 @@
 namespace dist_clang {
 namespace base {
 
+void WalkDirectory(
+    const String& path,
+    Fn<void(const String& file_path, ui64 mtime, ui64 size)> visitor,
+    String* error = nullptr);
 ui64 CalculateDirectorySize(const String& path, String* error = nullptr);
 
-Pair<time_t /* unix timestamp, nanoseconds */> GetLastModificationTime(
+Pair<time_t /* unix timestamp, nanoseconds */> GetModificationTime(
     const String& path, String* error = nullptr);
 
 // This function returns the path to an object with the least recent

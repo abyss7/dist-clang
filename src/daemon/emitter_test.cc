@@ -653,6 +653,7 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
   conf.mutable_emitter()->set_socket_path(socket_path);
   conf.mutable_cache()->set_path(temp_dir);
   conf.mutable_cache()->set_direct(false);
+  conf.mutable_cache()->set_clean_period(1);
 
   auto* version = conf.add_versions();
   version->set_version(compiler_version);
@@ -802,6 +803,7 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
   conf.mutable_emitter()->set_only_failed(true);
   conf.mutable_cache()->set_path(temp_dir);
   conf.mutable_cache()->set_direct(false);
+  conf.mutable_cache()->set_clean_period(1);
 
   auto* remote = conf.mutable_emitter()->add_remotes();
   remote->set_host(host);

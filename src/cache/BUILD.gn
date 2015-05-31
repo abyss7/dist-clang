@@ -33,7 +33,10 @@ shared_library("file_cache") {
 }
 
 shared_library("manifest") {
-  visibility = [ ":*" ]
+  visibility = [
+    ":*",
+    "//src/test:unit_tests",
+  ]
 
   sources = [
     "manifest.pb.cc",

@@ -122,3 +122,15 @@ base::Literal operator"" _l(const char* str, size_t) {
 }
 
 }  // namespace dist_clang
+
+namespace std {
+
+template <>
+struct hash<dist_clang::base::ConstString> {
+ public:
+  size_t operator()(const dist_clang::base::ConstString& value) const {
+    return *reinterpret_cast<const size_t*>(value.Hash(sizeof(size_t)).data());
+  }
+};
+
+}  // namespace std

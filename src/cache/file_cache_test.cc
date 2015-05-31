@@ -3,6 +3,8 @@
 #include <base/file/file.h>
 #include <base/future.h>
 #include <base/temporary_dir.h>
+#include <cache/manifest.pb.h>
+#include <cache/manifest_utils.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest.h>
 #include STL(regex)
@@ -13,11 +15,11 @@ namespace cache {
 using namespace string;
 
 TEST(FileCacheTest, HashCompliesWithRegex) {
-  std::regex hash_regex("[a-z0-9]{32}-[a-z0-9]{8}-[a-z0-9]{8}");
-  EXPECT_TRUE(
-      std::regex_match(FileCache::Hash(HandledSource("1"_l), CommandLine("2"_l),
-                                       Version("3"_l)).str.string_copy(),
-                       hash_regex));
+  std::regex hash_regex("[a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8}");
+  EXPECT_TRUE(std::regex_match(
+      FileCache::Hash(HandledSource("1"_l), CommandLine("2"_l), Version("3"_l))
+          .str.string_copy(),
+      hash_regex));
 }
 
 TEST(FileCacheTest, LockNonExistentFile) {
@@ -69,39 +71,63 @@ TEST(FileCacheTest, DoubleLocks) {
 
 TEST(FileCacheTest, RemoveEntry) {
   const base::TemporaryDir tmp_dir;
-  const String manifest_path = String(tmp_dir) + "/123.manifest";
-  const String object_path = String(tmp_dir) + "/123.o";
-  const String deps_path = String(tmp_dir) + "/123.d";
-  const String stderr_path = String(tmp_dir) + "/123.stderr";
+  FileCache cache(tmp_dir, 100, false);
 
+  string::Hash hash1{"12345678901234567890123456789012-12345678-00000001"_l};
   {
-    ASSERT_TRUE(base::File::Write(manifest_path, "1"_l));
+    ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash1)));
+    const String common_path = cache.CommonPath(hash1);
+    const String manifest_path = common_path + ".manifest";
+    const String object_path = common_path + ".o";
+    const String deps_path = common_path + ".d";
+    const String stderr_path = common_path + ".stderr";
+
+    proto::Manifest manifest;
+    manifest.set_object(true);
+    manifest.set_deps(true);
+    manifest.set_stderr(true);
+    ASSERT_TRUE(SaveManifest(manifest_path, manifest));
     ASSERT_TRUE(base::File::Write(object_path, "1"_l));
     ASSERT_TRUE(base::File::Write(deps_path, "1"_l));
     ASSERT_TRUE(base::File::Write(stderr_path, "1"_l));
-    FileCache cache(tmp_dir, 100, false);
-    ASSERT_TRUE(cache.Run(1));
-    auto db_size = cache.database_->SizeOnDisk();
-    auto cached_size = base::CalculateDirectorySize(tmp_dir) - db_size;
-    EXPECT_TRUE(cache.RemoveEntry(manifest_path, cached_size));
-    ASSERT_EQ(0u, base::CalculateDirectorySize(tmp_dir) - db_size);
-    EXPECT_EQ(0u, cached_size);
   }
 
+  string::Hash hash2{"12345678901234567890123456789012-12345678-00000002"_l};
   {
+    ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash2)));
+    const String common_path = cache.CommonPath(hash2);
+    const String manifest_path = common_path + ".manifest";
+    const String object_path = common_path + ".o";
+    const String deps_path = common_path + ".d";
+
+    proto::Manifest manifest;
+    manifest.set_object(true);
+    manifest.set_deps(true);
+    manifest.set_stderr(true);
+    ASSERT_TRUE(SaveManifest(manifest_path, manifest));
+    ASSERT_TRUE(base::File::Write(object_path, "1"_l));
+    ASSERT_TRUE(base::File::Write(deps_path, "1"_l));
+  }
+
+  string::Hash hash3{"12345678901234567890123456789012-12345678-00000003"_l};
+  {
+    ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash3)));
+    const String common_path = cache.CommonPath(hash3);
+    const String manifest_path = common_path + ".manifest";
+    const String object_path = common_path + ".o";
+    const String deps_path = common_path + ".d";
+
     ASSERT_TRUE(base::File::Write(manifest_path, "1"_l));
     ASSERT_TRUE(base::File::Write(object_path, "1"_l));
-    FileCache cache(tmp_dir, 100, false);
-    ASSERT_TRUE(cache.Run(1));
-    auto db_size = cache.database_->SizeOnDisk();
-    auto cached_size = base::CalculateDirectorySize(tmp_dir) - db_size;
-    EXPECT_TRUE(cache.RemoveEntry(manifest_path, cached_size));
-    ASSERT_EQ(0u, base::CalculateDirectorySize(tmp_dir) - db_size);
-    EXPECT_EQ(0u, cached_size);
+    ASSERT_TRUE(base::File::Write(deps_path, "1"_l));
   }
 
-  // TODO: check that |RemoveEntry()| fails, if at least one file can't be
-  //       removed.
+  ASSERT_TRUE(cache.Run(1));
+  auto db_size = cache.database_->SizeOnDisk();
+  EXPECT_EQ(cache.cache_size_, base::CalculateDirectorySize(tmp_dir) - db_size);
+  EXPECT_EQ(1u, cache.entries_.count(hash1));
+  EXPECT_EQ(0u, cache.entries_.count(hash2));
+  EXPECT_EQ(0u, cache.entries_.count(hash3));
 }
 
 TEST(FileCacheTest, RestoreSingleEntry) {
@@ -242,9 +268,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
   {
     FileCache::Entry entry{obj_content[2], String(), String()};
     cache.Store(code[2], cl, version, entry);
-    while (cache.need_cleanup_) {
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
+    std::this_thread::sleep_for(std::chrono::seconds(3));
     EXPECT_EQ(16u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 

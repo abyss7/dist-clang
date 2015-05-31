@@ -23,6 +23,7 @@ class Thread {
   }
 
   inline id get_id() const { return thread_.get_id(); }
+  inline void detach() { thread_.detach(); }
   inline void join() { thread_.join(); }
   inline bool joinable() const { return thread_.joinable(); }
   inline void swap(Thread& other) { thread_.swap(other.thread_); }
