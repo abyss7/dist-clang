@@ -207,22 +207,22 @@ bool ConnectionImpl::SendSyncImpl(Status* status) {
 void ConnectionImpl::DoRead() {
   Status status;
   message_.reset(new Message);
-  ReadSync(message_.get(), &status);
+  auto result = ReadSync(message_.get(), &status);
   DCHECK(!!read_callback_);
   auto read_callback = read_callback_;
   read_callback_ = BindedReadCallback();
-  if (!read_callback(std::move(message_), status)) {
+  if (!read_callback(std::move(message_), status) || !result) {
     Close();
   }
 }
 
 void ConnectionImpl::DoSend() {
   Status status;
-  Connection::SendSync(std::move(message_), &status);
+  auto result = Connection::SendSync(std::move(message_), &status);
   DCHECK(!!send_callback_);
   auto send_callback = send_callback_;
   send_callback_ = BindedSendCallback();
-  if (!send_callback(status)) {
+  if (!send_callback(status) || !result) {
     Close();
   }
 }
