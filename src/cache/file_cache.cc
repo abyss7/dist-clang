@@ -346,7 +346,7 @@ bool FileCache::RemoveEntry(string::Hash hash, bool possibly_broken) {
   return result;
 }
 
-void FileCache::DoStore(const HandledHash& hash, const Entry& entry) {
+void FileCache::DoStore(const HandledHash& hash, Entry entry) {
   auto manifest_path = CommonPath(hash) + ".manifest";
   WriteLock lock(this, manifest_path);
 

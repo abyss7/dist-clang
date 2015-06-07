@@ -68,7 +68,7 @@ class Process
                    String* error = nullptr) = 0;
 
  protected:
-  const Immutable exec_path_, cwd_path_;
+  Immutable exec_path_, cwd_path_;
   List<Immutable> args_, envs_;
   Immutable stdout_, stderr_;
   const ui32 uid_;

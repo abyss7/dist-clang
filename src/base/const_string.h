@@ -64,13 +64,15 @@ class ConstString THREAD_UNSAFE : public ThreadFixed {
   explicit ConstString(const String& str);           // 1-copy
   static ConstString WrapString(const String& str);  // 0-copy
 
+  inline operator String() { return string_copy(); }        // 1-copy
   inline operator String() const { return string_copy(); }  // 1-copy
-  String string_copy(bool collapse = true) const;           // 1-copy
+  String string_copy(bool collapse = true);                 // 1-copy
+  String string_copy() const;                               // 1-copy
 
   // Minimal interface for |std::string| compatibility.
   void assign(const ConstString& other);            // 0-copy
-  const char* data() const;                         // 0,1-copy
-  const char* c_str() const;                        // 0,1-copy
+  const char* data();                               // 0,1-copy
+  const char* c_str();                              // 0,1-copy
   inline size_t size() const { return size_; }      // 0-copy
   inline bool empty() const { return size_ == 0; }  // 0-copy
 
@@ -84,19 +86,20 @@ class ConstString THREAD_UNSAFE : public ThreadFixed {
     return !this->operator==(other);
   }
 
-  ConstString Hash(ui8 output_size = 16) const;  // 0-copy
+  ConstString Hash(ui8 output_size = 16);  // 0-copy
 
  private:
   ConstString(const char* WEAK_PTR str, size_t size, bool null_end);  // 0-copy
 
-  void CollapseRope() const;
-  void NullTerminate() const;
+  void CollapseRope();
+  void NullTerminate();
 
-  mutable SharedPtr<String> medium_;
-  mutable SharedPtr<const char> str_;
-  mutable Rope rope_;
-  mutable size_t size_ = 0;
-  mutable bool null_end_ = false;
+  SharedPtr<String> medium_;
+  SharedPtr<const char> str_;
+  Rope rope_;
+  bool null_end_ = false;
+
+  size_t size_ = 0;
   bool assignable_ = false;
   const bool assign_once_ = false;
 };
@@ -128,7 +131,7 @@ namespace std {
 template <>
 struct hash<dist_clang::base::ConstString> {
  public:
-  size_t operator()(const dist_clang::base::ConstString& value) const {
+  size_t operator()(dist_clang::base::ConstString value) const {
     return *reinterpret_cast<const size_t*>(value.Hash(sizeof(size_t)).data());
   }
 };

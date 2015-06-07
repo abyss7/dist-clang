@@ -163,7 +163,7 @@ class FileCache {
   }
 
   bool FindByHash(const string::HandledHash& hash, Entry* entry) const;
-  void DoStore(const string::HandledHash& hash, const Entry& entry);
+  void DoStore(const string::HandledHash& hash, Entry entry);
   void DoStore(string::UnhandledHash orig_hash, const List<String>& headers,
                const string::HandledHash& hash);
 

@@ -29,18 +29,18 @@ ConstString::ConstString(bool assignable) : assignable_(assignable) {
 }
 
 ConstString::ConstString(Literal str)
-    : str_(str.str_, NoopDeleter), size_(strlen(str.str_)), null_end_(true) {
+    : str_(str.str_, NoopDeleter), null_end_(true), size_(strlen(str.str_)) {
   DCHECK(str.str_[size_] == '\0');
 }
 
 ConstString::ConstString(char str[])
-    : str_(str, CharArrayDeleter), size_(strlen(str)), null_end_(true) {
+    : str_(str, CharArrayDeleter), null_end_(true), size_(strlen(str)) {
 }
 
 ConstString::ConstString(UniquePtr<char[]>& str)
     : str_(str.release(), CharArrayDeleter),
-      size_(strlen(str_.get())),
-      null_end_(true) {
+      null_end_(true),
+      size_(strlen(str_.get())) {
 }
 
 ConstString::ConstString(char str[], size_t size)
@@ -50,8 +50,8 @@ ConstString::ConstString(char str[], size_t size)
 #if !defined(OS_WIN)
 ConstString::ConstString(void* str, size_t size)
     : str_(reinterpret_cast<char*>(str), [str, size](const char*) {
-      munmap(str, size);
-    }), size_(size) {
+        munmap(str, size);
+      }), size_(size) {
 }
 #endif
 
@@ -62,8 +62,8 @@ ConstString::ConstString(UniquePtr<char[]>& str, size_t size)
 ConstString::ConstString(String&& str)
     : medium_(new String(std::move(str))),
       str_(medium_->data(), NoopDeleter),
-      size_(medium_->size()),
-      null_end_(true) {
+      null_end_(true),
+      size_(medium_->size()) {
   DCHECK(medium_->data()[size_] == '\0');
 }
 
@@ -94,7 +94,7 @@ ConstString::ConstString(const Rope& rope, size_t hint_size)
 }
 
 ConstString::ConstString(const String& str)
-    : size_(str.size()), null_end_(true) {
+    : null_end_(true), size_(str.size()) {
   str_.reset(new char[size_ + 1], CharArrayDeleter);
   memcpy(const_cast<char*>(str_.get()), str.data(), size_ + 1);
   DCHECK(str.data()[size_] == '\0');
@@ -105,12 +105,29 @@ ConstString ConstString::WrapString(const String& str) {
   return ConstString(str.c_str(), str.size(), true);
 }
 
-String ConstString::string_copy(bool collapse) const {
+String ConstString::string_copy(bool collapse) {
   if (collapse) {
     CollapseRope();
     return String(str_.get(), size_);
   }
 
+  CheckThread();
+
+  if (rope_.empty()) {
+    return String(str_.get(), size_);
+  }
+
+  String result;
+  result.reserve(size_);
+
+  for (const auto& str : rope_) {
+    result += str;
+  }
+
+  return result;
+}
+
+String ConstString::string_copy() const {
   CheckThread();
 
   if (rope_.empty()) {
@@ -143,12 +160,12 @@ void ConstString::assign(const ConstString& other) {
   }
 }
 
-const char* ConstString::data() const {
+const char* ConstString::data() {
   CollapseRope();
   return str_.get();
 }
 
-const char* ConstString::c_str() const {
+const char* ConstString::c_str() {
   CollapseRope();
   NullTerminate();
   return str_.get();
@@ -229,7 +246,7 @@ ConstString ConstString::operator+(const ConstString& other) const {
   return Rope{*this, other};
 }
 
-ConstString ConstString::Hash(ui8 output_size) const {
+ConstString ConstString::Hash(ui8 output_size) {
   CheckThread();
 
   const ui64 block_size = 8;
@@ -240,7 +257,7 @@ ConstString ConstString::Hash(ui8 output_size) const {
   const ui64 c1 = 0x87c37b91114253d5LLU, c2 = 0x4cf5ad432745937fLLU;
 
   const ui64* ptr = nullptr;
-  Rope::const_iterator it;
+  Rope::iterator it;
   ui64 ptr_size = 0;
 
   if (rope_.empty()) {
@@ -432,10 +449,10 @@ ConstString ConstString::Hash(ui8 output_size) const {
 }
 
 ConstString::ConstString(const char* WEAK_PTR str, size_t size, bool null_end)
-    : str_(str, NoopDeleter), size_(size), null_end_(null_end) {
+    : str_(str, NoopDeleter), null_end_(null_end), size_(size) {
 }
 
-void ConstString::CollapseRope() const {
+void ConstString::CollapseRope() {
   CheckThread();
 
   if (rope_.empty()) {
@@ -461,7 +478,7 @@ void ConstString::CollapseRope() const {
   rope_.clear();
 }
 
-void ConstString::NullTerminate() const {
+void ConstString::NullTerminate() {
   DCHECK([this] {
     CheckThread();
     return rope_.empty();
