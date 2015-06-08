@@ -274,13 +274,13 @@ ConstString ConstString::Hash(ui8 output_size) {
   auto NextBlock = [this, &ptr, &it, &ptr_size]() -> ui64 {
     DCHECK(ptr);
 
-    // ...[===P========...
+    // ...[===P=====B==...
     if (ptr_size > block_size) {
       ptr_size -= block_size;
       return *ptr++;
     }
 
-    // ...[===P=======][===...
+    // ...[===P======B][===...
     if (ptr_size == block_size) {
       ui64 result = *ptr;
 
@@ -300,8 +300,8 @@ ConstString ConstString::Hash(ui8 output_size) {
       return result;
     }
 
-    // ...[======P===][===...
-    DCHECK(it != rope_.end());
+    // ...[======P===][=B=...
+    DCHECK(it != rope_.end());  // FIXME: what if the |rope| is empty?
 
     union {
       char str[block_size];
@@ -333,9 +333,9 @@ ConstString ConstString::Hash(ui8 output_size) {
         }
       } else {
         memcpy(result.str + i, ptr, block_size - i);
-        i = block_size;
         ptr_size -= block_size - i;
         ptr = reinterpret_cast<const ui64*>(it->str_.get() + block_size - i);
+        i = block_size;
       }
     }
 
