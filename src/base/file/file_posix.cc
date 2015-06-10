@@ -1,5 +1,6 @@
 #include <base/file/file.h>
 
+#include <base/assert.h>
 #include <base/c_utils.h>
 #include <base/string_utils.h>
 
@@ -314,14 +315,14 @@ bool File::Move(const String& src, const String& dst, String* error) {
 
 File::File(const String& path, ui64 size)
     : Data([=] {
-      // We need write-access even on object files after introduction of the
-      // "split-dwarf" option, see
-      // https://sourceware.org/bugzilla/show_bug.cgi?id=971
-      const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-      const auto flags = O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC;
-      const String tmp_path = path + ".tmp";
-      return open(tmp_path.c_str(), flags, mode);
-    }()),
+        // We need write-access even on object files after introduction of the
+        // "split-dwarf" option, see
+        // https://sourceware.org/bugzilla/show_bug.cgi?id=971
+        const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+        const auto flags = O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC;
+        const String tmp_path = path + ".tmp";
+        return open(tmp_path.c_str(), flags, mode);
+      }()),
       move_on_close_(path) {
   if (!IsValid()) {
     GetLastError(&error_);

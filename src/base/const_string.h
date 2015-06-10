@@ -3,7 +3,6 @@
 #include <base/aliases.h>
 #include <base/attributes.h>
 #include <base/logging.h>
-#include <base/thread_fixed.h>
 
 namespace dist_clang {
 
@@ -42,7 +41,7 @@ class Literal {
   const char* WEAK_PTR str_ = nullptr;
 };
 
-class ConstString THREAD_UNSAFE : public ThreadFixed {
+class ConstString {
  public:
   using Rope = List<ConstString>;
 
@@ -70,11 +69,11 @@ class ConstString THREAD_UNSAFE : public ThreadFixed {
   String string_copy() const;                               // 1-copy
 
   // Minimal interface for |std::string| compatibility.
-  void assign(const ConstString& other);            // 0-copy
-  const char* data();                               // 0,1-copy
-  const char* c_str();                              // 0,1-copy
-  inline size_t size() const { return size_; }      // 0-copy
-  inline bool empty() const { return size_ == 0; }  // 0-copy
+  void assign(const ConstString& other) THREAD_UNSAFE;  // 0-copy
+  const char* data();                                   // 0,1-copy
+  const char* c_str();                                  // 0,1-copy
+  inline size_t size() const { return size_; }          // 0-copy
+  inline bool empty() const { return size_ == 0; }      // 0-copy
 
   size_t find(const char* str) const;  // 1-copy
 
@@ -89,15 +88,20 @@ class ConstString THREAD_UNSAFE : public ThreadFixed {
   ConstString Hash(ui8 output_size = 16);  // 0-copy
 
  private:
+  struct Internal {
+    SharedPtr<String> medium;
+    SharedPtr<const char> string;
+    Rope rope;
+    bool null_end = false;
+  };
+  using InternalPtr = SharedPtr<const Internal>;
+
   ConstString(const char* WEAK_PTR str, size_t size, bool null_end);  // 0-copy
 
-  void CollapseRope();
-  void NullTerminate();
+  InternalPtr CollapseRope();
+  InternalPtr NullTerminate();
 
-  SharedPtr<String> medium_;
-  SharedPtr<const char> str_;
-  Rope rope_;
-  bool null_end_ = false;
+  InternalPtr internals_ = InternalPtr(new Internal);
 
   size_t size_ = 0;
   bool assignable_ = false;

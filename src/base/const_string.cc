@@ -29,42 +29,51 @@ ConstString::ConstString(bool assignable) : assignable_(assignable) {
 }
 
 ConstString::ConstString(Literal str)
-    : str_(str.str_, NoopDeleter), null_end_(true), size_(strlen(str.str_)) {
+    : internals_(
+          new Internal{.string = {str.str_, NoopDeleter}, .null_end = true}),
+      size_(strlen(str.str_)) {
   DCHECK(str.str_[size_] == '\0');
 }
 
 ConstString::ConstString(char str[])
-    : str_(str, CharArrayDeleter), null_end_(true), size_(strlen(str)) {
+    : internals_(
+          new Internal{.string = {str, CharArrayDeleter}, .null_end = true}),
+      size_(strlen(str)) {
 }
 
 ConstString::ConstString(UniquePtr<char[]>& str)
-    : str_(str.release(), CharArrayDeleter),
-      null_end_(true),
-      size_(strlen(str_.get())) {
+    : internals_(new Internal{.string = {str.release(), CharArrayDeleter},
+                              .null_end = true}),
+      size_(strlen(internals_->string.get())) {
 }
 
 ConstString::ConstString(char str[], size_t size)
-    : str_(str, CharArrayDeleter), size_(size) {
+    : internals_(new Internal{.string = {str, CharArrayDeleter}}), size_(size) {
 }
 
 #if !defined(OS_WIN)
 ConstString::ConstString(void* str, size_t size)
-    : str_(reinterpret_cast<char*>(str), [str, size](const char*) {
-        munmap(str, size);
-      }), size_(size) {
+    : internals_(new Internal{
+          .string = {reinterpret_cast<char*>(str),
+                     [str, size](const char*) { munmap(str, size); }}}),
+      size_(size) {
 }
 #endif
 
 ConstString::ConstString(UniquePtr<char[]>& str, size_t size)
-    : str_(str.release(), CharArrayDeleter), size_(size) {
+    : internals_(new Internal{.string = {str.release(), CharArrayDeleter}}),
+      size_(size) {
 }
 
-ConstString::ConstString(String&& str)
-    : medium_(new String(std::move(str))),
-      str_(medium_->data(), NoopDeleter),
-      null_end_(true),
-      size_(medium_->size()) {
-  DCHECK(medium_->data()[size_] == '\0');
+ConstString::ConstString(String&& str) {
+  SharedPtr<String> medium(new String(std::move(str)));
+  SharedPtr<const char> string(medium->data(), NoopDeleter);
+  size_ = medium->size();
+
+  DCHECK(medium->data()[size_] == '\0');
+
+  internals_.reset(
+      new Internal{.medium = medium, .string = string, .null_end = true});
 }
 
 ConstString::ConstString(String* str) : ConstString(std::move(*str)) {
@@ -72,31 +81,34 @@ ConstString::ConstString(String* str) : ConstString(std::move(*str)) {
   delete str;
 }
 
-ConstString::ConstString(Rope&& rope) : rope_(std::move(rope)) {
-  for (const auto& str : rope_) {
+ConstString::ConstString(Rope&& rope)
+    : internals_(new Internal{.rope = std::move(rope)}) {
+  for (const auto& str : internals_->rope) {
     size_ += str.size_;
   }
 }
 
 ConstString::ConstString(Rope&& rope, size_t hint_size)
-    : rope_(std::move(rope)), size_(hint_size) {
+    : internals_(new Internal{.rope = std::move(rope)}), size_(hint_size) {
 }
 
-ConstString::ConstString(const Rope& rope) {
+ConstString::ConstString(const Rope& rope)
+    : internals_(new Internal{.rope = rope}) {
   for (const auto& str : rope) {
     size_ += str.size_;
   }
-  rope_ = rope;
 }
 
 ConstString::ConstString(const Rope& rope, size_t hint_size)
-    : rope_(rope), size_(hint_size) {
+    : internals_(new Internal{.rope = rope}), size_(hint_size) {
 }
 
 ConstString::ConstString(const String& str)
-    : null_end_(true), size_(str.size()) {
-  str_.reset(new char[size_ + 1], CharArrayDeleter);
-  memcpy(const_cast<char*>(str_.get()), str.data(), size_ + 1);
+    : internals_(
+          new Internal{.string = {new char[str.size() + 1], CharArrayDeleter},
+                       .null_end = true}),
+      size_(str.size()) {
+  memcpy(const_cast<char*>(internals_->string.get()), str.data(), size_ + 1);
   DCHECK(str.data()[size_] == '\0');
 }
 
@@ -106,21 +118,24 @@ ConstString ConstString::WrapString(const String& str) {
 }
 
 String ConstString::string_copy(bool collapse) {
+  auto internals = internals_;
+
   if (collapse) {
-    CollapseRope();
-    return String(str_.get(), size_);
+    internals = CollapseRope();
+    DCHECK(internals->string || !size_);
+    return String(internals->string.get(), size_);
   }
 
-  CheckThread();
-
-  if (rope_.empty()) {
-    return String(str_.get(), size_);
+  if (internals->rope.empty()) {
+    DCHECK(internals->string || !size_);
+    return String(internals->string.get(), size_);
   }
 
   String result;
   result.reserve(size_);
 
-  for (const auto& str : rope_) {
+  DCHECK(!size_ || !internals->rope.empty());
+  for (const auto& str : internals->rope) {
     result += str;
   }
 
@@ -128,16 +143,18 @@ String ConstString::string_copy(bool collapse) {
 }
 
 String ConstString::string_copy() const {
-  CheckThread();
+  auto internals = internals_;
 
-  if (rope_.empty()) {
-    return String(str_.get(), size_);
+  if (internals->rope.empty()) {
+    DCHECK(internals->string || !size_);
+    return String(internals->string.get(), size_);
   }
 
   String result;
   result.reserve(size_);
 
-  for (const auto& str : rope_) {
+  DCHECK(!size_ || !internals->rope.empty());
+  for (const auto& str : internals->rope) {
     result += str;
   }
 
@@ -147,13 +164,8 @@ String ConstString::string_copy() const {
 void ConstString::assign(const ConstString& other) {
   DCHECK(assignable_);
 
-  CheckThread();
-
-  medium_ = other.medium_;
-  str_ = other.str_;
-  rope_ = other.rope_;
+  internals_ = other.internals_;
   size_ = other.size_;
-  null_end_ = other.null_end_;
 
   if (assign_once_) {
     assignable_ = false;
@@ -161,14 +173,16 @@ void ConstString::assign(const ConstString& other) {
 }
 
 const char* ConstString::data() {
-  CollapseRope();
-  return str_.get();
+  auto internals = CollapseRope();
+  DCHECK(internals->string || !size_);
+  return internals->string.get();
 }
 
 const char* ConstString::c_str() {
   CollapseRope();
-  NullTerminate();
-  return str_.get();
+  auto internals = NullTerminate();
+  DCHECK(internals->string);
+  return internals->string.get();
 }
 
 bool ConstString::operator==(const ConstString& other) const {
@@ -219,10 +233,10 @@ size_t ConstString::find(const char* str) const {
 const char& ConstString::operator[](size_t index) const {
   DCHECK(index < size_);
 
-  CheckThread();
+  auto internals = internals_;
 
-  if (!rope_.empty()) {
-    for (const auto& str : rope_) {
+  if (!internals->rope.empty()) {
+    for (const auto& str : internals->rope) {
       if (index < str.size()) {
         return str[index];
       }
@@ -231,14 +245,15 @@ const char& ConstString::operator[](size_t index) const {
     }
   }
 
-  return *(str_.get() + index);
+  DCHECK(internals->string);
+  return *(internals->string.get() + index);
 }
 
 ConstString ConstString::operator+(const ConstString& other) const {
-  CheckThread();
+  auto internals = internals_;
 
-  if (!rope_.empty()) {
-    Rope rope = rope_;
+  if (!internals->rope.empty()) {
+    Rope rope = internals->rope;
     rope.push_back(other);
     return rope;
   }
@@ -247,8 +262,6 @@ ConstString ConstString::operator+(const ConstString& other) const {
 }
 
 ConstString ConstString::Hash(ui8 output_size) {
-  CheckThread();
-
   const ui64 block_size = 8;
 
   char* buf = new char[16];
@@ -260,18 +273,22 @@ ConstString ConstString::Hash(ui8 output_size) {
   Rope::iterator it;
   ui64 ptr_size = 0;
 
-  if (rope_.empty()) {
-    ptr = reinterpret_cast<const ui64*>(str_.get());
-    it = rope_.end();
+  auto internals = internals_;
+  auto rope = internals->rope;
+
+  if (internals->rope.empty()) {
+    DCHECK(internals->string);
+    ptr = reinterpret_cast<const ui64*>(internals->string.get());
+    it = rope.end();
     ptr_size = size();
   } else {
-    it = rope_.begin();
-    it->CollapseRope();
-    ptr = reinterpret_cast<const ui64*>(rope_.front().str_.get());
+    it = rope.begin();
+    auto rope_internals = it->CollapseRope();
+    ptr = reinterpret_cast<const ui64*>(rope_internals->string.get());
     ptr_size = it->size();
   }
 
-  auto NextBlock = [this, &ptr, &it, &ptr_size]() -> ui64 {
+  auto NextBlock = [&rope, &ptr, &it, &ptr_size]() -> ui64 {
     DCHECK(ptr);
 
     // ...[===P=====B==...
@@ -284,16 +301,16 @@ ConstString ConstString::Hash(ui8 output_size) {
     if (ptr_size == block_size) {
       ui64 result = *ptr;
 
-      if (it != rope_.end()) {
+      if (it != rope.end()) {
         ++it;
       }
 
-      if (it == rope_.end()) {
+      if (it == rope.end()) {
         ptr_size = 0;
         ptr = nullptr;
       } else {
-        it->CollapseRope();
-        ptr = reinterpret_cast<const ui64*>(it->str_.get());
+        auto rope_internals = it->CollapseRope();
+        ptr = reinterpret_cast<const ui64*>(rope_internals->string.get());
         ptr_size = it->size();
       }
 
@@ -301,7 +318,7 @@ ConstString ConstString::Hash(ui8 output_size) {
     }
 
     // ...[======P===][=B=...
-    DCHECK(it != rope_.end());  // FIXME: what if the |rope| is empty?
+    DCHECK(it != rope.end());  // FIXME: what if the |rope| is empty?
 
     union {
       char str[block_size];
@@ -312,9 +329,9 @@ ConstString ConstString::Hash(ui8 output_size) {
     memcpy(result.str, ptr, ptr_size);
 
     ++it;
-    DCHECK(it != rope_.end());
-    it->CollapseRope();
-    ptr = reinterpret_cast<const ui64*>(it->str_.get());
+    DCHECK(it != rope.end());
+    auto rope_internals = it->CollapseRope();
+    ptr = reinterpret_cast<const ui64*>(rope_internals->string.get());
     ptr_size = it->size();
 
     while (i < block_size) {
@@ -322,19 +339,22 @@ ConstString ConstString::Hash(ui8 output_size) {
         memcpy(result.str + i, ptr, ptr_size);
         i += ptr_size;
         ++it;
-        if (it == rope_.end()) {
+        if (it == rope.end()) {
           ptr_size = 0;
           ptr = nullptr;
           DCHECK(i == block_size);
         } else {
-          it->CollapseRope();
-          ptr = reinterpret_cast<const ui64*>(it->str_.get());
+          auto rope_internals = it->CollapseRope();
+          ptr = reinterpret_cast<const ui64*>(rope_internals->string.get());
           ptr_size = it->size();
         }
       } else {
         memcpy(result.str + i, ptr, block_size - i);
         ptr_size -= block_size - i;
-        ptr = reinterpret_cast<const ui64*>(it->str_.get() + block_size - i);
+        auto rope_internals = it->internals_;
+        DCHECK(rope_internals->string);
+        ptr = reinterpret_cast<const ui64*>(rope_internals->string.get() +
+                                            block_size - i);
         i = block_size;
       }
     }
@@ -449,50 +469,53 @@ ConstString ConstString::Hash(ui8 output_size) {
 }
 
 ConstString::ConstString(const char* WEAK_PTR str, size_t size, bool null_end)
-    : str_(str, NoopDeleter), null_end_(null_end), size_(size) {
+    : internals_(
+          new Internal{.string = {str, NoopDeleter}, .null_end = null_end}),
+      size_(size) {
 }
 
-void ConstString::CollapseRope() {
-  CheckThread();
+ConstString::InternalPtr ConstString::CollapseRope() {
+  auto internals = internals_;
 
-  if (rope_.empty()) {
-    return;
+  if (internals->rope.empty()) {
+    return internals;
   }
 
-  if (rope_.size() == 1) {
-    medium_ = rope_.front().medium_;
-    str_ = rope_.front().str_;
-    null_end_ = rope_.front().null_end_;
+  InternalPtr new_internals;
+  if (internals->rope.size() == 1) {
+    new_internals = internals->rope.front().internals_;
   } else {
-    str_.reset(new char[size_ + 1], CharArrayDeleter);
-    null_end_ = true;
-
-    char* WEAK_PTR ptr = const_cast<char*>(str_.get());
+    SharedPtr<const char> new_string(new char[size_ + 1], CharArrayDeleter);
+    char* WEAK_PTR ptr = const_cast<char*>(new_string.get());
     ptr[size_] = '\0';
-    for (const auto& str : rope_) {
-      memcpy(ptr, str.str_.get(), str.size_);
-      ptr += str.size_;
+    for (const auto& string : internals->rope) {
+      memcpy(ptr, string.internals_->string.get(), string.size_);
+      ptr += string.size_;
     }
+
+    new_internals.reset(new Internal{.string = new_string, .null_end = true});
   }
 
-  rope_.clear();
+  internals_ = new_internals;
+  return new_internals;
 }
 
-void ConstString::NullTerminate() {
-  DCHECK([this] {
-    CheckThread();
-    return rope_.empty();
-  }());
+ConstString::InternalPtr ConstString::NullTerminate() {
+  auto internals = internals_;
 
-  if (null_end_) {
-    return;
+  DCHECK([internals] { return internals->rope.empty(); }());
+
+  if (internals->null_end) {
+    return internals;
   }
 
-  UniquePtr<char[]> new_str(new char[size_ + 1]);
-  new_str[size_] = '\0';
-  memcpy(new_str.get(), str_.get(), size_);
-  str_.reset(new_str.release(), CharArrayDeleter);
-  null_end_ = true;
+  UniquePtr<char[]> new_string(new char[size_ + 1]);
+  new_string[size_] = '\0';
+  memcpy(new_string.get(), internals->string.get(), size_);
+
+  InternalPtr new_internals(new Internal{
+      .string = {new_string.release(), CharArrayDeleter}, .null_end = true});
+  return internals_ = new_internals;
 }
 
 }  // namespace base

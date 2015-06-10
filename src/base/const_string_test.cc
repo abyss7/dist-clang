@@ -27,6 +27,20 @@ TEST(ConstStringTest, Hash) {
                        .Hash()));
 }
 
+TEST(ConstStringTest, EmptyString) {
+  ConstString empty1;
+  EXPECT_EQ(String(), empty1.string_copy(false));
+  EXPECT_STREQ("", empty1.c_str());
+
+  ConstString empty2((ConstString::Rope()));
+  EXPECT_EQ(String(), empty2.string_copy(false));
+  EXPECT_STREQ("", empty2.c_str());
+
+  ConstString empty3((String()));
+  EXPECT_EQ(String(), empty3.string_copy(false));
+  EXPECT_STREQ("", empty3.c_str());
+}
+
 // TODO: write a lot of tests.
 
 }  // namespace base
