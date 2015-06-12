@@ -3,9 +3,9 @@
 #include <base/singleton.h>
 #include <perf/stat.pb.h>
 
-#define STAT(metric_name)                        \
+#define STAT(metric_name, ...)                   \
   base::Singleton<perf::StatService>::Get().Add( \
-      perf::proto::Metric::metric_name);
+      perf::proto::Metric::metric_name, ##__VA_ARGS__)
 
 namespace dist_clang {
 namespace perf {

@@ -9,6 +9,8 @@ message Metric {
     REMOTE_TIME_WASTED = 5;  // in milliseconds.
     REMOTE_TASK_DONE   = 6;
     LOCAL_TASK_DONE    = 7;
+    CACHE_SIZE_CLEANED = 8;  // in bytes.
+    CACHE_SIZE_ADDED   = 9;  // in bytes.
   }
 
   required Name name    = 1;

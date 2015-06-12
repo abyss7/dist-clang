@@ -84,13 +84,14 @@ void protobuf_AddDesc_perf_2fstat_2eproto() {
 
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
     "\n\017perf/stat.proto\022\025dist_clang.perf.proto"
-    "\"\357\001\n\006Metric\0220\n\004name\030\001 \002(\0162\".dist_clang.p"
-    "erf.proto.Metric.Name\022\r\n\005value\030\002 \001(\004\"\243\001\n"
+    "\"\235\002\n\006Metric\0220\n\004name\030\001 \002(\0162\".dist_clang.p"
+    "erf.proto.Metric.Name\022\r\n\005value\030\002 \001(\004\"\321\001\n"
     "\004Name\022\024\n\020DIRECT_CACHE_HIT\020\001\022\025\n\021DIRECT_CA"
     "CHE_MISS\020\002\022\024\n\020SIMPLE_CACHE_HIT\020\003\022\025\n\021SIMP"
     "LE_CACHE_MISS\020\004\022\026\n\022REMOTE_TIME_WASTED\020\005\022"
     "\024\n\020REMOTE_TASK_DONE\020\006\022\023\n\017LOCAL_TASK_DONE"
-    "\020\007", 282);
+    "\020\007\022\026\n\022CACHE_SIZE_CLEANED\020\010\022\024\n\020CACHE_SIZE"
+    "_ADDED\020\t", 328);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "perf/stat.proto", &protobuf_RegisterTypes);
   Metric::default_instance_ = new Metric();
@@ -120,6 +121,8 @@ bool Metric_Name_IsValid(int value) {
     case 5:
     case 6:
     case 7:
+    case 8:
+    case 9:
       return true;
     default:
       return false;
@@ -134,6 +137,8 @@ const Metric_Name Metric::SIMPLE_CACHE_MISS;
 const Metric_Name Metric::REMOTE_TIME_WASTED;
 const Metric_Name Metric::REMOTE_TASK_DONE;
 const Metric_Name Metric::LOCAL_TASK_DONE;
+const Metric_Name Metric::CACHE_SIZE_CLEANED;
+const Metric_Name Metric::CACHE_SIZE_ADDED;
 const Metric_Name Metric::Name_MIN;
 const Metric_Name Metric::Name_MAX;
 const int Metric::Name_ARRAYSIZE;

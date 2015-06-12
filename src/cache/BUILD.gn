@@ -26,6 +26,7 @@ shared_library("file_cache") {
     ":manifest",
     "//src/base:base",
     "//src/base:logging",
+    "//src/perf:stat_service",
     "//src/third_party/leveldb:leveldb",
     "//src/third_party/protobuf:protobuf",
     "//src/third_party/snappy:snappy",

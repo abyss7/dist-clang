@@ -5,6 +5,7 @@
 #include <base/string_utils.h>
 #include <cache/manifest.pb.h>
 #include <cache/manifest_utils.h>
+#include <perf/stat_service.h>
 
 #include <third_party/snappy/exported/snappy.h>
 #include STL(regex)
@@ -341,6 +342,7 @@ bool FileCache::RemoveEntry(string::Hash hash, bool possibly_broken) {
 
   if (has_entry) {
     cache_size_ -= entry_size;
+    STAT(CACHE_SIZE_CLEANED, entry_size);
   }
 
   return result;
@@ -510,6 +512,7 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
           new_entry->second, TimeSizePair(new_entry->first, size));
       mtimes_.emplace(new_entry->first, new_entry_it.first);
       cache_size_ += size;
+      STAT(CACHE_SIZE_ADDED, size);
 
       CHECK(size);
       CHECK(new_entry_it.second);

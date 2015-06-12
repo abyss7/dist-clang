@@ -311,7 +311,7 @@ void Emitter::DoLocalExecute(const Atomic<bool>& is_shutting_down) {
         }
       }
 
-      STAT(LOCAL_TASK_DONE)
+      STAT(LOCAL_TASK_DONE);
     }
 
     std::get<CONNECTION>(*task)->ReportStatus(status);
@@ -463,7 +463,7 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
         }
 
         std::get<CONNECTION>(*task)->ReportStatus(status);
-        STAT(REMOTE_TASK_DONE)
+        STAT(REMOTE_TASK_DONE);
         continue;
       }
     } else {

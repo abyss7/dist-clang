@@ -45,11 +45,13 @@ enum Metric_Name {
   Metric_Name_SIMPLE_CACHE_MISS = 4,
   Metric_Name_REMOTE_TIME_WASTED = 5,
   Metric_Name_REMOTE_TASK_DONE = 6,
-  Metric_Name_LOCAL_TASK_DONE = 7
+  Metric_Name_LOCAL_TASK_DONE = 7,
+  Metric_Name_CACHE_SIZE_CLEANED = 8,
+  Metric_Name_CACHE_SIZE_ADDED = 9
 };
 bool Metric_Name_IsValid(int value);
 const Metric_Name Metric_Name_Name_MIN = Metric_Name_DIRECT_CACHE_HIT;
-const Metric_Name Metric_Name_Name_MAX = Metric_Name_LOCAL_TASK_DONE;
+const Metric_Name Metric_Name_Name_MAX = Metric_Name_CACHE_SIZE_ADDED;
 const int Metric_Name_Name_ARRAYSIZE = Metric_Name_Name_MAX + 1;
 
 const ::google::protobuf::EnumDescriptor* Metric_Name_descriptor();
@@ -123,6 +125,8 @@ class Metric : public ::google::protobuf::Message {
   static const Name REMOTE_TIME_WASTED = Metric_Name_REMOTE_TIME_WASTED;
   static const Name REMOTE_TASK_DONE = Metric_Name_REMOTE_TASK_DONE;
   static const Name LOCAL_TASK_DONE = Metric_Name_LOCAL_TASK_DONE;
+  static const Name CACHE_SIZE_CLEANED = Metric_Name_CACHE_SIZE_CLEANED;
+  static const Name CACHE_SIZE_ADDED = Metric_Name_CACHE_SIZE_ADDED;
   static inline bool Name_IsValid(int value) {
     return Metric_Name_IsValid(value);
   }
