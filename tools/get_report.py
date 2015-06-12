@@ -50,17 +50,18 @@ def send_message(sock, message):
 
 
 def Main(args):
-    s = socket.create_connection((args[0], args[1]))
+    for arg in args[2:]:
+        s = socket.create_connection((args[0], args[1]))
 
-    m = remote_pb2.Universal()
-    r = m.Extensions[remote_pb2.StatReport.extension].metric.add()
-    r.name = stat_pb2._METRIC_NAME.values_by_name[args[2]].number
-    send_message(s, m)
+        m = remote_pb2.Universal()
+        r = m.Extensions[remote_pb2.StatReport.extension].metric.add()
+        r.name = stat_pb2._METRIC_NAME.values_by_name[arg].number
+        send_message(s, m)
 
-    m = get_message(s, remote_pb2.Universal)
-    print text_format.MessageToString(m)
+        m = get_message(s, remote_pb2.Universal)
+        print text_format.MessageToString(m)
 
-    s.close()
+        s.close()
 
 
 if __name__ == '__main__':
