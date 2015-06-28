@@ -118,11 +118,10 @@ HandledHash FileCache::Hash(HandledSource code, CommandLine command_line,
 // static
 UnhandledHash FileCache::Hash(UnhandledSource code, CommandLine command_line,
                               Version version) {
-  return UnhandledHash(
-      base::Hexify(code.str.Hash()) + "-" +
-      base::Hexify(command_line.str.Hash(4)) + "-" +
-      base::Hexify(
-          (version.str + "\n"_l + clang::getClangFullVersion()).Hash(4)));
+  return UnhandledHash(base::Hexify(code.str.Hash()) + "-" +
+                       base::Hexify(command_line.str.Hash(4)) + "-" +
+                       base::Hexify((version.str + "\n"_l +
+                                     clang::getClangFullVersion()).Hash(4)));
 }
 
 bool FileCache::Find(const HandledSource& code, const CommandLine& command_line,
@@ -308,36 +307,42 @@ bool FileCache::RemoveEntry(string::Hash hash, bool possibly_broken) {
     result = false;
   }
 
+  String error;
+
   if (base::File::Exists(object_path)) {
-    if (!base::File::Delete(object_path)) {
+    if (!base::File::Delete(object_path, &error)) {
       entry_size -= base::File::Size(object_path);
       result = false;
+      LOG(CACHE_WARNING) << "Failed to delete " << object_path << ": " << error;
     }
   } else {
     DCHECK(possibly_broken || !manifest.object());
   }
 
   if (base::File::Exists(deps_path)) {
-    if (!base::File::Delete(deps_path)) {
+    if (!base::File::Delete(deps_path, &error)) {
       entry_size -= base::File::Size(deps_path);
       result = false;
+      LOG(CACHE_WARNING) << "Failed to delete " << deps_path << ": " << error;
     }
   } else {
     DCHECK(possibly_broken || !manifest.deps());
   }
 
   if (base::File::Exists(stderr_path)) {
-    if (!base::File::Delete(stderr_path)) {
+    if (!base::File::Delete(stderr_path, &error)) {
       entry_size -= base::File::Size(stderr_path);
       result = false;
+      LOG(CACHE_WARNING) << "Failed to delete " << stderr_path << ": " << error;
     }
   } else {
     DCHECK(possibly_broken || !manifest.stderr());
   }
 
-  if (!base::File::Delete(manifest_path)) {
+  if (!base::File::Delete(manifest_path, &error)) {
     entry_size -= base::File::Size(manifest_path);
     result = false;
+    LOG(CACHE_WARNING) << "Failed to delete " << manifest_path << ": " << error;
   }
 
   if (has_entry) {
