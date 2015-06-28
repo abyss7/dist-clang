@@ -1,6 +1,6 @@
 /*===- TableGen'erated file -------------------------------------*- C++ -*-===*\
 |*                                                                            *|
-|*Parser-related llvm::StringSwitch cases                                     *|
+|* Parser-related llvm::StringSwitch cases                                    *|
 |*                                                                            *|
 |* Automatically generated file, do not edit!                                 *|
 |*                                                                            *|
@@ -41,6 +41,7 @@
 .Case("pointer_with_type_tag", true)
 .Case("availability", true)
 .Case("blocks", true)
+.Case("callable_when", true)
 .Case("consumable", true)
 .Case("format", true)
 .Case("loop", true)

@@ -19,11 +19,13 @@
 #define LLVM_IR_GVMATERIALIZER_H
 
 #include <system_error>
+#include <vector>
 
 namespace llvm {
 class Function;
 class GlobalValue;
 class Module;
+class StructType;
 
 class GVMaterializer {
 protected:
@@ -45,11 +47,16 @@ public:
   /// lazily. If the Materializer doesn't support this capability, this method
   /// is a noop.
   ///
-  virtual void Dematerialize(GlobalValue *) {}
+  virtual void dematerialize(GlobalValue *) {}
 
   /// Make sure the entire Module has been completely read.
   ///
-  virtual std::error_code MaterializeModule(Module *M) = 0;
+  virtual std::error_code materializeModule(Module *M) = 0;
+
+  virtual std::error_code materializeMetadata() = 0;
+  virtual void setStripDebugInfo() = 0;
+
+  virtual std::vector<StructType *> getIdentifiedStructTypes() const = 0;
 };
 
 } // End llvm namespace

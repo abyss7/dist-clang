@@ -1,6 +1,6 @@
 /*===- TableGen'erated file -------------------------------------*- C++ -*-===*\
 |*                                                                            *|
-|*Attribute name matcher                                                      *|
+|* Attribute name matcher                                                     *|
 |*                                                                            *|
 |* Automatically generated file, do not edit!                                 *|
 |*                                                                            *|
@@ -78,7 +78,7 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
       return AttributeList::AT_Naked;	 // "naked"
     }
     break;
-  case 6:	 // 12 strings to match.
+  case 6:	 // 13 strings to match.
     switch (Name[0]) {
     default: break;
     case 'b':	 // 1 string to match.
@@ -107,7 +107,7 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
       case 'a':	 // 1 string to match.
         if (memcmp(Name.data()+2, "lloc", 4))
           break;
-        return AttributeList::AT_Malloc;	 // "malloc"
+        return AttributeList::AT_Restrict;	 // "malloc"
       case 'i':	 // 1 string to match.
         if (memcmp(Name.data()+2, "ps16", 4))
           break;
@@ -137,6 +137,10 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
       if (memcmp(Name.data()+1, "hared", 5))
         break;
       return AttributeList::AT_CUDAShared;	 // "shared"
+    case 't':	 // 1 string to match.
+      if (memcmp(Name.data()+1, "arget", 5))
+        break;
+      return AttributeList::AT_Target;	 // "target"
     case 'u':	 // 1 string to match.
       if (memcmp(Name.data()+1, "nused", 5))
         break;
@@ -305,7 +309,7 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
       return AttributeList::AT_ThisCall;	 // "thiscall"
     }
     break;
-  case 9:	 // 10 strings to match.
+  case 9:	 // 9 strings to match.
     switch (Name[0]) {
     default: break;
     case 'd':	 // 2 strings to match.
@@ -345,13 +349,9 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
       case 's':	 // 1 string to match.
         if (memcmp(Name.data()+2, "_struct", 7))
           break;
-        return AttributeList::AT_MsStruct;	 // "ms_struct"
+        return AttributeList::AT_MSStruct;	 // "ms_struct"
       }
       break;
-    case 'p':	 // 1 string to match.
-      if (memcmp(Name.data()+1, "naclcall", 8))
-        break;
-      return AttributeList::AT_PnaclCall;	 // "pnaclcall"
     case 't':	 // 1 string to match.
       if (memcmp(Name.data()+1, "ls_model", 8))
         break;
@@ -425,7 +425,7 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
       break;
     }
     break;
-  case 11:	 // 11 strings to match.
+  case 11:	 // 12 strings to match.
     switch (Name[0]) {
     default: break;
     case 'a':	 // 1 string to match.
@@ -449,13 +449,22 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
       if (memcmp(Name.data()+1, "uarded_var", 10))
         break;
       return AttributeList::AT_GuardedVar;	 // "guarded_var"
-    case 'n':	 // 2 strings to match.
+    case 'n':	 // 3 strings to match.
       switch (Name[1]) {
       default: break;
-      case 'o':	 // 1 string to match.
-        if (memcmp(Name.data()+2, "duplicate", 9))
-          break;
-        return AttributeList::AT_NoDuplicate;	 // "noduplicate"
+      case 'o':	 // 2 strings to match.
+        switch (Name[2]) {
+        default: break;
+        case '_':	 // 1 string to match.
+          if (memcmp(Name.data()+3, "sanitize", 8))
+            break;
+          return AttributeList::AT_NoSanitize;	 // "no_sanitize"
+        case 'd':	 // 1 string to match.
+          if (memcmp(Name.data()+3, "uplicate", 8))
+            break;
+          return AttributeList::AT_NoDuplicate;	 // "noduplicate"
+        }
+        break;
       case 's':	 // 1 string to match.
         if (memcmp(Name.data()+2, "_consumed", 9))
           break;
@@ -610,13 +619,33 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
       return AttributeList::AT_TestTypestate;	 // "test_typestate"
     }
     break;
-  case 15:	 // 10 strings to match.
+  case 15:	 // 12 strings to match.
     switch (Name[0]) {
     default: break;
-    case 'a':	 // 1 string to match.
-      if (memcmp(Name.data()+1, "cquired_before", 14))
+    case 'a':	 // 3 strings to match.
+      switch (Name[1]) {
+      default: break;
+      case 'c':	 // 1 string to match.
+        if (memcmp(Name.data()+2, "quired_before", 13))
+          break;
+        return AttributeList::AT_AcquiredBefore;	 // "acquired_before"
+      case 'm':	 // 2 strings to match.
+        if (memcmp(Name.data()+2, "dgpu_num_", 9))
+          break;
+        switch (Name[11]) {
+        default: break;
+        case 's':	 // 1 string to match.
+          if (memcmp(Name.data()+12, "gpr", 3))
+            break;
+          return AttributeList::AT_AMDGPUNumSGPR;	 // "amdgpu_num_sgpr"
+        case 'v':	 // 1 string to match.
+          if (memcmp(Name.data()+12, "gpr", 3))
+            break;
+          return AttributeList::AT_AMDGPUNumVGPR;	 // "amdgpu_num_vgpr"
+        }
         break;
-      return AttributeList::AT_AcquiredBefore;	 // "acquired_before"
+      }
+      break;
     case 'e':	 // 1 string to match.
       if (memcmp(Name.data()+1, "xt_vector_type", 14))
         break;
@@ -760,11 +789,11 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
       case 'm':	 // 1 string to match.
         if (memcmp(Name.data()+13, "emory", 5))
           break;
-        return AttributeList::AT_NoSanitizeMemory;	 // "no_sanitize_memory"
+        return AttributeList::AT_NoSanitizeSpecific;	 // "no_sanitize_memory"
       case 't':	 // 1 string to match.
         if (memcmp(Name.data()+13, "hread", 5))
           break;
-        return AttributeList::AT_NoSanitizeThread;	 // "no_sanitize_thread"
+        return AttributeList::AT_NoSanitizeSpecific;	 // "no_sanitize_thread"
       }
       break;
     case 'o':	 // 1 string to match.
@@ -809,7 +838,7 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
       case 'o':	 // 1 string to match.
         if (memcmp(Name.data()+2, "_sanitize_address", 17))
           break;
-        return AttributeList::AT_NoSanitizeAddress;	 // "no_sanitize_address"
+        return AttributeList::AT_NoSanitizeSpecific;	 // "no_sanitize_address"
       case 's':	 // 1 string to match.
         if (memcmp(Name.data()+2, "_returns_retained", 17))
           break;
@@ -894,7 +923,7 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
       return AttributeList::AT_TypeTagForDatatype;	 // "type_tag_for_datatype"
     }
     break;
-  case 22:	 // 3 strings to match.
+  case 22:	 // 4 strings to match.
     switch (Name[0]) {
     default: break;
     case 'a':	 // 1 string to match.
@@ -905,6 +934,10 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
       if (memcmp(Name.data()+1, "o_instrument_function", 21))
         break;
       return AttributeList::AT_NoInstrumentFunction;	 // "no_instrument_function"
+    case 'o':	 // 1 string to match.
+      if (memcmp(Name.data()+1, "bjc_independent_class", 21))
+        break;
+      return AttributeList::AT_ObjCIndependentClass;	 // "objc_independent_class"
     case 't':	 // 1 string to match.
       if (memcmp(Name.data()+1, "ry_acquire_capability", 21))
         break;
@@ -991,7 +1024,7 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
     case 'n':	 // 1 string to match.
       if (memcmp(Name.data()+1, "o_address_safety_analysis", 25))
         break;
-      return AttributeList::AT_NoSanitizeAddress;	 // "no_address_safety_analysis"
+      return AttributeList::AT_NoSanitizeSpecific;	 // "no_address_safety_analysis"
     case 'o':	 // 1 string to match.
       if (memcmp(Name.data()+1, "bjc_returns_inner_pointer", 25))
         break;
@@ -1066,14 +1099,14 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
     if (memcmp(Name.data()+0, "nothrow", 7))
       break;
     return AttributeList::AT_NoThrow;	 // "nothrow"
-  case 8:	 // 4 strings to match.
+  case 8:	 // 6 strings to match.
     switch (Name[0]) {
     default: break;
     case 'a':	 // 1 string to match.
       if (memcmp(Name.data()+1, "llocate", 7))
         break;
       return AttributeList::AT_Section;	 // "allocate"
-    case 'n':	 // 2 strings to match.
+    case 'n':	 // 3 strings to match.
       if (Name[1] != 'o')
         break;
       switch (Name[2]) {
@@ -1086,12 +1119,20 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
         if (memcmp(Name.data()+3, "eturn", 5))
           break;
         return AttributeList::AT_NoReturn;	 // "noreturn"
+      case 'v':	 // 1 string to match.
+        if (memcmp(Name.data()+3, "table", 5))
+          break;
+        return AttributeList::AT_MSNoVTable;	 // "novtable"
       }
       break;
     case 'p':	 // 1 string to match.
       if (memcmp(Name.data()+1, "roperty", 7))
         break;
       return AttributeList::IgnoredAttribute;	 // "property"
+    case 'r':	 // 1 string to match.
+      if (memcmp(Name.data()+1, "estrict", 7))
+        break;
+      return AttributeList::AT_Restrict;	 // "restrict"
     }
     break;
   case 9:	 // 3 strings to match.
@@ -1205,7 +1246,7 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
       break;
     }
     break;
-  case 11:	 // 7 strings to match.
+  case 11:	 // 8 strings to match.
     if (memcmp(Name.data()+0, "gnu::", 5))
       break;
     switch (Name[5]) {
@@ -1224,7 +1265,7 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
       case 'a':	 // 1 string to match.
         if (memcmp(Name.data()+7, "lloc", 4))
           break;
-        return AttributeList::AT_Malloc;	 // "gnu::malloc"
+        return AttributeList::AT_Restrict;	 // "gnu::malloc"
       case 'i':	 // 1 string to match.
         if (memcmp(Name.data()+7, "ps16", 4))
           break;
@@ -1239,6 +1280,10 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
       if (memcmp(Name.data()+6, "acked", 5))
         break;
       return AttributeList::AT_Packed;	 // "gnu::packed"
+    case 't':	 // 1 string to match.
+      if (memcmp(Name.data()+6, "arget", 5))
+        break;
+      return AttributeList::AT_Target;	 // "gnu::target"
     case 'u':	 // 1 string to match.
       if (memcmp(Name.data()+6, "nused", 5))
         break;
@@ -1405,7 +1450,7 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
         case 's':	 // 1 string to match.
           if (memcmp(Name.data()+7, "_struct", 7))
             break;
-          return AttributeList::AT_MsStruct;	 // "gnu::ms_struct"
+          return AttributeList::AT_MSStruct;	 // "gnu::ms_struct"
         }
         break;
       case 't':	 // 1 string to match.
@@ -1469,10 +1514,10 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
     if (memcmp(Name.data()+0, "clang::capability", 17))
       break;
     return AttributeList::AT_Capability;	 // "clang::capability"
-  case 18:	 // 4 strings to match.
+  case 18:	 // 5 strings to match.
     switch (Name[0]) {
     default: break;
-    case 'c':	 // 2 strings to match.
+    case 'c':	 // 3 strings to match.
       if (memcmp(Name.data()+1, "lang::", 6))
         break;
       switch (Name[7]) {
@@ -1481,10 +1526,21 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
         if (memcmp(Name.data()+8, "allthrough", 10))
           break;
         return AttributeList::AT_FallThrough;	 // "clang::fallthrough"
-      case 'n':	 // 1 string to match.
-        if (memcmp(Name.data()+8, "oduplicate", 10))
+      case 'n':	 // 2 strings to match.
+        if (Name[8] != 'o')
           break;
-        return AttributeList::AT_NoDuplicate;	 // "clang::noduplicate"
+        switch (Name[9]) {
+        default: break;
+        case '_':	 // 1 string to match.
+          if (memcmp(Name.data()+10, "sanitize", 8))
+            break;
+          return AttributeList::AT_NoSanitize;	 // "clang::no_sanitize"
+        case 'd':	 // 1 string to match.
+          if (memcmp(Name.data()+10, "uplicate", 8))
+            break;
+          return AttributeList::AT_NoDuplicate;	 // "clang::noduplicate"
+        }
+        break;
       }
       break;
     case 'g':	 // 2 strings to match.
@@ -1545,10 +1601,21 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
       return AttributeList::AT_TransparentUnion;	 // "gnu::transparent_union"
     }
     break;
-  case 23:	 // 1 string to match.
-    if (memcmp(Name.data()+0, "gnu::warn_unused_result", 23))
+  case 23:	 // 2 strings to match.
+    if (memcmp(Name.data()+0, "gnu::", 5))
       break;
-    return AttributeList::AT_WarnUnusedResult;	 // "gnu::warn_unused_result"
+    switch (Name[5]) {
+    default: break;
+    case 'n':	 // 1 string to match.
+      if (memcmp(Name.data()+6, "o_sanitize_thread", 17))
+        break;
+      return AttributeList::AT_NoSanitizeSpecific;	 // "gnu::no_sanitize_thread"
+    case 'w':	 // 1 string to match.
+      if (memcmp(Name.data()+6, "arn_unused_result", 17))
+        break;
+      return AttributeList::AT_WarnUnusedResult;	 // "gnu::warn_unused_result"
+    }
+    break;
   case 24:	 // 3 strings to match.
     switch (Name[0]) {
     default: break;
@@ -1570,7 +1637,7 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
     case 'g':	 // 1 string to match.
       if (memcmp(Name.data()+1, "nu::no_sanitize_address", 23))
         break;
-      return AttributeList::AT_NoSanitizeAddress;	 // "gnu::no_sanitize_address"
+      return AttributeList::AT_NoSanitizeSpecific;	 // "gnu::no_sanitize_address"
     }
     break;
   case 25:	 // 3 strings to match.
@@ -1614,7 +1681,7 @@ static AttributeList::Kind getAttrKind(StringRef Name, AttributeList::Syntax Syn
     case 'g':	 // 1 string to match.
       if (memcmp(Name.data()+1, "nu::no_address_safety_analysis", 30))
         break;
-      return AttributeList::AT_NoSanitizeAddress;	 // "gnu::no_address_safety_analysis"
+      return AttributeList::AT_NoSanitizeSpecific;	 // "gnu::no_address_safety_analysis"
     }
     break;
   case 32:	 // 2 strings to match.

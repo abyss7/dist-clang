@@ -9,6 +9,12 @@
 /* Bug report URL. */
 #define BUG_REPORT_URL "http://llvm.org/bugs/"
 
+/* Default OpenMP runtime used by -fopenmp. */
+#define CLANG_DEFAULT_OPENMP_RUNTIME "libgomp"
+
+/* Multilib suffix for libdir. */
+#define CLANG_LIBDIR_SUFFIX ""
+
 /* Relative directory for resource files */
 #define CLANG_RESOURCE_DIR ""
 
@@ -24,7 +30,7 @@
 /* Define if we have libxml2 */
 #define CLANG_HAVE_LIBXML 1
 
-#define PACKAGE_STRING "LLVM 3.6.0svn"
+#define PACKAGE_STRING "LLVM 3.7.0svn"
 
 /* The LLVM product name and version */
 #define BACKEND_PACKAGE_STRING PACKAGE_STRING

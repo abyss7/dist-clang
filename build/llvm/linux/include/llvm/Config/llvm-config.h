@@ -16,25 +16,25 @@
 #define LLVM_CONFIG_H
 
 /* Installation directory for binary executables */
-#define LLVM_BINDIR "/home/ilezhankin/.local/opt/llvm-libc++/bin"
+#define LLVM_BINDIR "/tmp/llvm-dist-clang/bin"
 
 /* Time at which LLVM was configured */
-#define LLVM_CONFIGTIME "Fri Feb  6 10:47:33 MSK 2015"
+#define LLVM_CONFIGTIME "Fri Jun 26 12:26:08 MSK 2015"
 
 /* Installation directory for data files */
-#define LLVM_DATADIR "/home/ilezhankin/.local/opt/llvm-libc++/share/llvm"
+#define LLVM_DATADIR "/tmp/llvm-dist-clang/share/llvm"
 
 /* Target triple LLVM will generate code for by default */
 #define LLVM_DEFAULT_TARGET_TRIPLE "x86_64-unknown-linux-gnu"
 
 /* Installation directory for documentation */
-#define LLVM_DOCSDIR "/home/ilezhankin/.local/opt/llvm-libc++/share/doc/llvm"
+#define LLVM_DOCSDIR "/tmp/llvm-dist-clang/share/doc/llvm"
 
 /* Define if threads enabled */
 #define LLVM_ENABLE_THREADS 1
 
 /* Installation directory for config files */
-#define LLVM_ETCDIR "/home/ilezhankin/.local/opt/llvm-libc++/etc/llvm"
+#define LLVM_ETCDIR "/tmp/llvm-dist-clang/etc/llvm"
 
 /* Has gcc/MSVC atomic intrinsics */
 #define LLVM_HAS_ATOMICS 1
@@ -43,13 +43,13 @@
 #define LLVM_HOST_TRIPLE "x86_64-unknown-linux-gnu"
 
 /* Installation directory for include files */
-#define LLVM_INCLUDEDIR "/home/ilezhankin/.local/opt/llvm-libc++/include"
+#define LLVM_INCLUDEDIR "/tmp/llvm-dist-clang/include"
 
 /* Installation directory for .info files */
-#define LLVM_INFODIR "/home/ilezhankin/.local/opt/llvm-libc++/info"
+#define LLVM_INFODIR "/tmp/llvm-dist-clang/info"
 
 /* Installation directory for man pages */
-#define LLVM_MANDIR "/home/ilezhankin/.local/opt/llvm-libc++/man"
+#define LLVM_MANDIR "/tmp/llvm-dist-clang/man"
 
 /* LLVM architecture name for the native architecture, if available */
 #define LLVM_NATIVE_ARCH X86
@@ -79,7 +79,7 @@
 /* #undef LLVM_ON_WIN32 */
 
 /* Installation prefix directory */
-#define LLVM_PREFIX "/home/ilezhankin/.local/opt/llvm-libc++"
+#define LLVM_PREFIX "/tmp/llvm-dist-clang"
 
 /* Define if we have the Intel JIT API runtime support library */
 #define LLVM_USE_INTEL_JITEVENTS 0
@@ -91,9 +91,15 @@
 #define LLVM_VERSION_MAJOR 3
 
 /* Minor version of the LLVM API */
-#define LLVM_VERSION_MINOR 6
+#define LLVM_VERSION_MINOR 7
+
+/* Patch version of the LLVM API */
+#define LLVM_VERSION_PATCH 0
 
 /* LLVM version string */
-#define LLVM_VERSION_STRING "3.6.0svn"
+#define LLVM_VERSION_STRING "3.7.0svn"
+
+/* Define to enable checks that alter the LLVM C++ ABI */
+/* #undef LLVM_ENABLE_ABI_BREAKING_CHECKS */
 
 #endif

@@ -116,7 +116,18 @@ enum {
   /// of live pointers for relocation by the garbage collector.  It is
   /// intended to support garbage collection with fully precise relocating
   /// collectors and deoptimizations in either the callee or caller.
-  STATEPOINT = 20
+  STATEPOINT = 20,
+
+  /// Instruction that records the offset of a function's frame allocation in a
+  /// label. Created by the llvm.frameallocate intrinsic. It has two arguments:
+  /// the symbol for the label and the frame index of the stack allocation.
+  FRAME_ALLOC = 21,
+
+  /// Loading instruction that may page fault, bundled with associated
+  /// information on how to handle such a page fault.  It is intended to support
+  /// "zero cost" null checks in managed languages by allowing LLVM to fold
+  /// comparisions into existing memory operations.
+  FAULTING_LOAD_OP = 22,
 };
 } // end namespace TargetOpcode
 } // end namespace llvm
