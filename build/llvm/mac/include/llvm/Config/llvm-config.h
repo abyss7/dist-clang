@@ -16,40 +16,40 @@
 #define LLVM_CONFIG_H
 
 /* Installation directory for binary executables */
-#define LLVM_BINDIR "/Users/ilezhankin/llvm-install/bin"
+#define LLVM_BINDIR "/Users/ilezhankin/.local/opt/llvm/bin"
 
 /* Time at which LLVM was configured */
-#define LLVM_CONFIGTIME "Fri Feb  6 14:53:23 MSK 2015"
+#define LLVM_CONFIGTIME "Thu Jul  2 19:35:03 MSK 2015"
 
 /* Installation directory for data files */
-#define LLVM_DATADIR "/Users/ilezhankin/llvm-install/share/llvm"
+#define LLVM_DATADIR "/Users/ilezhankin/.local/opt/llvm/share/llvm"
 
 /* Target triple LLVM will generate code for by default */
-#define LLVM_DEFAULT_TARGET_TRIPLE "x86_64-apple-darwin13.4.0"
+#define LLVM_DEFAULT_TARGET_TRIPLE "x86_64-apple-darwin14.3.0"
 
 /* Installation directory for documentation */
-#define LLVM_DOCSDIR "/Users/ilezhankin/llvm-install/share/doc/llvm"
+#define LLVM_DOCSDIR "/Users/ilezhankin/.local/opt/llvm/share/doc/llvm"
 
 /* Define if threads enabled */
 #define LLVM_ENABLE_THREADS 1
 
 /* Installation directory for config files */
-#define LLVM_ETCDIR "/Users/ilezhankin/llvm-install/etc/llvm"
+#define LLVM_ETCDIR "/Users/ilezhankin/.local/opt/llvm/etc/llvm"
 
 /* Has gcc/MSVC atomic intrinsics */
 #define LLVM_HAS_ATOMICS 1
 
 /* Host triple LLVM will be executed on */
-#define LLVM_HOST_TRIPLE "x86_64-apple-darwin13.4.0"
+#define LLVM_HOST_TRIPLE "x86_64-apple-darwin14.3.0"
 
 /* Installation directory for include files */
-#define LLVM_INCLUDEDIR "/Users/ilezhankin/llvm-install/include"
+#define LLVM_INCLUDEDIR "/Users/ilezhankin/.local/opt/llvm/include"
 
 /* Installation directory for .info files */
-#define LLVM_INFODIR "/Users/ilezhankin/llvm-install/info"
+#define LLVM_INFODIR "/Users/ilezhankin/.local/opt/llvm/info"
 
 /* Installation directory for man pages */
-#define LLVM_MANDIR "/Users/ilezhankin/llvm-install/man"
+#define LLVM_MANDIR "/Users/ilezhankin/.local/opt/llvm/man"
 
 /* LLVM architecture name for the native architecture, if available */
 #define LLVM_NATIVE_ARCH X86
@@ -79,7 +79,7 @@
 /* #undef LLVM_ON_WIN32 */
 
 /* Installation prefix directory */
-#define LLVM_PREFIX "/Users/ilezhankin/llvm-install"
+#define LLVM_PREFIX "/Users/ilezhankin/.local/opt/llvm"
 
 /* Define if we have the Intel JIT API runtime support library */
 #define LLVM_USE_INTEL_JITEVENTS 0
@@ -91,9 +91,15 @@
 #define LLVM_VERSION_MAJOR 3
 
 /* Minor version of the LLVM API */
-#define LLVM_VERSION_MINOR 6
+#define LLVM_VERSION_MINOR 7
+
+/* Patch version of the LLVM API */
+#define LLVM_VERSION_PATCH 0
 
 /* LLVM version string */
-#define LLVM_VERSION_STRING "3.6.0svn"
+#define LLVM_VERSION_STRING "3.7.0svn"
+
+/* Define to enable checks that alter the LLVM C++ ABI */
+/* #undef LLVM_ENABLE_ABI_BREAKING_CHECKS */
 
 #endif

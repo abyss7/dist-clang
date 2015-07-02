@@ -1,6 +1,6 @@
 /*===- TableGen'erated file -------------------------------------*- C++ -*-===*\
 |*                                                                            *|
-|*Attribute dumper                                                            *|
+|* Attribute dumper                                                           *|
 |*                                                                            *|
 |* Automatically generated file, do not edit!                                 *|
 |*                                                                            *|
@@ -10,6 +10,16 @@
   default:
     llvm_unreachable("Unknown attribute kind!");
     break;
+  case attr::AMDGPUNumSGPR: {
+    const AMDGPUNumSGPRAttr *SA = cast<AMDGPUNumSGPRAttr>(A);
+    OS << " " << SA->getNumSGPR();
+    break;
+  }
+  case attr::AMDGPUNumVGPR: {
+    const AMDGPUNumVGPRAttr *SA = cast<AMDGPUNumVGPRAttr>(A);
+    OS << " " << SA->getNumVGPR();
+    break;
+  }
   case attr::ARMInterrupt: {
     const ARMInterruptAttr *SA = cast<ARMInterruptAttr>(A);
     switch(SA->getInterrupt()) {
@@ -185,8 +195,8 @@
   }
   case attr::CUDALaunchBounds: {
     const CUDALaunchBoundsAttr *SA = cast<CUDALaunchBoundsAttr>(A);
-    OS << " " << SA->getMaxThreads();
-    OS << " " << SA->getMinBlocks();
+    dumpStmt(SA->getMaxThreads());
+    dumpStmt(SA->getMinBlocks());
     break;
   }
   case attr::CUDAShared: {
@@ -404,6 +414,9 @@
     case LoopHintAttr::Disable:
       OS << " Disable";
       break;
+    case LoopHintAttr::AssumeSafety:
+      OS << " AssumeSafety";
+      break;
     }
     dumpStmt(SA->getValue());
     break;
@@ -417,17 +430,20 @@
     if (SA->getBestCase()) OS << " BestCase";
     break;
   }
+  case attr::MSNoVTable: {
+    break;
+  }
   case attr::MSP430Interrupt: {
     const MSP430InterruptAttr *SA = cast<MSP430InterruptAttr>(A);
     OS << " " << SA->getNumber();
     break;
   }
+  case attr::MSStruct: {
+    break;
+  }
   case attr::MSVtorDisp: {
     const MSVtorDispAttr *SA = cast<MSVtorDispAttr>(A);
     OS << " " << SA->getVdm();
-    break;
-  }
-  case attr::Malloc: {
     break;
   }
   case attr::MaxFieldAlignment: {
@@ -447,9 +463,6 @@
   case attr::Mode: {
     const ModeAttr *SA = cast<ModeAttr>(A);
     OS << " " << SA->getMode()->getName();
-    break;
-  }
-  case attr::MsStruct: {
     break;
   }
   case attr::NSConsumed: {
@@ -491,14 +504,10 @@
   case attr::NoReturn: {
     break;
   }
-  case attr::NoSanitizeAddress: {
-    OS << " " << A->getSpelling();
-    break;
-  }
-  case attr::NoSanitizeMemory: {
-    break;
-  }
-  case attr::NoSanitizeThread: {
+  case attr::NoSanitize: {
+    const NoSanitizeAttr *SA = cast<NoSanitizeAttr>(A);
+    for (const auto &Val : SA->sanitizers())
+      OS << " " << Val;
     break;
   }
   case attr::NoSplitStack: {
@@ -543,6 +552,9 @@
     break;
   }
   case attr::ObjCExplicitProtocolImpl: {
+    break;
+  }
+  case attr::ObjCIndependentClass: {
     break;
   }
   case attr::ObjCMethodFamily: {
@@ -649,9 +661,6 @@
     }
     break;
   }
-  case attr::PnaclCall: {
-    break;
-  }
   case attr::PtGuardedBy: {
     const PtGuardedByAttr *SA = cast<PtGuardedByAttr>(A);
     dumpStmt(SA->getArg());
@@ -682,6 +691,10 @@
     const RequiresCapabilityAttr *SA = cast<RequiresCapabilityAttr>(A);
     for (RequiresCapabilityAttr::args_iterator I = SA->args_begin(), E = SA->args_end(); I != E; ++I)
       dumpStmt(*I);
+    break;
+  }
+  case attr::Restrict: {
+    OS << " " << A->getSpelling();
     break;
   }
   case attr::ReturnTypestate: {
@@ -754,6 +767,11 @@
   case attr::TLSModel: {
     const TLSModelAttr *SA = cast<TLSModelAttr>(A);
     OS << " \"" << SA->getModel() << "\"";
+    break;
+  }
+  case attr::Target: {
+    const TargetAttr *SA = cast<TargetAttr>(A);
+    OS << " \"" << SA->getFeatures() << "\"";
     break;
   }
   case attr::TestTypestate: {

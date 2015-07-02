@@ -53,10 +53,20 @@ public:
     RLT_Libgcc
   };
 
+  enum RTTIMode {
+    RM_EnabledExplicitly,
+    RM_EnabledImplicitly,
+    RM_DisabledExplicitly,
+    RM_DisabledImplicitly
+  };
+
 private:
   const Driver &D;
   const llvm::Triple Triple;
   const llvm::opt::ArgList &Args;
+  // We need to initialize CachedRTTIArg before CachedRTTIMode
+  const llvm::opt::Arg *const CachedRTTIArg;
+  const RTTIMode CachedRTTIMode;
 
   /// The list of toolchain specific path prefixes to search for
   /// files.
@@ -134,6 +144,12 @@ public:
 
   const SanitizerArgs& getSanitizerArgs() const;
 
+  // Returns the Arg * that explicitly turned on/off rtti, or nullptr.
+  const llvm::opt::Arg *getRTTIArg() const { return CachedRTTIArg; }
+
+  // Returns the RTTIMode for the toolchain with the current arguments.
+  RTTIMode getRTTIMode() const { return CachedRTTIMode; }
+
   // Tool access.
 
   /// TranslateArgs - Create a new derived argument list for any argument
@@ -148,7 +164,10 @@ public:
   }
 
   /// Choose a tool to use to handle the action \p JA.
-  Tool *SelectTool(const JobAction &JA) const;
+  ///
+  /// This can be overridden when a particular ToolChain needs to use
+  /// a C compiler other than Clang.
+  virtual Tool *SelectTool(const JobAction &JA) const;
 
   // Helper methods
 
@@ -251,7 +270,7 @@ public:
   /// getThreadModel() - Which thread model does this target use?
   virtual std::string getThreadModel() const { return "posix"; }
 
-  /// supportsThreadModel() - Does this target support a thread model?
+  /// isThreadModelSupported() - Does this target support a thread model?
   virtual bool isThreadModelSupported(const StringRef Model) const;
 
   /// ComputeLLVMTriple - Return the LLVM target triple to use, after taking

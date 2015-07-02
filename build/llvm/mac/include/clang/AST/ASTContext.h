@@ -273,8 +273,6 @@ class ASTContext : public RefCountedBase<ASTContext> {
   /// \brief Declaration for the CUDA cudaConfigureCall function.
   FunctionDecl *cudaConfigureCallDecl;
 
-  TypeSourceInfo NullTypeSourceInfo;
-
   /// \brief Keeps track of all declaration attributes.
   ///
   /// Since so few decls have attrs, we keep them in a hash map instead of
@@ -285,6 +283,11 @@ class ASTContext : public RefCountedBase<ASTContext> {
   /// merged with other declarations to the canonical declaration that they were
   /// merged into.
   llvm::DenseMap<Decl*, Decl*> MergedDecls;
+
+  /// \brief A mapping from a defining declaration to a list of modules (other
+  /// than the owning module of the declaration) that contain merged
+  /// definitions of that entity.
+  llvm::DenseMap<NamedDecl*, llvm::TinyPtrVector<Module*>> MergedDefModules;
 
 public:
   /// \brief A type synonym for the TemplateOrInstantiation mapping.
@@ -385,6 +388,7 @@ private:
   ImportDecl *LastLocalImport;
   
   TranslationUnitDecl *TUDecl;
+  mutable ExternCContextDecl *ExternCContext;
 
   /// \brief The associated SourceManager object.a
   SourceManager &SourceMgr;
@@ -782,8 +786,26 @@ public:
     MergedDecls[D] = Primary;
   }
 
+  /// \brief Note that the definition \p ND has been merged into module \p M,
+  /// and should be visible whenever \p M is visible.
+  void mergeDefinitionIntoModule(NamedDecl *ND, Module *M,
+                                 bool NotifyListeners = true);
+  /// \brief Clean up the merged definition list. Call this if you might have
+  /// added duplicates into the list.
+  void deduplicateMergedDefinitonsFor(NamedDecl *ND);
+
+  /// \brief Get the additional modules in which the definition \p Def has
+  /// been merged.
+  ArrayRef<Module*> getModulesWithMergedDefinition(NamedDecl *Def) {
+    auto MergedIt = MergedDefModules.find(Def);
+    if (MergedIt == MergedDefModules.end())
+      return None;
+    return MergedIt->second;
+  }
+
   TranslationUnitDecl *getTranslationUnitDecl() const { return TUDecl; }
 
+  ExternCContextDecl *getExternCContextDecl() const;
 
   // Builtin Types.
   CanQualType VoidTy;
@@ -1691,6 +1713,10 @@ public:
   /// beneficial for performance to overalign a data type.
   unsigned getPreferredTypeAlign(const Type *T) const;
 
+  /// \brief Return the default alignment for __attribute__((aligned)) on
+  /// this target, to be used if no alignment value is specified.
+  unsigned getTargetDefaultAlignForAttributeAligned(void) const;
+
   /// \brief Return the alignment in bits that should be given to a
   /// global variable with type \p T.
   unsigned getAlignOfGlobalVar(QualType T) const;
@@ -1938,6 +1964,8 @@ public:
   /// cv-qualifiers.
   QualType getSignatureParameterType(QualType T) const;
   
+  QualType getExceptionObjectType(QualType T) const;
+  
   /// \brief Return the properly qualified result of decaying the specified
   /// array type to a pointer.
   ///
@@ -2173,8 +2201,6 @@ public:
   getTrivialTypeSourceInfo(QualType T, 
                            SourceLocation Loc = SourceLocation()) const;
 
-  TypeSourceInfo *getNullTypeSourceInfo() { return &NullTypeSourceInfo; }
-
   /// \brief Add a deallocation callback that will be invoked when the 
   /// ASTContext is destroyed.
   ///
@@ -2194,6 +2220,18 @@ public:
   /// \returns true if the function/var must be CodeGen'ed/deserialized even if
   /// it is not used.
   bool DeclMustBeEmitted(const Decl *D);
+
+  const CXXConstructorDecl *
+  getCopyConstructorForExceptionObject(CXXRecordDecl *RD);
+
+  void addCopyConstructorForExceptionObject(CXXRecordDecl *RD,
+                                            CXXConstructorDecl *CD);
+
+  void addDefaultArgExprForConstructor(const CXXConstructorDecl *CD,
+                                       unsigned ParmIdx, Expr *DAE);
+
+  Expr *getDefaultArgExprForConstructor(const CXXConstructorDecl *CD,
+                                        unsigned ParmIdx);
 
   void setManglingNumber(const NamedDecl *ND, unsigned Number);
   unsigned getManglingNumber(const NamedDecl *ND) const;
@@ -2267,8 +2305,8 @@ public:
   static unsigned NumImplicitDestructorsDeclared;
   
 private:
-  ASTContext(const ASTContext &) LLVM_DELETED_FUNCTION;
-  void operator=(const ASTContext &) LLVM_DELETED_FUNCTION;
+  ASTContext(const ASTContext &) = delete;
+  void operator=(const ASTContext &) = delete;
 
 public:
   /// \brief Initialize built-in types.

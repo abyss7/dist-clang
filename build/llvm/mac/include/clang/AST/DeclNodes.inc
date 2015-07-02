@@ -1,6 +1,6 @@
 /*===- TableGen'erated file -------------------------------------*- C++ -*-===*\
 |*                                                                            *|
-|*List of AST nodes of a particular kind                                      *|
+|* List of AST nodes of a particular kind                                     *|
 |*                                                                            *|
 |* Automatically generated file, do not edit!                                 *|
 |*                                                                            *|
@@ -46,6 +46,12 @@ CLASSSCOPEFUNCTIONSPECIALIZATION(ClassScopeFunctionSpecialization, Decl)
 #endif
 EMPTY(Empty, Decl)
 #undef EMPTY
+
+#ifndef EXTERNCCONTEXT
+#  define EXTERNCCONTEXT(Type, Base) DECL(Type, Base)
+#endif
+EXTERNCCONTEXT(ExternCContext, Decl)
+#undef EXTERNCCONTEXT
 
 #ifndef FILESCOPEASM
 #  define FILESCOPEASM(Type, Base) DECL(Type, Base)
@@ -481,7 +487,7 @@ LAST_DECL_RANGE(Decl, AccessSpec, TranslationUnit)
 #undef ABSTRACT_DECL
 /*===- TableGen'erated file -------------------------------------*- C++ -*-===*\
 |*                                                                            *|
-|*List of AST Decl nodes                                                      *|
+|* List of AST Decl nodes                                                     *|
 |*                                                                            *|
 |* Automatically generated file, do not edit!                                 *|
 |*                                                                            *|
@@ -498,6 +504,7 @@ DECL_CONTEXT_BASE(Tag)
 DECL_CONTEXT_BASE(ObjCContainer)
 DECL_CONTEXT(Block)
 DECL_CONTEXT(Captured)
+DECL_CONTEXT(ExternCContext)
 DECL_CONTEXT(LinkageSpec)
 DECL_CONTEXT(Namespace)
 DECL_CONTEXT(ObjCMethod)
