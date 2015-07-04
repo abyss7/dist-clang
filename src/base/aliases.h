@@ -2,7 +2,6 @@
 
 #include <base/stl_include.h>
 
-#if !defined(QT_CREATOR)
 #include STL(array)
 #include STL(atomic)
 #include STL(cstdint)
@@ -16,21 +15,6 @@
 #include STL(unordered_map)
 #include STL(unordered_set)
 #include STL(vector)
-#else
-#include <third_party/libcxx/exported/include/array>
-#include <third_party/libcxx/exported/include/atomic>
-#include <third_party/libcxx/exported/include/cstdint>
-#include <third_party/libcxx/exported/include/functional>
-#include <third_party/libcxx/exported/include/list>
-#include <third_party/libcxx/exported/include/map>
-#include <third_party/libcxx/exported/include/memory>
-#include <third_party/libcxx/exported/include/mutex>
-#include <third_party/libcxx/exported/include/string>
-#include <third_party/libcxx/exported/include/tuple>
-#include <third_party/libcxx/exported/include/unordered_map>
-#include <third_party/libcxx/exported/include/unordered_set>
-#include <third_party/libcxx/exported/include/vector>
-#endif  // !defined(QT_CREATOR)
 
 #if defined(OS_WIN)
 #include STL(thread)

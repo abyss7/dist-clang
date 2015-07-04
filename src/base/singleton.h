@@ -2,8 +2,6 @@
 
 #include <base/testable.h>
 
-#include <third_party/libcxx/exported/include/mutex>
-
 #define DEFINE_SINGLETON(Class)                            \
   template <>                                              \
   UniquePtr<Class> base::Singleton<Class>::instance_ = {}; \

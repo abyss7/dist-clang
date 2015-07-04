@@ -52,19 +52,21 @@ class Promise {
   using StatePtr = SharedPtr<typename Future<T>::State>;
 
  public:
+  // We need an |Optional| to be able to declare empty futures - at least in
+  // tests.
   using Optional = std::experimental::optional<Future<T>>;
 
   // The |default_value| is set on object's destruction, if no other value was
   // ever set.
   Promise(const T& default_value)
       : state_(new typename Future<T>::State),
-        async_(
-            new Thread, [](Thread* thread) {
-              if (thread->joinable()) {
-                thread->join();
-              }
-              delete thread;
-            }),
+        async_(new Thread,
+               [](Thread* thread) {
+                 if (thread->joinable()) {
+                   thread->join();
+                 }
+                 delete thread;
+               }),
         on_exit_value_(default_value) {}
   Promise(Promise<T>&& other) = default;
   ~Promise() {
