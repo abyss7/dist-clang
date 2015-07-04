@@ -105,9 +105,18 @@ Emitter::Emitter(const proto::Configuration& configuration)
 
   for (const auto& remote : conf_.emitter().remotes()) {
     if (!remote.disabled()) {
-      auto end_point =
-          resolver_->Resolve(remote.host(), remote.port(), remote.ipv6());
-      Worker worker = std::bind(&Emitter::DoRemoteExecute, this, _1, end_point);
+      auto resolver = [
+        this,
+        host = remote.host(),
+        port = static_cast<ui16>(remote.port()),
+        ipv6 = remote.ipv6()
+      ]() {
+        auto optional = resolver_->Resolve(host, port, ipv6);
+        DCHECK(optional);
+        optional->Wait();
+        return optional->GetValue();
+      };
+      Worker worker = std::bind(&Emitter::DoRemoteExecute, this, _1, resolver);
       workers_->AddWorker(worker, remote.threads());
     }
   }
@@ -319,24 +328,27 @@ void Emitter::DoLocalExecute(const Atomic<bool>& is_shutting_down) {
 }
 
 void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
-                              net::EndPointResolver::Optional end_point) {
-  if (!end_point) {
-    // TODO: do re-resolve |end_point| periodically, since the network
-    // configuration may change on runtime.
-    return;
-  }
-
-  end_point->Wait();
-
-  if (!end_point->GetValue()) {
-    // TODO: do re-resolve |end_point| periodically, since the network
-    // configuration may change on runtime.
-    return;
-  }
-
+                              ResolveFn resolver) {
+  net::EndPointPtr end_point;
   ui32 sleep_period = 1;
+  auto Sleep = [&sleep_period]() mutable {
+    LOG(INFO) << "Sleeping for " << sleep_period
+              << " seconds before next attempt";
+    std::this_thread::sleep_for(std::chrono::seconds(sleep_period));
+    if (sleep_period < static_cast<ui32>(-1) / 2) {
+      sleep_period <<= 1;
+    }
+  };
 
   while (!is_shutting_down) {
+    if (!end_point) {
+      end_point = resolver();
+      if (!end_point) {
+        Sleep();
+        continue;
+      }
+    }
+
     Optional&& task = all_tasks_->Pop();
     if (!task) {
       break;
@@ -363,18 +375,12 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
     }
 
     String error;
-    auto connection = Connect(end_point->GetValue(), &error);
+    auto connection = Connect(end_point, &error);
     if (!connection) {
-      LOG(WARNING) << "Failed to connect to " << end_point->GetValue()->Print()
-                   << ": " << error;
+      LOG(WARNING) << "Failed to connect to " << end_point->Print() << ": "
+                   << error;
       all_tasks_->Push(std::move(*task));
-
-      LOG(INFO) << "Sleeping for " << sleep_period
-                << " seconds before next attempt";
-      std::this_thread::sleep_for(std::chrono::seconds(sleep_period));
-      if (sleep_period < static_cast<ui32>(-1) / 2) {
-        sleep_period <<= 1;
-      }
+      Sleep();
 
       continue;
     }

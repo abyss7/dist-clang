@@ -26,6 +26,7 @@ class Emitter : public CompilationDaemon {
   using Queue = base::LockedQueue<Task>;
   using QueueAggregator = base::QueueAggregator<Task>;
   using Optional = Queue::Optional;
+  using ResolveFn = Fn<net::EndPointPtr()>;
 
   bool HandleNewMessage(net::ConnectionPtr connection, Universal message,
                         const proto::Status& status) override;
@@ -33,7 +34,7 @@ class Emitter : public CompilationDaemon {
   void DoCheckCache(const Atomic<bool>& is_shutting_down);
   void DoLocalExecute(const Atomic<bool>& is_shutting_down);
   void DoRemoteExecute(const Atomic<bool>& is_shutting_down,
-                       net::EndPointResolver::Optional end_point);
+                       ResolveFn resolver);
 
   UniquePtr<Queue> all_tasks_, cache_tasks_, failed_tasks_;
   UniquePtr<QueueAggregator> local_tasks_;
