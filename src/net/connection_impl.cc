@@ -1,6 +1,7 @@
 #include <net/connection_impl.h>
 
 #include <base/assert.h>
+#include <base/empty_lambda.h>
 #include <base/logging.h>
 #include <net/event_loop.h>
 
@@ -129,7 +130,7 @@ bool ConnectionImpl::SendAsyncImpl(SendCallback callback) {
   auto shared = std::static_pointer_cast<ConnectionImpl>(shared_from_this());
   send_callback_ = std::bind(callback, shared_from_this(), _1);
   if (!event_loop_.ReadyForSend(shared)) {
-    send_callback_ = BindedSendCallback();
+    send_callback_ = EmptyLambda<bool>(false);
     return false;
   }
   return true;
@@ -221,7 +222,7 @@ void ConnectionImpl::DoSend() {
   auto result = Connection::SendSync(std::move(message_), &status);
   DCHECK(!!send_callback_);
   auto send_callback = send_callback_;
-  send_callback_ = BindedSendCallback();
+  send_callback_ = EmptyLambda<bool>(false);
   if (!send_callback(status) || !result) {
     Close();
   }
@@ -230,8 +231,8 @@ void ConnectionImpl::DoSend() {
 void ConnectionImpl::Close() {
   bool old_closed = false;
   if (is_closed_.compare_exchange_strong(old_closed, true)) {
-    read_callback_ = BindedReadCallback();
-    send_callback_ = BindedSendCallback();
+    read_callback_ = EmptyLambda<bool>(false);
+    send_callback_ = EmptyLambda<bool>(false);
     gzip_output_stream_.reset();
     gzip_input_stream_.reset();
     file_output_stream_.Flush();
