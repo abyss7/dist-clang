@@ -92,6 +92,7 @@ bool DriverCommand::GenerateFromArgs(int argc, const char* const raw_argv[],
 
       // It's a kind of heuristics to skip non-Clang commands.
       if ((command->getSource().getKind() != Action::AssembleJobClass &&
+           command->getSource().getKind() != Action::BackendJobClass &&
            command->getSource().getKind() != Action::CompileJobClass &&
            command->getSource().getKind() != Action::PrecompileJobClass &&
            command->getSource().getKind() != Action::PreprocessJobClass) ||
