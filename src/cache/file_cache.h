@@ -172,7 +172,7 @@ class FileCache {
   using EntryList = base::LockedList<TimeHashPair>;
   using EntryListDeleter = Fn<void(EntryList* list)>;
   using EntryMap = HashMap<string::Hash, TimeSizePair>;
-  using TimeMap = MultiMap<ui64 /* mtime */, EntryMap::iterator>;
+  using TimeMap = MultiMap<ui64 /* mtime */, string::Hash>;
 
   ui64 GetEntrySize(string::Hash hash) const;
   // Returns |0u| if the entry is broken.

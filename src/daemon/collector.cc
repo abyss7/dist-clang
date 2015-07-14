@@ -43,7 +43,9 @@ bool Collector::HandleNewMessage(net::ConnectionPtr connection,
     UniquePtr<proto::StatReport> report(
         message->ReleaseExtension(proto::StatReport::extension));
     for (auto& metric : *report->mutable_metric()) {
-      base::Singleton<perf::StatService>::Get().Dump(metric);
+      if (metric.has_name()) {
+        base::Singleton<perf::StatService>::Get().Dump(metric);
+      }
     }
     if (!connection->SendSync(std::move(report))) {
       LOG(WARNING) << "Failed to send report message!";

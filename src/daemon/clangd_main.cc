@@ -14,8 +14,19 @@
 
 using namespace dist_clang;
 
+namespace {
+
+void signal_handler(int sig) {
+  CHECK(sig == SIGSEGV);
+  LOG(ERROR) << "Segmentation fault";
+  CHECK(false);
+}
+
+}  // namespace
+
 int main(int argc, char* argv[]) {
   signal(SIGPIPE, SIG_IGN);
+  signal(SIGSEGV, signal_handler);
 
   daemon::Configuration configuration(argc, argv);
   UniquePtr<daemon::BaseDaemon> daemon, collector;
@@ -39,6 +50,14 @@ int main(int argc, char* argv[]) {
                << configuration.config().user_id();
   }
 
+  if (configuration.config().has_collector()) {
+    collector.reset(new daemon::Collector(configuration.config()));
+  }
+
+  if (collector && !collector->Initialize()) {
+    LOG(FATAL) << "Collector failed to initialize.";
+  }
+
   if (configuration.config().has_absorber()) {
     daemon.reset(new daemon::Absorber(configuration.config()));
   } else if (configuration.config().has_emitter()) {
@@ -50,14 +69,6 @@ int main(int argc, char* argv[]) {
 
   if (!daemon->Initialize()) {
     LOG(FATAL) << "Daemon failed to initialize.";
-  }
-
-  if (configuration.config().has_collector()) {
-    collector.reset(new daemon::Collector(configuration.config()));
-  }
-
-  if (collector && !collector->Initialize()) {
-    LOG(FATAL) << "Collector failed to initialize.";
   }
 
   sigset_t signal_mask;

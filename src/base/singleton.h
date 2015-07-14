@@ -23,7 +23,8 @@ namespace base {
  *     auto& foo = Singleton<Foo>::Get();
  *   }
  *
- * NOTICE: Every singleton'ed class should be explicitly defined in singleton.cc
+ * NOTICE: Every singleton'ed class should be explicitly defined in an
+ *         appropriate translation unit.
  */
 template <class T>
 class Singleton : private Testable<T> {

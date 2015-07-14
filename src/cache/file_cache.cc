@@ -78,7 +78,7 @@ bool FileCache::Run(ui64 clean_period) {
 
             if (size) {
               auto entry = entries_.emplace(hash, TimeSizePair(mtime, size));
-              mtimes_.emplace(mtime, entry.first);
+              mtimes_.emplace(mtime, hash);
               cache_size_ += size;
 
               CHECK(entry.second);  // There should be no duplicate entries.
@@ -89,6 +89,7 @@ bool FileCache::Run(ui64 clean_period) {
             }
           }
         });
+    CHECK(mtimes_.size() == entries_.size());
 
     new_entries_.reset(new EntryList, new_entries_deleter_);
 
@@ -299,6 +300,7 @@ bool FileCache::RemoveEntry(string::Hash hash, bool possibly_broken) {
   auto entry_size = has_entry ? entry_it->second.second : 0u;
 
   if (has_entry) {
+    CHECK(entry_size > 0);
     entries_.erase(entry_it);
   }
 
@@ -490,13 +492,14 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
   DCHECK(max_size_ != UNLIMITED);
 
   while (auto new_entry = list->Pop()) {
-    auto entry_it = entries_.find(new_entry->second);
+    const auto& hash = new_entry->second;
+    auto entry_it = entries_.find(hash);
     if (entry_it != entries_.end()) {
       // Update mtime of an existing entry.
       auto mtime_its = mtimes_.equal_range(entry_it->second.first);
       auto mtime_it = mtime_its.first;
       while (mtime_it != mtime_its.second) {
-        if (mtime_it->second == entry_it) {
+        if (mtime_it->second == hash) {
           break;
         }
         ++mtime_it;
@@ -506,16 +509,16 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
       mtimes_.erase(mtime_it);
       auto old_mtime = entry_it->second.first;
       entry_it->second.first = new_entry->first;
-      mtimes_.emplace(new_entry->first, entry_it);
+      mtimes_.emplace(new_entry->first, hash);
 
       LOG(CACHE_VERBOSE) << entry_it->first.str << " wasn't used for "
                          << (new_entry->first - old_mtime) << " seconds";
     } else {
       // Insert new entry.
-      auto size = GetEntrySize(new_entry->second);
-      auto new_entry_it = entries_.emplace(
-          new_entry->second, TimeSizePair(new_entry->first, size));
-      mtimes_.emplace(new_entry->first, new_entry_it.first);
+      auto size = GetEntrySize(hash);
+      auto new_entry_it =
+          entries_.emplace(hash, TimeSizePair(new_entry->first, size));
+      mtimes_.emplace(new_entry->first, hash);
       cache_size_ += size;
       STAT(CACHE_SIZE_ADDED, size);
 
@@ -524,19 +527,23 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
     }
   }
 
+  CHECK(mtimes_.size() == entries_.size());
+
   while (cache_size_ > max_size_) {
     auto mtime_it = mtimes_.begin();
-    auto entry_it = mtime_it->second;
+    CHECK(mtime_it != mtimes_.end());
+
+    auto entry_it = entries_.find(mtime_it->second);
+    CHECK(entry_it != entries_.end());
 
     auto manifest_path = CommonPath(entry_it->first) + ".manifest";
     WriteLock lock(this, manifest_path);
     if (lock) {
       LOG(CACHE_VERBOSE) << "Cache overuse is " << (cache_size_ - max_size_)
                          << " bytes: removing " << entry_it->first.str;
-      DCHECK(RemoveEntry(entry_it->first));
+      DCHECK_O_EVAL(RemoveEntry(entry_it->first));
+      mtimes_.erase(mtime_it);
     }
-
-    mtimes_.erase(mtime_it);
   }
 }
 

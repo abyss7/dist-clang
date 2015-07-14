@@ -16,11 +16,11 @@ message Verbosity {
     optional uint32 left  = 2;  // if omitted: [ default = right ];
   }
 
-  // less'o'equal to |error_mark| levels go to stderr.
-  optional uint32 error_mark    = 1 [ default = 20 ];
+  // level ≤ |error_mark| goes to stderr.
+  optional uint32 error_mark = 1 [ default = 20 ];
 
   // all ranges are inclusive: [left, right].
-  repeated Range levels         = 2;
+  repeated Range levels      = 2;
 }
 
 message Configuration {
