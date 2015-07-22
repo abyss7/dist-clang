@@ -4,6 +4,7 @@
 #include <base/locked_list.h>
 #include <base/thread_pool.h>
 #include <cache/database_leveldb.h>
+#include <cache/database_sqlite.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest_prod.h>
 
@@ -168,11 +169,8 @@ class FileCache {
                const string::HandledHash& hash);
 
   using TimeHashPair = Pair<ui64 /* mtime */, string::Hash>;
-  using TimeSizePair = Pair<ui64 /* mtime */, ui64 /* size */>;
   using EntryList = base::LockedList<TimeHashPair>;
   using EntryListDeleter = Fn<void(EntryList* list)>;
-  using EntryMap = HashMap<string::Hash, TimeSizePair>;
-  using TimeMap = MultiMap<ui64 /* mtime */, string::Hash>;
 
   ui64 GetEntrySize(string::Hash hash) const;
   // Returns |0u| if the entry is broken.
@@ -188,11 +186,10 @@ class FileCache {
 
   const String path_;
   bool snappy_;
-  UniquePtr<cache::Database> database_;
+  UniquePtr<LevelDB> database_;
+  UniquePtr<SQLite> entries_;
 
   ui64 max_size_, cache_size_ = {0u};
-  EntryMap entries_;
-  TimeMap mtimes_;
   const EntryListDeleter new_entries_deleter_ = [this](EntryList* list) {
     auto task = [this, list] { Clean(UniquePtr<EntryList>(list)); };
     cleaner_.Push(task);

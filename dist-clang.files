@@ -1114,8 +1114,11 @@ src/base/using_log.h
 src/base/worker_pool.cc
 src/base/worker_pool.h
 src/cache/BUILD.gn
+src/cache/database.h
 src/cache/database_leveldb.cc
 src/cache/database_leveldb.h
+src/cache/database_sqlite.cc
+src/cache/database_sqlite.h
 src/cache/file_cache.cc
 src/cache/file_cache.h
 src/cache/file_cache_test.cc
@@ -1124,6 +1127,8 @@ src/cache/manifest.pb.h
 src/cache/manifest.proto
 src/cache/manifest_utils.cc
 src/cache/manifest_utils.h
+src/cache/sqlite3.c
+src/cache/sqlite3.h
 src/client/BUILD.gn
 src/client/clang.cc
 src/client/clang.h

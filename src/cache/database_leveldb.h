@@ -3,22 +3,23 @@
 #include <base/aliases.h>
 #include <base/attributes.h>
 #include <base/file_utils.h>
+#include <cache/database.h>
 
 namespace leveldb {
 class DB;
-}
+}  // namespace leveldb
 
 namespace dist_clang {
 namespace cache {
 
-class Database {
+class LevelDB : public Database<Immutable> {
  public:
-  Database(const String& path, const String& name);
-  ~Database();
+  LevelDB(const String& path, const String& name);
+  ~LevelDB();
 
-  bool Set(const String& key, Immutable value) THREAD_SAFE;
-  bool Get(const String& key, Immutable* value) const THREAD_SAFE;
-  bool Delete(const String& key) THREAD_SAFE;
+  bool Set(const String& key, const Immutable& value) override THREAD_SAFE;
+  bool Get(const String& key, Immutable* value) const override THREAD_SAFE;
+  bool Delete(const String& key) override THREAD_SAFE;
 
   inline ui64 SizeOnDisk() const { return base::CalculateDirectorySize(path_); }
 

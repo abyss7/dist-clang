@@ -10,7 +10,7 @@
 namespace dist_clang {
 namespace cache {
 
-Database::Database(const String& path, const String& name)
+LevelDB::LevelDB(const String& path, const String& name)
     : path_(path + "/leveldb_" + name) {
   using namespace leveldb;
 
@@ -28,13 +28,13 @@ Database::Database(const String& path, const String& name)
   LOG(DB_INFO) << "Database is created on path " << path_;
 }
 
-Database::~Database() {
+LevelDB::~LevelDB() {
   if (db_) {
     delete db_;
   }
 }
 
-bool Database::Set(const String& key, Immutable value) {
+bool LevelDB::Set(const String& key, const Immutable& value) {
   using namespace leveldb;
 
   WriteOptions options;
@@ -44,7 +44,9 @@ bool Database::Set(const String& key, Immutable value) {
     return false;
   }
 
-  Status status = db_->Put(options, key, Slice(value.data(), value.size()));
+  Immutable non_const_value = value;
+  Status status = db_->Put(
+      options, key, Slice(non_const_value.data(), non_const_value.size()));
   if (!status.ok()) {
     LOG(DB_ERROR) << "Failed to set " << key << " => " << value
                   << " with error: " << status.ToString();
@@ -55,7 +57,7 @@ bool Database::Set(const String& key, Immutable value) {
   return true;
 }
 
-bool Database::Get(const String& key, Immutable* value) const {
+bool LevelDB::Get(const String& key, Immutable* value) const {
   using namespace leveldb;
 
   DCHECK(value);
@@ -79,7 +81,7 @@ bool Database::Get(const String& key, Immutable* value) const {
   return true;
 }
 
-bool Database::Delete(const String& key) {
+bool LevelDB::Delete(const String& key) {
   using namespace leveldb;
 
   WriteOptions options;

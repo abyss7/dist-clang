@@ -5,10 +5,15 @@ shared_library("file_cache") {
   ]
 
   sources = [
+    "database.h",
     "database_leveldb.cc",
     "database_leveldb.h",
+    "database_sqlite.cc",
+    "database_sqlite.h",
     "file_cache.cc",
     "file_cache.h",
+    "sqlite3.c",
+    "sqlite3.h",
   ]
 
   public = [

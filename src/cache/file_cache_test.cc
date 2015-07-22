@@ -16,10 +16,10 @@ using namespace string;
 
 TEST(FileCacheTest, HashCompliesWithRegex) {
   std::regex hash_regex("[a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8}");
-  EXPECT_TRUE(std::regex_match(
-      FileCache::Hash(HandledSource("1"_l), CommandLine("2"_l), Version("3"_l))
-          .str.string_copy(),
-      hash_regex));
+  EXPECT_TRUE(
+      std::regex_match(FileCache::Hash(HandledSource("1"_l), CommandLine("2"_l),
+                                       Version("3"_l)).str.string_copy(),
+                       hash_regex));
 }
 
 TEST(FileCacheTest, LockNonExistentFile) {
@@ -125,9 +125,9 @@ TEST(FileCacheTest, RemoveEntry) {
   ASSERT_TRUE(cache.Run(1));
   auto db_size = cache.database_->SizeOnDisk();
   EXPECT_EQ(cache.cache_size_, base::CalculateDirectorySize(tmp_dir) - db_size);
-  EXPECT_EQ(1u, cache.entries_.count(hash1));
-  EXPECT_EQ(0u, cache.entries_.count(hash2));
-  EXPECT_EQ(0u, cache.entries_.count(hash3));
+  EXPECT_TRUE(cache.entries_->Exists(hash1.str));
+  EXPECT_FALSE(cache.entries_->Exists(hash2.str));
+  EXPECT_FALSE(cache.entries_->Exists(hash3.str));
 }
 
 TEST(FileCacheTest, RestoreSingleEntry) {

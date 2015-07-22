@@ -52,7 +52,8 @@ bool FileCache::Run(ui64 clean_period) {
     return false;
   }
 
-  database_.reset(new Database(path_, "direct"));
+  database_.reset(new LevelDB(path_, "direct"));
+  entries_.reset(new SQLite);
 
   CHECK(clean_period > 0);
 
@@ -71,25 +72,27 @@ bool FileCache::Run(ui64 clean_period) {
         path_, [this](const String& file_path, ui64 mtime, ui64) {
           std::regex regex("([a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8})\\.manifest");
           std::cmatch match;
-          if (std::regex_search(file_path.c_str(), match, regex) &&
-              match.size() > 1 && match[1].matched) {
-            auto hash = string::Hash(String(match[1]));
-            auto size = GetEntrySize(hash);
+          if (!std::regex_search(file_path.c_str(), match, regex) ||
+              match.size() < 2 || !match[1].matched) {
+            return;
+          }
 
-            if (size) {
-              auto entry = entries_.emplace(hash, TimeSizePair(mtime, size));
-              mtimes_.emplace(mtime, hash);
-              cache_size_ += size;
+          auto hash = string::Hash(String(match[1]));
+          auto size = GetEntrySize(hash);
 
-              CHECK(entry.second);  // There should be no duplicate entries.
-              LOG(CACHE_VERBOSE) << hash.str << " is considered";
-            } else {
-              RemoveEntry(hash, true);
-              LOG(CACHE_WARNING) << hash.str << " is broken and removed";
-            }
+          if (size) {
+            CHECK(!entries_->Exists(hash.str));
+            // There should be no duplicate entries.
+
+            CHECK(entries_->Set(hash.str, std::make_tuple(mtime, size)));
+
+            cache_size_ += size;
+            LOG(CACHE_VERBOSE) << hash.str << " is considered";
+          } else {
+            RemoveEntry(hash, true);
+            LOG(CACHE_WARNING) << hash.str << " is broken and removed";
           }
         });
-    CHECK(mtimes_.size() == entries_.size());
 
     new_entries_.reset(new EntryList, new_entries_deleter_);
 
@@ -286,10 +289,9 @@ ui64 FileCache::GetEntrySize(string::Hash hash) const {
 }
 
 bool FileCache::RemoveEntry(string::Hash hash, bool possibly_broken) {
-  auto entry_it = entries_.find(hash);
-  bool has_entry = entry_it != entries_.end();
-
-  CHECK(possibly_broken || has_entry);
+  SQLite::Value entry;
+  bool has_entry = entries_->Get(hash.str, &entry);
+  CHECK(has_entry || possibly_broken);
 
   const String common_path = CommonPath(hash);
   const String manifest_path = common_path + ".manifest";
@@ -297,11 +299,10 @@ bool FileCache::RemoveEntry(string::Hash hash, bool possibly_broken) {
   const String deps_path = common_path + ".d";
   const String stderr_path = common_path + ".stderr";
   bool result = true;
-  auto entry_size = has_entry ? entry_it->second.second : 0u;
+  auto entry_size = has_entry ? std::get<SQLite::SIZE>(entry) : 0u;
 
   if (has_entry) {
-    CHECK(entry_size > 0);
-    entries_.erase(entry_it);
+    entries_->Delete(hash.str);
   }
 
   proto::Manifest manifest;
@@ -493,56 +494,35 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
 
   while (auto new_entry = list->Pop()) {
     const auto& hash = new_entry->second;
-    auto entry_it = entries_.find(hash);
-    if (entry_it != entries_.end()) {
+    SQLite::Value entry;
+    if (entries_->Get(hash.str, &entry)) {
       // Update mtime of an existing entry.
-      auto mtime_its = mtimes_.equal_range(entry_it->second.first);
-      auto mtime_it = mtime_its.first;
-      while (mtime_it != mtime_its.second) {
-        if (mtime_it->second == hash) {
-          break;
-        }
-        ++mtime_it;
-      }
-      CHECK(mtime_it != mtime_its.second);
-
-      mtimes_.erase(mtime_it);
-      auto old_mtime = entry_it->second.first;
-      entry_it->second.first = new_entry->first;
-      mtimes_.emplace(new_entry->first, hash);
-
-      LOG(CACHE_VERBOSE) << entry_it->first.str << " wasn't used for "
-                         << (new_entry->first - old_mtime) << " seconds";
+      CHECK(entries_->Set(
+          hash.str,
+          std::make_tuple(new_entry->first, std::get<SQLite::SIZE>(entry))));
+      LOG(CACHE_VERBOSE) << hash.str << " wasn't used for "
+                         << (new_entry->first - std::get<SQLite::MTIME>(entry))
+                         << " seconds";
     } else {
       // Insert new entry.
       auto size = GetEntrySize(hash);
-      auto new_entry_it =
-          entries_.emplace(hash, TimeSizePair(new_entry->first, size));
-      mtimes_.emplace(new_entry->first, hash);
+      CHECK(entries_->Set(hash.str, std::make_tuple(new_entry->first, size)));
       cache_size_ += size;
       STAT(CACHE_SIZE_ADDED, size);
-
-      CHECK(size);
-      CHECK(new_entry_it.second);
     }
   }
 
-  CHECK(mtimes_.size() == entries_.size());
-
   while (cache_size_ > max_size_) {
-    auto mtime_it = mtimes_.begin();
-    CHECK(mtime_it != mtimes_.end());
+    string::Hash hash;
+    SQLite::Value entry;
+    CHECK(entries_->First(&hash.str, &entry));
 
-    auto entry_it = entries_.find(mtime_it->second);
-    CHECK(entry_it != entries_.end());
-
-    auto manifest_path = CommonPath(entry_it->first) + ".manifest";
+    auto manifest_path = CommonPath(hash) + ".manifest";
     WriteLock lock(this, manifest_path);
     if (lock) {
       LOG(CACHE_VERBOSE) << "Cache overuse is " << (cache_size_ - max_size_)
-                         << " bytes: removing " << entry_it->first.str;
-      DCHECK_O_EVAL(RemoveEntry(entry_it->first));
-      mtimes_.erase(mtime_it);
+                         << " bytes: removing " << hash.str;
+      DCHECK_O_EVAL(RemoveEntry(hash));
     }
   }
 }
