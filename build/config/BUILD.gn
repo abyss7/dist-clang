@@ -11,16 +11,19 @@ config("base") {
     "-Werror",
   ]
 
-  cflags_cc = [ "-std=c++14" ]
+  cflags_cc = [ "-std=c++1z" ]
 
-  include_dirs = [ "//src" ]
+  include_dirs = [
+    "//src",
+    "$root_gen_dir/src",
+  ]
 }
 
 config("default_library") {
   cflags = [ "-fPIC" ]
 
   cflags_cc = [
-    "-std=c++14",
+    "-std=c++1z",
     "-nostdinc++",
   ]
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <net/connection_forward.h>
-#include <proto/remote.pb.h>
+#include <net/universal.pb.h>
 
 namespace dist_clang {
 namespace net {

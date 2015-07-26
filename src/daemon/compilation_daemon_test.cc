@@ -15,7 +15,7 @@ TEST(CompilationDaemonTest, CreateProcessFromFlags) {
   };
   const ui32 expected_user_id = 1u;
 
-  proto::Flags flags;
+  base::proto::Flags flags;
   flags.mutable_compiler()->set_path("/usr/bin/clang");
   flags.mutable_compiler()->add_plugins()->set_path("/usr/lib/libplugin.so");
   flags.add_cc_only()->assign("-mrelax-all");

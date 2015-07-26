@@ -1,6 +1,6 @@
+#include <base/base.pb.h>
 #include <base/file_utils.h>
 #include <client/command.h>
-#include <proto/remote.pb.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest.h>
 #include STL(regex)
@@ -110,7 +110,7 @@ TEST(CommandTest, FillFlags) {
   ASSERT_EQ(1u, commands.size());
 
   auto& command = commands.front();
-  proto::Flags flags;
+  base::proto::Flags flags;
   command->AsDriverCommand()->FillFlags(&flags, "/some/clang/path", "1.0.0");
 
   EXPECT_EQ(input, flags.input());

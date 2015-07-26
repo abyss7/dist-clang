@@ -15,13 +15,13 @@ class Absorber : public CompilationDaemon {
   bool Initialize() override;
 
  private:
-  using Message = UniquePtr<proto::RemoteExecute>;
+  using Message = UniquePtr<proto::Remote>;
   using Task = Pair<net::ConnectionPtr, Message>;
   using Queue = base::LockedQueue<Task>;
   using Optional = Queue::Optional;
 
   bool HandleNewMessage(net::ConnectionPtr connection, Universal message,
-                        const proto::Status& status) override;
+                        const net::proto::Status& status) override;
 
   void DoExecute(const Atomic<bool>& is_shutting_down);
 

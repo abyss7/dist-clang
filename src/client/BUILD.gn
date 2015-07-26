@@ -1,3 +1,5 @@
+import("//build/template/protobuf.gni")
+
 executable("clang") {
   visibility = [ "//:All" ]
 
@@ -7,13 +9,14 @@ executable("clang") {
 
   deps += [
     ":client",
-    ":configuration",
+    ":config_proto",
     "//src/base:base",
     "//src/base:logging",
     "//src/third_party/protobuf:protobuf",
   ]
 }
 
+# Separate source set for unit-tests.
 source_set("client") {
   visibility = [
     ":*",
@@ -30,8 +33,6 @@ source_set("client") {
     "//src/base:base",
     "//src/base:logging",
     "//src/net:net",
-    "//src/proto:proto",
-    "//src/third_party/protobuf:protobuf",
   ]
 }
 
@@ -52,26 +53,13 @@ shared_library("command") {
   deps += [
     "//src/base:base",
     "//src/base:logging",
-    "//src/proto:proto",
-    "//src/third_party/protobuf:protobuf",
   ]
 
   public_configs = [ "//build/config:libclang_includes" ]
 }
 
-shared_library("configuration") {
-  output_name = "conf_client"
-
-  visibility = [ ":*" ]
-
+protobuf("config_proto") {
   sources = [
-    "configuration.pb.cc",
-    "configuration.pb.h",
+    "configuration.proto",
   ]
-
-  if (!config_for_tests) {
-    configs -= [ "//build/config:no_rtti" ]
-  }
-
-  deps += [ "//src/third_party/protobuf:protobuf" ]
 }

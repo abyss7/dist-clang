@@ -2,9 +2,8 @@
 
 #include <base/file/file.h>
 #include <base/logging.h>
+#include <base/protobuf_utils.h>
 #include <base/string_utils.h>
-#include <cache/manifest.pb.h>
-#include <cache/manifest_utils.h>
 #include <perf/stat_service.h>
 
 #include <third_party/snappy/exported/snappy.h>
@@ -145,7 +144,7 @@ bool FileCache::Find(const UnhandledSource& code,
   }
 
   proto::Manifest manifest;
-  if (!LoadManifest(manifest_path, &manifest)) {
+  if (!base::LoadFromFile(manifest_path, &manifest)) {
     return false;
   }
 
@@ -191,7 +190,7 @@ bool FileCache::FindByHash(const HandledHash& hash, Entry* entry) const {
   }
 
   proto::Manifest manifest;
-  if (!LoadManifest(manifest_path, &manifest)) {
+  if (!base::LoadFromFile(manifest_path, &manifest)) {
     return false;
   }
 
@@ -254,7 +253,7 @@ ui64 FileCache::GetEntrySize(string::Hash hash) const {
   ui64 result = 0u;
 
   proto::Manifest manifest;
-  if (!LoadManifest(manifest_path, &manifest)) {
+  if (!base::LoadFromFile(manifest_path, &manifest)) {
     LOG(CACHE_VERBOSE) << "Can't load manifest for " << hash.str;
     return 0u;
   }
@@ -306,7 +305,7 @@ bool FileCache::RemoveEntry(string::Hash hash, bool possibly_broken) {
   }
 
   proto::Manifest manifest;
-  if (!LoadManifest(manifest_path, &manifest)) {
+  if (!base::LoadFromFile(manifest_path, &manifest)) {
     result = false;
   }
 
@@ -425,7 +424,7 @@ void FileCache::DoStore(const HandledHash& hash, Entry entry) {
     manifest.set_deps(false);
   }
 
-  if (!SaveManifest(manifest_path, manifest)) {
+  if (!base::SaveToFile(manifest_path, manifest)) {
     RemoveEntry(hash);
     LOG(CACHE_ERROR) << "Failed to save manifest to " << manifest_path;
     return;
@@ -480,7 +479,7 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
     return;
   }
 
-  if (!SaveManifest(manifest_path, manifest)) {
+  if (!base::SaveToFile(manifest_path, manifest)) {
     RemoveEntry(orig_hash);
     return;
   }

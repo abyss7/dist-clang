@@ -29,7 +29,7 @@ class AbsorberTest : public CommonDaemonTest {
 TEST_F(AbsorberTest, SuccessfulCompilation) {
   const String expected_host = "fake_host";
   const ui16 expected_port = 12345;
-  const proto::Status::Code expected_code = proto::Status::OK;
+  const net::proto::Status::Code expected_code = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
 
@@ -46,13 +46,12 @@ TEST_F(AbsorberTest, SuccessfulCompilation) {
   };
   connect_callback = [&](net::TestConnection* connection) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(proto::Status::extension));
-      const auto& status = message.GetExtension(proto::Status::extension);
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
 
-      EXPECT_TRUE(message.HasExtension(proto::RemoteResult::extension));
-      EXPECT_TRUE(
-          message.GetExtension(proto::RemoteResult::extension).has_obj());
+      EXPECT_TRUE(message.HasExtension(proto::Result::extension));
+      EXPECT_TRUE(message.GetExtension(proto::Result::extension).has_obj());
     });
   };
 
@@ -65,15 +64,14 @@ TEST_F(AbsorberTest, SuccessfulCompilation) {
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension =
-        message->MutableExtension(proto::RemoteExecute::extension);
+    auto* extension = message->MutableExtension(proto::Remote::extension);
     extension->set_source("fake_source");
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
     extension->mutable_flags()->set_action("fake_action");
 
-    proto::Status status;
-    status.set_code(proto::Status::OK);
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
     absorber.reset();
@@ -92,7 +90,7 @@ TEST_F(AbsorberTest, SuccessfulCompilation) {
 TEST_F(AbsorberTest, FailedCompilation) {
   const String expected_host = "fake_host";
   const ui16 expected_port = 12345;
-  const proto::Status::Code expected_code = proto::Status::EXECUTION;
+  const net::proto::Status::Code expected_code = net::proto::Status::EXECUTION;
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
 
@@ -109,11 +107,11 @@ TEST_F(AbsorberTest, FailedCompilation) {
   };
   connect_callback = [&](net::TestConnection* connection) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(proto::Status::extension));
-      const auto& status = message.GetExtension(proto::Status::extension);
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
 
-      EXPECT_FALSE(message.HasExtension(proto::RemoteResult::extension));
+      EXPECT_FALSE(message.HasExtension(proto::Result::extension));
     });
   };
   do_run = false;
@@ -127,15 +125,14 @@ TEST_F(AbsorberTest, FailedCompilation) {
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension =
-        message->MutableExtension(proto::RemoteExecute::extension);
+    auto* extension = message->MutableExtension(proto::Remote::extension);
     extension->set_source("fake_source");
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
     extension->mutable_flags()->set_action("fake_action");
 
-    proto::Status status;
-    status.set_code(proto::Status::OK);
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
     absorber.reset();
@@ -155,7 +152,7 @@ TEST_F(AbsorberTest, StoreLocalCache) {
   const base::TemporaryDir temp_dir;
   const String expected_host = "fake_host";
   const ui16 expected_port = 12345;
-  const proto::Status::Code expected_code = proto::Status::OK;
+  const net::proto::Status::Code expected_code = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
   const auto object_code = "fake_object_code"_l;
@@ -181,12 +178,12 @@ TEST_F(AbsorberTest, StoreLocalCache) {
 
   connect_callback = [&](net::TestConnection* connection) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(proto::Status::extension));
-      const auto& status = message.GetExtension(proto::Status::extension);
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code()) << status.description();
 
-      EXPECT_TRUE(message.HasExtension(proto::RemoteResult::extension));
-      const auto& ext = message.GetExtension(proto::RemoteResult::extension);
+      EXPECT_TRUE(message.HasExtension(proto::Result::extension));
+      const auto& ext = message.GetExtension(proto::Result::extension);
       EXPECT_TRUE(ext.has_obj());
       EXPECT_EQ(String(object_code), ext.obj());
 
@@ -210,8 +207,7 @@ TEST_F(AbsorberTest, StoreLocalCache) {
         std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension =
-        message->MutableExtension(proto::RemoteExecute::extension);
+    auto* extension = message->MutableExtension(proto::Remote::extension);
 
     extension->set_source(source);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
@@ -219,8 +215,8 @@ TEST_F(AbsorberTest, StoreLocalCache) {
     extension->mutable_flags()->set_action(action);
     extension->mutable_flags()->set_language(language);
 
-    proto::Status status;
-    status.set_code(proto::Status::OK);
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
@@ -235,8 +231,7 @@ TEST_F(AbsorberTest, StoreLocalCache) {
         std::static_pointer_cast<net::TestConnection>(connection2);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension =
-        message->MutableExtension(proto::RemoteExecute::extension);
+    auto* extension = message->MutableExtension(proto::Remote::extension);
 
     extension->set_source(source);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
@@ -244,8 +239,8 @@ TEST_F(AbsorberTest, StoreLocalCache) {
     extension->mutable_flags()->set_action(action);
     extension->mutable_flags()->set_language(language);
 
-    proto::Status status;
-    status.set_code(proto::Status::OK);
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 

@@ -41,15 +41,12 @@ executable("unit_tests") {
     "//src/base:base",
     "//src/base:logging",
     "//src/cache:file_cache",
-    "//src/cache:manifest",
     "//src/client:client",
     "//src/client:command",
     "//src/daemon:configuration",
     "//src/daemon:daemon",
     "//src/net:net",
     "//src/perf:stat_service",
-    "//src/proto:proto",
     "//src/third_party/gtest:gtest",
-    "//src/third_party/protobuf:protobuf",
   ]
 }

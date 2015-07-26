@@ -1,3 +1,5 @@
+import("//build/template/protobuf.gni")
+
 shared_library("net") {
   visibility = [
     "//src/client:*",
@@ -33,10 +35,16 @@ shared_library("net") {
   ]
 
   deps += [
+    ":net_proto",
     "//src/base:base",
     "//src/base:logging",
     "//src/perf:counter",
-    "//src/proto:proto",
     "//src/third_party/protobuf:protobuf",
+  ]
+}
+
+protobuf("net_proto") {
+  sources = [
+    "universal.proto",
   ]
 }

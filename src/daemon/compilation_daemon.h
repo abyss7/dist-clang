@@ -11,32 +11,35 @@ class CompilationDaemon : public BaseDaemon {
  public:
   bool Initialize() override;
 
-  static base::ProcessPtr CreateProcess(const proto::Flags& flags, ui32 user_id,
+  static base::ProcessPtr CreateProcess(const base::proto::Flags& flags,
+                                        ui32 user_id,
                                         Immutable cwd_path = Immutable());
-  static base::ProcessPtr CreateProcess(const proto::Flags& flags,
+  static base::ProcessPtr CreateProcess(const base::proto::Flags& flags,
                                         Immutable cwd_path = Immutable());
 
  protected:
   explicit CompilationDaemon(const proto::Configuration& configuration);
 
   cache::string::HandledHash GenerateHash(
-      const proto::Flags& flags,
+      const base::proto::Flags& flags,
       const cache::string::HandledSource& code) const;
 
-  bool SetupCompiler(proto::Flags* flags, proto::Status* status) const;
+  bool SetupCompiler(base::proto::Flags* flags,
+                     net::proto::Status* status) const;
 
-  bool SearchSimpleCache(const proto::Flags& flags,
+  bool SearchSimpleCache(const base::proto::Flags& flags,
                          const cache::string::HandledSource& source,
                          cache::FileCache::Entry* entry) const;
 
-  bool SearchDirectCache(const proto::Flags& flags, const String& current_dir,
+  bool SearchDirectCache(const base::proto::Flags& flags,
+                         const String& current_dir,
                          cache::FileCache::Entry* entry) const;
 
-  void UpdateSimpleCache(const proto::Flags& flags,
+  void UpdateSimpleCache(const base::proto::Flags& flags,
                          const cache::string::HandledSource& source,
                          const cache::FileCache::Entry& entry);
 
-  void UpdateDirectCache(const proto::LocalExecute* message,
+  void UpdateDirectCache(const base::proto::Local* message,
                          const cache::string::HandledSource& source,
                          const cache::FileCache::Entry& entry);
 

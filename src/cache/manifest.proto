@@ -1,4 +1,4 @@
-package dist_clang.proto;
+package dist_clang.cache.proto;
 
 message Manifest {
   repeated string headers = 1;

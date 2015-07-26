@@ -1,4 +1,7 @@
 build/llvm/linux/include
+out/Debug.gn/gen/src
+out/Release.gn/gen/src
+out/Test.gn/gen/src
 src
 src/third_party/gtest/exported/include
 src/third_party/leveldb/exported

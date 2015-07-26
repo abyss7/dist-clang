@@ -1,11 +1,11 @@
 #pragma once
 
 #include <base/aliases.h>
-#include <daemon/configuration.pb.h>
+#include <daemon/configuration.h>
+#include <daemon/remote.pb.h>
 #include <net/connection_forward.h>
 #include <net/end_point_resolver.h>
 #include <net/network_service.h>
-#include <proto/remote.pb.h>
 
 namespace dist_clang {
 namespace daemon {
@@ -16,13 +16,13 @@ class BaseDaemon {
   virtual bool Initialize() = 0;
 
  protected:
-  using Universal = UniquePtr<proto::Universal>;
+  using Universal = UniquePtr<net::proto::Universal>;
 
   explicit BaseDaemon(const proto::Configuration& configuration);
 
   virtual bool HandleNewMessage(net::ConnectionPtr connection,
                                 Universal message,
-                                const proto::Status& status) = 0;
+                                const net::proto::Status& status) = 0;
 
   inline bool Listen(const String& path, String* error = nullptr) {
     using namespace std::placeholders;

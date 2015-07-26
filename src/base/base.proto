@@ -1,0 +1,63 @@
+import "net/universal.proto";
+
+package dist_clang.base.proto;
+
+message Plugin {
+  required string name    = 1;
+  optional string path    = 2;
+}
+
+message Compiler {
+  required string version = 1;
+  optional string path    = 2;
+  repeated Plugin plugins = 3;
+}
+
+message Flags {
+  required Compiler compiler   = 1;
+  // original compiler executable.
+
+  optional string output       = 2;
+  // "-o" flag and it's param.
+
+  optional string input        = 3;
+  // relative path in the last argument.
+
+  repeated string other        = 4;
+  // all unsorted flags.
+
+  optional string deps_file    = 5;
+
+  optional string language     = 6;
+  // absorbs "-x" flag and stores it's param.
+
+  repeated string non_cached   = 7;
+  // flags, that shouldn't be cached.
+
+  repeated string cc_only      = 8;
+  // flags for compilation only.
+
+  required string action       = 9;
+  // "-emit-obj", "-E", etc.
+
+  repeated string non_direct   = 10;
+  // flags, that shouldn't be neither direct cached, nor cached.
+
+  // Compilation = All
+  // Preprocessing = All - output - cc_only
+  // Cache = other + language + cc_only
+  // Direct = other + language + non_cached + cc_only
+}
+
+// Sent from client to emitter.
+message Local {
+  required Flags flags         = 1;
+  required string current_dir  = 2;
+
+  optional uint32 user_id      = 3;
+  // Owner of local objects.
+
+  extend net.proto.Universal {
+    optional Local extension = 5;
+  }
+}

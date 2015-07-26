@@ -2,9 +2,8 @@
 
 #include <base/file/file.h>
 #include <base/future.h>
+#include <base/protobuf_utils.h>
 #include <base/temporary_dir.h>
-#include <cache/manifest.pb.h>
-#include <cache/manifest_utils.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest.h>
 #include STL(regex)
@@ -86,7 +85,7 @@ TEST(FileCacheTest, RemoveEntry) {
     manifest.set_object(true);
     manifest.set_deps(true);
     manifest.set_stderr(true);
-    ASSERT_TRUE(SaveManifest(manifest_path, manifest));
+    ASSERT_TRUE(base::SaveToFile(manifest_path, manifest));
     ASSERT_TRUE(base::File::Write(object_path, "1"_l));
     ASSERT_TRUE(base::File::Write(deps_path, "1"_l));
     ASSERT_TRUE(base::File::Write(stderr_path, "1"_l));
@@ -104,7 +103,7 @@ TEST(FileCacheTest, RemoveEntry) {
     manifest.set_object(true);
     manifest.set_deps(true);
     manifest.set_stderr(true);
-    ASSERT_TRUE(SaveManifest(manifest_path, manifest));
+    ASSERT_TRUE(base::SaveToFile(manifest_path, manifest));
     ASSERT_TRUE(base::File::Write(object_path, "1"_l));
     ASSERT_TRUE(base::File::Write(deps_path, "1"_l));
   }

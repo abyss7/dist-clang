@@ -1,5 +1,6 @@
 #include <client/clang.h>
 
+#include <base/base.pb.h>
 #include <base/c_utils.h>
 #include <base/logging.h>
 #include <base/process_impl.h>
@@ -8,7 +9,6 @@
 #include <net/connection.h>
 #include <net/end_point.h>
 #include <net/network_service_impl.h>
-#include <proto/remote.pb.h>
 
 #include <clang/Basic/Version.h>
 
@@ -62,7 +62,7 @@ bool DoMain(int argc, const char* const argv[], Immutable socket_path,
       continue;
     }
 
-    UniquePtr<proto::LocalExecute> message(new proto::LocalExecute);
+    UniquePtr<base::proto::Local> message(new base::proto::Local);
     message->set_user_id(getuid());
     message->set_current_dir(current_dir);
 
@@ -132,7 +132,7 @@ bool DoMain(int argc, const char* const argv[], Immutable socket_path,
       }
     }
 
-    proto::Status status;
+    net::proto::Status status;
     if (!connection->SendSync(std::move(message), &status)) {
       LOG(ERROR) << "Failed to send message: " << status.description();
       return true;
@@ -144,20 +144,20 @@ bool DoMain(int argc, const char* const argv[], Immutable socket_path,
       return true;
     }
 
-    if (!top_message.HasExtension(proto::Status::extension)) {
+    if (!top_message.HasExtension(net::proto::Status::extension)) {
       LOG(ERROR)
           << "Message from daemon has wrong format : no Status extension";
       return true;
     }
 
-    status = top_message.GetExtension(proto::Status::extension);
-    if (status.code() != proto::Status::EXECUTION &&
-        status.code() != proto::Status::OK) {
+    status = top_message.GetExtension(net::proto::Status::extension);
+    if (status.code() != net::proto::Status::EXECUTION &&
+        status.code() != net::proto::Status::OK) {
       LOG(VERBOSE) << "Failed to use daemon: " << status.description();
       return true;
     }
 
-    if (status.code() == proto::Status::EXECUTION) {
+    if (status.code() == net::proto::Status::EXECUTION) {
       LOG(FATAL) << "Compilation on daemon failed:" << std::endl
                  << status.description();
     }

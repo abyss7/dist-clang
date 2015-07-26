@@ -13,7 +13,7 @@ class Collector : public BaseDaemon {
 
  private:
   bool HandleNewMessage(net::ConnectionPtr connection, Universal message,
-                        const proto::Status& status) override;
+                        const net::proto::Status& status) override;
 
   const proto::Host local_;
 };

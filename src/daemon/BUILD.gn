@@ -1,3 +1,5 @@
+import("//build/template/protobuf.gni")
+
 executable("clangd") {
   visibility = [ "//:All" ]
 
@@ -13,6 +15,7 @@ executable("clangd") {
   ]
 }
 
+# Separate source set for unit-tests.
 source_set("daemon") {
   visibility = [
     ":*",
@@ -34,14 +37,13 @@ source_set("daemon") {
 
   deps += [
     ":configuration",
+    ":remote_proto",
     "//src/base:base",
     "//src/base:logging",
     "//src/cache:file_cache",
     "//src/net:net",
     "//src/perf:counter",
     "//src/perf:stat_service",
-    "//src/proto:proto",
-    "//src/third_party/protobuf:protobuf",
   ]
 }
 
@@ -56,24 +58,27 @@ shared_library("configuration") {
   sources = [
     "configuration.cc",
     "configuration.h",
-    "configuration.pb.cc",
-    "configuration.pb.h",
-    "configuration.proto",
   ]
 
   configs += [ "//build/config:version" ]
-  if (!config_for_tests) {
-    configs -= [ "//build/config:no_rtti" ]
-  }
 
   deps += [
+    ":config_proto",
     "//src/base:base",
     "//src/base:logging",
     "//src/third_party/protobuf:protobuf",
     "//src/third_party/tclap:tclap",
   ]
+}
 
-  public_deps = [
-    "//src/proto:proto",
+protobuf("config_proto") {
+  sources = [
+    "configuration.proto",
+  ]
+}
+
+protobuf("remote_proto") {
+  sources = [
+    "remote.proto",
   ]
 }

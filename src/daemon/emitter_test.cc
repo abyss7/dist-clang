@@ -76,7 +76,7 @@ TEST_F(EmitterTest, IdleConnection) {
  */
 TEST_F(EmitterTest, BadLocalMessage) {
   const String socket_path = "/tmp/test.socket";
-  const proto::Status::Code expected_code = proto::Status::BAD_MESSAGE;
+  const auto expected_code = net::proto::Status::BAD_MESSAGE;
   const String expected_description = "Test description";
 
   conf.mutable_emitter()->set_socket_path(socket_path);
@@ -87,8 +87,8 @@ TEST_F(EmitterTest, BadLocalMessage) {
   };
   connect_callback = [&](net::TestConnection* connection) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(proto::Status::extension));
-      const auto& status = message.GetExtension(proto::Status::extension);
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
       EXPECT_EQ(expected_description, status.description());
     });
@@ -103,7 +103,7 @@ TEST_F(EmitterTest, BadLocalMessage) {
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    proto::Status status;
+    net::proto::Status status;
     status.set_code(expected_code);
     status.set_description(expected_description);
 
@@ -139,8 +139,8 @@ TEST_F(EmitterTest, LocalMessageWithoutCommand) {
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    proto::Status status;
-    status.set_code(proto::Status::OK);
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
 
     EXPECT_THROW_STD(
         test_connection->TriggerReadAsync(std::move(message), status),
@@ -159,7 +159,7 @@ TEST_F(EmitterTest, LocalMessageWithoutCommand) {
 
 TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
   const String socket_path = "/tmp/test.socket";
-  const proto::Status::Code expected_code = proto::Status::NO_VERSION;
+  const auto expected_code = net::proto::Status::NO_VERSION;
   const String compiler_version = "fake_compiler_version";
   const String bad_version = "another_compiler_version";
   const String compiler_path = "fake_compiler_path";
@@ -182,8 +182,8 @@ TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
   };
   connect_callback = [&](net::TestConnection* connection) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(proto::Status::extension));
-      const auto& status = message.GetExtension(proto::Status::extension);
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
   };
@@ -197,13 +197,13 @@ TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(proto::LocalExecute::extension);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
     extension->set_current_dir(current_dir);
     extension->mutable_flags()->mutable_compiler()->set_version(bad_version);
     extension->mutable_flags()->set_action("fake_action");
 
-    proto::Status status;
-    status.set_code(proto::Status::OK);
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
     emitter.reset();
@@ -221,7 +221,7 @@ TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
 
 TEST_F(EmitterTest, RemoteMessageWithBadCompiler) {
   const String socket_path = "/tmp/test.socket";
-  const proto::Status::Code expected_code = proto::Status::NO_VERSION;
+  const auto expected_code = net::proto::Status::NO_VERSION;
   const String compiler_version = "fake_compiler_version";
   const String bad_version = "another_compiler_version";
   const String compiler_path = "fake_compiler_path";
@@ -254,8 +254,8 @@ TEST_F(EmitterTest, RemoteMessageWithBadCompiler) {
   };
   connect_callback = [&](net::TestConnection* connection) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(proto::Status::extension));
-      const auto& status = message.GetExtension(proto::Status::extension);
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
   };
@@ -269,13 +269,13 @@ TEST_F(EmitterTest, RemoteMessageWithBadCompiler) {
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(proto::LocalExecute::extension);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
     extension->set_current_dir(current_dir);
     extension->mutable_flags()->mutable_compiler()->set_version(bad_version);
     extension->mutable_flags()->set_action("fake_action");
 
-    proto::Status status;
-    status.set_code(proto::Status::OK);
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
     emitter.reset();
@@ -293,7 +293,7 @@ TEST_F(EmitterTest, RemoteMessageWithBadCompiler) {
 
 TEST_F(EmitterTest, LocalMessageWithBadPlugin) {
   const String socket_path = "/tmp/test.socket";
-  const proto::Status::Code expected_code = proto::Status::NO_VERSION;
+  const auto expected_code = net::proto::Status::NO_VERSION;
   const String compiler_version = "1.0";
   const String compiler_path = "fake_compiler_path";
   const String current_dir = "fake_current_dir";
@@ -311,8 +311,8 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin) {
   };
   connect_callback = [&](net::TestConnection* connection) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(proto::Status::extension));
-      const auto& status = message.GetExtension(proto::Status::extension);
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
   };
@@ -326,15 +326,15 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin) {
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(proto::LocalExecute::extension);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
     extension->set_current_dir(current_dir);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
     compiler->add_plugins()->set_name(bad_plugin_name);
     extension->mutable_flags()->set_action("fake_action");
 
-    proto::Status status;
-    status.set_code(proto::Status::OK);
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
     emitter.reset();
@@ -352,7 +352,7 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin) {
 
 TEST_F(EmitterTest, LocalMessageWithBadPlugin2) {
   const String socket_path = "/tmp/test.socket";
-  const proto::Status::Code expected_code = proto::Status::NO_VERSION;
+  const auto expected_code = net::proto::Status::NO_VERSION;
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
   const String plugin_name = "test_plugin";
@@ -375,8 +375,8 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin2) {
   };
   connect_callback = [&](net::TestConnection* connection) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(proto::Status::extension));
-      const auto& status = message.GetExtension(proto::Status::extension);
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
   };
@@ -390,15 +390,15 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin2) {
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(proto::LocalExecute::extension);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
     extension->set_current_dir(current_dir);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
     compiler->add_plugins()->set_name(bad_plugin_name);
     extension->mutable_flags()->set_action("fake_action");
 
-    proto::Status status;
-    status.set_code(proto::Status::OK);
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
     emitter.reset();
@@ -416,7 +416,7 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin2) {
 
 TEST_F(EmitterTest, LocalMessageWithPluginPath) {
   const String socket_path = "/tmp/test.socket";
-  const proto::Status::Code expected_code = proto::Status::OK;
+  const auto expected_code = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const auto compiler_path = "fake_compiler_path"_l;
   const String current_dir = "fake_current_dir";
@@ -437,8 +437,8 @@ TEST_F(EmitterTest, LocalMessageWithPluginPath) {
   };
   connect_callback = [&](net::TestConnection* connection) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(proto::Status::extension));
-      const auto& status = message.GetExtension(proto::Status::extension);
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
   };
@@ -458,7 +458,7 @@ TEST_F(EmitterTest, LocalMessageWithPluginPath) {
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(proto::LocalExecute::extension);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
     extension->set_current_dir(current_dir);
     extension->set_user_id(user_id);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
@@ -468,8 +468,8 @@ TEST_F(EmitterTest, LocalMessageWithPluginPath) {
     plugin->set_path(plugin_path);
     extension->mutable_flags()->set_action(action);
 
-    proto::Status status;
-    status.set_code(proto::Status::OK);
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
     emitter.reset();
@@ -489,7 +489,7 @@ TEST_F(EmitterTest, LocalMessageWithPluginPath) {
 
 TEST_F(EmitterTest, LocalSuccessfulCompilation) {
   const String socket_path = "/tmp/test.socket";
-  const proto::Status::Code expected_code = proto::Status::OK;
+  const auto expected_code = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const auto compiler_path = "fake_compiler_path"_l;
   const String current_dir = "fake_current_dir";
@@ -513,8 +513,8 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
   };
   connect_callback = [&](net::TestConnection* connection) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(proto::Status::extension));
-      const auto& status = message.GetExtension(proto::Status::extension);
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
   };
@@ -534,7 +534,7 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(proto::LocalExecute::extension);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
     extension->set_current_dir(current_dir);
     extension->set_user_id(user_id);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
@@ -542,8 +542,8 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
     compiler->add_plugins()->set_name(plugin_name);
     extension->mutable_flags()->set_action(action);
 
-    proto::Status status;
-    status.set_code(proto::Status::OK);
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
     emitter.reset();
@@ -570,7 +570,7 @@ TEST_F(EmitterTest, DISABLED_RemoteSuccessfulCompilation) {
 
 TEST_F(EmitterTest, LocalFailedCompilation) {
   const String socket_path = "/tmp/test.socket";
-  const proto::Status::Code expected_code = proto::Status::EXECUTION;
+  const auto expected_code = net::proto::Status::EXECUTION;
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
   const String current_dir = "fake_current_dir";
@@ -587,8 +587,8 @@ TEST_F(EmitterTest, LocalFailedCompilation) {
   };
   connect_callback = [&](net::TestConnection* connection) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(proto::Status::extension));
-      const auto& status = message.GetExtension(proto::Status::extension);
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
   };
@@ -603,14 +603,14 @@ TEST_F(EmitterTest, LocalFailedCompilation) {
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(proto::LocalExecute::extension);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
     extension->set_current_dir(current_dir);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
     extension->mutable_flags()->set_action("fake_action");
 
-    proto::Status status;
-    status.set_code(proto::Status::OK);
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
     emitter.reset();
@@ -634,7 +634,7 @@ TEST_F(EmitterTest, LocalFailedCompilation) {
 TEST_F(EmitterTest, StoreCacheForLocalResult) {
   const base::TemporaryDir temp_dir;
   const String socket_path = "/tmp/test.socket";
-  const proto::Status::Code expected_code = proto::Status::OK;
+  const auto expected_code = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
   const auto object_code = "fake_object_code"_l;
@@ -670,8 +670,8 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
 
   connect_callback = [&](net::TestConnection* connection) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(proto::Status::extension));
-      const auto& status = message.GetExtension(proto::Status::extension);
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code()) << status.description();
 
       send_condition.notify_all();
@@ -707,7 +707,7 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
         std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(proto::LocalExecute::extension);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
     extension->set_current_dir(temp_dir);
 
     extension->mutable_flags()->set_input(input_path1);
@@ -718,8 +718,8 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
     extension->mutable_flags()->set_action(action);
     extension->mutable_flags()->set_language(language);
 
-    proto::Status status;
-    status.set_code(proto::Status::OK);
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
@@ -734,7 +734,7 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
         std::static_pointer_cast<net::TestConnection>(connection2);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(proto::LocalExecute::extension);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
     extension->set_current_dir(temp_dir);
 
     extension->mutable_flags()->set_input(input_path2);
@@ -745,8 +745,8 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
     extension->mutable_flags()->set_action(action);
     extension->mutable_flags()->set_language(language);
 
-    proto::Status status;
-    status.set_code(proto::Status::OK);
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
@@ -783,7 +783,7 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
   const String socket_path = "/tmp/test.socket";
   const String host = "fake_host";
   const ui16 port = 12345;
-  const proto::Status::Code expected_code = proto::Status::OK;
+  const auto expected_code = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
   const auto object_code = "fake_object_code"_l;
@@ -828,8 +828,9 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
       // Connection from client to local daemon.
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
-        EXPECT_TRUE(message.HasExtension(proto::Status::extension));
-        const auto& status = message.GetExtension(proto::Status::extension);
+        EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+        const auto& status =
+            message.GetExtension(net::proto::Status::extension);
         EXPECT_EQ(expected_code, status.code()) << status.description();
 
         send_condition.notify_all();
@@ -838,24 +839,24 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
       // Connection from local daemon to remote daemon.
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
-        EXPECT_TRUE(message.HasExtension(proto::RemoteExecute::extension));
-        const auto& command =
-            message.GetExtension(proto::RemoteExecute::extension);
+        EXPECT_TRUE(message.HasExtension(proto::Remote::extension));
+        const auto& command = message.GetExtension(proto::Remote::extension);
         EXPECT_EQ(source, command.source());
 
         send_condition.notify_all();
       });
 
       connection->CallOnRead([&](net::Connection::Message* message) {
-        message->MutableExtension(proto::RemoteResult::extension)
+        message->MutableExtension(proto::Result::extension)
             ->set_obj(object_code);
       });
     } else if (connect_count == 3) {
       // Connection from client to local daemon.
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
-        EXPECT_TRUE(message.HasExtension(proto::Status::extension));
-        const auto& status = message.GetExtension(proto::Status::extension);
+        EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+        const auto& status =
+            message.GetExtension(net::proto::Status::extension);
         EXPECT_EQ(expected_code, status.code()) << status.description();
 
         send_condition.notify_all();
@@ -886,7 +887,7 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
         std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(proto::LocalExecute::extension);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
 
     extension->set_current_dir(temp_dir);
     extension->mutable_flags()->set_input(input_path1);
@@ -897,8 +898,8 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
     extension->mutable_flags()->set_action(action);
     extension->mutable_flags()->set_language(language);
 
-    proto::Status status;
-    status.set_code(proto::Status::OK);
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
@@ -913,7 +914,7 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
         std::static_pointer_cast<net::TestConnection>(connection2);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(proto::LocalExecute::extension);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
     extension->set_current_dir(temp_dir);
 
     extension->mutable_flags()->set_input(input_path2);
@@ -924,8 +925,8 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
     extension->mutable_flags()->set_action(action);
     extension->mutable_flags()->set_language(language);
 
-    proto::Status status;
-    status.set_code(proto::Status::OK);
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 

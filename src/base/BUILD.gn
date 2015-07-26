@@ -1,3 +1,6 @@
+import("//build/template/protobuf.gni")
+
+# Visible to all except third_party:
 visibility = [
   "//src/base/*",
   "//src/cache/*",
@@ -52,6 +55,8 @@ shared_library("base") {
     "process_impl.h",
     "process_impl_linux.cc",
     "process_impl_mac.cc",
+    "protobuf_utils.cc",
+    "protobuf_utils.h",
     "queue_aggregator.h",
     "singleton.h",
     "stl_include.h",
@@ -89,6 +94,7 @@ shared_library("base") {
     "process.h",
     "process_forward.h",
     "process_impl.h",
+    "protobuf_utils.h",
     "queue_aggregator.h",
     "singleton.h",
     "string_utils.h",
@@ -100,7 +106,10 @@ shared_library("base") {
     "worker_pool.h",
   ]
 
+  deps += [ "//src/third_party/protobuf:protobuf" ]
+
   public_deps = [
+    ":base_proto",
     ":logging",
   ]
 
@@ -115,5 +124,11 @@ shared_library("logging") {
     "logging.cc",
     "logging.h",
     "using_log.h",
+  ]
+}
+
+protobuf("base_proto") {
+  sources = [
+    "base.proto",
   ]
 }

@@ -1,3 +1,5 @@
+import("//build/template/protobuf.gni")
+
 shared_library("file_cache") {
   visibility = [
     "//src/daemon:*",
@@ -28,37 +30,17 @@ shared_library("file_cache") {
   }
 
   deps += [
-    ":manifest",
+    ":manifest_proto",
     "//src/base:base",
     "//src/base:logging",
     "//src/perf:stat_service",
     "//src/third_party/leveldb:leveldb",
-    "//src/third_party/protobuf:protobuf",
     "//src/third_party/snappy:snappy",
   ]
 }
 
-shared_library("manifest") {
-  visibility = [
-    ":*",
-    "//src/test:unit_tests",
-  ]
-
+protobuf("manifest_proto") {
   sources = [
-    "manifest.pb.cc",
-    "manifest.pb.h",
     "manifest.proto",
-    "manifest_utils.cc",
-    "manifest_utils.h",
-  ]
-
-  if (!config_for_tests) {
-    configs -= [ "//build/config:no_rtti" ]
-  }
-
-  deps += [ "//src/base:base" ]
-
-  public_deps = [
-    "//src/third_party/protobuf:protobuf",
   ]
 }

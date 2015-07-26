@@ -1,6 +1,6 @@
-import "proto/base.proto";
+import "base/base.proto";
 
-package dist_clang.proto;
+package dist_clang.daemon.proto;
 
 message Host {
   required string host          = 1;
@@ -13,26 +13,38 @@ message Host {
 message Verbosity {
   message Range {
     required uint32 right = 1;
-    optional uint32 left  = 2;  // if omitted: [ default = right ];
+
+    optional uint32 left  = 2;
+    // if omitted: [ default = right ];
   }
 
-  // level ≤ |error_mark| goes to stderr.
   optional uint32 error_mark = 1 [ default = 20 ];
+  // level ≤ |error_mark| goes to stderr.
 
-  // all ranges are inclusive: [left, right].
   repeated Range levels      = 2;
+  // all ranges are inclusive: [left, right].
 }
 
 message Configuration {
   message Cache {
     required string path         = 1;
-    optional uint64 size         = 2 [ default = 0 ];  // 0 - is unlimited
+
+    optional uint64 size         = 2 [ default = 0 ];
+    // 0 - is unlimited
+
     optional bool direct         = 4 [ default = false ];
-    optional bool mtime          = 5 [ default = false ];  // TODO: not implemented yet.
+
+    optional bool mtime          = 5 [ default = false ];
+    // TODO: not implemented yet.
+
     optional bool disabled       = 6 [ default = false ];
     optional bool snappy         = 7 [ default = true ];
-    optional uint32 threads      = 8;  // |hardware_concurrency()| is default.
-    optional uint32 clean_period = 9 [ default = 600 ];  // in seconds.
+
+    optional uint32 threads      = 8;
+    // |std::thread::hardware_concurrency()| is default.
+
+    optional uint32 clean_period = 9 [ default = 600 ];
+    // in seconds.
   }
 
   message Emitter {
@@ -53,15 +65,27 @@ message Configuration {
   // FIXME: use new protobuf feature "anyof" for emitter and absorber.
   optional Emitter emitter      = 1;
   optional Absorber absorber    = 2;
+
   optional Collector collector  = 3;
-  optional uint32 pool_capacity = 4  [ default = 16 ];  // 0 - is unlimited.
-  repeated dist_clang.proto.Compiler versions = 5;
+
+  optional uint32 pool_capacity = 4  [ default = 16 ];
+  // 0 - is unlimited.
+
+  repeated base.proto.Compiler versions = 5;
   optional Verbosity verbosity  = 6;
   optional uint32 user_id       = 7;
-  optional string config_path   = 8;  // allows reloading of config changes.
+
+  optional string config_path   = 8;
+  // allows reloading of config changes.
+
   optional Cache cache          = 9;
 
-  optional uint32 read_timeout  = 10 [ default = 60 ];  // in seconds.
-  optional uint32 send_timeout  = 11 [ default = 5  ];  // in seconds.
-  optional uint32 read_minimum  = 12 [ default = 32 ];  // in bytes.
+  optional uint32 read_timeout  = 10 [ default = 60 ];
+  // in seconds.
+
+  optional uint32 send_timeout  = 11 [ default = 5  ];
+  // in seconds.
+
+  optional uint32 read_minimum  = 12 [ default = 32 ];
+  // in bytes.
 }

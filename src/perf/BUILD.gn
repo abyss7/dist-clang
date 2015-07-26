@@ -1,3 +1,5 @@
+import("//build/template/protobuf.gni")
+
 shared_library("counter") {
   sources = [
     "counter.h",
@@ -21,34 +23,13 @@ shared_library("stat_service") {
   ]
 
   deps += [
-    ":proto",
+    ":stat_proto",
     "//src/base:base",
-  ]
-
-  public_deps = [
-    "//src/third_party/protobuf:protobuf",
   ]
 }
 
-static_library("proto") {
-  output_name = "stat_proto"
-
-  visibility = [
-    ":*",
-    "//src/proto:proto",
-  ]
-
+protobuf("stat_proto") {
   sources = [
-    "stat.pb.cc",
-    "stat.pb.h",
-    "stat_proto",
-  ]
-
-  if (!config_for_tests) {
-    configs -= [ "//build/config:no_rtti" ]
-  }
-
-  public_deps = [
-    "//src/third_party/protobuf:protobuf",
+    "stat.proto",
   ]
 }

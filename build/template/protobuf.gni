@@ -1,0 +1,37 @@
+template("protobuf") {
+  assert(defined(invoker.sources), "Need |sources| for protobuf")
+
+  action_name = "${target_name}_gen"
+  source_set_name = target_name
+  action_foreach(action_name) {
+    visibility = [ ":$source_set_name" ]
+    script = "//build/protoc.py"
+    sources = invoker.sources
+    outputs = [
+      "{{source_gen_dir}}/{{source_name_part}}.pb.cc",
+      "{{source_gen_dir}}/{{source_name_part}}.pb.h",
+    ]
+    args = [
+      rebase_path("//src", root_build_dir),
+      rebase_path("$root_gen_dir/src", root_build_dir),
+      "{{source}}",
+    ]
+  }
+
+  source_set(target_name) {
+    if (defined(invoker.visibility)) {
+      visibility = invoker.visibility
+    }
+
+    sources = get_target_outputs(":$action_name")
+
+    if (!config_for_tests) {
+      configs -= [ "//build/config:no_rtti" ]
+    }
+
+    deps += [
+      ":$action_name",
+      "//src/third_party/protobuf:protobuf",
+    ]
+  }
+}

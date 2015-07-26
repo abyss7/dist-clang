@@ -17,7 +17,7 @@ namespace dist_clang {
 
 namespace {
 
-inline String GetOutputPath(const proto::LocalExecute* WEAK_PTR message) {
+inline String GetOutputPath(const base::proto::Local* WEAK_PTR message) {
   DCHECK(message);
   if (message->flags().output()[0] == '/') {
     return message->flags().output();
@@ -26,7 +26,7 @@ inline String GetOutputPath(const proto::LocalExecute* WEAK_PTR message) {
   }
 }
 
-inline String GetDepsPath(const proto::LocalExecute* WEAK_PTR message) {
+inline String GetDepsPath(const base::proto::Local* WEAK_PTR message) {
   DCHECK(message);
   if (message->flags().deps_file()[0] == '/') {
     return message->flags().deps_file();
@@ -35,9 +35,9 @@ inline String GetDepsPath(const proto::LocalExecute* WEAK_PTR message) {
   }
 }
 
-inline bool GenerateSource(const proto::LocalExecute* WEAK_PTR message,
+inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
                            cache::string::HandledSource* source) {
-  proto::Flags pp_flags;
+  base::proto::Flags pp_flags;
 
   DCHECK(message);
   pp_flags.CopyFrom(message->flags());
@@ -159,7 +159,7 @@ bool Emitter::Initialize() {
 }
 
 bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
-                               const proto::Status& status) {
+                               const net::proto::Status& status) {
   using namespace cache::string;
 
   if (!message->IsInitialized()) {
@@ -167,13 +167,13 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
     return false;
   }
 
-  if (status.code() != proto::Status::OK) {
+  if (status.code() != net::proto::Status::OK) {
     LOG(ERROR) << status.description();
     return connection->ReportStatus(status);
   }
 
-  if (message->HasExtension(proto::LocalExecute::extension)) {
-    Message execute(message->ReleaseExtension(proto::LocalExecute::extension));
+  if (message->HasExtension(base::proto::Local::extension)) {
+    Message execute(message->ReleaseExtension(base::proto::Local::extension));
     if (conf_.has_cache() && !conf_.cache().disabled()) {
       return cache_tasks_->Push(
           std::make_tuple(connection, std::move(execute), HandledSource()));
@@ -200,7 +200,7 @@ void Emitter::DoCheckCache(const Atomic<bool>& is_shutting_down) {
       continue;
     }
 
-    proto::LocalExecute* incoming = std::get<MESSAGE>(*task).get();
+    base::proto::Local* incoming = std::get<MESSAGE>(*task).get();
     cache::FileCache::Entry entry;
 
     auto RestoreFromCache = [&](const HandledSource& source) {
@@ -223,8 +223,8 @@ void Emitter::DoCheckCache(const Atomic<bool>& is_shutting_down) {
         UpdateDirectCache(incoming, source, entry);
       }
 
-      proto::Status status;
-      status.set_code(proto::Status::OK);
+      net::proto::Status status;
+      status.set_code(net::proto::Status::OK);
       status.set_description(entry.stderr);
       std::get<CONNECTION>(*task)->ReportStatus(status);
 
@@ -240,7 +240,7 @@ void Emitter::DoCheckCache(const Atomic<bool>& is_shutting_down) {
     STAT(DIRECT_CACHE_MISS);
 
     // Check that we have a compiler of a requested version.
-    proto::Status status;
+    net::proto::Status status;
     if (!SetupCompiler(incoming->mutable_flags(), &status)) {
       std::get<CONNECTION>(*task)->ReportStatus(status);
       continue;
@@ -275,10 +275,10 @@ void Emitter::DoLocalExecute(const Atomic<bool>& is_shutting_down) {
       continue;
     }
 
-    proto::LocalExecute* incoming = std::get<MESSAGE>(*task).get();
+    base::proto::Local* incoming = std::get<MESSAGE>(*task).get();
 
     // Check that we have a compiler of a requested version.
-    proto::Status status;
+    net::proto::Status status;
     if (!SetupCompiler(incoming->mutable_flags(), &status)) {
       std::get<CONNECTION>(*task)->ReportStatus(status);
       continue;
@@ -291,7 +291,7 @@ void Emitter::DoLocalExecute(const Atomic<bool>& is_shutting_down) {
     base::ProcessPtr process = CreateProcess(
         incoming->flags(), uid, Immutable(incoming->current_dir()));
     if (!process->Run(base::Process::UNLIMITED, &error)) {
-      status.set_code(proto::Status::EXECUTION);
+      status.set_code(net::proto::Status::EXECUTION);
       if (!process->stderr().empty()) {
         status.set_description(process->stderr());
       } else if (!error.empty()) {
@@ -302,7 +302,7 @@ void Emitter::DoLocalExecute(const Atomic<bool>& is_shutting_down) {
         status.set_description("without errors");
       }
     } else {
-      status.set_code(proto::Status::OK);
+      status.set_code(net::proto::Status::OK);
       status.set_description(process->stderr());
       LOG(INFO) << "Local compilation successful:  "
                 << incoming->flags().input();
@@ -358,17 +358,17 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
       continue;
     }
 
-    proto::LocalExecute* incoming = std::get<MESSAGE>(*task).get();
+    base::proto::Local* incoming = std::get<MESSAGE>(*task).get();
     auto& source = std::get<SOURCE>(*task);
 
     // Check that we have a compiler of a requested version.
-    proto::Status status;
+    net::proto::Status status;
     if (!SetupCompiler(incoming->mutable_flags(), &status)) {
       std::get<CONNECTION>(*task)->ReportStatus(status);
       continue;
     }
 
-    UniquePtr<proto::RemoteExecute> outgoing(new proto::RemoteExecute);
+    UniquePtr<proto::Remote> outgoing(new proto::Remote);
     if (source.str.empty() && !GenerateSource(incoming, &source)) {
       failed_tasks_->Push(std::move(*task));
       continue;
@@ -410,16 +410,16 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
       continue;
     }
 
-    Universal reply(new proto::Universal);
+    Universal reply(new net::proto::Universal);
     if (!connection->ReadSync(reply.get())) {
       all_tasks_->Push(std::move(*task));
       counter.ReportOnDestroy(true);
       continue;
     }
 
-    if (reply->HasExtension(proto::Status::extension)) {
-      const auto& status = reply->GetExtension(proto::Status::extension);
-      if (status.code() != proto::Status::OK) {
+    if (reply->HasExtension(net::proto::Status::extension)) {
+      const auto& status = reply->GetExtension(net::proto::Status::extension);
+      if (status.code() != net::proto::Status::OK) {
         LOG(WARNING) << "Remote compilation failed with error(s):" << std::endl
                      << status.description();
         failed_tasks_->Push(std::move(*task));
@@ -429,8 +429,8 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
     }
 
     const String output_path = GetOutputPath(incoming);
-    if (reply->HasExtension(proto::RemoteResult::extension)) {
-      auto* result = reply->MutableExtension(proto::RemoteResult::extension);
+    if (reply->HasExtension(proto::Result::extension)) {
+      auto* result = reply->MutableExtension(proto::Result::extension);
       if (base::File::Write(output_path,
                             Immutable::WrapString(result->obj()))) {
         if (incoming->has_user_id() &&
@@ -439,8 +439,8 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
                      << error;
         }
 
-        proto::Status status;
-        status.set_code(proto::Status::OK);
+        net::proto::Status status;
+        status.set_code(net::proto::Status::OK);
         LOG(INFO) << "Remote compilation successful: "
                   << incoming->flags().input();
 

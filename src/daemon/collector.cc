@@ -28,20 +28,20 @@ bool Collector::Initialize() {
 
 bool Collector::HandleNewMessage(net::ConnectionPtr connection,
                                  Universal message,
-                                 const proto::Status& status) {
+                                 const net::proto::Status& status) {
   if (!message->IsInitialized()) {
     LOG(INFO) << message->InitializationErrorString();
     return false;
   }
 
-  if (status.code() != proto::Status::OK) {
+  if (status.code() != net::proto::Status::OK) {
     LOG(ERROR) << status.description();
     return connection->ReportStatus(status);
   }
 
-  if (message->HasExtension(proto::StatReport::extension)) {
-    UniquePtr<proto::StatReport> report(
-        message->ReleaseExtension(proto::StatReport::extension));
+  if (message->HasExtension(perf::proto::Report::extension)) {
+    UniquePtr<perf::proto::Report> report(
+        message->ReleaseExtension(perf::proto::Report::extension));
     for (auto& metric : *report->mutable_metric()) {
       if (metric.has_name()) {
         base::Singleton<perf::StatService>::Get().Dump(metric);

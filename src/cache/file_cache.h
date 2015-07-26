@@ -5,6 +5,7 @@
 #include <base/thread_pool.h>
 #include <cache/database_leveldb.h>
 #include <cache/database_sqlite.h>
+#include <cache/manifest.pb.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest_prod.h>
 
@@ -197,6 +198,7 @@ class FileCache {
   SharedPtr<EntryList> new_entries_;
 
   base::ThreadPool cleaner_{base::ThreadPool::TaskQueue::UNLIMITED, 1};
+
   UniquePtr<base::WorkerPool> resetter_{new base::WorkerPool(true)};
   // Simply resets |new_entries_| periodically.
 };

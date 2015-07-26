@@ -1,0 +1,13 @@
+import "net/universal.proto";
+
+package dist_clang.net.proto;
+
+message Test {
+  required string field1 = 1;
+  optional string field2 = 2;
+  repeated string field3 = 3;
+
+  extend Universal {
+    optional Test extension = 1;
+  }
+}

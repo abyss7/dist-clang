@@ -1,3 +1,4 @@
+#include <base/base.pb.h>
 #include <base/file_utils.h>
 #include <base/process_impl.h>
 #include <base/test_process.h>
@@ -160,10 +161,10 @@ TEST_F(ClientTest, CannotReadMessage) {
   connect_callback = [&](net::TestConnection* connection) {
     connection->AbortOnRead();
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      ASSERT_TRUE(message.HasExtension(proto::LocalExecute::extension));
+      ASSERT_TRUE(message.HasExtension(base::proto::Local::extension));
 
       const auto& extension =
-          message.GetExtension(proto::LocalExecute::extension);
+          message.GetExtension(base::proto::Local::extension);
       EXPECT_EQ(base::GetCurrentDir(), Immutable(extension.current_dir()));
       ASSERT_TRUE(extension.has_flags());
 
@@ -242,8 +243,8 @@ TEST_F(ClientTest, ReadMessageWithBadStatus) {
 
   connect_callback = [](net::TestConnection* connection) {
     connection->CallOnRead([](net::Connection::Message* message) {
-      auto extension = message->MutableExtension(proto::Status::extension);
-      extension->set_code(proto::Status::INCONSEQUENT);
+      auto extension = message->MutableExtension(net::proto::Status::extension);
+      extension->set_code(net::proto::Status::INCONSEQUENT);
     });
   };
   run_callback = [](base::TestProcess* process) {
@@ -266,8 +267,8 @@ TEST_F(ClientTest, SuccessfulCompilation) {
 
   connect_callback = [](net::TestConnection* connection) {
     connection->CallOnRead([](net::Connection::Message* message) {
-      auto extension = message->MutableExtension(proto::Status::extension);
-      extension->set_code(proto::Status::OK);
+      auto extension = message->MutableExtension(net::proto::Status::extension);
+      extension->set_code(net::proto::Status::OK);
     });
   };
   run_callback = [](base::TestProcess* process) {
@@ -290,8 +291,8 @@ TEST_F(ClientTest, FailedCompilation) {
 
   connect_callback = [](net::TestConnection* connection) {
     connection->CallOnRead([](net::Connection::Message* message) {
-      auto extension = message->MutableExtension(proto::Status::extension);
-      extension->set_code(proto::Status::EXECUTION);
+      auto extension = message->MutableExtension(net::proto::Status::extension);
+      extension->set_code(net::proto::Status::EXECUTION);
     });
   };
   run_callback = [](base::TestProcess* process) {
@@ -313,20 +314,20 @@ TEST_F(ClientTest, DISABLED_MultipleCommands_Successful) {
 }
 
 TEST_F(ClientTest, SendPluginPath) {
-  const char* argv[] = {"clang++",     "-c",      "/test_file.cc", "-Xclang",
-                        "-add-plugin", "-Xclang", "test-plugin",   nullptr};
+  const char* argv[] = {"clang++", "-c", "/test_file.cc", "-Xclang",
+                        "-add-plugin", "-Xclang", "test-plugin", nullptr};
   const int argc = 7;
   const String plugin_name = "test-plugin";
   const String plugin_path = "/test/plugin/path";
 
   connect_callback = [=](net::TestConnection* connection) {
     connection->CallOnRead([](net::Connection::Message* message) {
-      auto extension = message->MutableExtension(proto::Status::extension);
-      extension->set_code(proto::Status::OK);
+      auto extension = message->MutableExtension(net::proto::Status::extension);
+      extension->set_code(net::proto::Status::OK);
     });
     connection->CallOnSend([=](const net::Connection::Message& message) {
-      ASSERT_TRUE(message.HasExtension(proto::LocalExecute::extension));
-      auto& extension = message.GetExtension(proto::LocalExecute::extension);
+      ASSERT_TRUE(message.HasExtension(base::proto::Local::extension));
+      auto& extension = message.GetExtension(base::proto::Local::extension);
       ASSERT_TRUE(extension.has_flags());
       ASSERT_TRUE(extension.flags().has_compiler());
       ASSERT_EQ(1, extension.flags().compiler().plugins_size());

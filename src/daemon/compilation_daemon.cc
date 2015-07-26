@@ -13,7 +13,7 @@ using namespace cache::string;
 
 namespace {
 
-inline CommandLine CommandLineForCache(const proto::Flags& flags) {
+inline CommandLine CommandLineForCache(const base::proto::Flags& flags) {
   String command_line =
       base::JoinString<' '>(flags.other().begin(), flags.other().end());
   if (flags.has_language()) {
@@ -27,7 +27,7 @@ inline CommandLine CommandLineForCache(const proto::Flags& flags) {
   return CommandLine(command_line);
 }
 
-inline CommandLine CommandLineForDirect(const proto::Flags& flags,
+inline CommandLine CommandLineForDirect(const base::proto::Flags& flags,
                                         const String& base_path) {
   String command_line =
       base::JoinString<' '>(flags.other().begin(), flags.other().end());
@@ -152,14 +152,14 @@ CompilationDaemon::CompilationDaemon(const proto::Configuration& configuration)
   }
 }
 
-HandledHash CompilationDaemon::GenerateHash(const proto::Flags& flags,
+HandledHash CompilationDaemon::GenerateHash(const base::proto::Flags& flags,
                                             const HandledSource& code) const {
   const Version version(flags.compiler().version());
   return cache::FileCache::Hash(code, CommandLineForCache(flags), version);
 }
 
-bool CompilationDaemon::SetupCompiler(proto::Flags* flags,
-                                      proto::Status* status) const {
+bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
+                                      net::proto::Status* status) const {
   // No flags - filled flags.
   if (!flags) {
     return true;
@@ -169,7 +169,7 @@ bool CompilationDaemon::SetupCompiler(proto::Flags* flags,
     auto compiler = compilers_.find(flags->compiler().version());
     if (compiler == compilers_.end()) {
       if (status) {
-        status->set_code(proto::Status::NO_VERSION);
+        status->set_code(net::proto::Status::NO_VERSION);
         status->set_description("Compiler not found: " +
                                 flags->compiler().version());
       }
@@ -184,7 +184,7 @@ bool CompilationDaemon::SetupCompiler(proto::Flags* flags,
     if (!plugin.has_path()) {
       if (plugin_map == plugins_.end()) {
         if (status) {
-          status->set_code(proto::Status::NO_VERSION);
+          status->set_code(net::proto::Status::NO_VERSION);
           status->set_description("Plugin " + plugin.name() + " not found: " +
                                   flags->compiler().version());
         }
@@ -193,7 +193,7 @@ bool CompilationDaemon::SetupCompiler(proto::Flags* flags,
       auto plugin_by_name = plugin_map->second.find(plugin.name());
       if (plugin_by_name == plugin_map->second.end()) {
         if (status) {
-          status->set_code(proto::Status::NO_VERSION);
+          status->set_code(net::proto::Status::NO_VERSION);
           status->set_description("Plugin " + plugin.name() + " not found: " +
                                   flags->compiler().version());
         }
@@ -207,7 +207,7 @@ bool CompilationDaemon::SetupCompiler(proto::Flags* flags,
 }
 
 bool CompilationDaemon::SearchSimpleCache(
-    const proto::Flags& flags, const HandledSource& source,
+    const base::proto::Flags& flags, const HandledSource& source,
     cache::FileCache::Entry* entry) const {
   DCHECK(entry);
 
@@ -227,7 +227,7 @@ bool CompilationDaemon::SearchSimpleCache(
 }
 
 bool CompilationDaemon::SearchDirectCache(
-    const proto::Flags& flags, const String& current_dir,
+    const base::proto::Flags& flags, const String& current_dir,
     cache::FileCache::Entry* entry) const {
   DCHECK(conf_.has_emitter() && !conf_.has_absorber());
   DCHECK(flags.has_input());
@@ -256,7 +256,7 @@ bool CompilationDaemon::SearchDirectCache(
 }
 
 void CompilationDaemon::UpdateSimpleCache(
-    const proto::Flags& flags, const HandledSource& source,
+    const base::proto::Flags& flags, const HandledSource& source,
     const cache::FileCache::Entry& entry) {
   const Version version(flags.compiler().version());
   const auto command_line = CommandLineForCache(flags);
@@ -269,7 +269,7 @@ void CompilationDaemon::UpdateSimpleCache(
 }
 
 void CompilationDaemon::UpdateDirectCache(
-    const proto::LocalExecute* message, const HandledSource& source,
+    const base::proto::Local* message, const HandledSource& source,
     const cache::FileCache::Entry& entry) {
   const auto& flags = message->flags();
 
@@ -304,9 +304,8 @@ void CompilationDaemon::UpdateDirectCache(
 }
 
 // static
-base::ProcessPtr CompilationDaemon::CreateProcess(const proto::Flags& flags,
-                                                  ui32 user_id,
-                                                  Immutable cwd_path) {
+base::ProcessPtr CompilationDaemon::CreateProcess(
+    const base::proto::Flags& flags, ui32 user_id, Immutable cwd_path) {
   DCHECK(flags.compiler().has_path());
   base::ProcessPtr process =
       base::Process::Create(flags.compiler().path(), cwd_path, user_id);
@@ -316,6 +315,8 @@ base::ProcessPtr CompilationDaemon::CreateProcess(const proto::Flags& flags,
   process->AppendArg(Immutable(flags.action()));
   process->AppendArg(flags.non_cached().begin(), flags.non_cached().end());
   process->AppendArg(flags.non_direct().begin(), flags.non_direct().end());
+
+  // TODO: render args using libclang
   for (const auto& plugin : flags.compiler().plugins()) {
     process->AppendArg("-load"_l).AppendArg(Immutable(plugin.path()));
   }
@@ -337,8 +338,8 @@ base::ProcessPtr CompilationDaemon::CreateProcess(const proto::Flags& flags,
 }
 
 // static
-base::ProcessPtr CompilationDaemon::CreateProcess(const proto::Flags& flags,
-                                                  Immutable cwd_path) {
+base::ProcessPtr CompilationDaemon::CreateProcess(
+    const base::proto::Flags& flags, Immutable cwd_path) {
   return std::move(CreateProcess(flags, base::Process::SAME_UID, cwd_path));
 }
 

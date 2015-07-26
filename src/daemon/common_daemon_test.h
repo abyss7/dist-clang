@@ -2,7 +2,7 @@
 
 #include <base/process_impl.h>
 #include <base/test_process.h>
-#include <daemon/configuration.pb.h>
+#include <daemon/configuration.h>
 #include <net/network_service_impl.h>
 #include <net/test_connection.h>
 #include <net/test_end_point_resolver.h>

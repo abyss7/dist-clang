@@ -3,29 +3,14 @@
 #include <base/file_utils.h>
 #include <base/logging.h>
 #include <base/process.h>
+#include <base/protobuf_utils.h>
 #include <net/connection.h>
-
-#include <third_party/protobuf/exported/src/google/protobuf/text_format.h>
 
 #include <base/using_log.h>
 
 using namespace std::placeholders;
 
 namespace dist_clang {
-
-namespace base {
-
-template <>
-base::Log& base::Log::operator<<(const google::protobuf::Message& info) {
-  String str;
-  if (google::protobuf::TextFormat::PrintToString(info, &str)) {
-    stream_ << str;
-  }
-  return *this;
-}
-
-}  // namespace base
-
 namespace daemon {
 
 Absorber::Absorber(const proto::Configuration& configuration)
@@ -67,19 +52,19 @@ bool Absorber::Initialize() {
 
 bool Absorber::HandleNewMessage(net::ConnectionPtr connection,
                                 Universal message,
-                                const proto::Status& status) {
+                                const net::proto::Status& status) {
   if (!message->IsInitialized()) {
     LOG(INFO) << message->InitializationErrorString();
     return false;
   }
 
-  if (status.code() != proto::Status::OK) {
+  if (status.code() != net::proto::Status::OK) {
     LOG(ERROR) << status.description();
     return connection->ReportStatus(status);
   }
 
-  if (message->HasExtension(proto::RemoteExecute::extension)) {
-    Message execute(message->ReleaseExtension(proto::RemoteExecute::extension));
+  if (message->HasExtension(proto::Remote::extension)) {
+    Message execute(message->ReleaseExtension(proto::Remote::extension));
     DCHECK(!execute->flags().compiler().has_path());
     if (execute->has_source()) {
       return tasks_->Push(Task{connection, std::move(execute)});
@@ -103,7 +88,7 @@ void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
       continue;
     }
 
-    proto::RemoteExecute* incoming = task->second.get();
+    proto::Remote* incoming = task->second.get();
     auto source = Immutable::WrapString(incoming->source());
 
     incoming->mutable_flags()->set_output("-");
@@ -129,12 +114,12 @@ void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
 
     cache::FileCache::Entry entry;
     if (SearchSimpleCache(incoming->flags(), HandledSource(source), &entry)) {
-      Universal outgoing(new proto::Universal);
-      auto* result = outgoing->MutableExtension(proto::RemoteResult::extension);
+      Universal outgoing(new net::proto::Universal);
+      auto* result = outgoing->MutableExtension(proto::Result::extension);
       result->set_obj(entry.object);
 
-      auto status = outgoing->MutableExtension(proto::Status::extension);
-      status->set_code(proto::Status::OK);
+      auto status = outgoing->MutableExtension(net::proto::Status::extension);
+      status->set_code(net::proto::Status::OK);
       status->set_description(entry.stderr);
 
       task->first->SendAsync(std::move(outgoing));
@@ -142,24 +127,25 @@ void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
     }
 
     // Check that we have a compiler of a requested version.
-    proto::Status status;
+    net::proto::Status status;
     if (!SetupCompiler(incoming->mutable_flags(), &status)) {
       task->first->ReportStatus(status);
       continue;
     }
 
-    Universal outgoing(new proto::Universal);
+    Universal outgoing(new net::proto::Universal);
 
     // Pipe the input file to the compiler and read output file from the
     // compiler's stdout.
     String error;
     base::ProcessPtr process = CreateProcess(incoming->flags());
     if (!process->Run(30, source, &error)) {
-      status.set_code(proto::Status::EXECUTION);
+      status.set_code(net::proto::Status::EXECUTION);
       if (!process->stdout().empty() || !process->stderr().empty()) {
         status.set_description(process->stderr());
         LOG(WARNING) << "Compilation failed with error:" << std::endl
-                     << process->stderr() << std::endl << process->stdout();
+                     << process->stderr() << std::endl
+                     << process->stdout();
       } else if (!error.empty()) {
         status.set_description(error);
         LOG(WARNING) << "Compilation failed with error: " << error;
@@ -172,17 +158,17 @@ void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
       LOG(VERBOSE) << static_cast<const google::protobuf::Message&>(
           incoming->flags());
     } else {
-      status.set_code(proto::Status::OK);
+      status.set_code(net::proto::Status::OK);
       status.set_description(process->stderr());
       LOG(INFO) << "External compilation successful";
 
-      const auto& result = proto::RemoteResult::extension;
+      const auto& result = proto::Result::extension;
       outgoing->MutableExtension(result)->set_obj(process->stdout());
     }
 
-    outgoing->MutableExtension(proto::Status::extension)->CopyFrom(status);
+    outgoing->MutableExtension(net::proto::Status::extension)->CopyFrom(status);
 
-    if (status.code() == proto::Status::OK) {
+    if (status.code() == net::proto::Status::OK) {
       cache::FileCache::Entry entry;
 
       entry.object = process->stdout();

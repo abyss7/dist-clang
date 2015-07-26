@@ -1,11 +1,11 @@
 #include <client/command.h>
 
 #include <base/assert.h>
+#include <base/base.pb.h>
 #include <base/c_utils.h>
 #include <base/logging.h>
 #include <base/process_impl.h>
 #include <base/string_utils.h>
-#include <proto/remote.pb.h>
 
 #include <clang/Basic/Diagnostic.h>
 #include <clang/Driver/Action.h>
@@ -141,7 +141,8 @@ bool DriverCommand::GenerateFromArgs(int argc, const char* const raw_argv[],
   return result;
 }
 
-void DriverCommand::FillFlags(proto::Flags* flags, const String& clang_path,
+void DriverCommand::FillFlags(base::proto::Flags* flags,
+                              const String& clang_path,
                               const String& clang_major_version) const {
   DCHECK(IsClang());
   CHECK(arg_list_);

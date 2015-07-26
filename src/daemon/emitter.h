@@ -21,7 +21,7 @@ class Emitter : public CompilationDaemon {
     SOURCE = 2,
   };
 
-  using Message = UniquePtr<proto::LocalExecute>;
+  using Message = UniquePtr<base::proto::Local>;
   using Task = Tuple<net::ConnectionPtr, Message, cache::string::HandledSource>;
   using Queue = base::LockedQueue<Task>;
   using QueueAggregator = base::QueueAggregator<Task>;
@@ -29,7 +29,7 @@ class Emitter : public CompilationDaemon {
   using ResolveFn = Fn<net::EndPointPtr()>;
 
   bool HandleNewMessage(net::ConnectionPtr connection, Universal message,
-                        const proto::Status& status) override;
+                        const net::proto::Status& status) override;
 
   void DoCheckCache(const Atomic<bool>& is_shutting_down);
   void DoLocalExecute(const Atomic<bool>& is_shutting_down);

@@ -1,3 +1,5 @@
+import "net/universal.proto";
+
 package dist_clang.perf.proto;
 
 message Metric {
@@ -6,13 +8,28 @@ message Metric {
     DIRECT_CACHE_MISS  = 2;
     SIMPLE_CACHE_HIT   = 3;
     SIMPLE_CACHE_MISS  = 4;
-    REMOTE_TIME_WASTED = 5;  // in milliseconds.
+
+    REMOTE_TIME_WASTED = 5;
+    // in milliseconds.
+
     REMOTE_TASK_DONE   = 6;
     LOCAL_TASK_DONE    = 7;
-    CACHE_SIZE_CLEANED = 8;  // in bytes.
-    CACHE_SIZE_ADDED   = 9;  // in bytes.
+
+    CACHE_SIZE_CLEANED = 8;
+    // in bytes.
+
+    CACHE_SIZE_ADDED   = 9;
+    // in bytes.
   }
 
   required Name name    = 1;
   optional uint64 value = 2;
+}
+
+message Report {
+  repeated Metric metric = 1;
+
+  extend net.proto.Universal {
+    optional Report extension = 7;
+  }
 }
