@@ -5,4 +5,5 @@ import subprocess
 import sys
 
 subprocess.check_call(['protoc', '--proto_path=' + sys.argv[1],
-                       '--cpp_out=' + sys.argv[2], sys.argv[3]])
+                       '--cpp_out=' + sys.argv[2],
+                       '--python_out=' + sys.argv[2], sys.argv[3]])

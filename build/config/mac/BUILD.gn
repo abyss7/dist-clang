@@ -10,7 +10,9 @@ config("base") {
     "x86_64",
     "-rpath",
     "@loader_path/.",
-    "-undefined",
-    "error",
+
+    # FIXME: don't use this flag because of silly Protobuf extensions.
+    # "-undefined",
+    # "error",
   ]
 }

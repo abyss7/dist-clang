@@ -12,7 +12,6 @@ executable("clang") {
     ":config_proto",
     "//src/base:base",
     "//src/base:logging",
-    "//src/third_party/protobuf:protobuf",
   ]
 }
 

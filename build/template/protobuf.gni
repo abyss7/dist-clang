@@ -10,6 +10,7 @@ template("protobuf") {
     outputs = [
       "{{source_gen_dir}}/{{source_name_part}}.pb.cc",
       "{{source_gen_dir}}/{{source_name_part}}.pb.h",
+      "{{source_gen_dir}}/{{source_name_part}}_pb2.py",
     ]
     args = [
       rebase_path("//src", root_build_dir),
@@ -29,9 +30,8 @@ template("protobuf") {
       configs -= [ "//build/config:no_rtti" ]
     }
 
-    deps += [
-      ":$action_name",
-      "//src/third_party/protobuf:protobuf",
-    ]
+    deps += [ ":$action_name" ]
+
+    public_deps = [ "//src/third_party/protobuf:protobuf" ]
   }
 }

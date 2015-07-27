@@ -17,7 +17,7 @@ def MakeInstall(top_dir, product_dir, package_dir):
   os.makedirs(lib_dir)
   os.makedirs(etc_dir)
   os.makedirs(os.path.join(pylib_dir, "perf"))
-  os.makedirs(os.path.join(pylib_dir, "proto"))
+  os.makedirs(os.path.join(pylib_dir, "base"))
   os.makedirs(os.path.join(pylib_dir, "daemon"))
 
   # Copy executables
@@ -30,14 +30,11 @@ def MakeInstall(top_dir, product_dir, package_dir):
   shutil.copy(os.path.join(product_dir, "libc++."+ext), lib_dir)
   shutil.copy(os.path.join(product_dir, "libc++abi."+ext), lib_dir)
   shutil.copy(os.path.join(product_dir, "libcommand."+ext), lib_dir)
-  shutil.copy(os.path.join(product_dir, "libconf_client."+ext), lib_dir)
   shutil.copy(os.path.join(product_dir, "libconf_daemon."+ext), lib_dir)
   shutil.copy(os.path.join(product_dir, "libcounter."+ext), lib_dir)
   shutil.copy(os.path.join(product_dir, "libfile_cache."+ext), lib_dir)
   shutil.copy(os.path.join(product_dir, "liblogging."+ext), lib_dir)
-  shutil.copy(os.path.join(product_dir, "libmanifest."+ext), lib_dir)
   shutil.copy(os.path.join(product_dir, "libnet."+ext), lib_dir)
-  shutil.copy(os.path.join(product_dir, "libproto."+ext), lib_dir)
   shutil.copy(os.path.join(product_dir, "libprotobuf."+ext), lib_dir)
   shutil.copy(os.path.join(product_dir, "libsnappy."+ext), lib_dir)
   shutil.copy(os.path.join(product_dir, "libstat_service."+ext), lib_dir)
@@ -48,13 +45,14 @@ def MakeInstall(top_dir, product_dir, package_dir):
   shutil.copy(os.path.join(top_dir, "install", "clangd.conf"), etc_dir)
 
   # Copy python bindings
-  shutil.copy(os.path.join(top_dir, "src", "perf", "stat_pb2.py"), os.path.join(pylib_dir, "perf"))
-  shutil.copy(os.path.join(top_dir, "src", "proto", "base_pb2.py"), os.path.join(pylib_dir, "proto"))
-  shutil.copy(os.path.join(top_dir, "src", "proto", "remote_pb2.py"), os.path.join(pylib_dir, "proto"))
-  shutil.copy(os.path.join(top_dir, "src", "daemon", "configuration_pb2.py"), os.path.join(pylib_dir, "daemon"))
+  gen_dir = os.path.join(product_dir, "gen")
+  shutil.copy(os.path.join(gen_dir, "src", "perf", "stat_pb2.py"), os.path.join(pylib_dir, "perf"))
+  shutil.copy(os.path.join(gen_dir, "src", "base", "base_pb2.py"), os.path.join(pylib_dir, "base"))
+  shutil.copy(os.path.join(gen_dir, "src", "daemon", "remote_pb2.py"), os.path.join(pylib_dir, "daemon"))
+  shutil.copy(os.path.join(gen_dir, "src", "daemon", "configuration_pb2.py"), os.path.join(pylib_dir, "daemon"))
   open(os.path.join(pylib_dir, "__init__.py"), 'a').close()
   open(os.path.join(pylib_dir, "perf", "__init__.py"), 'a').close()
-  open(os.path.join(pylib_dir, "proto", "__init__.py"), 'a').close()
+  open(os.path.join(pylib_dir, "base", "__init__.py"), 'a').close()
   open(os.path.join(pylib_dir, "daemon", "__init__.py"), 'a').close()
 
   # Install python protobuf

@@ -66,7 +66,6 @@ shared_library("configuration") {
     ":config_proto",
     "//src/base:base",
     "//src/base:logging",
-    "//src/third_party/protobuf:protobuf",
     "//src/third_party/tclap:tclap",
   ]
 }

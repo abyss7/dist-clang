@@ -106,8 +106,6 @@ shared_library("base") {
     "worker_pool.h",
   ]
 
-  deps += [ "//src/third_party/protobuf:protobuf" ]
-
   public_deps = [
     ":base_proto",
     ":logging",
