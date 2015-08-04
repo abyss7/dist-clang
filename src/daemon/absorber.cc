@@ -17,15 +17,14 @@ Absorber::Absorber(const proto::Configuration& configuration)
     : CompilationDaemon(configuration) {
   using Worker = base::WorkerPool::SimpleWorker;
 
-  CHECK(conf_.has_absorber() && !conf_.absorber().local().disabled());
+  CHECK(conf_->has_absorber() && !conf_->absorber().local().disabled());
 
   workers_.reset(new base::WorkerPool);
-  tasks_.reset(new Queue(conf_.pool_capacity()));
+  tasks_.reset(new Queue(conf_->pool_capacity()));
 
   {
     Worker worker = std::bind(&Absorber::DoExecute, this, _1);
-    workers_->AddWorker("Execute Worker"_l, worker,
-                        conf_.absorber().local().threads());
+    workers_->AddWorker("Execute Worker"_l, worker, conf_->absorber().local().threads());
   }
 }
 
@@ -36,14 +35,14 @@ Absorber::~Absorber() {
 
 bool Absorber::Initialize() {
   String error;
-  const auto& local = conf_.absorber().local();
+  const auto& local = conf_->absorber().local();
   if (!Listen(local.host(), local.port(), local.ipv6(), &error)) {
     LOG(ERROR) << "Failed to listen on " << local.host() << ":" << local.port()
                << " : " << error;
     return false;
   }
 
-  if (conf_.has_cache() && conf_.cache().has_direct()) {
+  if (conf_->has_cache() && conf_->cache().has_direct()) {
     LOG(WARNING) << "Absorber doesn't use the Direct Cache mode. The flag "
                     "\"cache.direct\" will be ignored";
   }
