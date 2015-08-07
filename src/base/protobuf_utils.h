@@ -3,9 +3,13 @@
 #include <base/aliases.h>
 #include <base/logging.h>
 
-namespace google::protobuf {
-  class Message;
-}  // namespace google::protobuf
+namespace google {
+namespace protobuf {
+
+class Message;
+
+}  // namespace protobuf
+}  // namespace google
 
 namespace dist_clang {
 namespace base {

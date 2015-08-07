@@ -9,9 +9,13 @@
 
 namespace dist_clang {
 
-namespace base::proto {
-  class Flags;
-}  // namespace base::proto
+namespace base {
+namespace proto {
+
+class Flags;
+
+}  // namespace proto
+}  // namespace base
 
 namespace client {
 
