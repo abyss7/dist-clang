@@ -43,6 +43,7 @@ shared_library("net") {
 }
 
 protobuf("net_proto") {
+  shared = true
   sources = [
     "universal.proto",
   ]

@@ -29,6 +29,9 @@ shared_library("stat_service") {
 }
 
 protobuf("stat_proto") {
+  deps = [
+    "//src/net:net_proto",
+  ]
   sources = [
     "stat.proto",
   ]
