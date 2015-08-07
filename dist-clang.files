@@ -2545,3 +2545,4 @@ src/third_party/tclap/exported/include/tclap/Visitor.h
 src/third_party/tclap/exported/include/tclap/XorHandler.h
 src/third_party/tclap/exported/include/tclap/ZshCompletionOutput.h
 tools/get_report.py
+build/run_all_tests

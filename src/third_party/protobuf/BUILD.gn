@@ -144,12 +144,6 @@ shared_library("protobuf") {
 }
 
 executable("protoc") {
-  visibility = [
-    "//:deb_package",
-    "//:pkg_package",
-    "//:rpm_package",
-  ]
-
   sources = [
     "exported/src/google/protobuf/compiler/code_generator.cc",
     "exported/src/google/protobuf/compiler/command_line_interface.cc",

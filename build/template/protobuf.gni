@@ -17,6 +17,9 @@ template("protobuf") {
       rebase_path("$root_gen_dir/src", root_build_dir),
       "{{source}}",
     ]
+    deps = [
+      "//src/third_party/protobuf:protoc",
+    ]
   }
 
   source_set(target_name) {
