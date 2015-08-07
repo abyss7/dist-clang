@@ -32,6 +32,7 @@ source_set("client") {
     "//src/base:base",
     "//src/base:logging",
     "//src/net:net",
+    "//src/net:net_proto",
   ]
 }
 
