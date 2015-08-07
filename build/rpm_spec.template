@@ -25,6 +25,7 @@ Distributed clang-based compilation system.
 /usr/lib/dist-clang/libfile_cache.so
 /usr/lib/dist-clang/liblogging.so
 /usr/lib/dist-clang/libnet.so
+/usr/lib/dist-clang/libnet_proto.so
 /usr/lib/dist-clang/libprotobuf.so
 /usr/lib/dist-clang/libsnappy.so
 /usr/lib/dist-clang/libstat_service.so
