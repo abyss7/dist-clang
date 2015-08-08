@@ -106,7 +106,8 @@ EndPointPtr EndPoint::UnixSocket(const String& path) {
 
 String EndPoint::Print() const {
   char buf[INET6_ADDRSTRLEN];
-  if (inet_ntop(domain(), &address_, buf, INET6_ADDRSTRLEN)) {
+  auto* addr = reinterpret_cast<const struct sockaddr_in6*>(&address_);
+  if (inet_ntop(domain(), &addr->sin6_addr, buf, INET6_ADDRSTRLEN)) {
     return buf;
   }
   return String();
