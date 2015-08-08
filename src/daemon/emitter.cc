@@ -379,7 +379,9 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
     if (!connection) {
       LOG(WARNING) << "Failed to connect to " << end_point->Print() << ": "
                    << error;
-      all_tasks_->Push(std::move(*task));
+      // Put into |failed_tasks_| to prevent hanging around in case all
+      // remotes are unreachable at once.
+      failed_tasks_->Push(std::move(*task));
       Sleep();
 
       continue;
