@@ -78,8 +78,9 @@ if (host_os != "win") {
   ]
 }
 
-# Thread Sanitizer doesn't like tcmalloc.
-if (host_os != "win" && !use_tsan) {
+# Mac OS X 10.10 doesn't work with tcmalloc anymore.
+# Thread Sanitizer doesn't like tcmalloc either.
+if (host_os != "mac" && host_os != "win" && !use_tsan) {
   default_deps += [ "//src/third_party/gperftools:tcmalloc" ]
 }
 
