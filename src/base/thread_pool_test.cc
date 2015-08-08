@@ -22,7 +22,7 @@ TEST(ThreadPoolTest, CompleteAllTasksOnDestruction) {
   });
   pool->Run();
 
-  Thread thread([&] { pool.reset(); });
+  Thread thread("Test"_l, [&] { pool.reset(); });
   EXPECT_TRUE(!!future);
   EXPECT_EQ(1u, pool->TaskCount());
   ready = true;
