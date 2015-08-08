@@ -26,7 +26,7 @@ shutil.copy(os.path.join(top_dir, "build", "luggage_makefile.template"),
             os.path.join(product_dir, "Makefile"))
 
 # Create .pkg file.
-args = ["make", "pkg"]
+args = ["fakeroot", "make", "pkg"]
 env = os.environ.copy()
 env.update({'VERSION': version, 'PROD_DIR': product_dir})
 subprocess.Popen(args, env=env).wait()

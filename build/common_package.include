@@ -16,9 +16,10 @@ def MakeInstall(top_dir, product_dir, package_dir):
   os.makedirs(bin_dir)
   os.makedirs(lib_dir)
   os.makedirs(etc_dir)
-  os.makedirs(os.path.join(pylib_dir, "perf"))
   os.makedirs(os.path.join(pylib_dir, "base"))
   os.makedirs(os.path.join(pylib_dir, "daemon"))
+  os.makedirs(os.path.join(pylib_dir, "net"))
+  os.makedirs(os.path.join(pylib_dir, "perf"))
 
   # Copy executables
   shutil.copy(os.path.join(product_dir, "clang"), bin_dir)
@@ -47,14 +48,16 @@ def MakeInstall(top_dir, product_dir, package_dir):
 
   # Copy python bindings
   gen_dir = os.path.join(product_dir, "gen")
-  shutil.copy(os.path.join(gen_dir, "src", "perf", "stat_pb2.py"), os.path.join(pylib_dir, "perf"))
   shutil.copy(os.path.join(gen_dir, "src", "base", "base_pb2.py"), os.path.join(pylib_dir, "base"))
   shutil.copy(os.path.join(gen_dir, "src", "daemon", "remote_pb2.py"), os.path.join(pylib_dir, "daemon"))
   shutil.copy(os.path.join(gen_dir, "src", "daemon", "configuration_pb2.py"), os.path.join(pylib_dir, "daemon"))
+  shutil.copy(os.path.join(gen_dir, "src", "net", "universal_pb2.py"), os.path.join(pylib_dir, "net"))
+  shutil.copy(os.path.join(gen_dir, "src", "perf", "stat_pb2.py"), os.path.join(pylib_dir, "perf"))
   open(os.path.join(pylib_dir, "__init__.py"), 'a').close()
-  open(os.path.join(pylib_dir, "perf", "__init__.py"), 'a').close()
   open(os.path.join(pylib_dir, "base", "__init__.py"), 'a').close()
   open(os.path.join(pylib_dir, "daemon", "__init__.py"), 'a').close()
+  open(os.path.join(pylib_dir, "net", "__init__.py"), 'a').close()
+  open(os.path.join(pylib_dir, "perf", "__init__.py"), 'a').close()
 
   # Install python protobuf
   cwd = os.getcwd()

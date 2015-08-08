@@ -44,9 +44,10 @@ if (host_os == "linux") {
       "//install/debian_prerm",
       "//install/supervisord_service",
       "$root_gen_dir/src/base/base_pb2.py",
-      "$root_gen_dir/src/perf/stat_pb2.py",
       "$root_gen_dir/src/daemon/configuration_pb2.py",
       "$root_gen_dir/src/daemon/remote_pb2.py",
+      "$root_gen_dir/src/net/universal_pb2.py",
+      "$root_gen_dir/src/perf/stat_pb2.py",
     ]
     outputs = [
       "$root_out_dir/deb/debian/control",
@@ -78,6 +79,8 @@ if (host_os == "linux") {
       "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/dist_clang/daemon/__init__.py",
       "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/dist_clang/daemon/configuration_pb2.py",
       "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/dist_clang/daemon/remote_pb2.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/dist_clang/net/__init__.py",
+      "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/dist_clang/net/universal_pb2.py",
       "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/dist_clang/perf/__init__.py",
       "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/dist_clang/perf/stat_pb2.py",
       "$root_out_dir/deb/debian/tmp/usr/lib/python2.7/dist_clang/google/protobuf/compiler/__init__.py",
@@ -153,11 +156,10 @@ if (host_os == "linux") {
       "//install/clangd.conf",
       "//install/systemd_service",
       "$root_gen_dir/src/base/base_pb2.py",
-      "$root_gen_dir/src/perf/stat_pb2.py",
       "$root_gen_dir/src/daemon/configuration_pb2.py",
       "$root_gen_dir/src/daemon/remote_pb2.py",
-
-      # FIXME: source python protobuf files.
+      "$root_gen_dir/src/net/universal_pb2.py",
+      "$root_gen_dir/src/perf/stat_pb2.py",
     ]
     outputs = [
       "$root_out_dir/rpm.spec",
@@ -185,6 +187,8 @@ if (host_os == "linux") {
       "$root_out_dir/rpm/usr/lib/python2.7/dist_clang/daemon/__init__.py",
       "$root_out_dir/rpm/usr/lib/python2.7/dist_clang/daemon/configuration_pb2.py",
       "$root_out_dir/rpm/usr/lib/python2.7/dist_clang/daemon/remote_pb2.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/dist_clang/net/__init__.py",
+      "$root_out_dir/rpm/usr/lib/python2.7/dist_clang/net/universal_pb2.py",
       "$root_out_dir/rpm/usr/lib/python2.7/dist_clang/perf/__init__.py",
       "$root_out_dir/rpm/usr/lib/python2.7/dist_clang/perf/stat_pb2.py",
       "$root_out_dir/rpm/usr/lib/python2.7/dist_clang/google/protobuf/compiler/__init__.py",
@@ -260,9 +264,8 @@ if (host_os == "mac") {
       "$root_gen_dir/src/base/base_pb2.py",
       "$root_gen_dir/src/daemon/configuration_pb2.py",
       "$root_gen_dir/src/daemon/remote_pb2.py",
+      "$root_gen_dir/src/net/universal_pb2.py",
       "$root_gen_dir/src/perf/stat_pb2.py",
-
-      # FIXME: source python protobuf files.
     ]
     outputs = [
       "$root_out_dir/Makefile",
@@ -289,6 +292,8 @@ if (host_os == "mac") {
       "$root_out_dir/pkg/usr/lib/python2.7/dist_clang/daemon/__init__.py",
       "$root_out_dir/pkg/usr/lib/python2.7/dist_clang/daemon/configuration_pb2.py",
       "$root_out_dir/pkg/usr/lib/python2.7/dist_clang/daemon/remote_pb2.py",
+      "$root_out_dir/pkg/usr/lib/python2.7/dist_clang/net/__init__.py",
+      "$root_out_dir/pkg/usr/lib/python2.7/dist_clang/net/universal_pb2.py",
       "$root_out_dir/pkg/usr/lib/python2.7/dist_clang/perf/__init__.py",
       "$root_out_dir/pkg/usr/lib/python2.7/dist_clang/perf/stat_pb2.py",
       "$root_out_dir/pkg/usr/lib/python2.7/dist_clang/google/protobuf/compiler/__init__.py",
