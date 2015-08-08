@@ -20,7 +20,12 @@ class Thread {
   explicit Thread(Literal name, F&& f, Args&&... args) {
     auto old_set = BlockSignals();
     thread_ = std::thread(f, args...);
+#if defined(OS_LINUX)
     pthread_setname_np(thread_.native_handle(), name);
+#elif defined(OS_MACOSX)
+    // TODO: implement the thread naming.
+    //       See http://stackoverflow.com/q/31897364/377393
+#endif
     UnblockSignals(old_set);
   }
 
