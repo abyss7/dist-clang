@@ -6,6 +6,8 @@
 #include <base/file/pipe.h>
 #include <base/logging.h>
 
+#include <signal.h>
+
 #include <base/using_log.h>
 
 namespace dist_clang {

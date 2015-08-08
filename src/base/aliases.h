@@ -16,17 +16,12 @@
 #include STL(unordered_set)
 #include STL(vector)
 
-#if defined(OS_WIN)
-#include STL(thread)
-#else
-#include <base/thread.h>
-#endif
-
 namespace dist_clang {
 
 namespace base {
 class ConstString;
 class Literal;
+class Thread;
 }  // namespace base
 
 using i8 = int8_t;
@@ -75,11 +70,7 @@ using SharedPtr = std::shared_ptr<T>;
 
 using String = std::string;
 
-#if defined(OS_WIN)
-using Thread = std::thread;
-#else
 using Thread = base::Thread;
-#endif  // defined(OS_WIN)
 
 using TimePoint = std::chrono::time_point<Clock>;
 

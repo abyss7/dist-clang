@@ -1,6 +1,7 @@
 #pragma once
 
 #include <base/locked_queue.h>
+#include <base/thread.h>
 
 #include STL(condition_variable)
 
@@ -37,7 +38,8 @@ class QueueAggregator {
 
   void Aggregate(LockedQueue<T>* WEAK_PTR queue) THREAD_UNSAFE {
     queues_.push_back(queue);
-    threads_.emplace_back(&QueueAggregator<T>::DoPop, this, queue);
+    threads_.emplace_back("Queue Aggregator"_l, &QueueAggregator<T>::DoPop,
+                          this, queue);
   }
 
   Optional Pop() THREAD_SAFE {

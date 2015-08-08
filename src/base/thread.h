@@ -1,6 +1,7 @@
 #pragma once
 
 #include <base/aliases.h>
+#include <base/const_string.h>
 
 #include STL(thread)
 
@@ -16,9 +17,10 @@ class Thread {
   Thread() = default;
 
   template <class F, class... Args>
-  explicit Thread(F&& f, Args&&... args) {
+  explicit Thread(Literal name, F&& f, Args&&... args) {
     auto old_set = BlockSignals();
     thread_ = std::thread(f, args...);
+    pthread_setname_np(thread_.native_handle(), name);
     UnblockSignals(old_set);
   }
 

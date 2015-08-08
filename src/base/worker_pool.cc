@@ -1,6 +1,7 @@
 #include <base/worker_pool.h>
 
 #include <base/assert.h>
+#include <base/thread.h>
 
 namespace dist_clang {
 namespace base {
@@ -24,19 +25,20 @@ WorkerPool::~WorkerPool() {
   }
 }
 
-void WorkerPool::AddWorker(const NetWorker& worker, ui32 count) {
+void WorkerPool::AddWorker(Literal name, const NetWorker& worker, ui32 count) {
   CHECK(count);
   auto closure = [this, worker] { worker(is_shutting_down_, self_[0]); };
   for (ui32 i = 0; i < count; ++i) {
-    workers_.emplace_back(closure);
+    workers_.emplace_back(name, closure);
   }
 }
 
-void WorkerPool::AddWorker(const SimpleWorker& worker, ui32 count) {
+void WorkerPool::AddWorker(Literal name, const SimpleWorker& worker,
+                           ui32 count) {
   CHECK(count);
   auto closure = [this, worker] { worker(is_shutting_down_); };
   for (ui32 i = 0; i < count; ++i) {
-    workers_.emplace_back(closure);
+    workers_.emplace_back(name, closure);
   }
 }
 

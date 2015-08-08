@@ -118,6 +118,7 @@ ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point,
     return ConnectionPtr();
   }
 
+  DCHECK(fd.IsBlocking());
   fd.CloseOnExec();
 
   if (!fd.Connect(end_point, error) ||

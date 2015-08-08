@@ -16,8 +16,8 @@ class WorkerPool {
   explicit WorkerPool(bool force_shut_down = false);
   ~WorkerPool();
 
-  void AddWorker(const NetWorker& worker, ui32 count = 1);
-  void AddWorker(const SimpleWorker& worker, ui32 count = 1);
+  void AddWorker(Literal name, const NetWorker& worker, ui32 count = 1);
+  void AddWorker(Literal name, const SimpleWorker& worker, ui32 count = 1);
 
  private:
   Vector<Thread> workers_;

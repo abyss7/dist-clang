@@ -91,15 +91,17 @@ Emitter::Emitter(const proto::Configuration& configuration)
 
   {
     Worker worker = std::bind(&Emitter::DoLocalExecute, this, _1);
-    workers_->AddWorker(worker, conf_.emitter().threads());
+    workers_->AddWorker("Local Execute Worker"_l, worker,
+                        conf_.emitter().threads());
   }
 
   if (conf_.has_cache() && !conf_.cache().disabled()) {
     Worker worker = std::bind(&Emitter::DoCheckCache, this, _1);
     if (conf_.cache().has_threads()) {
-      workers_->AddWorker(worker, conf_.cache().threads());
+      workers_->AddWorker("Cache Worker"_l, worker, conf_.cache().threads());
     } else {
-      workers_->AddWorker(worker, std::thread::hardware_concurrency());
+      workers_->AddWorker("Cache Worker"_l, worker,
+                          std::thread::hardware_concurrency());
     }
   }
 
@@ -117,7 +119,7 @@ Emitter::Emitter(const proto::Configuration& configuration)
         return optional->GetValue();
       };
       Worker worker = std::bind(&Emitter::DoRemoteExecute, this, _1, resolver);
-      workers_->AddWorker(worker, remote.threads());
+      workers_->AddWorker("Remote Execute Worker"_l, worker, remote.threads());
     }
   }
 }

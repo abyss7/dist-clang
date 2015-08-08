@@ -15,7 +15,7 @@ ThreadPool::~ThreadPool() {
 
 void ThreadPool::Run() {
   WorkerPool::SimpleWorker worker = std::bind(&ThreadPool::DoWork, this, _1);
-  pool_.AddWorker(worker, concurrency_);
+  pool_.AddWorker("Thread Pool Worker"_l, worker, concurrency_);
 }
 
 ThreadPool::Optional ThreadPool::Push(const Closure& task) {

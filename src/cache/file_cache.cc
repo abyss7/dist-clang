@@ -102,7 +102,7 @@ bool FileCache::Run(ui64 clean_period) {
       }
     };
   }
-  resetter_->AddWorker(worker);
+  resetter_->AddWorker("Cache Resetter Worker"_l, worker);
   cleaner_.Run();
 
   return true;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <base/assert.h>
+#include <base/thread.h>
 
 #include STL(condition_variable)
 #include STL(experimental/optional)
@@ -86,8 +87,9 @@ class Promise {
     DCHECK(state_);
     UniqueLock lock(state_->mutex);
     if (!state_->fulfilled && state_->async_id == Thread::id()) {
-      Thread([fn](StatePtr state) { SetStateValue(state, fn()); }, state_)
-          .swap(*async_);
+      Thread("Promise Set Value"_l, [fn](StatePtr state) {
+        SetStateValue(state, fn());
+      }, state_).swap(*async_);
       state_->async_id = async_->get_id();
     }
   }
