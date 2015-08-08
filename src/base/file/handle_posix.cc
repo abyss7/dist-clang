@@ -12,7 +12,7 @@
 namespace dist_clang {
 namespace base {
 
-#if !defined(NDEBUG)
+#if !defined(NDEBUG) && !defined(OS_MACOSX)
 namespace {
 
 std::mutex used_fds_mutex;
@@ -29,7 +29,7 @@ void after_fork() {
 int atfork_result = pthread_atfork(before_fork, after_fork, after_fork);
 
 }  // namespace
-#endif  // !defined(NDEBUG)
+#endif  // !defined(NDEBUG) && !defined(OS_MACOSX)
 
 Handle::Handle(NativeType fd) : fd_(fd) {
   if (fd == -1) {
@@ -40,12 +40,12 @@ Handle::Handle(NativeType fd) : fd_(fd) {
 
 // FIXME: check that |fd| is opened.
 
-#if !defined(NDEBUG)
+#if !defined(NDEBUG) && !defined(OS_MACOSX)
   // FIXME: may deadlock here on Mac, when doing fork. Don't know why.
   UniqueLock lock(used_fds_mutex);
   DCHECK(!used_fds[fd_]);
   used_fds[fd_] = true;
-#endif  // !defined(NDEBUG)
+#endif  // !defined(NDEBUG) && !defined(OS_MACOSX)
 }
 
 Handle::Handle(Handle&& other) {
@@ -116,14 +116,14 @@ bool Handle::Duplicate(Handle&& other, String* error) {
 }
 
 void Handle::Close() {
-#if !defined(NDEBUG)
+#if !defined(NDEBUG) && !defined(OS_MACOSX)
   UniqueLock lock(used_fds_mutex);
 
   DCHECK(IsValid());
   DCHECK(used_fds[fd_]);
 
   used_fds[fd_] = false;
-#endif  // !defined(NDEBUG)
+#endif  // !defined(NDEBUG) && !defined(OS_MACOSX)
 
   close(fd_);
   fd_ = -1;
