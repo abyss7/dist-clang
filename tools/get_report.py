@@ -1,5 +1,5 @@
+from net import universal_pb2
 from perf import stat_pb2
-from proto import remote_pb2
 from google.protobuf import text_format
 
 import socket
@@ -53,12 +53,12 @@ def Main(args):
     for arg in args[2:]:
         s = socket.create_connection((args[0], args[1]))
 
-        m = remote_pb2.Universal()
-        r = m.Extensions[remote_pb2.StatReport.extension].metric.add()
+        m = universal_pb2.Universal()
+        r = m.Extensions[stat_pb2.Report.extension].metric.add()
         r.name = stat_pb2._METRIC_NAME.values_by_name[arg].number
         send_message(s, m)
 
-        m = get_message(s, remote_pb2.Universal)
+        m = get_message(s, universal_pb2.Universal)
         print text_format.MessageToString(m)
 
         s.close()
