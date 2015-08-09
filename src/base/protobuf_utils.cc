@@ -25,7 +25,6 @@ bool LoadFromFile(const String& path, google::protobuf::Message* message) {
   }
 
   google::protobuf::io::FileInputStream input(file.native());
-  input.SetCloseOnDelete(true);
   if (!google::protobuf::TextFormat::Parse(&input, message)) {
     message->Clear();
     return false;
