@@ -19,6 +19,11 @@ Log& Log::operator<<(const google::protobuf::Message& info) {
 
 bool LoadFromFile(const String& path, google::protobuf::Message* message) {
   File file(path);
+  if (!file.IsValid()) {
+    message->Clear();
+    return false;
+  }
+
   google::protobuf::io::FileInputStream input(file.native());
   input.SetCloseOnDelete(true);
   if (!google::protobuf::TextFormat::Parse(&input, message)) {
