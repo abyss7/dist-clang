@@ -1,6 +1,7 @@
 #pragma once
 
 #include <base/aliases.h>
+#include <base/assert.h>
 
 namespace dist_clang {
 namespace base {
@@ -26,7 +27,10 @@ class Handle {
 
   bool CloseOnExec(String* error = nullptr);
 
-  inline NativeType native() const { return fd_; }
+  inline NativeType native() const {
+    DCHECK(IsValid());
+    return fd_;
+  }
 
  protected:
   Handle() = default;

@@ -1,6 +1,5 @@
 #include <base/file/handle_posix.h>
 
-#include <base/assert.h>
 #include <base/c_utils.h>
 
 #include STL(bitset)
@@ -130,6 +129,8 @@ void Handle::Close() {
 }
 
 bool Handle::IsPassive() const {
+  DCHECK(IsValid());
+
   int res;
   socklen_t size = sizeof(res);
   return getsockopt(fd_, SOL_SOCKET, SO_ACCEPTCONN, &res, &size) != -1 && res;
