@@ -334,13 +334,13 @@ base::ProcessPtr CompilationDaemon::CreateProcess(
     process->AppendArg(Immutable(flags.input()));
   }
 
-  return std::move(process);
+  return process;
 }
 
 // static
 base::ProcessPtr CompilationDaemon::CreateProcess(
     const base::proto::Flags& flags, Immutable cwd_path) {
-  return std::move(CreateProcess(flags, base::Process::SAME_UID, cwd_path));
+  return CreateProcess(flags, base::Process::SAME_UID, cwd_path);
 }
 
 }  // namespace daemon

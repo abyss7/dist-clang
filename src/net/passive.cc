@@ -48,7 +48,7 @@ Socket Passive::Accept() {
   socket.CloseOnExec();
   socket.MakeBlocking(true);
 
-  return std::move(socket);
+  return socket;
 }
 
 }  // namespace net
