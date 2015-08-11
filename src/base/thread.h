@@ -23,8 +23,8 @@ class Thread {
 #if defined(OS_LINUX)
     pthread_setname_np(thread_.native_handle(), name);
 #elif defined(OS_MACOSX)
-    // TODO: implement the thread naming.
-    //       See http://stackoverflow.com/q/31897364/377393
+// TODO: implement the thread naming.
+//       See http://stackoverflow.com/q/31897364/377393
 #endif
     UnblockSignals(old_set);
   }
@@ -42,6 +42,11 @@ class Thread {
     sigfillset(&signal_set);
     sigdelset(&signal_set, SIGPROF);
     sigdelset(&signal_set, SIGSEGV);
+
+    // This should help to avoid program hanging on Mac.
+    // See http://stackoverflow.com/q/31947384/377393
+    sigdelset(&signal_set, SIGABRT);
+
     pthread_sigmask(SIG_SETMASK, &signal_set, &old_set);
     return old_set;
   }
