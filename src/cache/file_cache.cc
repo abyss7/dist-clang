@@ -254,13 +254,13 @@ ui64 FileCache::GetEntrySize(string::Hash hash) const {
 
   proto::Manifest manifest;
   if (!base::LoadFromFile(manifest_path, &manifest)) {
-    LOG(CACHE_VERBOSE) << "Can't load manifest for " << hash.str;
+    LOG(CACHE_WARNING) << "Can't load manifest for " << hash.str;
     return 0u;
   }
 
   if (manifest.object()) {
     if (!base::File::Exists(object_path)) {
-      LOG(CACHE_VERBOSE) << object_path << " should exist, but not found!";
+      LOG(CACHE_WARNING) << object_path << " should exist, but not found!";
       return 0u;
     }
     result += base::File::Size(object_path);
@@ -268,7 +268,7 @@ ui64 FileCache::GetEntrySize(string::Hash hash) const {
 
   if (manifest.deps()) {
     if (!base::File::Exists(deps_path)) {
-      LOG(CACHE_VERBOSE) << deps_path << " should exist, but not found!";
+      LOG(CACHE_WARNING) << deps_path << " should exist, but not found!";
       return 0u;
     }
     result += base::File::Size(deps_path);
@@ -276,7 +276,7 @@ ui64 FileCache::GetEntrySize(string::Hash hash) const {
 
   if (manifest.stderr()) {
     if (!base::File::Exists(stderr_path)) {
-      LOG(CACHE_VERBOSE) << stderr_path << " should exist, but not found!";
+      LOG(CACHE_WARNING) << stderr_path << " should exist, but not found!";
       return 0u;
     }
     result += base::File::Size(stderr_path);
@@ -290,7 +290,11 @@ ui64 FileCache::GetEntrySize(string::Hash hash) const {
 bool FileCache::RemoveEntry(string::Hash hash, bool possibly_broken) {
   SQLite::Value entry;
   bool has_entry = entries_->Get(hash.str, &entry);
-  CHECK(has_entry || possibly_broken);
+  if (!has_entry && !possibly_broken) {
+    LOG(CACHE_ERROR) << "Trying to remove non-existent entry: " << hash.str;
+    NOTREACHED();
+    return false;
+  }
 
   const String common_path = CommonPath(hash);
   const String manifest_path = common_path + ".manifest";
