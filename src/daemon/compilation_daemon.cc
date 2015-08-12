@@ -89,41 +89,37 @@ bool CompilationDaemon::Initialize() {
       cache_.reset();
     }
   }
-  UpdateConfAndCompilers(conf_);
-  
+  if (!UpdateConfCompilersAndPlugins(*conf_)) {
+      return false;
+  }
+
   // before is 1 thread
   return BaseDaemon::Initialize();
 }
 
-void UpdateConfAndCompilers(const proto::Configuration& configuration) {
-    if     проверка корректности конфига
-
-    conf_.reset(new proto::Configuration(configuration));
-//  /  for (const auto& version : conf_.versions()) {
-/*      if (!version.has_path() || version.path().empty()) {
+bool CompilationDaemon::UpdateConfCompilersAndPlugins(const proto::Configuration& configuration) {
+  //    Check config is correct
+  for (const auto& version : configuration.versions()) {
+    for (const auto& plugin : version.plugins()) {
+      if (!version.has_path() || version.path().empty()) {
         LOG(ERROR) << "Compiler " << version.version() << " has no path.";
         return false;
       }
-      compilers_.emplace(version.version(), version.path());
-  
-      // Load plugins.
-      auto& plugin_map =
-          plugins_.emplace(version.version(), PluginNameMap()).first->second;
-      for (const auto& plugin : version.plugins()) {
-        if (!plugin.has_path() || plugin.path().empty()) {
-          LOG(ERROR) << "Plugin " << plugin.name() << " for compiler "
-                     << version.version() << " has no path.";
-          return false;
-        }
-        plugin_map.emplace(plugin.name(), plugin.path());
+      if (!plugin.has_path() || plugin.path().empty()) {
+        LOG(ERROR) << "Plugin " << plugin.name() << " for compiler "
+                   << version.version() << " has no path.";
+        return false;
       }
     }
-    */
+  }
+  conf_.reset(new proto::Configuration(configuration));
+  BaseDaemon::UpdateConfCompilersAndPlugins(configuration);
+  return true;
 }
 
 CompilationDaemon::CompilationDaemon(const proto::Configuration& configuration)
     : BaseDaemon(configuration) {
-  conf_ = new proto::Configuration(configuration);
+  conf_.reset(new proto::Configuration(configuration));
   conf_->CheckInitialized();
 
   // Setup log's verbosity early - even before configuration integrity check.
@@ -169,16 +165,16 @@ HandledHash CompilationDaemon::GenerateHash(const base::proto::Flags& flags,
 
 bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
                                       net::proto::Status* status) const {
-    auto local_conf = conf_;
-    auto getCompilerPath = [&local_conf](String version, String* path){
-        for (const auto& conf_version : local_conf->versions()) {
-            if (conf_version.version() == version ){
-               path->assign(conf_version.path());
-               return true;
-            }
-        }
-        return false;
-    };
+  auto local_conf = conf_;
+  auto getCompilerPath = [&local_conf](String version, String* path) {
+    for (const auto& conf_version : local_conf->versions()) {
+      if (conf_version.version() == version) {
+        path->assign(conf_version.path());
+        return true;
+      }
+    }
+    return false;
+  };
 
   // No flags - filled flags.
   if (!flags) {
@@ -186,56 +182,80 @@ bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
   }
 
   if (!flags->compiler().has_path()) {
-    if (!getCompilerPath(flags->compiler().version(), flags->mutable_compiler()->mutable_path())) {
+    if (!getCompilerPath(flags->compiler().version(),
+                         flags->mutable_compiler()->mutable_path())) {
       if (status) {
         status->set_code(net::proto::Status::NO_VERSION);
-        status->set_description("Compiler not found: " + flags->compiler().version());
+        status->set_description("Compiler not found: " +
+                                flags->compiler().version());
       }
       return false;
     }
   }
 
+  PluginNameMap* plugin_map;
 
-//  for (const auto& version : conf_.versions()) {
-  // Load plugins.
-//      auto& plugin_map =
-//          plugins_.emplace(version.version(), PluginNameMap()).first->second;
-//      for (const auto& plugin : version.plugins()) {
-//        if (!plugin.has_path() || plugin.path().empty()) {
-//          LOG(ERROR) << "Plugin " << plugin.name() << " for compiler "
-//                     << version.version() << " has no path.";
-//          return false;
-//        }
-//        plugin_map.emplace(plugin.name(), plugin.path());
-//      }
-//  }
+  auto getPluginsByCompilerVersion = [&local_conf] (String version, PluginNameMap* plugin_map){
+      for (const auto& conf_version : local_conf->versions()) {
+          if (conf_version.version() == version) {
+                const auto& conf_plugins = conf_version.plugins();
+                if (conf_version.plugins_size() == 0) {
+                    return false;
+                }
+                for (const auto& conf_plugin: conf_plugins) {
+                    plugin_map->emplace(conf_plugin.name(), conf_plugin.path()) ;
+                }
+          }
+      }
+      return false;
+  };
 
+  auto setPluginsPath = [&plugin_map](auto* flag_plugins) {
+    for (auto& flag_plugin: *flag_plugins) {
+        auto plugin_by_name = plugin_map->find(flag_plugin.name());
+        if (plugin_by_name == plugin_map->end()) {
+            return false;
+        }
+        flag_plugin.set_path(plugin_by_name->second);
+    }
+    return true;
+  };
 
+  if (!getPluginsByCompilerVersion(flags->compiler().version(), plugin_map) or
+          !setPluginsPath(flags->mutable_compiler()->mutable_plugins())) {
+      if (status) {
+        status->set_code(net::proto::Status::NO_VERSION);
+        status->set_description("Plugin not found: " +
+                                flags->compiler().version());
+      }
+  };
+
+  /*
   auto plugin_map = plugins_.find(flags->compiler().version());
-  auto& plugins = *flags->mutable_compiler()->mutable_plugins();
-  for (auto& plugin : plugins) {
-    if (!plugin.has_path()) {
+  auto& flag_plugins = *flags->mutable_compiler()->mutable_plugins();
+  for (auto& flag_plugin : flag_plugins) {
+    if (!flag_plugin.has_path()) {
       if (plugin_map == plugins_.end()) {
         if (status) {
           status->set_code(net::proto::Status::NO_VERSION);
-          status->set_description("Plugin " + plugin.name() + " not found: " +
+          status->set_description("Plugin " + flag_plugin.name() + " not found: " +
                                   flags->compiler().version());
         }
         return false;
       }
-      auto plugin_by_name = plugin_map->second.find(plugin.name());
+      auto plugin_by_name = plugin_map->second.find(flag_plugin.name());
       if (plugin_by_name == plugin_map->second.end()) {
         if (status) {
           status->set_code(net::proto::Status::NO_VERSION);
-          status->set_description("Plugin " + plugin.name() + " not found: " +
+          status->set_description("Plugin " + flag_plugin.name() + " not found: " +
                                   flags->compiler().version());
         }
         return false;
       }
-      plugin.set_path(plugin_by_name->second);
+      flag_plugin.set_path(plugin_by_name->second);
     }
   }
-
+  */
   return true;
 }
 

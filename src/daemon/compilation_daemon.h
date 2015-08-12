@@ -10,8 +10,7 @@ namespace daemon {
 class CompilationDaemon : public BaseDaemon {
  public:
   bool Initialize() override;
-  // lj
-  void UpdateConfAndCompilers(const proto::Configuration& configuration) override;
+  bool UpdateConfCompilersAndPlugins(const proto::Configuration& configuration) override;
   
 
   static base::ProcessPtr CreateProcess(const base::proto::Flags& flags,
@@ -58,9 +57,6 @@ class CompilationDaemon : public BaseDaemon {
   // make shared_ptr
   SharedPtr<CompilerMap> compilers_;
   SharedPtr<PluginMap> plugins_;
-  
-
-
 };
 
 }  // namespace daemon
