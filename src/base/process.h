@@ -28,6 +28,7 @@ FORWARD_TEST(EmitterTest, LocalSuccessfulCompilation);
 FORWARD_TEST(EmitterTest, StoreCacheForLocalResult);
 FORWARD_TEST(EmitterTest, StoreCacheForRemoteResult);
 FORWARD_TEST(EmitterTest, StoreDirectCacheForLocalResult);
+FORWARD_TEST(EmitterTest, StoreDirectCacheForRemoteResult);
 }  // namespace daemon
 
 namespace base {
@@ -91,6 +92,7 @@ class Process
   FRIEND_TEST(daemon::EmitterTest, StoreCacheForLocalResult);
   FRIEND_TEST(daemon::EmitterTest, StoreCacheForRemoteResult);
   FRIEND_TEST(daemon::EmitterTest, StoreDirectCacheForLocalResult);
+  FRIEND_TEST(daemon::EmitterTest, StoreDirectCacheForRemoteResult);
 };
 
 }  // namespace base

@@ -913,6 +913,7 @@ TEST_F(EmitterTest, StoreCacheForRemoteResult) {
     UniqueLock lock(send_mutex);
     EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
                                         [this] { return send_count == 2; }));
+    // FIXME: describe, why |send_count == 2| ?
   }
 
   auto connection2 = test_service->TriggerListen(socket_path);
@@ -1129,9 +1130,194 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
   // TODO: check that removal of original files doesn't fail cache filling.
 }
 
-TEST_F(EmitterTest, DISABLED_StoreDirectCacheForRemoteResult) {
-  // TODO: implement this test. Check that we store direct cache for successful
-  //       remote compilation.
+TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
+  // Prepare environment.
+  const base::TemporaryDir temp_dir;
+  const auto path = Immutable(String(temp_dir));
+  const auto input1_path = path + "/test1.cc"_l;
+  const auto input2_path = path + "/test2.cc"_l;
+  const auto header1_path = path + "/header1.h"_l;
+  const auto header2_path = path + "/header2.h"_l;
+  const auto source_code = "int main() {}"_l;
+
+  ASSERT_TRUE(base::File::Write(input1_path, source_code));
+  ASSERT_TRUE(base::File::Write(input2_path, source_code));
+  ASSERT_TRUE(base::File::Write(header1_path, "#define A"_l));
+  ASSERT_TRUE(base::File::Write(header2_path, "#define B"_l));
+
+  // Prepare configuration.
+  const String socket_path = "/tmp/test.socket";
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const String plugin_name = "fake_plugin";
+  const auto plugin_path = "fake_plugin_path"_l;
+  const String host = "fake_host";
+  const ui16 port = 12345;
+
+  conf.mutable_emitter()->set_socket_path(socket_path);
+  conf.mutable_emitter()->set_only_failed(true);
+  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_direct(true);
+  conf.mutable_cache()->set_clean_period(1);
+
+  auto* remote = conf.mutable_emitter()->add_remotes();
+  remote->set_host(host);
+  remote->set_port(port);
+  remote->set_threads(1);
+
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+  auto* plugin = version->add_plugins();
+  plugin->set_name(plugin_name);
+  plugin->set_path(plugin_path);
+
+  // Prepare callbacks.
+  const auto expected_code = net::proto::Status::OK;
+  const auto deps1_path = "test1.d"_l;
+  const auto language = "fake_language"_l;
+  const auto preprocessed_source = "fake_source"_l;
+  const auto action = "fake_action"_l;
+  const auto output1_path = "test1.o"_l;
+  const auto object_code = "fake_object_code"_l;
+
+  const auto output2_path = path + "/test2.o"_l;
+  // |output_path2| checks that everything works fine with absolute paths.
+
+  listen_callback = [&](const String& host, ui16 port, String*) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+    return !::testing::Test::HasNonfatalFailure();
+  };
+
+  connect_callback = [&](net::TestConnection* connection) {
+    if (connect_count == 1) {
+      // Connection from client to local daemon.
+
+      connection->CallOnSend([&](const net::Connection::Message& message) {
+        EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+        const auto& status =
+            message.GetExtension(net::proto::Status::extension);
+        EXPECT_EQ(expected_code, status.code()) << status.description();
+
+        send_condition.notify_all();
+      });
+    } else if (connect_count == 2) {
+      // Connection from local daemon to remote daemon.
+
+      connection->CallOnSend([&](const net::Connection::Message& message) {
+        EXPECT_TRUE(message.HasExtension(proto::Remote::extension));
+        const auto& command = message.GetExtension(proto::Remote::extension);
+        EXPECT_EQ(preprocessed_source, command.source());
+
+        send_condition.notify_all();
+      });
+
+      connection->CallOnRead([&](net::Connection::Message* message) {
+        message->MutableExtension(proto::Result::extension)
+            ->set_obj(object_code);
+      });
+    } else if (connect_count == 3) {
+      // Connection from client to local daemon.
+
+      connection->CallOnSend([&](const net::Connection::Message& message) {
+        EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+        const auto& status =
+            message.GetExtension(net::proto::Status::extension);
+        EXPECT_EQ(expected_code, status.code()) << status.description();
+
+        send_condition.notify_all();
+      });
+    }
+  };
+
+  run_callback = [&](base::TestProcess* process) {
+    EXPECT_EQ((Immutable::Rope{"-E"_l, "-dependency-file"_l, deps1_path, "-x"_l,
+                               language, "-o"_l, "-"_l, input1_path}),
+              process->args_);
+    process->stdout_ = preprocessed_source;
+    EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + deps1_path,
+                                  "test1.o: test1.cc header1.h header2.h"_l));
+  };
+
+  emitter.reset(new Emitter(conf));
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto connection1 = test_service->TriggerListen(socket_path);
+  {
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection1);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(temp_dir);
+
+    extension->mutable_flags()->set_input(input1_path);
+    extension->mutable_flags()->set_output(output1_path);
+    extension->mutable_flags()->set_deps_file(deps1_path);
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
+    compiler->set_version(compiler_version);
+    compiler->add_plugins()->set_name(plugin_name);
+    extension->mutable_flags()->set_action(action);
+    extension->mutable_flags()->set_language(language);
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
+                                        [this] { return send_count == 2; }));
+  }
+
+  auto connection2 = test_service->TriggerListen(socket_path);
+  {
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection2);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(temp_dir);
+
+    extension->mutable_flags()->set_input(input2_path);
+    extension->mutable_flags()->set_output(output2_path);
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
+    compiler->set_version(compiler_version);
+    compiler->add_plugins()->set_name(plugin_name);
+    extension->mutable_flags()->set_action(action);
+    extension->mutable_flags()->set_language(language);
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
+                                        [this] { return send_count == 3; }));
+  }
+
+  emitter.reset();
+
+  Immutable cache_output;
+  EXPECT_TRUE(base::File::Exists(output2_path));
+  EXPECT_TRUE(base::File::Read(output2_path, &cache_output));
+  EXPECT_EQ(object_code, cache_output);
+
+  EXPECT_EQ(1u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(3u, connect_count);
+  EXPECT_EQ(3u, connections_created);
+  EXPECT_EQ(3u, read_count);
+  EXPECT_EQ(3u, send_count);
+  EXPECT_EQ(1, connection1.use_count())
+      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count())
+      << "Daemon must not store references to the connection";
+
+  // TODO: check that original files are not moved.
+  // TODO: check that removal of original files doesn't fail cache filling.
 }
 
 TEST_F(EmitterTest, DISABLED_UpdateDirectCacheFromLocalCache) {
