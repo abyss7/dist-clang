@@ -33,6 +33,8 @@ class TestProcess : public Process {
   inline void CallOnRun(OnRunCallback callback) { on_run_ = callback; }
   inline void CountRuns(Atomic<ui32>* counter) { run_attempts_ = counter; }
 
+  String PrintArgs() const;  // helper for gtest assertions.
+
  private:
   TestProcess(const String& exec_path, Immutable cwd_path, ui32 uid);
 

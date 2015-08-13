@@ -30,5 +30,15 @@ bool TestProcess::Run(ui16 sec_timeout, Immutable input, String* error) {
   return on_run_(sec_timeout, input, error);
 }
 
+String TestProcess::PrintArgs() const {
+  String result;
+
+  for (const auto& arg : args_) {
+    result += arg + " "_l;
+  }
+
+  return result;
+}
+
 }  // namespace base
 }  // namespace dist_clang
