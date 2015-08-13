@@ -22,9 +22,10 @@ TEST(ThreadPoolTest, CompleteAllTasksOnDestruction) {
   });
   pool->Run();
 
+  EXPECT_EQ(1u, pool->TaskCount());
+
   Thread thread("Test"_l, [&] { pool.reset(); });
   EXPECT_TRUE(!!future);
-  EXPECT_EQ(1u, pool->TaskCount());
   ready = true;
   condition.wait_for(lock, std::chrono::seconds(1), [&done] { return done; });
 
