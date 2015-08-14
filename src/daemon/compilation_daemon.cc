@@ -1,5 +1,6 @@
 #include <daemon/compilation_daemon.h>
 
+#include <base/assert.h>
 #include <base/file/file.h>
 #include <base/logging.h>
 #include <base/process_impl.h>
@@ -89,6 +90,7 @@ bool CompilationDaemon::Initialize() {
       cache_.reset();
     }
   }
+  DCHECK(conf_->IsInitialized());
   if (!UpdateConfCompilersAndPlugins(*conf_)) {
       return false;
   }
@@ -193,18 +195,16 @@ bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
     }
   }
 
-  PluginNameMap* plugin_map;
+  PluginNameMap plugin_map;
 
-  auto getPluginsByCompilerVersion = [&local_conf] (String version, PluginNameMap* plugin_map){
+  auto getPluginsByCompilerVersion = [&local_conf] (String version, PluginNameMap& plugin_map){
       for (const auto& conf_version : local_conf->versions()) {
           if (conf_version.version() == version) {
                 const auto& conf_plugins = conf_version.plugins();
-                if (conf_version.plugins_size() == 0) {
-                    return false;
-                }
                 for (const auto& conf_plugin: conf_plugins) {
-                    plugin_map->emplace(conf_plugin.name(), conf_plugin.path()) ;
+                    plugin_map.emplace(conf_plugin.name(), conf_plugin.path()) ;
                 }
+                return true;
           }
       }
       return false;
@@ -212,50 +212,26 @@ bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
 
   auto setPluginsPath = [&plugin_map](auto* flag_plugins) {
     for (auto& flag_plugin: *flag_plugins) {
-        auto plugin_by_name = plugin_map->find(flag_plugin.name());
-        if (plugin_by_name == plugin_map->end()) {
-            return false;
+        if (!flag_plugin.has_path()){
+            auto plugin_by_name = plugin_map.find(flag_plugin.name());
+            if (plugin_by_name == plugin_map.end()) {
+                return false;
+            }
+            flag_plugin.set_path(plugin_by_name->second);
         }
-        flag_plugin.set_path(plugin_by_name->second);
     }
     return true;
   };
 
-  if (!getPluginsByCompilerVersion(flags->compiler().version(), plugin_map) or
+  if (!getPluginsByCompilerVersion(flags->compiler().version(), plugin_map) ||
           !setPluginsPath(flags->mutable_compiler()->mutable_plugins())) {
       if (status) {
         status->set_code(net::proto::Status::NO_VERSION);
         status->set_description("Plugin not found: " +
                                 flags->compiler().version());
       }
+      return false;
   };
-
-  /*
-  auto plugin_map = plugins_.find(flags->compiler().version());
-  auto& flag_plugins = *flags->mutable_compiler()->mutable_plugins();
-  for (auto& flag_plugin : flag_plugins) {
-    if (!flag_plugin.has_path()) {
-      if (plugin_map == plugins_.end()) {
-        if (status) {
-          status->set_code(net::proto::Status::NO_VERSION);
-          status->set_description("Plugin " + flag_plugin.name() + " not found: " +
-                                  flags->compiler().version());
-        }
-        return false;
-      }
-      auto plugin_by_name = plugin_map->second.find(flag_plugin.name());
-      if (plugin_by_name == plugin_map->second.end()) {
-        if (status) {
-          status->set_code(net::proto::Status::NO_VERSION);
-          status->set_description("Plugin " + flag_plugin.name() + " not found: " +
-                                  flags->compiler().version());
-        }
-        return false;
-      }
-      flag_plugin.set_path(plugin_by_name->second);
-    }
-  }
-  */
   return true;
 }
 
