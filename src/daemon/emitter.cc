@@ -76,7 +76,7 @@ Emitter::Emitter(const proto::Configuration& configuration)
     : CompilationDaemon(configuration) {
   using Worker = base::WorkerPool::SimpleWorker;
 
-  CHECK(conf_.has_emitter());
+  CHECK(conf_->has_emitter());
 
   workers_.reset(new base::WorkerPool);
   all_tasks_.reset(new Queue);
@@ -85,27 +85,26 @@ Emitter::Emitter(const proto::Configuration& configuration)
 
   local_tasks_.reset(new QueueAggregator);
   local_tasks_->Aggregate(failed_tasks_.get());
-  if (!conf_.emitter().only_failed()) {
+  if (!conf_->emitter().only_failed()) {
     local_tasks_->Aggregate(all_tasks_.get());
   }
 
   {
     Worker worker = std::bind(&Emitter::DoLocalExecute, this, _1);
-    workers_->AddWorker("Local Execute Worker"_l, worker,
-                        conf_.emitter().threads());
+    workers_->AddWorker("Local Execute Worker"_l, worker, conf_->emitter().threads());
   }
 
-  if (conf_.has_cache() && !conf_.cache().disabled()) {
+  if (conf_->has_cache() && !conf_->cache().disabled()) {
     Worker worker = std::bind(&Emitter::DoCheckCache, this, _1);
-    if (conf_.cache().has_threads()) {
-      workers_->AddWorker("Cache Worker"_l, worker, conf_.cache().threads());
+    if (conf_->cache().has_threads()) {
+      workers_->AddWorker("Cache Worker"_l, worker, conf_->cache().threads());
     } else {
       workers_->AddWorker("Cache Worker"_l, worker,
                           std::thread::hardware_concurrency());
     }
   }
 
-  for (const auto& remote : conf_.emitter().remotes()) {
+  for (const auto& remote : conf_->emitter().remotes()) {
     if (!remote.disabled()) {
       auto resolver = [
         this,
@@ -134,16 +133,16 @@ Emitter::~Emitter() {
 
 bool Emitter::Initialize() {
   String error;
-  if (!Listen(conf_.emitter().socket_path(), &error)) {
-    LOG(ERROR) << "Failed to listen on " << conf_.emitter().socket_path()
+  if (!Listen(conf_->emitter().socket_path(), &error)) {
+    LOG(ERROR) << "Failed to listen on " << conf_->emitter().socket_path()
                << " : " << error;
     return false;
   }
 
-  if (conf_.emitter().only_failed()) {
+  if (conf_->emitter().only_failed()) {
     bool has_active_remote = false;
 
-    for (const auto& remote : conf_.emitter().remotes()) {
+    for (const auto& remote : conf_->emitter().remotes()) {
       if (!remote.disabled()) {
         has_active_remote = true;
         break;
@@ -176,7 +175,7 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
 
   if (message->HasExtension(base::proto::Local::extension)) {
     Message execute(message->ReleaseExtension(base::proto::Local::extension));
-    if (conf_.has_cache() && !conf_.cache().disabled()) {
+    if (conf_->has_cache() && !conf_->cache().disabled()) {
       return cache_tasks_->Push(
           std::make_tuple(connection, std::move(execute), HandledSource()));
     } else {

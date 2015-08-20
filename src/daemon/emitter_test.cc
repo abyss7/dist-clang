@@ -303,7 +303,7 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin) {
   const String socket_path = "/tmp/test.socket";
   const auto expected_code = net::proto::Status::NO_VERSION;
   const String compiler_version = "1.0";
-  const String compiler_path = "fake_compiler_path";
+  const String compiler_path = "fake_compiler_path_b";
   const String current_dir = "fake_current_dir";
   const String bad_plugin_name = "bad_plugin_name";
 
@@ -1331,6 +1331,109 @@ TEST_F(EmitterTest, DISABLED_SkipTaskWithClosedConnection) {
   //       - Tasks should be skipped before any execution or sending attempt.
   //       - Tasks should be skipped during the cache check, local and remote
   //         executions.
+}
+
+TEST_F(EmitterTest, UpdateConfiguration) {
+  const String socket_path = "/tmp/test.socket";
+  const auto expected_code_no_version = net::proto::Status::NO_VERSION;
+  const auto expected_code_ok = net::proto::Status::OK;
+  const String compiler_version = "fake_compiler_version";
+  const String bad_version = "another_compiler_version";
+  const auto compiler_path = "fake_compiler_path"_l;
+  const String plugin_name = "test_plugin";
+  const auto plugin_path = "fake_plugin_path"_l;
+  const String current_dir = "fake_current_dir";
+  const auto action = "fake_action"_l;
+
+  conf.mutable_emitter()->set_socket_path(socket_path);
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+  auto* plugin = version->add_plugins();
+  plugin->set_name(plugin_name);
+  plugin->set_path(plugin_path);
+
+  listen_callback = [&](const String& host, ui16 port, String*) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+    return true;
+  };
+  connect_callback = [&](net::TestConnection* connection) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_EQ(expected_code_no_version, status.code());
+    });
+  };
+
+  emitter.reset(new Emitter(conf));
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto connection1 = test_service->TriggerListen(socket_path);
+  {
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection1);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(current_dir);
+    extension->mutable_flags()->mutable_compiler()->set_version(bad_version);
+    extension->mutable_flags()->set_action("fake_action");
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+  }
+
+  version = conf.add_versions();
+  version->set_version(bad_version);
+  version->set_path(compiler_path);
+
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+  emitter->UpdateConfCompilersAndPlugins(conf);
+
+  connect_callback = [&](net::TestConnection* connection) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_EQ(expected_code_ok, status.code());
+    });
+  };
+  run_callback = [&](base::TestProcess* process) {
+    EXPECT_EQ(compiler_path, process->exec_path_);
+    EXPECT_EQ((Immutable::Rope{action}),
+              process->args_) << process->PrintArgs();
+  };
+
+  auto connection2 = test_service->TriggerListen(socket_path);
+  {
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection2);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(current_dir);
+    extension->mutable_flags()->mutable_compiler()->set_version(bad_version);
+    extension->mutable_flags()->set_action(action);
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+    emitter.reset();
+  }
+
+  EXPECT_EQ(1u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(2u, connect_count);
+  EXPECT_EQ(2u, connections_created);
+  EXPECT_EQ(2u, read_count);
+  EXPECT_EQ(2u, send_count);
+  EXPECT_EQ(1, connection1.use_count())
+      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count())
+      << "Daemon must not store references to the connection";
 }
 
 }  // namespace daemon
