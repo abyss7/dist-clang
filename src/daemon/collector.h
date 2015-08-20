@@ -10,7 +10,7 @@ class Collector : public BaseDaemon {
   explicit Collector(const proto::Configuration& configuration);
 
   bool Initialize() override;
-  bool UpdateConfCompilersAndPlugins(
+  inline bool UpdateConfiguration(
       const proto::Configuration& configuration) override {
     return true;
   }

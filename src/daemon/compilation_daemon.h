@@ -10,7 +10,7 @@ namespace daemon {
 class CompilationDaemon : public BaseDaemon {
  public:
   bool Initialize() override;
-  bool UpdateConfCompilersAndPlugins(
+  bool UpdateConfiguration(
       const proto::Configuration& configuration) override;
 
   static base::ProcessPtr CreateProcess(const base::proto::Flags& flags,

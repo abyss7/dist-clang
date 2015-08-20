@@ -1391,7 +1391,7 @@ TEST_F(EmitterTest, UpdateConfiguration) {
   version->set_path(compiler_path);
 
   std::this_thread::sleep_for(std::chrono::seconds(1));
-  emitter->UpdateConfCompilersAndPlugins(conf);
+  emitter->UpdateConfiguration(conf);
 
   connect_callback = [&](net::TestConnection* connection) {
     connection->CallOnSend([&](const net::Connection::Message& message) {

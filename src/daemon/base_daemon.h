@@ -14,8 +14,7 @@ class BaseDaemon {
  public:
   virtual ~BaseDaemon();
   virtual bool Initialize() = 0;
-  virtual bool UpdateConfCompilersAndPlugins(
-      const proto::Configuration& configuration) {
+  inline virtual bool UpdateConfiguration(const proto::Configuration& configuration) {
     return true;
   }
 

@@ -90,18 +90,16 @@ bool CompilationDaemon::Initialize() {
       cache_.reset();
     }
   }
-  DCHECK(conf_->IsInitialized());
-  if (!UpdateConfCompilersAndPlugins(*conf_)) {
+  if (!UpdateConfiguration(*conf_)) {
     return false;
   }
 
-  // before is 1 thread
   return BaseDaemon::Initialize();
 }
 
-bool CompilationDaemon::UpdateConfCompilersAndPlugins(
+bool CompilationDaemon::UpdateConfiguration(
     const proto::Configuration& configuration) {
-  //    Check config is correct
+  CHECK(conf_->IsInitialized());
   for (const auto& version : configuration.versions()) {
     for (const auto& plugin : version.plugins()) {
       if (!version.has_path() || version.path().empty()) {
@@ -116,7 +114,7 @@ bool CompilationDaemon::UpdateConfCompilersAndPlugins(
     }
   }
   conf_.reset(new proto::Configuration(configuration));
-  BaseDaemon::UpdateConfCompilersAndPlugins(configuration);
+  BaseDaemon::UpdateConfiguration(configuration);
   return true;
 }
 
