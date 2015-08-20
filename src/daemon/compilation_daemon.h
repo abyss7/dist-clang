@@ -10,8 +10,8 @@ namespace daemon {
 class CompilationDaemon : public BaseDaemon {
  public:
   bool Initialize() override;
-  bool UpdateConfCompilersAndPlugins(const proto::Configuration& configuration) override;
-  
+  bool UpdateConfCompilersAndPlugins(
+      const proto::Configuration& configuration) override;
 
   static base::ProcessPtr CreateProcess(const base::proto::Flags& flags,
                                         ui32 user_id,

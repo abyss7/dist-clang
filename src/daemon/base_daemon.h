@@ -14,7 +14,10 @@ class BaseDaemon {
  public:
   virtual ~BaseDaemon();
   virtual bool Initialize() = 0;
-  virtual bool UpdateConfCompilersAndPlugins(const proto::Configuration& configuration) {return true;}
+  virtual bool UpdateConfCompilersAndPlugins(
+      const proto::Configuration& configuration) {
+    return true;
+  }
 
  protected:
   using Universal = UniquePtr<net::proto::Universal>;

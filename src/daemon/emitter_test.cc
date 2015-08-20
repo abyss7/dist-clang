@@ -1402,8 +1402,8 @@ TEST_F(EmitterTest, UpdateConfiguration) {
   };
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(compiler_path, process->exec_path_);
-    EXPECT_EQ((Immutable::Rope{action}),
-              process->args_) << process->PrintArgs();
+    EXPECT_EQ((Immutable::Rope{action}), process->args_)
+        << process->PrintArgs();
   };
 
   auto connection2 = test_service->TriggerListen(socket_path);

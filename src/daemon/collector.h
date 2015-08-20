@@ -10,8 +10,10 @@ class Collector : public BaseDaemon {
   explicit Collector(const proto::Configuration& configuration);
 
   bool Initialize() override;
-  bool UpdateConfCompilersAndPlugins(const proto::Configuration& configuration) override {return true;}
-
+  bool UpdateConfCompilersAndPlugins(
+      const proto::Configuration& configuration) override {
+    return true;
+  }
 
  private:
   bool HandleNewMessage(net::ConnectionPtr connection, Universal message,

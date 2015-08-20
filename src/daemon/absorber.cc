@@ -24,7 +24,8 @@ Absorber::Absorber(const proto::Configuration& configuration)
 
   {
     Worker worker = std::bind(&Absorber::DoExecute, this, _1);
-    workers_->AddWorker("Execute Worker"_l, worker, conf_->absorber().local().threads());
+    workers_->AddWorker("Execute Worker"_l, worker,
+                        conf_->absorber().local().threads());
   }
 }
 

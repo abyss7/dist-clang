@@ -92,14 +92,15 @@ bool CompilationDaemon::Initialize() {
   }
   DCHECK(conf_->IsInitialized());
   if (!UpdateConfCompilersAndPlugins(*conf_)) {
-      return false;
+    return false;
   }
 
   // before is 1 thread
   return BaseDaemon::Initialize();
 }
 
-bool CompilationDaemon::UpdateConfCompilersAndPlugins(const proto::Configuration& configuration) {
+bool CompilationDaemon::UpdateConfCompilersAndPlugins(
+    const proto::Configuration& configuration) {
   //    Check config is correct
   for (const auto& version : configuration.versions()) {
     for (const auto& plugin : version.plugins()) {
@@ -197,40 +198,41 @@ bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
 
   PluginNameMap plugin_map;
 
-  auto getPluginsByCompilerVersion = [&local_conf] (String version, PluginNameMap& plugin_map){
-      for (const auto& conf_version : local_conf->versions()) {
-          if (conf_version.version() == version) {
-                const auto& conf_plugins = conf_version.plugins();
-                for (const auto& conf_plugin: conf_plugins) {
-                    plugin_map.emplace(conf_plugin.name(), conf_plugin.path()) ;
-                }
-                return true;
-          }
+  auto getPluginsByCompilerVersion = [&local_conf](String version,
+                                                   PluginNameMap& plugin_map) {
+    for (const auto& conf_version : local_conf->versions()) {
+      if (conf_version.version() == version) {
+        const auto& conf_plugins = conf_version.plugins();
+        for (const auto& conf_plugin : conf_plugins) {
+          plugin_map.emplace(conf_plugin.name(), conf_plugin.path());
+        }
+        return true;
       }
-      return false;
+    }
+    return false;
   };
 
   auto setPluginsPath = [&plugin_map](auto* flag_plugins) {
-    for (auto& flag_plugin: *flag_plugins) {
-        if (!flag_plugin.has_path()){
-            auto plugin_by_name = plugin_map.find(flag_plugin.name());
-            if (plugin_by_name == plugin_map.end()) {
-                return false;
-            }
-            flag_plugin.set_path(plugin_by_name->second);
+    for (auto& flag_plugin : *flag_plugins) {
+      if (!flag_plugin.has_path()) {
+        auto plugin_by_name = plugin_map.find(flag_plugin.name());
+        if (plugin_by_name == plugin_map.end()) {
+          return false;
         }
+        flag_plugin.set_path(plugin_by_name->second);
+      }
     }
     return true;
   };
 
   if (!getPluginsByCompilerVersion(flags->compiler().version(), plugin_map) ||
-          !setPluginsPath(flags->mutable_compiler()->mutable_plugins())) {
-      if (status) {
-        status->set_code(net::proto::Status::NO_VERSION);
-        status->set_description("Plugin not found: " +
-                                flags->compiler().version());
-      }
-      return false;
+      !setPluginsPath(flags->mutable_compiler()->mutable_plugins())) {
+    if (status) {
+      status->set_code(net::proto::Status::NO_VERSION);
+      status->set_description("Plugin not found: " +
+                              flags->compiler().version());
+    }
+    return false;
   };
   return true;
 }

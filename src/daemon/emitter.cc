@@ -91,7 +91,8 @@ Emitter::Emitter(const proto::Configuration& configuration)
 
   {
     Worker worker = std::bind(&Emitter::DoLocalExecute, this, _1);
-    workers_->AddWorker("Local Execute Worker"_l, worker, conf_->emitter().threads());
+    workers_->AddWorker("Local Execute Worker"_l, worker,
+                        conf_->emitter().threads());
   }
 
   if (conf_->has_cache() && !conf_->cache().disabled()) {
