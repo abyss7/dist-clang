@@ -163,7 +163,7 @@ bool Emitter::Initialize() {
 bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
                                const net::proto::Status& status) {
   using namespace cache::string;
-
+  auto conf_copy = conf_;
   if (!message->IsInitialized()) {
     LOG(INFO) << message->InitializationErrorString();
     return false;
@@ -176,7 +176,7 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
 
   if (message->HasExtension(base::proto::Local::extension)) {
     Message execute(message->ReleaseExtension(base::proto::Local::extension));
-    if (conf_->has_cache() && !conf_->cache().disabled()) {
+    if (conf_copy->has_cache() && !conf_copy->cache().disabled()) {
       return cache_tasks_->Push(
           std::make_tuple(connection, std::move(execute), HandledSource()));
     } else {

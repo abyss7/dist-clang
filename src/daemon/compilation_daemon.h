@@ -9,9 +9,8 @@ namespace daemon {
 
 class CompilationDaemon : public BaseDaemon {
  public:
-  bool Initialize() override;
-  bool UpdateConfiguration(
-      const proto::Configuration& configuration) override;
+  bool Initialize() THREAD_UNSAFE override;
+  bool UpdateConfiguration(const proto::Configuration& configuration) override;
 
   static base::ProcessPtr CreateProcess(const base::proto::Flags& flags,
                                         ui32 user_id,
@@ -45,18 +44,12 @@ class CompilationDaemon : public BaseDaemon {
                          const cache::string::HandledSource& source,
                          const cache::FileCache::Entry& entry);
 
-  //Убираю const, make shared _ptr
   SharedPtr<proto::Configuration> conf_;
 
  private:
-  using CompilerMap = HashMap<String /* version */, String /* path */>;
   using PluginNameMap = HashMap<String /* name */, String /* path */>;
-  using PluginMap = HashMap<String /* version */, PluginNameMap>;
 
   UniquePtr<cache::FileCache> cache_;
-  // make shared_ptr
-  SharedPtr<CompilerMap> compilers_;
-  SharedPtr<PluginMap> plugins_;
 };
 
 }  // namespace daemon

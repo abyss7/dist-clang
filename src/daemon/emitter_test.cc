@@ -303,7 +303,7 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin) {
   const String socket_path = "/tmp/test.socket";
   const auto expected_code = net::proto::Status::NO_VERSION;
   const String compiler_version = "1.0";
-  const String compiler_path = "fake_compiler_path_b";
+  const String compiler_path = "fake_compiler_path";
   const String current_dir = "fake_current_dir";
   const String bad_plugin_name = "bad_plugin_name";
 
@@ -1333,6 +1333,12 @@ TEST_F(EmitterTest, DISABLED_SkipTaskWithClosedConnection) {
   //         executions.
 }
 
+/*
+ * If conf_ has no version requested by connection,
+ * connection should return bad status,
+ * but if then conf has been updated with lack version,
+ * connection should return ok status.
+ */
 TEST_F(EmitterTest, UpdateConfiguration) {
   const String socket_path = "/tmp/test.socket";
   const auto expected_code_no_version = net::proto::Status::NO_VERSION;
@@ -1390,6 +1396,7 @@ TEST_F(EmitterTest, UpdateConfiguration) {
   version->set_version(bad_version);
   version->set_path(compiler_path);
 
+  // TODO: change TriggerReadAsync on sync event
   std::this_thread::sleep_for(std::chrono::seconds(1));
   emitter->UpdateConfiguration(conf);
 
