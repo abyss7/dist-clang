@@ -10,6 +10,7 @@ namespace daemon {
 class CompilationDaemon : public BaseDaemon {
  public:
   bool Initialize() override;
+  bool UpdateConfiguration(const proto::Configuration& configuration) override;
 
   static base::ProcessPtr CreateProcess(const base::proto::Flags& flags,
                                         ui32 user_id,
@@ -43,16 +44,15 @@ class CompilationDaemon : public BaseDaemon {
                          const cache::string::HandledSource& source,
                          const cache::FileCache::Entry& entry);
 
-  const proto::Configuration conf_;
+  inline SharedPtr<const proto::Configuration> conf() const {
+    return conf_;
+  }
 
  private:
-  using CompilerMap = HashMap<String /* version */, String /* path */>;
   using PluginNameMap = HashMap<String /* name */, String /* path */>;
-  using PluginMap = HashMap<String /* version */, PluginNameMap>;
 
+  SharedPtr<const proto::Configuration> conf_;
   UniquePtr<cache::FileCache> cache_;
-  CompilerMap compilers_;
-  PluginMap plugins_;
 };
 
 }  // namespace daemon

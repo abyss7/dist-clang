@@ -13,7 +13,11 @@ namespace daemon {
 class BaseDaemon {
  public:
   virtual ~BaseDaemon();
-  virtual bool Initialize() = 0;
+  virtual bool Initialize() THREAD_UNSAFE = 0;
+  inline virtual bool UpdateConfiguration(
+      const proto::Configuration& configuration) THREAD_SAFE {
+    return true;
+  }
 
  protected:
   using Universal = UniquePtr<net::proto::Universal>;

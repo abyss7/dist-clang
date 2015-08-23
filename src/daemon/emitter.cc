@@ -75,8 +75,8 @@ namespace daemon {
 Emitter::Emitter(const proto::Configuration& configuration)
     : CompilationDaemon(configuration) {
   using Worker = base::WorkerPool::SimpleWorker;
-
-  CHECK(conf_.has_emitter());
+  auto config = conf();
+  CHECK(config->has_emitter());
 
   workers_.reset(new base::WorkerPool);
   all_tasks_.reset(new Queue);
@@ -85,27 +85,27 @@ Emitter::Emitter(const proto::Configuration& configuration)
 
   local_tasks_.reset(new QueueAggregator);
   local_tasks_->Aggregate(failed_tasks_.get());
-  if (!conf_.emitter().only_failed()) {
+  if (!config->emitter().only_failed()) {
     local_tasks_->Aggregate(all_tasks_.get());
   }
 
   {
     Worker worker = std::bind(&Emitter::DoLocalExecute, this, _1);
     workers_->AddWorker("Local Execute Worker"_l, worker,
-                        conf_.emitter().threads());
+                        config->emitter().threads());
   }
 
-  if (conf_.has_cache() && !conf_.cache().disabled()) {
+  if (config->has_cache() && !config->cache().disabled()) {
     Worker worker = std::bind(&Emitter::DoCheckCache, this, _1);
-    if (conf_.cache().has_threads()) {
-      workers_->AddWorker("Cache Worker"_l, worker, conf_.cache().threads());
+    if (config->cache().has_threads()) {
+      workers_->AddWorker("Cache Worker"_l, worker, config->cache().threads());
     } else {
       workers_->AddWorker("Cache Worker"_l, worker,
                           std::thread::hardware_concurrency());
     }
   }
 
-  for (const auto& remote : conf_.emitter().remotes()) {
+  for (const auto& remote : config->emitter().remotes()) {
     if (!remote.disabled()) {
       auto resolver = [
         this,
@@ -134,16 +134,17 @@ Emitter::~Emitter() {
 
 bool Emitter::Initialize() {
   String error;
-  if (!Listen(conf_.emitter().socket_path(), &error)) {
-    LOG(ERROR) << "Failed to listen on " << conf_.emitter().socket_path()
+  auto config = conf();
+  if (!Listen(config->emitter().socket_path(), &error)) {
+    LOG(ERROR) << "Failed to listen on " << config->emitter().socket_path()
                << " : " << error;
     return false;
   }
 
-  if (conf_.emitter().only_failed()) {
+  if (config->emitter().only_failed()) {
     bool has_active_remote = false;
 
-    for (const auto& remote : conf_.emitter().remotes()) {
+    for (const auto& remote : config->emitter().remotes()) {
       if (!remote.disabled()) {
         has_active_remote = true;
         break;
@@ -163,7 +164,7 @@ bool Emitter::Initialize() {
 bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
                                const net::proto::Status& status) {
   using namespace cache::string;
-
+  auto config = conf();
   if (!message->IsInitialized()) {
     LOG(INFO) << message->InitializationErrorString();
     return false;
@@ -176,7 +177,7 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
 
   if (message->HasExtension(base::proto::Local::extension)) {
     Message execute(message->ReleaseExtension(base::proto::Local::extension));
-    if (conf_.has_cache() && !conf_.cache().disabled()) {
+    if (config->has_cache() && !config->cache().disabled()) {
       return cache_tasks_->Push(
           std::make_tuple(connection, std::move(execute), HandledSource()));
     } else {
