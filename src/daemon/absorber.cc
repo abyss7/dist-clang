@@ -16,7 +16,7 @@ namespace daemon {
 Absorber::Absorber(const proto::Configuration& configuration)
     : CompilationDaemon(configuration) {
   using Worker = base::WorkerPool::SimpleWorker;
-
+  auto conf_ = getConf();
   CHECK(conf_->has_absorber() && !conf_->absorber().local().disabled());
 
   workers_.reset(new base::WorkerPool);
@@ -36,6 +36,7 @@ Absorber::~Absorber() {
 
 bool Absorber::Initialize() {
   String error;
+  auto conf_ = getConf();
   const auto& local = conf_->absorber().local();
   if (!Listen(local.host(), local.port(), local.ipv6(), &error)) {
     LOG(ERROR) << "Failed to listen on " << local.host() << ":" << local.port()

@@ -75,7 +75,7 @@ namespace daemon {
 Emitter::Emitter(const proto::Configuration& configuration)
     : CompilationDaemon(configuration) {
   using Worker = base::WorkerPool::SimpleWorker;
-
+  auto conf_ = getConf();
   CHECK(conf_->has_emitter());
 
   workers_.reset(new base::WorkerPool);
@@ -134,6 +134,7 @@ Emitter::~Emitter() {
 
 bool Emitter::Initialize() {
   String error;
+  auto conf_ = getConf();
   if (!Listen(conf_->emitter().socket_path(), &error)) {
     LOG(ERROR) << "Failed to listen on " << conf_->emitter().socket_path()
                << " : " << error;
@@ -163,7 +164,7 @@ bool Emitter::Initialize() {
 bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
                                const net::proto::Status& status) {
   using namespace cache::string;
-  auto conf_copy = conf_;
+  auto conf_ = getConf();
   if (!message->IsInitialized()) {
     LOG(INFO) << message->InitializationErrorString();
     return false;
@@ -176,7 +177,7 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
 
   if (message->HasExtension(base::proto::Local::extension)) {
     Message execute(message->ReleaseExtension(base::proto::Local::extension));
-    if (conf_copy->has_cache() && !conf_copy->cache().disabled()) {
+    if (conf_->has_cache() && !conf_->cache().disabled()) {
       return cache_tasks_->Push(
           std::make_tuple(connection, std::move(execute), HandledSource()));
     } else {

@@ -165,9 +165,9 @@ HandledHash CompilationDaemon::GenerateHash(const base::proto::Flags& flags,
 
 bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
                                       net::proto::Status* status) const {
-  auto conf_copy(conf_);
-  auto getCompilerPath = [&conf_copy](String version, String* path) {
-    for (const auto& conf_version : conf_copy->versions()) {
+  auto conf_ = getConf();
+  auto getCompilerPath = [&conf_](String version, String* path) {
+    for (const auto& conf_version : conf_->versions()) {
       if (conf_version.version() == version) {
         path->assign(conf_version.path());
         return true;
@@ -193,9 +193,9 @@ bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
     }
   }
 
-  auto getPluginsByCompilerVersion = [&conf_copy](String version,
-                                                  PluginNameMap& plugin_map) {
-    for (const auto& conf_version : conf_copy->versions()) {
+  auto getPluginsByCompilerVersion = [&conf_](String version,
+                                              PluginNameMap& plugin_map) {
+    for (const auto& conf_version : conf_->versions()) {
       if (conf_version.version() == version) {
         const auto& conf_plugins = conf_version.plugins();
         for (const auto& conf_plugin : conf_plugins) {
@@ -258,11 +258,11 @@ bool CompilationDaemon::SearchSimpleCache(
 bool CompilationDaemon::SearchDirectCache(
     const base::proto::Flags& flags, const String& current_dir,
     cache::FileCache::Entry* entry) const {
-  auto conf_copy = conf_;
-  DCHECK(conf_copy->has_emitter() && !conf_copy->has_absorber());
+  auto conf_ = getConf();
+  DCHECK(conf_->has_emitter() && !conf_->has_absorber());
   DCHECK(flags.has_input());
 
-  if (!cache_ || !conf_copy->cache().direct()) {
+  if (!cache_ || !conf_->cache().direct()) {
     return false;
   }
 
@@ -302,11 +302,11 @@ void CompilationDaemon::UpdateDirectCache(
     const base::proto::Local* message, const HandledSource& source,
     const cache::FileCache::Entry& entry) {
   const auto& flags = message->flags();
-  auto conf_copy = conf_;
-  DCHECK(conf_copy->has_emitter() && !conf_copy->has_absorber());
+  auto conf_ = getConf();
+  DCHECK(conf_->has_emitter() && !conf_->has_absorber());
   DCHECK(flags.has_input());
 
-  if (!cache_ || !conf_copy->cache().direct()) {
+  if (!cache_ || !conf_->cache().direct()) {
     return;
   }
 

@@ -44,11 +44,14 @@ class CompilationDaemon : public BaseDaemon {
                          const cache::string::HandledSource& source,
                          const cache::FileCache::Entry& entry);
 
-  SharedPtr<proto::Configuration> conf_;
+  SharedPtr<const proto::Configuration> getConf() {
+    return std::make_shared<const proto::Configuration>(*conf_);
+  }
 
  private:
   using PluginNameMap = HashMap<String /* name */, String /* path */>;
 
+  SharedPtr<proto::Configuration> conf_;
   UniquePtr<cache::FileCache> cache_;
 };
 
