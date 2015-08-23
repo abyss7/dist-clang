@@ -1334,10 +1334,10 @@ TEST_F(EmitterTest, DISABLED_SkipTaskWithClosedConnection) {
 }
 
 /*
- * If conf_ has no version requested by connection,
- * connection should return bad status,
- * but if then conf has been updated with lack version,
- * connection should return ok status.
+ * If |conf_| has no version requested by connection,
+ * |connection| should return |message| with bad status,
+ * but if then |conf_| has been updated with a missing version,
+ * |connection| should return |message| with ok status.
  */
 TEST_F(EmitterTest, UpdateConfiguration) {
   const String socket_path = "/tmp/test.socket";

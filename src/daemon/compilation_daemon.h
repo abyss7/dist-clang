@@ -9,7 +9,7 @@ namespace daemon {
 
 class CompilationDaemon : public BaseDaemon {
  public:
-  bool Initialize() THREAD_UNSAFE override;
+  bool Initialize() override;
   bool UpdateConfiguration(const proto::Configuration& configuration) override;
 
   static base::ProcessPtr CreateProcess(const base::proto::Flags& flags,
@@ -44,7 +44,7 @@ class CompilationDaemon : public BaseDaemon {
                          const cache::string::HandledSource& source,
                          const cache::FileCache::Entry& entry);
 
-  SharedPtr<const proto::Configuration> getConf() {
+  inline SharedPtr<const proto::Configuration> conf() const {
     return std::make_shared<const proto::Configuration>(*conf_);
   }
 

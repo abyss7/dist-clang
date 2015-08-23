@@ -13,8 +13,9 @@ namespace daemon {
 class BaseDaemon {
  public:
   virtual ~BaseDaemon();
-  virtual bool Initialize() = 0;
-  inline virtual bool UpdateConfiguration(const proto::Configuration& configuration) {
+  virtual bool Initialize() THREAD_UNSAFE = 0;
+  inline virtual bool UpdateConfiguration(
+      const proto::Configuration& configuration) THREAD_SAFE {
     return true;
   }
 
