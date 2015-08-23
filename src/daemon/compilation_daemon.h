@@ -45,7 +45,7 @@ class CompilationDaemon : public BaseDaemon {
                          const cache::FileCache::Entry& entry);
 
   inline SharedPtr<const proto::Configuration> conf() const {
-    return std::make_shared<const proto::Configuration>(*conf_);
+    return std::const_pointer_cast<const proto::Configuration>(conf_);
   }
 
  private:

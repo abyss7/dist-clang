@@ -1396,7 +1396,7 @@ TEST_F(EmitterTest, UpdateConfiguration) {
   version->set_version(bad_version);
   version->set_path(compiler_path);
 
-  // TODO: change TriggerReadAsync on sync event
+  // TODO: change sleep_for on sync event
   std::this_thread::sleep_for(std::chrono::seconds(1));
   emitter->UpdateConfiguration(conf);
 
