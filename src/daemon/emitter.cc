@@ -418,7 +418,9 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
 
     Universal reply(new net::proto::Universal);
     if (!connection->ReadSync(reply.get())) {
-      all_tasks_->Push(std::move(*task));
+      // Put into |failed_tasks_| in case an oversized protobuf message comes
+      // from a remote end.
+      failed_tasks_->Push(std::move(*task));
       counter.ReportOnDestroy(true);
       continue;
     }
