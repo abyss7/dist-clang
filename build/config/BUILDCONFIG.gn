@@ -10,7 +10,7 @@ declare_args() {
   config_for_tests = false
 
   # Build version.
-  version = exec_script("//build/version.py", [], "value")
+  version = exec_script("//build/version.py", [], "string")
 
   # Use Clang ASan.
   use_asan = false
