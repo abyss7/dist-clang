@@ -67,31 +67,31 @@ bool FileCache::Run(ui64 clean_period) {
       }
     };
   } else {
-    base::WalkDirectory(
-        path_, [this](const String& file_path, ui64 mtime, ui64) {
-          std::regex regex("([a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8})\\.manifest");
-          std::cmatch match;
-          if (!std::regex_search(file_path.c_str(), match, regex) ||
-              match.size() < 2 || !match[1].matched) {
-            return;
-          }
+    base::WalkDirectory(path_, [this](const String& file_path, ui64 mtime,
+                                      ui64) {
+      std::regex regex("([a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8})\\.manifest$");
+      std::cmatch match;
+      if (!std::regex_search(file_path.c_str(), match, regex) ||
+          match.size() < 2 || !match[1].matched) {
+        return;
+      }
 
-          auto hash = string::Hash(String(match[1]));
-          auto size = GetEntrySize(hash);
+      auto hash = string::Hash(String(match[1]));
+      auto size = GetEntrySize(hash);
 
-          if (size) {
-            CHECK(!entries_->Exists(hash.str));
-            // There should be no duplicate entries.
+      if (size) {
+        CHECK(!entries_->Exists(hash.str));
+        // There should be no duplicate entries.
 
-            CHECK(entries_->Set(hash.str, std::make_tuple(mtime, size)));
+        CHECK(entries_->Set(hash.str, std::make_tuple(mtime, size)));
 
-            cache_size_ += size;
-            LOG(CACHE_VERBOSE) << hash.str << " is considered";
-          } else {
-            RemoveEntry(hash, true);
-            LOG(CACHE_WARNING) << hash.str << " is broken and removed";
-          }
-        });
+        cache_size_ += size;
+        LOG(CACHE_VERBOSE) << hash.str << " is considered";
+      } else {
+        RemoveEntry(hash, true);
+        LOG(CACHE_WARNING) << hash.str << " is broken and removed";
+      }
+    });
 
     new_entries_.reset(new EntryList, new_entries_deleter_);
 
