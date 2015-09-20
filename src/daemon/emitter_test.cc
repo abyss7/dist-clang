@@ -495,6 +495,77 @@ TEST_F(EmitterTest, LocalMessageWithPluginPath) {
   // TODO: check absolute output path.
 }
 
+TEST_F(EmitterTest, ConfigurationWithoutVersions) {
+  const String socket_path = "/tmp/test.socket";
+  const auto expected_code = net::proto::Status::OK;
+  const String compiler_version = "fake_compiler_version";
+  const auto compiler_path = "fake_compiler_path"_l;
+  const String current_dir = "fake_current_dir";
+  const String plugin_name = "fake_plugin";
+  const auto plugin_path = "fake_plugin_path"_l;
+  const auto action = "fake_action"_l;
+  const ui32 user_id = 1234;
+
+  conf.mutable_emitter()->set_socket_path(socket_path);
+
+  listen_callback = [&](const String& host, ui16 port, String*) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+    return true;
+  };
+  connect_callback = [&](net::TestConnection* connection) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_EQ(expected_code, status.code());
+    });
+  };
+  run_callback = [&](base::TestProcess* process) {
+    EXPECT_EQ(compiler_path, process->exec_path_);
+    EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path}),
+              process->args_);
+    EXPECT_EQ(user_id, process->uid_);
+  };
+
+  emitter.reset(new Emitter(conf));
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto connection = test_service->TriggerListen(socket_path);
+  {
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(current_dir);
+    extension->set_user_id(user_id);
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
+    compiler->set_version(compiler_version);
+    compiler->set_path(compiler_path);
+    auto* plugin = compiler->add_plugins();
+    plugin->set_name(plugin_name);
+    plugin->set_path(plugin_path);
+    extension->mutable_flags()->set_action(action);
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+    emitter.reset();
+  }
+
+  EXPECT_EQ(1u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(1u, connect_count);
+  EXPECT_EQ(1u, connections_created);
+  EXPECT_EQ(1u, read_count);
+  EXPECT_EQ(1u, send_count);
+  EXPECT_EQ(1, connection.use_count())
+      << "Daemon must not store references to the connection";
+
+  // TODO: check absolute output path.
+}
+
 TEST_F(EmitterTest, LocalSuccessfulCompilation) {
   const String socket_path = "/tmp/test.socket";
   const auto expected_code = net::proto::Status::OK;
