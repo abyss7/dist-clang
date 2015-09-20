@@ -201,37 +201,27 @@ bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
         for (const auto& conf_plugin : conf_plugins) {
           plugin_map.emplace(conf_plugin.name(), conf_plugin.path());
         }
-        return true;
       }
     }
-    return false;
   };
 
   PluginNameMap plugin_map;
-  if (getPluginsByCompilerVersion(flags->compiler().version(), plugin_map)) {
-    for (auto& flag_plugin : *flags->mutable_compiler()->mutable_plugins()) {
-      if (!flag_plugin.has_path()) {
-        auto plugin_by_name = plugin_map.find(flag_plugin.name());
-        if (plugin_by_name == plugin_map.end()) {
-          if (status) {
-            status->set_code(net::proto::Status::NO_VERSION);
-            status->set_description("Plugin not found: " +
-                                    flags->compiler().version());
-          }
-          return false;
+  getPluginsByCompilerVersion(flags->compiler().version(), plugin_map);
+  for (auto& flag_plugin : *flags->mutable_compiler()->mutable_plugins()) {
+    if (!flag_plugin.has_path()) {
+      auto plugin_by_name = plugin_map.find(flag_plugin.name());
+      if (plugin_by_name == plugin_map.end()) {
+        if (status) {
+          status->set_code(net::proto::Status::NO_VERSION);
+          status->set_description("Plugin not found: " +
+                                  flags->compiler().version());
         }
-        flag_plugin.set_path(plugin_by_name->second);
+        return false;
       }
+      flag_plugin.set_path(plugin_by_name->second);
     }
-    return true;
-  } else {
-    if (status) {
-      status->set_code(net::proto::Status::NO_VERSION);
-      status->set_description("Plugin not found: " +
-                              flags->compiler().version());
-    }
-    return false;
-  };
+  }
+
   return true;
 }
 
