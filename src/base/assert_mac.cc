@@ -13,18 +13,27 @@ namespace {
 String Demangle(const char* backtrace_symbol) {
   const String string = backtrace_symbol;
 
-  auto begin_name = string.find('(');
-  if (begin_name == String::npos) {
+  // Mangled line should look like this:
+  //
+  List<String> tokens;
+  base::SplitString<' '>(string, tokens);
+
+  int i = 0;
+  auto it = tokens.begin();
+  while (it != tokens.end()) {
+    if (!it->empty()) {
+      ++i;
+    }
+    if (i == 4) {
+      break;
+    }
+    ++it;
+  }
+  if (i != 4) {
     return string;
   }
-  begin_name++;
 
-  const auto end_name = string.find('+', begin_name);
-  if (end_name == String::npos) {
-    return string;
-  }
-
-  const String mangled_name = string.substr(begin_name, end_name - begin_name);
+  const String mangled_name = *it;
   size_t size = 256;
   int status;
   char* demangled_name =
@@ -64,4 +73,3 @@ void GetStackTrace(ui8 depth, Vector<String>& strings) {
 
 }  // namespace base
 }  // namespace dist_clang
-
