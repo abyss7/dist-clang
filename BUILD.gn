@@ -20,6 +20,11 @@ if (host_os == "linux") {
   action("deb_package") {
     script = "//build/deb_package.py"
     sources = [
+      "$root_gen_dir/src/base/base_pb2.py",
+      "$root_gen_dir/src/daemon/configuration_pb2.py",
+      "$root_gen_dir/src/daemon/remote_pb2.py",
+      "$root_gen_dir/src/net/universal_pb2.py",
+      "$root_gen_dir/src/perf/stat_pb2.py",
       "$root_out_dir/clang",
       "$root_out_dir/clangd",
       "$root_out_dir/libbase.so",
@@ -43,11 +48,6 @@ if (host_os == "linux") {
       "//install/clangd.conf",
       "//install/debian_prerm",
       "//install/supervisord_service",
-      "$root_gen_dir/src/base/base_pb2.py",
-      "$root_gen_dir/src/daemon/configuration_pb2.py",
-      "$root_gen_dir/src/daemon/remote_pb2.py",
-      "$root_gen_dir/src/net/universal_pb2.py",
-      "$root_gen_dir/src/perf/stat_pb2.py",
     ]
     outputs = [
       "$root_out_dir/deb/debian/control",
@@ -134,6 +134,11 @@ if (host_os == "linux") {
   action("rpm_package") {
     script = "//build/rpm_package.py"
     sources = [
+      "$root_gen_dir/src/base/base_pb2.py",
+      "$root_gen_dir/src/daemon/configuration_pb2.py",
+      "$root_gen_dir/src/daemon/remote_pb2.py",
+      "$root_gen_dir/src/net/universal_pb2.py",
+      "$root_gen_dir/src/perf/stat_pb2.py",
       "$root_out_dir/clang",
       "$root_out_dir/clangd",
       "$root_out_dir/libbase.so",
@@ -155,11 +160,6 @@ if (host_os == "linux") {
       "//build/rpm_spec.template",
       "//install/clangd.conf",
       "//install/systemd_service",
-      "$root_gen_dir/src/base/base_pb2.py",
-      "$root_gen_dir/src/daemon/configuration_pb2.py",
-      "$root_gen_dir/src/daemon/remote_pb2.py",
-      "$root_gen_dir/src/net/universal_pb2.py",
-      "$root_gen_dir/src/perf/stat_pb2.py",
     ]
     outputs = [
       "$root_out_dir/rpm.spec",
@@ -242,6 +242,11 @@ if (host_os == "mac") {
   action("pkg_package") {
     script = "//build/pkg_package.py"
     sources = [
+      "$root_gen_dir/src/base/base_pb2.py",
+      "$root_gen_dir/src/daemon/configuration_pb2.py",
+      "$root_gen_dir/src/daemon/remote_pb2.py",
+      "$root_gen_dir/src/net/universal_pb2.py",
+      "$root_gen_dir/src/perf/stat_pb2.py",
       "$root_out_dir/clang",
       "$root_out_dir/clangd",
       "$root_out_dir/libbase.dylib",
@@ -261,11 +266,6 @@ if (host_os == "mac") {
       "//build/luggage_makefile.template",
       "//install/clangd.conf",
       "//install/launchd_service",
-      "$root_gen_dir/src/base/base_pb2.py",
-      "$root_gen_dir/src/daemon/configuration_pb2.py",
-      "$root_gen_dir/src/daemon/remote_pb2.py",
-      "$root_gen_dir/src/net/universal_pb2.py",
-      "$root_gen_dir/src/perf/stat_pb2.py",
     ]
     outputs = [
       "$root_out_dir/Makefile",

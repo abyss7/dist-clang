@@ -11,13 +11,20 @@ visibility = [
   "//src/test/*",
 ]
 
-shared_library("base") {
+source_set("assert") {
+  visibility = []
+  visibility = [ ":base" ]
   sources = [
-    "aliases.h",
     "assert.h",
     "assert_linux.cc",
     "assert_mac.cc",
     "assert_win.cc",
+  ]
+}
+
+shared_library("base") {
+  sources = [
+    "aliases.h",
     "attributes.h",
     "c_utils.h",
     "c_utils_forward.h",
@@ -74,7 +81,6 @@ shared_library("base") {
 
   public = [
     "aliases.h",
-    "assert.h",
     "attributes.h",
     "c_utils.h",
     "const_string.h",
@@ -107,11 +113,15 @@ shared_library("base") {
   ]
 
   public_deps = [
+    ":assert",
     ":base_proto",
     ":logging",
   ]
 
-  allow_circular_includes_from = [ ":logging" ]
+  allow_circular_includes_from = [
+    ":assert",
+    ":logging",
+  ]
 }
 
 shared_library("logging") {

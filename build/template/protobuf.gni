@@ -39,7 +39,9 @@ template("protobuf") {
 
       deps += [ ":$action_name" ]
 
-      public_deps = [ "//src/third_party/protobuf:protobuf" ]
+      public_deps = [
+        "//src/third_party/protobuf:protobuf",
+      ]
     }
   } else {
     source_set(target_name) {
@@ -58,7 +60,9 @@ template("protobuf") {
 
       deps += [ ":$action_name" ]
 
-      public_deps = [ "//src/third_party/protobuf:protobuf" ]
+      public_deps = [
+        "//src/third_party/protobuf:protobuf",
+      ]
     }
   }
 }
