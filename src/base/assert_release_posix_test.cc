@@ -13,8 +13,6 @@ TEST(AssertReleaseTest, FailureStackTrace) {
   // FIXME: a gtest implementation-dependent test.
   const String expected = EscapeRegex(
       "Assertion failed: false\n"
-      "  dist_clang::base::GetStackTrace(unsigned char, "
-      "std::__1::vector<std::string, std::__1::allocator<std::string > >&)\n"
       "  dist_clang::base::AssertReleaseTest_FailureStackTrace_Test::TestBody"
       "()\n"
       "  void testing::internal::HandleSehExceptionsInMethodIfSupported<testing"
@@ -33,8 +31,7 @@ TEST(AssertReleaseTest, FailureStackTrace) {
       "(testing::internal::UnitTestImpl::*)(), char const*)\n"
       "  testing::UnitTest::Run()\n"
       "  RUN_ALL_TESTS()\n"
-      "  main\n"
-      "  __libc_start_main");
+      "  main\n");
   ASSERT_THROW_STD(CHECK(false), expected);
   ASSERT_NO_THROW(DCHECK(false));
   ASSERT_NO_THROW(DCHECK_O_EVAL(false));

@@ -1043,11 +1043,11 @@ build/toolchain/mac/BUILD.gn
 build/toolchain/win/BUILD.gn
 build/version.py
 src/base/aliases.h
-src/base/assert_debug_linux_test.cc
+src/base/assert_debug_posix_test.cc
 src/base/assert.h
 src/base/assert_linux.cc
 src/base/assert_mac.cc
-src/base/assert_release_linux_test.cc
+src/base/assert_release_posix_test.cc
 src/base/assert_win.cc
 src/base/attributes.h
 src/base/base.proto

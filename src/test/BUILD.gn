@@ -2,8 +2,8 @@ executable("unit_tests") {
   testonly = true
 
   sources = [
-    "//src/base/assert_debug_linux_test.cc",
-    "//src/base/assert_release_linux_test.cc",
+    "//src/base/assert_debug_posix_test.cc",
+    "//src/base/assert_release_posix_test.cc",
     "//src/base/const_string_test.cc",
     "//src/base/file/file_test.cc",
     "//src/base/file_utils_test.cc",

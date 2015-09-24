@@ -51,10 +51,17 @@ void GetStackTrace(ui8 depth, Vector<String>& strings) {
 
   auto size = backtrace(buffer.get(), depth + 1);
   auto symbols = backtrace_symbols(buffer.get(), size);
-  strings.resize(size - 1);
-  for (int i = 1; i < size; ++i) {
-    strings[i - 1] = Demangle(symbols[i]);
-    Replace(strings[i - 1],
+
+  // Two last frames always look like:
+  //     backtrace
+  //     dist_clang::base::GetStackTrace(...)
+  //
+  // We don't need them.
+
+  strings.resize(size - 2);
+  for (int i = 2; i < size; ++i) {
+    strings[i - 2] = Demangle(symbols[i]);
+    Replace(strings[i - 2],
             "std::__1::basic_string<char, std::__1::char_traits<char>, "
             "std::__1::allocator<char> >",
             "std::string");

@@ -12,8 +12,7 @@ void GetStackTrace(ui8 depth, Vector<String>& strings);
 }  // namespace base
 
 // Don't use |base::Log| inside |CHECK()| since we always need a stacktrace -
-// even if we disable logging at all. Also, potentially, |base::Log| facility
-// may use assertions too.
+// even if we disable logging at all.
 
 // In tests it's better to throw unhandled exception - not to crash the whole
 // binary, but catch the failure.
