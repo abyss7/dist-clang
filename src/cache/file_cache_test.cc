@@ -284,6 +284,7 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   const String deps_path = path + "/test.d";
   const String header1_path = path + "/test1.h";
   const String header2_path = path + "/test2.h";
+  const String header2_rel_path = "test2.h";
   const auto expected_stderr = "some warning"_l;
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
@@ -309,12 +310,12 @@ TEST(FileCacheTest, RestoreDirectEntry) {
 
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
-  const List<String> headers = {header1_path, header2_path};
-  cache.Store(orig_code, cl, version, headers,
+  const List<String> headers = {header1_path, header2_rel_path};
+  cache.Store(orig_code, cl, version, headers, path,
               FileCache::Hash(code, cl, version));
 
   // Restore the entry.
-  ASSERT_TRUE(cache.Find(orig_code, cl, version, &entry2));
+  ASSERT_TRUE(cache.Find(orig_code, cl, version, path, &entry2));
   EXPECT_EQ(expected_object_code, entry2.object);
   EXPECT_EQ(expected_deps, entry2.deps);
   EXPECT_EQ(expected_stderr, entry2.stderr);
@@ -327,6 +328,7 @@ TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
   const String deps_path = path + "/test.d";
   const String header1_path = path + "/test1.h";
   const String header2_path = path + "/test2.h";
+  const String header2_rel_path = "test2.h";
   const auto expected_stderr = "some warning"_l;
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
@@ -352,15 +354,15 @@ TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
 
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
-  const List<String> headers = {header1_path, header2_path};
-  cache.Store(orig_code, cl, version, headers,
+  const List<String> headers = {header1_path, header2_rel_path};
+  cache.Store(orig_code, cl, version, headers, path,
               FileCache::Hash(code, cl, version));
 
   // Change header contents.
-  ASSERT_TRUE(base::File::Write(header1_path, "#define C"_l));
+  ASSERT_TRUE(base::File::Write(header2_path, "#define C"_l));
 
   // Restore the entry.
-  EXPECT_FALSE(cache.Find(orig_code, cl, version, &entry));
+  EXPECT_FALSE(cache.Find(orig_code, cl, version, path, &entry));
 }
 
 TEST(FileCacheTest, DirectEntry_RewriteManifest) {
@@ -397,17 +399,17 @@ TEST(FileCacheTest, DirectEntry_RewriteManifest) {
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   List<String> headers = {header1_path, header2_path};
-  cache.Store(orig_code, cl, version, headers,
+  cache.Store(orig_code, cl, version, headers, path,
               FileCache::Hash(code, cl, version));
 
   headers.pop_back();
 
   // Store the direct entry - again.
-  cache.Store(orig_code, cl, version, headers,
+  cache.Store(orig_code, cl, version, headers, path,
               FileCache::Hash(code, cl, version));
 
   // Restore the entry.
-  EXPECT_TRUE(cache.Find(orig_code, cl, version, &entry2));
+  EXPECT_TRUE(cache.Find(orig_code, cl, version, path, &entry2));
 }
 
 TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
@@ -443,12 +445,12 @@ TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   const List<String> headers = {header1_path, header2_path};
-  cache.Store(orig_code, cl, version, headers,
+  cache.Store(orig_code, cl, version, headers, path,
               FileCache::Hash(code, cl, version));
 
   // Restore the entry.
   const UnhandledSource bad_orig_code(orig_code.str.string_copy() + " ");
-  EXPECT_FALSE(cache.Find(bad_orig_code, cl, version, &entry));
+  EXPECT_FALSE(cache.Find(bad_orig_code, cl, version, path, &entry));
 }
 
 TEST(FileCacheTest, DISABLED_RestoreSnappyEntry) {
