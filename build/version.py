@@ -8,6 +8,6 @@ major = len(subprocess.check_output("git -C {} log --oneline {}".format(dirname,
 
 if subprocess.check_output("git -C {} rev-parse HEAD".format(dirname), shell=True).split()[0] == merge_base:
     sys.stdout.write(str(major) + ".0")
-
-minor = len(subprocess.check_output("git -C {} log --oneline {}..HEAD".format(dirname, merge_base), shell=True).splitlines())
-sys.stdout.write(str(major) + "." + str(minor))
+else:
+    minor = len(subprocess.check_output("git -C {} log --oneline {}..HEAD".format(dirname, merge_base), shell=True).splitlines())
+    sys.stdout.write(str(major) + "." + str(minor))
