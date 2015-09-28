@@ -12,6 +12,11 @@ config("flags") {
     "-fno-builtin-pvalloc",
     "-fno-builtin-valloc",
   ]
+  
+  # TODO: fix this issue with clang-3.7 in upstream.
+  cflags += [
+    "-Wno-shift-negative-value",
+  ]
 
   defines = [ "HAVE_CONFIG_H" ]
   if (host_os == "linux") {
