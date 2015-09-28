@@ -18,8 +18,7 @@ template <>
 Log& Log::operator<<(const google::protobuf::Message& info);
 
 bool LoadFromFile(const String& path, google::protobuf::Message* message);
-bool SaveToFile(const String& path, const google::protobuf::Message& message,
-                String* error = nullptr);
+bool SaveToFile(const String& path, const google::protobuf::Message& message);
 
 }  // namespace base
 }  // namespace dist_clang

@@ -106,13 +106,12 @@ class FileCache {
 
   bool Find(const string::UnhandledSource& code,
             const string::CommandLine& command_line,
-            const string::Version& version, const String& current_dir,
-            Entry* entry) const;
+            const string::Version& version, Entry* entry) const;
 
   void Store(const string::UnhandledSource& code,
              const string::CommandLine& command_line,
              const string::Version& version, const List<String>& headers,
-             const String& current_dir, const string::HandledHash& hash);
+             const string::HandledHash& hash);
 
   void Store(const string::HandledSource& code,
              const string::CommandLine& command_line,
@@ -168,7 +167,7 @@ class FileCache {
   bool FindByHash(const string::HandledHash& hash, Entry* entry) const;
   void DoStore(const string::HandledHash& hash, Entry entry);
   void DoStore(string::UnhandledHash orig_hash, const List<String>& headers,
-               const String& current_dir, const string::HandledHash& hash);
+               const string::HandledHash& hash);
 
   using TimeHashPair = Pair<ui64 /* mtime */, string::Hash>;
   using EntryList = base::LockedList<TimeHashPair>;
@@ -177,7 +176,7 @@ class FileCache {
   ui64 GetEntrySize(string::Hash hash) const;
   // Returns |0u| if the entry is broken.
 
-  bool RemoveEntry(string::Hash hash);
+  bool RemoveEntry(string::Hash hash, bool possibly_broken = false);
   // Returns |false| only if some part of entry can't be physically removed.
 
   void Clean(UniquePtr<EntryList> list);

@@ -55,7 +55,7 @@ inline CommandLine CommandLineForDirect(const base::proto::Flags& flags,
   return CommandLine(command_line);
 }
 
-bool ParseDeps(String deps, List<String>& headers) {
+bool ParseDeps(String deps, const String& base_path, List<String>& headers) {
   base::Replace(deps, "\\\n", "");
 
   List<String> lines;
@@ -68,6 +68,12 @@ bool ParseDeps(String deps, List<String>& headers) {
   deps_start++;
 
   base::SplitString<' '>(lines.front().substr(deps_start), headers);
+
+  for (auto& header : headers) {
+    if (header[0] != '/') {
+      header = base_path + "/" + header;
+    }
+  }
 
   return true;
 }
@@ -187,17 +193,17 @@ bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
     }
   }
 
-  auto getPluginsByCompilerVersion =
-      [&config](String version, PluginNameMap& plugin_map) {
-        for (const auto& conf_version : config->versions()) {
-          if (conf_version.version() == version) {
-            const auto& conf_plugins = conf_version.plugins();
-            for (const auto& conf_plugin : conf_plugins) {
-              plugin_map.emplace(conf_plugin.name(), conf_plugin.path());
-            }
-          }
+  auto getPluginsByCompilerVersion = [&config](String version,
+                                             PluginNameMap& plugin_map) {
+    for (const auto& conf_version : config->versions()) {
+      if (conf_version.version() == version) {
+        const auto& conf_plugins = conf_version.plugins();
+        for (const auto& conf_plugin : conf_plugins) {
+          plugin_map.emplace(conf_plugin.name(), conf_plugin.path());
         }
-      };
+      }
+    }
+  };
 
   PluginNameMap plugin_map;
   getPluginsByCompilerVersion(flags->compiler().version(), plugin_map);
@@ -261,7 +267,7 @@ bool CompilationDaemon::SearchDirectCache(
     return false;
   }
 
-  if (!cache_->Find(code, command_line, version, current_dir, entry)) {
+  if (!cache_->Find(code, command_line, version, entry)) {
     LOG(CACHE_INFO) << "Direct cache miss: " << flags.input();
     return false;
   }
@@ -309,10 +315,9 @@ void CompilationDaemon::UpdateDirectCache(
   List<String> headers;
   UnhandledSource original_code;
 
-  if (ParseDeps(entry.deps, headers) &&
+  if (ParseDeps(entry.deps, message->current_dir(), headers) &&
       base::File::Read(input_path, &original_code.str)) {
-    cache_->Store(original_code, command_line, version, headers,
-                  message->current_dir(), hash);
+    cache_->Store(original_code, command_line, version, headers, hash);
   } else {
     LOG(CACHE_ERROR) << "Failed to parse deps or read input " << input_path;
   }
