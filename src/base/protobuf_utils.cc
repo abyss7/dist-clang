@@ -33,10 +33,11 @@ bool LoadFromFile(const String& path, google::protobuf::Message* message) {
   return true;
 }
 
-bool SaveToFile(const String& path, const google::protobuf::Message& message) {
+bool SaveToFile(const String& path, const google::protobuf::Message& message,
+                String* error) {
   String output;
   if (!google::protobuf::TextFormat::PrintToString(message, &output) ||
-      !File::Write(path, Immutable(output))) {
+      !File::Write(path, Immutable(output), error)) {
     return false;
   }
 

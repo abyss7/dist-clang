@@ -88,8 +88,7 @@ bool FileCache::Run(ui64 clean_period) {
         cache_size_ += size;
         LOG(CACHE_VERBOSE) << hash.str << " is considered";
       } else {
-        RemoveEntry(hash, true);
-        LOG(CACHE_WARNING) << hash.str << " is broken and removed";
+        RemoveEntry(hash);
       }
     });
 
@@ -134,7 +133,7 @@ bool FileCache::Find(const HandledSource& code, const CommandLine& command_line,
 
 bool FileCache::Find(const UnhandledSource& code,
                      const CommandLine& command_line, const Version& version,
-                     Entry* entry) const {
+                     const String& current_dir, Entry* entry) const {
   auto hash1 = Hash(code, command_line, version);
   const String manifest_path = CommonPath(hash1) + ".manifest";
   const ReadLock lock(this, manifest_path);
@@ -154,7 +153,9 @@ bool FileCache::Find(const UnhandledSource& code,
   Immutable::Rope hash_rope = {hash1};
   for (const auto& header : manifest.headers()) {
     Immutable header_hash;
-    if (!base::File::Hash(header, &header_hash)) {
+    const String header_path =
+        header[0] == '/' ? header : current_dir + "/" + header;
+    if (!base::File::Hash(header_path, &header_hash)) {
       return false;
     }
     hash_rope.push_back(header_hash);
@@ -171,8 +172,9 @@ bool FileCache::Find(const UnhandledSource& code,
 
 void FileCache::Store(const UnhandledSource& code,
                       const CommandLine& command_line, const Version& version,
-                      const List<String>& headers, const HandledHash& hash) {
-  DoStore(Hash(code, command_line, version), headers, hash);
+                      const List<String>& headers, const String& current_dir,
+                      const HandledHash& hash) {
+  DoStore(Hash(code, command_line, version), headers, current_dir, hash);
 }
 
 void FileCache::Store(const HandledSource& code,
@@ -287,15 +289,10 @@ ui64 FileCache::GetEntrySize(string::Hash hash) const {
   return result;
 }
 
-bool FileCache::RemoveEntry(string::Hash hash, bool possibly_broken) {
+bool FileCache::RemoveEntry(string::Hash hash) {
+  String error;
   SQLite::Value entry;
   bool has_entry = entries_->Get(hash.str, &entry);
-  if (!has_entry && !possibly_broken) {
-    LOG(CACHE_ERROR) << "Trying to remove non-existent entry: " << hash.str;
-    NOTREACHED();
-    return false;
-  }
-
   const String common_path = CommonPath(hash);
   const String manifest_path = common_path + ".manifest";
   const String object_path = common_path + ".o";
@@ -306,14 +303,9 @@ bool FileCache::RemoveEntry(string::Hash hash, bool possibly_broken) {
 
   if (has_entry) {
     entries_->Delete(hash.str);
+  } else {
+    LOG(CACHE_WARNING) << "Removing unconsidered entry: " << hash.str;
   }
-
-  proto::Manifest manifest;
-  if (!base::LoadFromFile(manifest_path, &manifest)) {
-    result = false;
-  }
-
-  String error;
 
   if (base::File::Exists(object_path)) {
     if (!base::File::Delete(object_path, &error)) {
@@ -321,8 +313,6 @@ bool FileCache::RemoveEntry(string::Hash hash, bool possibly_broken) {
       result = false;
       LOG(CACHE_WARNING) << "Failed to delete " << object_path << ": " << error;
     }
-  } else {
-    DCHECK(possibly_broken || !manifest.object());
   }
 
   if (base::File::Exists(deps_path)) {
@@ -331,8 +321,6 @@ bool FileCache::RemoveEntry(string::Hash hash, bool possibly_broken) {
       result = false;
       LOG(CACHE_WARNING) << "Failed to delete " << deps_path << ": " << error;
     }
-  } else {
-    DCHECK(possibly_broken || !manifest.deps());
   }
 
   if (base::File::Exists(stderr_path)) {
@@ -341,8 +329,6 @@ bool FileCache::RemoveEntry(string::Hash hash, bool possibly_broken) {
       result = false;
       LOG(CACHE_WARNING) << "Failed to delete " << stderr_path << ": " << error;
     }
-  } else {
-    DCHECK(possibly_broken || !manifest.stderr());
   }
 
   if (!base::File::Delete(manifest_path, &error)) {
@@ -362,6 +348,7 @@ bool FileCache::RemoveEntry(string::Hash hash, bool possibly_broken) {
 void FileCache::DoStore(const HandledHash& hash, Entry entry) {
   auto manifest_path = CommonPath(hash) + ".manifest";
   WriteLock lock(this, manifest_path);
+  String error;
 
   if (!lock) {
     return;
@@ -376,9 +363,10 @@ void FileCache::DoStore(const HandledHash& hash, Entry entry) {
   if (!entry.stderr.empty()) {
     const String stderr_path = CommonPath(hash) + ".stderr";
 
-    if (!base::File::Write(stderr_path, entry.stderr)) {
+    if (!base::File::Write(stderr_path, entry.stderr, &error)) {
       RemoveEntry(hash);
-      LOG(CACHE_ERROR) << "Failed to save stderr to " << stderr_path;
+      LOG(CACHE_ERROR) << "Failed to save stderr to " << stderr_path << ": "
+                       << error;
       return;
     }
     manifest.set_stderr(true);
@@ -386,12 +374,12 @@ void FileCache::DoStore(const HandledHash& hash, Entry entry) {
 
   if (!entry.object.empty()) {
     const String object_path = CommonPath(hash) + ".o";
-    String error;
 
     if (!snappy_) {
-      if (!base::File::Write(object_path, entry.object)) {
+      if (!base::File::Write(object_path, entry.object, &error)) {
         RemoveEntry(hash);
-        LOG(CACHE_ERROR) << "Failed to save object to " << object_path;
+        LOG(CACHE_ERROR) << "Failed to save object to " << object_path << ": "
+                         << error;
         return;
       }
     } else {
@@ -405,7 +393,7 @@ void FileCache::DoStore(const HandledHash& hash, Entry entry) {
 
       if (!base::File::Write(object_path, std::move(packed_content), &error)) {
         RemoveEntry(hash);
-        LOG(CACHE_ERROR) << "Failed to write to " << object_path << " : "
+        LOG(CACHE_ERROR) << "Failed to write to " << object_path << ": "
                          << error;
         return;
       }
@@ -419,18 +407,20 @@ void FileCache::DoStore(const HandledHash& hash, Entry entry) {
   if (!entry.deps.empty()) {
     const String deps_path = CommonPath(hash) + ".d";
 
-    if (!base::File::Write(deps_path, entry.deps)) {
+    if (!base::File::Write(deps_path, entry.deps, &error)) {
       RemoveEntry(hash);
-      LOG(CACHE_ERROR) << "Failed to save deps to " << deps_path;
+      LOG(CACHE_ERROR) << "Failed to save deps to " << deps_path << ": "
+                       << error;
       return;
     }
   } else {
     manifest.set_deps(false);
   }
 
-  if (!base::SaveToFile(manifest_path, manifest)) {
+  if (!base::SaveToFile(manifest_path, manifest, &error)) {
     RemoveEntry(hash);
-    LOG(CACHE_ERROR) << "Failed to save manifest to " << manifest_path;
+    LOG(CACHE_ERROR) << "Failed to save manifest to " << manifest_path << ": "
+                     << error;
     return;
   }
 
@@ -441,7 +431,7 @@ void FileCache::DoStore(const HandledHash& hash, Entry entry) {
 }
 
 void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
-                        const HandledHash& hash) {
+                        const String& current_dir, const HandledHash& hash) {
   // We have to store manifest on the path based only on the hash of unhandled
   // source code. Otherwise, we won't be able to get list of the dependent
   // headers, while checking the direct cache. Such approach has a little
@@ -468,9 +458,11 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
   for (const auto& header : headers) {
     String error;
     Immutable header_hash;
-    if (!base::File::Hash(header, &header_hash, {"__DATE__"_l, "__TIME__"_l},
-                          &error)) {
-      LOG(CACHE_ERROR) << "Failed to hash " << header << ": " << error;
+    const String header_path =
+        header[0] == '/' ? header : current_dir + "/" + header;
+    if (!base::File::Hash(header_path, &header_hash,
+                          {"__DATE__"_l, "__TIME__"_l}, &error)) {
+      LOG(CACHE_ERROR) << "Failed to hash " << header_path << ": " << error;
       return;
     }
     hash_rope.push_back(header_hash);
@@ -483,8 +475,11 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
     return;
   }
 
-  if (!base::SaveToFile(manifest_path, manifest)) {
+  String error;
+  if (!base::SaveToFile(manifest_path, manifest, &error)) {
     RemoveEntry(orig_hash);
+    LOG(CACHE_ERROR) << "Failed to save manifest to " << manifest_path << ": "
+                     << error;
     return;
   }
 
