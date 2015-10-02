@@ -51,10 +51,17 @@ config("release") {
 
   defines = [ "NDEBUG" ]
 
-  ldflags = [
-    "-rpath",
-    "/usr/lib/dist-clang",
-  ]
+  if (host_os == "linux") {
+    ldflags = [
+      "-rpath",
+      "/usr/lib/dist-clang",
+    ]
+  } else {
+    ldflags = [
+      "-rpath",
+      "/usr/local/lib/dist-clang",
+    ]
+  }
 }
 
 config("no_stdlibs") {
