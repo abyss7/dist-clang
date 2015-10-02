@@ -11,6 +11,12 @@ def MakeInstall(top_dir, product_dir, package_dir):
   etc_dir = os.path.join(product_dir, package_dir, "etc")
   pylib_dir = os.path.join(product_dir, package_dir, "usr", "lib", "python2.7", "dist_clang")
 
+  if platform.system() == 'Darwin':
+    bin_dir = os.path.join(product_dir, package_dir, "usr", "local", "bin", "dist-clang")
+    lib_dir = os.path.join(product_dir, package_dir, "usr", "local", "lib", "dist-clang")
+    etc_dir = os.path.join(product_dir, package_dir, "etc")
+    pylib_dir = os.path.join(product_dir, package_dir, "Library", "Python", "2.7", "dist_clang")
+
   shutil.rmtree(os.path.join(product_dir, package_dir))
 
   os.makedirs(bin_dir)
