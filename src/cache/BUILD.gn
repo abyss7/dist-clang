@@ -30,12 +30,32 @@ shared_library("file_cache") {
   }
 
   deps += [
-    ":manifest_proto",
+    ":migrator",
     "//src/base:base",
     "//src/base:logging",
     "//src/perf:stat_service",
     "//src/third_party/leveldb:leveldb",
     "//src/third_party/snappy:snappy",
+  ]
+}
+
+source_set("migrator") {
+  visibility = [
+    ":*",
+    "//src/test:migrator_tests",
+  ]
+
+  sources = [
+    "migrator.cc",
+    "migrator.h",
+  ]
+
+  deps += [
+    "//src/base:base",
+  ]
+
+  public_deps = [
+    ":manifest_proto",
   ]
 }
 

@@ -1037,6 +1037,7 @@ build/pkg_package.py
 build/protoc.py
 build/rpm_package.py
 build/rpm_spec.template
+build/run_all_tests
 build/template/protobuf.gni
 build/toolchain/linux/BUILD.gn
 build/toolchain/mac/BUILD.gn
@@ -1128,6 +1129,8 @@ src/cache/file_cache.cc
 src/cache/file_cache.h
 src/cache/file_cache_test.cc
 src/cache/manifest.proto
+src/cache/migrator.cc
+src/cache/migrator.h
 src/cache/sqlite3.c
 src/cache/sqlite3.h
 src/client/BUILD.gn
@@ -2545,4 +2548,4 @@ src/third_party/tclap/exported/include/tclap/Visitor.h
 src/third_party/tclap/exported/include/tclap/XorHandler.h
 src/third_party/tclap/exported/include/tclap/ZshCompletionOutput.h
 tools/get_report.py
-build/run_all_tests
+src/cache/migrator_test.cc

@@ -6,7 +6,7 @@ export ASAN_OPTIONS=new_delete_type_mismatch=0
 export LSAN_OPTIONS=suppressions=`dirname $0`/lsan_suppression.txt
 
 # gtest:
-${test_dir}/unit_tests $@
+/bin/sh ./run_gtest_tests $@
 
 # other:
 ${test_dir}/leveldb_arena_test

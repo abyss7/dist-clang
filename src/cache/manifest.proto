@@ -1,11 +1,34 @@
 package dist_clang.cache.proto;
 
+message Direct {
+  repeated string headers = 1;
+}
+
+// ACTUAL.
+// Introduce new version for nicer names and no defaults.
+message Simple_Version1 {
+  optional bool snappy  = 1 [ default = false ];
+  // Should we compress the object file with Snappy.
+
+  optional bool err = 101;
+  optional bool obj = 102;
+  optional bool dep = 103;
+}
+
 message Manifest {
+  optional uint32 version = 3 [ default = 0 ];
+
+  oneof CacheType {
+    Direct direct      = 4;
+    Simple_Version1 v1 = 5;
+  }
+
+  // Version 0 - OBSOLETE
+  // FIXME: replace with an in-code descriptor - for parsing and migration.
   repeated string headers = 1;
   optional bool   snappy  = 2 [ default = false ];
 
-  // Set the most expected default values to reduce file size on disk.
-  optional bool   stderr  = 100 [ default = false ];
-  optional bool   object  = 101 [ default = true ];
-  optional bool   deps    = 102 [ default = true ];
+  optional bool stderr  = 100 [ default = false ];
+  optional bool object  = 101 [ default = true ];
+  optional bool deps    = 102 [ default = true ];
 }

@@ -1,3 +1,18 @@
+executable("migrator_tests") {
+  testonly = true
+
+  sources = [
+    "//src/cache/migrator_test.cc",
+    "run_all_tests.cc",
+  ]
+
+  deps += [
+    "//src/base:base",
+    "//src/cache:migrator",
+    "//src/third_party/gtest:gtest",
+  ]
+}
+
 executable("unit_tests") {
   testonly = true
 

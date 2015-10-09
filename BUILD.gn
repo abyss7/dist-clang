@@ -10,6 +10,7 @@ if (config_for_tests) {
     testonly = true
 
     deps = [
+      "//src/test:migrator_tests",
       "//src/test:unit_tests",
       "//src/third_party/leveldb:leveldb_tests",
     ]
