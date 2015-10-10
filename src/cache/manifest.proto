@@ -7,8 +7,11 @@ message Direct {
 // ACTUAL.
 // Introduce new version for nicer names and no defaults.
 message Simple_Version1 {
-  optional bool snappy  = 1 [ default = false ];
+  optional bool snappy = 1 [ default = false ];
   // Should we compress the object file with Snappy.
+
+  optional uint64 size = 2;
+  // Size in bytes of the whole entry on disk without manifest.
 
   optional bool err = 101;
   optional bool obj = 102;

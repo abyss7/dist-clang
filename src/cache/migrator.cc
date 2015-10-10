@@ -1,5 +1,6 @@
 #include <cache/migrator.h>
 
+#include <base/file/file.h>
 #include <base/logging.h>
 #include <base/protobuf_utils.h>
 #include <cache/manifest.pb.h>
@@ -11,7 +12,7 @@ namespace cache {
 
 namespace {
 
-bool Version_0_to_1(proto::Manifest& manifest) {
+bool Version_0_to_1(proto::Manifest& manifest, const String& common_path) {
   if (manifest.version() != 0) {
     return true;
   }
@@ -23,11 +24,38 @@ bool Version_0_to_1(proto::Manifest& manifest) {
         manifest.mutable_headers());
   } else {
     auto* v1 = manifest.mutable_v1();
+    ui64 size = 0;
 
     v1->set_snappy(manifest.snappy());
     v1->set_err(manifest.stderr());
     v1->set_obj(manifest.object());
     v1->set_dep(manifest.deps());
+
+    if (manifest.v1().err()) {
+      const String err_path = common_path + ".stderr";
+      if (base::File::Exists(err_path)) {
+        size += base::File::Size(err_path);
+      } else {
+        return false;
+      }
+    }
+    if (manifest.v1().obj()) {
+      const String obj_path = common_path + ".o";
+      if (base::File::Exists(obj_path)) {
+        size += base::File::Size(obj_path);
+      } else {
+        return false;
+      }
+    }
+    if (manifest.v1().dep()) {
+      const String dep_path = common_path + ".d";
+      if (base::File::Exists(dep_path)) {
+        size += base::File::Size(dep_path);
+      } else {
+        return false;
+      }
+    }
+    v1->set_size(size);
   }
 
   manifest.clear_headers();
@@ -43,15 +71,16 @@ bool Version_0_to_1(proto::Manifest& manifest) {
 
 }  // namespace
 
-bool Migrate(const String& manifest_path) {
+bool Migrate(const String& common_path) {
   proto::Manifest manifest;
+  const String manifest_path = common_path + ".manifest";
   if (!base::LoadFromFile(manifest_path, &manifest)) {
     LOG(CACHE_ERROR) << "Failed to load " << manifest_path;
     return false;
   }
 
 #define MIGRATE(from, to)                                     \
-  if (!Version_##from##_to_##to(manifest)) {                  \
+  if (!Version_##from##_to_##to(manifest, common_path)) {     \
     LOG(CACHE_ERROR) << "Failed to migrate " << manifest_path \
                      << " from version " #from " to " #to;    \
     return false;                                             \

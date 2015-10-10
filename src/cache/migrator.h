@@ -5,7 +5,7 @@
 namespace dist_clang {
 namespace cache {
 
-bool Migrate(const String& manifest_path);
+bool Migrate(const String& common_path);
 
 }  // namespace cache
 }  // namespace dist_clang
