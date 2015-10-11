@@ -6,6 +6,7 @@
 #include <cache/database_leveldb.h>
 #include <cache/database_sqlite.h>
 #include <cache/manifest.pb.h>
+#include <cache/migrator.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest_prod.h>
 
@@ -102,12 +103,12 @@ class FileCache {
 
   bool Find(const string::HandledSource& code,
             const string::CommandLine& command_line,
-            const string::Version& version, Entry* entry) const;
+            const string::Version& version, Entry& entry) const;
 
   bool Find(const string::UnhandledSource& code,
             const string::CommandLine& command_line,
             const string::Version& version, const String& current_dir,
-            Entry* entry) const;
+            Entry& entry) const;
 
   void Store(const string::UnhandledSource& code,
              const string::CommandLine& command_line,
@@ -165,7 +166,7 @@ class FileCache {
     return SecondPath(hash) + "/" + hash.str.string_copy();
   }
 
-  bool FindByHash(const string::HandledHash& hash, Entry* entry) const;
+  bool FindByHash(const string::HandledHash& hash, Entry& entry) const;
   void DoStore(const string::HandledHash& hash, Entry entry);
   void DoStore(string::UnhandledHash orig_hash, const List<String>& headers,
                const String& current_dir, const string::HandledHash& hash);
@@ -173,6 +174,10 @@ class FileCache {
   using TimeHashPair = Pair<ui64 /* mtime */, string::Hash>;
   using EntryList = base::LockedList<TimeHashPair>;
   using EntryListDeleter = Fn<void(EntryList* list)>;
+
+  inline bool Migrate(string::Hash hash) const {
+    return cache::Migrate(CommonPath(hash));
+  }
 
   ui64 GetEntrySize(string::Hash hash) const;
   // Returns |0u| if the entry is broken.

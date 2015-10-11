@@ -32,11 +32,9 @@ String ReplaceTildeInPath(const String& path) {
 namespace cache {
 
 FileCache::FileCache(const String& path, ui64 size, bool snappy)
-    : path_(ReplaceTildeInPath(path)), snappy_(snappy), max_size_(size) {
-}
+    : path_(ReplaceTildeInPath(path)), snappy_(snappy), max_size_(size) {}
 
-FileCache::FileCache(const String& path) : FileCache(path, UNLIMITED, false) {
-}
+FileCache::FileCache(const String& path) : FileCache(path, UNLIMITED, false) {}
 
 FileCache::~FileCache() {
   resetter_.reset();
@@ -77,6 +75,11 @@ bool FileCache::Run(ui64 clean_period) {
       }
 
       auto hash = string::Hash(String(match[1]));
+
+      if (!Migrate(hash)) {
+        RemoveEntry(hash);
+      }
+
       auto size = GetEntrySize(hash);
 
       if (size) {
@@ -88,6 +91,7 @@ bool FileCache::Run(ui64 clean_period) {
         cache_size_ += size;
         LOG(CACHE_VERBOSE) << hash.str << " is considered";
       } else {
+        // When an entry has a zero size, it's not useful even if it's correct.
         RemoveEntry(hash);
       }
     });
@@ -120,20 +124,21 @@ HandledHash FileCache::Hash(HandledSource code, CommandLine command_line,
 // static
 UnhandledHash FileCache::Hash(UnhandledSource code, CommandLine command_line,
                               Version version) {
-  return UnhandledHash(base::Hexify(code.str.Hash()) + "-" +
-                       base::Hexify(command_line.str.Hash(4)) + "-" +
-                       base::Hexify((version.str + "\n"_l +
-                                     clang::getClangFullVersion()).Hash(4)));
+  return UnhandledHash(
+      base::Hexify(code.str.Hash()) + "-" +
+      base::Hexify(command_line.str.Hash(4)) + "-" +
+      base::Hexify(
+          (version.str + "\n"_l + clang::getClangFullVersion()).Hash(4)));
 }
 
 bool FileCache::Find(const HandledSource& code, const CommandLine& command_line,
-                     const Version& version, Entry* entry) const {
+                     const Version& version, Entry& entry) const {
   return FindByHash(Hash(code, command_line, version), entry);
 }
 
 bool FileCache::Find(const UnhandledSource& code,
                      const CommandLine& command_line, const Version& version,
-                     const String& current_dir, Entry* entry) const {
+                     const String& current_dir, Entry& entry) const {
   auto hash1 = Hash(code, command_line, version);
   const String manifest_path = CommonPath(hash1) + ".manifest";
   const ReadLock lock(this, manifest_path);
@@ -143,7 +148,7 @@ bool FileCache::Find(const UnhandledSource& code,
   }
 
   proto::Manifest manifest;
-  if (!base::LoadFromFile(manifest_path, &manifest)) {
+  if (!base::LoadFromFile(manifest_path, &manifest) || !manifest.has_direct()) {
     return false;
   }
 
@@ -151,7 +156,7 @@ bool FileCache::Find(const UnhandledSource& code,
   new_entries_->Append({time(nullptr), hash1});
 
   Immutable::Rope hash_rope = {hash1};
-  for (const auto& header : manifest.headers()) {
+  for (const auto& header : manifest.direct().headers()) {
     Immutable header_hash;
     const String header_path =
         header[0] == '/' ? header : current_dir + "/" + header;
@@ -183,7 +188,7 @@ void FileCache::Store(const HandledSource& code,
   DoStore(Hash(code, command_line, version), entry);
 }
 
-bool FileCache::FindByHash(const HandledHash& hash, Entry* entry) const {
+bool FileCache::FindByHash(const HandledHash& hash, Entry& entry) const {
   const String manifest_path = CommonPath(hash) + ".manifest";
   const ReadLock lock(this, manifest_path);
 
@@ -192,67 +197,66 @@ bool FileCache::FindByHash(const HandledHash& hash, Entry* entry) const {
   }
 
   proto::Manifest manifest;
-  if (!base::LoadFromFile(manifest_path, &manifest)) {
+  if (!base::LoadFromFile(manifest_path, &manifest) || !manifest.has_v1()) {
     return false;
   }
 
   utime(manifest_path.c_str(), nullptr);
   new_entries_->Append({time(nullptr), hash});
 
-  if (entry) {
-    if (manifest.stderr()) {
-      const String stderr_path = CommonPath(hash) + ".stderr";
-      if (!base::File::Read(stderr_path, &entry->stderr)) {
+  ui64 size = 0;
+
+  if (manifest.v1().err()) {
+    const String stderr_path = CommonPath(hash) + ".stderr";
+    if (!base::File::Read(stderr_path, &entry.stderr)) {
+      return false;
+    }
+    size += entry.stderr.size();
+  }
+
+  if (manifest.v1().obj()) {
+    const String object_path = CommonPath(hash) + ".o";
+
+    if (manifest.v1().snappy()) {
+      String error;
+
+      Immutable packed_content;
+      if (!base::File::Read(object_path, &packed_content, &error)) {
+        LOG(CACHE_ERROR) << "Failed to read " << object_path << " : " << error;
         return false;
       }
-    }
+      size += packed_content.size();
 
-    if (manifest.object()) {
-      const String object_path = CommonPath(hash) + ".o";
-
-      if (manifest.snappy()) {
-        String error;
-
-        Immutable packed_content;
-        if (!base::File::Read(object_path, &packed_content, &error)) {
-          LOG(CACHE_ERROR) << "Failed to read " << object_path << " : "
-                           << error;
-          return false;
-        }
-
-        String object_str;
-        if (!snappy::Uncompress(packed_content.data(), packed_content.size(),
-                                &object_str)) {
-          LOG(CACHE_ERROR) << "Failed to unpack contents of " << object_path;
-          return false;
-        }
-
-        entry->object = std::move(object_str);
-      } else {
-        if (!base::File::Read(object_path, &entry->object)) {
-          return false;
-        }
-      }
-    }
-
-    if (manifest.deps()) {
-      const String deps_path = CommonPath(hash) + ".d";
-      if (!base::File::Read(deps_path, &entry->deps)) {
+      String object_str;
+      if (!snappy::Uncompress(packed_content.data(), packed_content.size(),
+                              &object_str)) {
+        LOG(CACHE_ERROR) << "Failed to unpack contents of " << object_path;
         return false;
       }
+
+      entry.object = std::move(object_str);
+    } else {
+      if (!base::File::Read(object_path, &entry.object)) {
+        return false;
+      }
+      size += entry.object.size();
     }
   }
 
-  return true;
+  if (manifest.v1().dep()) {
+    const String deps_path = CommonPath(hash) + ".d";
+    if (!base::File::Read(deps_path, &entry.deps)) {
+      return false;
+    }
+    size += entry.deps.size();
+  }
+
+  return manifest.v1().has_size() && manifest.v1().size() == size;
 }
 
 ui64 FileCache::GetEntrySize(string::Hash hash) const {
   const String common_path = CommonPath(hash);
   const String manifest_path = common_path + ".manifest";
-  const String object_path = common_path + ".o";
-  const String deps_path = common_path + ".d";
-  const String stderr_path = common_path + ".stderr";
-  ui64 result = 0u;
 
   proto::Manifest manifest;
   if (!base::LoadFromFile(manifest_path, &manifest)) {
@@ -260,33 +264,7 @@ ui64 FileCache::GetEntrySize(string::Hash hash) const {
     return 0u;
   }
 
-  if (manifest.object()) {
-    if (!base::File::Exists(object_path)) {
-      LOG(CACHE_WARNING) << object_path << " should exist, but not found!";
-      return 0u;
-    }
-    result += base::File::Size(object_path);
-  }
-
-  if (manifest.deps()) {
-    if (!base::File::Exists(deps_path)) {
-      LOG(CACHE_WARNING) << deps_path << " should exist, but not found!";
-      return 0u;
-    }
-    result += base::File::Size(deps_path);
-  }
-
-  if (manifest.stderr()) {
-    if (!base::File::Exists(stderr_path)) {
-      LOG(CACHE_WARNING) << stderr_path << " should exist, but not found!";
-      return 0u;
-    }
-    result += base::File::Size(stderr_path);
-  }
-
-  result += base::File::Size(manifest_path);
-
-  return result;
+  return manifest.v1().size() + base::File::Size(manifest_path);
 }
 
 bool FileCache::RemoveEntry(string::Hash hash) {
@@ -360,6 +338,8 @@ void FileCache::DoStore(const HandledHash& hash, Entry entry) {
   }
 
   proto::Manifest manifest;
+
+  manifest.mutable_v1()->set_err(!entry.stderr.empty());
   if (!entry.stderr.empty()) {
     const String stderr_path = CommonPath(hash) + ".stderr";
 
@@ -369,13 +349,17 @@ void FileCache::DoStore(const HandledHash& hash, Entry entry) {
                        << error;
       return;
     }
-    manifest.set_stderr(true);
   }
 
+  ui64 object_size = 0;
+
+  manifest.mutable_v1()->set_obj(!entry.object.empty());
   if (!entry.object.empty()) {
     const String object_path = CommonPath(hash) + ".o";
 
     if (!snappy_) {
+      object_size = entry.object.size();
+
       if (!base::File::Write(object_path, entry.object, &error)) {
         RemoveEntry(hash);
         LOG(CACHE_ERROR) << "Failed to save object to " << object_path << ": "
@@ -391,6 +375,8 @@ void FileCache::DoStore(const HandledHash& hash, Entry entry) {
         return;
       }
 
+      object_size = packed_content.size();
+
       if (!base::File::Write(object_path, std::move(packed_content), &error)) {
         RemoveEntry(hash);
         LOG(CACHE_ERROR) << "Failed to write to " << object_path << ": "
@@ -398,12 +384,11 @@ void FileCache::DoStore(const HandledHash& hash, Entry entry) {
         return;
       }
 
-      manifest.set_snappy(true);
+      manifest.mutable_v1()->set_snappy(true);
     }
-  } else {
-    manifest.set_object(false);
   }
 
+  manifest.mutable_v1()->set_dep(!entry.deps.empty());
   if (!entry.deps.empty()) {
     const String deps_path = CommonPath(hash) + ".d";
 
@@ -413,9 +398,10 @@ void FileCache::DoStore(const HandledHash& hash, Entry entry) {
                        << error;
       return;
     }
-  } else {
-    manifest.set_deps(false);
   }
+
+  manifest.mutable_v1()->set_size(entry.stderr.size() + object_size +
+                                  entry.deps.size());
 
   if (!base::SaveToFile(manifest_path, manifest, &error)) {
     RemoveEntry(hash);
@@ -452,9 +438,6 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
 
   Immutable::Rope hash_rope = {orig_hash};
   proto::Manifest manifest;
-  manifest.set_stderr(false);
-  manifest.set_object(false);
-  manifest.set_deps(false);
   for (const auto& header : headers) {
     String error;
     Immutable header_hash;
@@ -466,7 +449,7 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
       return;
     }
     hash_rope.push_back(header_hash);
-    manifest.add_headers(header);
+    manifest.mutable_direct()->add_headers(header);
   }
 
   auto direct_hash = base::Hexify(Immutable(hash_rope).Hash());

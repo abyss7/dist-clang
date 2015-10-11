@@ -15,10 +15,10 @@ using namespace string;
 
 TEST(FileCacheTest, HashCompliesWithRegex) {
   std::regex hash_regex("[a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8}");
-  EXPECT_TRUE(
-      std::regex_match(FileCache::Hash(HandledSource("1"_l), CommandLine("2"_l),
-                                       Version("3"_l)).str.string_copy(),
-                       hash_regex));
+  EXPECT_TRUE(std::regex_match(
+      FileCache::Hash(HandledSource("1"_l), CommandLine("2"_l), Version("3"_l))
+          .str.string_copy(),
+      hash_regex));
 }
 
 TEST(FileCacheTest, LockNonExistentFile) {
@@ -82,9 +82,9 @@ TEST(FileCacheTest, RemoveEntry) {
     const String stderr_path = common_path + ".stderr";
 
     proto::Manifest manifest;
-    manifest.set_object(true);
-    manifest.set_deps(true);
-    manifest.set_stderr(true);
+    manifest.mutable_v1()->set_obj(true);
+    manifest.mutable_v1()->set_dep(true);
+    manifest.mutable_v1()->set_err(true);
     ASSERT_TRUE(base::SaveToFile(manifest_path, manifest));
     ASSERT_TRUE(base::File::Write(object_path, "1"_l));
     ASSERT_TRUE(base::File::Write(deps_path, "1"_l));
@@ -100,9 +100,9 @@ TEST(FileCacheTest, RemoveEntry) {
     const String deps_path = common_path + ".d";
 
     proto::Manifest manifest;
-    manifest.set_object(true);
-    manifest.set_deps(true);
-    manifest.set_stderr(true);
+    manifest.mutable_v1()->set_obj(true);
+    manifest.mutable_v1()->set_dep(true);
+    manifest.mutable_v1()->set_err(true);
     ASSERT_TRUE(base::SaveToFile(manifest_path, manifest));
     ASSERT_TRUE(base::File::Write(object_path, "1"_l));
     ASSERT_TRUE(base::File::Write(deps_path, "1"_l));
@@ -122,9 +122,15 @@ TEST(FileCacheTest, RemoveEntry) {
   }
 
   ASSERT_TRUE(cache.Run(1));
+  EXPECT_TRUE(cache.RemoveEntry(hash1));
+  EXPECT_TRUE(cache.RemoveEntry(hash2));
+  EXPECT_FALSE(cache.RemoveEntry(hash3));
+  // If we can't even read manifest, then the entry should be removed when we
+  // try to migrate it.
+
   auto db_size = cache.database_->SizeOnDisk();
   EXPECT_EQ(cache.cache_size_, base::CalculateDirectorySize(tmp_dir) - db_size);
-  EXPECT_TRUE(cache.entries_->Exists(hash1.str));
+  EXPECT_FALSE(cache.entries_->Exists(hash1.str));
   EXPECT_FALSE(cache.entries_->Exists(hash2.str));
   EXPECT_FALSE(cache.entries_->Exists(hash3.str));
 }
@@ -147,7 +153,7 @@ TEST(FileCacheTest, RestoreSingleEntry) {
 
   ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
   ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
-  EXPECT_FALSE(cache.Find(code, cl, version, &entry1));
+  EXPECT_FALSE(cache.Find(code, cl, version, entry1));
   EXPECT_TRUE(entry1.object.empty());
   EXPECT_TRUE(entry1.deps.empty());
   EXPECT_TRUE(entry1.stderr.empty());
@@ -158,7 +164,7 @@ TEST(FileCacheTest, RestoreSingleEntry) {
 
   cache.Store(code, cl, version, entry1);
 
-  ASSERT_TRUE(cache.Find(code, cl, version, &entry2));
+  ASSERT_TRUE(cache.Find(code, cl, version, entry2));
   EXPECT_EQ(expected_object_code, entry2.object);
   EXPECT_EQ(expected_deps, entry2.deps);
   EXPECT_EQ(expected_stderr, entry2.stderr);
@@ -194,7 +200,7 @@ TEST(FileCacheTest, RestoreEntryWithMissingFile) {
                      ".d");
 
   // Restore the entry.
-  ASSERT_FALSE(cache.Find(code, cl, version, &entry2));
+  ASSERT_FALSE(cache.Find(code, cl, version, entry2));
 }
 
 TEST(FileCacheTest, DISABLED_RestoreEntryWithMalfordedManifest) {
@@ -244,14 +250,17 @@ TEST(FileCacheTest, ExceedCacheSize) {
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
 
-  FileCache cache(cache_path, 30, false);
+  FileCache cache(cache_path, 116, false);
+  // 116 = sizeof(obj_content[0]) + sizeof(obj_content[1]) + 1 + 2 *
+  // <size_of_manifest>. The current typical size of manifest is 55 bytes.
+
   ASSERT_TRUE(cache.Run(1));
   auto db_size = cache.database_->SizeOnDisk();
 
   {
     FileCache::Entry entry{obj_content[0], String(), String()};
     cache.Store(code[0], cl, version, entry);
-    EXPECT_EQ(14u, base::CalculateDirectorySize(cache_path) - db_size);
+    EXPECT_EQ(57u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
   std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -259,7 +268,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
   {
     FileCache::Entry entry{obj_content[1], String(), String()};
     cache.Store(code[1], cl, version, entry);
-    EXPECT_EQ(29u, base::CalculateDirectorySize(cache_path) - db_size);
+    EXPECT_EQ(115u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
   std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -268,13 +277,13 @@ TEST(FileCacheTest, ExceedCacheSize) {
     FileCache::Entry entry{obj_content[2], String(), String()};
     cache.Store(code[2], cl, version, entry);
     std::this_thread::sleep_for(std::chrono::seconds(3));
-    EXPECT_EQ(16u, base::CalculateDirectorySize(cache_path) - db_size);
+    EXPECT_EQ(59u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
   FileCache::Entry entry;
-  EXPECT_FALSE(cache.Find(code[0], cl, version, &entry));
-  EXPECT_FALSE(cache.Find(code[1], cl, version, &entry));
-  EXPECT_TRUE(cache.Find(code[2], cl, version, &entry));
+  EXPECT_FALSE(cache.Find(code[0], cl, version, entry));
+  EXPECT_FALSE(cache.Find(code[1], cl, version, entry));
+  EXPECT_TRUE(cache.Find(code[2], cl, version, entry));
 }
 
 TEST(FileCacheTest, RestoreDirectEntry) {
@@ -315,7 +324,7 @@ TEST(FileCacheTest, RestoreDirectEntry) {
               FileCache::Hash(code, cl, version));
 
   // Restore the entry.
-  ASSERT_TRUE(cache.Find(orig_code, cl, version, path, &entry2));
+  ASSERT_TRUE(cache.Find(orig_code, cl, version, path, entry2));
   EXPECT_EQ(expected_object_code, entry2.object);
   EXPECT_EQ(expected_deps, entry2.deps);
   EXPECT_EQ(expected_stderr, entry2.stderr);
@@ -362,7 +371,7 @@ TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
   ASSERT_TRUE(base::File::Write(header2_path, "#define C"_l));
 
   // Restore the entry.
-  EXPECT_FALSE(cache.Find(orig_code, cl, version, path, &entry));
+  EXPECT_FALSE(cache.Find(orig_code, cl, version, path, entry));
 }
 
 TEST(FileCacheTest, DirectEntry_RewriteManifest) {
@@ -409,7 +418,7 @@ TEST(FileCacheTest, DirectEntry_RewriteManifest) {
               FileCache::Hash(code, cl, version));
 
   // Restore the entry.
-  EXPECT_TRUE(cache.Find(orig_code, cl, version, path, &entry2));
+  EXPECT_TRUE(cache.Find(orig_code, cl, version, path, entry2));
 }
 
 TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
@@ -450,7 +459,7 @@ TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
 
   // Restore the entry.
   const UnhandledSource bad_orig_code(orig_code.str.string_copy() + " ");
-  EXPECT_FALSE(cache.Find(bad_orig_code, cl, version, path, &entry));
+  EXPECT_FALSE(cache.Find(bad_orig_code, cl, version, path, entry));
 }
 
 TEST(FileCacheTest, DISABLED_RestoreSnappyEntry) {

@@ -235,7 +235,7 @@ void Emitter::DoCheckCache(const Atomic<bool>& is_shutting_down) {
       return true;
     };
 
-    if (SearchDirectCache(incoming->flags(), incoming->current_dir(), &entry) &&
+    if (SearchDirectCache(incoming->flags(), incoming->current_dir(), entry) &&
         RestoreFromCache(HandledSource())) {
       STAT(DIRECT_CACHE_HIT);
       continue;
@@ -256,7 +256,7 @@ void Emitter::DoCheckCache(const Atomic<bool>& is_shutting_down) {
       continue;
     }
 
-    if (SearchSimpleCache(incoming->flags(), source, &entry) &&
+    if (SearchSimpleCache(incoming->flags(), source, entry) &&
         RestoreFromCache(source)) {
       STAT(SIMPLE_CACHE_HIT);
       continue;

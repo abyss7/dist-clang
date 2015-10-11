@@ -187,17 +187,17 @@ bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
     }
   }
 
-  auto getPluginsByCompilerVersion =
-      [&config](String version, PluginNameMap& plugin_map) {
-        for (const auto& conf_version : config->versions()) {
-          if (conf_version.version() == version) {
-            const auto& conf_plugins = conf_version.plugins();
-            for (const auto& conf_plugin : conf_plugins) {
-              plugin_map.emplace(conf_plugin.name(), conf_plugin.path());
-            }
-          }
+  auto getPluginsByCompilerVersion = [&config](String version,
+                                               PluginNameMap& plugin_map) {
+    for (const auto& conf_version : config->versions()) {
+      if (conf_version.version() == version) {
+        const auto& conf_plugins = conf_version.plugins();
+        for (const auto& conf_plugin : conf_plugins) {
+          plugin_map.emplace(conf_plugin.name(), conf_plugin.path());
         }
-      };
+      }
+    }
+  };
 
   PluginNameMap plugin_map;
   getPluginsByCompilerVersion(flags->compiler().version(), plugin_map);
@@ -221,9 +221,7 @@ bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
 
 bool CompilationDaemon::SearchSimpleCache(
     const base::proto::Flags& flags, const HandledSource& source,
-    cache::FileCache::Entry* entry) const {
-  DCHECK(entry);
-
+    cache::FileCache::Entry& entry) const {
   if (!cache_) {
     return false;
   }
@@ -241,7 +239,7 @@ bool CompilationDaemon::SearchSimpleCache(
 
 bool CompilationDaemon::SearchDirectCache(
     const base::proto::Flags& flags, const String& current_dir,
-    cache::FileCache::Entry* entry) const {
+    cache::FileCache::Entry& entry) const {
   auto config = conf();
   DCHECK(config->has_emitter() && !config->has_absorber());
   DCHECK(flags.has_input());

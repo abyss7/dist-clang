@@ -2,8 +2,11 @@
 
 #include <base/const_string.h>
 #include <base/file/file.h>
+#include <base/logging.h>
 #include <third_party/protobuf/exported/src/google/protobuf/io/zero_copy_stream_impl.h>
 #include <third_party/protobuf/exported/src/google/protobuf/text_format.h>
+
+#include <base/using_log.h>
 
 namespace dist_clang {
 namespace base {
@@ -27,6 +30,11 @@ bool LoadFromFile(const String& path, google::protobuf::Message* message) {
   google::protobuf::io::FileInputStream input(file.native());
   if (!google::protobuf::TextFormat::Parse(&input, message)) {
     message->Clear();
+
+    Immutable contents;
+    if (file.Read(&contents)) {
+      LOG(VERBOSE) << "Protobuf file contents: " << std::endl << contents;
+    }
     return false;
   }
 
