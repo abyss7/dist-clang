@@ -12,7 +12,8 @@ namespace cache {
 
 namespace {
 
-bool Version_0_to_1(proto::Manifest& manifest, const String& common_path) {
+bool Version_0_to_1(const String& common_path, proto::Manifest& manifest,
+                    bool& modified) {
   if (manifest.version() != 0) {
     return true;
   }
@@ -66,6 +67,7 @@ bool Version_0_to_1(proto::Manifest& manifest, const String& common_path) {
 
   manifest.set_version(1);
 
+  modified = true;
   return true;
 }
 
@@ -73,27 +75,31 @@ bool Version_0_to_1(proto::Manifest& manifest, const String& common_path) {
 
 bool Migrate(const String& common_path) {
   proto::Manifest manifest;
+  bool modified = false;
   const String manifest_path = common_path + ".manifest";
   if (!base::LoadFromFile(manifest_path, &manifest)) {
     LOG(CACHE_ERROR) << "Failed to load " << manifest_path;
     return false;
   }
 
-#define MIGRATE(from, to)                                     \
-  if (!Version_##from##_to_##to(manifest, common_path)) {     \
-    LOG(CACHE_ERROR) << "Failed to migrate " << manifest_path \
-                     << " from version " #from " to " #to;    \
-    return false;                                             \
-  } else {                                                    \
-    LOG(CACHE_VERBOSE) << "Migrated " << manifest_path        \
-                       << " from version " #from " to " #to;  \
+#define MIGRATE(from, to)                                           \
+  if (!Version_##from##_to_##to(common_path, manifest, modified)) { \
+    LOG(CACHE_ERROR) << "Failed to migrate " << manifest_path       \
+                     << " from version " #from " to " #to;          \
+    return false;                                                   \
+  } else {                                                          \
+    LOG(CACHE_VERBOSE) << "Migrated " << manifest_path              \
+                       << " from version " #from " to " #to;        \
   }
 
   MIGRATE(0, 1);
 
 #undef MIGRATE
 
-  if (!base::SaveToFile(manifest_path, manifest)) {
+  if (!modified) {
+    // TODO: make an unit-test that we don't rewrite manifest on disk.
+    return true;
+  } else if (!base::SaveToFile(manifest_path, manifest)) {
     LOG(CACHE_ERROR) << "Failed to save " << manifest_path;
     return false;
   }

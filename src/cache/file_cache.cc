@@ -89,7 +89,7 @@ bool FileCache::Run(ui64 clean_period) {
         CHECK(entries_->Set(hash.str, std::make_tuple(mtime, size)));
 
         cache_size_ += size;
-        LOG(CACHE_VERBOSE) << hash.str << " is considered";
+        LOG(CACHE_INFO) << hash.str << " is considered";
       } else {
         // When an entry has a zero size, it's not useful even if it's correct.
         RemoveEntry(hash);
