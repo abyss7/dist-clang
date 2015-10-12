@@ -142,7 +142,10 @@ config("asan") {
     ldflags = [ "-fsanitize=address" ]
 
     if (host_os == "linux") {
-      libs = [ "dl" ]
+      libs = [
+        "dl",
+        "rt",
+      ]
     }
   }
 }

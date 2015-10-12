@@ -33,8 +33,7 @@ ConnectionImpl::ConnectionImpl(EventLoop& event_loop, Socket&& fd,
       gzip_input_stream_(
           new GzipInputStream(&file_input_stream_, GzipInputStream::ZLIB)),
       file_output_stream_(fd_.native(), buffer_size),
-      counter_("Connection"_l, perf::LogReporter::TEAMCITY) {
-}
+      counter_("Connection"_l, perf::LogReporter::TEAMCITY) {}
 
 ConnectionImpl::~ConnectionImpl() {
   Close();
@@ -123,6 +122,34 @@ bool ConnectionImpl::ReadSync(Message* message, Status* status) {
     return false;
   }
 
+  return true;
+}
+
+bool ConnectionImpl::SendTimeout(ui32 sec_timeout, String* error) {
+  if (!fd_.SendTimeout(sec_timeout, error)) {
+#if defined(OS_MACOSX)
+    // According to Mac OS X manual the |setsockopt()| may return EINVAL in case
+    // the socket is already shut down.
+    if (errno == EINVAL) {
+      DCHECK(IsClosed());
+    }
+#endif  // defined(OS_MACOSX)
+    return false;
+  }
+  return true;
+}
+
+bool ConnectionImpl::ReadTimeout(ui32 sec_timeout, String* error) {
+  if (!fd_.ReadTimeout(sec_timeout, error)) {
+#if defined(OS_MACOSX)
+    // According to Mac OS X manual the |setsockopt()| may return EINVAL in case
+    // the socket is already shut down.
+    if (errno == EINVAL) {
+      DCHECK(IsClosed());
+    }
+#endif  // defined(OS_MACOSX)
+    return false;
+  }
   return true;
 }
 

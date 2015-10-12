@@ -37,12 +37,8 @@ class ConnectionImpl : public Connection {
 
   inline const Socket& socket() const { return fd_; }
 
-  inline bool SendTimeout(ui32 sec_timeout, String* error) override {
-    return fd_.SendTimeout(sec_timeout, error);
-  }
-  inline bool ReadTimeout(ui32 sec_timeout, String* error) override {
-    return fd_.ReadTimeout(sec_timeout, error);
-  }
+  bool SendTimeout(ui32 sec_timeout, String* error) override;
+  bool ReadTimeout(ui32 sec_timeout, String* error) override;
 
  private:
   friend class EventLoop;
