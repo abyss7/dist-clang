@@ -10,7 +10,7 @@ namespace dist_clang {
 namespace base {
 
 Data::Data(NativeType fd) : Handle(fd) {
-  DCHECK(!IsPassive());
+  DCHECK(!IsValid() || !IsPassive());
 }
 
 bool Data::MakeBlocking(bool blocking, String* error) {
