@@ -710,7 +710,7 @@ TEST_F(EmitterTest, LocalFailedCompilation) {
  * 2. Try to compile the same preprocessed source locally.
  * 3. Restore saved entry from the cache without compilation.
  */
-TEST_F(EmitterTest, StoreCacheForLocalResult) {
+TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
   const base::TemporaryDir temp_dir;
   const String socket_path = "/tmp/test.socket";
   const auto expected_code = net::proto::Status::OK;
@@ -856,7 +856,7 @@ TEST_F(EmitterTest, StoreCacheForLocalResult) {
   // TODO: check that removal of original files doesn't fail cache filling.
 }
 
-TEST_F(EmitterTest, StoreCacheForRemoteResult) {
+TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
   const base::TemporaryDir temp_dir;
   const String socket_path = "/tmp/test.socket";
   const String host = "fake_host";
@@ -1077,11 +1077,13 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
   // Prepare callbacks.
   const auto expected_code = net::proto::Status::OK;
   const auto deps1_path = "test1.d"_l;
+  const auto deps2_path = path + "test2.d"_l;
   const auto language = "fake_language"_l;
   const auto preprocessed_source = "fake_source"_l;
   const auto action = "fake_action"_l;
   const auto output1_path = "test1.o"_l;
   const auto object_code = "fake_object_code"_l;
+  const auto deps_contents = "test1.o: test1.cc header1.h header2.h"_l;
 
   const auto output2_path = path + "/test2.o"_l;
   // |output_path2| checks that everything works fine with absolute paths.
@@ -1109,7 +1111,7 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
                 process->args_);
       process->stdout_ = preprocessed_source;
       EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + deps1_path,
-                                    "test1.o: test1.cc header1.h header2.h"_l));
+                                    deps_contents));
     } else if (run_count == 2) {
       EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path,
                                  "-dependency-file"_l, deps1_path, "-x"_l,
@@ -1163,6 +1165,7 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
 
     extension->mutable_flags()->set_input(input2_path);
     extension->mutable_flags()->set_output(output2_path);
+    extension->mutable_flags()->set_deps_file(deps2_path);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
     compiler->add_plugins()->set_name(plugin_name);
@@ -1186,6 +1189,11 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
   EXPECT_TRUE(base::File::Read(output2_path, &cache_output));
   EXPECT_EQ(object_code, cache_output);
 
+  Immutable cache_deps;
+  EXPECT_TRUE(base::File::Exists(deps2_path));
+  EXPECT_TRUE(base::File::Read(deps2_path, &cache_deps));
+  EXPECT_EQ(deps_contents, cache_deps);
+
   EXPECT_EQ(2u, run_count);
   EXPECT_EQ(1u, listen_count);
   EXPECT_EQ(2u, connect_count);
@@ -1199,6 +1207,8 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
 
   // TODO: check that original files are not moved.
   // TODO: check that removal of original files doesn't fail cache filling.
+  // TODO: check situations about deps file:
+  //       - deps file is in cache, but not requested.
 }
 
 TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {

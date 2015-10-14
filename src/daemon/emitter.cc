@@ -212,16 +212,26 @@ void Emitter::DoCheckCache(const Atomic<bool>& is_shutting_down) {
 
       if (!base::File::Write(output_path, entry.object, &error)) {
         LOG(ERROR) << "Failed to write file from cache: " << output_path
-                   << " with error: " << error;
+                   << " : " << error;
         return false;
       }
       if (incoming->has_user_id() &&
           !base::ChangeOwner(output_path, incoming->user_id(), &error)) {
-        LOG(ERROR) << "Failed to change owner for " << output_path << ": "
+        LOG(ERROR) << "Failed to change owner for " << output_path << " : "
                    << error;
       }
 
-      // TODO: restore deps file.
+      if (incoming->flags().has_deps_file()) {
+        DCHECK(!entry.deps.empty());
+
+        const String deps_path = GetDepsPath(incoming);
+
+        if (!base::File::Write(deps_path, entry.deps, &error)) {
+          LOG(ERROR) << "Failed to write file from cache: " << deps_path
+                     << " : " << error;
+          return false;
+        }
+      }
 
       if (!source.str.empty()) {
         UpdateDirectCache(incoming, source, entry);
