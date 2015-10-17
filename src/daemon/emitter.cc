@@ -241,6 +241,7 @@ void Emitter::DoCheckCache(const Atomic<bool>& is_shutting_down) {
       status.set_code(net::proto::Status::OK);
       status.set_description(entry.stderr);
       std::get<CONNECTION>(*task)->ReportStatus(status);
+      LOG(INFO) << "Cache hit: " << incoming->flags().input();
 
       return true;
     };

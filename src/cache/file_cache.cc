@@ -75,12 +75,13 @@ bool FileCache::Run(ui64 clean_period) {
       }
 
       auto hash = string::Hash(String(match[1]));
+      auto size = 0u;
 
       if (!Migrate(hash)) {
         RemoveEntry(hash);
+      } else {
+        size = GetEntrySize(hash);
       }
-
-      auto size = GetEntrySize(hash);
 
       if (size) {
         CHECK(!entries_->Exists(hash.str));

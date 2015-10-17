@@ -14,17 +14,23 @@ TEST(ConstStringTest, Find) {
 }
 
 TEST(ConstStringTest, Hash) {
-  const auto expected_hash = "c9e92e37df1e856cbd0abffe104225b8"_l;
-  EXPECT_EQ(expected_hash,
-            Hexify(ConstString("All your base are belong to us"_l).Hash()));
-  EXPECT_EQ(expected_hash,
-            Hexify(ConstString(ConstString::Rope{"All "_l, "your base"_l,
-                                                 " are belong to us"_l})
-                       .Hash()));
-  EXPECT_EQ(expected_hash,
-            Hexify(ConstString(ConstString::Rope{"All your"_l,
-                                                 " base are belong to us"_l})
-                       .Hash()));
+  {
+    const auto expected_hash = "c9e92e37df1e856cbd0abffe104225b8"_l;
+    EXPECT_EQ(expected_hash,
+              Hexify(ConstString("All your base are belong to us"_l).Hash()));
+    EXPECT_EQ(expected_hash,
+              Hexify(ConstString(ConstString::Rope{"All "_l, "your base"_l,
+                                                   " are belong to us"_l})
+                         .Hash()));
+    EXPECT_EQ(expected_hash,
+              Hexify(ConstString(ConstString::Rope{"All your"_l,
+                                                   " base are belong to us"_l})
+                         .Hash()));
+  }
+  {
+    const auto expected_hash = "00000000000000000000000000000000"_l;
+    EXPECT_EQ(expected_hash, Hexify(ConstString().Hash()));
+  }
 }
 
 TEST(ConstStringTest, EmptyString) {

@@ -21,8 +21,7 @@ namespace base {
 // static
 const Literal Literal::empty = "";
 
-ConstString::ConstString() : assignable_(true), assign_once_(true) {
-}
+ConstString::ConstString() : assignable_(true), assign_once_(true) {}
 
 ConstString::ConstString(bool assignable) : assignable_(assignable) {
   DCHECK(assignable);
@@ -38,32 +37,28 @@ ConstString::ConstString(Literal str)
 ConstString::ConstString(char str[])
     : internals_(
           new Internal{.string = {str, CharArrayDeleter}, .null_end = true}),
-      size_(strlen(str)) {
-}
+      size_(strlen(str)) {}
 
 ConstString::ConstString(UniquePtr<char[]>& str)
     : internals_(new Internal{.string = {str.release(), CharArrayDeleter},
                               .null_end = true}),
-      size_(strlen(internals_->string.get())) {
-}
+      size_(strlen(internals_->string.get())) {}
 
 ConstString::ConstString(char str[], size_t size)
-    : internals_(new Internal{.string = {str, CharArrayDeleter}}), size_(size) {
-}
+    : internals_(new Internal{.string = {str, CharArrayDeleter}}),
+      size_(size) {}
 
 #if !defined(OS_WIN)
 ConstString::ConstString(void* str, size_t size)
     : internals_(new Internal{
           .string = {reinterpret_cast<char*>(str),
                      [str, size](const char*) { munmap(str, size); }}}),
-      size_(size) {
-}
+      size_(size) {}
 #endif
 
 ConstString::ConstString(UniquePtr<char[]>& str, size_t size)
     : internals_(new Internal{.string = {str.release(), CharArrayDeleter}}),
-      size_(size) {
-}
+      size_(size) {}
 
 ConstString::ConstString(String&& str) {
   SharedPtr<String> medium(new String(std::move(str)));
@@ -89,8 +84,7 @@ ConstString::ConstString(Rope&& rope)
 }
 
 ConstString::ConstString(Rope&& rope, size_t hint_size)
-    : internals_(new Internal{.rope = std::move(rope)}), size_(hint_size) {
-}
+    : internals_(new Internal{.rope = std::move(rope)}), size_(hint_size) {}
 
 ConstString::ConstString(const Rope& rope)
     : internals_(new Internal{.rope = rope}) {
@@ -100,8 +94,7 @@ ConstString::ConstString(const Rope& rope)
 }
 
 ConstString::ConstString(const Rope& rope, size_t hint_size)
-    : internals_(new Internal{.rope = rope}), size_(hint_size) {
-}
+    : internals_(new Internal{.rope = rope}), size_(hint_size) {}
 
 ConstString::ConstString(const String& str)
     : internals_(
@@ -262,6 +255,13 @@ ConstString ConstString::operator+(const ConstString& other) const {
 }
 
 ConstString ConstString::Hash(ui8 output_size) {
+  // Implements the algorithm MurmurHash3 for x64 with 128 bits.
+
+  if (empty()) {
+    // FIXME: replace with a real value for an empty string.
+    return {new char[16]{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 16};
+  }
+
   const ui64 block_size = 8;
 
   char* buf = new char[16];
@@ -471,8 +471,7 @@ ConstString ConstString::Hash(ui8 output_size) {
 ConstString::ConstString(const char* WEAK_PTR str, size_t size, bool null_end)
     : internals_(
           new Internal{.string = {str, NoopDeleter}, .null_end = null_end}),
-      size_(size) {
-}
+      size_(size) {}
 
 ConstString::InternalPtr ConstString::CollapseRope() {
   auto internals = internals_;
