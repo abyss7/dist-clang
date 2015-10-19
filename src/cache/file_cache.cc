@@ -56,6 +56,22 @@ bool FileCache::Run(ui64 clean_period) {
 
   base::WorkerPool::SimpleWorker worker;
   if (max_size_ == UNLIMITED) {
+    base::WalkDirectory(path_, [this](const String& file_path, ui64 mtime,
+                                      ui64) {
+      std::regex regex("([a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8})\\.manifest$");
+      std::cmatch match;
+      if (!std::regex_search(file_path.c_str(), match, regex) ||
+          match.size() < 2 || !match[1].matched) {
+        return;
+      }
+
+      auto hash = string::Hash(String(match[1]));
+
+      if (!Migrate(hash)) {
+        RemoveEntry(hash);
+      }
+    });
+
     new_entries_.reset(new EntryList);
 
     worker = [this, clean_period](const Atomic<bool>& is_shutting_down) {
@@ -339,6 +355,7 @@ void FileCache::DoStore(const HandledHash& hash, Entry entry) {
   }
 
   proto::Manifest manifest;
+  manifest.set_version(1);
 
   manifest.mutable_v1()->set_err(!entry.stderr.empty());
   if (!entry.stderr.empty()) {
@@ -438,7 +455,10 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
   }
 
   Immutable::Rope hash_rope = {orig_hash};
+
   proto::Manifest manifest;
+  manifest.set_version(1);
+
   for (const auto& header : headers) {
     String error;
     Immutable header_hash;

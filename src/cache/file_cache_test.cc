@@ -462,8 +462,54 @@ TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
   EXPECT_FALSE(cache.Find(bad_orig_code, cl, version, path, entry));
 }
 
-TEST(FileCacheTest, DISABLED_RestoreSnappyEntry) {
-  // TODO: implement this test.
+TEST(FileCacheTest, RestoreAndMigrateSnappyEntry) {
+  const base::TemporaryDir tmp_dir;
+  const String path = tmp_dir;
+  const String object_path = path + "/test.o";
+  const String deps_path = path + "/test.d";
+  const auto expected_stderr = "some warning"_l;
+  const auto expected_object_code = "some object code"_l;
+  const auto expected_deps = "some deps"_l;
+
+  {
+    FileCache cache(path, 1000, true);
+    ASSERT_TRUE(cache.Run(1));
+    FileCache::Entry entry1, entry2;
+
+    const HandledSource code("int main() { return 0; }"_l);
+    const CommandLine cl("-c"_l);
+    const Version version("3.5 (revision 100000)"_l);
+
+    ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
+    ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
+    EXPECT_FALSE(cache.Find(code, cl, version, entry1));
+    EXPECT_TRUE(entry1.object.empty());
+    EXPECT_TRUE(entry1.deps.empty());
+    EXPECT_TRUE(entry1.stderr.empty());
+
+    entry1.object = expected_object_code;
+    entry1.deps = expected_deps;
+    entry1.stderr = expected_stderr;
+
+    cache.Store(code, cl, version, entry1);
+
+    ASSERT_TRUE(cache.Find(code, cl, version, entry2));
+    EXPECT_EQ(expected_object_code, entry2.object);
+    EXPECT_EQ(expected_deps, entry2.deps);
+    EXPECT_EQ(expected_stderr, entry2.stderr);
+  }
+  {
+    FileCache cache(path, 1000, true);
+    ASSERT_TRUE(cache.Run(1));
+    FileCache::Entry entry;
+    const HandledSource code("int main() { return 0; }"_l);
+    const CommandLine cl("-c"_l);
+    const Version version("3.5 (revision 100000)"_l);
+    ASSERT_TRUE(cache.Find(code, cl, version, entry));
+    EXPECT_EQ(expected_object_code, entry.object);
+    EXPECT_EQ(expected_deps, entry.deps);
+    EXPECT_EQ(expected_stderr, entry.stderr);
+  }
 }
 
 }  // namespace cache
