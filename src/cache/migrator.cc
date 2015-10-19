@@ -17,8 +17,9 @@ bool Version_0_to_1(const String& common_path, proto::Manifest& manifest,
   if (manifest.version() != 0) {
     return true;
   }
-  manifest.clear_direct();
-  manifest.clear_v1();
+
+  DCHECK(!manifest.has_direct());
+  DCHECK(!manifest.has_v1());
 
   if (manifest.headers_size()) {
     manifest.mutable_direct()->mutable_headers()->Swap(
@@ -98,6 +99,7 @@ bool Migrate(const String& common_path) {
 
   if (!modified) {
     // TODO: make an unit-test that we don't rewrite manifest on disk.
+    LOG(CACHE_VERBOSE) << "No modifications for " << manifest_path;
     return true;
   } else if (!base::SaveToFile(manifest_path, manifest)) {
     LOG(CACHE_ERROR) << "Failed to save " << manifest_path;
