@@ -82,6 +82,7 @@ TEST(FileCacheTest, RemoveEntry) {
     const String stderr_path = common_path + ".stderr";
 
     proto::Manifest manifest;
+    manifest.set_version(1);
     manifest.mutable_v1()->set_obj(true);
     manifest.mutable_v1()->set_dep(true);
     manifest.mutable_v1()->set_err(true);
@@ -100,6 +101,7 @@ TEST(FileCacheTest, RemoveEntry) {
     const String deps_path = common_path + ".d";
 
     proto::Manifest manifest;
+    manifest.set_version(1);
     manifest.mutable_v1()->set_obj(true);
     manifest.mutable_v1()->set_dep(true);
     manifest.mutable_v1()->set_err(true);
@@ -250,9 +252,9 @@ TEST(FileCacheTest, ExceedCacheSize) {
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
 
-  FileCache cache(cache_path, 116, false);
-  // 116 = sizeof(obj_content[0]) + sizeof(obj_content[1]) + 1 + 2 *
-  // <size_of_manifest>. The current typical size of manifest is 55 bytes.
+  FileCache cache(cache_path, 138, false);
+  // 138 = sizeof(obj_content[0]) + sizeof(obj_content[1]) + 1 + 2 *
+  // <size_of_manifest>. The current typical size of manifest is 66 bytes.
 
   ASSERT_TRUE(cache.Run(1));
   auto db_size = cache.database_->SizeOnDisk();
@@ -260,7 +262,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
   {
     FileCache::Entry entry{obj_content[0], String(), String()};
     cache.Store(code[0], cl, version, entry);
-    EXPECT_EQ(57u, base::CalculateDirectorySize(cache_path) - db_size);
+    EXPECT_EQ(68u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
   std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -268,7 +270,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
   {
     FileCache::Entry entry{obj_content[1], String(), String()};
     cache.Store(code[1], cl, version, entry);
-    EXPECT_EQ(115u, base::CalculateDirectorySize(cache_path) - db_size);
+    EXPECT_EQ(137u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
   std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -277,7 +279,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
     FileCache::Entry entry{obj_content[2], String(), String()};
     cache.Store(code[2], cl, version, entry);
     std::this_thread::sleep_for(std::chrono::seconds(3));
-    EXPECT_EQ(59u, base::CalculateDirectorySize(cache_path) - db_size);
+    EXPECT_EQ(70u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
   FileCache::Entry entry;
