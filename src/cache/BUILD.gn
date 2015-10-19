@@ -1,7 +1,9 @@
 import("//build/template/protobuf.gni")
 
 shared_library("file_cache") {
+  visibility = []
   visibility = [
+    "//:*",
     "//src/daemon:*",
     "//src/test:unit_tests",
   ]
@@ -40,10 +42,7 @@ shared_library("file_cache") {
 }
 
 source_set("migrator") {
-  visibility = [
-    ":*",
-    "//src/test:migrator_tests",
-  ]
+  visibility += [ "//src/test:migrator_tests" ]
 
   sources = [
     "migrator.cc",

@@ -1,8 +1,6 @@
 import("//build/template/protobuf.gni")
 
 executable("clang") {
-  visibility = [ "//:All" ]
-
   sources = [
     "clang_main.cc",
   ]
@@ -17,10 +15,7 @@ executable("clang") {
 
 # Separate source set for unit-tests.
 source_set("client") {
-  visibility = [
-    ":*",
-    "//src/test:unit_tests",
-  ]
+  visibility += [ "//src/test:unit_tests" ]
 
   sources = [
     "clang.cc",
@@ -38,8 +33,10 @@ source_set("client") {
 
 # NOTICE: Uses custom libclang ldflags, thus, have to be shared library.
 shared_library("command") {
+  visibility = []
   visibility = [
     ":*",
+    "//:*",
     "//src/test:unit_tests",
   ]
 

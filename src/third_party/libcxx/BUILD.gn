@@ -3,6 +3,12 @@ config("includes") {
 }
 
 shared_library("c++") {
+  visibility = []
+  visibility = [
+    "//:*",
+    "//src/*",
+  ]
+
   sources = [
     "exported/include/algorithm",
     "exported/include/array",

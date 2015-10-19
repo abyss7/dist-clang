@@ -1,16 +1,5 @@
 import("//build/template/protobuf.gni")
 
-# Visible to all except third_party:
-visibility = [
-  "//src/base/*",
-  "//src/cache/*",
-  "//src/client/*",
-  "//src/daemon/*",
-  "//src/net/*",
-  "//src/perf/*",
-  "//src/test/*",
-]
-
 source_set("assert") {
   visibility = []
   visibility = [ ":base" ]

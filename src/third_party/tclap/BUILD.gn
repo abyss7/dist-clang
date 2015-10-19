@@ -5,6 +5,8 @@ config("exceptions") {
 }
 
 source_set("tclap") {
+  visibility += [ "//src/daemon:configuration" ]
+
   sources = [
     "exported/include/tclap/Arg.h",
     "exported/include/tclap/ArgException.h",

@@ -8,6 +8,8 @@ config("includes") {
 }
 
 source_set("unwind") {
+  visibility += [ "//src/third_party/libcxxabi:c++abi" ]
+
   sources = [
     "exported/src/dwarf/Gexpr.c",
     "exported/src/dwarf/Gfde.c",

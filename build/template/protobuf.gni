@@ -22,47 +22,30 @@ template("protobuf") {
     ]
   }
 
+  target_type = "source_set"
   if (defined(invoker.shared) && invoker.shared) {
-    shared_library(target_name) {
-      if (defined(invoker.deps)) {
-        deps += invoker.deps
-      }
-      if (defined(invoker.visibility)) {
-        visibility = invoker.visibility
-      }
+    target_type = "shared_library"
+  }
 
-      sources = get_target_outputs(":$action_name")
-
-      if (!config_for_tests) {
-        configs -= [ "//build/config:no_rtti" ]
-      }
-
-      deps += [ ":$action_name" ]
-
-      public_deps = [
-        "//src/third_party/protobuf:protobuf",
-      ]
+  target(target_type, target_name) {
+    if (defined(invoker.deps)) {
+      deps += invoker.deps
     }
-  } else {
-    source_set(target_name) {
-      if (defined(invoker.deps)) {
-        deps += invoker.deps
-      }
-      if (defined(invoker.visibility)) {
-        visibility = invoker.visibility
-      }
-
-      sources = get_target_outputs(":$action_name")
-
-      if (!config_for_tests) {
-        configs -= [ "//build/config:no_rtti" ]
-      }
-
-      deps += [ ":$action_name" ]
-
-      public_deps = [
-        "//src/third_party/protobuf:protobuf",
-      ]
+    if (defined(invoker.visibility)) {
+      visibility += invoker.visibility
     }
+
+    visibility += [ "//:*" ]
+
+    sources = get_target_outputs(":$action_name")
+
+    if (!config_for_tests) {
+      configs -= [ "//build/config:no_rtti" ]
+    }
+
+    public_deps = [
+      ":$action_name",
+      "//src/third_party/protobuf:protobuf",
+    ]
   }
 }

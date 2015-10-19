@@ -3,7 +3,7 @@ config("includes") {
 }
 
 static_library("gtest") {
-  visibility = [ "//src/test/*" ]
+  visibility += [ "//src/test/*" ]
 
   sources = [
     "exported/include/gtest/internal/gtest-death-test-internal.h",

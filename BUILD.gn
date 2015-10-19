@@ -17,6 +17,27 @@ if (config_for_tests) {
   }
 }
 
+package_deps = [
+  "//src/base:base",
+  "//src/client:clang",
+  "//src/client:command",
+  "//src/daemon:clangd",
+  "//src/daemon:configuration",
+  "//src/daemon:config_proto",
+  "//src/daemon:remote_proto",
+  "//src/cache:file_cache",
+  "//src/net:net",
+  "//src/net:net_proto",
+  "//src/perf:counter",
+  "//src/perf:stat_proto",
+  "//src/perf:stat_service",
+  "//src/third_party/gperftools:tcmalloc",
+  "//src/third_party/libcxx:c++",
+  "//src/third_party/libcxxabi:c++abi",
+  "//src/third_party/protobuf:protoc",
+  "//src/third_party/snappy:snappy",
+]
+
 if (host_os == "linux") {
   action("deb_package") {
     script = "//build/deb_package.py"
@@ -129,7 +150,7 @@ if (host_os == "linux") {
       "$version",
     ]
 
-    data_deps = [ "//src/third_party/protobuf:protoc" ]
+    deps = package_deps
   }
 
   action("rpm_package") {
@@ -235,7 +256,7 @@ if (host_os == "linux") {
       "$version",
     ]
 
-    data_deps = [ "//src/third_party/protobuf:protoc" ]
+    deps = package_deps
   }
 }
 
@@ -339,6 +360,6 @@ if (host_os == "mac") {
       "$version",
     ]
 
-    data_deps = [ "//src/third_party/protobuf:protoc" ]
+    deps = package_deps
   }
 }

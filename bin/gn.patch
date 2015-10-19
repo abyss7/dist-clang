@@ -1,21 +1,21 @@
 diff --git a/tools/gn/c_include_iterator.cc b/tools/gn/c_include_iterator.cc
-index 25eba9d..861ef6f 100644
+index 9e719c7..adf619c 100644
 --- a/tools/gn/c_include_iterator.cc
 +++ b/tools/gn/c_include_iterator.cc
-@@ -129,7 +129,7 @@ bool CIncludeIterator::GetNextIncludeString(base::StringPiece* out,
+@@ -134,7 +134,7 @@ bool CIncludeIterator::GetNextIncludeString(base::StringPiece* out,
      base::StringPiece include_contents;
      int begin_char;
      IncludeType type = ExtractInclude(line, &include_contents, &begin_char);
--    if (type == INCLUDE_USER) {
-+    if (type == INCLUDE_SYSTEM) {
+-    if (type == INCLUDE_USER && !HasNoCheckAnnotation(line)) {
++    if (type == INCLUDE_SYSTEM && !HasNoCheckAnnotation(line)) {
        // Only count user includes for now.
        *out = include_contents;
        *location = LocationRange(
 diff --git a/tools/gn/header_checker.cc b/tools/gn/header_checker.cc
-index 4d2f4cb..c7aee1d 100644
+index b15b4fa..7927051 100644
 --- a/tools/gn/header_checker.cc
 +++ b/tools/gn/header_checker.cc
-@@ -252,7 +252,7 @@ bool HeaderChecker::IsFileInOuputDir(const SourceFile& file) const {
+@@ -253,7 +253,7 @@ bool HeaderChecker::IsFileInOuputDir(const SourceFile& file) const {
  // handle the cases where people do weird things with the paths.
  SourceFile HeaderChecker::SourceFileForInclude(
      const base::StringPiece& input) const {
@@ -25,7 +25,7 @@ index 4d2f4cb..c7aee1d 100644
    return SourceFile(str);
  }
 diff --git a/tools/gn/source_file_type.cc b/tools/gn/source_file_type.cc
-index 35c8709..8474d75 100644
+index 72b872c..e6746da 100644
 --- a/tools/gn/source_file_type.cc
 +++ b/tools/gn/source_file_type.cc
 @@ -9,7 +9,8 @@
@@ -35,6 +35,6 @@ index 35c8709..8474d75 100644
 -  if (extension == "cc" || extension == "cpp" || extension == "cxx")
 +  if (extension == "cc" || extension == "cpp" || extension == "cxx" ||
 +      extension == "c++")
-     return SOURCE_CC;
+     return SOURCE_CPP;
    if (extension == "h")
      return SOURCE_H;

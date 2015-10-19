@@ -16,6 +16,8 @@ config("flags") {
 }
 
 static_library("leveldb") {
+  visibility += [ "//src/cache:file_cache" ]
+
   sources = [
     "exported/db/builder.cc",
     "exported/db/builder.h",
@@ -130,8 +132,6 @@ static_library("leveldb") {
 source_set("leveldb_test_utils") {
   testonly = true
 
-  visibility = [ ":*" ]
-
   sources = [
     "exported/util/testharness.cc",
     "exported/util/testharness.h",
@@ -151,6 +151,7 @@ template("leveldb_test") {
   executable("leveldb_${target_name}") {
     testonly = true
 
+    visibility = []
     visibility = [ ":leveldb_tests" ]
 
     sources = invoker.sources

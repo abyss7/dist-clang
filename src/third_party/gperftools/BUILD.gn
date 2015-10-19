@@ -1,5 +1,3 @@
-visibility = [ ":*" ]
-
 config("flags") {
   cflags = [
     "-fno-builtin-calloc",
@@ -186,7 +184,11 @@ source_set("profiler") {
 }
 
 shared_library("tcmalloc") {
-  visibility += [ "//src/*" ]
+  visibility = []
+  visibility = [
+    "//:*",
+    "//src/*",
+  ]
 
   sources = [
     "exported/src/tcmalloc.cc",

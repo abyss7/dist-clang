@@ -85,25 +85,44 @@ if (host_os != "mac" && host_os != "win" && !use_tsan) {
 }
 
 # =============================================================================
+# Setup visibility.
+# =============================================================================
+
+default_visibility = [
+  ":*",
+  "//:*",
+  "//src/cache/*",
+  "//src/client/*",
+  "//src/daemon/*",
+  "//src/net/*",
+  "//src/perf/*",
+  "//src/test/*",
+]
+
+# =============================================================================
 # Set defaults.
 # =============================================================================
 
 set_defaults("executable") {
+  visibility = default_visibility
   configs = default_configs
   deps = default_deps
 }
 
 set_defaults("shared_library") {
+  visibility = default_visibility
   configs = default_configs
   deps = default_deps
 }
 
 set_defaults("source_set") {
+  visibility = [ ":*" ]
   configs = default_configs
   deps = default_deps
 }
 
 set_defaults("static_library") {
+  visibility = [ ":*" ]
   configs = default_configs
   deps = default_deps
 }

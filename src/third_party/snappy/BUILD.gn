@@ -13,6 +13,8 @@ config("no_warnings") {
 }
 
 shared_library("snappy") {
+  visibility += [ "//src/third_party/leveldb:*" ]
+
   sources = [
     host_os + "/snappy-stubs-public.h",
     "exported/snappy-c.cc",

@@ -83,6 +83,12 @@ static_library("unwind") {
 }
 
 shared_library("c++abi") {
+  visibility = []
+  visibility = [
+    "//:*",
+    "//src/*",
+  ]
+
   sources = [
     "exported/src/abort_message.cpp",
     "exported/src/cxa_aux_runtime.cpp",

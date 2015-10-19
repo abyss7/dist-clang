@@ -1,8 +1,6 @@
 import("//build/template/protobuf.gni")
 
 executable("clangd") {
-  visibility = [ "//:All" ]
-
   sources = [
     "clangd_main.cc",
   ]
@@ -17,10 +15,7 @@ executable("clangd") {
 
 # Separate source set for unit-tests.
 source_set("daemon") {
-  visibility = [
-    ":*",
-    "//src/test:unit_tests",
-  ]
+  visibility += [ "//src/test:unit_tests" ]
 
   sources = [
     "absorber.cc",
@@ -48,12 +43,14 @@ source_set("daemon") {
 }
 
 shared_library("configuration") {
-  output_name = "conf_daemon"
-
+  visibility = []
   visibility = [
     ":*",
+    "//:*",
     "//src/test:unit_tests",
   ]
+
+  output_name = "conf_daemon"
 
   sources = [
     "configuration.cc",

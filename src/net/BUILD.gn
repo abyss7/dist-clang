@@ -1,7 +1,9 @@
 import("//build/template/protobuf.gni")
 
 shared_library("net") {
+  visibility = []
   visibility = [
+    "//:*",
     "//src/client:*",
     "//src/daemon:*",
     "//src/test:unit_tests",
@@ -44,6 +46,9 @@ shared_library("net") {
 
 protobuf("net_proto") {
   shared = true
+
+  visibility = [ "//src/base:base_proto" ]
+
   sources = [
     "universal.proto",
   ]

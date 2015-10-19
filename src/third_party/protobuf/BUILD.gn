@@ -80,6 +80,8 @@ shared_library("protobuf_lite") {
 }
 
 shared_library("protobuf") {
+  visibility += [ "//src/base/*" ]
+
   sources = [
     "exported/src/google/protobuf/compiler/importer.cc",
     "exported/src/google/protobuf/compiler/importer.h",
@@ -144,6 +146,8 @@ shared_library("protobuf") {
 }
 
 executable("protoc") {
+  visibility += [ "//src/base/*" ]
+
   sources = [
     "exported/src/google/protobuf/compiler/code_generator.cc",
     "exported/src/google/protobuf/compiler/command_line_interface.cc",
