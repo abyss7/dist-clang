@@ -1,11 +1,9 @@
-#pragma once
-
-#include <base/aliases.h>
+#include <cache/database_sqlite.h>
 
 namespace dist_clang {
 namespace cache {
 
-bool Migrate(const String& common_path);
+
 
 }  // namespace cache
 }  // namespace dist_clang

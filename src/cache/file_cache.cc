@@ -56,8 +56,7 @@ bool FileCache::Run(ui64 clean_period) {
 
   base::WorkerPool::SimpleWorker worker;
   if (max_size_ == UNLIMITED) {
-    base::WalkDirectory(path_, [this](const String& file_path, ui64 mtime,
-                                      ui64) {
+    base::WalkDirectory(path_, [this](const String& file_path, ui64, ui64) {
       std::regex regex("([a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8})\\.manifest$");
       std::cmatch match;
       if (!std::regex_search(file_path.c_str(), match, regex) ||
@@ -91,7 +90,7 @@ bool FileCache::Run(ui64 clean_period) {
       }
 
       auto hash = string::Hash(String(match[1]));
-      auto size = 0u;
+      ui64 size = 0u;
 
       if (!Migrate(hash)) {
         RemoveEntry(hash);
@@ -103,7 +102,8 @@ bool FileCache::Run(ui64 clean_period) {
         CHECK(!entries_->Exists(hash.str));
         // There should be no duplicate entries.
 
-        CHECK(entries_->Set(hash.str, std::make_tuple(mtime, size)));
+        CHECK(entries_->Set(hash.str,
+                            std::make_tuple(mtime, size, kManifestVersion)));
 
         cache_size_ += size;
         LOG(CACHE_INFO) << hash.str << " is considered";
@@ -148,14 +148,16 @@ UnhandledHash FileCache::Hash(UnhandledSource code, CommandLine command_line,
           (version.str + "\n"_l + clang::getClangFullVersion()).Hash(4)));
 }
 
-bool FileCache::Find(const HandledSource& code, const CommandLine& command_line,
-                     const Version& version, Entry& entry) const {
+bool FileCache::Find(HandledSource code, CommandLine command_line,
+                     Version version, Entry* entry) const {
   return FindByHash(Hash(code, command_line, version), entry);
 }
 
-bool FileCache::Find(const UnhandledSource& code,
-                     const CommandLine& command_line, const Version& version,
-                     const String& current_dir, Entry& entry) const {
+bool FileCache::Find(UnhandledSource code, CommandLine command_line,
+                     Version version, const String& current_dir,
+                     Entry* entry) const {
+  DCHECK(entry);
+
   auto hash1 = Hash(code, command_line, version);
   const String manifest_path = CommonPath(hash1) + ".manifest";
   const ReadLock lock(this, manifest_path);
@@ -192,20 +194,20 @@ bool FileCache::Find(const UnhandledSource& code,
   return false;
 }
 
-void FileCache::Store(const UnhandledSource& code,
-                      const CommandLine& command_line, const Version& version,
-                      const List<String>& headers, const String& current_dir,
-                      const HandledHash& hash) {
+void FileCache::Store(UnhandledSource code, CommandLine command_line,
+                      Version version, const List<String>& headers,
+                      const String& current_dir, string::HandledHash hash) {
   DoStore(Hash(code, command_line, version), headers, current_dir, hash);
 }
 
-void FileCache::Store(const HandledSource& code,
-                      const CommandLine& command_line, const Version& version,
-                      const Entry& entry) {
+void FileCache::Store(HandledSource code, CommandLine command_line,
+                      Version version, const Entry& entry) {
   DoStore(Hash(code, command_line, version), entry);
 }
 
-bool FileCache::FindByHash(const HandledHash& hash, Entry& entry) const {
+bool FileCache::FindByHash(HandledHash hash, Entry* entry) const {
+  DCHECK(entry);
+
   const String manifest_path = CommonPath(hash) + ".manifest";
   const ReadLock lock(this, manifest_path);
 
@@ -225,10 +227,10 @@ bool FileCache::FindByHash(const HandledHash& hash, Entry& entry) const {
 
   if (manifest.v1().err()) {
     const String stderr_path = CommonPath(hash) + ".stderr";
-    if (!base::File::Read(stderr_path, &entry.stderr)) {
+    if (!base::File::Read(stderr_path, &entry->stderr)) {
       return false;
     }
-    size += entry.stderr.size();
+    size += entry->stderr.size();
   }
 
   if (manifest.v1().obj()) {
@@ -251,21 +253,21 @@ bool FileCache::FindByHash(const HandledHash& hash, Entry& entry) const {
         return false;
       }
 
-      entry.object = std::move(object_str);
+      entry->object = std::move(object_str);
     } else {
-      if (!base::File::Read(object_path, &entry.object)) {
+      if (!base::File::Read(object_path, &entry->object)) {
         return false;
       }
-      size += entry.object.size();
+      size += entry->object.size();
     }
   }
 
   if (manifest.v1().dep()) {
     const String deps_path = CommonPath(hash) + ".d";
-    if (!base::File::Read(deps_path, &entry.deps)) {
+    if (!base::File::Read(deps_path, &entry->deps)) {
       return false;
     }
-    size += entry.deps.size();
+    size += entry->deps.size();
   }
 
   return manifest.v1().has_size() && manifest.v1().size() == size;
@@ -340,7 +342,7 @@ bool FileCache::RemoveEntry(string::Hash hash) {
   return result;
 }
 
-void FileCache::DoStore(const HandledHash& hash, Entry entry) {
+void FileCache::DoStore(string::HandledHash hash, Entry entry) {
   auto manifest_path = CommonPath(hash) + ".manifest";
   WriteLock lock(this, manifest_path);
   String error;
@@ -355,7 +357,7 @@ void FileCache::DoStore(const HandledHash& hash, Entry entry) {
   }
 
   proto::Manifest manifest;
-  manifest.set_version(1);
+  manifest.set_version(kManifestVersion);
 
   manifest.mutable_v1()->set_err(!entry.stderr.empty());
   if (!entry.stderr.empty()) {
@@ -457,7 +459,7 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
   Immutable::Rope hash_rope = {orig_hash};
 
   proto::Manifest manifest;
-  manifest.set_version(1);
+  manifest.set_version(kManifestVersion);
 
   for (const auto& header : headers) {
     String error;
@@ -501,14 +503,16 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
       // Update mtime of an existing entry.
       CHECK(entries_->Set(
           hash.str,
-          std::make_tuple(new_entry->first, std::get<SQLite::SIZE>(entry))));
+          std::make_tuple(new_entry->first, std::get<SQLite::SIZE>(entry),
+                          kManifestVersion)));
       LOG(CACHE_VERBOSE) << hash.str << " wasn't used for "
                          << (new_entry->first - std::get<SQLite::MTIME>(entry))
                          << " seconds";
     } else {
       // Insert new entry.
       auto size = GetEntrySize(hash);
-      CHECK(entries_->Set(hash.str, std::make_tuple(new_entry->first, size)));
+      CHECK(entries_->Set(
+          hash.str, std::make_tuple(new_entry->first, size, kManifestVersion)));
       cache_size_ += size;
       STAT(CACHE_SIZE_ADDED, size);
     }

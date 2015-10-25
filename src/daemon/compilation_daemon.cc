@@ -221,7 +221,7 @@ bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
 
 bool CompilationDaemon::SearchSimpleCache(
     const base::proto::Flags& flags, const HandledSource& source,
-    cache::FileCache::Entry& entry) const {
+    cache::FileCache::Entry* entry) const {
   if (!cache_) {
     return false;
   }
@@ -239,7 +239,7 @@ bool CompilationDaemon::SearchSimpleCache(
 
 bool CompilationDaemon::SearchDirectCache(
     const base::proto::Flags& flags, const String& current_dir,
-    cache::FileCache::Entry& entry) const {
+    cache::FileCache::Entry* entry) const {
   auto config = conf();
   DCHECK(config->has_emitter() && !config->has_absorber());
   DCHECK(flags.has_input());

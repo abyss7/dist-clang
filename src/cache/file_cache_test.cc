@@ -155,7 +155,7 @@ TEST(FileCacheTest, RestoreSingleEntry) {
 
   ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
   ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
-  EXPECT_FALSE(cache.Find(code, cl, version, entry1));
+  EXPECT_FALSE(cache.Find(code, cl, version, &entry1));
   EXPECT_TRUE(entry1.object.empty());
   EXPECT_TRUE(entry1.deps.empty());
   EXPECT_TRUE(entry1.stderr.empty());
@@ -166,7 +166,7 @@ TEST(FileCacheTest, RestoreSingleEntry) {
 
   cache.Store(code, cl, version, entry1);
 
-  ASSERT_TRUE(cache.Find(code, cl, version, entry2));
+  ASSERT_TRUE(cache.Find(code, cl, version, &entry2));
   EXPECT_EQ(expected_object_code, entry2.object);
   EXPECT_EQ(expected_deps, entry2.deps);
   EXPECT_EQ(expected_stderr, entry2.stderr);
@@ -202,7 +202,7 @@ TEST(FileCacheTest, RestoreEntryWithMissingFile) {
                      ".d");
 
   // Restore the entry.
-  ASSERT_FALSE(cache.Find(code, cl, version, entry2));
+  ASSERT_FALSE(cache.Find(code, cl, version, &entry2));
 }
 
 TEST(FileCacheTest, DISABLED_RestoreEntryWithMalfordedManifest) {
@@ -283,9 +283,9 @@ TEST(FileCacheTest, ExceedCacheSize) {
   }
 
   FileCache::Entry entry;
-  EXPECT_FALSE(cache.Find(code[0], cl, version, entry));
-  EXPECT_FALSE(cache.Find(code[1], cl, version, entry));
-  EXPECT_TRUE(cache.Find(code[2], cl, version, entry));
+  EXPECT_FALSE(cache.Find(code[0], cl, version, &entry));
+  EXPECT_FALSE(cache.Find(code[1], cl, version, &entry));
+  EXPECT_TRUE(cache.Find(code[2], cl, version, &entry));
 }
 
 TEST(FileCacheTest, RestoreDirectEntry) {
@@ -326,7 +326,7 @@ TEST(FileCacheTest, RestoreDirectEntry) {
               FileCache::Hash(code, cl, version));
 
   // Restore the entry.
-  ASSERT_TRUE(cache.Find(orig_code, cl, version, path, entry2));
+  ASSERT_TRUE(cache.Find(orig_code, cl, version, path, &entry2));
   EXPECT_EQ(expected_object_code, entry2.object);
   EXPECT_EQ(expected_deps, entry2.deps);
   EXPECT_EQ(expected_stderr, entry2.stderr);
@@ -373,7 +373,7 @@ TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
   ASSERT_TRUE(base::File::Write(header2_path, "#define C"_l));
 
   // Restore the entry.
-  EXPECT_FALSE(cache.Find(orig_code, cl, version, path, entry));
+  EXPECT_FALSE(cache.Find(orig_code, cl, version, path, &entry));
 }
 
 TEST(FileCacheTest, DirectEntry_RewriteManifest) {
@@ -420,7 +420,7 @@ TEST(FileCacheTest, DirectEntry_RewriteManifest) {
               FileCache::Hash(code, cl, version));
 
   // Restore the entry.
-  EXPECT_TRUE(cache.Find(orig_code, cl, version, path, entry2));
+  EXPECT_TRUE(cache.Find(orig_code, cl, version, path, &entry2));
 }
 
 TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
@@ -461,7 +461,7 @@ TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
 
   // Restore the entry.
   const UnhandledSource bad_orig_code(orig_code.str.string_copy() + " ");
-  EXPECT_FALSE(cache.Find(bad_orig_code, cl, version, path, entry));
+  EXPECT_FALSE(cache.Find(bad_orig_code, cl, version, path, &entry));
 }
 
 TEST(FileCacheTest, RestoreAndMigrateSnappyEntry) {
@@ -484,7 +484,7 @@ TEST(FileCacheTest, RestoreAndMigrateSnappyEntry) {
 
     ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
     ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
-    EXPECT_FALSE(cache.Find(code, cl, version, entry1));
+    EXPECT_FALSE(cache.Find(code, cl, version, &entry1));
     EXPECT_TRUE(entry1.object.empty());
     EXPECT_TRUE(entry1.deps.empty());
     EXPECT_TRUE(entry1.stderr.empty());
@@ -495,7 +495,7 @@ TEST(FileCacheTest, RestoreAndMigrateSnappyEntry) {
 
     cache.Store(code, cl, version, entry1);
 
-    ASSERT_TRUE(cache.Find(code, cl, version, entry2));
+    ASSERT_TRUE(cache.Find(code, cl, version, &entry2));
     EXPECT_EQ(expected_object_code, entry2.object);
     EXPECT_EQ(expected_deps, entry2.deps);
     EXPECT_EQ(expected_stderr, entry2.stderr);
@@ -507,7 +507,7 @@ TEST(FileCacheTest, RestoreAndMigrateSnappyEntry) {
     const HandledSource code("int main() { return 0; }"_l);
     const CommandLine cl("-c"_l);
     const Version version("3.5 (revision 100000)"_l);
-    ASSERT_TRUE(cache.Find(code, cl, version, entry));
+    ASSERT_TRUE(cache.Find(code, cl, version, &entry));
     EXPECT_EQ(expected_object_code, entry.object);
     EXPECT_EQ(expected_deps, entry.deps);
     EXPECT_EQ(expected_stderr, entry.stderr);
