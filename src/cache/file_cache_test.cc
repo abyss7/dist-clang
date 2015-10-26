@@ -70,7 +70,7 @@ TEST(FileCacheTest, DoubleLocks) {
 
 TEST(FileCacheTest, RemoveEntry) {
   const base::TemporaryDir tmp_dir;
-  FileCache cache(tmp_dir, 100, false);
+  FileCache cache(tmp_dir, 100, false, false);
 
   string::Hash hash1{"12345678901234567890123456789012-12345678-00000001"_l};
   {
@@ -252,7 +252,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
 
-  FileCache cache(cache_path, 138, false);
+  FileCache cache(cache_path, 138, false, false);
   // 138 = sizeof(obj_content[0]) + sizeof(obj_content[1]) + 1 + 2 *
   // <size_of_manifest>. The current typical size of manifest is 66 bytes.
 
@@ -474,7 +474,7 @@ TEST(FileCacheTest, RestoreAndMigrateSnappyEntry) {
   const auto expected_deps = "some deps"_l;
 
   {
-    FileCache cache(path, 1000, true);
+    FileCache cache(path, 1000, true, false);
     ASSERT_TRUE(cache.Run(1));
     FileCache::Entry entry1, entry2;
 
@@ -501,7 +501,7 @@ TEST(FileCacheTest, RestoreAndMigrateSnappyEntry) {
     EXPECT_EQ(expected_stderr, entry2.stderr);
   }
   {
-    FileCache cache(path, 1000, true);
+    FileCache cache(path, 1000, true, false);
     ASSERT_TRUE(cache.Run(1));
     FileCache::Entry entry;
     const HandledSource code("int main() { return 0; }"_l);

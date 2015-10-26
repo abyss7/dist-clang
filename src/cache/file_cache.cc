@@ -31,10 +31,15 @@ String ReplaceTildeInPath(const String& path) {
 
 namespace cache {
 
-FileCache::FileCache(const String& path, ui64 size, bool snappy)
-    : path_(ReplaceTildeInPath(path)), snappy_(snappy), max_size_(size) {}
+FileCache::FileCache(const String& path, ui64 size, bool snappy,
+                     bool store_index)
+    : path_(ReplaceTildeInPath(path)),
+      snappy_(snappy),
+      store_index_(store_index),
+      max_size_(size) {}
 
-FileCache::FileCache(const String& path) : FileCache(path, UNLIMITED, false) {}
+FileCache::FileCache(const String& path)
+    : FileCache(path, UNLIMITED, false, false) {}
 
 FileCache::~FileCache() {
   resetter_.reset();
@@ -50,7 +55,11 @@ bool FileCache::Run(ui64 clean_period) {
   }
 
   database_.reset(new LevelDB(path_, "direct"));
-  entries_.reset(new SQLite);
+  if (store_index_) {
+    entries_.reset(new SQLite(path_, "index"));
+  } else {
+    entries_.reset(new SQLite);
+  }
 
   CHECK(clean_period > 0);
 

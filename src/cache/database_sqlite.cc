@@ -11,12 +11,37 @@
 namespace dist_clang {
 namespace cache {
 
-SQLite::SQLite() {
-  auto result = sqlite3_open(":memory:", &db_);
+namespace {
+
+bool TableExists(sqlite3* db, const String& name) {
+  sqlite3_stmt* stmt;
+  const String sql =
+      "SELECT name FROM sqlite_master WHERE type='table' AND name = '" + name +
+      "'";
+  auto result = sqlite3_prepare_v2(db, sql.c_str(), sql.size(), &stmt, nullptr);
+  DCHECK(result == SQLITE_OK);
+
+  result = sqlite3_step(stmt);
+  bool res = result == SQLITE_ROW;
+
+  result = sqlite3_finalize(stmt);
+  if (result != SQLITE_OK) {
+    LOG(DB_ERROR) << "Failed to finalize SQL statement with error: "
+                  << sqlite3_errstr(result);
+  }
+
+  return res;
+}
+
+}  // namespace
+
+SQLite::SQLite() : path_(":memory:") {
+  auto result = sqlite3_open(path_.c_str(), &db_);
   // FIXME: make this look like:
   //        CHECK(result == SQLITE_OK) << sqlite_errstr(result);
   if (result != SQLITE_OK) {
-    LOG(FATAL) << sqlite3_errstr(result);
+    LOG(FATAL) << "Failed to open in-memory database: "
+               << sqlite3_errstr(result);
   }
 
   char* error;
@@ -44,12 +69,50 @@ SQLite::SQLite() {
   }
 }
 
+SQLite::SQLite(const String& path, const String& name)
+    : path_(path + "/" + name + ".sqlite") {
+  auto result = sqlite3_open(path_.c_str(), &db_);
+  // FIXME: make this look like:
+  //        CHECK(result == SQLITE_OK) << sqlite_errstr(result);
+  if (result != SQLITE_OK) {
+    LOG(FATAL) << "Failed to open " << path_ << ": " << sqlite3_errstr(result);
+  }
+
+  if (TableExists(db_, "entries")) {
+    // TODO: do migration.
+  } else {
+    char* error;
+    // FIXME: 50 is a magical constant - it's the length of the hash string.
+    result = sqlite3_exec(db_,
+                          "CREATE TABLE entries("
+                          "    hash CHAR(50) PRIMARY KEY NOT NULL,"
+                          "    mtime INT NOT NULL,"
+                          "    size INT NOT NULL,"
+                          "    version INT NOT NULL"
+                          ");",
+                          nullptr, nullptr, &error);
+    // FIXME: make this look like:
+    //        CHECK(result == SQLITE_OK) << sqlite_errstr(result);
+    if (result != SQLITE_OK) {
+      LOG(FATAL) << sqlite3_errstr(result) << ": " << error;
+    }
+
+    result = sqlite3_exec(db_, "CREATE INDEX mtime_idx ON entries (mtime);",
+                          nullptr, nullptr, &error);
+    // FIXME: make this look like:
+    //        CHECK(result == SQLITE_OK) << sqlite_errstr(result);
+    if (result != SQLITE_OK) {
+      LOG(FATAL) << sqlite3_errstr(result) << ": " << error;
+    }
+  }
+}
+
 SQLite::~SQLite() {
   auto result = sqlite3_close(db_);
   // FIXME: make this look like:
   //        CHECK(result == SQLITE_OK) << sqlite_errstr(result);
   if (result != SQLITE_OK) {
-    LOG(FATAL) << sqlite3_errstr(result);
+    LOG(DB_ERROR) << "Failed to close database: " << sqlite3_errstr(result);
   }
 }
 
@@ -135,29 +198,6 @@ ui32 SQLite::GetVersion() const {
   CHECK(result == SQLITE_ROW);
 
   return sqlite3_column_int64(stmt, 0);
-
-  // TODO: use this code for consistency checking.
-  //  sqlite3_stmt* stmt;
-  //  const String sql =
-  //      "SELECT name FROM sqlite_master WHERE type='table' AND
-  //      name='version'";
-  //  auto result =
-  //      sqlite3_prepare_v2(db_, sql.c_str(), sql.size(), &stmt, nullptr);
-  //  if (result != SQLITE_OK) {
-  //    LOG(DB_ERROR) << "Failed to prepare SQL statement with error: "
-  //                  << sqlite3_errmsg(db_);
-  //    return 0;
-  //  }
-
-  //  result = sqlite3_step(stmt);
-  //  if (result == SQLITE_ROW) {
-  //    return sqlite3_column_int64(stmt, 0);
-  //  } else {
-  //    // TODO: create table here or in migrator.
-
-  //    // No table means we have a zero version.
-  //    return 0;
-  //  }
 }
 
 bool SQLite::First(Immutable* hash, Value* value) const {

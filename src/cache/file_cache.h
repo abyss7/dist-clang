@@ -87,7 +87,7 @@ class FileCache {
     Immutable stderr;
   };
 
-  FileCache(const String& path, ui64 size, bool snappy);
+  FileCache(const String& path, ui64 size, bool snappy, bool store_index);
   explicit FileCache(const String& path);
   ~FileCache();
 
@@ -189,7 +189,7 @@ class FileCache {
   mutable HashSet<String> write_locks_;
 
   const String path_;
-  bool snappy_;
+  bool snappy_, store_index_;
   UniquePtr<LevelDB> database_;
   UniquePtr<SQLite> entries_;
 

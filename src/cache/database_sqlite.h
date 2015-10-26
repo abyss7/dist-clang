@@ -3,7 +3,10 @@
 #include <base/aliases.h>
 #include <cache/database.h>
 
+#undef VERSION  // FIXME: is it necessery?
+
 struct sqlite3;
+struct sqlite3_stmt;
 
 namespace dist_clang {
 namespace cache {
@@ -21,6 +24,7 @@ class SQLite : public Database<size_t /* mtime */, size_t /* size */,
   };
 
   SQLite();
+  SQLite(const String& path, const String& name);
   ~SQLite() override;
 
   bool Get(const String& key, Value* value) const override;
@@ -32,7 +36,10 @@ class SQLite : public Database<size_t /* mtime */, size_t /* size */,
   bool First(Immutable* hash, Value* value) const;
 
  private:
+  bool Migrate() const;
+
   sqlite3* db_ = nullptr;
+  const String path_;
 
   const ui32 kSQLiteVersion = 0;
 };
