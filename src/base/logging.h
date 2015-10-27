@@ -28,6 +28,7 @@ namespace base {
 namespace named_levels {
 
 #pragma push_macro("FATAL")
+#pragma push_macro("ASSERT")
 #pragma push_macro("ERROR")
 #pragma push_macro("WARNING")
 #pragma push_macro("INFO")
@@ -43,6 +44,7 @@ namespace named_levels {
 #pragma push_macro("DB_VERBOSE")
 
 #undef FATAL
+#undef ASSERT
 
 #undef ERROR
 #undef WARNING
@@ -60,10 +62,13 @@ namespace named_levels {
 #undef DB_INFO
 #undef DB_VERBOSE
 
-// The |FATAL| is a special value: after LOG(FATAL) the program terminates with
-// |exit(1)|.
 enum : ui32 {
   FATAL = 0u,
+  // after |LOG(FATAL)| the program terminates with |exit(1)|.
+
+  ASSERT = 1u,
+  // used only inside |CHECK()|, can't be filtered by verbosity levels.
+
   ERROR = 10u,
   WARNING = 20u,
   INFO = 30u,
@@ -80,6 +85,7 @@ enum : ui32 {
 };
 
 #pragma pop_macro("FATAL")
+#pragma pop_macro("ASSERT")
 #pragma pop_macro("ERROR")
 #pragma pop_macro("WARNING")
 #pragma pop_macro("INFO")
@@ -116,7 +122,6 @@ class Log {
   ~Log();
 
   Log(const Log&) = delete;
-  Log(Log&&) = delete;
   Log& operator=(const Log&) = delete;
 
   template <class T>

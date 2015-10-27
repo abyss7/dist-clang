@@ -9,6 +9,8 @@ source_set("assert") {
     "assert_mac.cc",
     "assert_win.cc",
   ]
+
+  deps += [ ":logging" ]
 }
 
 shared_library("base") {

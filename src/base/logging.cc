@@ -48,12 +48,12 @@ Log::Log(ui32 level)
     : level_(level),
       error_mark_(error_mark()),
       ranges_(ranges()),
-      mode_(mode()) {
-}
+      mode_(mode()) {}
 
 Log::~Log() {
   auto it = ranges_->lower_bound(std::make_pair(level_, 0));
-  if (it != ranges_->end() && level_ >= it->second) {
+  if ((it != ranges_->end() && level_ >= it->second) ||
+      level_ == named_levels::ASSERT) {
     stream_ << std::endl;
 
     if (mode_ == CONSOLE) {
@@ -64,6 +64,7 @@ Log::~Log() {
       // FIXME: not really a fair mapping.
       switch (level_) {
         case named_levels::FATAL:
+        case named_levels::ASSERT:
           syslog(LOG_CRIT, "%s", stream_.str().c_str());
           break;
 
@@ -88,6 +89,10 @@ Log::~Log() {
 
   if (level_ == named_levels::FATAL) {
     exit(1);
+  }
+
+  if (level_ == named_levels::ASSERT) {
+    std::abort();
   }
 }
 
