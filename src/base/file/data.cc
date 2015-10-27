@@ -60,7 +60,7 @@ bool Data::ReadyForRead(int& size, String* error) const {
 }
 
 bool Data::Read(Immutable* output, String* error) {
-  DCHECK(IsValid())
+  DCHECK(IsValid());
 
   int bytes_available;
   if (!output || !ReadyForRead(bytes_available, error)) {
