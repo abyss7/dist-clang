@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 gn_path=`dirname $0`/../bin
 if [[ `uname` == 'Linux' ]]; then

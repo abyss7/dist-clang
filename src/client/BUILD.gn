@@ -10,6 +10,8 @@ executable("clang") {
     ":config_proto",
     "//src/base:base",
     "//src/base:logging",
+    "//src/perf:stat_service",
+    "//src/perf:counter",
   ]
 }
 

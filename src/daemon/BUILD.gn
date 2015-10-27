@@ -39,6 +39,7 @@ source_set("daemon") {
     "//src/net:net",
     "//src/perf:counter",
     "//src/perf:stat_service",
+    "//src/third_party/snappy:snappy",
   ]
 }
 
