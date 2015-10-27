@@ -18,9 +18,8 @@ LevelDB::LevelDB(const String& path, const String& name)
   options.create_if_missing = true;
 
   Status status = DB::Open(options, path_, &db_);
-  if (!status.ok()) {
-    LOG(FATAL) << "Failed to open database with error: " << status.ToString();
-  }
+  CHECK(status.ok()) << "Failed to open database with error: "
+                     << status.ToString();
 
   LOG(DB_INFO) << "Database is created on path " << path_;
 }

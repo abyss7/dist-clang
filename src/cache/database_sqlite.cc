@@ -37,12 +37,8 @@ bool TableExists(sqlite3* db, const String& name) {
 
 SQLite::SQLite() : path_(":memory:") {
   auto result = sqlite3_open(path_.c_str(), &db_);
-  // FIXME: make this look like:
-  //        CHECK(result == SQLITE_OK) << sqlite_errstr(result);
-  if (result != SQLITE_OK) {
-    LOG(FATAL) << "Failed to open in-memory database: "
-               << sqlite3_errstr(result);
-  }
+  CHECK(result == SQLITE_OK) << "Failed to open in-memory database: "
+                             << sqlite3_errstr(result);
 
   char* error;
   // FIXME: 50 is a magical constant - it's the length of the hash string.
@@ -54,29 +50,20 @@ SQLite::SQLite() : path_(":memory:") {
                         "    version INT NOT NULL"
                         ");",
                         nullptr, nullptr, &error);
-  // FIXME: make this look like:
-  //        CHECK(result == SQLITE_OK) << sqlite_errstr(result);
-  if (result != SQLITE_OK) {
-    LOG(FATAL) << sqlite3_errstr(result) << ": " << error;
-  }
+  CHECK(result == SQLITE_OK)
+      << "Failed to create table: " << sqlite3_errstr(result) << ": " << error;
 
   result = sqlite3_exec(db_, "CREATE INDEX mtime_idx ON entries (mtime);",
                         nullptr, nullptr, &error);
-  // FIXME: make this look like:
-  //        CHECK(result == SQLITE_OK) << sqlite_errstr(result);
-  if (result != SQLITE_OK) {
-    LOG(FATAL) << sqlite3_errstr(result) << ": " << error;
-  }
+  CHECK(result == SQLITE_OK)
+      << "Failed to create index: " << sqlite3_errstr(result) << ": " << error;
 }
 
 SQLite::SQLite(const String& path, const String& name)
     : path_(path + "/" + name + ".sqlite") {
   auto result = sqlite3_open(path_.c_str(), &db_);
-  // FIXME: make this look like:
-  //        CHECK(result == SQLITE_OK) << sqlite_errstr(result);
-  if (result != SQLITE_OK) {
-    LOG(FATAL) << "Failed to open " << path_ << ": " << sqlite3_errstr(result);
-  }
+  CHECK(result == SQLITE_OK) << "Failed to open " << path_ << ": "
+                             << sqlite3_errstr(result);
 
   if (TableExists(db_, "entries")) {
     // TODO: do migration.
@@ -91,26 +78,20 @@ SQLite::SQLite(const String& path, const String& name)
                           "    version INT NOT NULL"
                           ");",
                           nullptr, nullptr, &error);
-    // FIXME: make this look like:
-    //        CHECK(result == SQLITE_OK) << sqlite_errstr(result);
-    if (result != SQLITE_OK) {
-      LOG(FATAL) << sqlite3_errstr(result) << ": " << error;
-    }
+    CHECK(result == SQLITE_OK)
+        << "Failed to create table: " << sqlite3_errstr(result) << ": "
+        << error;
 
     result = sqlite3_exec(db_, "CREATE INDEX mtime_idx ON entries (mtime);",
                           nullptr, nullptr, &error);
-    // FIXME: make this look like:
-    //        CHECK(result == SQLITE_OK) << sqlite_errstr(result);
-    if (result != SQLITE_OK) {
-      LOG(FATAL) << sqlite3_errstr(result) << ": " << error;
-    }
+    CHECK(result == SQLITE_OK)
+        << "Failed to create index: " << sqlite3_errstr(result) << ": "
+        << error;
   }
 }
 
 SQLite::~SQLite() {
   auto result = sqlite3_close(db_);
-  // FIXME: make this look like:
-  //        CHECK(result == SQLITE_OK) << sqlite_errstr(result);
   if (result != SQLITE_OK) {
     LOG(DB_ERROR) << "Failed to close database: " << sqlite3_errstr(result);
   }
@@ -159,8 +140,6 @@ bool SQLite::Set(const String& key, const Value& value) {
       std::to_string(std::get<SIZE>(value)) + ", " +
       std::to_string(std::get<VERSION>(value)) + ");";
   auto result = sqlite3_exec(db_, sql.c_str(), nullptr, nullptr, &error);
-  // FIXME: make this look like:
-  //        CHECK(result == SQLITE_OK) << sqlite_errstr(result);
   if (result != SQLITE_OK) {
     LOG(DB_ERROR) << sqlite3_errstr(result) << ": " << error;
     return false;
@@ -173,8 +152,6 @@ bool SQLite::Delete(const String& key) {
   char* error;
   const String sql = "DELETE FROM entries WHERE hash = '" + key + "'";
   auto result = sqlite3_exec(db_, sql.c_str(), nullptr, nullptr, &error);
-  // FIXME: make this look like:
-  //        CHECK(result == SQLITE_OK) << sqlite_errstr(result);
   if (result != SQLITE_OK) {
     LOG(DB_ERROR) << sqlite3_errstr(result) << ": " << error;
     return false;
