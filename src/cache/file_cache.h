@@ -180,8 +180,9 @@ class FileCache {
 
   bool Migrate(string::Hash hash) const;
 
-  ui64 GetEntrySize(string::Hash hash) const;
-  // Returns |0u| if the entry is broken.
+  bool GetEntrySize(string::Hash hash, ui64* size) const;
+  // Sets |0u| if the entry is broken.
+  // Returns |true| if the entry is from index.
 
   bool RemoveEntry(string::Hash hash);
   // Returns |false| only if some part of entry can't be physically removed.

@@ -73,15 +73,17 @@ bool FileCache::Run(ui64 clean_period) {
 
     auto hash = string::Hash(String(match[1]));
     ui64 size = 0u;
+    bool from_index = false;
 
     if (!Migrate(hash)) {
       RemoveEntry(hash);
     } else {
-      size = GetEntrySize(hash);
+      from_index = GetEntrySize(hash, &size);
     }
 
     if (size) {
-      CHECK(entries_->Set(hash.str,
+      CHECK(from_index ||
+            entries_->Set(hash.str,
                           std::make_tuple(mtime, size, kManifestVersion)));
 
       cache_size_ += size;
@@ -252,22 +254,27 @@ bool FileCache::FindByHash(HandledHash hash, Entry* entry) const {
   return manifest.v1().has_size() && manifest.v1().size() == size;
 }
 
-ui64 FileCache::GetEntrySize(string::Hash hash) const {
+bool FileCache::GetEntrySize(string::Hash hash, ui64* size) const {
+  DCHECK(size);
+
   const String common_path = CommonPath(hash);
   const String manifest_path = common_path + ".manifest";
 
   SQLite::Value entry;
   if (entries_ && entries_->Get(hash.str, &entry)) {
-    return std::get<SQLite::SIZE>(entry);
+    *size = std::get<SQLite::SIZE>(entry);
+    return true;
   }
 
   proto::Manifest manifest;
   if (!base::LoadFromFile(manifest_path, &manifest)) {
     LOG(CACHE_WARNING) << "Can't load manifest for " << hash.str;
-    return 0u;
+    *size = 0u;
+    return false;
   }
 
-  return manifest.v1().size() + base::File::Size(manifest_path);
+  *size = manifest.v1().size() + base::File::Size(manifest_path);
+  return false;
 }
 
 bool FileCache::RemoveEntry(string::Hash hash) {
@@ -492,7 +499,8 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
                          << " seconds";
     } else {
       // Insert new entry.
-      auto size = GetEntrySize(hash);
+      ui64 size = 0u;
+      GetEntrySize(hash, &size);
       CHECK(entries_->Set(
           hash.str, std::make_tuple(new_entry->first, size, kManifestVersion)));
       cache_size_ += size;
