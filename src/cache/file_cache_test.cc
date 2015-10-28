@@ -514,5 +514,37 @@ TEST(FileCacheTest, RestoreAndMigrateSnappyEntry) {
   }
 }
 
+TEST(FileCacheTest, UseIndexFromDisk) {
+  const base::TemporaryDir tmp_dir;
+  string::Hash hash{"12345678901234567890123456789012-12345678-00000001"_l};
+
+  {
+    FileCache cache(tmp_dir, FileCache::UNLIMITED, false, true);
+    const String manifest_path = cache.CommonPath(hash) + ".manifest";
+
+    ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash)));
+
+    proto::Manifest manifest;
+    manifest.set_stderr(false);
+    manifest.set_object(false);
+    manifest.set_deps(false);
+
+    ASSERT_TRUE(base::SaveToFile(manifest_path, manifest));
+    manifest.Clear();
+    EXPECT_TRUE(cache.Run(1));
+    ASSERT_TRUE(base::LoadFromFile(manifest_path, &manifest));
+    EXPECT_EQ(FileCache::kManifestVersion, manifest.version());
+  }
+
+  {
+    FileCache cache(tmp_dir, FileCache::UNLIMITED, false, true);
+    const String manifest_path = cache.CommonPath(hash) + ".manifest";
+
+    ASSERT_TRUE(base::File::Write(manifest_path, "1"_l));
+    EXPECT_TRUE(cache.Run(1));
+    EXPECT_TRUE(base::File::Exists(manifest_path));
+  }
+}
+
 }  // namespace cache
 }  // namespace dist_clang

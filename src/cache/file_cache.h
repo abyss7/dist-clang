@@ -18,6 +18,7 @@ FORWARD_TEST(FileCacheTest, ExceedCacheSize_Sync);
 FORWARD_TEST(FileCacheTest, LockNonExistentFile);
 FORWARD_TEST(FileCacheTest, RemoveEntry);
 FORWARD_TEST(FileCacheTest, RestoreEntryWithMissingFile);
+FORWARD_TEST(FileCacheTest, UseIndexFromDisk);
 FORWARD_TEST(FileCacheMigratorTest, Version_0_to_1_Direct);
 FORWARD_TEST(FileCacheMigratorTest, Version_0_to_1_Simple);
 
@@ -122,8 +123,11 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, LockNonExistentFile);
   FRIEND_TEST(FileCacheTest, RemoveEntry);
   FRIEND_TEST(FileCacheTest, RestoreEntryWithMissingFile);
+  FRIEND_TEST(FileCacheTest, UseIndexFromDisk);
   FRIEND_TEST(FileCacheMigratorTest, Version_0_to_1_Direct);
   FRIEND_TEST(FileCacheMigratorTest, Version_0_to_1_Simple);
+
+  enum : ui32 { kManifestVersion = 1 };
 
   class ReadLock {
    public:
@@ -204,8 +208,6 @@ class FileCache {
 
   UniquePtr<base::WorkerPool> resetter_{new base::WorkerPool(true)};
   // Simply resets |new_entries_| periodically.
-
-  const ui32 kManifestVersion = 1;
 };
 
 }  // namespace cache

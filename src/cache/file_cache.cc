@@ -63,74 +63,44 @@ bool FileCache::Run(ui64 clean_period) {
 
   CHECK(clean_period > 0);
 
-  base::WorkerPool::SimpleWorker worker;
-  if (max_size_ == UNLIMITED) {
-    base::WalkDirectory(path_, [this](const String& file_path, ui64, ui64) {
-      std::regex regex("([a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8})\\.manifest$");
-      std::cmatch match;
-      if (!std::regex_search(file_path.c_str(), match, regex) ||
-          match.size() < 2 || !match[1].matched) {
-        return;
-      }
+  base::WalkDirectory(path_, [this](const String& file_path, ui64 mtime, ui64) {
+    std::regex regex("([a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8})\\.manifest$");
+    std::cmatch match;
+    if (!std::regex_search(file_path.c_str(), match, regex) ||
+        match.size() < 2 || !match[1].matched) {
+      return;
+    }
 
-      auto hash = string::Hash(String(match[1]));
+    auto hash = string::Hash(String(match[1]));
+    ui64 size = 0u;
 
-      if (!Migrate(hash)) {
-        RemoveEntry(hash);
-      }
-    });
+    if (!Migrate(hash)) {
+      RemoveEntry(hash);
+    } else {
+      size = GetEntrySize(hash);
+    }
 
-    new_entries_.reset(new EntryList);
+    if (size) {
+      CHECK(entries_->Set(hash.str,
+                          std::make_tuple(mtime, size, kManifestVersion)));
 
-    worker = [this, clean_period](const Atomic<bool>& is_shutting_down) {
-      while (!is_shutting_down) {
-        std::this_thread::sleep_for(std::chrono::seconds(clean_period));
-        new_entries_.reset(new EntryList);
-      }
-    };
-  } else {
-    base::WalkDirectory(path_, [this](const String& file_path, ui64 mtime,
-                                      ui64) {
-      std::regex regex("([a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8})\\.manifest$");
-      std::cmatch match;
-      if (!std::regex_search(file_path.c_str(), match, regex) ||
-          match.size() < 2 || !match[1].matched) {
-        return;
-      }
+      cache_size_ += size;
+      LOG(CACHE_INFO) << hash.str << " is considered";
+    } else {
+      // When an entry has a zero size, it's not useful even if it's correct.
+      RemoveEntry(hash);
+    }
+  });
 
-      auto hash = string::Hash(String(match[1]));
-      ui64 size = 0u;
+  new_entries_.reset(new EntryList, new_entries_deleter_);
 
-      if (!Migrate(hash)) {
-        RemoveEntry(hash);
-      } else {
-        size = GetEntrySize(hash);
-      }
-
-      if (size) {
-        CHECK(!entries_->Exists(hash.str));
-        // There should be no duplicate entries.
-
-        CHECK(entries_->Set(hash.str,
-                            std::make_tuple(mtime, size, kManifestVersion)));
-
-        cache_size_ += size;
-        LOG(CACHE_INFO) << hash.str << " is considered";
-      } else {
-        // When an entry has a zero size, it's not useful even if it's correct.
-        RemoveEntry(hash);
-      }
-    });
-
-    new_entries_.reset(new EntryList, new_entries_deleter_);
-
-    worker = [this, clean_period](const Atomic<bool>& is_shutting_down) {
-      while (!is_shutting_down) {
-        std::this_thread::sleep_for(std::chrono::seconds(clean_period));
-        new_entries_.reset(new EntryList, new_entries_deleter_);
-      }
-    };
-  }
+  base::WorkerPool::SimpleWorker worker = [this, clean_period](
+      const Atomic<bool>& is_shutting_down) {
+    while (!is_shutting_down) {
+      std::this_thread::sleep_for(std::chrono::seconds(clean_period));
+      new_entries_.reset(new EntryList, new_entries_deleter_);
+    }
+  };
   resetter_->AddWorker("Cache Resetter Worker"_l, worker);
   cleaner_.Run();
 
@@ -285,6 +255,11 @@ bool FileCache::FindByHash(HandledHash hash, Entry* entry) const {
 ui64 FileCache::GetEntrySize(string::Hash hash) const {
   const String common_path = CommonPath(hash);
   const String manifest_path = common_path + ".manifest";
+
+  SQLite::Value entry;
+  if (entries_ && entries_->Get(hash.str, &entry)) {
+    return std::get<SQLite::SIZE>(entry);
+  }
 
   proto::Manifest manifest;
   if (!base::LoadFromFile(manifest_path, &manifest)) {
@@ -503,8 +478,6 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
 }
 
 void FileCache::Clean(UniquePtr<EntryList> list) {
-  DCHECK(max_size_ != UNLIMITED);
-
   while (auto new_entry = list->Pop()) {
     const auto& hash = new_entry->second;
     SQLite::Value entry;
@@ -525,6 +498,10 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
       cache_size_ += size;
       STAT(CACHE_SIZE_ADDED, size);
     }
+  }
+
+  if (max_size_ == UNLIMITED) {
+    return;
   }
 
   while (cache_size_ > max_size_) {

@@ -24,6 +24,7 @@ TEST(FileCacheMigratorTest, Version_0_to_1_Simple) {
   proto::Manifest manifest;
 
   ASSERT_TRUE(base::SaveToFile(manifest_path, manifest));
+  manifest.Clear();
   EXPECT_TRUE(cache.Migrate(hash));
   ASSERT_TRUE(base::LoadFromFile(manifest_path, &manifest));
 
@@ -54,6 +55,7 @@ TEST(FileCacheMigratorTest, Version_0_to_1_Direct) {
 
   ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash)));
   ASSERT_TRUE(base::SaveToFile(manifest_path, manifest));
+  manifest.Clear();
   EXPECT_TRUE(cache.Migrate(hash));
   ASSERT_TRUE(base::LoadFromFile(manifest_path, &manifest));
 

@@ -57,6 +57,8 @@ SQLite::SQLite() : path_(":memory:") {
                         nullptr, nullptr, &error);
   CHECK(result == SQLITE_OK)
       << "Failed to create index: " << sqlite3_errstr(result) << ": " << error;
+
+  LOG(DB_INFO) << "SQLite database is created in-memory";
 }
 
 SQLite::SQLite(const String& path, const String& name)
@@ -67,6 +69,7 @@ SQLite::SQLite(const String& path, const String& name)
 
   if (TableExists(db_, "entries")) {
     // TODO: do migration.
+    LOG(DB_INFO) << "SQLite database is opened on path " << path_;
   } else {
     char* error;
     // FIXME: 50 is a magical constant - it's the length of the hash string.
@@ -87,6 +90,8 @@ SQLite::SQLite(const String& path, const String& name)
     CHECK(result == SQLITE_OK)
         << "Failed to create index: " << sqlite3_errstr(result) << ": "
         << error;
+
+    LOG(DB_INFO) << "SQLite database is created on path " << path_;
   }
 }
 
