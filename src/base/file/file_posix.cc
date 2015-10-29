@@ -344,13 +344,17 @@ File::File(const String& path, ui64 size)
   }
 #elif defined(OS_MACOSX)
   fstore_t store = {
-      F_ALLOCATECONTIG, F_PEOFPOSMODE, 0, static_cast<off_t>(size),
+      F_ALLOCATECONTIG | F_ALLOCATEALL, F_PEOFPOSMODE, 0,
+      static_cast<off_t>(size),
   };
 
   if (fcntl(native(), F_PREALLOCATE, &store) == -1) {
-    GetLastError(&error_);
-    Handle::Close();
-    return;
+    store.fst_flags = F_ALLOCATEALL;
+    if (fcntl(native(), F_PREALLOCATE, &store) == -1) {
+      GetLastError(&error_);
+      Handle::Close();
+      return;
+    }
   }
 #endif
 }
