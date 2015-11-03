@@ -12,8 +12,7 @@ namespace dist_clang {
 namespace base {
 
 ProcessImpl::ProcessImpl(const String& exec_path, Immutable cwd_path, ui32 uid)
-    : Process(exec_path, cwd_path, uid), killed_(false) {
-}
+    : Process(exec_path, cwd_path, uid), killed_(false) {}
 
 // This method contains code between |fork()| and |exec()|. Since we're in a
 // multi-threaded program, we have to obey the POSIX recommendations about
@@ -89,6 +88,7 @@ bool ProcessImpl::WaitPid(int pid, ui64 sec_timeout, String* error) {
   }
 
   CHECK(result == pid);
+  // TODO: if compiler crashes it returns 134, but we return true nevertheless.
   return !WEXITSTATUS(status);
 }
 
