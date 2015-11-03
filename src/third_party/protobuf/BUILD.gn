@@ -1,4 +1,8 @@
 config("includes") {
+  cflags = [
+    "-Wno-bitfield-width",
+  ]
+
   include_dirs = [ "exported/src" ]
 
   # For config.h
