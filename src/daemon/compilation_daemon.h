@@ -30,11 +30,11 @@ class CompilationDaemon : public BaseDaemon {
 
   bool SearchSimpleCache(const base::proto::Flags& flags,
                          const cache::string::HandledSource& source,
-                         cache::FileCache::Entry& entry) const;
+                         cache::FileCache::Entry* entry) const;
 
   bool SearchDirectCache(const base::proto::Flags& flags,
                          const String& current_dir,
-                         cache::FileCache::Entry& entry) const;
+                         cache::FileCache::Entry* entry) const;
 
   void UpdateSimpleCache(const base::proto::Flags& flags,
                          const cache::string::HandledSource& source,

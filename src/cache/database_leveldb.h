@@ -21,6 +21,11 @@ class LevelDB : public Database<Immutable> {
   bool Get(const String& key, Immutable* value) const override THREAD_SAFE;
   bool Delete(const String& key) override THREAD_SAFE;
 
+  inline ui32 GetVersion() const override {
+    // No versioning for now.
+    return 0;
+  }
+
   inline ui64 SizeOnDisk() const { return base::CalculateDirectorySize(path_); }
 
  private:

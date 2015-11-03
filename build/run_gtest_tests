@@ -6,4 +6,3 @@ export ASAN_OPTIONS=new_delete_type_mismatch=0
 export LSAN_OPTIONS=suppressions=`dirname $0`/lsan_suppression.txt
 
 ${test_dir}/unit_tests $@
-${test_dir}/migrator_tests $@

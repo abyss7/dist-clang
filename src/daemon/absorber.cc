@@ -115,7 +115,7 @@ void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
     }
 
     cache::FileCache::Entry entry;
-    if (SearchSimpleCache(incoming->flags(), HandledSource(source), entry)) {
+    if (SearchSimpleCache(incoming->flags(), HandledSource(source), &entry)) {
       Universal outgoing(new net::proto::Universal);
       auto* result = outgoing->MutableExtension(proto::Result::extension);
       result->set_obj(entry.object);

@@ -1129,8 +1129,7 @@ src/cache/file_cache.cc
 src/cache/file_cache.h
 src/cache/file_cache_test.cc
 src/cache/manifest.proto
-src/cache/migrator.cc
-src/cache/migrator.h
+src/cache/file_cache_migrator.cc
 src/cache/sqlite3.c
 src/cache/sqlite3.h
 src/client/BUILD.gn
@@ -2548,4 +2547,5 @@ src/third_party/tclap/exported/include/tclap/Visitor.h
 src/third_party/tclap/exported/include/tclap/XorHandler.h
 src/third_party/tclap/exported/include/tclap/ZshCompletionOutput.h
 tools/get_report.py
-src/cache/migrator_test.cc
+src/cache/file_cache_migrator_test.cc
+src/cache/database_sqlite_migrator.cc

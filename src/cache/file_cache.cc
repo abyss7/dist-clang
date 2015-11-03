@@ -31,10 +31,15 @@ String ReplaceTildeInPath(const String& path) {
 
 namespace cache {
 
-FileCache::FileCache(const String& path, ui64 size, bool snappy)
-    : path_(ReplaceTildeInPath(path)), snappy_(snappy), max_size_(size) {}
+FileCache::FileCache(const String& path, ui64 size, bool snappy,
+                     bool store_index)
+    : path_(ReplaceTildeInPath(path)),
+      snappy_(snappy),
+      store_index_(store_index),
+      max_size_(size) {}
 
-FileCache::FileCache(const String& path) : FileCache(path, UNLIMITED, false) {}
+FileCache::FileCache(const String& path)
+    : FileCache(path, UNLIMITED, false, false) {}
 
 FileCache::~FileCache() {
   resetter_.reset();
@@ -50,78 +55,54 @@ bool FileCache::Run(ui64 clean_period) {
   }
 
   database_.reset(new LevelDB(path_, "direct"));
-  entries_.reset(new SQLite);
+  if (store_index_) {
+    entries_.reset(new SQLite(path_, "index"));
+  } else {
+    entries_.reset(new SQLite);
+  }
 
   CHECK(clean_period > 0);
 
-  base::WorkerPool::SimpleWorker worker;
-  if (max_size_ == UNLIMITED) {
-    base::WalkDirectory(path_, [this](const String& file_path, ui64 mtime,
-                                      ui64) {
-      std::regex regex("([a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8})\\.manifest$");
-      std::cmatch match;
-      if (!std::regex_search(file_path.c_str(), match, regex) ||
-          match.size() < 2 || !match[1].matched) {
-        return;
-      }
+  base::WalkDirectory(path_, [this](const String& file_path, ui64 mtime, ui64) {
+    std::regex regex("([a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8})\\.manifest$");
+    std::cmatch match;
+    if (!std::regex_search(file_path.c_str(), match, regex) ||
+        match.size() < 2 || !match[1].matched) {
+      return;
+    }
 
-      auto hash = string::Hash(String(match[1]));
+    auto hash = string::Hash(String(match[1]));
+    ui64 size = 0u;
+    bool from_index = false;
 
-      if (!Migrate(hash)) {
-        RemoveEntry(hash);
-      }
-    });
+    if (!Migrate(hash)) {
+      RemoveEntry(hash);
+    } else {
+      from_index = GetEntrySize(hash, &size);
+    }
 
-    new_entries_.reset(new EntryList);
+    if (size) {
+      CHECK(from_index ||
+            entries_->Set(hash.str,
+                          std::make_tuple(mtime, size, kManifestVersion)));
 
-    worker = [this, clean_period](const Atomic<bool>& is_shutting_down) {
-      while (!is_shutting_down) {
-        std::this_thread::sleep_for(std::chrono::seconds(clean_period));
-        new_entries_.reset(new EntryList);
-      }
-    };
-  } else {
-    base::WalkDirectory(path_, [this](const String& file_path, ui64 mtime,
-                                      ui64) {
-      std::regex regex("([a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8})\\.manifest$");
-      std::cmatch match;
-      if (!std::regex_search(file_path.c_str(), match, regex) ||
-          match.size() < 2 || !match[1].matched) {
-        return;
-      }
+      cache_size_ += size;
+      LOG(CACHE_INFO) << hash.str << " is considered";
+    } else {
+      // When an entry has a zero size, it's not useful even if it's correct.
+      RemoveEntry(hash);
+    }
+  });
 
-      auto hash = string::Hash(String(match[1]));
-      auto size = 0u;
+  new_entries_.reset(new EntryList, new_entries_deleter_);
 
-      if (!Migrate(hash)) {
-        RemoveEntry(hash);
-      } else {
-        size = GetEntrySize(hash);
-      }
-
-      if (size) {
-        CHECK(!entries_->Exists(hash.str));
-        // There should be no duplicate entries.
-
-        CHECK(entries_->Set(hash.str, std::make_tuple(mtime, size)));
-
-        cache_size_ += size;
-        LOG(CACHE_INFO) << hash.str << " is considered";
-      } else {
-        // When an entry has a zero size, it's not useful even if it's correct.
-        RemoveEntry(hash);
-      }
-    });
-
-    new_entries_.reset(new EntryList, new_entries_deleter_);
-
-    worker = [this, clean_period](const Atomic<bool>& is_shutting_down) {
-      while (!is_shutting_down) {
-        std::this_thread::sleep_for(std::chrono::seconds(clean_period));
-        new_entries_.reset(new EntryList, new_entries_deleter_);
-      }
-    };
-  }
+  base::WorkerPool::SimpleWorker worker = [this, clean_period](
+      const Atomic<bool>& is_shutting_down) {
+    while (!is_shutting_down) {
+      std::this_thread::sleep_for(std::chrono::seconds(clean_period));
+      new_entries_.reset(new EntryList, new_entries_deleter_);
+    }
+  };
   resetter_->AddWorker("Cache Resetter Worker"_l, worker);
   cleaner_.Run();
 
@@ -148,14 +129,16 @@ UnhandledHash FileCache::Hash(UnhandledSource code, CommandLine command_line,
           (version.str + "\n"_l + clang::getClangFullVersion()).Hash(4)));
 }
 
-bool FileCache::Find(const HandledSource& code, const CommandLine& command_line,
-                     const Version& version, Entry& entry) const {
+bool FileCache::Find(HandledSource code, CommandLine command_line,
+                     Version version, Entry* entry) const {
   return FindByHash(Hash(code, command_line, version), entry);
 }
 
-bool FileCache::Find(const UnhandledSource& code,
-                     const CommandLine& command_line, const Version& version,
-                     const String& current_dir, Entry& entry) const {
+bool FileCache::Find(UnhandledSource code, CommandLine command_line,
+                     Version version, const String& current_dir,
+                     Entry* entry) const {
+  DCHECK(entry);
+
   auto hash1 = Hash(code, command_line, version);
   const String manifest_path = CommonPath(hash1) + ".manifest";
   const ReadLock lock(this, manifest_path);
@@ -192,20 +175,20 @@ bool FileCache::Find(const UnhandledSource& code,
   return false;
 }
 
-void FileCache::Store(const UnhandledSource& code,
-                      const CommandLine& command_line, const Version& version,
-                      const List<String>& headers, const String& current_dir,
-                      const HandledHash& hash) {
+void FileCache::Store(UnhandledSource code, CommandLine command_line,
+                      Version version, const List<String>& headers,
+                      const String& current_dir, string::HandledHash hash) {
   DoStore(Hash(code, command_line, version), headers, current_dir, hash);
 }
 
-void FileCache::Store(const HandledSource& code,
-                      const CommandLine& command_line, const Version& version,
-                      const Entry& entry) {
+void FileCache::Store(HandledSource code, CommandLine command_line,
+                      Version version, const Entry& entry) {
   DoStore(Hash(code, command_line, version), entry);
 }
 
-bool FileCache::FindByHash(const HandledHash& hash, Entry& entry) const {
+bool FileCache::FindByHash(HandledHash hash, Entry* entry) const {
+  DCHECK(entry);
+
   const String manifest_path = CommonPath(hash) + ".manifest";
   const ReadLock lock(this, manifest_path);
 
@@ -225,10 +208,10 @@ bool FileCache::FindByHash(const HandledHash& hash, Entry& entry) const {
 
   if (manifest.v1().err()) {
     const String stderr_path = CommonPath(hash) + ".stderr";
-    if (!base::File::Read(stderr_path, &entry.stderr)) {
+    if (!base::File::Read(stderr_path, &entry->stderr)) {
       return false;
     }
-    size += entry.stderr.size();
+    size += entry->stderr.size();
   }
 
   if (manifest.v1().obj()) {
@@ -251,37 +234,47 @@ bool FileCache::FindByHash(const HandledHash& hash, Entry& entry) const {
         return false;
       }
 
-      entry.object = std::move(object_str);
+      entry->object = std::move(object_str);
     } else {
-      if (!base::File::Read(object_path, &entry.object)) {
+      if (!base::File::Read(object_path, &entry->object)) {
         return false;
       }
-      size += entry.object.size();
+      size += entry->object.size();
     }
   }
 
   if (manifest.v1().dep()) {
     const String deps_path = CommonPath(hash) + ".d";
-    if (!base::File::Read(deps_path, &entry.deps)) {
+    if (!base::File::Read(deps_path, &entry->deps)) {
       return false;
     }
-    size += entry.deps.size();
+    size += entry->deps.size();
   }
 
   return manifest.v1().has_size() && manifest.v1().size() == size;
 }
 
-ui64 FileCache::GetEntrySize(string::Hash hash) const {
+bool FileCache::GetEntrySize(string::Hash hash, ui64* size) const {
+  DCHECK(size);
+
   const String common_path = CommonPath(hash);
   const String manifest_path = common_path + ".manifest";
+
+  SQLite::Value entry;
+  if (entries_ && entries_->Get(hash.str, &entry)) {
+    *size = std::get<SQLite::SIZE>(entry);
+    return true;
+  }
 
   proto::Manifest manifest;
   if (!base::LoadFromFile(manifest_path, &manifest)) {
     LOG(CACHE_WARNING) << "Can't load manifest for " << hash.str;
-    return 0u;
+    *size = 0u;
+    return false;
   }
 
-  return manifest.v1().size() + base::File::Size(manifest_path);
+  *size = manifest.v1().size() + base::File::Size(manifest_path);
+  return false;
 }
 
 bool FileCache::RemoveEntry(string::Hash hash) {
@@ -340,7 +333,7 @@ bool FileCache::RemoveEntry(string::Hash hash) {
   return result;
 }
 
-void FileCache::DoStore(const HandledHash& hash, Entry entry) {
+void FileCache::DoStore(string::HandledHash hash, Entry entry) {
   auto manifest_path = CommonPath(hash) + ".manifest";
   WriteLock lock(this, manifest_path);
   String error;
@@ -355,7 +348,7 @@ void FileCache::DoStore(const HandledHash& hash, Entry entry) {
   }
 
   proto::Manifest manifest;
-  manifest.set_version(1);
+  manifest.set_version(kManifestVersion);
 
   manifest.mutable_v1()->set_err(!entry.stderr.empty());
   if (!entry.stderr.empty()) {
@@ -457,7 +450,7 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
   Immutable::Rope hash_rope = {orig_hash};
 
   proto::Manifest manifest;
-  manifest.set_version(1);
+  manifest.set_version(kManifestVersion);
 
   for (const auto& header : headers) {
     String error;
@@ -492,8 +485,6 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
 }
 
 void FileCache::Clean(UniquePtr<EntryList> list) {
-  DCHECK(max_size_ != UNLIMITED);
-
   while (auto new_entry = list->Pop()) {
     const auto& hash = new_entry->second;
     SQLite::Value entry;
@@ -501,17 +492,24 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
       // Update mtime of an existing entry.
       CHECK(entries_->Set(
           hash.str,
-          std::make_tuple(new_entry->first, std::get<SQLite::SIZE>(entry))));
+          std::make_tuple(new_entry->first, std::get<SQLite::SIZE>(entry),
+                          kManifestVersion)));
       LOG(CACHE_VERBOSE) << hash.str << " wasn't used for "
                          << (new_entry->first - std::get<SQLite::MTIME>(entry))
                          << " seconds";
     } else {
       // Insert new entry.
-      auto size = GetEntrySize(hash);
-      CHECK(entries_->Set(hash.str, std::make_tuple(new_entry->first, size)));
+      ui64 size = 0u;
+      GetEntrySize(hash, &size);
+      CHECK(entries_->Set(
+          hash.str, std::make_tuple(new_entry->first, size, kManifestVersion)));
       cache_size_ += size;
       STAT(CACHE_SIZE_ADDED, size);
     }
+  }
+
+  if (max_size_ == UNLIMITED) {
+    return;
   }
 
   while (cache_size_ > max_size_) {

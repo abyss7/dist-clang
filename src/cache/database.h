@@ -19,6 +19,8 @@ class Database {
     return Get(key, &unused_value);
   }
   virtual bool Delete(const String& key) = 0;
+
+  virtual ui32 GetVersion() const = 0;
 };
 
 template <class Value>
@@ -33,6 +35,8 @@ class Database<Value> {
     return Get(key, &unused_value);
   }
   virtual bool Delete(const String& key) = 0;
+
+  virtual ui32 GetVersion() const = 0;
 };
 
 }  // namespace cache

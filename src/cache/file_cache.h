@@ -6,7 +6,6 @@
 #include <cache/database_leveldb.h>
 #include <cache/database_sqlite.h>
 #include <cache/manifest.pb.h>
-#include <cache/migrator.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest_prod.h>
 
@@ -19,6 +18,9 @@ FORWARD_TEST(FileCacheTest, ExceedCacheSize_Sync);
 FORWARD_TEST(FileCacheTest, LockNonExistentFile);
 FORWARD_TEST(FileCacheTest, RemoveEntry);
 FORWARD_TEST(FileCacheTest, RestoreEntryWithMissingFile);
+FORWARD_TEST(FileCacheTest, UseIndexFromDisk);
+FORWARD_TEST(FileCacheMigratorTest, Version_0_to_1_Direct);
+FORWARD_TEST(FileCacheMigratorTest, Version_0_to_1_Simple);
 
 namespace string {
 
@@ -64,7 +66,7 @@ namespace std {
 template <>
 struct hash<dist_clang::cache::string::Hash> {
  public:
-  size_t operator()(const dist_clang::cache::string::Hash& value) const {
+  size_t operator()(dist_clang::cache::string::Hash value) const {
     return std::hash<dist_clang::Immutable>()(value.str);
   }
 };
@@ -86,7 +88,7 @@ class FileCache {
     Immutable stderr;
   };
 
-  FileCache(const String& path, ui64 size, bool snappy);
+  FileCache(const String& path, ui64 size, bool snappy, bool store_index);
   explicit FileCache(const String& path);
   ~FileCache();
 
@@ -101,23 +103,19 @@ class FileCache {
                                     string::CommandLine command_line,
                                     string::Version version);
 
-  bool Find(const string::HandledSource& code,
-            const string::CommandLine& command_line,
-            const string::Version& version, Entry& entry) const;
+  bool Find(string::HandledSource code, string::CommandLine command_line,
+            string::Version version, Entry* entry) const;
 
-  bool Find(const string::UnhandledSource& code,
-            const string::CommandLine& command_line,
-            const string::Version& version, const String& current_dir,
-            Entry& entry) const;
+  bool Find(string::UnhandledSource code, string::CommandLine command_line,
+            string::Version version, const String& current_dir,
+            Entry* entry) const;
 
-  void Store(const string::UnhandledSource& code,
-             const string::CommandLine& command_line,
-             const string::Version& version, const List<String>& headers,
-             const String& current_dir, const string::HandledHash& hash);
+  void Store(string::UnhandledSource code, string::CommandLine command_line,
+             string::Version version, const List<String>& headers,
+             const String& current_dir, string::HandledHash hash);
 
-  void Store(const string::HandledSource& code,
-             const string::CommandLine& command_line,
-             const string::Version& version, const Entry& entry);
+  void Store(string::HandledSource code, string::CommandLine command_line,
+             string::Version version, const Entry& entry);
 
  private:
   FRIEND_TEST(FileCacheTest, DoubleLocks);
@@ -125,6 +123,11 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, LockNonExistentFile);
   FRIEND_TEST(FileCacheTest, RemoveEntry);
   FRIEND_TEST(FileCacheTest, RestoreEntryWithMissingFile);
+  FRIEND_TEST(FileCacheTest, UseIndexFromDisk);
+  FRIEND_TEST(FileCacheMigratorTest, Version_0_to_1_Direct);
+  FRIEND_TEST(FileCacheMigratorTest, Version_0_to_1_Simple);
+
+  enum : ui32 { kManifestVersion = 1 };
 
   class ReadLock {
    public:
@@ -166,8 +169,8 @@ class FileCache {
     return SecondPath(hash) + "/" + hash.str.string_copy();
   }
 
-  bool FindByHash(const string::HandledHash& hash, Entry& entry) const;
-  void DoStore(const string::HandledHash& hash, Entry entry);
+  bool FindByHash(string::HandledHash hash, Entry* entry) const;
+  void DoStore(string::HandledHash hash, Entry entry);
   void DoStore(string::UnhandledHash orig_hash, const List<String>& headers,
                const String& current_dir, const string::HandledHash& hash);
 
@@ -175,12 +178,11 @@ class FileCache {
   using EntryList = base::LockedList<TimeHashPair>;
   using EntryListDeleter = Fn<void(EntryList* list)>;
 
-  inline bool Migrate(string::Hash hash) const {
-    return cache::Migrate(CommonPath(hash));
-  }
+  bool Migrate(string::Hash hash) const;
 
-  ui64 GetEntrySize(string::Hash hash) const;
-  // Returns |0u| if the entry is broken.
+  bool GetEntrySize(string::Hash hash, ui64* size) const;
+  // Sets |0u| if the entry is broken.
+  // Returns |true| if the entry is from index.
 
   bool RemoveEntry(string::Hash hash);
   // Returns |false| only if some part of entry can't be physically removed.
@@ -192,7 +194,7 @@ class FileCache {
   mutable HashSet<String> write_locks_;
 
   const String path_;
-  bool snappy_;
+  bool snappy_, store_index_;
   UniquePtr<LevelDB> database_;
   UniquePtr<SQLite> entries_;
 

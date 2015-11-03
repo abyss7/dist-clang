@@ -1,18 +1,3 @@
-executable("migrator_tests") {
-  testonly = true
-
-  sources = [
-    "//src/cache/migrator_test.cc",
-    "run_all_tests.cc",
-  ]
-
-  deps += [
-    "//src/base:base",
-    "//src/cache:migrator",
-    "//src/third_party/gtest:gtest",
-  ]
-}
-
 executable("unit_tests") {
   testonly = true
 
@@ -31,6 +16,7 @@ executable("unit_tests") {
     "//src/base/test_process.cc",
     "//src/base/test_process.h",
     "//src/base/thread_pool_test.cc",
+    "//src/cache/file_cache_migrator_test.cc",
     "//src/cache/file_cache_test.cc",
     "//src/client/clang_test.cc",
     "//src/client/command_test.cc",

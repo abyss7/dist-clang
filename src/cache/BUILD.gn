@@ -14,8 +14,10 @@ shared_library("file_cache") {
     "database_leveldb.h",
     "database_sqlite.cc",
     "database_sqlite.h",
+    "database_sqlite_migrator.cc",
     "file_cache.cc",
     "file_cache.h",
+    "file_cache_migrator.cc",
     "sqlite3.c",
     "sqlite3.h",
   ]
@@ -32,29 +34,15 @@ shared_library("file_cache") {
   }
 
   deps += [
-    ":migrator",
     "//src/base:base",
     "//src/base:logging",
     "//src/perf:stat_service",
     "//src/third_party/leveldb:leveldb",
     "//src/third_party/snappy:snappy",
   ]
-}
-
-source_set("migrator") {
-  visibility += [ "//src/test:migrator_tests" ]
-
-  sources = [
-    "migrator.cc",
-    "migrator.h",
-  ]
-
-  deps += [
-    "//src/base:base",
-  ]
 
   public_deps = [
-    ":manifest_proto",
+    ":manifest_proto",  # for file_cache_migrator_test.cc
   ]
 }
 

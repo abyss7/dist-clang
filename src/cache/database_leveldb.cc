@@ -18,20 +18,15 @@ LevelDB::LevelDB(const String& path, const String& name)
   options.create_if_missing = true;
 
   Status status = DB::Open(options, path_, &db_);
-  if (!status.ok()) {
-    LOG(DB_ERROR) << "Failed to open database with error: "
-                  << status.ToString();
-    db_ = nullptr;
-    return;
-  }
+  CHECK(status.ok()) << "Failed to open database with error: "
+                     << status.ToString();
 
   LOG(DB_INFO) << "Database is created on path " << path_;
 }
 
 LevelDB::~LevelDB() {
-  if (db_) {
-    delete db_;
-  }
+  DCHECK(db_);
+  delete db_;
 }
 
 bool LevelDB::Set(const String& key, const Immutable& value) {

@@ -1,8 +1,7 @@
-#include <cache/migrator.h>
-
 #include <base/file/file.h>
 #include <base/logging.h>
 #include <base/protobuf_utils.h>
+#include <cache/file_cache.h>
 #include <cache/manifest.pb.h>
 
 #include <base/using_log.h>
@@ -74,10 +73,20 @@ bool Version_0_to_1(const String& common_path, proto::Manifest& manifest,
 
 }  // namespace
 
-bool Migrate(const String& common_path) {
+bool FileCache::Migrate(string::Hash hash) const {
+  const String common_path = CommonPath(hash);
+  const String manifest_path = common_path + ".manifest";
+
+  SQLite::Value entry;
+  if (entries_ && entries_->Get(hash.str, &entry) &&
+      std::get<SQLite::VERSION>(entry) == kManifestVersion) {
+    LOG(CACHE_VERBOSE) << "No migration for " << manifest_path
+                       << " required according to index";
+    return true;
+  }
+
   proto::Manifest manifest;
   bool modified = false;
-  const String manifest_path = common_path + ".manifest";
   if (!base::LoadFromFile(manifest_path, &manifest)) {
     LOG(CACHE_ERROR) << "Failed to load " << manifest_path;
     return false;
@@ -97,8 +106,14 @@ bool Migrate(const String& common_path) {
 
 #undef MIGRATE
 
+  if (manifest.version() != kManifestVersion) {
+    LOG(CACHE_ERROR) << "Not an actual version " << manifest_path << ": "
+                     << manifest.version() << " vs. " << kManifestVersion;
+    return false;
+  }
+
   if (!modified) {
-    // TODO: make an unit-test that we don't rewrite manifest on disk.
+    // TODO: make a unit-test that we don't rewrite manifest on disk.
     LOG(CACHE_VERBOSE) << "No modifications for " << manifest_path;
     return true;
   } else if (!base::SaveToFile(manifest_path, manifest)) {
