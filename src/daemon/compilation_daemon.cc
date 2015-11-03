@@ -28,8 +28,7 @@ inline CommandLine CommandLineForCache(const base::proto::Flags& flags) {
   return CommandLine(command_line);
 }
 
-inline CommandLine CommandLineForDirect(const base::proto::Flags& flags,
-                                        const String& base_path) {
+inline CommandLine CommandLineForDirect(const base::proto::Flags& flags) {
   String command_line =
       base::JoinString<' '>(flags.other().begin(), flags.other().end());
   if (flags.has_language()) {
@@ -43,14 +42,6 @@ inline CommandLine CommandLineForDirect(const base::proto::Flags& flags,
     command_line += " " + base::JoinString<' '>(flags.cc_only().begin(),
                                                 flags.cc_only().end());
   }
-
-  // TODO: write test on this case.
-  // Compiler implicitly appends file directory as an include path - so do we.
-  String input_path = flags.input().substr(0, flags.input().find_last_of('/'));
-  if (input_path[0] != '/') {
-    input_path = base_path + '/' + input_path;
-  }
-  command_line += " -I" + input_path;
 
   return CommandLine(command_line);
 }
@@ -253,7 +244,7 @@ bool CompilationDaemon::SearchDirectCache(
   const String input = flags.input()[0] != '/'
                            ? current_dir + "/" + flags.input()
                            : flags.input();
-  const CommandLine command_line(CommandLineForDirect(flags, current_dir));
+  const CommandLine command_line(CommandLineForDirect(flags));
 
   UnhandledSource code;
   if (!base::File::Read(input, &code.str)) {
@@ -301,7 +292,7 @@ void CompilationDaemon::UpdateDirectCache(
 
   const Version version(flags.compiler().version());
   const auto hash = cache_->Hash(source, CommandLineForCache(flags), version);
-  const auto command_line = CommandLineForDirect(flags, message->current_dir());
+  const auto command_line = CommandLineForDirect(flags);
   const String input_path = flags.input()[0] != '/'
                                 ? message->current_dir() + "/" + flags.input()
                                 : flags.input();
