@@ -27,4 +27,5 @@ message Configuration {
   // in bytes.
 
   repeated Plugin plugins      = 6;
+  optional bool disabled       = 7 [ default = false ];
 }

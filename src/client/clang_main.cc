@@ -3,6 +3,7 @@
 #include <base/constants.h>
 #include <base/file/file.h>
 #include <base/logging.h>
+#include <base/protobuf_utils.h>
 #include <base/string_utils.h>
 #include <client/clang.h>
 #include <client/configuration.pb.h>
@@ -68,26 +69,14 @@ int main(int argc, char* argv[]) {
        send_timeout_secs = default_config.send_timeout(),
        read_min_bytes = default_config.read_minimum();
   HashMap<String, String> plugins;
+  bool disabled = false;
 
   // Try to load config file first.
   String dir = base::GetCurrentDir();
   do {
     String config_path = dir + "/.distclang";
-    if (base::File::Exists(config_path)) {
-      client::proto::Configuration config;
-
-      auto fd = open(config_path.c_str(), O_RDONLY);
-      if (fd == -1) {
-        break;
-      }
-
-      google::protobuf::io::FileInputStream input(fd);
-      input.SetCloseOnDelete(true);
-      if (!google::protobuf::TextFormat::Parse(&input, &config)) {
-        LOG(INFO) << "Found " << config_path << " but it's broken!";
-        break;
-      }
-
+    client::proto::Configuration config;
+    if (base::LoadFromFile(config_path, &config)) {
       clang_path = config.release_path();
       if (clang_path[0] != '/') {
         clang_path = Immutable(dir) + "/"_l + clang_path;
@@ -103,6 +92,7 @@ int main(int argc, char* argv[]) {
       read_timeout_secs = config.read_timeout();
       send_timeout_secs = config.send_timeout();
       read_min_bytes = config.read_minimum();
+      disabled = config.disabled();
 
       for (const auto& plugin : config.plugins()) {
 #if defined(OS_LINUX)
@@ -142,11 +132,15 @@ int main(int argc, char* argv[]) {
 
   Immutable version_env = base::GetEnv(base::kEnvClangVersion);
   Immutable clang_path_env = base::GetEnv(base::kEnvClangPath);
+  Immutable disabled_env = base::GetEnv(base::kEnvDisabled);
   if (!version_env.empty()) {
     version = version_env;
   }
   if (!clang_path_env.empty()) {
     clang_path = clang_path_env;
+  }
+  if (!disabled_env.empty()) {
+    disabled = true;
   }
 
   if (clang_path.empty()) {
@@ -171,8 +165,8 @@ int main(int argc, char* argv[]) {
   //         get destructed before the invokation of |exec|. Do not use global
   //         objects!
   if (client::DoMain(argc, argv, socket_path, clang_path, version,
-                     read_timeout_secs, send_timeout_secs, read_min_bytes,
-                     plugins)) {
+                                 read_timeout_secs, send_timeout_secs,
+                                 read_min_bytes, plugins, disabled)) {
     return ExecuteLocally(argv, clang_path);
   }
 
