@@ -71,7 +71,9 @@ source_set("spinlock") {
     ":no_warnings",
   ]
 
-  deps -= [ "//src/third_party/gperftools:tcmalloc" ]
+  if (use_tcmalloc) {
+    deps -= [ "//src/third_party/gperftools:tcmalloc" ]
+  }
 }
 
 source_set("sysinfo") {
@@ -86,7 +88,9 @@ source_set("sysinfo") {
     ":no_warnings",
   ]
 
-  deps -= [ "//src/third_party/gperftools:tcmalloc" ]
+  if (use_tcmalloc) {
+    deps -= [ "//src/third_party/gperftools:tcmalloc" ]
+  }
 }
 
 source_set("logging") {
@@ -102,7 +106,9 @@ source_set("logging") {
     ":no_warnings",
   ]
 
-  deps -= [ "//src/third_party/gperftools:tcmalloc" ]
+  if (use_tcmalloc) {
+    deps -= [ "//src/third_party/gperftools:tcmalloc" ]
+  }
 }
 
 source_set("stacktrace") {
@@ -122,7 +128,9 @@ source_set("stacktrace") {
     configs += [ "//src/third_party/libunwind:includes" ]
   }
 
-  deps -= [ "//src/third_party/gperftools:tcmalloc" ]
+  if (use_tcmalloc) {
+    deps -= [ "//src/third_party/gperftools:tcmalloc" ]
+  }
   deps += [
     ":logging",
     ":spinlock",
@@ -161,7 +169,9 @@ source_set("tcmalloc_internal") {
     ":no_warnings",
   ]
 
-  deps -= [ "//src/third_party/gperftools:tcmalloc" ]
+  if (use_tcmalloc) {
+    deps -= [ "//src/third_party/gperftools:tcmalloc" ]
+  }
   deps += [ ":stacktrace" ]
 }
 
@@ -179,7 +189,9 @@ source_set("profiler") {
     ":no_warnings",
   ]
 
-  deps -= [ "//src/third_party/gperftools:tcmalloc" ]
+  if (use_tcmalloc) {
+    deps -= [ "//src/third_party/gperftools:tcmalloc" ]
+  }
   deps += [ ":stacktrace" ]
 }
 
@@ -215,7 +227,9 @@ shared_library("tcmalloc") {
     ":no_warnings",
   ]
 
-  deps -= [ "//src/third_party/gperftools:tcmalloc" ]
+  if (use_tcmalloc) {
+    deps -= [ "//src/third_party/gperftools:tcmalloc" ]
+  }
   deps += [
     ":profiler",
     ":tcmalloc_internal",

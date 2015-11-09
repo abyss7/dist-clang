@@ -22,6 +22,18 @@ declare_args() {
 assert(!(use_asan && use_tsan), "Use either ASan or TSan at the same time")
 
 # =============================================================================
+# Internal flags, with default values and conditions.
+# =============================================================================
+
+use_tcmalloc = false
+
+# Mac OS X 10.10 doesn't work with tcmalloc. FIXME: Check Mac OS X 10.11
+# Thread Sanitizer doesn't like tcmalloc either.
+if (host_os != "mac" && host_os != "win" && !use_tsan) {
+  use_tcmalloc = true
+}
+
+# =============================================================================
 # Setup configurations.
 # =============================================================================
 
@@ -78,9 +90,7 @@ if (host_os != "win") {
   ]
 }
 
-# Mac OS X 10.10 doesn't work with tcmalloc anymore.
-# Thread Sanitizer doesn't like tcmalloc either.
-if (host_os != "mac" && host_os != "win" && !use_tsan) {
+if (use_tcmalloc) {
   default_deps += [ "//src/third_party/gperftools:tcmalloc" ]
 }
 
