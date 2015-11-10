@@ -8,8 +8,7 @@ namespace daemon {
 
 namespace {
 
-// S1..4 types can be one of the following:
-// |String|, |ConstString|, |Literal| or |const char*|
+// S1..4 types can be one of the following: |String|, |Immutable|, |Literal|
 template <typename S1, typename S2, typename S3, typename S4 = String>
 net::Connection::ScopedMessage CreateMessage(const S1& source,
                                              const S2& action,
@@ -21,13 +20,14 @@ net::Connection::ScopedMessage CreateMessage(const S1& source,
   auto* compiler = extension->mutable_flags()->mutable_compiler();
   compiler->set_version(compiler_version);
   extension->mutable_flags()->set_action(action);
-  if (language != String())
+  if (language != String()) {
     extension->mutable_flags()->set_language(language);
+  }
 
   return message;
 }
 
-net::proto::Status StatusFor(const net::proto::Status::Code status_code) {
+net::proto::Status StatusFor(net::proto::Status::Code status_code) {
   net::proto::Status status;
   status.set_code(status_code);
   return status;
@@ -93,7 +93,8 @@ TEST_F(AbsorberTest, SuccessfulCompilation) {
 
   auto connection = test_service->TriggerListen(expected_host, expected_port);
   {
-    auto message(CreateMessage("fake_source", "fake_action", compiler_version));
+    auto message(
+        CreateMessage("fake_source"_l, "fake_action"_l, compiler_version));
 
     SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
@@ -146,7 +147,8 @@ TEST_F(AbsorberTest, FailedCompilation) {
 
   auto connection = test_service->TriggerListen(expected_host, expected_port);
   {
-    auto message(CreateMessage("fake_source", "fake_action", compiler_version));
+    auto message(
+        CreateMessage("fake_source"_l, "fake_action"_l, compiler_version));
     SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
     EXPECT_TRUE(
@@ -232,18 +234,9 @@ TEST_F(AbsorberTest, StoreLocalCache) {
 
   auto connection2 = test_service->TriggerListen(expected_host, expected_port);
   {
+    auto message(CreateMessage(source, action, compiler_version, language));
     SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection2);
-
-    net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(proto::Remote::extension);
-
-    extension->set_source(source);
-    auto* compiler = extension->mutable_flags()->mutable_compiler();
-    compiler->set_version(compiler_version);
-    extension->mutable_flags()->set_action(action);
-    extension->mutable_flags()->set_language(language);
-
     EXPECT_TRUE(
         test_connection->TriggerReadAsync(std::move(message), StatusOK()));
 
@@ -310,7 +303,7 @@ TEST_F(AbsorberTest, BadCompilerVersion) {
   auto connection = test_service->TriggerListen(expected_host, expected_port);
   {
     auto message(
-        CreateMessage("fake_source", "fake_action", bad_compiler_version));
+        CreateMessage("fake_source"_l, "fake_action"_l, bad_compiler_version));
     SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
     EXPECT_TRUE(
@@ -366,7 +359,7 @@ TEST_F(AbsorberTest, BadMessageStatus) {
     SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
     EXPECT_TRUE(test_connection->TriggerReadAsync(
-        CreateMessage("", "", compiler_version),
+        CreateMessage(""_l, ""_l, ""_l),
         StatusFor(expected_code)));
     absorber.reset();
   }
