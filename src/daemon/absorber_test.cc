@@ -10,13 +10,16 @@ namespace {
 
 // S1..4 types can be one of the following: |String|, |Immutable|, |Literal|
 template <typename S1, typename S2, typename S3, typename S4 = String>
-net::Connection::ScopedMessage CreateMessage(const S1& source,
-                                             const S2& action,
-                                             const S3& compiler_version,
-                                             const S4& language = S4()) {
+net::Connection::ScopedMessage CreateMessage(
+    const S1& source,
+    const S2& action,
+    const S3& compiler_version,
+    const S4& language = S4(),
+    ui32 client_version = Absorber::kMinGoodClientVersion) {
   net::Connection::ScopedMessage message(new net::Connection::Message);
   auto* extension = message->MutableExtension(proto::Remote::extension);
   extension->set_source(source);
+  extension->set_client_version(client_version);
   auto* compiler = extension->mutable_flags()->mutable_compiler();
   compiler->set_version(compiler_version);
   extension->mutable_flags()->set_action(action);
@@ -371,6 +374,89 @@ TEST_F(AbsorberTest, BadMessageStatus) {
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1, connection.use_count())
+      << "Daemon must not store references to the connection";
+}
+
+TEST_F(AbsorberTest, BadClientVersion) {
+  const String expected_host = "fake_host";
+  const ui16 expected_port = 12345;
+  const String compiler_version("compiler_version");
+  const String compiler_path("compiler_path");
+
+  conf.mutable_absorber()->mutable_local()->set_host(expected_host);
+  conf.mutable_absorber()->mutable_local()->set_port(expected_port);
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+
+  listen_callback =
+      [&expected_host, expected_port](const String& host, ui16 port, String*) {
+    EXPECT_EQ(expected_host, host);
+    EXPECT_EQ(expected_port, port);
+    return true;
+  };
+  connect_callback = [](net::TestConnection* connection) {
+    connection->CallOnSend([](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_EQ(net::proto::Status::BAD_CLIENT_VERSION, status.code());
+
+      EXPECT_FALSE(message.HasExtension(proto::Result::extension));
+    });
+  };
+
+  absorber.reset(new Absorber(conf));
+  ASSERT_TRUE(absorber->Initialize());
+
+  auto connection1 = test_service->TriggerListen(expected_host, expected_port);
+  {
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection1);
+
+    auto message(CreateMessage(""_l, ""_l, ""_l, ""_l, 1));
+    EXPECT_TRUE(
+        test_connection->TriggerReadAsync(std::move(message), StatusOK()));
+
+    UniqueLock lock(send_mutex);
+    ASSERT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
+                                        [this] { return send_count == 1; }));
+  }
+
+  auto connection2 = test_service->TriggerListen(expected_host, expected_port);
+  {
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection2);
+
+    test_connection->CallOnSend([](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_EQ(net::proto::Status::OK, status.code());
+
+      EXPECT_TRUE(message.HasExtension(proto::Result::extension));
+      EXPECT_TRUE(message.GetExtension(proto::Result::extension).has_obj());
+    });
+    auto message(CreateMessage("source"_l, "action"_l, compiler_version));
+    auto* extension = message->MutableExtension(proto::Remote::extension);
+    extension->clear_client_version();
+    EXPECT_TRUE(
+        test_connection->TriggerReadAsync(std::move(message), StatusOK()));
+
+    UniqueLock lock(send_mutex);
+    ASSERT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
+                                        [this] { return send_count == 2; }));
+  }
+
+  absorber.reset();
+
+  EXPECT_EQ(1u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(2u, connect_count);
+  EXPECT_EQ(2u, connections_created);
+  EXPECT_EQ(2u, read_count);
+  EXPECT_EQ(2u, send_count);
+  EXPECT_EQ(1, connection1.use_count())
+      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count())
       << "Daemon must not store references to the connection";
 }
 
