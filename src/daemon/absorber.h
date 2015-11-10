@@ -9,6 +9,8 @@ namespace daemon {
 
 class Absorber : public CompilationDaemon {
  public:
+  static const ui32 kMinGoodClientVersion;
+
   explicit Absorber(const proto::Configuration& configuration);
   virtual ~Absorber();
 
