@@ -17,6 +17,7 @@ message Status {
     EXECUTION     = 5;
     OVERLOAD      = 6;
     NO_VERSION    = 7;
+    BAD_CLIENT_VERSION = 8;
   }
 
   required Code code           = 1 [ default = OK ];
