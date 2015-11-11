@@ -13,17 +13,6 @@ using namespace std::placeholders;
 namespace dist_clang {
 namespace daemon {
 
-namespace {
-
-bool ValidateClientVersion(ui32 client_version) {
-  return client_version >= Absorber::kMinGoodClientVersion;
-}
-
-}  // namespace
-
-// static
-const ui32 Absorber::kMinGoodClientVersion = 100;
-
 Absorber::Absorber(const proto::Configuration& configuration)
     : CompilationDaemon(configuration) {
   using Worker = base::WorkerPool::SimpleWorker;
@@ -78,11 +67,12 @@ bool Absorber::HandleNewMessage(net::ConnectionPtr connection,
 
   if (message->HasExtension(proto::Remote::extension)) {
     Message execute(message->ReleaseExtension(proto::Remote::extension));
-    if (!ValidateClientVersion(execute->client_version())) {
-      LOG(WARNING) << "Client sent a bad version: "
-                   << execute->client_version();
+    auto config = conf();
+    if (execute->emitter_version() < config->absorber().min_emitter_version()) {
+      LOG(WARNING) << "Emitter sent a bad version: "
+                   << execute->emitter_version();
       net::proto::Status bad_version_status;
-      bad_version_status.set_code(net::proto::Status::BAD_CLIENT_VERSION);
+      bad_version_status.set_code(net::proto::Status::BAD_EMITTER_VERSION);
       return connection->ReportStatus(bad_version_status);
     }
 
