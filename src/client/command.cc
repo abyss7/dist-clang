@@ -154,6 +154,7 @@ void DriverCommand::FillFlags(base::proto::Flags* flags,
   flags->Clear();
 
   llvm::opt::ArgStringList non_direct_list, non_cached_list, other_list;
+  llvm::opt::DerivedArgList tmp_list(*arg_list_);
 
   for (const auto& arg : *arg_list_) {
     using namespace clang::driver::options;
@@ -206,26 +207,34 @@ void DriverCommand::FillFlags(base::proto::Flags* flags,
       arg->render(*arg_list_, non_direct_list);
     } else if (arg->getOption().matches(OPT_internal_isystem) ||
                arg->getOption().matches(OPT_resource_dir)) {
-      // Use --internal-isystem and --resource_dir based on real Clang path.
-      non_cached_list.push_back(arg->getSpelling().data());
-
       String replaced_command = arg->getValue();
-      if (replaced_command[0] != '/') {
-        replaced_command = base::GetSelfPath() + '/' + replaced_command;
-      }
 
-      std::regex path_regex("(" + base::EscapeRegex(base::GetSelfPath()) + ")");
-      replaced_command = std::regex_replace(
-          replaced_command, path_regex,
-          clang_path.substr(0, clang_path.find_last_of('/')));
-
+      // FIXME: It's a hack. Clang internally hardcodes path according to its
+      //        major version.
       std::regex version_regex("(\\/lib\\/clang\\/\\d+\\.\\d+\\.\\d+)");
-      // FIXME: Clang internally hardcodes path according to its major version.
       replaced_command = std::regex_replace(
           replaced_command, version_regex, "/lib/clang/" + clang_major_version);
 
-      non_cached_list.push_back(arg_list_->MakeArgString(replaced_command));
-      LOG(VERBOSE) << "Replaced command: " << non_cached_list.back();
+      // Use --internal-isystem and --resource_dir based on real Clang path,
+      // but don't use them in direct cache.
+      const String self_path = base::GetSelfPath();
+      if (replaced_command[0] != '/') {
+        replaced_command = self_path + '/' + replaced_command;
+      }
+
+      auto pos = replaced_command.find(self_path);
+      if (pos != String::npos) {
+        replaced_command.replace(
+            pos, self_path.size(),
+            clang_path.substr(0, clang_path.find_last_of('/')));
+        non_direct_list.push_back(arg->getSpelling().data());
+        non_direct_list.push_back(tmp_list.MakeArgString(replaced_command));
+        LOG(VERBOSE) << "Replaced command: " << non_direct_list.back();
+      } else {
+        non_cached_list.push_back(arg->getSpelling().data());
+        non_cached_list.push_back(tmp_list.MakeArgString(replaced_command));
+        LOG(VERBOSE) << "Replaced command: " << non_cached_list.back();
+      }
     }
 
     // By default all other flags are cacheable.

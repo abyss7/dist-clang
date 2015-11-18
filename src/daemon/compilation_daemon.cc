@@ -14,7 +14,7 @@ using namespace cache::string;
 
 namespace {
 
-inline CommandLine CommandLineForCache(const base::proto::Flags& flags) {
+inline CommandLine CommandLineForSimpleCache(const base::proto::Flags& flags) {
   String command_line =
       base::JoinString<' '>(flags.other().begin(), flags.other().end());
   if (flags.has_language()) {
@@ -28,7 +28,7 @@ inline CommandLine CommandLineForCache(const base::proto::Flags& flags) {
   return CommandLine(command_line);
 }
 
-inline CommandLine CommandLineForDirect(const base::proto::Flags& flags) {
+inline CommandLine CommandLineForDirectCache(const base::proto::Flags& flags) {
   String command_line =
       base::JoinString<' '>(flags.other().begin(), flags.other().end());
   if (flags.has_language()) {
@@ -146,7 +146,8 @@ CompilationDaemon::CompilationDaemon(const proto::Configuration& configuration)
 HandledHash CompilationDaemon::GenerateHash(const base::proto::Flags& flags,
                                             const HandledSource& code) const {
   const Version version(flags.compiler().version());
-  return cache::FileCache::Hash(code, CommandLineForCache(flags), version);
+  return cache::FileCache::Hash(code, CommandLineForSimpleCache(flags),
+                                version);
 }
 
 bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
@@ -219,7 +220,7 @@ bool CompilationDaemon::SearchSimpleCache(
   }
 
   const Version version(flags.compiler().version());
-  const auto command_line = CommandLineForCache(flags);
+  const auto command_line = CommandLineForSimpleCache(flags);
 
   if (!cache_->Find(source, command_line, version, entry)) {
     LOG(CACHE_INFO) << "Cache miss: " << flags.input();
@@ -244,7 +245,7 @@ bool CompilationDaemon::SearchDirectCache(
   const String input = flags.input()[0] != '/'
                            ? current_dir + "/" + flags.input()
                            : flags.input();
-  const CommandLine command_line(CommandLineForDirect(flags));
+  const CommandLine command_line(CommandLineForDirectCache(flags));
 
   UnhandledSource code;
   if (!base::File::Read(input, &code.str)) {
@@ -263,7 +264,7 @@ void CompilationDaemon::UpdateSimpleCache(
     const base::proto::Flags& flags, const HandledSource& source,
     const cache::FileCache::Entry& entry) {
   const Version version(flags.compiler().version());
-  const auto command_line = CommandLineForCache(flags);
+  const auto command_line = CommandLineForSimpleCache(flags);
 
   if (!cache_) {
     return;
@@ -291,8 +292,9 @@ void CompilationDaemon::UpdateDirectCache(
   }
 
   const Version version(flags.compiler().version());
-  const auto hash = cache_->Hash(source, CommandLineForCache(flags), version);
-  const auto command_line = CommandLineForDirect(flags);
+  const auto hash =
+      cache_->Hash(source, CommandLineForSimpleCache(flags), version);
+  const auto command_line = CommandLineForDirectCache(flags);
   const String input_path = flags.input()[0] != '/'
                                 ? message->current_dir() + "/" + flags.input()
                                 : flags.input();

@@ -203,9 +203,7 @@ TEST_F(ClientTest, CannotReadMessage) {
         const auto& non_cached = cc_flags.non_cached();
         auto begin = non_cached.begin();
         auto end = non_cached.end();
-        EXPECT_NE(end, std::find(begin, end, "-resource-dir"));
 #if defined(OS_LINUX)
-        EXPECT_NE(end, std::find(begin, end, "-internal-isystem"));
         EXPECT_NE(end, std::find(begin, end, "-internal-externc-isystem"));
 #endif  // defined(OS_LINUX)
       }
@@ -216,6 +214,10 @@ TEST_F(ClientTest, CannotReadMessage) {
         auto end = non_direct.end();
         EXPECT_NE(end, std::find(begin, end, "-main-file-name"));
         EXPECT_NE(end, std::find(begin, end, "-coverage-file"));
+        EXPECT_NE(end, std::find(begin, end, "-resource-dir"));
+#if defined(OS_LINUX)
+        EXPECT_NE(end, std::find(begin, end, "-internal-isystem"));
+#endif  // defined(OS_LINUX)
       }
     });
   };

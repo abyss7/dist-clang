@@ -76,6 +76,7 @@ inline Literal GetHomeDir(String* error) {
 }
 
 inline String GetSelfPath(String* error) {
+  // TODO: self-path is not a subject to change during the execution. Cache it.
   char path[PATH_MAX];
 #if defined(OS_LINUX)
   ssize_t read = readlink("/proc/self/exe", path, PATH_MAX);
