@@ -57,7 +57,7 @@ Log::~Log() {
     stream_ << std::endl;
 
     if (mode_ == CONSOLE) {
-      auto& output_stream = (level_ <= error_mark_) ? std::cerr : std::cout;
+      auto& output_stream = (level_ <= error_mark_) ? std::cout : std::cerr;
       output_stream << stream_.str() << std::flush;
     } else if (mode_ == SYSLOG) {
 #if !defined(OS_WIN)
