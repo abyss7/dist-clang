@@ -21,6 +21,8 @@ FORWARD_TEST(FileCacheTest, RestoreEntryWithMissingFile);
 FORWARD_TEST(FileCacheTest, UseIndexFromDisk);
 FORWARD_TEST(FileCacheMigratorTest, Version_0_to_1_Direct);
 FORWARD_TEST(FileCacheMigratorTest, Version_0_to_1_Simple);
+FORWARD_TEST(FileCacheMigratorTest, Version_1_to_2_Direct);
+FORWARD_TEST(FileCacheMigratorTest, Version_1_to_2_Simple);
 
 namespace string {
 
@@ -126,8 +128,10 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, UseIndexFromDisk);
   FRIEND_TEST(FileCacheMigratorTest, Version_0_to_1_Direct);
   FRIEND_TEST(FileCacheMigratorTest, Version_0_to_1_Simple);
+  FRIEND_TEST(FileCacheMigratorTest, Version_1_to_2_Direct);
+  FRIEND_TEST(FileCacheMigratorTest, Version_1_to_2_Simple);
 
-  enum : ui32 { kManifestVersion = 1 };
+  enum : ui32 { kManifestVersion = 2 };
 
   class ReadLock {
    public:
@@ -178,7 +182,7 @@ class FileCache {
   using EntryList = base::LockedList<TimeHashPair>;
   using EntryListDeleter = Fn<void(EntryList* list)>;
 
-  bool Migrate(string::Hash hash) const;
+  bool Migrate(string::Hash hash, ui32 to_version = kManifestVersion) const;
 
   bool GetEntrySize(string::Hash hash, ui64* size) const;
   // Sets |0u| if the entry is broken.
