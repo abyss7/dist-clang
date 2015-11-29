@@ -63,6 +63,7 @@ bool FileCache::Run(ui64 clean_period) {
 
   CHECK(clean_period > 0);
 
+  entries_->BeginTransaction();
   base::WalkDirectory(path_, [this](const String& file_path, ui64 mtime, ui64) {
     std::regex regex("([a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8})\\.manifest$");
     std::cmatch match;
@@ -93,6 +94,7 @@ bool FileCache::Run(ui64 clean_period) {
       RemoveEntry(hash);
     }
   });
+  entries_->EndTransaction();
 
   new_entries_.reset(new EntryList, new_entries_deleter_);
 
