@@ -35,6 +35,9 @@ class SQLite : public Database<size_t /* mtime */, size_t /* size */,
 
   bool First(Immutable* hash, Value* value) const;
 
+  bool BeginTransaction();
+  bool EndTransaction();
+
  private:
   bool Migrate() const;
 

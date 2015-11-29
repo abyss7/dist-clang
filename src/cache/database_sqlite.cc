@@ -224,5 +224,28 @@ bool SQLite::First(Immutable* hash, Value* value) const {
   return has_entry;
 }
 
+bool SQLite::BeginTransaction() {
+  char* error;
+  auto result =
+      sqlite3_exec(db_, "BEGIN TRANSACTION", nullptr, nullptr, &error);
+  if (result != SQLITE_OK) {
+    LOG(DB_ERROR) << sqlite3_errstr(result) << ": " << error;
+    return false;
+  }
+
+  return true;
+}
+
+bool SQLite::EndTransaction() {
+  char* error;
+  auto result = sqlite3_exec(db_, "END TRANSACTION", nullptr, nullptr, &error);
+  if (result != SQLITE_OK) {
+    LOG(DB_ERROR) << sqlite3_errstr(result) << ": " << error;
+    return false;
+  }
+
+  return true;
+}
+
 }  // namespace cache
 }  // namespace dist_clang
