@@ -110,7 +110,7 @@ ui32& Log::error_mark() {
 // static
 SharedPtr<Log::RangeSet>& Log::ranges() {
   static SharedPtr<RangeSet> ranges(
-      new RangeSet{std::make_pair(named_levels::WARNING, named_levels::FATAL)});
+      new RangeSet{std::make_pair(named_levels::FATAL, named_levels::FATAL)});
   return ranges;
 }
 
