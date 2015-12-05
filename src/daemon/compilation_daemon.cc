@@ -43,6 +43,11 @@ inline CommandLine CommandLineForDirectCache(const base::proto::Flags& flags) {
                                                 flags.cc_only().end());
   }
 
+  // TODO: write test on this case.
+  // Compiler implicitly appends file's directory as an include path - so do we.
+  String input_path = flags.input().substr(0, flags.input().find_last_of('/'));
+  command_line += " -I" + input_path;
+
   return CommandLine(command_line);
 }
 
