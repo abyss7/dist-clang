@@ -39,6 +39,11 @@ package_deps = [
 if (host_os == "linux") {
   action("deb_package") {
     script = "//build/deb_package.py"
+    inputs = [
+      "//build/common_package.include",
+      "//build/deb_changelog.template",
+      "//build/deb_control.template",
+    ]
     sources = [
       "$root_gen_dir/src/base/base_pb2.py",
       "$root_gen_dir/src/daemon/configuration_pb2.py",
@@ -151,6 +156,10 @@ if (host_os == "linux") {
 
   action("rpm_package") {
     script = "//build/rpm_package.py"
+    inputs = [
+      "//build/common_package.include",
+      "//build/rpm_spec.template",
+    ]
     sources = [
       "$root_gen_dir/src/base/base_pb2.py",
       "$root_gen_dir/src/daemon/configuration_pb2.py",
