@@ -42,15 +42,8 @@ source_set("daemon") {
   ]
 }
 
-shared_library("configuration") {
-  visibility = []
-  visibility = [
-    ":*",
-    "//:*",
-    "//src/test:unit_tests",
-  ]
-
-  output_name = "conf_daemon"
+source_set("configuration") {
+  visibility += [ "//src/test:unit_tests" ]
 
   sources = [
     "configuration.cc",
@@ -63,7 +56,7 @@ shared_library("configuration") {
     ":config_proto",
     "//src/base:base",
     "//src/base:logging",
-    "//src/third_party/tclap:tclap",
+    "//src/third_party/gflags:gflags",
   ]
 }
 

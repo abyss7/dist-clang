@@ -7,9 +7,6 @@
 [submodule "src/third_party/libunwind/exported"]
 	path = src/third_party/libunwind/exported
 	url = https://github.com/abyss7/libunwind.git
-[submodule "src/third_party/tclap/exported"]
-	path = src/third_party/tclap/exported
-	url = git://git.code.sf.net/p/tclap/code
 [submodule "src/third_party/snappy/exported"]
 	path = src/third_party/snappy/exported
 	url = https://github.com/google/snappy.git
@@ -22,3 +19,6 @@
 [submodule "src/third_party/protobuf/exported"]
 	path = src/third_party/protobuf/exported
 	url = https://github.com/abyss7/protobuf.git
+[submodule "src/third_party/gflags/exported"]
+	path = src/third_party/gflags/exported
+	url = https://github.com/gflags/gflags.git

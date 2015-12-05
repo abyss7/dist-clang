@@ -102,6 +102,12 @@ bool File::Read(Immutable* output, String* error) {
   }
 
   auto size = Size();
+  if (size == 0) {
+    // TODO: write test on reading empty file.
+    output->assign(Immutable());
+    return true;
+  }
+
   auto flags = MAP_PRIVATE;
 #if defined(OS_LINUX)
   flags |= MAP_POPULATE;
