@@ -44,7 +44,6 @@ executable("unit_tests") {
     "//src/cache:file_cache",
     "//src/client:client",
     "//src/client:command",
-    "//src/daemon:configuration",
     "//src/daemon:daemon",
     "//src/net:net",
     "//src/perf:stat_service",

@@ -31,7 +31,6 @@ source_set("daemon") {
   ]
 
   deps += [
-    ":configuration",
     ":remote_proto",
     "//src/base:base",
     "//src/base:logging",
@@ -40,11 +39,13 @@ source_set("daemon") {
     "//src/perf:counter",
     "//src/perf:stat_service",
   ]
+
+  public_deps = [
+    ":configuration",
+  ]
 }
 
 source_set("configuration") {
-  visibility += [ "//src/test:unit_tests" ]
-
   sources = [
     "configuration.cc",
     "configuration.h",
