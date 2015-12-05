@@ -20,19 +20,14 @@ Log& Log::operator<<(const google::protobuf::Message& info) {
   return *this;
 }
 
-bool LoadFromFile(const String& path, google::protobuf::Message* message) {
-  File file(path);
-  if (!file.IsValid()) {
-    message->Clear();
-    return false;
-  }
-
-  google::protobuf::io::FileInputStream input(file.native());
-  if (!google::protobuf::TextFormat::Parse(&input, message)) {
+bool LoadFromFile(const String& path, google::protobuf::Message* message,
+                  String* error) {
+  Immutable contents;
+  if (!File::Read(path, &contents, error) ||
+      !google::protobuf::TextFormat::ParseFromString(contents, message)) {
     message->Clear();
 
-    Immutable contents;
-    if (file.Read(&contents)) {
+    if (!contents.empty()) {
       LOG(VERBOSE) << "Protobuf file contents: " << std::endl << contents;
     }
     return false;

@@ -31,7 +31,6 @@ source_set("daemon") {
   ]
 
   deps += [
-    ":configuration",
     ":remote_proto",
     "//src/base:base",
     "//src/base:logging",
@@ -40,18 +39,13 @@ source_set("daemon") {
     "//src/perf:counter",
     "//src/perf:stat_service",
   ]
+
+  public_deps = [
+    ":configuration",
+  ]
 }
 
-shared_library("configuration") {
-  visibility = []
-  visibility = [
-    ":*",
-    "//:*",
-    "//src/test:unit_tests",
-  ]
-
-  output_name = "conf_daemon"
-
+source_set("configuration") {
   sources = [
     "configuration.cc",
     "configuration.h",
@@ -63,7 +57,7 @@ shared_library("configuration") {
     ":config_proto",
     "//src/base:base",
     "//src/base:logging",
-    "//src/third_party/tclap:tclap",
+    "//src/third_party/gflags:gflags",
   ]
 }
 

@@ -1,0 +1,25 @@
+config("includes") {
+  include_dirs = [ host_os ]
+}
+
+config("warnings") {
+  cflags = [ "-Wno-sign-compare" ]
+}
+
+static_library("gflags") {
+  visibility += [ "//src/daemon:configuration" ]
+
+  sources = [
+    "exported/src/gflags.cc",
+    "exported/src/gflags_completions.cc",
+    "exported/src/gflags_reporting.cc",
+    "exported/src/mutex.h",
+    "exported/src/util.h",
+  ]
+
+  include_dirs = [ "exported/src" ]
+
+  configs += [ ":warnings" ]
+
+  public_configs = [ ":includes" ]
+}
