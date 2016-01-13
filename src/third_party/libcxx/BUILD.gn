@@ -150,6 +150,7 @@ shared_library("c++") {
   ]
 
   public = [
+    "exported/include/algorithm",
     "exported/include/array",
     "exported/include/atomic",
     "exported/include/bitset",

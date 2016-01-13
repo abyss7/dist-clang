@@ -26,13 +26,6 @@ shared_library("file_cache") {
     "file_cache.h",
   ]
 
-  configs += [ "//build/config:libclang_includes" ]
-
-  # FIXME: make the libclang a shared library.
-  if (!config_for_tests || host_os == "mac") {
-    configs += [ "//build/config:libclang" ]
-  }
-
   deps += [
     "//src/base:base",
     "//src/base:logging",

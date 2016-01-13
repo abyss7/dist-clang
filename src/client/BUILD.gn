@@ -21,15 +21,8 @@ source_set("client") {
   ]
 }
 
-# NOTICE: Uses custom libclang ldflags, thus, have to be shared library.
-shared_library("command") {
-  visibility = []
-  visibility = [
-    ":*",
-    "//:*",
-    "//src/test:unit_tests",
-    "//tools/args_parser",
-  ]
+source_set("command") {
+  visibility += [ "//src/test:unit_tests" ]
 
   sources = [
     "clang_command.cc",
@@ -42,14 +35,11 @@ shared_library("command") {
     "driver_command.hh",
   ]
 
-  configs += [ "//build/config:libclang" ]
-
   deps += [
-    "//src/base:base",
+    "//src/base",
     "//src/base:logging",
+    "//src/third_party/clang",
   ]
-
-  public_configs = [ "//build/config:libclang_includes" ]
 }
 
 source_set("configuration") {

@@ -22,3 +22,9 @@
 [submodule "src/third_party/gflags/exported"]
 	path = src/third_party/gflags/exported
 	url = https://github.com/gflags/gflags.git
+[submodule "src/third_party/llvm/exported"]
+	path = src/third_party/llvm/exported
+	url = https://github.com/llvm-mirror/llvm.git
+[submodule "src/third_party/clang/exported"]
+	path = src/third_party/clang/exported
+	url = https://github.com/llvm-mirror/clang.git

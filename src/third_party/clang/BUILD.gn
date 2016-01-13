@@ -1,0 +1,66 @@
+group("clang") {
+  deps = [
+    ":clangDriver",
+  ]
+}
+
+config("private") {
+  cflags = [
+    "-fvisibility-inlines-hidden",
+    "-ffunction-sections",
+    "-fdata-sections",
+    "-fno-common",
+    "-fno-strict-aliasing",
+  ]
+
+  defines = [
+    "CLANG_ENABLE_ARCMT",
+    "CLANG_ENABLE_OBJC_REWRITER",
+    "CLANG_ENABLE_STATIC_ANALYZER",
+  ]
+
+  include_dirs = [ "exported/include" ]
+}
+
+config("public") {
+  defines = [
+    "_GNU_SOURCE",
+    "__STDC_CONSTANT_MACROS",
+    "__STDC_FORMAT_MACROS",
+    "__STDC_LIMIT_MACROS",
+  ]
+}
+
+template("clang_library") {
+  library_name = "clang${target_name}"
+  static_library(library_name) {
+    sources = invoker.sources
+
+    configs += [ ":private" ]
+
+    public_configs = [ ":public" ]
+
+    deps += [ "//src/third_party/llvm" ]
+  }
+}
+
+clang_library("Driver") {
+  sources = [
+    "exported/lib/Driver/Action.cpp",
+    "exported/lib/Driver/Compilation.cpp",
+    "exported/lib/Driver/CrossWindowsToolChain.cpp",
+    "exported/lib/Driver/Driver.cpp",
+    "exported/lib/Driver/DriverOptions.cpp",
+    "exported/lib/Driver/Job.cpp",
+    "exported/lib/Driver/MSVCToolChain.cpp",
+    "exported/lib/Driver/MinGWToolChain.cpp",
+    "exported/lib/Driver/Multilib.cpp",
+    "exported/lib/Driver/Phases.cpp",
+    "exported/lib/Driver/SanitizerArgs.cpp",
+    "exported/lib/Driver/Tool.cpp",
+    "exported/lib/Driver/ToolChain.cpp",
+    "exported/lib/Driver/ToolChains.cpp",
+    "exported/lib/Driver/Tools.cpp",
+    "exported/lib/Driver/Types.cpp",
+  ]
+}

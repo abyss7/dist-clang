@@ -1,0 +1,833 @@
+group("llvm") {
+  public_deps = [
+    ":LLVMBitWriter",
+    ":LLVMIRReader",
+    ":LLVMMIRParser",
+    ":LLVMTableGen",
+    ":LLVMSelectionDAG",
+    ":LLVMAsmPrinter",
+    ":LLVMipo",
+    ":LLVMVectorize",
+    ":LLVMCodeGen",
+    ":LLVMScalarOpts",
+    ":LLVMBitReader",
+    ":LLVMInstCombine",
+    ":LLVMInstrumentation",
+    ":LLVMTransformUtils",
+    ":LLVMCore",
+    ":LLVMSupport",
+  ]
+}
+
+config("private") {
+  cflags = [
+    "-fvisibility-inlines-hidden",
+    "-ffunction-sections",
+    "-fdata-sections",
+  ]
+
+  libs = [ "z" ]
+  if (host_os == "linux") {
+    libs += [ "dl" ]
+  }
+}
+
+config("public") {
+  defines = [
+    "_GNU_SOURCE",
+    "__STDC_CONSTANT_MACROS",
+    "__STDC_FORMAT_MACROS",
+    "__STDC_LIMIT_MACROS",
+  ]
+
+  include_dirs = [
+    "exported/include",
+    "exported/lib/Support",
+    host_os,
+  ]
+}
+
+template("llvm_library") {
+  library_name = "LLVM${target_name}"
+  static_library(library_name) {
+    sources = invoker.sources
+
+    configs += [ ":private" ]
+
+    public_configs = [ ":public" ]
+
+    if (defined(invoker.deps)) {
+      deps += invoker.deps
+    }
+
+    if (defined(invoker.public_deps)) {
+      public_deps = invoker.public_deps
+    }
+  }
+}
+
+template("llvm_table") {
+  action_name = target_name + "_tblgen"
+  action_foreach(action_name) {
+    script = "llvm-tblgen.py"
+
+    extension = ""
+    if (invoker.command == "attrs") {
+      extension = "inc"
+    }
+    if (invoker.command == "intrinsic") {
+      extension = "gen"
+    }
+
+    args = [ "-gen-" + invoker.command ]
+    foreach(dir, invoker.include_dirs) {
+      args += [
+        "-I",
+        rebase_path(dir, root_build_dir),
+      ]
+    }
+    args += [
+      "{{source}}",
+      "-o",
+      "{{source_gen_dir}}/{{source_name_part}}.$extension",
+    ]
+
+    sources = invoker.sources
+    outputs = [
+      "{{source_gen_dir}}/{{source_name_part}}.$extension",
+    ]
+
+    deps = [
+      ":llvm-tblgen",
+    ]
+  }
+
+  config_name = target_name + "_config"
+  config(config_name) {
+    include_dirs = [ root_gen_dir + "/src/third_party/llvm/exported/include" ]
+  }
+
+  source_set(target_name) {
+    sources = get_target_outputs(":$action_name")
+
+    public_configs = [ ":$config_name" ]
+
+    deps += [ ":$action_name" ]
+  }
+}
+
+llvm_library("Support") {
+  sources = [
+    host_os + "/llvm/Support/DataTypes.h",
+    host_os + "/llvm/Config/llvm-config.h",
+    "exported/include/llvm/ADT/APFloat.h",
+    "exported/include/llvm/ADT/APInt.h",
+    "exported/include/llvm/ADT/APSInt.h",
+    "exported/include/llvm/ADT/ArrayRef.h",
+    "exported/include/llvm/ADT/FoldingSet.h",
+    "exported/include/llvm/ADT/Hashing.h",
+    "exported/include/llvm/ADT/None.h",
+    "exported/include/llvm/ADT/SmallVector.h",
+    "exported/include/llvm/ADT/StringExtras.h",
+    "exported/include/llvm/ADT/StringMap.h",
+    "exported/include/llvm/ADT/StringRef.h",
+    "exported/include/llvm/ADT/iterator.h",
+    "exported/include/llvm/ADT/iterator_range.h",
+    "exported/include/llvm/Support/AlignOf.h",
+    "exported/include/llvm/Support/Allocator.h",
+    "exported/include/llvm/Support/Compiler.h",
+    "exported/include/llvm/Support/ErrorHandling.h",
+    "exported/include/llvm/Support/Host.h",
+    "exported/include/llvm/Support/MathExtras.h",
+    "exported/include/llvm/Support/Memory.h",
+    "exported/include/llvm/Support/SwapByteOrder.h",
+    "exported/include/llvm/Support/type_traits.h",
+    "exported/lib/Support/APFloat.cpp",
+    "exported/lib/Support/APInt.cpp",
+    "exported/lib/Support/APSInt.cpp",
+    "exported/lib/Support/ARMBuildAttrs.cpp",
+    "exported/lib/Support/ARMWinEH.cpp",
+    "exported/lib/Support/Allocator.cpp",
+    "exported/lib/Support/Atomic.cpp",
+    "exported/lib/Support/BlockFrequency.cpp",
+    "exported/lib/Support/BranchProbability.cpp",
+    "exported/lib/Support/COM.cpp",
+    "exported/lib/Support/CommandLine.cpp",
+    "exported/lib/Support/Compression.cpp",
+    "exported/lib/Support/ConvertUTF.c",
+    "exported/lib/Support/ConvertUTFWrapper.cpp",
+    "exported/lib/Support/CrashRecoveryContext.cpp",
+    "exported/lib/Support/DAGDeltaAlgorithm.cpp",
+    "exported/lib/Support/DataExtractor.cpp",
+    "exported/lib/Support/DataStream.cpp",
+    "exported/lib/Support/Debug.cpp",
+    "exported/lib/Support/DeltaAlgorithm.cpp",
+    "exported/lib/Support/Dwarf.cpp",
+    "exported/lib/Support/DynamicLibrary.cpp",
+    "exported/lib/Support/Errno.cpp",
+    "exported/lib/Support/ErrorHandling.cpp",
+    "exported/lib/Support/FileOutputBuffer.cpp",
+    "exported/lib/Support/FileUtilities.cpp",
+    "exported/lib/Support/FoldingSet.cpp",
+    "exported/lib/Support/FormattedStream.cpp",
+    "exported/lib/Support/GraphWriter.cpp",
+    "exported/lib/Support/Hashing.cpp",
+    "exported/lib/Support/Host.cpp",
+    "exported/lib/Support/IntEqClasses.cpp",
+    "exported/lib/Support/IntervalMap.cpp",
+    "exported/lib/Support/IntrusiveRefCntPtr.cpp",
+    "exported/lib/Support/JamCRC.cpp",
+    "exported/lib/Support/LEB128.cpp",
+    "exported/lib/Support/LineIterator.cpp",
+    "exported/lib/Support/Locale.cpp",
+    "exported/lib/Support/LockFileManager.cpp",
+    "exported/lib/Support/MD5.cpp",
+    "exported/lib/Support/ManagedStatic.cpp",
+    "exported/lib/Support/MathExtras.cpp",
+    "exported/lib/Support/Memory.cpp",
+    "exported/lib/Support/MemoryBuffer.cpp",
+    "exported/lib/Support/MemoryObject.cpp",
+    "exported/lib/Support/Mutex.cpp",
+    "exported/lib/Support/Options.cpp",
+    "exported/lib/Support/Path.cpp",
+    "exported/lib/Support/PluginLoader.cpp",
+    "exported/lib/Support/PrettyStackTrace.cpp",
+    "exported/lib/Support/Process.cpp",
+    "exported/lib/Support/Program.cpp",
+    "exported/lib/Support/RWMutex.cpp",
+    "exported/lib/Support/RandomNumberGenerator.cpp",
+    "exported/lib/Support/Regex.cpp",
+    "exported/lib/Support/ScaledNumber.cpp",
+    "exported/lib/Support/SearchForAddressOfSpecialSymbol.cpp",
+    "exported/lib/Support/Signals.cpp",
+    "exported/lib/Support/SmallPtrSet.cpp",
+    "exported/lib/Support/SmallVector.cpp",
+    "exported/lib/Support/SourceMgr.cpp",
+    "exported/lib/Support/SpecialCaseList.cpp",
+    "exported/lib/Support/Statistic.cpp",
+    "exported/lib/Support/StreamingMemoryObject.cpp",
+    "exported/lib/Support/StringExtras.cpp",
+    "exported/lib/Support/StringMap.cpp",
+    "exported/lib/Support/StringPool.cpp",
+    "exported/lib/Support/StringRef.cpp",
+    "exported/lib/Support/StringSaver.cpp",
+    "exported/lib/Support/SystemUtils.cpp",
+    "exported/lib/Support/TargetParser.cpp",
+    "exported/lib/Support/TargetRegistry.cpp",
+    "exported/lib/Support/ThreadLocal.cpp",
+    "exported/lib/Support/Threading.cpp",
+    "exported/lib/Support/TimeValue.cpp",
+    "exported/lib/Support/Timer.cpp",
+    "exported/lib/Support/ToolOutputFile.cpp",
+    "exported/lib/Support/Triple.cpp",
+    "exported/lib/Support/Twine.cpp",
+    "exported/lib/Support/Unicode.cpp",
+    "exported/lib/Support/Valgrind.cpp",
+    "exported/lib/Support/Watchdog.cpp",
+    "exported/lib/Support/YAMLParser.cpp",
+    "exported/lib/Support/YAMLTraits.cpp",
+    "exported/lib/Support/circular_raw_ostream.cpp",
+    "exported/lib/Support/raw_os_ostream.cpp",
+    "exported/lib/Support/raw_ostream.cpp",
+    "exported/lib/Support/regcomp.c",
+    "exported/lib/Support/regerror.c",
+    "exported/lib/Support/regexec.c",
+    "exported/lib/Support/regfree.c",
+    "exported/lib/Support/regstrlcpy.c",
+  ]
+}
+
+llvm_library("TableGen") {
+  sources = [
+    "exported/lib/TableGen/Error.cpp",
+    "exported/lib/TableGen/Main.cpp",
+    "exported/lib/TableGen/Record.cpp",
+    "exported/lib/TableGen/SetTheory.cpp",
+    "exported/lib/TableGen/StringMatcher.cpp",
+    "exported/lib/TableGen/TGLexer.cpp",
+    "exported/lib/TableGen/TGParser.cpp",
+    "exported/lib/TableGen/TableGenBackend.cpp",
+  ]
+}
+
+executable("llvm-tblgen") {
+  sources = [
+    "exported/utils/TableGen/AsmMatcherEmitter.cpp",
+    "exported/utils/TableGen/AsmWriterEmitter.cpp",
+    "exported/utils/TableGen/AsmWriterInst.cpp",
+    "exported/utils/TableGen/Attributes.cpp",
+    "exported/utils/TableGen/CTagsEmitter.cpp",
+    "exported/utils/TableGen/CallingConvEmitter.cpp",
+    "exported/utils/TableGen/CodeEmitterGen.cpp",
+    "exported/utils/TableGen/CodeGenDAGPatterns.cpp",
+    "exported/utils/TableGen/CodeGenInstruction.cpp",
+    "exported/utils/TableGen/CodeGenMapTable.cpp",
+    "exported/utils/TableGen/CodeGenRegisters.cpp",
+    "exported/utils/TableGen/CodeGenSchedule.cpp",
+    "exported/utils/TableGen/CodeGenTarget.cpp",
+    "exported/utils/TableGen/DAGISelEmitter.cpp",
+    "exported/utils/TableGen/DAGISelMatcher.cpp",
+    "exported/utils/TableGen/DAGISelMatcherEmitter.cpp",
+    "exported/utils/TableGen/DAGISelMatcherGen.cpp",
+    "exported/utils/TableGen/DAGISelMatcherOpt.cpp",
+    "exported/utils/TableGen/DFAPacketizerEmitter.cpp",
+    "exported/utils/TableGen/DisassemblerEmitter.cpp",
+    "exported/utils/TableGen/FastISelEmitter.cpp",
+    "exported/utils/TableGen/FixedLenDecoderEmitter.cpp",
+    "exported/utils/TableGen/InstrInfoEmitter.cpp",
+    "exported/utils/TableGen/IntrinsicEmitter.cpp",
+    "exported/utils/TableGen/OptParserEmitter.cpp",
+    "exported/utils/TableGen/PseudoLoweringEmitter.cpp",
+    "exported/utils/TableGen/RegisterInfoEmitter.cpp",
+    "exported/utils/TableGen/SubtargetEmitter.cpp",
+    "exported/utils/TableGen/TableGen.cpp",
+    "exported/utils/TableGen/X86DisassemblerTables.cpp",
+    "exported/utils/TableGen/X86ModRMFilters.cpp",
+    "exported/utils/TableGen/X86RecognizableInstr.cpp",
+  ]
+
+  configs += [ ":private" ]
+
+  deps += [
+    ":LLVMTableGen",
+    ":LLVMSupport",
+  ]
+}
+
+llvm_table("attrs") {
+  command = "attrs"
+  include_dirs = [
+    "exported/include/llvm/IR",
+    "exported/lib/Target",
+    "exported/include",
+  ]
+
+  sources = [
+    "exported/include/llvm/IR/Attributes.td",
+  ]
+}
+
+llvm_table("intrinsics") {
+  command = "intrinsic"
+  include_dirs = [
+    "exported/include/llvm/IR",
+    "exported/lib/Target",
+    "exported/include",
+  ]
+
+  sources = [
+    "exported/include/llvm/IR/Intrinsics.td",
+  ]
+}
+
+llvm_library("Core") {
+  sources = [
+    "exported/lib/IR/AsmWriter.cpp",
+    "exported/lib/IR/Attributes.cpp",
+    "exported/lib/IR/AutoUpgrade.cpp",
+    "exported/lib/IR/BasicBlock.cpp",
+    "exported/lib/IR/Comdat.cpp",
+    "exported/lib/IR/ConstantFold.cpp",
+    "exported/lib/IR/ConstantRange.cpp",
+    "exported/lib/IR/Constants.cpp",
+    "exported/lib/IR/Core.cpp",
+    "exported/lib/IR/DIBuilder.cpp",
+    "exported/lib/IR/DataLayout.cpp",
+    "exported/lib/IR/DebugInfo.cpp",
+    "exported/lib/IR/DebugInfoMetadata.cpp",
+    "exported/lib/IR/DebugLoc.cpp",
+    "exported/lib/IR/DiagnosticInfo.cpp",
+    "exported/lib/IR/DiagnosticPrinter.cpp",
+    "exported/lib/IR/Dominators.cpp",
+    "exported/lib/IR/Function.cpp",
+    "exported/lib/IR/FunctionInfo.cpp",
+    "exported/lib/IR/GCOV.cpp",
+    "exported/lib/IR/GVMaterializer.cpp",
+    "exported/lib/IR/Globals.cpp",
+    "exported/lib/IR/IRBuilder.cpp",
+    "exported/lib/IR/IRPrintingPasses.cpp",
+    "exported/lib/IR/InlineAsm.cpp",
+    "exported/lib/IR/Instruction.cpp",
+    "exported/lib/IR/Instructions.cpp",
+    "exported/lib/IR/IntrinsicInst.cpp",
+    "exported/lib/IR/LLVMContext.cpp",
+    "exported/lib/IR/LLVMContextImpl.cpp",
+    "exported/lib/IR/LegacyPassManager.cpp",
+    "exported/lib/IR/MDBuilder.cpp",
+    "exported/lib/IR/Mangler.cpp",
+    "exported/lib/IR/Metadata.cpp",
+    "exported/lib/IR/MetadataTracking.cpp",
+    "exported/lib/IR/Module.cpp",
+    "exported/lib/IR/Operator.cpp",
+    "exported/lib/IR/Pass.cpp",
+    "exported/lib/IR/PassManager.cpp",
+    "exported/lib/IR/PassRegistry.cpp",
+    "exported/lib/IR/Statepoint.cpp",
+    "exported/lib/IR/Type.cpp",
+    "exported/lib/IR/TypeFinder.cpp",
+    "exported/lib/IR/Use.cpp",
+    "exported/lib/IR/User.cpp",
+    "exported/lib/IR/Value.cpp",
+    "exported/lib/IR/ValueSymbolTable.cpp",
+    "exported/lib/IR/ValueTypes.cpp",
+    "exported/lib/IR/Verifier.cpp",
+  ]
+
+  public_deps = [
+    ":attrs",
+    ":intrinsics",
+  ]
+}
+
+llvm_library("IRReader") {
+  sources = [
+    "exported/lib/IRReader/IRReader.cpp",
+  ]
+
+  deps = [
+    ":LLVMCore",
+  ]
+}
+
+llvm_library("CodeGen") {
+  sources = [
+    "exported/lib/CodeGen/AggressiveAntiDepBreaker.cpp",
+    "exported/lib/CodeGen/AllocationOrder.cpp",
+    "exported/lib/CodeGen/Analysis.cpp",
+    "exported/lib/CodeGen/AtomicExpandPass.cpp",
+    "exported/lib/CodeGen/BasicTargetTransformInfo.cpp",
+    "exported/lib/CodeGen/BranchFolding.cpp",
+    "exported/lib/CodeGen/CalcSpillWeights.cpp",
+    "exported/lib/CodeGen/CallingConvLower.cpp",
+    "exported/lib/CodeGen/CodeGen.cpp",
+    "exported/lib/CodeGen/CodeGenPrepare.cpp",
+    "exported/lib/CodeGen/CoreCLRGC.cpp",
+    "exported/lib/CodeGen/CriticalAntiDepBreaker.cpp",
+    "exported/lib/CodeGen/DFAPacketizer.cpp",
+    "exported/lib/CodeGen/DeadMachineInstructionElim.cpp",
+    "exported/lib/CodeGen/DwarfEHPrepare.cpp",
+    "exported/lib/CodeGen/EarlyIfConversion.cpp",
+    "exported/lib/CodeGen/EdgeBundles.cpp",
+    "exported/lib/CodeGen/ErlangGC.cpp",
+    "exported/lib/CodeGen/ExecutionDepsFix.cpp",
+    "exported/lib/CodeGen/ExpandISelPseudos.cpp",
+    "exported/lib/CodeGen/ExpandPostRAPseudos.cpp",
+    "exported/lib/CodeGen/FaultMaps.cpp",
+    "exported/lib/CodeGen/FuncletLayout.cpp",
+    "exported/lib/CodeGen/GCMetadata.cpp",
+    "exported/lib/CodeGen/GCMetadataPrinter.cpp",
+    "exported/lib/CodeGen/GCRootLowering.cpp",
+    "exported/lib/CodeGen/GCStrategy.cpp",
+    "exported/lib/CodeGen/GlobalMerge.cpp",
+    "exported/lib/CodeGen/IfConversion.cpp",
+    "exported/lib/CodeGen/ImplicitNullChecks.cpp",
+    "exported/lib/CodeGen/InlineSpiller.cpp",
+    "exported/lib/CodeGen/InterferenceCache.cpp",
+    "exported/lib/CodeGen/InterleavedAccessPass.cpp",
+    "exported/lib/CodeGen/IntrinsicLowering.cpp",
+    "exported/lib/CodeGen/LLVMTargetMachine.cpp",
+    "exported/lib/CodeGen/LatencyPriorityQueue.cpp",
+    "exported/lib/CodeGen/LexicalScopes.cpp",
+    "exported/lib/CodeGen/LiveDebugVariables.cpp",
+    "exported/lib/CodeGen/LiveInterval.cpp",
+    "exported/lib/CodeGen/LiveIntervalAnalysis.cpp",
+    "exported/lib/CodeGen/LiveIntervalUnion.cpp",
+    "exported/lib/CodeGen/LivePhysRegs.cpp",
+    "exported/lib/CodeGen/LiveRangeCalc.cpp",
+    "exported/lib/CodeGen/LiveRangeEdit.cpp",
+    "exported/lib/CodeGen/LiveRegMatrix.cpp",
+    "exported/lib/CodeGen/LiveStackAnalysis.cpp",
+    "exported/lib/CodeGen/LiveVariables.cpp",
+    "exported/lib/CodeGen/LocalStackSlotAllocation.cpp",
+    "exported/lib/CodeGen/MIRPrinter.cpp",
+    "exported/lib/CodeGen/MIRPrintingPass.cpp",
+    "exported/lib/CodeGen/MachineBasicBlock.cpp",
+    "exported/lib/CodeGen/MachineBlockFrequencyInfo.cpp",
+    "exported/lib/CodeGen/MachineBlockPlacement.cpp",
+    "exported/lib/CodeGen/MachineBranchProbabilityInfo.cpp",
+    "exported/lib/CodeGen/MachineCSE.cpp",
+    "exported/lib/CodeGen/MachineCombiner.cpp",
+    "exported/lib/CodeGen/MachineCopyPropagation.cpp",
+    "exported/lib/CodeGen/MachineDominanceFrontier.cpp",
+    "exported/lib/CodeGen/MachineDominators.cpp",
+    "exported/lib/CodeGen/MachineFunction.cpp",
+    "exported/lib/CodeGen/MachineFunctionAnalysis.cpp",
+    "exported/lib/CodeGen/MachineFunctionPass.cpp",
+    "exported/lib/CodeGen/MachineFunctionPrinterPass.cpp",
+    "exported/lib/CodeGen/MachineInstr.cpp",
+    "exported/lib/CodeGen/MachineInstrBundle.cpp",
+    "exported/lib/CodeGen/MachineLICM.cpp",
+    "exported/lib/CodeGen/MachineLoopInfo.cpp",
+    "exported/lib/CodeGen/MachineModuleInfo.cpp",
+    "exported/lib/CodeGen/MachineModuleInfoImpls.cpp",
+    "exported/lib/CodeGen/MachinePassRegistry.cpp",
+    "exported/lib/CodeGen/MachinePostDominators.cpp",
+    "exported/lib/CodeGen/MachineRegionInfo.cpp",
+    "exported/lib/CodeGen/MachineRegisterInfo.cpp",
+    "exported/lib/CodeGen/MachineSSAUpdater.cpp",
+    "exported/lib/CodeGen/MachineScheduler.cpp",
+    "exported/lib/CodeGen/MachineSink.cpp",
+    "exported/lib/CodeGen/MachineTraceMetrics.cpp",
+    "exported/lib/CodeGen/MachineVerifier.cpp",
+    "exported/lib/CodeGen/OcamlGC.cpp",
+    "exported/lib/CodeGen/OptimizePHIs.cpp",
+    "exported/lib/CodeGen/PHIElimination.cpp",
+    "exported/lib/CodeGen/PHIEliminationUtils.cpp",
+    "exported/lib/CodeGen/ParallelCG.cpp",
+    "exported/lib/CodeGen/Passes.cpp",
+    "exported/lib/CodeGen/PeepholeOptimizer.cpp",
+    "exported/lib/CodeGen/PostRASchedulerList.cpp",
+    "exported/lib/CodeGen/ProcessImplicitDefs.cpp",
+    "exported/lib/CodeGen/PrologEpilogInserter.cpp",
+    "exported/lib/CodeGen/PseudoSourceValue.cpp",
+    "exported/lib/CodeGen/RegAllocBase.cpp",
+    "exported/lib/CodeGen/RegAllocBasic.cpp",
+    "exported/lib/CodeGen/RegAllocFast.cpp",
+    "exported/lib/CodeGen/RegAllocGreedy.cpp",
+    "exported/lib/CodeGen/RegAllocPBQP.cpp",
+    "exported/lib/CodeGen/RegisterClassInfo.cpp",
+    "exported/lib/CodeGen/RegisterCoalescer.cpp",
+    "exported/lib/CodeGen/RegisterPressure.cpp",
+    "exported/lib/CodeGen/RegisterScavenging.cpp",
+    "exported/lib/CodeGen/ScheduleDAG.cpp",
+    "exported/lib/CodeGen/ScheduleDAGInstrs.cpp",
+    "exported/lib/CodeGen/ScheduleDAGPrinter.cpp",
+    "exported/lib/CodeGen/ScoreboardHazardRecognizer.cpp",
+    "exported/lib/CodeGen/ShadowStackGC.cpp",
+    "exported/lib/CodeGen/ShadowStackGCLowering.cpp",
+    "exported/lib/CodeGen/ShrinkWrap.cpp",
+    "exported/lib/CodeGen/SjLjEHPrepare.cpp",
+    "exported/lib/CodeGen/SlotIndexes.cpp",
+    "exported/lib/CodeGen/SpillPlacement.cpp",
+    "exported/lib/CodeGen/SplitKit.cpp",
+    "exported/lib/CodeGen/StackColoring.cpp",
+    "exported/lib/CodeGen/StackMapLivenessAnalysis.cpp",
+    "exported/lib/CodeGen/StackMaps.cpp",
+    "exported/lib/CodeGen/StackProtector.cpp",
+    "exported/lib/CodeGen/StackSlotColoring.cpp",
+    "exported/lib/CodeGen/StatepointExampleGC.cpp",
+    "exported/lib/CodeGen/TailDuplication.cpp",
+    "exported/lib/CodeGen/TargetFrameLoweringImpl.cpp",
+    "exported/lib/CodeGen/TargetInstrInfo.cpp",
+    "exported/lib/CodeGen/TargetLoweringBase.cpp",
+    "exported/lib/CodeGen/TargetLoweringObjectFileImpl.cpp",
+    "exported/lib/CodeGen/TargetOptionsImpl.cpp",
+    "exported/lib/CodeGen/TargetRegisterInfo.cpp",
+    "exported/lib/CodeGen/TargetSchedule.cpp",
+    "exported/lib/CodeGen/TwoAddressInstructionPass.cpp",
+    "exported/lib/CodeGen/UnreachableBlockElim.cpp",
+    "exported/lib/CodeGen/VirtRegMap.cpp",
+    "exported/lib/CodeGen/WinEHPrepare.cpp",
+  ]
+
+  public_deps = [
+    ":LLVMCore",
+  ]
+}
+
+llvm_library("SelectionDAG") {
+  sources = [
+    "exported/lib/CodeGen/SelectionDAG/DAGCombiner.cpp",
+    "exported/lib/CodeGen/SelectionDAG/FastISel.cpp",
+    "exported/lib/CodeGen/SelectionDAG/FunctionLoweringInfo.cpp",
+    "exported/lib/CodeGen/SelectionDAG/InstrEmitter.cpp",
+    "exported/lib/CodeGen/SelectionDAG/LegalizeDAG.cpp",
+    "exported/lib/CodeGen/SelectionDAG/LegalizeFloatTypes.cpp",
+    "exported/lib/CodeGen/SelectionDAG/LegalizeIntegerTypes.cpp",
+    "exported/lib/CodeGen/SelectionDAG/LegalizeTypes.cpp",
+    "exported/lib/CodeGen/SelectionDAG/LegalizeTypesGeneric.cpp",
+    "exported/lib/CodeGen/SelectionDAG/LegalizeVectorOps.cpp",
+    "exported/lib/CodeGen/SelectionDAG/LegalizeVectorTypes.cpp",
+    "exported/lib/CodeGen/SelectionDAG/ResourcePriorityQueue.cpp",
+    "exported/lib/CodeGen/SelectionDAG/ScheduleDAGFast.cpp",
+    "exported/lib/CodeGen/SelectionDAG/ScheduleDAGRRList.cpp",
+    "exported/lib/CodeGen/SelectionDAG/ScheduleDAGSDNodes.cpp",
+    "exported/lib/CodeGen/SelectionDAG/ScheduleDAGVLIW.cpp",
+    "exported/lib/CodeGen/SelectionDAG/SelectionDAG.cpp",
+    "exported/lib/CodeGen/SelectionDAG/SelectionDAGBuilder.cpp",
+    "exported/lib/CodeGen/SelectionDAG/SelectionDAGDumper.cpp",
+    "exported/lib/CodeGen/SelectionDAG/SelectionDAGISel.cpp",
+    "exported/lib/CodeGen/SelectionDAG/SelectionDAGPrinter.cpp",
+    "exported/lib/CodeGen/SelectionDAG/StatepointLowering.cpp",
+    "exported/lib/CodeGen/SelectionDAG/TargetLowering.cpp",
+    "exported/lib/CodeGen/SelectionDAG/TargetSelectionDAGInfo.cpp",
+  ]
+
+  deps = [
+    ":LLVMCodeGen",
+  ]
+}
+
+llvm_library("AsmPrinter") {
+  sources = [
+    "exported/lib/CodeGen/AsmPrinter/ARMException.cpp",
+    "exported/lib/CodeGen/AsmPrinter/AddressPool.cpp",
+    "exported/lib/CodeGen/AsmPrinter/AsmPrinter.cpp",
+    "exported/lib/CodeGen/AsmPrinter/AsmPrinterDwarf.cpp",
+    "exported/lib/CodeGen/AsmPrinter/AsmPrinterInlineAsm.cpp",
+    "exported/lib/CodeGen/AsmPrinter/DIE.cpp",
+    "exported/lib/CodeGen/AsmPrinter/DIEHash.cpp",
+    "exported/lib/CodeGen/AsmPrinter/DbgValueHistoryCalculator.cpp",
+    "exported/lib/CodeGen/AsmPrinter/DebugLocStream.cpp",
+    "exported/lib/CodeGen/AsmPrinter/DwarfAccelTable.cpp",
+    "exported/lib/CodeGen/AsmPrinter/DwarfCFIException.cpp",
+    "exported/lib/CodeGen/AsmPrinter/DwarfCompileUnit.cpp",
+    "exported/lib/CodeGen/AsmPrinter/DwarfDebug.cpp",
+    "exported/lib/CodeGen/AsmPrinter/DwarfExpression.cpp",
+    "exported/lib/CodeGen/AsmPrinter/DwarfFile.cpp",
+    "exported/lib/CodeGen/AsmPrinter/DwarfStringPool.cpp",
+    "exported/lib/CodeGen/AsmPrinter/DwarfUnit.cpp",
+    "exported/lib/CodeGen/AsmPrinter/EHStreamer.cpp",
+    "exported/lib/CodeGen/AsmPrinter/ErlangGCPrinter.cpp",
+    "exported/lib/CodeGen/AsmPrinter/OcamlGCPrinter.cpp",
+    "exported/lib/CodeGen/AsmPrinter/WinCodeViewLineTables.cpp",
+    "exported/lib/CodeGen/AsmPrinter/WinException.cpp",
+  ]
+
+  deps = [
+    ":LLVMCore",
+  ]
+}
+
+llvm_library("MIRParser") {
+  sources = [
+    "exported/lib/CodeGen/MIRParser/MILexer.cpp",
+    "exported/lib/CodeGen/MIRParser/MIParser.cpp",
+    "exported/lib/CodeGen/MIRParser/MIRParser.cpp",
+  ]
+
+  deps = [
+    ":LLVMCore",
+  ]
+}
+
+llvm_library("BitReader") {
+  sources = [
+    "exported/lib/Bitcode/Reader/BitReader.cpp",
+    "exported/lib/Bitcode/Reader/BitcodeReader.cpp",
+    "exported/lib/Bitcode/Reader/BitstreamReader.cpp",
+  ]
+
+  deps = [
+    ":LLVMCore",
+  ]
+}
+
+llvm_library("BitWriter") {
+  sources = [
+    "exported/lib/Bitcode/Writer/BitWriter.cpp",
+    "exported/lib/Bitcode/Writer/BitcodeWriter.cpp",
+    "exported/lib/Bitcode/Writer/BitcodeWriterPass.cpp",
+    "exported/lib/Bitcode/Writer/ValueEnumerator.cpp",
+  ]
+
+  deps = [
+    ":LLVMCore",
+  ]
+}
+
+llvm_library("TransformUtils") {
+  sources = [
+    "exported/lib/Transforms/Utils/ASanStackFrameLayout.cpp",
+    "exported/lib/Transforms/Utils/AddDiscriminators.cpp",
+    "exported/lib/Transforms/Utils/BasicBlockUtils.cpp",
+    "exported/lib/Transforms/Utils/BreakCriticalEdges.cpp",
+    "exported/lib/Transforms/Utils/BuildLibCalls.cpp",
+    "exported/lib/Transforms/Utils/BypassSlowDivision.cpp",
+    "exported/lib/Transforms/Utils/CloneFunction.cpp",
+    "exported/lib/Transforms/Utils/CloneModule.cpp",
+    "exported/lib/Transforms/Utils/CmpInstAnalysis.cpp",
+    "exported/lib/Transforms/Utils/CodeExtractor.cpp",
+    "exported/lib/Transforms/Utils/CtorUtils.cpp",
+    "exported/lib/Transforms/Utils/DemoteRegToStack.cpp",
+    "exported/lib/Transforms/Utils/FlattenCFG.cpp",
+    "exported/lib/Transforms/Utils/GlobalStatus.cpp",
+    "exported/lib/Transforms/Utils/InlineFunction.cpp",
+    "exported/lib/Transforms/Utils/InstructionNamer.cpp",
+    "exported/lib/Transforms/Utils/IntegerDivision.cpp",
+    "exported/lib/Transforms/Utils/LCSSA.cpp",
+    "exported/lib/Transforms/Utils/Local.cpp",
+    "exported/lib/Transforms/Utils/LoopSimplify.cpp",
+    "exported/lib/Transforms/Utils/LoopUnroll.cpp",
+    "exported/lib/Transforms/Utils/LoopUnrollRuntime.cpp",
+    "exported/lib/Transforms/Utils/LoopUtils.cpp",
+    "exported/lib/Transforms/Utils/LoopVersioning.cpp",
+    "exported/lib/Transforms/Utils/LowerInvoke.cpp",
+    "exported/lib/Transforms/Utils/LowerSwitch.cpp",
+    "exported/lib/Transforms/Utils/Mem2Reg.cpp",
+    "exported/lib/Transforms/Utils/MetaRenamer.cpp",
+    "exported/lib/Transforms/Utils/ModuleUtils.cpp",
+    "exported/lib/Transforms/Utils/PromoteMemoryToRegister.cpp",
+    "exported/lib/Transforms/Utils/SSAUpdater.cpp",
+    "exported/lib/Transforms/Utils/SimplifyCFG.cpp",
+    "exported/lib/Transforms/Utils/SimplifyIndVar.cpp",
+    "exported/lib/Transforms/Utils/SimplifyInstructions.cpp",
+    "exported/lib/Transforms/Utils/SimplifyLibCalls.cpp",
+    "exported/lib/Transforms/Utils/SplitModule.cpp",
+    "exported/lib/Transforms/Utils/SymbolRewriter.cpp",
+    "exported/lib/Transforms/Utils/UnifyFunctionExitNodes.cpp",
+    "exported/lib/Transforms/Utils/Utils.cpp",
+    "exported/lib/Transforms/Utils/ValueMapper.cpp",
+  ]
+
+  deps = [
+    ":LLVMCore",
+  ]
+}
+
+llvm_library("Instrumentation") {
+  sources = [
+    "exported/lib/Transforms/Instrumentation/AddressSanitizer.cpp",
+    "exported/lib/Transforms/Instrumentation/BoundsChecking.cpp",
+    "exported/lib/Transforms/Instrumentation/DataFlowSanitizer.cpp",
+    "exported/lib/Transforms/Instrumentation/GCOVProfiling.cpp",
+    "exported/lib/Transforms/Instrumentation/InstrProfiling.cpp",
+    "exported/lib/Transforms/Instrumentation/Instrumentation.cpp",
+    "exported/lib/Transforms/Instrumentation/MemorySanitizer.cpp",
+    "exported/lib/Transforms/Instrumentation/PGOInstrumentation.cpp",
+    "exported/lib/Transforms/Instrumentation/SafeStack.cpp",
+    "exported/lib/Transforms/Instrumentation/SanitizerCoverage.cpp",
+    "exported/lib/Transforms/Instrumentation/ThreadSanitizer.cpp",
+  ]
+
+  deps = [
+    ":LLVMCore",
+  ]
+}
+
+llvm_library("InstCombine") {
+  sources = [
+    "exported/lib/Transforms/InstCombine/InstCombineAddSub.cpp",
+    "exported/lib/Transforms/InstCombine/InstCombineAndOrXor.cpp",
+    "exported/lib/Transforms/InstCombine/InstCombineCalls.cpp",
+    "exported/lib/Transforms/InstCombine/InstCombineCasts.cpp",
+    "exported/lib/Transforms/InstCombine/InstCombineCompares.cpp",
+    "exported/lib/Transforms/InstCombine/InstCombineLoadStoreAlloca.cpp",
+    "exported/lib/Transforms/InstCombine/InstCombineMulDivRem.cpp",
+    "exported/lib/Transforms/InstCombine/InstCombinePHI.cpp",
+    "exported/lib/Transforms/InstCombine/InstCombineSelect.cpp",
+    "exported/lib/Transforms/InstCombine/InstCombineShifts.cpp",
+    "exported/lib/Transforms/InstCombine/InstCombineSimplifyDemanded.cpp",
+    "exported/lib/Transforms/InstCombine/InstCombineVectorOps.cpp",
+    "exported/lib/Transforms/InstCombine/InstructionCombining.cpp",
+  ]
+
+  deps = [
+    ":LLVMCore",
+  ]
+}
+
+llvm_library("ScalarOpts") {
+  sources = [
+    "exported/lib/Transforms/Scalar/ADCE.cpp",
+    "exported/lib/Transforms/Scalar/AlignmentFromAssumptions.cpp",
+    "exported/lib/Transforms/Scalar/BDCE.cpp",
+    "exported/lib/Transforms/Scalar/ConstantHoisting.cpp",
+    "exported/lib/Transforms/Scalar/ConstantProp.cpp",
+    "exported/lib/Transforms/Scalar/CorrelatedValuePropagation.cpp",
+    "exported/lib/Transforms/Scalar/DCE.cpp",
+    "exported/lib/Transforms/Scalar/DeadStoreElimination.cpp",
+    "exported/lib/Transforms/Scalar/EarlyCSE.cpp",
+    "exported/lib/Transforms/Scalar/FlattenCFGPass.cpp",
+    "exported/lib/Transforms/Scalar/Float2Int.cpp",
+    "exported/lib/Transforms/Scalar/GVN.cpp",
+    "exported/lib/Transforms/Scalar/IndVarSimplify.cpp",
+    "exported/lib/Transforms/Scalar/InductiveRangeCheckElimination.cpp",
+    "exported/lib/Transforms/Scalar/JumpThreading.cpp",
+    "exported/lib/Transforms/Scalar/LICM.cpp",
+    "exported/lib/Transforms/Scalar/LoadCombine.cpp",
+    "exported/lib/Transforms/Scalar/LoopDeletion.cpp",
+    "exported/lib/Transforms/Scalar/LoopDistribute.cpp",
+    "exported/lib/Transforms/Scalar/LoopIdiomRecognize.cpp",
+    "exported/lib/Transforms/Scalar/LoopInstSimplify.cpp",
+    "exported/lib/Transforms/Scalar/LoopInterchange.cpp",
+    "exported/lib/Transforms/Scalar/LoopLoadElimination.cpp",
+    "exported/lib/Transforms/Scalar/LoopRerollPass.cpp",
+    "exported/lib/Transforms/Scalar/LoopRotation.cpp",
+    "exported/lib/Transforms/Scalar/LoopStrengthReduce.cpp",
+    "exported/lib/Transforms/Scalar/LoopUnrollPass.cpp",
+    "exported/lib/Transforms/Scalar/LoopUnswitch.cpp",
+    "exported/lib/Transforms/Scalar/LowerAtomic.cpp",
+    "exported/lib/Transforms/Scalar/LowerExpectIntrinsic.cpp",
+    "exported/lib/Transforms/Scalar/MemCpyOptimizer.cpp",
+    "exported/lib/Transforms/Scalar/MergedLoadStoreMotion.cpp",
+    "exported/lib/Transforms/Scalar/NaryReassociate.cpp",
+    "exported/lib/Transforms/Scalar/PartiallyInlineLibCalls.cpp",
+    "exported/lib/Transforms/Scalar/PlaceSafepoints.cpp",
+    "exported/lib/Transforms/Scalar/Reassociate.cpp",
+    "exported/lib/Transforms/Scalar/Reg2Mem.cpp",
+    "exported/lib/Transforms/Scalar/RewriteStatepointsForGC.cpp",
+    "exported/lib/Transforms/Scalar/SCCP.cpp",
+    "exported/lib/Transforms/Scalar/SROA.cpp",
+    "exported/lib/Transforms/Scalar/Scalar.cpp",
+    "exported/lib/Transforms/Scalar/ScalarReplAggregates.cpp",
+    "exported/lib/Transforms/Scalar/Scalarizer.cpp",
+    "exported/lib/Transforms/Scalar/SeparateConstOffsetFromGEP.cpp",
+    "exported/lib/Transforms/Scalar/SimplifyCFGPass.cpp",
+    "exported/lib/Transforms/Scalar/Sink.cpp",
+    "exported/lib/Transforms/Scalar/SpeculativeExecution.cpp",
+    "exported/lib/Transforms/Scalar/StraightLineStrengthReduce.cpp",
+    "exported/lib/Transforms/Scalar/StructurizeCFG.cpp",
+    "exported/lib/Transforms/Scalar/TailRecursionElimination.cpp",
+  ]
+
+  deps = [
+    ":LLVMCore",
+  ]
+}
+
+llvm_library("ipo") {
+  sources = [
+    "exported/lib/Transforms/IPO/ArgumentPromotion.cpp",
+    "exported/lib/Transforms/IPO/BarrierNoopPass.cpp",
+    "exported/lib/Transforms/IPO/ConstantMerge.cpp",
+    "exported/lib/Transforms/IPO/DeadArgumentElimination.cpp",
+    "exported/lib/Transforms/IPO/ElimAvailExtern.cpp",
+    "exported/lib/Transforms/IPO/ExtractGV.cpp",
+    "exported/lib/Transforms/IPO/FunctionAttrs.cpp",
+    "exported/lib/Transforms/IPO/FunctionImport.cpp",
+    "exported/lib/Transforms/IPO/GlobalDCE.cpp",
+    "exported/lib/Transforms/IPO/GlobalOpt.cpp",
+    "exported/lib/Transforms/IPO/IPConstantPropagation.cpp",
+    "exported/lib/Transforms/IPO/IPO.cpp",
+    "exported/lib/Transforms/IPO/InlineAlways.cpp",
+    "exported/lib/Transforms/IPO/InlineSimple.cpp",
+    "exported/lib/Transforms/IPO/Inliner.cpp",
+    "exported/lib/Transforms/IPO/Internalize.cpp",
+    "exported/lib/Transforms/IPO/LoopExtractor.cpp",
+    "exported/lib/Transforms/IPO/LowerBitSets.cpp",
+    "exported/lib/Transforms/IPO/MergeFunctions.cpp",
+    "exported/lib/Transforms/IPO/PartialInlining.cpp",
+    "exported/lib/Transforms/IPO/PassManagerBuilder.cpp",
+    "exported/lib/Transforms/IPO/PruneEH.cpp",
+    "exported/lib/Transforms/IPO/SampleProfile.cpp",
+    "exported/lib/Transforms/IPO/StripDeadPrototypes.cpp",
+    "exported/lib/Transforms/IPO/StripSymbols.cpp",
+  ]
+
+  deps = [
+    ":LLVMCore",
+  ]
+}
+
+llvm_library("Vectorize") {
+  sources = [
+    "exported/lib/Transforms/Vectorize/BBVectorize.cpp",
+    "exported/lib/Transforms/Vectorize/LoopVectorize.cpp",
+    "exported/lib/Transforms/Vectorize/SLPVectorizer.cpp",
+    "exported/lib/Transforms/Vectorize/Vectorize.cpp",
+  ]
+
+  deps = [
+    ":LLVMCore",
+  ]
+}
+
+llvm_library("Option") {
+  sources = [
+    "exported/lib/Option/Arg.cpp",
+    "exported/lib/Option/ArgList.cpp",
+    "exported/lib/Option/OptTable.cpp",
+    "exported/lib/Option/Option.cpp",
+  ]
+}

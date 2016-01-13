@@ -80,7 +80,7 @@ TEST(CommandTest, ParseSimpleArgs) {
   const char* argv[] = {
       "clang++", "-c", expected_input.c_str(), "-o", expected_output.c_str(),
       nullptr};
-  const int argc = 5;
+  const int argc = sizeof(argv) / sizeof(argv[0]) - 1;
 
   Command::List commands;
   ASSERT_TRUE(Command::GenerateFromArgs(argc, argv, commands));

@@ -90,20 +90,8 @@ config("no_rtti") {
   ldflags = [ "-fno-rtti" ]
 }
 
-import("//build/llvm/llvm.gni")
-
-config("libclang_includes") {
-  defines = llvm_defines
-  include_dirs = [ "//build/llvm/" + host_os + "/include" ]
-}
-
 config("libclang") {
-  defines = llvm_defines
-  include_dirs = [ "//build/llvm/" + host_os + "/include" ]
-  lib_dirs = [ "//build/llvm/" + host_os + "/lib" ]
-
-  libs = [ "c" ]
-  libs += [
+  libs = [
     "clangTooling",
     "clangFrontendTool",
     "clangFrontend",
@@ -124,8 +112,6 @@ config("libclang") {
     "clangLex",
     "clangBasic",
   ]
-  libs += llvm_libs
-  libs += llvm_system_libs
 }
 
 config("version") {
