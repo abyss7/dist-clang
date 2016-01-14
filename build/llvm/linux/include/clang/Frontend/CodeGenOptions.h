@@ -16,6 +16,7 @@
 
 #include "clang/Basic/Sanitizers.h"
 #include "llvm/Support/Regex.h"
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -120,6 +121,8 @@ public:
   /// non-empty.
   std::string DwarfDebugFlags;
 
+  std::map<std::string, std::string> DebugPrefixMap;
+
   /// The ABI to use for passing floating point arguments.
   std::string FloatABI;
 
@@ -127,7 +130,7 @@ public:
   std::string LimitFloatPrecision;
 
   /// The name of the bitcode file to link before optzns.
-  std::string LinkBitcodeFile;
+  std::vector<std::pair<unsigned, std::string>> LinkBitcodeFiles;
 
   /// The user provided name for the "main file", if non-empty. This is useful
   /// in situations where the input file name does not match the original input
@@ -155,6 +158,7 @@ public:
   std::vector<std::string> DependentLibraries;
 
   /// Name of the profile file to use as output for -fprofile-instr-generate
+  /// and -fprofile-generate.
   std::string InstrProfileOutput;
 
   /// Name of the profile file to use with -fprofile-sample-use.
@@ -162,6 +166,13 @@ public:
 
   /// Name of the profile file to use as input for -fprofile-instr-use
   std::string InstrProfileInput;
+
+  /// Name of the function summary index file to use for ThinLTO function
+  /// importing.
+  std::string ThinLTOIndexFile;
+
+  /// The EABI version to use
+  std::string EABIVersion;
 
   /// A list of file names passed with -fcuda-include-gpubinary options to
   /// forward to CUDA runtime back-end for incorporating them into host-side
@@ -196,6 +207,9 @@ public:
   /// Set of sanitizer checks that are non-fatal (i.e. execution should be
   /// continued when possible).
   SanitizerSet SanitizeRecover;
+
+  /// Set of sanitizer checks that trap rather than diagnose.
+  SanitizerSet SanitizeTrap;
 
 public:
   // Define accessors/mutators for code generation options of enumeration type.

@@ -23,21 +23,12 @@
 #include "llvm/Support/LineIterator.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/OnDiskHashTable.h"
+#include "llvm/Support/raw_ostream.h"
 #include <iterator>
 
 namespace llvm {
 
 class InstrProfReader;
-
-/// Profiling information for a single function.
-struct InstrProfRecord {
-  InstrProfRecord() {}
-  InstrProfRecord(StringRef Name, uint64_t Hash, ArrayRef<uint64_t> Counts)
-      : Name(Name), Hash(Hash), Counts(Counts) {}
-  StringRef Name;
-  uint64_t Hash;
-  ArrayRef<uint64_t> Counts;
-};
 
 /// A file format agnostic iterator over profiling data.
 class InstrProfIterator : public std::iterator<std::input_iterator_tag,
@@ -74,7 +65,7 @@ public:
   InstrProfIterator begin() { return InstrProfIterator(this); }
   InstrProfIterator end() { return InstrProfIterator(); }
 
-protected:
+ protected:
   /// Set the current std::error_code and return same.
   std::error_code error(std::error_code EC) {
     LastError = EC;
@@ -114,14 +105,15 @@ private:
   std::unique_ptr<MemoryBuffer> DataBuffer;
   /// Iterator over the profile data.
   line_iterator Line;
-  /// The current set of counter values.
-  std::vector<uint64_t> Counts;
 
   TextInstrProfReader(const TextInstrProfReader &) = delete;
   TextInstrProfReader &operator=(const TextInstrProfReader &) = delete;
 public:
   TextInstrProfReader(std::unique_ptr<MemoryBuffer> DataBuffer_)
       : DataBuffer(std::move(DataBuffer_)), Line(*DataBuffer, true, '#') {}
+
+  /// Return true if the given buffer is in text instrprof format.
+  static bool hasFormat(const MemoryBuffer &Buffer);
 
   /// Read the header.
   std::error_code readHeader() override { return success(); }
@@ -141,33 +133,21 @@ class RawInstrProfReader : public InstrProfReader {
 private:
   /// The profile data file contents.
   std::unique_ptr<MemoryBuffer> DataBuffer;
-  /// The current set of counter values.
-  std::vector<uint64_t> Counts;
-  struct ProfileData {
-    const uint32_t NameSize;
-    const uint32_t NumCounters;
-    const uint64_t FuncHash;
-    const IntPtrT NamePtr;
-    const IntPtrT CounterPtr;
-  };
-  struct RawHeader {
-    const uint64_t Magic;
-    const uint64_t Version;
-    const uint64_t DataSize;
-    const uint64_t CountersSize;
-    const uint64_t NamesSize;
-    const uint64_t CountersDelta;
-    const uint64_t NamesDelta;
-  };
-
   bool ShouldSwapBytes;
   uint64_t CountersDelta;
   uint64_t NamesDelta;
-  const ProfileData *Data;
-  const ProfileData *DataEnd;
+  uint64_t ValueDataDelta;
+  const RawInstrProf::ProfileData<IntPtrT> *Data;
+  const RawInstrProf::ProfileData<IntPtrT> *DataEnd;
   const uint64_t *CountersStart;
   const char *NamesStart;
+  const uint8_t *ValueDataStart;
   const char *ProfileEnd;
+  uint32_t ValueKindLast;
+
+  // String table for holding a unique copy of all the strings in the profile.
+  InstrProfStringTable StringTable;
+  InstrProfRecord::ValueMapType FunctionPtrToNameMap;
 
   RawInstrProfReader(const RawInstrProfReader &) = delete;
   RawInstrProfReader &operator=(const RawInstrProfReader &) = delete;
@@ -181,11 +161,30 @@ public:
 
 private:
   std::error_code readNextHeader(const char *CurrentPos);
-  std::error_code readHeader(const RawHeader &Header);
-  template <class IntT>
-  IntT swap(IntT Int) const {
+  std::error_code readHeader(const RawInstrProf::Header &Header);
+  template <class IntT> IntT swap(IntT Int) const {
     return ShouldSwapBytes ? sys::getSwappedBytes(Int) : Int;
   }
+  support::endianness getDataEndianness() const {
+    support::endianness HostEndian = getHostEndianness();
+    if (!ShouldSwapBytes)
+      return HostEndian;
+    if (HostEndian == support::little)
+      return support::big;
+    else
+      return support::little;
+  }
+
+  inline uint8_t getNumPaddingBytes(uint64_t SizeInBytes) {
+    return 7 & (sizeof(uint64_t) - SizeInBytes % sizeof(uint64_t));
+  }
+  std::error_code readName(InstrProfRecord &Record);
+  std::error_code readFuncHash(InstrProfRecord &Record);
+  std::error_code readRawCounts(InstrProfRecord &Record);
+  std::error_code readValueProfilingData(InstrProfRecord &Record);
+  bool atEnd() const { return Data == DataEnd; }
+  void advanceData() { Data++; }
+
   const uint64_t *getCounter(IntPtrT CounterPtr) const {
     ptrdiff_t Offset = (swap(CounterPtr) - CountersDelta) / sizeof(uint64_t);
     return CountersStart + Offset;
@@ -193,6 +192,17 @@ private:
   const char *getName(IntPtrT NamePtr) const {
     ptrdiff_t Offset = (swap(NamePtr) - NamesDelta) / sizeof(char);
     return NamesStart + Offset;
+  }
+  const uint8_t *getValueDataCounts(IntPtrT ValueCountsPtr) const {
+    ptrdiff_t Offset =
+        (swap(ValueCountsPtr) - ValueDataDelta) / sizeof(uint8_t);
+    return ValueDataStart + Offset;
+  }
+  // This accepts an already byte-swapped ValueDataPtr argument.
+  const InstrProfValueData *getValueData(IntPtrT ValueDataPtr) const {
+    ptrdiff_t Offset = (ValueDataPtr - ValueDataDelta) / sizeof(uint8_t);
+    return reinterpret_cast<const InstrProfValueData *>(ValueDataStart +
+                                                        Offset);
   }
 };
 
@@ -206,17 +216,22 @@ enum class HashT : uint32_t;
 /// Trait for lookups into the on-disk hash table for the binary instrprof
 /// format.
 class InstrProfLookupTrait {
-  std::vector<uint64_t> DataBuffer;
+  std::vector<InstrProfRecord> DataBuffer;
   IndexedInstrProf::HashT HashType;
-public:
-  InstrProfLookupTrait(IndexedInstrProf::HashT HashType) : HashType(HashType) {}
+  unsigned FormatVersion;
+  // Endianness of the input value profile data.
+  // It should be LE by default, but can be changed
+  // for testing purpose.
+  support::endianness ValueProfDataEndianness;
+  std::vector<std::pair<uint64_t, const char *>> HashKeys;
 
-  struct data_type {
-    data_type(StringRef Name, ArrayRef<uint64_t> Data)
-        : Name(Name), Data(Data) {}
-    StringRef Name;
-    ArrayRef<uint64_t> Data;
-  };
+public:
+  InstrProfLookupTrait(IndexedInstrProf::HashT HashType, unsigned FormatVersion)
+      : HashType(HashType), FormatVersion(FormatVersion),
+        ValueProfDataEndianness(support::little) {}
+
+  typedef ArrayRef<InstrProfRecord> data_type;
+
   typedef StringRef internal_key_type;
   typedef StringRef external_key_type;
   typedef uint64_t hash_value_type;
@@ -224,9 +239,13 @@ public:
 
   static bool EqualKey(StringRef A, StringRef B) { return A == B; }
   static StringRef GetInternalKey(StringRef K) { return K; }
+  static StringRef GetExternalKey(StringRef K) { return K; }
 
   hash_value_type ComputeHash(StringRef K);
 
+  void setHashKeys(std::vector<std::pair<uint64_t, const char *>> HashKeys) {
+    this->HashKeys = std::move(HashKeys);
+  }
   static std::pair<offset_type, offset_type>
   ReadKeyDataLength(const unsigned char *&D) {
     using namespace support;
@@ -239,24 +258,63 @@ public:
     return StringRef((const char *)D, N);
   }
 
-  data_type ReadData(StringRef K, const unsigned char *D, offset_type N) {
-    DataBuffer.clear();
-    if (N % sizeof(uint64_t))
-      // The data is corrupt, don't try to read it.
-      return data_type("", DataBuffer);
+  bool readValueProfilingData(const unsigned char *&D,
+                              const unsigned char *const End);
+  data_type ReadData(StringRef K, const unsigned char *D, offset_type N);
 
-    using namespace support;
-    // We just treat the data as opaque here. It's simpler to handle in
-    // IndexedInstrProfReader.
-    unsigned NumEntries = N / sizeof(uint64_t);
-    DataBuffer.reserve(NumEntries);
-    for (unsigned I = 0; I < NumEntries; ++I)
-      DataBuffer.push_back(endian::readNext<uint64_t, little, unaligned>(D));
-    return data_type(K, DataBuffer);
+  // Used for testing purpose only.
+  void setValueProfDataEndianness(support::endianness Endianness) {
+    ValueProfDataEndianness = Endianness;
   }
 };
+
+struct InstrProfReaderIndexBase {
+  // Read all the profile records with the same key pointed to the current
+  // iterator.
+  virtual std::error_code getRecords(ArrayRef<InstrProfRecord> &Data) = 0;
+  // Read all the profile records with the key equal to FuncName
+  virtual std::error_code getRecords(StringRef FuncName,
+                                     ArrayRef<InstrProfRecord> &Data) = 0;
+  virtual void advanceToNextKey() = 0;
+  virtual bool atEnd() const = 0;
+  virtual void setValueProfDataEndianness(support::endianness Endianness) = 0;
+  virtual ~InstrProfReaderIndexBase() {}
+  virtual uint64_t getVersion() const = 0;
+};
+
 typedef OnDiskIterableChainedHashTable<InstrProfLookupTrait>
-    InstrProfReaderIndex;
+    OnDiskHashTableImplV3;
+
+template <typename HashTableImpl>
+class InstrProfReaderIndex : public InstrProfReaderIndexBase {
+
+private:
+  std::unique_ptr<HashTableImpl> HashTable;
+  typename HashTableImpl::data_iterator RecordIterator;
+  uint64_t FormatVersion;
+
+  // String table for holding a unique copy of all the strings in the profile.
+  InstrProfStringTable StringTable;
+
+public:
+  InstrProfReaderIndex(const unsigned char *Buckets,
+                       const unsigned char *const Payload,
+                       const unsigned char *const Base,
+                       IndexedInstrProf::HashT HashType, uint64_t Version);
+
+  std::error_code getRecords(ArrayRef<InstrProfRecord> &Data) override;
+  std::error_code getRecords(StringRef FuncName,
+                             ArrayRef<InstrProfRecord> &Data) override;
+  void advanceToNextKey() override { RecordIterator++; }
+  bool atEnd() const override {
+    return RecordIterator == HashTable->data_end();
+  }
+  void setValueProfDataEndianness(support::endianness Endianness) override {
+    HashTable->getInfoObj().setValueProfDataEndianness(Endianness);
+  }
+  ~InstrProfReaderIndex() override {}
+  uint64_t getVersion() const override { return FormatVersion; }
+};
 
 /// Reader for the indexed binary instrprof format.
 class IndexedInstrProfReader : public InstrProfReader {
@@ -264,21 +322,17 @@ private:
   /// The profile data file contents.
   std::unique_ptr<MemoryBuffer> DataBuffer;
   /// The index into the profile data.
-  std::unique_ptr<InstrProfReaderIndex> Index;
-  /// Iterator over the profile data.
-  InstrProfReaderIndex::data_iterator RecordIterator;
-  /// Offset into our current data set.
-  size_t CurrentOffset;
-  /// The file format version of the profile data.
-  uint64_t FormatVersion;
+  std::unique_ptr<InstrProfReaderIndexBase> Index;
   /// The maximal execution count among all functions.
   uint64_t MaxFunctionCount;
 
   IndexedInstrProfReader(const IndexedInstrProfReader &) = delete;
   IndexedInstrProfReader &operator=(const IndexedInstrProfReader &) = delete;
+
 public:
+  uint64_t getVersion() const { return Index->getVersion(); }
   IndexedInstrProfReader(std::unique_ptr<MemoryBuffer> DataBuffer)
-      : DataBuffer(std::move(DataBuffer)), Index(nullptr), CurrentOffset(0) {}
+      : DataBuffer(std::move(DataBuffer)), Index(nullptr) {}
 
   /// Return true if the given buffer is in an indexed instrprof format.
   static bool hasFormat(const MemoryBuffer &DataBuffer);
@@ -288,9 +342,15 @@ public:
   /// Read a single record.
   std::error_code readNextRecord(InstrProfRecord &Record) override;
 
+  /// Return the pointer to InstrProfRecord associated with FuncName
+  /// and FuncHash
+  ErrorOr<InstrProfRecord> getInstrProfRecord(StringRef FuncName,
+                                              uint64_t FuncHash);
+
   /// Fill Counts with the profile data for the given function name.
   std::error_code getFunctionCounts(StringRef FuncName, uint64_t FuncHash,
                                     std::vector<uint64_t> &Counts);
+
   /// Return the maximum of all known function counts.
   uint64_t getMaximumFunctionCount() { return MaxFunctionCount; }
 
@@ -300,6 +360,11 @@ public:
 
   static ErrorOr<std::unique_ptr<IndexedInstrProfReader>>
   create(std::unique_ptr<MemoryBuffer> Buffer);
+
+  // Used for testing purpose only.
+  void setValueProfDataEndianness(support::endianness Endianness) {
+    Index->setValueProfDataEndianness(Endianness);
+  }
 };
 
 } // end namespace llvm

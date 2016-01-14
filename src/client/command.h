@@ -55,26 +55,26 @@ class DriverCommand : public Command {
   virtual String RenderAllArgs() const override;
 
  private:
-  DriverCommand(llvm::opt::InputArgList* arg_list,
+  DriverCommand(llvm::opt::InputArgList&& arg_list,
                 SharedPtr<clang::driver::Compilation> compilation,
                 SharedPtr<llvm::opt::OptTable> opt_table,
                 SharedPtr<clang::driver::Driver> driver)
       : Command(true),
-        arg_list_(arg_list),
+        arg_list_(std::move(arg_list)),
         compilation_(compilation),
         opt_table_(opt_table),
         driver_(driver) {}
 
-  DriverCommand(const clang::driver::Command* WEAK_PTR driver_command,
+  DriverCommand(const clang::driver::Command& driver_command,
                 SharedPtr<clang::driver::Compilation> compilation,
                 SharedPtr<clang::driver::Driver> driver)
       : Command(false),
-        command_(driver_command),
+        command_(&driver_command),
         compilation_(compilation),
         driver_(driver) {}
 
   const clang::driver::Command* WEAK_PTR command_ = nullptr;
-  UniquePtr<llvm::opt::InputArgList> arg_list_;
+  llvm::opt::InputArgList arg_list_ = {nullptr, nullptr};
   SharedPtr<clang::driver::Compilation> compilation_;
   SharedPtr<llvm::opt::OptTable> opt_table_;
 

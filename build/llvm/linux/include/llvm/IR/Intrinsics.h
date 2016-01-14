@@ -52,6 +52,11 @@ namespace Intrinsic {
   /// Returns true if the intrinsic can be overloaded.
   bool isOverloaded(ID id);
 
+  /// Returns true if the intrinsic is a leaf, i.e. it does not make any calls
+  /// itself.  Most intrinsics are leafs, the exceptions being the patchpoint
+  /// and statepoint intrinsics. These call (or invoke) their "target" argument.
+  bool isLeaf(ID id);
+
   /// Return the attributes for an intrinsic.
   AttributeSet getAttributes(LLVMContext &C, ID id);
 
@@ -74,7 +79,7 @@ namespace Intrinsic {
   /// intrinsic. This is returned by getIntrinsicInfoTableEntries.
   struct IITDescriptor {
     enum IITDescriptorKind {
-      Void, VarArg, MMX, Metadata, Half, Float, Double,
+      Void, VarArg, MMX, Token, Metadata, Half, Float, Double,
       Integer, Vector, Pointer, Struct,
       Argument, ExtendArgument, TruncArgument, HalfVecArgument,
       SameVecWidthArgument, PtrToArgument, VecOfPtrsToElt

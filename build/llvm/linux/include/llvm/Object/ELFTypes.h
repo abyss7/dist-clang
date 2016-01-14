@@ -10,9 +10,11 @@
 #ifndef LLVM_OBJECT_ELFTYPES_H
 #define LLVM_OBJECT_ELFTYPES_H
 
-#include "llvm/Support/DataTypes.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/Object/Error.h"
 #include "llvm/Support/ELF.h"
 #include "llvm/Support/Endian.h"
+#include "llvm/Support/ErrorOr.h"
 
 namespace llvm {
 namespace object {
@@ -23,6 +25,11 @@ template <endianness target_endianness, bool is64Bits> struct ELFType {
   static const endianness TargetEndianness = target_endianness;
   static const bool Is64Bits = is64Bits;
 };
+
+typedef ELFType<support::little, false> ELF32LE;
+typedef ELFType<support::big, false> ELF32BE;
+typedef ELFType<support::little, true> ELF64LE;
+typedef ELFType<support::big, true> ELF64BE;
 
 // Use an alignment of 2 for the typedefs since that is the worst case for
 // ELF files in archives.
@@ -197,7 +204,20 @@ struct Elf_Sym_Impl : Elf_Sym_Base<ELFT> {
     return st_shndx >= ELF::SHN_LORESERVE;
   }
   bool isUndefined() const { return st_shndx == ELF::SHN_UNDEF; }
+  bool isExternal() const {
+    return getBinding() != ELF::STB_LOCAL;
+  }
+
+  ErrorOr<StringRef> getName(StringRef StrTab) const;
 };
+
+template <class ELFT>
+ErrorOr<StringRef> Elf_Sym_Impl<ELFT>::getName(StringRef StrTab) const {
+  uint32_t Offset = this->st_name;
+  if (Offset >= StrTab.size())
+    return object_error::parse_failed;
+  return StringRef(StrTab.data() + Offset);
+}
 
 /// Elf_Versym: This is the structure of entries in the SHT_GNU_versym section
 /// (.gnu.version). This structure is identical for ELF32 and ELF64.
@@ -286,21 +306,25 @@ struct Elf_Dyn_Base<ELFType<TargetEndianness, true>> {
   } d_un;
 };
 
-/// Elf_Dyn_Impl: This inherits from Elf_Dyn_Base, adding getters and setters.
+/// Elf_Dyn_Impl: This inherits from Elf_Dyn_Base, adding getters.
 template <class ELFT>
 struct Elf_Dyn_Impl : Elf_Dyn_Base<ELFT> {
   using Elf_Dyn_Base<ELFT>::d_tag;
   using Elf_Dyn_Base<ELFT>::d_un;
-  int64_t getTag() const { return d_tag; }
-  uint64_t getVal() const { return d_un.d_val; }
-  uint64_t getPtr() const { return d_un.ptr; }
+  typedef typename std::conditional<ELFT::Is64Bits,
+                                    int64_t, int32_t>::type intX_t;
+  typedef typename std::conditional<ELFT::Is64Bits,
+                                    uint64_t, uint32_t>::type uintX_t;
+  intX_t getTag() const { return d_tag; }
+  uintX_t getVal() const { return d_un.d_val; }
+  uintX_t getPtr() const { return d_un.d_ptr; }
 };
 
 // Elf_Rel: Elf Relocation
-template <class ELFT, bool isRela> struct Elf_Rel_Base;
+template <class ELFT, bool isRela> struct Elf_Rel_Impl;
 
 template <endianness TargetEndianness>
-struct Elf_Rel_Base<ELFType<TargetEndianness, false>, false> {
+struct Elf_Rel_Impl<ELFType<TargetEndianness, false>, false> {
   LLVM_ELF_IMPORT_TYPES(TargetEndianness, false)
   Elf_Addr r_offset; // Location (file byte offset, or program virtual addr)
   Elf_Word r_info;   // Symbol table index and type of relocation to apply
@@ -313,10 +337,35 @@ struct Elf_Rel_Base<ELFType<TargetEndianness, false>, false> {
     assert(!IsMips64EL);
     r_info = R;
   }
+
+  // These accessors and mutators correspond to the ELF32_R_SYM, ELF32_R_TYPE,
+  // and ELF32_R_INFO macros defined in the ELF specification:
+  uint32_t getSymbol(bool isMips64EL) const {
+    return this->getRInfo(isMips64EL) >> 8;
+  }
+  unsigned char getType(bool isMips64EL) const {
+    return (unsigned char)(this->getRInfo(isMips64EL) & 0x0ff);
+  }
+  void setSymbol(uint32_t s, bool IsMips64EL) {
+    setSymbolAndType(s, getType(), IsMips64EL);
+  }
+  void setType(unsigned char t, bool IsMips64EL) {
+    setSymbolAndType(getSymbol(), t, IsMips64EL);
+  }
+  void setSymbolAndType(uint32_t s, unsigned char t, bool IsMips64EL) {
+    this->setRInfo((s << 8) + t, IsMips64EL);
+  }
 };
 
 template <endianness TargetEndianness>
-struct Elf_Rel_Base<ELFType<TargetEndianness, true>, false> {
+struct Elf_Rel_Impl<ELFType<TargetEndianness, false>, true>
+    : public Elf_Rel_Impl<ELFType<TargetEndianness, false>, false> {
+  LLVM_ELF_IMPORT_TYPES(TargetEndianness, false)
+  Elf_Sword r_addend; // Compute value for relocatable field by adding this
+};
+
+template <endianness TargetEndianness>
+struct Elf_Rel_Impl<ELFType<TargetEndianness, true>, false> {
   LLVM_ELF_IMPORT_TYPES(TargetEndianness, true)
   Elf_Addr r_offset; // Location (file byte offset, or program virtual addr)
   Elf_Xword r_info;  // Symbol table index and type of relocation to apply
@@ -338,57 +387,6 @@ struct Elf_Rel_Base<ELFType<TargetEndianness, true>, false> {
     else
       r_info = R;
   }
-};
-
-template <endianness TargetEndianness>
-struct Elf_Rel_Base<ELFType<TargetEndianness, false>, true> {
-  LLVM_ELF_IMPORT_TYPES(TargetEndianness, false)
-  Elf_Addr r_offset;  // Location (file byte offset, or program virtual addr)
-  Elf_Word r_info;    // Symbol table index and type of relocation to apply
-  Elf_Sword r_addend; // Compute value for relocatable field by adding this
-
-  uint32_t getRInfo(bool isMips64EL) const {
-    assert(!isMips64EL);
-    return r_info;
-  }
-  void setRInfo(uint32_t R, bool IsMips64EL) {
-    assert(!IsMips64EL);
-    r_info = R;
-  }
-};
-
-template <endianness TargetEndianness>
-struct Elf_Rel_Base<ELFType<TargetEndianness, true>, true> {
-  LLVM_ELF_IMPORT_TYPES(TargetEndianness, true)
-  Elf_Addr r_offset;   // Location (file byte offset, or program virtual addr)
-  Elf_Xword r_info;    // Symbol table index and type of relocation to apply
-  Elf_Sxword r_addend; // Compute value for relocatable field by adding this.
-
-  uint64_t getRInfo(bool isMips64EL) const {
-    // Mips64 little endian has a "special" encoding of r_info. Instead of one
-    // 64 bit little endian number, it is a little endian 32 bit number followed
-    // by a 32 bit big endian number.
-    uint64_t t = r_info;
-    if (!isMips64EL)
-      return t;
-    return (t << 32) | ((t >> 8) & 0xff000000) | ((t >> 24) & 0x00ff0000) |
-           ((t >> 40) & 0x0000ff00) | ((t >> 56) & 0x000000ff);
-  }
-  void setRInfo(uint64_t R, bool IsMips64EL) {
-    if (IsMips64EL)
-      r_info = (R >> 32) | ((R & 0xff000000) << 8) | ((R & 0x00ff0000) << 24) |
-               ((R & 0x0000ff00) << 40) | ((R & 0x000000ff) << 56);
-    else
-      r_info = R;
-  }
-};
-
-template <class ELFT, bool isRela> struct Elf_Rel_Impl;
-
-template <endianness TargetEndianness, bool isRela>
-struct Elf_Rel_Impl<ELFType<TargetEndianness, true>, isRela>
-    : Elf_Rel_Base<ELFType<TargetEndianness, true>, isRela> {
-  LLVM_ELF_IMPORT_TYPES(TargetEndianness, true)
 
   // These accessors and mutators correspond to the ELF64_R_SYM, ELF64_R_TYPE,
   // and ELF64_R_INFO macros defined in the ELF specification:
@@ -409,28 +407,11 @@ struct Elf_Rel_Impl<ELFType<TargetEndianness, true>, isRela>
   }
 };
 
-template <endianness TargetEndianness, bool isRela>
-struct Elf_Rel_Impl<ELFType<TargetEndianness, false>, isRela>
-    : Elf_Rel_Base<ELFType<TargetEndianness, false>, isRela> {
-  LLVM_ELF_IMPORT_TYPES(TargetEndianness, false)
-
-  // These accessors and mutators correspond to the ELF32_R_SYM, ELF32_R_TYPE,
-  // and ELF32_R_INFO macros defined in the ELF specification:
-  uint32_t getSymbol(bool isMips64EL) const {
-    return this->getRInfo(isMips64EL) >> 8;
-  }
-  unsigned char getType(bool isMips64EL) const {
-    return (unsigned char)(this->getRInfo(isMips64EL) & 0x0ff);
-  }
-  void setSymbol(uint32_t s, bool IsMips64EL) {
-    setSymbolAndType(s, getType(), IsMips64EL);
-  }
-  void setType(unsigned char t, bool IsMips64EL) {
-    setSymbolAndType(getSymbol(), t, IsMips64EL);
-  }
-  void setSymbolAndType(uint32_t s, unsigned char t, bool IsMips64EL) {
-    this->setRInfo((s << 8) + t, IsMips64EL);
-  }
+template <endianness TargetEndianness>
+struct Elf_Rel_Impl<ELFType<TargetEndianness, true>, true>
+    : public Elf_Rel_Impl<ELFType<TargetEndianness, true>, false> {
+  LLVM_ELF_IMPORT_TYPES(TargetEndianness, true)
+  Elf_Sxword r_addend; // Compute value for relocatable field by adding this.
 };
 
 template <class ELFT>
@@ -484,6 +465,47 @@ struct Elf_Phdr_Impl<ELFType<TargetEndianness, true>> {
   Elf_Xword p_filesz; // Num. of bytes in file image of segment (may be zero)
   Elf_Xword p_memsz;  // Num. of bytes in mem image of segment (may be zero)
   Elf_Xword p_align;  // Segment alignment constraint
+};
+
+// ELFT needed for endianess.
+template <class ELFT>
+struct Elf_Hash_Impl {
+  LLVM_ELF_IMPORT_TYPES_ELFT(ELFT)
+  Elf_Word nbucket;
+  Elf_Word nchain;
+
+  ArrayRef<Elf_Word> buckets() const {
+    return ArrayRef<Elf_Word>(&nbucket + 2, &nbucket + 2 + nbucket);
+  }
+
+  ArrayRef<Elf_Word> chains() const {
+    return ArrayRef<Elf_Word>(&nbucket + 2 + nbucket,
+                              &nbucket + 2 + nbucket + nchain);
+  }
+};
+
+// .gnu.hash section
+template <class ELFT>
+struct Elf_GnuHash_Impl {
+  LLVM_ELF_IMPORT_TYPES_ELFT(ELFT)
+  Elf_Word nbuckets;
+  Elf_Word symndx;
+  Elf_Word maskwords;
+  Elf_Word shift2;
+
+  ArrayRef<Elf_Off> filter() const {
+    return ArrayRef<Elf_Off>(reinterpret_cast<const Elf_Off *>(&shift2 + 1),
+                             maskwords);
+  }
+
+  ArrayRef<Elf_Word> buckets() const {
+    return ArrayRef<Elf_Word>(
+        reinterpret_cast<const Elf_Word *>(filter().end()), nbuckets);
+  }
+
+  ArrayRef<Elf_Word> values(unsigned DynamicSymCount) const {
+    return ArrayRef<Elf_Word>(buckets().end(), DynamicSymCount - symndx);
+  }
 };
 
 // MIPS .reginfo section
