@@ -27,6 +27,8 @@ namespace llvm {
 class FoldingSetNodeID;
 class MDNode;
 class raw_ostream;
+class MachineFunction;
+class ModuleSlotTracker;
 
 /// MachinePointerInfo - This class contains a discriminated union of
 /// information about pointers in memory operands, relating them back to LLVM IR
@@ -61,22 +63,23 @@ struct MachinePointerInfo {
 
   /// getConstantPool - Return a MachinePointerInfo record that refers to the
   /// constant pool.
-  static MachinePointerInfo getConstantPool();
+  static MachinePointerInfo getConstantPool(MachineFunction &MF);
 
   /// getFixedStack - Return a MachinePointerInfo record that refers to the
   /// the specified FrameIndex.
-  static MachinePointerInfo getFixedStack(int FI, int64_t offset = 0);
+  static MachinePointerInfo getFixedStack(MachineFunction &MF, int FI,
+                                          int64_t Offset = 0);
 
   /// getJumpTable - Return a MachinePointerInfo record that refers to a
   /// jump table entry.
-  static MachinePointerInfo getJumpTable();
+  static MachinePointerInfo getJumpTable(MachineFunction &MF);
 
   /// getGOT - Return a MachinePointerInfo record that refers to a
   /// GOT entry.
-  static MachinePointerInfo getGOT();
+  static MachinePointerInfo getGOT(MachineFunction &MF);
 
   /// getStack - stack pointer relative access.
-  static MachinePointerInfo getStack(int64_t Offset);
+  static MachinePointerInfo getStack(MachineFunction &MF, int64_t Offset);
 };
 
 
@@ -200,6 +203,12 @@ public:
   ///
   void Profile(FoldingSetNodeID &ID) const;
 
+  /// Support for operator<<.
+  /// @{
+  void print(raw_ostream &OS) const;
+  void print(raw_ostream &OS, ModuleSlotTracker &MST) const;
+  /// @}
+
   friend bool operator==(const MachineMemOperand &LHS,
                          const MachineMemOperand &RHS) {
     return LHS.getValue() == RHS.getValue() &&
@@ -219,7 +228,10 @@ public:
   }
 };
 
-raw_ostream &operator<<(raw_ostream &OS, const MachineMemOperand &MRO);
+inline raw_ostream &operator<<(raw_ostream &OS, const MachineMemOperand &MRO) {
+  MRO.print(OS);
+  return OS;
+}
 
 } // End llvm namespace
 

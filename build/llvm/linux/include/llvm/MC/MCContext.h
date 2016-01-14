@@ -17,6 +17,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/MC/MCDwarf.h"
+#include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/SectionKind.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Compiler.h"
@@ -70,6 +71,10 @@ namespace llvm {
     /// We use a bump pointer allocator to avoid the need to track all allocated
     /// objects.
     BumpPtrAllocator Allocator;
+
+    SpecificBumpPtrAllocator<MCSectionCOFF> COFFAllocator;
+    SpecificBumpPtrAllocator<MCSectionELF> ELFAllocator;
+    SpecificBumpPtrAllocator<MCSectionMachO> MachOAllocator;
 
     /// Bindings of names to symbols.
     SymbolTable Symbols;
@@ -203,11 +208,15 @@ namespace llvm {
     std::map<COFFSectionKey, MCSectionCOFF *> COFFUniquingMap;
     StringMap<bool> ELFRelSecNames;
 
+    SpecificBumpPtrAllocator<MCSubtargetInfo> MCSubtargetAllocator;
+
     /// Do automatic reset in destructor
     bool AutoReset;
 
+    bool HadError;
+
     MCSymbol *createSymbolImpl(const StringMapEntry<bool> *Name,
-                               bool IsTemporary);
+                               bool CanBeUnnamed);
     MCSymbol *createSymbol(StringRef Name, bool AlwaysAddSuffix,
                            bool IsTemporary);
 
@@ -249,9 +258,10 @@ namespace llvm {
 
     /// Create and return a new assembler temporary symbol with a unique but
     /// unspecified name.
-    MCSymbol *createTempSymbol();
+    MCSymbol *createTempSymbol(bool CanBeUnnamed = true);
 
-    MCSymbol *createTempSymbol(const Twine &Name, bool AlwaysAddSuffix);
+    MCSymbol *createTempSymbol(const Twine &Name, bool AlwaysAddSuffix,
+                               bool CanBeUnnamed = true);
 
     /// Create the definition of a directional local symbol for numbered label
     /// (used for "1:" definitions).
@@ -272,7 +282,7 @@ namespace llvm {
     /// Gets a symbol that will be defined to the final stack offset of a local
     /// variable after codegen.
     ///
-    /// \param Idx - The index of a local variable passed to @llvm.frameescape.
+    /// \param Idx - The index of a local variable passed to @llvm.localescape.
     MCSymbol *getOrCreateFrameAllocSymbol(StringRef FuncName, unsigned Idx);
 
     MCSymbol *getOrCreateParentFrameOffsetSymbol(StringRef FuncName);
@@ -374,6 +384,9 @@ namespace llvm {
     /// as Sec and the function symbol as KeySym.
     MCSectionCOFF *getAssociativeCOFFSection(MCSectionCOFF *Sec,
                                              const MCSymbol *KeySym);
+
+    // Create and save a copy of STI and return a reference to the copy.
+    MCSubtargetInfo &getSubtargetCopy(const MCSubtargetInfo &STI);
 
     /// @}
 
@@ -503,11 +516,13 @@ namespace llvm {
     }
     void deallocate(void *Ptr) {}
 
+    bool hadError() { return HadError; }
+    void reportError(SMLoc L, const Twine &Msg);
     // Unrecoverable error has occurred. Display the best diagnostic we can
     // and bail via exit(1). For now, most MC backend errors are unrecoverable.
     // FIXME: We should really do something about that.
     LLVM_ATTRIBUTE_NORETURN void reportFatalError(SMLoc L,
-                                                  const Twine &Msg) const;
+                                                  const Twine &Msg);
   };
 
 } // end namespace llvm
@@ -537,7 +552,7 @@ namespace llvm {
 ///                  allocator supports it).
 /// \return The allocated memory. Could be NULL.
 inline void *operator new(size_t Bytes, llvm::MCContext &C,
-                          size_t Alignment = 8) throw() {
+                          size_t Alignment = 8) LLVM_NOEXCEPT {
   return C.allocate(Bytes, Alignment);
 }
 /// \brief Placement delete companion to the new above.
@@ -546,8 +561,8 @@ inline void *operator new(size_t Bytes, llvm::MCContext &C,
 /// invoking it directly; see the new operator for more details. This operator
 /// is called implicitly by the compiler if a placement new expression using
 /// the MCContext throws in the object constructor.
-inline void operator delete(void *Ptr, llvm::MCContext &C, size_t)
-              throw () {
+inline void operator delete(void *Ptr, llvm::MCContext &C,
+                            size_t) LLVM_NOEXCEPT {
   C.deallocate(Ptr);
 }
 
@@ -570,8 +585,8 @@ inline void operator delete(void *Ptr, llvm::MCContext &C, size_t)
 /// \param Alignment The alignment of the allocated memory (if the underlying
 ///                  allocator supports it).
 /// \return The allocated memory. Could be NULL.
-inline void *operator new[](size_t Bytes, llvm::MCContext& C,
-                            size_t Alignment = 8) throw() {
+inline void *operator new[](size_t Bytes, llvm::MCContext &C,
+                            size_t Alignment = 8) LLVM_NOEXCEPT {
   return C.allocate(Bytes, Alignment);
 }
 
@@ -581,7 +596,7 @@ inline void *operator new[](size_t Bytes, llvm::MCContext& C,
 /// invoking it directly; see the new[] operator for more details. This operator
 /// is called implicitly by the compiler if a placement new[] expression using
 /// the MCContext throws in the object constructor.
-inline void operator delete[](void *Ptr, llvm::MCContext &C) throw () {
+inline void operator delete[](void *Ptr, llvm::MCContext &C) LLVM_NOEXCEPT {
   C.deallocate(Ptr);
 }
 

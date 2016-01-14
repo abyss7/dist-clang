@@ -8,6 +8,7 @@
 #include <base/string_utils.h>
 
 #include <clang/Basic/Diagnostic.h>
+#include <clang/Basic/VirtualFileSystem.h>
 #include <clang/Driver/Action.h>
 #include <clang/Driver/Driver.h>
 #include <clang/Driver/DriverDiagnostic.h>
@@ -85,46 +86,38 @@ bool DriverCommand::GenerateFromArgs(int argc, const char* const raw_argv[],
   SharedPtr<opt::OptTable> opts(createDriverOptTable());
   bool result = false;
   const auto& job_list = compilation->getJobs();
-  const auto& jobs = job_list.getJobs();
-  for (auto& job : jobs) {
-    if (job->getKind() == Job::CommandClass) {
-      auto command = static_cast<clang::driver::Command*>(job.get());
-
-      // It's a kind of heuristics to skip non-Clang commands.
-      if ((command->getSource().getKind() != Action::AssembleJobClass &&
-           command->getSource().getKind() != Action::BackendJobClass &&
-           command->getSource().getKind() != Action::CompileJobClass &&
-           command->getSource().getKind() != Action::PrecompileJobClass &&
-           command->getSource().getKind() != Action::PreprocessJobClass) ||
-          !std::regex_match(command->getExecutable(),
-                            std::regex(".*/?clang(\\+\\+)?"))) {
-        commands.emplace_back(new DriverCommand(command, compilation, driver));
-        continue;
-      }
-
-      // TODO: we fallback to original Clang, if there is no Clang commands,
-      //       since we have a problem with linking step:
-      //       "no such file or directory: '@lib/libxxx.so.rsp'".
-      //       We should fix this problem.
-      result = true;
-
-      auto arg_begin = command->getArguments().begin();
-      auto arg_end = command->getArguments().end();
-
-      const unsigned included_flags_bitmask = options::CC1Option;
-      unsigned missing_arg_index, missing_arg_count;
-      auto* driver_command = new DriverCommand(
-          opts->ParseArgs(arg_begin, arg_end, missing_arg_index,
-                          missing_arg_count, included_flags_bitmask),
-          compilation, opts, driver);
-
-      if (diags->hasErrorOccurred()) {
-        delete driver_command;
-        return false;
-      }
-
-      commands.emplace_back(driver_command);
+  for (const auto& command : job_list) {
+    // It's a kind of heuristics to skip non-Clang commands.
+    if ((command.getSource().getKind() != Action::AssembleJobClass &&
+         command.getSource().getKind() != Action::BackendJobClass &&
+         command.getSource().getKind() != Action::CompileJobClass &&
+         command.getSource().getKind() != Action::PrecompileJobClass &&
+         command.getSource().getKind() != Action::PreprocessJobClass) ||
+        !std::regex_match(command.getExecutable(),
+                          std::regex(".*/?clang(\\+\\+)?"))) {
+      commands.emplace_back(new DriverCommand(command, compilation, driver));
+      continue;
     }
+
+    // TODO: we fallback to original Clang, if there is no Clang commands,
+    //       since we have a problem with linking step:
+    //       "no such file or directory: '@lib/libxxx.so.rsp'".
+    //       We should fix this problem.
+    result = true;
+
+    const unsigned included_flags_bitmask = options::CC1Option;
+    unsigned missing_arg_index, missing_arg_count;
+    auto* driver_command = new DriverCommand(
+        opts->ParseArgs(command.getArguments(), missing_arg_index,
+                        missing_arg_count, included_flags_bitmask),
+        compilation, opts, driver);
+
+    if (diags->hasErrorOccurred()) {
+      delete driver_command;
+      return false;
+    }
+
+    commands.emplace_back(driver_command);
   }
 
   // This fake command won't be necessary, if someone solves the bug:
@@ -145,7 +138,6 @@ void DriverCommand::FillFlags(base::proto::Flags* flags,
                               const String& clang_path,
                               const String& clang_major_version) const {
   DCHECK(IsClang());
-  CHECK(arg_list_);
 
   if (!flags) {
     return;
@@ -154,9 +146,9 @@ void DriverCommand::FillFlags(base::proto::Flags* flags,
   flags->Clear();
 
   llvm::opt::ArgStringList non_direct_list, non_cached_list, other_list;
-  llvm::opt::DerivedArgList tmp_list(*arg_list_);
+  llvm::opt::DerivedArgList tmp_list(arg_list_);
 
-  for (const auto& arg : *arg_list_) {
+  for (const auto& arg : arg_list_) {
     using namespace clang::driver::options;
 
     // TODO: try to sort out flags by some attribute, i.e. group actions,
@@ -165,7 +157,7 @@ void DriverCommand::FillFlags(base::proto::Flags* flags,
     if (arg->getOption().getKind() == llvm::opt::Option::InputClass) {
       flags->set_input(arg->getValue());
     } else if (arg->getOption().matches(OPT_add_plugin)) {
-      arg->render(*arg_list_, other_list);
+      arg->render(arg_list_, other_list);
       flags->mutable_compiler()->add_plugins()->set_name(arg->getValue());
     } else if (arg->getOption().matches(OPT_emit_obj)) {
       flags->set_action(arg->getSpelling());
@@ -196,7 +188,7 @@ void DriverCommand::FillFlags(base::proto::Flags* flags,
              arg->getOption().matches(OPT_isysroot) ||
              arg->getOption().matches(OPT_D) ||
              arg->getOption().matches(OPT_I)) {
-      arg->render(*arg_list_, non_cached_list);
+      arg->render(arg_list_, non_cached_list);
     } else if (arg->getOption().matches(OPT_coverage_file) ||
                arg->getOption().matches(OPT_fdebug_compilation_dir) ||
                arg->getOption().matches(OPT_ferror_limit) ||
@@ -204,7 +196,7 @@ void DriverCommand::FillFlags(base::proto::Flags* flags,
                arg->getOption().matches(OPT_MF) ||
                arg->getOption().matches(OPT_MMD) ||
                arg->getOption().matches(OPT_MT)) {
-      arg->render(*arg_list_, non_direct_list);
+      arg->render(arg_list_, non_direct_list);
     } else if (arg->getOption().matches(OPT_internal_isystem) ||
                arg->getOption().matches(OPT_resource_dir)) {
       String replaced_command = arg->getValue();
@@ -239,7 +231,7 @@ void DriverCommand::FillFlags(base::proto::Flags* flags,
 
     // By default all other flags are cacheable.
     else {
-      arg->render(*arg_list_, other_list);
+      arg->render(arg_list_, other_list);
     }
   }
 
@@ -266,29 +258,24 @@ base::ProcessPtr DriverCommand::CreateProcess(Immutable current_dir,
 }
 
 String DriverCommand::GetExecutable() const {
-  if (command_) {
+  if (!IsClang()) {
     return command_->getExecutable();
-  } else if (arg_list_) {
-    return base::GetSelfPath() + "/clang";
   } else {
-    NOTREACHED();
-    return String();
+    return base::GetSelfPath() + "/clang";
   }
 }
 
 String DriverCommand::RenderAllArgs() const {
   String result;
 
-  if (arg_list_) {
-    for (const auto& arg : *arg_list_) {
-      result += String(" ") + arg->getAsString(*arg_list_);
+  if (IsClang()) {
+    for (const auto& arg : arg_list_) {
+      result += String(" ") + arg->getAsString(arg_list_);
     }
-  } else if (command_) {
+  } else {
     for (const auto& arg : command_->getArguments()) {
       result += String(" ") + arg;
     }
-  } else {
-    NOTREACHED();
   }
 
   return result.substr(1);

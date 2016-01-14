@@ -1,10 +1,9 @@
-/* tools/clang/include/clang/Config/config.h.  Generated from config.h.in by configure.  */
 /* This generated file is for internal use. Do not include it from headers. */
 
-#ifdef CONFIG_H
+#ifdef CLANG_CONFIG_H
 #error config.h can only be included once
 #else
-#define CONFIG_H
+#define CLANG_CONFIG_H
 
 /* Bug report URL. */
 #define BUG_REPORT_URL "http://llvm.org/bugs/"
@@ -28,14 +27,12 @@
 #define GCC_INSTALL_PREFIX ""
 
 /* Define if we have libxml2 */
-#define CLANG_HAVE_LIBXML 1
-
-#define PACKAGE_STRING "LLVM 3.7.0svn"
+/* #undef CLANG_HAVE_LIBXML */
 
 /* The LLVM product name and version */
-#define BACKEND_PACKAGE_STRING PACKAGE_STRING
+#define BACKEND_PACKAGE_STRING "LLVM 3.8.0svn"
 
 /* Linker version detected at compile time. */
-#define HOST_LINK_VERSION "2.25.0"
+/* #undef HOST_LINK_VERSION */
 
 #endif

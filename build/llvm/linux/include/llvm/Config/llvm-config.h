@@ -1,4 +1,3 @@
-/* include/llvm/Config/llvm-config.h.  Generated from llvm-config.h.in by configure.  */
 /*===------- llvm/Config/llvm-config.h - llvm configuration -------*- C -*-===*/
 /*                                                                            */
 /*                     The LLVM Compiler Infrastructure                       */
@@ -16,25 +15,29 @@
 #define LLVM_CONFIG_H
 
 /* Installation directory for binary executables */
-#define LLVM_BINDIR "/tmp/llvm-dist-clang/bin"
+/* #undef LLVM_BINDIR */
 
 /* Time at which LLVM was configured */
-#define LLVM_CONFIGTIME "Fri Jun 26 12:26:08 MSK 2015"
+/* #undef LLVM_CONFIGTIME */
 
 /* Installation directory for data files */
-#define LLVM_DATADIR "/tmp/llvm-dist-clang/share/llvm"
+/* #undef LLVM_DATADIR */
 
 /* Target triple LLVM will generate code for by default */
 #define LLVM_DEFAULT_TARGET_TRIPLE "x86_64-unknown-linux-gnu"
 
 /* Installation directory for documentation */
-#define LLVM_DOCSDIR "/tmp/llvm-dist-clang/share/doc/llvm"
+/* #undef LLVM_DOCSDIR */
+
+/* Define if LLVM is built with asserts and checks that change the layout of
+   client-visible data structures.  */
+/* #undef LLVM_ENABLE_ABI_BREAKING_CHECKS */
 
 /* Define if threads enabled */
 #define LLVM_ENABLE_THREADS 1
 
 /* Installation directory for config files */
-#define LLVM_ETCDIR "/tmp/llvm-dist-clang/etc/llvm"
+/* #undef LLVM_ETCDIR */
 
 /* Has gcc/MSVC atomic intrinsics */
 #define LLVM_HAS_ATOMICS 1
@@ -43,13 +46,13 @@
 #define LLVM_HOST_TRIPLE "x86_64-unknown-linux-gnu"
 
 /* Installation directory for include files */
-#define LLVM_INCLUDEDIR "/tmp/llvm-dist-clang/include"
+/* #undef LLVM_INCLUDEDIR */
 
 /* Installation directory for .info files */
-#define LLVM_INFODIR "/tmp/llvm-dist-clang/info"
+/* #undef LLVM_INFODIR */
 
 /* Installation directory for man pages */
-#define LLVM_MANDIR "/tmp/llvm-dist-clang/man"
+/* #undef LLVM_MANDIR */
 
 /* LLVM architecture name for the native architecture, if available */
 #define LLVM_NATIVE_ARCH X86
@@ -79,27 +82,27 @@
 /* #undef LLVM_ON_WIN32 */
 
 /* Installation prefix directory */
-#define LLVM_PREFIX "/tmp/llvm-dist-clang"
+#define LLVM_PREFIX "/home/ilezhankin/.local/opt/llvm"
 
 /* Define if we have the Intel JIT API runtime support library */
-#define LLVM_USE_INTEL_JITEVENTS 0
+/* #undef LLVM_USE_INTEL_JITEVENTS */
 
 /* Define if we have the oprofile JIT-support library */
-#define LLVM_USE_OPROFILE 0
+/* #undef LLVM_USE_OPROFILE */
 
 /* Major version of the LLVM API */
 #define LLVM_VERSION_MAJOR 3
 
 /* Minor version of the LLVM API */
-#define LLVM_VERSION_MINOR 7
+#define LLVM_VERSION_MINOR 8
 
 /* Patch version of the LLVM API */
 #define LLVM_VERSION_PATCH 0
 
 /* LLVM version string */
-#define LLVM_VERSION_STRING "3.7.0svn"
+#define LLVM_VERSION_STRING "3.8.0svn"
 
-/* Define to enable checks that alter the LLVM C++ ABI */
-/* #undef LLVM_ENABLE_ABI_BREAKING_CHECKS */
+/* Define if we link Polly to the tools */
+/* #undef LINK_POLLY_INTO_TOOLS */
 
 #endif

@@ -196,7 +196,6 @@ TEST_F(ClientTest, CannotReadMessage) {
         EXPECT_NE(end, std::find(begin, end, "-cc1"));
         EXPECT_NE(end, std::find(begin, end, "-triple"));
         EXPECT_NE(end, std::find(begin, end, "-target-cpu"));
-        EXPECT_NE(end, std::find(begin, end, "-target-linker-version"));
       }
 
       {

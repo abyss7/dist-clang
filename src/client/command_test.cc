@@ -32,8 +32,9 @@ TEST(CommandTest, ParseSimpleArgs) {
     return std::make_pair(std::regex(str), String(str));
   };
 
-  auto rep2 =
-      [](const String& str) { return std::make_pair(std::regex(str), str); };
+  auto rep2 = [](const String& str) {
+    return std::make_pair(std::regex(str), str);
+  };
 
   const String expected_input = "/tmp/input.cc";
   const String expected_output = "/tmp/output.o";
@@ -49,14 +50,12 @@ TEST(CommandTest, ParseSimpleArgs) {
   expected_regex.push_back(rep("-masm-verbose"));
   expected_regex.push_back(rep("-munwind-tables"));
   expected_regex.push_back(rep("-target-cpu [a-z0-9_]+"));
-  expected_regex.push_back(rep("-target-linker-version [0-9.]+"));
   expected_regex.push_back(rep2("-coverage-file " + expected_output));
   expected_regex.push_back(rep("-resource-dir"));
   expected_regex.push_back(rep("-fdeprecated-macro"));
   expected_regex.push_back(rep("-fdebug-compilation-dir"));
   expected_regex.push_back(rep("-ferror-limit [0-9]+"));
   expected_regex.push_back(rep("-fmessage-length [0-9]+"));
-  expected_regex.push_back(rep("-mstackrealign"));
   expected_regex.push_back(rep("-fobjc-runtime="));
   expected_regex.push_back(rep("-fcxx-exceptions"));
   expected_regex.push_back(rep("-fexceptions"));
@@ -70,14 +69,17 @@ TEST(CommandTest, ParseSimpleArgs) {
   expected_regex.push_back(rep("-internal-isystem"));
   expected_regex.push_back(rep("-internal-externc-isystem"));
 #elif defined(OS_MACOSX)
+  expected_regex.push_back(rep("-target-linker-version [0-9.]+"));
+  expected_regex.push_back(rep("-mstackrealign"));
   expected_regex.push_back(rep("-pic-level [0-9]+"));
   expected_regex.push_back(rep("-stack-protector [0-9]+"));
   expected_regex.push_back(rep("-fblocks"));
   expected_regex.push_back(rep("-fencode-extended-block-signature"));
 #endif
 
-  const char* argv[] = {"clang++", "-c", expected_input.c_str(), "-o",
-                        expected_output.c_str(), nullptr};
+  const char* argv[] = {
+      "clang++", "-c", expected_input.c_str(), "-o", expected_output.c_str(),
+      nullptr};
   const int argc = 5;
 
   Command::List commands;
@@ -99,10 +101,11 @@ TEST(CommandTest, FillFlags) {
   const String input = "/test_file.cc";
   const String output = "/tmp/output.o";
   const String plugin_name = "plugin";
-  const char* argv[] = {"clang++", "-Xclang", "-load", "-Xclang",
-                        "/tmp/plugin/path", "-Xclang", "-add-plugin", "-Xclang",
-                        plugin_name.c_str(), "-c", input.c_str(), "-o",
-                        output.c_str(), nullptr};
+  const char* argv[] = {
+      "clang++",           "-Xclang", "-load",       "-Xclang",
+      "/tmp/plugin/path",  "-Xclang", "-add-plugin", "-Xclang",
+      plugin_name.c_str(), "-c",      input.c_str(), "-o",
+      output.c_str(),      nullptr};
   const int argc = 13;
 
   Command::List commands;
