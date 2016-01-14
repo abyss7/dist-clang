@@ -18,6 +18,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/ilist.h"
 #include "llvm/ADT/ilist_node.h"
+#include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/SectionKind.h"
 #include "llvm/Support/Compiler.h"
 
@@ -30,6 +31,18 @@ class MCFragment;
 class MCSection;
 class MCSymbol;
 class raw_ostream;
+
+template<>
+struct ilist_node_traits<MCFragment> {
+  MCFragment *createNode(const MCFragment &V);
+  static void deleteNode(MCFragment *V);
+
+  void addNodeToList(MCFragment *) {}
+  void removeNodeFromList(MCFragment *) {}
+  void transferNodesFromList(ilist_node_traits &    /*SrcTraits*/,
+                             ilist_iterator<MCFragment> /*first*/,
+                             ilist_iterator<MCFragment> /*last*/) {}
+};
 
 /// Instances of this class represent a uniqued identifier for a section in the
 /// current translation unit.  The MCContext class uniques and creates these.
@@ -80,6 +93,8 @@ private:
 
   unsigned IsRegistered : 1;
 
+  MCDummyFragment DummyFragment;
+
   FragmentListType Fragments;
 
   /// Mapping from subsection number to insertion point for subsection numbers
@@ -90,10 +105,9 @@ protected:
   MCSection(SectionVariant V, SectionKind K, MCSymbol *Begin);
   SectionVariant Variant;
   SectionKind Kind;
+  ~MCSection();
 
 public:
-  virtual ~MCSection();
-
   SectionKind getKind() const { return Kind; }
 
   SectionVariant getVariant() const { return Variant; }
@@ -139,6 +153,14 @@ public:
   const MCSection::FragmentListType &getFragmentList() const {
     return const_cast<MCSection *>(this)->getFragmentList();
   }
+
+  /// Support for MCFragment::getNextNode().
+  static FragmentListType MCSection::*getSublistAccess(MCFragment *) {
+    return &MCSection::Fragments;
+  }
+
+  const MCDummyFragment &getDummyFragment() const { return DummyFragment; }
+  MCDummyFragment &getDummyFragment() { return DummyFragment; }
 
   MCSection::iterator begin();
   MCSection::const_iterator begin() const {

@@ -52,7 +52,7 @@ TEST(FileTest, Write) {
   ASSERT_EQ(expected_content.size(), static_cast<size_t>(size));
   close(fd);
 
-  EXPECT_EQ(expected_content, String(content));
+  EXPECT_EQ(expected_content, String(content, expected_content.size()));
 
   // Can't write to directory.
   EXPECT_FALSE(File::Write(temp_dir, expected_content));

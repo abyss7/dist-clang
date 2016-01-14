@@ -25,9 +25,9 @@ namespace llvm {
 class LoopInfo;
 class raw_ostream;
 
-/// \brief Analysis pass providing branch probability information.
+/// \brief Analysis providing branch probability information.
 ///
-/// This is a function analysis pass which provides information on the relative
+/// This is a function analysis which provides information on the relative
 /// probabilities of each "edge" in the function's CFG where such an edge is
 /// defined by a pair (PredBlock and an index in the successors). The
 /// probability of an edge from one block is always relative to the
@@ -37,20 +37,14 @@ class raw_ostream;
 /// identify an edge, since we can have multiple edges from Src to Dst.
 /// As an example, we can have a switch which jumps to Dst with value 0 and
 /// value 10.
-class BranchProbabilityInfo : public FunctionPass {
+class BranchProbabilityInfo {
 public:
-  static char ID;
+  BranchProbabilityInfo() {}
+  BranchProbabilityInfo(Function &F, const LoopInfo &LI) { calculate(F, LI); }
 
-  BranchProbabilityInfo() : FunctionPass(ID) {
-    initializeBranchProbabilityInfoPass(*PassRegistry::getPassRegistry());
-  }
+  void releaseMemory();
 
-  void getAnalysisUsage(AnalysisUsage &AU) const override;
-  bool runOnFunction(Function &F) override;
-
-  void releaseMemory() override;
-
-  void print(raw_ostream &OS, const Module *M = nullptr) const override;
+  void print(raw_ostream &OS) const;
 
   /// \brief Get an edge's probability, relative to other out-edges of the Src.
   ///
@@ -66,6 +60,9 @@ public:
   /// It returns the sum of all probabilities for edges from Src to Dst.
   BranchProbability getEdgeProbability(const BasicBlock *Src,
                                        const BasicBlock *Dst) const;
+
+  BranchProbability getEdgeProbability(const BasicBlock *Src,
+                                       succ_const_iterator Dst) const;
 
   /// \brief Test if an edge is hot relative to other out-edges of the Src.
   ///
@@ -118,6 +115,13 @@ public:
     return IsLikely ? (1u << 20) - 1 : 1;
   }
 
+  static BranchProbability getBranchProbStackProtector(bool IsLikely) {
+    static const BranchProbability LikelyProb((1u << 20) - 1, 1u << 20);
+    return IsLikely ? LikelyProb : LikelyProb.getCompl();
+  }
+
+  void calculate(Function &F, const LoopInfo& LI);
+
 private:
   // Since we allow duplicate edges from one basic block to another, we use
   // a pair (PredBlock and an index in the successors) to specify an edge.
@@ -132,9 +136,6 @@ private:
   static const uint32_t DEFAULT_WEIGHT = 16;
 
   DenseMap<Edge, uint32_t> Weights;
-
-  /// \brief Handle to the LoopInfo analysis.
-  LoopInfo *LI;
 
   /// \brief Track the last function we run over for printing.
   Function *LastF;
@@ -152,10 +153,31 @@ private:
   bool calcMetadataWeights(BasicBlock *BB);
   bool calcColdCallHeuristics(BasicBlock *BB);
   bool calcPointerHeuristics(BasicBlock *BB);
-  bool calcLoopBranchHeuristics(BasicBlock *BB);
+  bool calcLoopBranchHeuristics(BasicBlock *BB, const LoopInfo &LI);
   bool calcZeroHeuristics(BasicBlock *BB);
   bool calcFloatingPointHeuristics(BasicBlock *BB);
   bool calcInvokeHeuristics(BasicBlock *BB);
+};
+
+/// \brief Legacy analysis pass which computes \c BranchProbabilityInfo.
+class BranchProbabilityInfoWrapperPass : public FunctionPass {
+  BranchProbabilityInfo BPI;
+
+public:
+  static char ID;
+
+  BranchProbabilityInfoWrapperPass() : FunctionPass(ID) {
+    initializeBranchProbabilityInfoWrapperPassPass(
+        *PassRegistry::getPassRegistry());
+  }
+
+  BranchProbabilityInfo &getBPI() { return BPI; }
+  const BranchProbabilityInfo &getBPI() const { return BPI; }
+
+  void getAnalysisUsage(AnalysisUsage &AU) const override;
+  bool runOnFunction(Function &F) override;
+  void releaseMemory() override;
+  void print(raw_ostream &OS, const Module *M = nullptr) const override;
 };
 
 }
