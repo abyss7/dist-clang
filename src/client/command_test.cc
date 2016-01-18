@@ -97,6 +97,72 @@ TEST(CommandTest, ParseSimpleArgs) {
   }
 }
 
+TEST(CommandTest, ParseCC1Args) {
+  auto rep = [](const char* str) {
+    return std::make_pair(std::regex(str), String(str));
+  };
+
+  auto rep2 = [](const String& str) {
+    return std::make_pair(std::regex(str), str);
+  };
+
+  const String input_name = "input.cc";
+  const String expected_input = "/tmp/" + input_name;
+  const String expected_output = "/tmp/output.o";
+  List<Pair<std::regex, String>> expected_regex;
+  expected_regex.push_back(rep("-cc1"));
+  expected_regex.push_back(rep2("-main-file-name " + input_name));
+  expected_regex.push_back(rep2("-coverage-file " + expected_output));
+  expected_regex.push_back(rep2("-o " + expected_output));
+  expected_regex.push_back(rep("-x c++"));
+  expected_regex.push_back(rep2(expected_input));
+
+  // Even unknown args should be parsed:
+  expected_regex.push_back(rep("-really_unknown_arg"));
+
+  const char* argv[] = {"clang",
+                        "-cc1",
+                        "-really_unknown_arg",
+                        "-main-file-name",
+                        input_name.c_str(),
+                        "-coverage-file",
+                        expected_output.c_str(),
+                        "-o",
+                        expected_output.c_str(),
+                        "-x",
+                        "c++",
+                        expected_input.c_str(),
+                        nullptr};
+  const int argc = 12;
+
+  Command::List commands;
+  ASSERT_TRUE(DriverCommand::GenerateFromArgs(argc, argv, commands));
+  ASSERT_EQ(1u, commands.size());
+
+  auto& command = commands.front();
+  for (const auto& regex : expected_regex) {
+    EXPECT_TRUE(std::regex_search(command->RenderAllArgs(), regex.first))
+        << "Regex \"" << regex.second << "\" failed";
+  }
+
+  base::proto::Flags flags;
+  command->AsDriverCommand()->FillFlags(&flags, "/some/clang/path", "1.0.0");
+
+  if (HasNonfatalFailure()) {
+    FAIL() << command->RenderAllArgs();
+  }
+
+  // Unknown arguments should go to |other| flags.
+  bool found = false;
+  for (const auto& flag : flags.other()) {
+    if (flag == "-really_unknown_arg") {
+      found = true;
+      break;
+    }
+  }
+  ASSERT_TRUE(found) << "Unknown argument is not in |other| flags!";
+}
+
 TEST(CommandTest, FillFlags) {
   const String input = "/test_file.cc";
   const String output = "/tmp/output.o";

@@ -74,6 +74,29 @@ bool DriverCommand::GenerateFromArgs(int argc, const char* const raw_argv[],
   diags = new DiagnosticsEngine(diag_id, &*diag_opts, diag_client);
 
   String path = argv[0];
+  String first_arg = argv[1];
+
+  if (first_arg == "-cc1") {
+    // Don't create the driver - it will fail to parse internal args.
+    SharedPtr<opt::OptTable> opts(createDriverOptTable());
+    if (std::regex_match(argv[0], std::regex(".*/?clang(\\+\\+)?"))) {
+      const unsigned included_flags_bitmask = options::CC1Option;
+      unsigned missing_arg_index, missing_arg_count;
+      auto* driver_command = new DriverCommand(
+          opts->ParseArgs(arg_array.slice(1), missing_arg_index,
+                          missing_arg_count, included_flags_bitmask),
+          compilation, opts, driver);
+
+      if (diags->hasErrorOccurred()) {
+        delete driver_command;
+        return false;
+      }
+
+      commands.emplace_back(driver_command);
+      return true;
+    }
+  }
+
   driver.reset(new Driver(path, llvm::sys::getDefaultTargetTriple(), *diags));
   driver->setCheckInputsExist(false);
   compilation.reset(driver->BuildCompilation(argv));
@@ -105,6 +128,8 @@ bool DriverCommand::GenerateFromArgs(int argc, const char* const raw_argv[],
     //       We should fix this problem.
     result = true;
 
+    // In the first place we need to convert driver arguments to cc1 options -
+    // to provide the cross-compilation feature.
     const unsigned included_flags_bitmask = options::CC1Option;
     unsigned missing_arg_index, missing_arg_count;
     auto* driver_command = new DriverCommand(
