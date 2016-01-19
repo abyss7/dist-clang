@@ -87,6 +87,7 @@ shared_library("c++abi") {
   visibility = [
     "//:*",
     "//src/*",
+    "//tools/*",
   ]
 
   sources = [

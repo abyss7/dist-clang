@@ -5,7 +5,7 @@
 #include <base/logging.h>
 #include <base/process_impl.h>
 #include <base/string_utils.h>
-#include <client/command.h>
+#include <client/command.hh>
 #include <net/connection.h>
 #include <net/end_point.h>
 #include <net/network_service_impl.h>
@@ -38,7 +38,7 @@ bool DoMain(int argc, const char* const argv[], Immutable socket_path,
 
   Command::List commands;
 
-  if (!DriverCommand::GenerateFromArgs(argc, argv, commands)) {
+  if (!Command::GenerateFromArgs(argc, argv, commands)) {
     LOG(WARNING) << "Failed to parse driver arguments - see errors above";
     return true;
   }
@@ -49,8 +49,59 @@ bool DoMain(int argc, const char* const argv[], Immutable socket_path,
     return true;
   }
 
+  if (version.empty()) {
+    String error;
+    auto process =
+        base::Process::Create(clang_path, String(), base::Process::SAME_UID);
+    process->AppendArg("--version"_l);
+    if (!process->Run(1, &error)) {
+      if (error.empty()) {
+        error = process->stderr();
+      } else if (!process->stderr().empty()) {
+        error += Immutable(", "_l) + process->stderr();
+      }
+
+      if (!error.empty()) {
+        LOG(WARNING) << "Can't get compiler version : " << error;
+      } else {
+        LOG(WARNING) << "Can't get compiler version by unknown reason";
+      }
+
+      return true;
+    }
+
+    List<String> output;
+    base::SplitString<'\n'>(process->stdout(), output);
+    if (output.size() < 3) {
+      if (!process->stderr().empty()) {
+        LOG(ERROR) << process->stderr();
+      }
+      LOG(WARNING) << "Clang binary has unknown version format : "
+                   << process->stdout();
+      return true;
+    }
+
+    version = Immutable(*output.begin());
+  }
+
+  String major_version;
+  std::regex version_regex("clang version (\\d+\\.\\d+\\.\\d+)");
+  std::cmatch match;
+  if (std::regex_search(version.c_str(), match, version_regex) &&
+      match.size() > 1 && match[1].matched) {
+    LOG(VERBOSE) << "Matched Clang major version: " << match[1];
+    major_version = match[1];
+  } else {
+    major_version = CLANG_VERSION_STRING;
+  }
+
   for (const auto& command : commands) {
-    if (!command->IsClang()) {
+    UniquePtr<base::proto::Local> message(new base::proto::Local);
+    message->set_user_id(getuid());
+    message->set_current_dir(current_dir);
+
+    auto* flags = message->mutable_flags();
+    if (!command->FillFlags(flags, clang_path, major_version)) {
       auto process = command->CreateProcess(current_dir, getuid());
       if (!process->Run(base::Process::UNLIMITED)) {
         LOG(WARNING) << "Subcommand failed: " << command->GetExecutable()
@@ -61,59 +112,6 @@ bool DoMain(int argc, const char* const argv[], Immutable socket_path,
       }
       continue;
     }
-
-    UniquePtr<base::proto::Local> message(new base::proto::Local);
-    message->set_user_id(getuid());
-    message->set_current_dir(current_dir);
-
-    if (version.empty()) {
-      String error;
-      auto process =
-          base::Process::Create(clang_path, String(), base::Process::SAME_UID);
-      process->AppendArg("--version"_l);
-      if (!process->Run(1, &error)) {
-        if (error.empty()) {
-          error = process->stderr();
-        } else if (!process->stderr().empty()) {
-          error += Immutable(", "_l) + process->stderr();
-        }
-
-        if (!error.empty()) {
-          LOG(WARNING) << "Can't get compiler version : " << error;
-        } else {
-          LOG(WARNING) << "Can't get compiler version by unknown reason";
-        }
-
-        return true;
-      }
-
-      List<String> output;
-      base::SplitString<'\n'>(process->stdout(), output);
-      if (output.size() < 3) {
-        if (!process->stderr().empty()) {
-          LOG(ERROR) << process->stderr();
-        }
-        LOG(WARNING) << "Clang binary has unknown version format : "
-                     << process->stdout();
-        return true;
-      }
-
-      version = Immutable(*output.begin());
-    }
-
-    String major_version;
-    std::regex version_regex("clang version (\\d+\\.\\d+\\.\\d+)");
-    std::cmatch match;
-    if (std::regex_search(version.c_str(), match, version_regex) &&
-        match.size() > 1 && match[1].matched) {
-      LOG(VERBOSE) << "Matched Clang major version: " << match[1];
-      major_version = match[1];
-    } else {
-      major_version = CLANG_VERSION_STRING;
-    }
-
-    auto* flags = message->mutable_flags();
-    command->AsDriverCommand()->FillFlags(flags, clang_path, major_version);
 
     if (!flags->has_action() || flags->input() == "-") {
       LOG(WARNING) << "Command line contains unknown action or requires input "

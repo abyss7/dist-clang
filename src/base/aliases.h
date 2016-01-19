@@ -10,6 +10,7 @@
 #include STL(map)
 #include STL(memory)
 #include STL(mutex)
+#include STL(regex)
 #include STL(string)
 #include STL(tuple)
 #include STL(unordered_map)

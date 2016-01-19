@@ -1,6 +1,6 @@
 #include <base/base.pb.h>
 #include <base/file_utils.h>
-#include <client/command.h>
+#include <client/command.hh>
 
 #include <third_party/gtest/exported/include/gtest/gtest.h>
 #include STL(regex)
@@ -14,7 +14,7 @@ TEST(CommandTest, MissingArgument) {
                         nullptr};
 
   Command::List commands;
-  ASSERT_FALSE(DriverCommand::GenerateFromArgs(argc, argv, commands));
+  ASSERT_FALSE(Command::GenerateFromArgs(argc, argv, commands));
   ASSERT_TRUE(commands.empty());
 }
 
@@ -23,7 +23,7 @@ TEST(CommandTest, UnknownArgument) {
   const char* argv[] = {"clang++", "-12", "-c", "/tmp/some_random.cc", nullptr};
 
   Command::List commands;
-  ASSERT_FALSE(DriverCommand::GenerateFromArgs(argc, argv, commands));
+  ASSERT_FALSE(Command::GenerateFromArgs(argc, argv, commands));
   ASSERT_TRUE(commands.empty());
 }
 
@@ -83,7 +83,7 @@ TEST(CommandTest, ParseSimpleArgs) {
   const int argc = 5;
 
   Command::List commands;
-  ASSERT_TRUE(DriverCommand::GenerateFromArgs(argc, argv, commands));
+  ASSERT_TRUE(Command::GenerateFromArgs(argc, argv, commands));
   ASSERT_EQ(1u, commands.size());
 
   const auto& command = commands.front();
@@ -136,7 +136,7 @@ TEST(CommandTest, ParseCC1Args) {
   const int argc = 12;
 
   Command::List commands;
-  ASSERT_TRUE(DriverCommand::GenerateFromArgs(argc, argv, commands));
+  ASSERT_TRUE(Command::GenerateFromArgs(argc, argv, commands));
   ASSERT_EQ(1u, commands.size());
 
   auto& command = commands.front();
@@ -146,7 +146,7 @@ TEST(CommandTest, ParseCC1Args) {
   }
 
   base::proto::Flags flags;
-  command->AsDriverCommand()->FillFlags(&flags, "/some/clang/path", "1.0.0");
+  ASSERT_TRUE(command->FillFlags(&flags, "/some/clang/path", "1.0.0"));
 
   if (HasNonfatalFailure()) {
     FAIL() << command->RenderAllArgs();
@@ -175,12 +175,12 @@ TEST(CommandTest, FillFlags) {
   const int argc = 13;
 
   Command::List commands;
-  ASSERT_TRUE(DriverCommand::GenerateFromArgs(argc, argv, commands));
+  ASSERT_TRUE(Command::GenerateFromArgs(argc, argv, commands));
   ASSERT_EQ(1u, commands.size());
 
   auto& command = commands.front();
   base::proto::Flags flags;
-  command->AsDriverCommand()->FillFlags(&flags, "/some/clang/path", "1.0.0");
+  ASSERT_TRUE(command->FillFlags(&flags, "/some/clang/path", "1.0.0"));
 
   EXPECT_EQ(input, flags.input());
   EXPECT_EQ(output, flags.output());
@@ -202,7 +202,7 @@ TEST(CommandTest, AppendCleanTempFilesCommand) {
   const int argc = 2;
 
   Command::List commands;
-  ASSERT_TRUE(DriverCommand::GenerateFromArgs(argc, argv, commands));
+  ASSERT_TRUE(Command::GenerateFromArgs(argc, argv, commands));
   ASSERT_EQ(3u, commands.size());
   auto& command = commands.back();
 

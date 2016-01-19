@@ -38,11 +38,18 @@ shared_library("command") {
     ":*",
     "//:*",
     "//src/test:unit_tests",
+    "//tools/args_parser",
   ]
 
   sources = [
+    "clang_command.cc",
+    "clang_command.hh",
+    "clean_command.cc",
+    "clean_command.hh",
     "command.cc",
-    "command.h",
+    "command.hh",
+    "driver_command.cc",
+    "driver_command.hh",
   ]
 
   configs += [ "//build/config:libclang" ]
@@ -56,6 +63,8 @@ shared_library("command") {
 }
 
 protobuf("config_proto") {
+  visibility = [ "//tools/args_parser" ]
+
   sources = [
     "configuration.proto",
   ]

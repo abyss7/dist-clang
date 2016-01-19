@@ -2,6 +2,13 @@ group("All") {
   deps = [
     "//src/client:clang",
     "//src/daemon:clangd",
+    ":Tools",
+  ]
+}
+
+group("Tools") {
+  deps = [
+    "//tools/args_parser",
   ]
 }
 

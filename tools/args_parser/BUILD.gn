@@ -1,0 +1,11 @@
+executable("args_parser") {
+  sources = [
+    "main.cc",
+  ]
+
+  deps += [
+    "//src/base",
+    "//src/client:command",
+    "//src/client:config_proto",
+  ]
+}

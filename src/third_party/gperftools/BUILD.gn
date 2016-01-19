@@ -200,6 +200,7 @@ shared_library("tcmalloc") {
   visibility = [
     "//:*",
     "//src/*",
+    "//tools/*",
   ]
 
   sources = [

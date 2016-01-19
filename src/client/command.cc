@@ -1,25 +1,17 @@
-#include <client/command.h>
+#include <client/command.hh>
 
-#include <base/assert.h>
-#include <base/base.pb.h>
-#include <base/c_utils.h>
 #include <base/logging.h>
-#include <base/process_impl.h>
-#include <base/string_utils.h>
+#include <client/clang_command.hh>
+#include <client/clean_command.hh>
+#include <client/driver_command.hh>
 
-#include <clang/Basic/Diagnostic.h>
 #include <clang/Basic/VirtualFileSystem.h>
 #include <clang/Driver/Action.h>
 #include <clang/Driver/Driver.h>
-#include <clang/Driver/DriverDiagnostic.h>
 #include <clang/Driver/Options.h>
-#include <clang/Driver/ToolChain.h>
 #include <clang/Frontend/TextDiagnosticBuffer.h>
-#include <llvm/Option/Arg.h>
-#include <llvm/Support/Host.h>
 #include <llvm/Support/Process.h>
 #include <llvm/Support/TargetSelect.h>
-#include <llvm/Support/raw_ostream.h>
 
 #include <base/using_log.h>
 
@@ -45,18 +37,14 @@ void DumpDiagnosticBuffer(const clang::TextDiagnosticBuffer* buffer) {
 
 namespace client {
 
-DriverCommand* WEAK_PTR Command::AsDriverCommand() {
-  DCHECK(IsClang());
-  return static_cast<DriverCommand*>(this);
-}
-
 // static
-bool DriverCommand::GenerateFromArgs(int argc, const char* const raw_argv[],
-                                     List& commands) {
+bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
+                               List& commands) {
   using namespace clang;
   using namespace clang::driver;
   using namespace llvm;
 
+  // FIXME: check that there is no unnecessery string copying.
   SmallVector<const char*, 256> argv;
   SpecificBumpPtrAllocator<char> arg_allocator;
   auto&& arg_array = ArrayRef<const char*>(raw_argv, argc);
@@ -67,11 +55,11 @@ bool DriverCommand::GenerateFromArgs(int argc, const char* const raw_argv[],
   IntrusiveRefCntPtr<DiagnosticOptions> diag_opts = new DiagnosticOptions;
   TextDiagnosticBuffer* diag_client = new TextDiagnosticBuffer;
   IntrusiveRefCntPtr<DiagnosticIDs> diag_id(new DiagnosticIDs());
-  IntrusiveRefCntPtr<clang::DiagnosticsEngine> diags;
+  IntrusiveRefCntPtr<clang::DiagnosticsEngine> diags =
+      new DiagnosticsEngine(diag_id, &*diag_opts, diag_client);
+
   SharedPtr<Compilation> compilation;
   SharedPtr<Driver> driver;
-
-  diags = new DiagnosticsEngine(diag_id, &*diag_opts, diag_client);
 
   String path = argv[0];
   String first_arg = argv[1];
@@ -80,19 +68,14 @@ bool DriverCommand::GenerateFromArgs(int argc, const char* const raw_argv[],
     // Don't create the driver - it will fail to parse internal args.
     SharedPtr<opt::OptTable> opts(createDriverOptTable());
     if (std::regex_match(argv[0], std::regex(".*/?clang(\\+\\+)?"))) {
-      const unsigned included_flags_bitmask = options::CC1Option;
-      unsigned missing_arg_index, missing_arg_count;
-      auto* driver_command = new DriverCommand(
-          opts->ParseArgs(arg_array.slice(1), missing_arg_index,
-                          missing_arg_count, included_flags_bitmask),
-          compilation, opts, driver);
+      auto* command = new ClangCommand(arg_array.slice(1), opts);
 
       if (diags->hasErrorOccurred()) {
-        delete driver_command;
+        delete command;
         return false;
       }
 
-      commands.emplace_back(driver_command);
+      commands.emplace_back(command);
       return true;
     }
   }
@@ -111,6 +94,7 @@ bool DriverCommand::GenerateFromArgs(int argc, const char* const raw_argv[],
   const auto& job_list = compilation->getJobs();
   for (const auto& command : job_list) {
     // It's a kind of heuristics to skip non-Clang commands.
+    // TODO: move this code inside |DriverCommand| constructor.
     if ((command.getSource().getKind() != Action::AssembleJobClass &&
          command.getSource().getKind() != Action::BackendJobClass &&
          command.getSource().getKind() != Action::CompileJobClass &&
@@ -128,14 +112,8 @@ bool DriverCommand::GenerateFromArgs(int argc, const char* const raw_argv[],
     //       We should fix this problem.
     result = true;
 
-    // In the first place we need to convert driver arguments to cc1 options -
-    // to provide the cross-compilation feature.
-    const unsigned included_flags_bitmask = options::CC1Option;
-    unsigned missing_arg_index, missing_arg_count;
-    auto* driver_command = new DriverCommand(
-        opts->ParseArgs(command.getArguments(), missing_arg_index,
-                        missing_arg_count, included_flags_bitmask),
-        compilation, opts, driver);
+    auto* driver_command =
+        new DriverCommand(command, opts, compilation, driver);
 
     if (diags->hasErrorOccurred()) {
       delete driver_command;
@@ -157,172 +135,6 @@ bool DriverCommand::GenerateFromArgs(int argc, const char* const raw_argv[],
     LOG(WARNING) << "No Clang commands found";
   }
   return result;
-}
-
-void DriverCommand::FillFlags(base::proto::Flags* flags,
-                              const String& clang_path,
-                              const String& clang_major_version) const {
-  DCHECK(IsClang());
-
-  if (!flags) {
-    return;
-  }
-
-  flags->Clear();
-
-  llvm::opt::ArgStringList non_direct_list, non_cached_list, other_list;
-  llvm::opt::DerivedArgList tmp_list(arg_list_);
-
-  for (const auto& arg : arg_list_) {
-    using namespace clang::driver::options;
-
-    // TODO: try to sort out flags by some attribute, i.e. group actions,
-    //       compilation-only flags, etc.
-
-    if (arg->getOption().getKind() == llvm::opt::Option::InputClass) {
-      flags->set_input(arg->getValue());
-    } else if (arg->getOption().matches(OPT_add_plugin)) {
-      arg->render(arg_list_, other_list);
-      flags->mutable_compiler()->add_plugins()->set_name(arg->getValue());
-    } else if (arg->getOption().matches(OPT_emit_obj)) {
-      flags->set_action(arg->getSpelling());
-    } else if (arg->getOption().matches(OPT_E)) {
-      flags->set_action(arg->getSpelling());
-    } else if (arg->getOption().matches(OPT_S)) {
-      flags->set_action(arg->getSpelling());
-    } else if (arg->getOption().matches(OPT_fsyntax_only)) {
-      flags->set_action(arg->getSpelling());
-    } else if (arg->getOption().matches(OPT_dependency_file)) {
-      flags->set_deps_file(arg->getValue());
-    } else if (arg->getOption().matches(OPT_load)) {
-      // FIXME: maybe claim this type of args right after generation?
-    } else if (arg->getOption().matches(OPT_mrelax_all)) {
-      flags->add_cc_only(arg->getSpelling());
-    } else if (arg->getOption().matches(OPT_o)) {
-      flags->set_output(arg->getValue());
-    } else if (arg->getOption().matches(OPT_x)) {
-      flags->set_language(arg->getValue());
-    }
-
-    // Non-cacheable flags.
-    // NOTICE: we should be very cautious here, since the local compilations
-    //         are performed on a non-preprocessed file, but the result is
-    //         saved using the hash from a preprocessed file.
-    else if (arg->getOption().matches(OPT_include) ||
-             arg->getOption().matches(OPT_internal_externc_isystem) ||
-             arg->getOption().matches(OPT_isysroot) ||
-             arg->getOption().matches(OPT_D) ||
-             arg->getOption().matches(OPT_I)) {
-      arg->render(arg_list_, non_cached_list);
-    } else if (arg->getOption().matches(OPT_coverage_file) ||
-               arg->getOption().matches(OPT_fdebug_compilation_dir) ||
-               arg->getOption().matches(OPT_ferror_limit) ||
-               arg->getOption().matches(OPT_main_file_name) ||
-               arg->getOption().matches(OPT_MF) ||
-               arg->getOption().matches(OPT_MMD) ||
-               arg->getOption().matches(OPT_MT)) {
-      arg->render(arg_list_, non_direct_list);
-    } else if (arg->getOption().matches(OPT_internal_isystem) ||
-               arg->getOption().matches(OPT_resource_dir)) {
-      String replaced_command = arg->getValue();
-
-      // FIXME: It's a hack. Clang internally hardcodes path according to its
-      //        major version.
-      std::regex version_regex("(\\/lib\\/clang\\/\\d+\\.\\d+\\.\\d+)");
-      replaced_command = std::regex_replace(
-          replaced_command, version_regex, "/lib/clang/" + clang_major_version);
-
-      // Use --internal-isystem and --resource_dir based on real Clang path,
-      // but don't use them in direct cache.
-      const String self_path = base::GetSelfPath();
-      if (replaced_command[0] != '/') {
-        replaced_command = self_path + '/' + replaced_command;
-      }
-
-      auto pos = replaced_command.find(self_path);
-      if (pos != String::npos) {
-        replaced_command.replace(
-            pos, self_path.size(),
-            clang_path.substr(0, clang_path.find_last_of('/')));
-        non_direct_list.push_back(arg->getSpelling().data());
-        non_direct_list.push_back(tmp_list.MakeArgString(replaced_command));
-        LOG(VERBOSE) << "Replaced command: " << non_direct_list.back();
-      } else {
-        non_cached_list.push_back(arg->getSpelling().data());
-        non_cached_list.push_back(tmp_list.MakeArgString(replaced_command));
-        LOG(VERBOSE) << "Replaced command: " << non_cached_list.back();
-      }
-    }
-
-    // By default all other flags are cacheable.
-    else {
-      arg->render(arg_list_, other_list);
-    }
-  }
-
-  for (const auto& value : non_direct_list) {
-    flags->add_non_direct(value);
-  }
-  for (const auto& value : non_cached_list) {
-    flags->add_non_cached(value);
-  }
-  for (const auto& value : other_list) {
-    flags->add_other(value);
-  }
-}
-
-base::ProcessPtr DriverCommand::CreateProcess(Immutable current_dir,
-                                              ui32 user_id) const {
-  CHECK(command_);
-  auto process =
-      base::Process::Create(command_->getExecutable(), current_dir, user_id);
-  for (const auto& it : command_->getArguments()) {
-    process->AppendArg(Immutable(String(it)));
-  }
-  return process;
-}
-
-String DriverCommand::GetExecutable() const {
-  if (!IsClang()) {
-    return command_->getExecutable();
-  } else {
-    return base::GetSelfPath() + "/clang";
-  }
-}
-
-String DriverCommand::RenderAllArgs() const {
-  String result;
-
-  if (IsClang()) {
-    for (const auto& arg : arg_list_) {
-      result += String(" ") + arg->getAsString(arg_list_);
-    }
-  } else {
-    for (const auto& arg : command_->getArguments()) {
-      result += String(" ") + arg;
-    }
-  }
-
-  return result.substr(1);
-}
-
-base::ProcessPtr CleanCommand::CreateProcess(Immutable current_dir,
-                                             ui32 user_id) const {
-  auto process = base::Process::Create(rm_path, current_dir, user_id);
-  for (const auto& it : temp_files_) {
-    process->AppendArg(Immutable(String(it)));
-  }
-  return process;
-}
-
-String CleanCommand::RenderAllArgs() const {
-  String result;
-
-  for (const auto& arg : temp_files_) {
-    result += String(" ") + arg;
-  }
-
-  return result.substr(1);
 }
 
 }  // namespace client
