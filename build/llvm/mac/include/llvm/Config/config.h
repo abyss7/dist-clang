@@ -4,6 +4,9 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+/* Exported configuration */
+#include "llvm/Config/llvm-config.h"
+
 /* Bug report URL. */
 #define BUG_REPORT_URL "http://llvm.org/bugs/"
 
@@ -135,11 +138,11 @@
 /* Define if libedit is available on this platform. */
 /* #undef HAVE_LIBEDIT */
 
-/* Define to 1 if you have the `imagehlp' library (-limagehlp). */
-/* #undef HAVE_LIBIMAGEHLP */
-
 /* Define to 1 if you have the `m' library (-lm). */
 #define HAVE_LIBM 1
+
+/* Define to 1 if you have the `ole32' library (-lole32). */
+/* #undef HAVE_LIBOLE32 */
 
 /* Define to 1 if you have the `psapi' library (-lpsapi). */
 /* #undef HAVE_LIBPSAPI */
@@ -149,6 +152,9 @@
 
 /* Define to 1 if you have the `shell32' library (-lshell32). */
 /* #undef HAVE_LIBSHELL32 */
+
+/* Define to 1 if you have the `uuid' library (-luuid). */
+/* #undef HAVE_LIBUUID */
 
 /* Define to 1 if you have the `z' library (-lz). */
 #define HAVE_LIBZ 1
@@ -198,7 +204,7 @@
 
 /* Define if mmap() uses MAP_ANONYMOUS to map anonymous pages, or undefine if
    it uses MAP_ANON */
-/* #undef HAVE_MMAP_ANONYMOUS */
+#define HAVE_MMAP_ANONYMOUS 1
 
 /* Define if mmap() can map files into memory */
 #define HAVE_MMAP_FILE 
@@ -227,9 +233,6 @@
 /* Have pthread_rwlock_init */
 #define HAVE_PTHREAD_RWLOCK_INIT 1
 
-/* Define to 1 if srand48/lrand48/drand48 exist in <stdlib.h> */
-#define HAVE_RAND48 1
-
 /* Define to 1 if you have the `realpath' function. */
 #define HAVE_REALPATH 1
 
@@ -248,14 +251,8 @@
 /* Define to 1 if you have the `setrlimit' function. */
 #define HAVE_SETRLIMIT 1
 
-/* Define to 1 if you have the `siglongjmp' function. */
-#define HAVE_SIGLONGJMP 1
-
 /* Define to 1 if you have the <signal.h> header file. */
 #define HAVE_SIGNAL_H 1
-
-/* Define to 1 if you have the `sigsetjmp' function. */
-#define HAVE_SIGSETJMP 1
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1
@@ -316,9 +313,6 @@
 /* Define to 1 if you have the <sys/uio.h> header file. */
 #define HAVE_SYS_UIO_H 1
 
-/* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
-#define HAVE_SYS_WAIT_H 1
-
 /* Define if the setupterm() function is supported this platform. */
 /* #undef HAVE_TERMINFO */
 
@@ -330,9 +324,6 @@
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
-
-/* Define to 1 if you have the <utime.h> header file. */
-#define HAVE_UTIME_H 1
 
 /* Define to 1 if the system has the type `u_int64_t'. */
 /* #undef HAVE_U_INT64_T */
@@ -404,19 +395,19 @@
 /* #undef HAVE____CHKSTK_MS */
 
 /* Linker version detected at compile time. */
-#define HOST_LINK_VERSION "242"
+#define HOST_LINK_VERSION "253.9"
 
 /* Installation directory for binary executables */
 #define LLVM_BINDIR "/Users/ilezhankin/.local/opt/llvm/bin"
 
 /* Time at which LLVM was configured */
-#define LLVM_CONFIGTIME "Thu Jul  2 19:35:03 MSK 2015"
+#define LLVM_CONFIGTIME "Thu Jan 21 00:54:05 MSK 2016"
 
 /* Installation directory for data files */
 #define LLVM_DATADIR "/Users/ilezhankin/.local/opt/llvm/share/llvm"
 
 /* Target triple LLVM will generate code for by default */
-#define LLVM_DEFAULT_TARGET_TRIPLE "x86_64-apple-darwin14.3.0"
+#define LLVM_DEFAULT_TARGET_TRIPLE "x86_64-apple-darwin15.3.0"
 
 /* Installation directory for documentation */
 #define LLVM_DOCSDIR "/Users/ilezhankin/.local/opt/llvm/share/doc/llvm"
@@ -437,7 +428,7 @@
 #define LLVM_HAS_ATOMICS 1
 
 /* Host triple LLVM will be executed on */
-#define LLVM_HOST_TRIPLE "x86_64-apple-darwin14.3.0"
+#define LLVM_HOST_TRIPLE "x86_64-apple-darwin15.3.0"
 
 /* Installation directory for include files */
 #define LLVM_INCLUDEDIR "/Users/ilezhankin/.local/opt/llvm/include"
@@ -491,13 +482,13 @@
 #define LLVM_VERSION_MAJOR 3
 
 /* Minor version of the LLVM API */
-#define LLVM_VERSION_MINOR 7
+#define LLVM_VERSION_MINOR 8
 
 /* Patch version of the LLVM API */
 #define LLVM_VERSION_PATCH 0
 
 /* LLVM version string */
-#define LLVM_VERSION_STRING "3.7.0svn"
+#define LLVM_VERSION_STRING "3.8.0svn"
 
 /* The shared library extension */
 #define LTDL_SHLIB_EXT ".dylib"
@@ -513,13 +504,13 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 3.7.0svn"
+#define PACKAGE_STRING "LLVM 3.8.0svn"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "llvm"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.7.0svn"
+#define PACKAGE_VERSION "3.8.0svn"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void

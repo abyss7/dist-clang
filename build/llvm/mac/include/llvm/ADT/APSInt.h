@@ -21,6 +21,7 @@ namespace llvm {
 
 class APSInt : public APInt {
   bool IsUnsigned;
+
 public:
   /// Default constructor that creates an uninitialized APInt.
   explicit APSInt() : IsUnsigned(false) {}
@@ -32,6 +33,15 @@ public:
 
   explicit APSInt(APInt I, bool isUnsigned = true)
    : APInt(std::move(I)), IsUnsigned(isUnsigned) {}
+
+  /// Construct an APSInt from a string representation.
+  ///
+  /// This constructor interprets the string \p Str using the radix of 10.
+  /// The interpretation stops at the end of the string. The bit width of the
+  /// constructed APSInt is determined automatically.
+  ///
+  /// \param Str the string to be interpreted.
+  explicit APSInt(StringRef Str);
 
   APSInt &operator=(APInt RHS) {
     // Retain our current sign.
@@ -237,8 +247,7 @@ public:
     return this->operator|(RHS);
   }
 
-
-  APSInt operator^(const APSInt& RHS) const {
+  APSInt operator^(const APSInt &RHS) const {
     assert(IsUnsigned == RHS.IsUnsigned && "Signedness mismatch!");
     return APSInt(static_cast<const APInt&>(*this) ^ RHS, IsUnsigned);
   }
@@ -277,7 +286,7 @@ public:
   }
 
   /// \brief Determine if two APSInts have the same value, zero- or
-  /// sign-extending as needed.  
+  /// sign-extending as needed.
   static bool isSameValue(const APSInt &I1, const APSInt &I2) {
     return !compareValues(I1, I2);
   }
