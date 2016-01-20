@@ -46,6 +46,8 @@ namespace clang {
   class PoisonSEHIdentifiersRAIIObject;
   class VersionTuple;
   class OMPClause;
+  class ObjCTypeParamList;
+  class ObjCTypeParameter;
 
 /// Parser - This implements a parser for the C family of languages.  After
 /// parsing units of the grammar, productions are invoked to handle whatever has
@@ -106,12 +108,13 @@ class Parser : public CodeCompletionHandler {
   /// Ident_super - IdentifierInfo for "super", to support fast
   /// comparison.
   IdentifierInfo *Ident_super;
-  /// Ident_vector, Ident_pixel, Ident_bool - cached IdentifierInfo's
-  /// for "vector", "pixel", and "bool" fast comparison.  Only present
-  /// if AltiVec enabled.
+  /// Ident_vector, Ident_bool - cached IdentifierInfos for "vector" and
+  /// "bool" fast comparison.  Only present if AltiVec or ZVector are enabled.
   IdentifierInfo *Ident_vector;
-  IdentifierInfo *Ident_pixel;
   IdentifierInfo *Ident_bool;
+  /// Ident_pixel - cached IdentifierInfos for "pixel" fast comparison.
+  /// Only present if AltiVec enabled.
+  IdentifierInfo *Ident_pixel;
 
   /// Objective-C contextual keywords.
   mutable IdentifierInfo *Ident_instancetype;
@@ -160,6 +163,7 @@ class Parser : public CodeCompletionHandler {
   std::unique_ptr<PragmaHandler> MSConstSeg;
   std::unique_ptr<PragmaHandler> MSCodeSeg;
   std::unique_ptr<PragmaHandler> MSSection;
+  std::unique_ptr<PragmaHandler> MSRuntimeChecks;
   std::unique_ptr<PragmaHandler> OptimizeHandler;
   std::unique_ptr<PragmaHandler> LoopHintHandler;
   std::unique_ptr<PragmaHandler> UnrollHintHandler;
@@ -301,6 +305,12 @@ public:
       return false;
     Loc = PrevTokLocation;
     return true;
+  }
+
+  /// Retrieve the underscored keyword (_Nonnull, _Nullable) that corresponds
+  /// to the given nullability kind.
+  IdentifierInfo *getNullabilityKeyword(NullabilityKind nullability) {
+    return Actions.getNullabilityKeyword(nullability);
   }
 
 private:
@@ -597,10 +607,12 @@ private:
   bool TryAltiVecToken(DeclSpec &DS, SourceLocation Loc,
                        const char *&PrevSpec, unsigned &DiagID,
                        bool &isInvalid) {
-    if (!getLangOpts().AltiVec ||
-        (Tok.getIdentifierInfo() != Ident_vector &&
-         Tok.getIdentifierInfo() != Ident_pixel &&
-         Tok.getIdentifierInfo() != Ident_bool))
+    if (!getLangOpts().AltiVec && !getLangOpts().ZVector)
+      return false;
+
+    if (Tok.getIdentifierInfo() != Ident_vector &&
+        Tok.getIdentifierInfo() != Ident_bool &&
+        (!getLangOpts().AltiVec || Tok.getIdentifierInfo() != Ident_pixel))
       return false;
 
     return TryAltiVecTokenOutOfLine(DS, Loc, PrevSpec, DiagID, isInvalid);
@@ -610,7 +622,7 @@ private:
   /// identifier token, replacing it with the non-context-sensitive __vector.
   /// This returns true if the token was replaced.
   bool TryAltiVecVectorToken() {
-    if (!getLangOpts().AltiVec ||
+    if ((!getLangOpts().AltiVec && !getLangOpts().ZVector) ||
         Tok.getIdentifierInfo() != Ident_vector) return false;
     return TryAltiVecVectorTokenOutOfLine();
   }
@@ -619,6 +631,16 @@ private:
   bool TryAltiVecTokenOutOfLine(DeclSpec &DS, SourceLocation Loc,
                                 const char *&PrevSpec, unsigned &DiagID,
                                 bool &isInvalid);
+
+  /// Returns true if the current token is the identifier 'instancetype'.
+  ///
+  /// Should only be used in Objective-C language modes.
+  bool isObjCInstancetype() {
+    assert(getLangOpts().ObjC1);
+    if (!Ident_instancetype)
+      Ident_instancetype = PP.getIdentifierInfo("instancetype");
+    return Tok.getIdentifierInfo() == Ident_instancetype;
+  }
 
   /// TryKeywordIdentFallback - For compatibility with system headers using
   /// keywords as identifiers, attempt to convert the current token to an
@@ -1166,7 +1188,7 @@ private:
                                 ParsingDeclarator &D,
                                 const ParsedTemplateInfo &TemplateInfo,
                                 const VirtSpecifiers& VS,
-                                ExprResult& Init);
+                                SourceLocation PureSpecLoc);
   void ParseCXXNonStaticMemberInitializer(Decl *VarD);
   void ParseLexedAttributes(ParsingClass &Class);
   void ParseLexedAttributeList(LateParsedAttrList &LAs, Decl *D,
@@ -1215,6 +1237,7 @@ private:
                                                 ParsingDeclSpec &DS,
                                                 AccessSpecifier AS);
 
+  void SkipFunctionBody();
   Decl *ParseFunctionDefinition(ParsingDeclarator &D,
                  const ParsedTemplateInfo &TemplateInfo = ParsedTemplateInfo(),
                  LateParsedAttrList *LateParsedAttrs = nullptr);
@@ -1230,6 +1253,13 @@ private:
   DeclGroupPtrTy ParseObjCAtClassDeclaration(SourceLocation atLoc);
   Decl *ParseObjCAtInterfaceDeclaration(SourceLocation AtLoc,
                                         ParsedAttributes &prefixAttrs);
+  class ObjCTypeParamListScope;
+  ObjCTypeParamList *parseObjCTypeParamList();
+  ObjCTypeParamList *parseObjCTypeParamListOrProtocolRefs(
+      ObjCTypeParamListScope &Scope, SourceLocation &lAngleLoc,
+      SmallVectorImpl<IdentifierLocPair> &protocolIdents,
+      SourceLocation &rAngleLoc, bool mayBeProtocolList = true);
+
   void HelperActionsForIvarDeclarations(Decl *interfaceDecl, SourceLocation atLoc,
                                         BalancedDelimiterTracker &T,
                                         SmallVectorImpl<Decl *> &AllIvarDecls,
@@ -1242,8 +1272,48 @@ private:
                                    bool WarnOnDeclarations,
                                    bool ForObjCContainer,
                                    SourceLocation &LAngleLoc,
-                                   SourceLocation &EndProtoLoc);
-  bool ParseObjCProtocolQualifiers(DeclSpec &DS);
+                                   SourceLocation &EndProtoLoc,
+                                   bool consumeLastToken);
+
+  /// Parse the first angle-bracket-delimited clause for an
+  /// Objective-C object or object pointer type, which may be either
+  /// type arguments or protocol qualifiers.
+  void parseObjCTypeArgsOrProtocolQualifiers(
+         ParsedType baseType,
+         SourceLocation &typeArgsLAngleLoc,
+         SmallVectorImpl<ParsedType> &typeArgs,
+         SourceLocation &typeArgsRAngleLoc,
+         SourceLocation &protocolLAngleLoc,
+         SmallVectorImpl<Decl *> &protocols,
+         SmallVectorImpl<SourceLocation> &protocolLocs,
+         SourceLocation &protocolRAngleLoc,
+         bool consumeLastToken,
+         bool warnOnIncompleteProtocols);
+
+  /// Parse either Objective-C type arguments or protocol qualifiers; if the
+  /// former, also parse protocol qualifiers afterward.
+  void parseObjCTypeArgsAndProtocolQualifiers(
+         ParsedType baseType,
+         SourceLocation &typeArgsLAngleLoc,
+         SmallVectorImpl<ParsedType> &typeArgs,
+         SourceLocation &typeArgsRAngleLoc,
+         SourceLocation &protocolLAngleLoc,
+         SmallVectorImpl<Decl *> &protocols,
+         SmallVectorImpl<SourceLocation> &protocolLocs,
+         SourceLocation &protocolRAngleLoc,
+         bool consumeLastToken);
+
+  /// Parse a protocol qualifier type such as '<NSCopying>', which is
+  /// an anachronistic way of writing 'id<NSCopying>'.
+  TypeResult parseObjCProtocolQualifierType(SourceLocation &rAngleLoc);
+
+  /// Parse Objective-C type arguments and protocol qualifiers, extending the
+  /// current type with the parsed result.
+  TypeResult parseObjCTypeArgsAndProtocolQualifiers(SourceLocation loc,
+                                                    ParsedType type,
+                                                    bool consumeLastToken,
+                                                    SourceLocation &endLoc);
+
   void ParseObjCInterfaceDeclList(tok::ObjCKeywordKind contextKey,
                                   Decl *CDecl);
   DeclGroupPtrTy ParseObjCAtProtocolDeclaration(SourceLocation atLoc,
@@ -1282,6 +1352,7 @@ private:
   // Definitions for Objective-c context sensitive keywords recognition.
   enum ObjCTypeQual {
     objc_in=0, objc_out, objc_inout, objc_oneway, objc_bycopy, objc_byref,
+    objc_nonnull, objc_nullable, objc_null_unspecified,
     objc_NumQuals
   };
   IdentifierInfo *ObjCTypeQuals[objc_NumQuals];
@@ -1314,6 +1385,7 @@ public:
 
   ExprResult ParseExpression(TypeCastState isTypeCast = NotTypeCast);
   ExprResult ParseConstantExpression(TypeCastState isTypeCast = NotTypeCast);
+  ExprResult ParseConstraintExpression();
   // Expr that doesn't include commas.
   ExprResult ParseAssignmentExpression(TypeCastState isTypeCast = NotTypeCast);
 
@@ -1508,7 +1580,9 @@ private:
                          SourceLocation Loc, bool ConvertToBoolean);
 
   //===--------------------------------------------------------------------===//
-  // C++ types
+  // C++ Coroutines
+
+  ExprResult ParseCoyieldExpression();
 
   //===--------------------------------------------------------------------===//
   // C99 6.7.8: Initialization.
@@ -1685,7 +1759,9 @@ private:
     DSC_trailing, // C++11 trailing-type-specifier in a trailing return type
     DSC_alias_declaration, // C++11 type-specifier-seq in an alias-declaration
     DSC_top_level, // top-level/namespace declaration context
-    DSC_template_type_arg // template type argument context
+    DSC_template_type_arg, // template type argument context
+    DSC_objc_method_result, // ObjC method result context, enables 'instancetype'
+    DSC_condition // condition declaration context
   };
 
   /// Is this a context in which we are parsing just a type-specifier (or
@@ -1695,6 +1771,8 @@ private:
     case DSC_normal:
     case DSC_class:
     case DSC_top_level:
+    case DSC_objc_method_result:
+    case DSC_condition:
       return false;
 
     case DSC_template_type_arg:
@@ -2090,8 +2168,7 @@ private:
   void MaybeParseMicrosoftDeclSpecs(ParsedAttributes &Attrs,
                                     SourceLocation *End = nullptr) {
     const auto &LO = getLangOpts();
-    if ((LO.MicrosoftExt || LO.Borland || LO.CUDA) &&
-        Tok.is(tok::kw___declspec))
+    if (LO.DeclSpecKeyword && Tok.is(tok::kw___declspec))
       ParseMicrosoftDeclSpecs(Attrs, End);
   }
   void ParseMicrosoftDeclSpecs(ParsedAttributes &Attrs,
@@ -2106,6 +2183,7 @@ private:
   void ParseBorlandTypeAttributes(ParsedAttributes &attrs);
   void ParseOpenCLAttributes(ParsedAttributes &attrs);
   void ParseOpenCLQualifiers(ParsedAttributes &Attrs);
+  void ParseNullabilityTypeSpecifiers(ParsedAttributes &attrs);
 
   VersionTuple ParseVersionTuple(SourceRange &Range);
   void ParseAvailabilityAttribute(IdentifierInfo &Availability,
@@ -2313,9 +2391,13 @@ private:
                                                  LateParsedAttrList &LateAttrs);
   void MaybeParseAndDiagnoseDeclSpecAfterCXX11VirtSpecifierSeq(Declarator &D,
                                                                VirtSpecifiers &VS);
-  void ParseCXXClassMemberDeclaration(AccessSpecifier AS, AttributeList *Attr,
-                  const ParsedTemplateInfo &TemplateInfo = ParsedTemplateInfo(),
-                  ParsingDeclRAIIObject *DiagsFromTParams = nullptr);
+  DeclGroupPtrTy ParseCXXClassMemberDeclaration(
+      AccessSpecifier AS, AttributeList *Attr,
+      const ParsedTemplateInfo &TemplateInfo = ParsedTemplateInfo(),
+      ParsingDeclRAIIObject *DiagsFromTParams = nullptr);
+  DeclGroupPtrTy ParseCXXClassMemberDeclarationWithPragmas(
+      AccessSpecifier &AS, ParsedAttributesWithRange &AccessAttrs,
+      DeclSpec::TST TagType, Decl *TagDecl);
   void ParseConstructorInitializer(Decl *ConstructorDecl);
   MemInitResult ParseMemInitializer(Decl *ConstructorDecl);
   void HandleMemberFunctionDeclDelays(Declarator& DeclaratorInfo,
@@ -2446,7 +2528,8 @@ private:
   typedef SmallVector<ParsedTemplateArgument, 16> TemplateArgList;
 
   bool ParseGreaterThanInTemplateList(SourceLocation &RAngleLoc,
-                                      bool ConsumeLastToken);
+                                      bool ConsumeLastToken,
+                                      bool ObjCGenericList);
   bool ParseTemplateIdAfterTemplateName(TemplateTy Template,
                                         SourceLocation TemplateNameLoc,
                                         const CXXScopeSpec &SS,
@@ -2474,6 +2557,14 @@ private:
   //===--------------------------------------------------------------------===//
   // Modules
   DeclGroupPtrTy ParseModuleImport(SourceLocation AtLoc);
+  bool parseMisplacedModuleImport();
+  bool tryParseMisplacedModuleImport() {
+    tok::TokenKind Kind = Tok.getKind();
+    if (Kind == tok::annot_module_begin || Kind == tok::annot_module_end ||
+        Kind == tok::annot_module_include)
+      return parseMisplacedModuleImport();
+    return false;
+  }
 
   //===--------------------------------------------------------------------===//
   // C++11/G++: Type Traits [Type-Traits.html in the GCC manual]

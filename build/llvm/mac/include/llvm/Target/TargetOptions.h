@@ -58,24 +58,29 @@ namespace llvm {
     };
   }
 
+  enum class EABI {
+    Unknown,
+    Default, // Default means not specified
+    EABI4,   // Target-specific (either 4, 5 or gnu depending on triple).
+    EABI5,
+    GNU
+  };
+
   class TargetOptions {
   public:
     TargetOptions()
-        : PrintMachineCode(false),
-          LessPreciseFPMADOption(false), UnsafeFPMath(false),
-          NoInfsFPMath(false), NoNaNsFPMath(false),
-          HonorSignDependentRoundingFPMathOption(false),
-          NoZerosInBSS(false),
-          GuaranteedTailCallOpt(false),
-          StackAlignmentOverride(0),
+        : PrintMachineCode(false), LessPreciseFPMADOption(false),
+          UnsafeFPMath(false), NoInfsFPMath(false), NoNaNsFPMath(false),
+          HonorSignDependentRoundingFPMathOption(false), NoZerosInBSS(false),
+          GuaranteedTailCallOpt(false), StackAlignmentOverride(0),
           EnableFastISel(false), PositionIndependentExecutable(false),
           UseInitArray(false), DisableIntegratedAS(false),
           CompressDebugSections(false), FunctionSections(false),
           DataSections(false), UniqueSectionNames(true), TrapUnreachable(false),
-          TrapFuncName(), FloatABIType(FloatABI::Default),
+          EmulatedTLS(false), FloatABIType(FloatABI::Default),
           AllowFPOpFusion(FPOpFusion::Standard), Reciprocals(TargetRecip()),
-          JTType(JumpTable::Single),
-          ThreadModel(ThreadModel::POSIX) {}
+          JTType(JumpTable::Single), ThreadModel(ThreadModel::POSIX),
+          EABIVersion(EABI::Default) {}
 
     /// PrintMachineCode - This flag is enabled when the -print-machineinstrs
     /// option is specified on the command line, and should enable debugging
@@ -172,11 +177,9 @@ namespace llvm {
     /// Emit target-specific trap instruction for 'unreachable' IR instructions.
     unsigned TrapUnreachable : 1;
 
-    /// getTrapFunctionName - If this returns a non-empty string, this means
-    /// isel should lower Intrinsic::trap to a call to the specified function
-    /// name instead of an ISD::TRAP node.
-    std::string TrapFuncName;
-    StringRef getTrapFunctionName() const;
+    /// EmulatedTLS - This flag enables emulated TLS model, using emutls
+    /// function in the runtime library..
+    unsigned EmulatedTLS : 1;
 
     /// FloatABIType - This setting is set by -float-abi=xxx option is specfied
     /// on the command line. This setting may either be Default, Soft, or Hard.
@@ -206,7 +209,7 @@ namespace llvm {
 
     /// This class encapsulates options for reciprocal-estimate code generation.
     TargetRecip Reciprocals;
-    
+
     /// JTType - This flag specifies the type of jump-instruction table to
     /// create for functions that have the jumptable attribute.
     JumpTable::JumpTableType JTType;
@@ -214,6 +217,9 @@ namespace llvm {
     /// ThreadModel - This flag specifies the type of threading model to assume
     /// for things like atomics
     ThreadModel::Model ThreadModel;
+
+    /// EABIVersion - This flag specifies the EABI version
+    EABI EABIVersion;
 
     /// Machine level options.
     MCTargetOptions MCOptions;
@@ -237,12 +243,13 @@ inline bool operator==(const TargetOptions &LHS,
     ARE_EQUAL(PositionIndependentExecutable) &&
     ARE_EQUAL(UseInitArray) &&
     ARE_EQUAL(TrapUnreachable) &&
-    ARE_EQUAL(TrapFuncName) &&
+    ARE_EQUAL(EmulatedTLS) &&
     ARE_EQUAL(FloatABIType) &&
     ARE_EQUAL(AllowFPOpFusion) &&
     ARE_EQUAL(Reciprocals) &&
     ARE_EQUAL(JTType) &&
     ARE_EQUAL(ThreadModel) &&
+    ARE_EQUAL(EABIVersion) &&
     ARE_EQUAL(MCOptions);
 #undef ARE_EQUAL
 }

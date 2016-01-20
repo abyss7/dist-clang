@@ -27,7 +27,7 @@
 namespace clang {
   
 class DiagnosticsEngine;  
-class ExternalIdentifierLookup;
+class ExternalPreprocessorSource;
 class FileEntry;
 class FileManager;
 class HeaderSearchOptions;
@@ -49,7 +49,8 @@ struct HeaderFileInfo {
   /// SrcMgr::CharacteristicKind.
   unsigned DirInfo : 2;
 
-  /// \brief Whether this header file info was supplied by an external source.
+  /// \brief Whether this header file info was supplied by an external source,
+  /// and has not changed since.
   unsigned External : 1;
 
   /// \brief Whether this header is part of a module.
@@ -58,10 +59,6 @@ struct HeaderFileInfo {
   /// \brief Whether this header is part of the module that we are building.
   unsigned isCompilingModuleHeader : 1;
 
-  /// \brief Whether this header is part of the module that we are building.
-  /// This is an instance of ModuleMap::ModuleHeaderRole.
-  unsigned HeaderRole : 2;
-  
   /// \brief Whether this structure is considered to already have been
   /// "resolved", meaning that it was loaded from the external source.
   unsigned Resolved : 1;
@@ -75,7 +72,7 @@ struct HeaderFileInfo {
   /// those framework headers.
   unsigned IndexHeaderMapHeader : 1;
 
-  /// \brief Whether this file had been looked up as a header.
+  /// \brief Whether this file has been looked up as a header.
   unsigned IsValid : 1;
   
   /// \brief The number of times the file has been included already.
@@ -105,29 +102,19 @@ struct HeaderFileInfo {
   HeaderFileInfo()
     : isImport(false), isPragmaOnce(false), DirInfo(SrcMgr::C_User), 
       External(false), isModuleHeader(false), isCompilingModuleHeader(false),
-      HeaderRole(ModuleMap::NormalHeader),
       Resolved(false), IndexHeaderMapHeader(false), IsValid(0),
       NumIncludes(0), ControllingMacroID(0), ControllingMacro(nullptr)  {}
 
   /// \brief Retrieve the controlling macro for this header file, if
   /// any.
-  const IdentifierInfo *getControllingMacro(ExternalIdentifierLookup *External);
-  
+  const IdentifierInfo *
+  getControllingMacro(ExternalPreprocessorSource *External);
+
   /// \brief Determine whether this is a non-default header file info, e.g.,
   /// it corresponds to an actual header we've included or tried to include.
   bool isNonDefault() const {
     return isImport || isPragmaOnce || NumIncludes || ControllingMacro || 
       ControllingMacroID;
-  }
-
-  /// \brief Get the HeaderRole properly typed.
-  ModuleMap::ModuleHeaderRole getHeaderRole() const {
-    return static_cast<ModuleMap::ModuleHeaderRole>(HeaderRole);
-  }
-
-  /// \brief Set the HeaderRole properly typed.
-  void setHeaderRole(ModuleMap::ModuleHeaderRole Role) {
-    HeaderRole = Role;
   }
 };
 
@@ -188,7 +175,7 @@ class HeaderSearch {
   
   /// \brief All of the preprocessor-specific data about files that are
   /// included, indexed by the FileEntry's UID.
-  std::vector<HeaderFileInfo> FileInfo;
+  mutable std::vector<HeaderFileInfo> FileInfo;
 
   /// Keeps track of each lookup performed by LookupFile.
   struct LookupFileCacheInfo {
@@ -242,8 +229,9 @@ class HeaderSearch {
   llvm::StringSet<llvm::BumpPtrAllocator> FrameworkNames;
   
   /// \brief Entity used to resolve the identifier IDs of controlling
-  /// macros into IdentifierInfo pointers, as needed.
-  ExternalIdentifierLookup *ExternalLookup;
+  /// macros into IdentifierInfo pointers, and keep the identifire up to date,
+  /// as needed.
+  ExternalPreprocessorSource *ExternalLookup;
 
   /// \brief Entity used to look up stored header file information.
   ExternalHeaderFileInfoSource *ExternalSource;
@@ -345,11 +333,11 @@ public:
     FileInfo.clear();
   }
 
-  void SetExternalLookup(ExternalIdentifierLookup *EIL) {
-    ExternalLookup = EIL;
+  void SetExternalLookup(ExternalPreprocessorSource *EPS) {
+    ExternalLookup = EPS;
   }
 
-  ExternalIdentifierLookup *getExternalLookup() const {
+  ExternalPreprocessorSource *getExternalLookup() const {
     return ExternalLookup;
   }
   
@@ -394,7 +382,8 @@ public:
       const DirectoryLookup *FromDir, const DirectoryLookup *&CurDir,
       ArrayRef<std::pair<const FileEntry *, const DirectoryEntry *>> Includers,
       SmallVectorImpl<char> *SearchPath, SmallVectorImpl<char> *RelativePath,
-      ModuleMap::KnownHeader *SuggestedModule, bool SkipCache = false);
+      Module *RequestingModule, ModuleMap::KnownHeader *SuggestedModule,
+      bool SkipCache = false);
 
   /// \brief Look up a subframework for the specified \#include file.
   ///
@@ -403,11 +392,9 @@ public:
   /// HIToolbox is a subframework within Carbon.framework.  If so, return
   /// the FileEntry for the designated file, otherwise return null.
   const FileEntry *LookupSubframeworkHeader(
-      StringRef Filename,
-      const FileEntry *RelativeFileEnt,
-      SmallVectorImpl<char> *SearchPath,
-      SmallVectorImpl<char> *RelativePath,
-      ModuleMap::KnownHeader *SuggestedModule);
+      StringRef Filename, const FileEntry *RelativeFileEnt,
+      SmallVectorImpl<char> *SearchPath, SmallVectorImpl<char> *RelativePath,
+      Module *RequestingModule, ModuleMap::KnownHeader *SuggestedModule);
 
   /// \brief Look up the specified framework name in our framework cache.
   /// \returns The DirectoryEntry it is in if we know, null otherwise.
@@ -421,7 +408,7 @@ public:
   /// \return false if \#including the file will have no effect or true
   /// if we should include it.
   bool ShouldEnterIncludeFile(Preprocessor &PP, const FileEntry *File,
-                              bool isImport);
+                              bool isImport, Module *CorrespondingModule);
 
   /// \brief Return whether the specified file is a normal header,
   /// a system header, or a C++ friendly system header.
@@ -573,20 +560,51 @@ private:
   /// of the given search directory.
   void loadSubdirectoryModuleMaps(DirectoryLookup &SearchDir);
 
-  /// \brief Return the HeaderFileInfo structure for the specified FileEntry.
-  const HeaderFileInfo &getFileInfo(const FileEntry *FE) const {
-    return const_cast<HeaderSearch*>(this)->getFileInfo(FE);
-  }
+  /// \brief Find and suggest a usable module for the given file.
+  ///
+  /// \return \c true if the file can be used, \c false if we are not permitted to
+  ///         find this file due to requirements from \p RequestingModule.
+  bool findUsableModuleForHeader(const FileEntry *File,
+                                 const DirectoryEntry *Root,
+                                 Module *RequestingModule,
+                                 ModuleMap::KnownHeader *SuggestedModule,
+                                 bool IsSystemHeaderDir);
+
+  /// \brief Find and suggest a usable module for the given file, which is part of
+  /// the specified framework.
+  ///
+  /// \return \c true if the file can be used, \c false if we are not permitted to
+  ///         find this file due to requirements from \p RequestingModule.
+  bool findUsableModuleForFrameworkHeader(
+      const FileEntry *File, StringRef FrameworkDir, Module *RequestingModule,
+      ModuleMap::KnownHeader *SuggestedModule, bool IsSystemFramework);
+
+  /// \brief Look up the file with the specified name and determine its owning
+  /// module.
+  const FileEntry *
+  getFileAndSuggestModule(StringRef FileName, const DirectoryEntry *Dir,
+                          bool IsSystemHeaderDir, Module *RequestingModule,
+                          ModuleMap::KnownHeader *SuggestedModule);
 
 public:
   /// \brief Retrieve the module map.
   ModuleMap &getModuleMap() { return ModMap; }
   
+  /// \brief Retrieve the module map.
+  const ModuleMap &getModuleMap() const { return ModMap; }
+  
   unsigned header_file_size() const { return FileInfo.size(); }
 
-  /// \brief Get a \c HeaderFileInfo structure for the specified \c FileEntry,
-  /// if one exists.
-  bool tryGetFileInfo(const FileEntry *FE, HeaderFileInfo &Result) const;
+  /// \brief Return the HeaderFileInfo structure for the specified FileEntry,
+  /// in preparation for updating it in some way.
+  HeaderFileInfo &getFileInfo(const FileEntry *FE);
+
+  /// \brief Return the HeaderFileInfo structure for the specified FileEntry,
+  /// if it has ever been filled in.
+  /// \param WantExternal Whether the caller wants purely-external header file
+  ///        info (where \p External is true).
+  const HeaderFileInfo *getExistingFileInfo(const FileEntry *FE,
+                                            bool WantExternal = true) const;
 
   // Used by external tools
   typedef std::vector<DirectoryLookup>::const_iterator search_dir_iterator;
@@ -663,9 +681,6 @@ private:
   /// named directory.
   LoadModuleMapResult loadModuleMapFile(const DirectoryEntry *Dir,
                                         bool IsSystem, bool IsFramework);
-
-  /// \brief Return the HeaderFileInfo structure for the specified FileEntry.
-  HeaderFileInfo &getFileInfo(const FileEntry *FE);
 };
 
 }  // end namespace clang
