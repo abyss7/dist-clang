@@ -216,7 +216,7 @@ void DriverCommand::FillFlags(base::proto::Flags* flags,
       replaced_command = std::regex_replace(
           replaced_command, version_regex, "/lib/clang/" + clang_major_version);
 
-      non_cached_list.push_back(arg_list_->MakeArgString(replaced_command));
+      non_cached_list.push_back(arg_list_.MakeArgString(replaced_command));
       LOG(VERBOSE) << "Replaced command: " << non_cached_list.back();
     }
 
