@@ -76,7 +76,12 @@ protected: // Can only create subclasses.
   /// The Target that this machine was created for.
   const Target &TheTarget;
 
-  /// For ABI type size and alignment.
+  /// DataLayout for the target: keep ABI type size and alignment.
+  ///
+  /// The DataLayout is created based on the string representation provided
+  /// during construction. It is kept here only to avoid reparsing the string
+  /// but should not really be used during compilation, because it has an
+  /// internal cache that is context specific.
   const DataLayout DL;
 
   /// Triple string, CPU name, and target feature strings the TargetMachine
@@ -97,6 +102,12 @@ protected: // Can only create subclasses.
   const MCSubtargetInfo *STI;
 
   unsigned RequireStructuredCFG : 1;
+  unsigned O0WantsFastISel : 1;
+
+  /// This API is here to support the C API, deprecated in 3.7 release.
+  /// This should never be used outside of legacy existing client.
+  const DataLayout &getDataLayout() const { return DL; }
+  friend struct C_API_PRIVATE_ACCESS;
 
 public:
   mutable TargetOptions Options;
@@ -105,8 +116,7 @@ public:
 
   const Target &getTarget() const { return TheTarget; }
 
-  // FIXME: Either rename to getTargetName() or make it return a triple.
-  StringRef getTargetTriple() const { return TargetTriple.str(); }
+  const Triple &getTargetTriple() const { return TargetTriple; }
   StringRef getTargetCPU() const { return TargetCPU; }
   StringRef getTargetFeatureString() const { return TargetFS; }
 
@@ -126,9 +136,22 @@ public:
     return *static_cast<const STC*>(getSubtargetImpl(F));
   }
 
-  /// This method returns a pointer to the DataLayout for the target. It should
-  /// be unchanging for every subtarget.
-  const DataLayout *getDataLayout() const { return &DL; }
+  /// Create a DataLayout.
+  const DataLayout createDataLayout() const { return DL; }
+
+  /// Test if a DataLayout if compatible with the CodeGen for this target.
+  ///
+  /// The LLVM Module owns a DataLayout that is used for the target independent
+  /// optimizations and code generation. This hook provides a target specific
+  /// check on the validity of this DataLayout.
+  bool isCompatibleDataLayout(const DataLayout &Candidate) const {
+    return DL == Candidate;
+  }
+
+  /// Get the pointer size for this target.
+  ///
+  /// This is the only time the DataLayout in the TargetMachine is used.
+  unsigned getPointerSize() const { return DL.getPointerSize(); }
 
   /// \brief Reset the target options based on the function's attributes.
   // FIXME: Remove TargetOptions that affect per-function code generation
@@ -168,6 +191,8 @@ public:
   void setOptLevel(CodeGenOpt::Level Level) const;
 
   void setFastISel(bool Enable) { Options.EnableFastISel = Enable; }
+  bool getO0WantsFastISel() { return O0WantsFastISel; }
+  void setO0WantsFastISel(bool Enable) { O0WantsFastISel = Enable; }
 
   bool shouldPrintMachineCode() const { return Options.PrintMachineCode; }
 
@@ -213,8 +238,8 @@ public:
   /// supported, or false on success.
   virtual bool addPassesToEmitFile(
       PassManagerBase &, raw_pwrite_stream &, CodeGenFileType,
-      bool /*DisableVerify*/ = true, AnalysisID /*StartAfter*/ = nullptr,
-      AnalysisID /*StopAfter*/ = nullptr,
+      bool /*DisableVerify*/ = true, AnalysisID /*StartBefore*/ = nullptr,
+      AnalysisID /*StartAfter*/ = nullptr, AnalysisID /*StopAfter*/ = nullptr,
       MachineFunctionInitializer * /*MFInitializer*/ = nullptr) {
     return true;
   }
@@ -261,8 +286,8 @@ public:
   /// emitted.  Typically this will involve several steps of code generation.
   bool addPassesToEmitFile(
       PassManagerBase &PM, raw_pwrite_stream &Out, CodeGenFileType FileType,
-      bool DisableVerify = true, AnalysisID StartAfter = nullptr,
-      AnalysisID StopAfter = nullptr,
+      bool DisableVerify = true, AnalysisID StartBefore = nullptr,
+      AnalysisID StartAfter = nullptr, AnalysisID StopAfter = nullptr,
       MachineFunctionInitializer *MFInitializer = nullptr) override;
 
   /// Add passes to the specified pass manager to get machine code emitted with

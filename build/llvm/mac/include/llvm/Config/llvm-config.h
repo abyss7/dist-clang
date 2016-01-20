@@ -19,16 +19,19 @@
 #define LLVM_BINDIR "/Users/ilezhankin/.local/opt/llvm/bin"
 
 /* Time at which LLVM was configured */
-#define LLVM_CONFIGTIME "Thu Jul  2 19:35:03 MSK 2015"
+#define LLVM_CONFIGTIME "Thu Jan 21 00:54:05 MSK 2016"
 
 /* Installation directory for data files */
 #define LLVM_DATADIR "/Users/ilezhankin/.local/opt/llvm/share/llvm"
 
 /* Target triple LLVM will generate code for by default */
-#define LLVM_DEFAULT_TARGET_TRIPLE "x86_64-apple-darwin14.3.0"
+#define LLVM_DEFAULT_TARGET_TRIPLE "x86_64-apple-darwin15.3.0"
 
 /* Installation directory for documentation */
 #define LLVM_DOCSDIR "/Users/ilezhankin/.local/opt/llvm/share/doc/llvm"
+
+/* Define to enable checks that alter the LLVM C++ ABI */
+/* #undef LLVM_ENABLE_ABI_BREAKING_CHECKS */
 
 /* Define if threads enabled */
 #define LLVM_ENABLE_THREADS 1
@@ -40,7 +43,7 @@
 #define LLVM_HAS_ATOMICS 1
 
 /* Host triple LLVM will be executed on */
-#define LLVM_HOST_TRIPLE "x86_64-apple-darwin14.3.0"
+#define LLVM_HOST_TRIPLE "x86_64-apple-darwin15.3.0"
 
 /* Installation directory for include files */
 #define LLVM_INCLUDEDIR "/Users/ilezhankin/.local/opt/llvm/include"
@@ -91,15 +94,12 @@
 #define LLVM_VERSION_MAJOR 3
 
 /* Minor version of the LLVM API */
-#define LLVM_VERSION_MINOR 7
+#define LLVM_VERSION_MINOR 8
 
 /* Patch version of the LLVM API */
 #define LLVM_VERSION_PATCH 0
 
 /* LLVM version string */
-#define LLVM_VERSION_STRING "3.7.0svn"
-
-/* Define to enable checks that alter the LLVM C++ ABI */
-/* #undef LLVM_ENABLE_ABI_BREAKING_CHECKS */
+#define LLVM_VERSION_STRING "3.8.0svn"
 
 #endif

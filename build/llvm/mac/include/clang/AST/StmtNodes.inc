@@ -85,6 +85,18 @@ COMPOUNDSTMT(CompoundStmt, Stmt)
 CONTINUESTMT(ContinueStmt, Stmt)
 #undef CONTINUESTMT
 
+#ifndef CORETURNSTMT
+#  define CORETURNSTMT(Type, Base) STMT(Type, Base)
+#endif
+CORETURNSTMT(CoreturnStmt, Stmt)
+#undef CORETURNSTMT
+
+#ifndef COROUTINEBODYSTMT
+#  define COROUTINEBODYSTMT(Type, Base) STMT(Type, Base)
+#endif
+COROUTINEBODYSTMT(CoroutineBodyStmt, Stmt)
+#undef COROUTINEBODYSTMT
+
 #ifndef DECLSTMT
 #  define DECLSTMT(Type, Base) STMT(Type, Base)
 #endif
@@ -421,6 +433,26 @@ COMPOUNDLITERALEXPR(CompoundLiteralExpr, Expr)
 CONVERTVECTOREXPR(ConvertVectorExpr, Expr)
 #undef CONVERTVECTOREXPR
 
+#ifndef COROUTINESUSPENDEXPR
+#  define COROUTINESUSPENDEXPR(Type, Base) EXPR(Type, Base)
+#endif
+ABSTRACT_STMT(COROUTINESUSPENDEXPR(CoroutineSuspendExpr, Expr))
+#ifndef COAWAITEXPR
+#  define COAWAITEXPR(Type, Base) COROUTINESUSPENDEXPR(Type, Base)
+#endif
+COAWAITEXPR(CoawaitExpr, CoroutineSuspendExpr)
+#undef COAWAITEXPR
+
+#ifndef COYIELDEXPR
+#  define COYIELDEXPR(Type, Base) COROUTINESUSPENDEXPR(Type, Base)
+#endif
+COYIELDEXPR(CoyieldExpr, CoroutineSuspendExpr)
+#undef COYIELDEXPR
+
+STMT_RANGE(CoroutineSuspendExpr, CoawaitExpr, CoyieldExpr)
+
+#undef COROUTINESUSPENDEXPR
+
 #ifndef DECLREFEXPR
 #  define DECLREFEXPR(Type, Base) EXPR(Type, Base)
 #endif
@@ -523,6 +555,12 @@ LAMBDAEXPR(LambdaExpr, Expr)
 MSPROPERTYREFEXPR(MSPropertyRefExpr, Expr)
 #undef MSPROPERTYREFEXPR
 
+#ifndef MSPROPERTYSUBSCRIPTEXPR
+#  define MSPROPERTYSUBSCRIPTEXPR(Type, Base) EXPR(Type, Base)
+#endif
+MSPROPERTYSUBSCRIPTEXPR(MSPropertySubscriptExpr, Expr)
+#undef MSPROPERTYSUBSCRIPTEXPR
+
 #ifndef MATERIALIZETEMPORARYEXPR
 #  define MATERIALIZETEMPORARYEXPR(Type, Base) EXPR(Type, Base)
 #endif
@@ -540,6 +578,12 @@ MEMBEREXPR(MemberExpr, Expr)
 #endif
 NOINITEXPR(NoInitExpr, Expr)
 #undef NOINITEXPR
+
+#ifndef OMPARRAYSECTIONEXPR
+#  define OMPARRAYSECTIONEXPR(Type, Base) EXPR(Type, Base)
+#endif
+OMPARRAYSECTIONEXPR(OMPArraySectionExpr, Expr)
+#undef OMPARRAYSECTIONEXPR
 
 #ifndef OBJCARRAYLITERAL
 #  define OBJCARRAYLITERAL(Type, Base) EXPR(Type, Base)
@@ -815,6 +859,18 @@ OMPATOMICDIRECTIVE(OMPAtomicDirective, OMPExecutableDirective)
 OMPBARRIERDIRECTIVE(OMPBarrierDirective, OMPExecutableDirective)
 #undef OMPBARRIERDIRECTIVE
 
+#ifndef OMPCANCELDIRECTIVE
+#  define OMPCANCELDIRECTIVE(Type, Base) OMPEXECUTABLEDIRECTIVE(Type, Base)
+#endif
+OMPCANCELDIRECTIVE(OMPCancelDirective, OMPExecutableDirective)
+#undef OMPCANCELDIRECTIVE
+
+#ifndef OMPCANCELLATIONPOINTDIRECTIVE
+#  define OMPCANCELLATIONPOINTDIRECTIVE(Type, Base) OMPEXECUTABLEDIRECTIVE(Type, Base)
+#endif
+OMPCANCELLATIONPOINTDIRECTIVE(OMPCancellationPointDirective, OMPExecutableDirective)
+#undef OMPCANCELLATIONPOINTDIRECTIVE
+
 #ifndef OMPCRITICALDIRECTIVE
 #  define OMPCRITICALDIRECTIVE(Type, Base) OMPEXECUTABLEDIRECTIVE(Type, Base)
 #endif
@@ -861,7 +917,19 @@ OMPPARALLELFORSIMDDIRECTIVE(OMPParallelForSimdDirective, OMPLoopDirective)
 OMPSIMDDIRECTIVE(OMPSimdDirective, OMPLoopDirective)
 #undef OMPSIMDDIRECTIVE
 
-STMT_RANGE(OMPLoopDirective, OMPForDirective, OMPSimdDirective)
+#ifndef OMPTASKLOOPDIRECTIVE
+#  define OMPTASKLOOPDIRECTIVE(Type, Base) OMPLOOPDIRECTIVE(Type, Base)
+#endif
+OMPTASKLOOPDIRECTIVE(OMPTaskLoopDirective, OMPLoopDirective)
+#undef OMPTASKLOOPDIRECTIVE
+
+#ifndef OMPTASKLOOPSIMDDIRECTIVE
+#  define OMPTASKLOOPSIMDDIRECTIVE(Type, Base) OMPLOOPDIRECTIVE(Type, Base)
+#endif
+OMPTASKLOOPSIMDDIRECTIVE(OMPTaskLoopSimdDirective, OMPLoopDirective)
+#undef OMPTASKLOOPSIMDDIRECTIVE
+
+STMT_RANGE(OMPLoopDirective, OMPForDirective, OMPTaskLoopSimdDirective)
 
 #undef OMPLOOPDIRECTIVE
 
@@ -907,6 +975,12 @@ OMPSECTIONSDIRECTIVE(OMPSectionsDirective, OMPExecutableDirective)
 OMPSINGLEDIRECTIVE(OMPSingleDirective, OMPExecutableDirective)
 #undef OMPSINGLEDIRECTIVE
 
+#ifndef OMPTARGETDATADIRECTIVE
+#  define OMPTARGETDATADIRECTIVE(Type, Base) OMPEXECUTABLEDIRECTIVE(Type, Base)
+#endif
+OMPTARGETDATADIRECTIVE(OMPTargetDataDirective, OMPExecutableDirective)
+#undef OMPTARGETDATADIRECTIVE
+
 #ifndef OMPTARGETDIRECTIVE
 #  define OMPTARGETDIRECTIVE(Type, Base) OMPEXECUTABLEDIRECTIVE(Type, Base)
 #endif
@@ -918,6 +992,12 @@ OMPTARGETDIRECTIVE(OMPTargetDirective, OMPExecutableDirective)
 #endif
 OMPTASKDIRECTIVE(OMPTaskDirective, OMPExecutableDirective)
 #undef OMPTASKDIRECTIVE
+
+#ifndef OMPTASKGROUPDIRECTIVE
+#  define OMPTASKGROUPDIRECTIVE(Type, Base) OMPEXECUTABLEDIRECTIVE(Type, Base)
+#endif
+OMPTASKGROUPDIRECTIVE(OMPTaskgroupDirective, OMPExecutableDirective)
+#undef OMPTASKGROUPDIRECTIVE
 
 #ifndef OMPTASKWAITDIRECTIVE
 #  define OMPTASKWAITDIRECTIVE(Type, Base) OMPEXECUTABLEDIRECTIVE(Type, Base)

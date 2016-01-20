@@ -67,10 +67,10 @@ private:
         } else
           return nullptr;
       case Emitting:
-        // Calling "emit" can trigger external symbol lookup (e.g. to check for
-        // pre-existing definitions of common-symbol), but it will never find in
-        // this module that it would not have found already, so return null from
-        // here.
+        // Calling "emit" can trigger a recursive call to 'find' (e.g. to check
+        // for pre-existing definitions of common-symbol), but any symbol in
+        // this module would already have been found internally (in the
+        // RuntimeDyld that did the lookup), so just return a nullptr here.
         return nullptr;
       case Emitted:
         return B.findSymbolIn(Handle, Name, ExportedSymbolsOnly);
@@ -193,7 +193,7 @@ private:
       auto Symbols = llvm::make_unique<StringMap<const GlobalValue*>>();
 
       for (const auto &M : Ms) {
-        Mangler Mang(&M->getDataLayout());
+        Mangler Mang;
 
         for (const auto &V : M->globals())
           if (auto GV = addGlobalValue(*Symbols, V, Mang, SearchName,
