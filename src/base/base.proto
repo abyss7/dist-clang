@@ -61,3 +61,18 @@ message Local {
     optional Local extension = 5;
   }
 }
+
+message Verbosity {
+  message Range {
+    required uint32 right = 1;
+
+    optional uint32 left  = 2;
+    // if omitted: [ default = right ];
+  }
+
+  optional uint32 error_mark = 1 [ default = 10 ];
+  // level ≤ |error_mark| goes to stderr.
+
+  repeated Range levels      = 2;
+  // all ranges are inclusive: [left, right].
+}

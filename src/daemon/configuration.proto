@@ -10,21 +10,6 @@ message Host {
   optional bool ipv6            = 5 [ default = false ];
 }
 
-message Verbosity {
-  message Range {
-    required uint32 right = 1;
-
-    optional uint32 left  = 2;
-    // if omitted: [ default = right ];
-  }
-
-  optional uint32 error_mark = 1 [ default = 20 ];
-  // level ≤ |error_mark| goes to stderr.
-
-  repeated Range levels      = 2;
-  // all ranges are inclusive: [left, right].
-}
-
 message Configuration {
   message Cache {
     required string path         = 1;
@@ -74,7 +59,7 @@ message Configuration {
   // 0 - is unlimited.
 
   repeated base.proto.Compiler versions = 5;
-  optional Verbosity verbosity  = 6;
+  optional base.proto.Verbosity verbosity  = 6;
   optional uint32 user_id       = 7;
 
   optional string config_path   = 8;

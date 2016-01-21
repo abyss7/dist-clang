@@ -7,7 +7,7 @@ executable("clang") {
 
   deps += [
     ":client",
-    ":config_proto",
+    ":configuration",
     "//src/base:base",
     "//src/base:logging",
   ]
@@ -60,6 +60,21 @@ shared_library("command") {
   ]
 
   public_configs = [ "//build/config:libclang_includes" ]
+}
+
+source_set("configuration") {
+  visibility += [ "//tools/args_parser" ]
+
+  sources = [
+    "configuration.cc",
+    "configuration.hh",
+  ]
+
+  deps += [
+    ":config_proto",
+    "//src/base:base",
+    "//src/base:logging",
+  ]
 }
 
 protobuf("config_proto") {

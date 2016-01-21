@@ -1,3 +1,5 @@
+import "base/base.proto";
+
 package dist_clang.client.proto;
 
 message Plugin {
@@ -28,4 +30,5 @@ message Configuration {
 
   repeated Plugin plugins      = 6;
   optional bool disabled       = 7 [ default = false ];
+  optional base.proto.Verbosity verbosity = 8;
 }

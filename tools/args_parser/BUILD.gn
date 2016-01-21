@@ -6,6 +6,6 @@ executable("args_parser") {
   deps += [
     "//src/base",
     "//src/client:command",
-    "//src/client:config_proto",
+    "//src/client:configuration",
   ]
 }
