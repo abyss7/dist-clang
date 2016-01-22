@@ -1,6 +1,5 @@
 group("All") {
   deps = [
-    "//src/client:clang",
     "//src/daemon:clangd",
     ":Tools",
   ]
@@ -9,6 +8,7 @@ group("All") {
 group("Tools") {
   deps = [
     "//tools/args_parser",
+    "//tools/clang",
   ]
 }
 
@@ -25,7 +25,6 @@ if (config_for_tests) {
 
 package_deps = [
   "//src/base:base",
-  "//src/client:clang",
   "//src/client:command",
   "//src/daemon:clangd",
   "//src/daemon:config_proto",
@@ -41,6 +40,7 @@ package_deps = [
   "//src/third_party/libcxxabi:c++abi",
   "//src/third_party/protobuf:protoc",
   "//src/third_party/snappy:snappy",
+  "//tools/clang:clang",
 ]
 
 if (host_os == "linux") {

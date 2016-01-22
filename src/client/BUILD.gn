@@ -1,21 +1,11 @@
 import("//build/template/protobuf.gni")
 
-executable("clang") {
-  sources = [
-    "clang_main.cc",
-  ]
-
-  deps += [
-    ":client",
-    ":configuration",
-    "//src/base:base",
-    "//src/base:logging",
-  ]
-}
-
 # Separate source set for unit-tests.
 source_set("client") {
-  visibility += [ "//src/test:unit_tests" ]
+  visibility += [
+    "//src/test:unit_tests",
+    "//tools/clang",
+  ]
 
   sources = [
     "clang.cc",
@@ -63,7 +53,10 @@ shared_library("command") {
 }
 
 source_set("configuration") {
-  visibility += [ "//tools/args_parser" ]
+  visibility += [
+    "//tools/args_parser",
+    "//tools/clang",
+  ]
 
   sources = [
     "configuration.cc",

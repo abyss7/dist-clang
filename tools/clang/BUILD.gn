@@ -1,0 +1,12 @@
+executable("clang") {
+  sources = [
+    "main.cc",
+  ]
+
+  deps += [
+    "//src/base:base",
+    "//src/base:logging",
+    "//src/client",
+    "//src/client:configuration",
+  ]
+}
