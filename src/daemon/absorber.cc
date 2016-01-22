@@ -67,6 +67,15 @@ bool Absorber::HandleNewMessage(net::ConnectionPtr connection,
 
   if (message->HasExtension(proto::Remote::extension)) {
     Message execute(message->ReleaseExtension(proto::Remote::extension));
+    auto config = conf();
+    if (execute->emitter_version() < config->absorber().min_emitter_version()) {
+      LOG(WARNING) << "Emitter sent a bad version: "
+                   << execute->emitter_version();
+      net::proto::Status bad_version_status;
+      bad_version_status.set_code(net::proto::Status::BAD_EMITTER_VERSION);
+      return connection->ReportStatus(bad_version_status);
+    }
+
     DCHECK(!execute->flags().compiler().has_path());
     if (execute->has_source()) {
       return tasks_->Push(Task{connection, std::move(execute)});

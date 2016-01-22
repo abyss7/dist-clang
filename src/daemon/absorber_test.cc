@@ -8,15 +8,24 @@ namespace daemon {
 
 namespace {
 
+static const ui32 kEmptyEmitterVersion = 0u;
+static const ui32 kBadEmitterVersion = 1u;
+static const ui32 kGoodEmitterVersion = 100u;
+
 // S1..4 types can be one of the following: |String|, |Immutable|, |Literal|
 template <typename S1, typename S2, typename S3, typename S4 = String>
-net::Connection::ScopedMessage CreateMessage(const S1& source,
-                                             const S2& action,
-                                             const S3& compiler_version,
-                                             const S4& language = S4()) {
+net::Connection::ScopedMessage CreateMessage(
+    const S1& source,
+    const S2& action,
+    const S3& compiler_version,
+    const S4& language = S4(),
+    ui32 emitter_version = kEmptyEmitterVersion) {
   net::Connection::ScopedMessage message(new net::Connection::Message);
   auto* extension = message->MutableExtension(proto::Remote::extension);
   extension->set_source(source);
+  if (emitter_version != kEmptyEmitterVersion)
+    extension->set_emitter_version(emitter_version);
+
   auto* compiler = extension->mutable_flags()->mutable_compiler();
   compiler->set_version(compiler_version);
   extension->mutable_flags()->set_action(action);
@@ -365,6 +374,149 @@ TEST_F(AbsorberTest, BadMessageStatus) {
   }
 
   EXPECT_EQ(0u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(1u, connect_count);
+  EXPECT_EQ(1u, connections_created);
+  EXPECT_EQ(1u, read_count);
+  EXPECT_EQ(1u, send_count);
+  EXPECT_EQ(1, connection.use_count())
+      << "Daemon must not store references to the connection";
+}
+
+TEST_F(AbsorberTest, BadEmitterVersion) {
+  const String expected_host = "fake_host";
+  const ui16 expected_port = 12345;
+  const String compiler_version("compiler_version");
+  const String compiler_path("compiler_path");
+
+  conf.mutable_absorber()->mutable_local()->set_host(expected_host);
+  conf.mutable_absorber()->mutable_local()->set_port(expected_port);
+  conf.mutable_absorber()->set_min_emitter_version(kGoodEmitterVersion);
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+
+  listen_callback =
+      [&expected_host, expected_port](const String& host, ui16 port, String*) {
+    EXPECT_EQ(expected_host, host);
+    EXPECT_EQ(expected_port, port);
+    return true;
+  };
+  connect_callback = [](net::TestConnection* connection) {
+    connection->CallOnSend([](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_EQ(net::proto::Status::BAD_EMITTER_VERSION, status.code());
+
+      EXPECT_FALSE(message.HasExtension(proto::Result::extension));
+    });
+  };
+
+  absorber.reset(new Absorber(conf));
+  ASSERT_TRUE(absorber->Initialize());
+
+  auto connection1 = test_service->TriggerListen(expected_host, expected_port);
+  {
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection1);
+
+    auto message(CreateMessage(""_l, ""_l, ""_l, ""_l, kBadEmitterVersion));
+    EXPECT_TRUE(
+        test_connection->TriggerReadAsync(std::move(message), StatusOK()));
+
+    UniqueLock lock(send_mutex);
+    ASSERT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
+                                        [this] { return send_count == 1; }));
+  }
+
+  auto connection2 = test_service->TriggerListen(expected_host, expected_port);
+  {
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection2);
+
+    test_connection->CallOnSend([](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_EQ(net::proto::Status::OK, status.code());
+
+      EXPECT_TRUE(message.HasExtension(proto::Result::extension));
+      EXPECT_TRUE(message.GetExtension(proto::Result::extension).has_obj());
+    });
+    auto message(CreateMessage("source"_l, "action"_l, compiler_version));
+    auto* extension = message->MutableExtension(proto::Remote::extension);
+
+    // Force to use default value from .proto file
+    extension->clear_emitter_version();
+    EXPECT_TRUE(
+        test_connection->TriggerReadAsync(std::move(message), StatusOK()));
+
+    UniqueLock lock(send_mutex);
+    ASSERT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
+                                        [this] { return send_count == 2; }));
+  }
+
+  absorber.reset();
+
+  EXPECT_EQ(1u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(2u, connect_count);
+  EXPECT_EQ(2u, connections_created);
+  EXPECT_EQ(2u, read_count);
+  EXPECT_EQ(2u, send_count);
+  EXPECT_EQ(1, connection1.use_count())
+      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count())
+      << "Daemon must not store references to the connection";
+}
+
+TEST_F(AbsorberTest, GoodCustomEmitterVersion) {
+  const String expected_host = "fake_host";
+  const ui16 expected_port = 12345;
+  const String compiler_version("compiler_version");
+  const String compiler_path("compiler_path");
+  const ui32 custom_emitter_version = kGoodEmitterVersion + 1000;
+
+  conf.mutable_absorber()->mutable_local()->set_host(expected_host);
+  conf.mutable_absorber()->mutable_local()->set_port(expected_port);
+  conf.mutable_absorber()->set_min_emitter_version(custom_emitter_version);
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+
+  listen_callback =
+      [&expected_host, expected_port](const String& host, ui16 port, String*) {
+    EXPECT_EQ(expected_host, host);
+    EXPECT_EQ(expected_port, port);
+    return true;
+  };
+  connect_callback = [](net::TestConnection* connection) {
+    connection->CallOnSend([](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_EQ(net::proto::Status::OK, status.code());
+
+      EXPECT_TRUE(message.HasExtension(proto::Result::extension));
+      EXPECT_TRUE(message.GetExtension(proto::Result::extension).has_obj());
+    });
+  };
+
+  absorber.reset(new Absorber(conf));
+  ASSERT_TRUE(absorber->Initialize());
+
+  auto connection = test_service->TriggerListen(expected_host, expected_port);
+  {
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+
+    auto message(CreateMessage("source"_l, "action"_l, compiler_version, ""_l,
+                               custom_emitter_version));
+    EXPECT_TRUE(
+        test_connection->TriggerReadAsync(std::move(message), StatusOK()));
+
+    absorber.reset();
+  }
+
+  EXPECT_EQ(1u, run_count);
   EXPECT_EQ(1u, listen_count);
   EXPECT_EQ(1u, connect_count);
   EXPECT_EQ(1u, connections_created);

@@ -42,7 +42,8 @@ message Configuration {
   }
 
   message Absorber {
-    required Host local = 1;
+    required Host local                 = 1;
+    optional uint32 min_emitter_version = 2 [ default = 100 ];
   }
 
   message Collector {

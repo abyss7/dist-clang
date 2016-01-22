@@ -9,14 +9,15 @@ message Universal {
 
 message Status {
   enum Code {
-    OK            = 0;
-    INCONSEQUENT  = 1;
-    NETWORK       = 2;
-    BAD_MESSAGE   = 3;
-    EMPTY_MESSAGE = 4;
-    EXECUTION     = 5;
-    OVERLOAD      = 6;
-    NO_VERSION    = 7;
+    OK                  = 0;
+    INCONSEQUENT        = 1;
+    NETWORK             = 2;
+    BAD_MESSAGE         = 3;
+    EMPTY_MESSAGE       = 4;
+    EXECUTION           = 5;
+    OVERLOAD            = 6;
+    NO_VERSION          = 7;
+    BAD_EMITTER_VERSION = 8;
   }
 
   required Code code           = 1 [ default = OK ];
