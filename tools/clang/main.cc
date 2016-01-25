@@ -54,7 +54,8 @@ int main(int argc, char* argv[]) {
   for (const auto& plugin : config.plugins()) {
     // FIXME: check, if plugin with the same name is not already in the map.
     plugins.emplace(plugin.name(), plugin.path());
-    CHECK(plugin.path()[0] == '/');
+    CHECK(plugin.path()[0] == '/') << "Plugin path is not absolute: "
+                                   << plugin.path();
   }
 
   // FIXME: Make default socket path the build param - for consistent packaging.

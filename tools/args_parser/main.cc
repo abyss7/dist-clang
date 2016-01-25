@@ -13,7 +13,7 @@ int main(int argc, const char* argv[]) {
   client::Configuration configuration;
   const auto& config = configuration.config();
 
-  base::Log::Reset(ERROR, {{INFO, FATAL}});
+  base::Log::Reset(ERROR, {{VERBOSE, FATAL}});
 
   client::Command::List commands;
 
@@ -34,12 +34,15 @@ int main(int argc, const char* argv[]) {
   }
 
   for (const auto& command : commands) {
-    LOG(INFO) << command->RenderAllArgs();
+    auto&& log = LOG(INFO);
+    log << command->RenderAllArgs() << std::endl;
 
     base::proto::Flags flags;
     if (command->FillFlags(&flags, config.path(), major_version)) {
-      LOG(INFO) << static_cast<const google::protobuf::Message&>(flags);
+      log << static_cast<const google::protobuf::Message&>(flags);
     }
+
+    log << std::endl;
   }
 
   return 0;

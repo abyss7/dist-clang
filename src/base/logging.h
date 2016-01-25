@@ -10,9 +10,11 @@
 
 namespace google {
 namespace protobuf {
+
 class Message;
-}
-}
+
+}  // namespace protobuf
+}  // namespace google
 
 namespace dist_clang {
 namespace base {
@@ -121,6 +123,7 @@ class Log {
   Log(ui32 level);
   ~Log();
 
+  Log(Log&&) = default;
   Log(const Log&) = delete;
   Log& operator=(const Log&) = delete;
 
