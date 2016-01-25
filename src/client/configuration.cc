@@ -42,7 +42,7 @@ Configuration::Configuration() {
         auto os = client::proto::Plugin::UNKNOWN;
 #endif
         if (plugin->os() != os) {
-          config_.mutable_plugins()->SwapElements(i,
+          config_.mutable_plugins()->SwapElements(i--,
                                                   config_.plugins_size() - 1);
           config_.mutable_plugins()->RemoveLast();
           continue;

@@ -54,6 +54,7 @@ shared_library("command") {
 
 source_set("configuration") {
   visibility += [
+    "//src/test:unit_tests",
     "//tools/args_parser",
     "//tools/clang",
   ]
