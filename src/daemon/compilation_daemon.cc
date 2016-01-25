@@ -320,8 +320,11 @@ base::ProcessPtr CompilationDaemon::CreateProcess(
   // |flags.other()| always must go first, since it contains the "-cc1" flag.
   process->AppendArg(flags.other().begin(), flags.other().end());
   process->AppendArg(Immutable(flags.action()));
-  process->AppendArg(flags.non_cached().begin(), flags.non_cached().end());
+
+  // FIXME: looks like the --internal-isystem flags order is important.
+  //        We should preserve an original order.
   process->AppendArg(flags.non_direct().begin(), flags.non_direct().end());
+  process->AppendArg(flags.non_cached().begin(), flags.non_cached().end());
 
   // TODO: render args using libclang
   for (const auto& plugin : flags.compiler().plugins()) {
