@@ -141,7 +141,7 @@ void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
     // compiler's stdout.
     String error;
     base::ProcessPtr process = CreateProcess(incoming->flags());
-    if (!process->Run(30, source, &error)) {
+    if (!process->Run(conf()->absorber().run_timeout(), source, &error)) {
       status.set_code(net::proto::Status::EXECUTION);
       if (!process->stdout().empty() || !process->stderr().empty()) {
         status.set_description(process->stderr());

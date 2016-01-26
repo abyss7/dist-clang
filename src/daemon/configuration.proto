@@ -43,6 +43,9 @@ message Configuration {
 
   message Absorber {
     required Host local = 1;
+
+    optional uint32 run_timeout = 2 [ default = 60 ];
+    // in seconds.
   }
 
   message Collector {
