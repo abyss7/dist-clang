@@ -198,14 +198,14 @@ TEST_F(ClientTest, CannotReadMessage) {
         EXPECT_NE(end, std::find(begin, end, "-target-cpu"));
       }
 
+#if defined(OS_LINUX)
       {
         const auto& non_cached = cc_flags.non_cached();
         auto begin = non_cached.begin();
         auto end = non_cached.end();
-#if defined(OS_LINUX)
         EXPECT_NE(end, std::find(begin, end, "-internal-externc-isystem"));
-#endif  // defined(OS_LINUX)
       }
+#endif  // defined(OS_LINUX)
 
       {
         const auto& non_direct = cc_flags.non_direct();

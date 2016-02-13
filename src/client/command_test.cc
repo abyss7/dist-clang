@@ -70,7 +70,6 @@ TEST(CommandTest, ParseSimpleArgs) {
   expected_regex.push_back(rep("-internal-externc-isystem"));
 #elif defined(OS_MACOSX)
   expected_regex.push_back(rep("-target-linker-version [0-9.]+"));
-  expected_regex.push_back(rep("-mstackrealign"));
   expected_regex.push_back(rep("-pic-level [0-9]+"));
   expected_regex.push_back(rep("-stack-protector [0-9]+"));
   expected_regex.push_back(rep("-fblocks"));
