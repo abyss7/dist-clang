@@ -46,7 +46,7 @@ message Configuration {
     optional uint32 clean_period = 9 [ default = 600 ];
     // in seconds.
 
-    optional bool store_index    = 10 [ default = false ];
+    optional bool store_index    = 10 [ default = true ];
   }
 
   message Emitter {
