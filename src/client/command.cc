@@ -199,22 +199,24 @@ void DriverCommand::FillFlags(base::proto::Flags* flags,
       arg->render(arg_list_, non_direct_list);
     } else if (arg->getOption().matches(OPT_internal_isystem) ||
                arg->getOption().matches(OPT_resource_dir)) {
+      // Relative -internal-isystem and -resource_dir are based on current
+      // working directory - not on a Clang installation directory.
+
       String replaced_command = arg->getValue();
 
       // FIXME: It's a hack. Clang internally hardcodes path according to its
       //        major version.
+      // TODO: use InstallDir instead of hardcoded regex.
       std::regex version_regex("(\\/lib\\/clang\\/\\d+\\.\\d+\\.\\d+)");
       replaced_command = std::regex_replace(
           replaced_command, version_regex, "/lib/clang/" + clang_major_version);
 
-      // Use --internal-isystem and --resource_dir based on real Clang path,
-      // but don't use them in direct cache.
       const String self_path = base::GetSelfPath();
-      if (replaced_command[0] != '/') {
-        replaced_command = self_path + '/' + replaced_command;
-      }
-
       auto pos = replaced_command.find(self_path);
+
+      // Assume the -resource-dir and -internal-isystem that are based on Clang
+      // installation path to be the same for all compilers with the same
+      // version - no need to use them in direct cache.
       if (pos != String::npos) {
         replaced_command.replace(
             pos, self_path.size(),
