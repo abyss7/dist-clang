@@ -204,9 +204,9 @@ TEST_F(ClientTest, CannotReadMessage) {
         auto end = non_cached.end();
 #if defined(OS_LINUX)
         EXPECT_NE(end, std::find(begin, end, "-internal-externc-isystem"));
+        EXPECT_NE(end, std::find(begin, end, "-internal-isystem"));
 #endif  // defined(OS_LINUX)
         EXPECT_NE(end, std::find(begin, end, "-resource-dir"));
-        EXPECT_NE(end, std::find(begin, end, "-internal-isystem"));
       }
 
       {
