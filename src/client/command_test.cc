@@ -61,7 +61,7 @@ TEST(CommandTest, ParseSimpleArgs) {
   expected_regex.push_back(rep("-fexceptions"));
   expected_regex.push_back(rep("-fdiagnostics-show-option"));
   expected_regex.push_back(rep2("-o " + expected_output));
-  expected_regex.push_back(rep("-x c++"));
+  expected_regex.push_back(rep("-x c\\+\\+"));
   expected_regex.push_back(rep2(expected_input));
 #if defined(OS_LINUX)
   expected_regex.push_back(rep("-fmath-errno"));
@@ -114,7 +114,7 @@ TEST(CommandTest, ParseCC1Args) {
   expected_regex.push_back(rep2("-main-file-name " + input_name));
   expected_regex.push_back(rep2("-coverage-file " + expected_output));
   expected_regex.push_back(rep2("-o " + expected_output));
-  expected_regex.push_back(rep("-x c++"));
+  expected_regex.push_back(rep("-x c\\+\\+"));
   expected_regex.push_back(rep2(expected_input));
 
   // Even unknown args should be parsed:

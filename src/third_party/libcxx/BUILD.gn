@@ -2,6 +2,35 @@ config("includes") {
   include_dirs = [ "exported/include" ]
 }
 
+config("flags") {
+  cflags = [
+    "-O3",
+    "-pedantic",
+    "-Wall",
+    "-Wno-unused-parameter",
+    "-Wwrite-strings",
+    "-Wno-long-long",
+    "-Wno-error",
+  ]
+  if (host_os == "win") {
+    cflags += [ "-fno-ms-compatibility" ]
+  }
+
+  defines = [ "LIBCXX_BUILDING_LIBCXXABI" ]
+  if (host_os == "win") {
+    defines += [ "_HAS_CHAR16_T_LANGUAGE_SUPPORT" ]
+  }
+
+  if (host_os == "mac") {
+    ldflags = [
+      "-compatibility_version",
+      "1.0.0",
+      "-current_version",
+      "1.0.0",
+    ]
+  }
+}
+
 shared_library("c++") {
   visibility = []
   visibility = [
@@ -92,6 +121,7 @@ shared_library("c++") {
     "exported/include/valarray",
     "exported/include/vector",
     "exported/src/algorithm.cpp",
+    "exported/src/any.cpp",
     "exported/src/bind.cpp",
     "exported/src/chrono.cpp",
     "exported/src/condition_variable.cpp",
@@ -146,39 +176,16 @@ shared_library("c++") {
     "exported/include/vector",
   ]
 
-  cflags = [
-    "-O3",
-    "-pedantic",
-    "-Wall",
-    "-Wno-unused-parameter",
-    "-Wwrite-strings",
-    "-Wno-long-long",
-    "-Wno-error",
-  ]
-  if (host_os == "win") {
-    cflags += [ "-fno-ms-compatibility" ]
-  }
-
-  if (host_os == "win") {
-    defines = [ "_HAS_CHAR16_T_LANGUAGE_SUPPORT" ]
-  }
-
-  if (host_os == "mac") {
-    ldflags = [
-      "-compatibility_version",
-      "1.0.0",
-      "-current_version",
-      "1.0.0",
-    ]
-  }
-
   libs = [ "m" ]
   if (host_os == "linux") {
     libs += [ "rt" ]
   }
 
   configs = []
-  configs += [ "//build/config:default_library" ]
+  configs += [ 
+    ":flags",
+    "//build/config:default_library",
+  ]
   if (host_os == "win") {
     configs += [ "//build/config:no_exceptions" ]
   }

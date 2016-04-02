@@ -8,6 +8,10 @@
 #  LIBCXXABI_ENABLE_SHARED     = ON
 #
 
+config("includes") {
+  include_dirs = [ "exported/include" ]
+}
+
 config("flags") {
   defines = [
     "__STDC_CONSTANT_MACROS",
@@ -49,37 +53,16 @@ config("flags") {
     "-Wwrite-strings",
     "-Wno-error",
   ]
-}
-
-config("includes") {
-  include_dirs = [ "exported/include" ]
-}
-
-# The unwinder currently only works on Darwin and on ARM Linux.
-# Not used in this project.
-static_library("unwind") {
-  sources = [
-    "exported/src/Unwind/Unwind-EHABI.cpp",
-    "exported/src/Unwind/Unwind-sjlj.c",
-    "exported/src/Unwind/UnwindLevel1-gcc-ext.c",
-    "exported/src/Unwind/UnwindLevel1.c",
-    "exported/src/Unwind/UnwindRegistersRestore.S",
-    "exported/src/Unwind/UnwindRegistersSave.S",
-    "exported/src/Unwind/libunwind.cpp",
-  ]
-
-  public = [
-    "exported/include/libunwind.h",
-  ]
-
-  configs = []
-  configs = [
-    ":flags",
-    ":includes",
-    "//build/config:default_library",
-  ]
-
-  deps = []
+  
+  if (host_os == "mac") {
+    ldflags = exec_script("//build/macosx_sdk_libs.py", [], "list lines")
+    ldflags += [
+      "-compatibility_version",
+      "1.0.0",
+      "-current_version",
+      "1.0.0",
+    ]
+  }
 }
 
 shared_library("c++abi") {
@@ -101,6 +84,7 @@ shared_library("c++abi") {
     "exported/src/cxa_handlers.cpp",
     "exported/src/cxa_new_delete.cpp",
     "exported/src/cxa_personality.cpp",
+    "exported/src/cxa_thread_atexit.cpp",
     "exported/src/cxa_unexpected.cpp",
     "exported/src/cxa_vector.cpp",
     "exported/src/cxa_virtual.cpp",
@@ -116,20 +100,12 @@ shared_library("c++abi") {
 
   libs = [ "pthread" ]  # TODO: may be move to "default_library" config?
   if (host_os == "mac") {
-    ldflags = exec_script("//build/macosx_sdk_libs.py", [], "list lines")
-    ldflags += [
-      "-compatibility_version",
-      "1.0.0",
-      "-current_version",
-      "1.0.0",
-    ]
     libs += [ "System.framework" ]
   }
 
   configs = []
   configs = [
     ":flags",
-    ":includes",
     "//build/config:default_library",
   ]
 
