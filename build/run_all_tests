@@ -6,28 +6,28 @@ export ASAN_OPTIONS=new_delete_type_mismatch=0
 export LSAN_OPTIONS=suppressions=`dirname $0`/lsan_suppression.txt
 
 # gtest:
-/bin/sh ./run_gtest_tests $@
+/bin/sh ./run_gtest_tests "$@"
 
 # other:
-${test_dir}/leveldb_arena_test
-${test_dir}/leveldb_autocompact_test
-${test_dir}/leveldb_bloom_test
-${test_dir}/leveldb_cache_test
-${test_dir}/leveldb_coding_test
-${test_dir}/leveldb_corruption_test
-${test_dir}/leveldb_crc32c_test
-${test_dir}/leveldb_db_test
-${test_dir}/leveldb_dbformat_test
-${test_dir}/leveldb_env_test
-${test_dir}/leveldb_filename_test
-${test_dir}/leveldb_filter_block_test
-${test_dir}/leveldb_hash_test
-${test_dir}/leveldb_issue178_test
-${test_dir}/leveldb_issue200_test
-${test_dir}/leveldb_log_test
-${test_dir}/leveldb_memenv_test
-${test_dir}/leveldb_skiplist_test
-${test_dir}/leveldb_table_test
-${test_dir}/leveldb_version_edit_test
-${test_dir}/leveldb_version_set_test
-${test_dir}/leveldb_write_batch_test
+"${test_dir}/leveldb_arena_test"
+"${test_dir}/leveldb_autocompact_test"
+"${test_dir}/leveldb_bloom_test"
+"${test_dir}/leveldb_cache_test"
+"${test_dir}/leveldb_coding_test"
+"${test_dir}/leveldb_corruption_test"
+"${test_dir}/leveldb_crc32c_test"
+"${test_dir}/leveldb_db_test"
+"${test_dir}/leveldb_dbformat_test"
+"${test_dir}/leveldb_env_test"
+"${test_dir}/leveldb_filename_test"
+"${test_dir}/leveldb_filter_block_test"
+"${test_dir}/leveldb_hash_test"
+"${test_dir}/leveldb_issue178_test"
+"${test_dir}/leveldb_issue200_test"
+"${test_dir}/leveldb_log_test"
+"${test_dir}/leveldb_memenv_test"
+"${test_dir}/leveldb_skiplist_test"
+"${test_dir}/leveldb_table_test"
+"${test_dir}/leveldb_version_edit_test"
+"${test_dir}/leveldb_version_set_test"
+"${test_dir}/leveldb_write_batch_test"
