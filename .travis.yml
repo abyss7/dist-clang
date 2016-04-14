@@ -1,0 +1,13 @@
+sudo: required
+dist: trusty
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+      - llvm-toolchain-precise-3.6
+    packages:
+      - clang-3.6
+      - ninja-build
+
+script: ./build/travis_build.sh
