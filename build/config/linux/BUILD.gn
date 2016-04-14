@@ -2,6 +2,7 @@ config("base") {
   defines = [ "OS_LINUX" ]
 
   ldflags = [
+    "-fuse-ld=gold",
     "-rdynamic",  # for |backtrace()|
     "-rpath",
     "\$ORIGIN",
