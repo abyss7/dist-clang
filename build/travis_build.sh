@@ -16,4 +16,4 @@ git checkout -b master
 
 "$build_dir/configure"
 ninja -C "$build_dir/../out/Test.gn" Tests
-"$build_dir/run_all_tests" --test-launcher-bot-mode
+"$build_dir/run_all_tests"
