@@ -2,11 +2,18 @@
 
 set -ex
 
-# Trusty's clang has no 3.6 version, so make symlinks ourselves.
-sudo ln -s /usr/bin/clang-3.6 /usr/bin/clang
-sudo ln -s /usr/bin/clang++-3.6 /usr/bin/clang++
+# Trusty's clang has no 3.8 version, so make symlinks ourselves.
+for binary in clang clang++ llvm-symbolizer; do
+    sudo ln -s "/usr/bin/${binary}-3.8" "/usr/bin/${binary}"
+done
 
-base_dir="$(dirname $0)"
+export PATH=/usr/bin:$PATH
 
-"$base_dir/configure"
-ninja -C "$base_dir/out/Debug.gn" All
+build_dir="$(dirname $0)"
+
+# Dirty hack
+git checkout -b master
+
+"$build_dir/configure"
+ninja -C "$build_dir/../out/Test.gn" Tests
+"$build_dir/run_all_tests" --test-launcher-bot-mode
