@@ -3,7 +3,7 @@
 #include <base/logging.h>
 #include <base/protobuf_utils.h>
 
-#include <third_party/gflags/linux/gflags.h>
+#include <gflags.h>
 #include <third_party/protobuf/exported/src/google/protobuf/io/zero_copy_stream_impl.h>
 #include <third_party/protobuf/exported/src/google/protobuf/text_format.h>
 
