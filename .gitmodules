@@ -12,7 +12,7 @@
 	url = https://github.com/google/snappy.git
 [submodule "src/third_party/gperftools/exported"]
 	path = src/third_party/gperftools/exported
-	url = https://code.google.com/p/gperftools
+	url = https://github.com/gperftools/gperftools.git
 [submodule "src/third_party/leveldb/exported"]
 	path = src/third_party/leveldb/exported
 	url = https://github.com/google/leveldb.git
