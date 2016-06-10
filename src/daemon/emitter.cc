@@ -389,6 +389,15 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
       continue;
     }
 
+    if (incoming->has_flags() && incoming->flags().has_asan_blacklist_file()) {
+      std::string asan_blacklist_file_path = incoming->current_dir();
+      asan_blacklist_file_path += "//";
+      asan_blacklist_file_path += incoming->flags().asan_blacklist_file();
+      Immutable content;
+      base::File::Read(asan_blacklist_file_path, &content);
+      outgoing->set_asan_blacklist(content.string_copy());
+    }
+
     String error;
     auto connection = Connect(end_point, &error);
     if (!connection) {
