@@ -343,9 +343,9 @@ base::ProcessPtr CompilationDaemon::CreateProcess(
   if (flags.has_input()) {
     process->AppendArg(Immutable(flags.input()));
   }
-  if (flags.has_asan_blacklist_file()) {
+  if (flags.has_sanitize_blacklist()) {
     auto flag_value = String("-fsanitize-blacklist="_l);
-    flag_value += flags.asan_blacklist_file();
+    flag_value += flags.sanitize_blacklist();
     process->AppendArg(Immutable(flag_value));
   }
 

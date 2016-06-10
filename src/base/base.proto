@@ -48,7 +48,7 @@ message Flags {
   // Cache = other + language + cc_only
   // Direct = other + language + non_cached + cc_only
 
-  optional string asan_blacklist_file = 11;
+  optional string sanitize_blacklist = 11;
   // asan blacklist file
 }
 

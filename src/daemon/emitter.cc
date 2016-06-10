@@ -389,13 +389,18 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
       continue;
     }
 
-    if (incoming->has_flags() && incoming->flags().has_asan_blacklist_file()) {
-      std::string asan_blacklist_file_path = incoming->current_dir();
-      asan_blacklist_file_path += "//";
-      asan_blacklist_file_path += incoming->flags().asan_blacklist_file();
+    if (incoming->has_flags() && incoming->flags().has_sanitize_blacklist()) {
       Immutable content;
-      base::File::Read(asan_blacklist_file_path, &content);
-      outgoing->set_asan_blacklist(content.string_copy());
+      auto blacklist = incoming->flags().sanitize_blacklist();
+      if (base::File::IsFile(blacklist)) {
+	std::string sanitize_blacklist_file_path = incoming->current_dir();
+	sanitize_blacklist_file_path += "//";
+	sanitize_blacklist_file_path += blacklist;
+	base::File::Read(sanitize_blacklist_file_path, &content);	
+      } else {
+	content.assign(Immutable(blacklist));
+      }
+      outgoing->set_sanitize_blacklist(content.string_copy());
     }
 
     String error;

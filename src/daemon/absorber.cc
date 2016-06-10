@@ -27,7 +27,7 @@ namespace {
     std::function<void()> on_exit_;
   };
 
-  std::mutex g_asan_blacklist_file_write_lock;
+  std::mutex g_sanitize_blacklist_file_write_lock;
 }
 
 namespace dist_clang {
@@ -157,19 +157,19 @@ void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
 
     Universal outgoing(new net::proto::Universal);
 
-    raii_scope_deleter asan_blacklist_deleter;
-    if (incoming->has_asan_blacklist() && incoming->flags().has_asan_blacklist_file()) {
-      g_asan_blacklist_file_write_lock.lock();
+    raii_scope_deleter sanitize_blacklist_deleter;
+    if (incoming->has_sanitize_blacklist() && incoming->flags().has_sanitize_blacklist()) {
+      g_sanitize_blacklist_file_write_lock.lock();
       raii_scope_deleter mtx_lck([] () {
-          g_asan_blacklist_file_write_lock.unlock();
+          g_sanitize_blacklist_file_write_lock.unlock();
         });
 
-      String asan_blacklist_file = base::File::TmpUniqFile();
-      base::File::Write(asan_blacklist_file, Immutable(incoming->asan_blacklist()));
-      incoming->mutable_flags()->set_asan_blacklist_file(asan_blacklist_file);
+      String sanitize_blacklist_file = base::File::TmpUniqFile();
+      base::File::Write(sanitize_blacklist_file, Immutable(incoming->sanitize_blacklist()));
+      incoming->mutable_flags()->set_sanitize_blacklist(sanitize_blacklist_file);
 
-      asan_blacklist_deleter.set_deleter([asan_blacklist_file] () {
-          base::File::Delete(asan_blacklist_file);
+      sanitize_blacklist_deleter.set_deleter([sanitize_blacklist_file] () {
+          base::File::Delete(sanitize_blacklist_file);
         });
     }
 

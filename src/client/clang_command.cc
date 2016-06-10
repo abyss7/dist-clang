@@ -87,7 +87,7 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
     } else if (arg->getOption().matches(OPT_x)) {
       flags->set_language(arg->getValue());
     } else if (arg->getOption().matches(OPT_fsanitize_blacklist)) {
-      flags->set_asan_blacklist_file(arg->getValue());
+      flags->set_sanitize_blacklist(arg->getValue());
     }
 
     // Non-cacheable flags.
