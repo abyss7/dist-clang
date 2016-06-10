@@ -1,6 +1,7 @@
 #include <daemon/absorber.h>
 
 #include <base/file_utils.h>
+#include <base/file/file.h>
 #include <base/logging.h>
 #include <base/process.h>
 #include <base/protobuf_utils.h>
@@ -9,6 +10,25 @@
 #include <base/using_log.h>
 
 using namespace std::placeholders;
+
+namespace {
+  struct raii_scope_deleter {
+    raii_scope_deleter() {}
+    explicit raii_scope_deleter(const std::function<void()>& func): on_exit_(func) {}
+    ~raii_scope_deleter() {
+      if (on_exit_)
+        on_exit_();
+    }
+    template <typename T>
+    void set_deleter(const T& t) {
+      on_exit_ = t;
+    }
+  private:
+    std::function<void()> on_exit_;
+  };
+
+  std::mutex g_asan_blacklist_file_write_lock;
+}
 
 namespace dist_clang {
 namespace daemon {
@@ -136,6 +156,22 @@ void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
     }
 
     Universal outgoing(new net::proto::Universal);
+
+    raii_scope_deleter asan_blacklist_deleter;
+    if (incoming->has_asan_blacklist() && incoming->flags().has_asan_blacklist_file()) {
+      g_asan_blacklist_file_write_lock.lock();
+      raii_scope_deleter mtx_lck([] () {
+          g_asan_blacklist_file_write_lock.unlock();
+        });
+
+      String asan_blacklist_file = base::File::TmpUniqFile();
+      base::File::Write(asan_blacklist_file, Immutable(incoming->asan_blacklist()));
+      incoming->mutable_flags()->set_asan_blacklist_file(asan_blacklist_file);
+
+      asan_blacklist_deleter.set_deleter([asan_blacklist_file] () {
+          base::File::Delete(asan_blacklist_file);
+        });
+    }
 
     // Pipe the input file to the compiler and read output file from the
     // compiler's stdout.

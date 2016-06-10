@@ -14,6 +14,8 @@
 #include <copyfile.h>
 #endif
 
+#define TMP_FILENAME_TEMPLATE "/tmp/dist_clang.XXXXXX"
+
 namespace dist_clang {
 namespace base {
 
@@ -379,6 +381,12 @@ bool File::Close(String* error) {
   }
 
   return true;
+}
+
+String File::TmpUniqFile() {
+  char tmp_file_name[] = TMP_FILENAME_TEMPLATE;
+  auto result = mktemp(tmp_file_name);
+  return result;
 }
 
 }  // namespace base
