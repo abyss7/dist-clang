@@ -6,8 +6,8 @@
 namespace dist_clang {
 namespace base {
 
-const std::chrono::duration<double, std::ratio<1>> WorkerPool::ZERO_DURATION
-    = std::chrono::duration<double, std::ratio<1>>::zero();
+const std::chrono::seconds WorkerPool::ZERO_DURATION
+    = std::chrono::seconds::zero();
 
 WorkerPool::WorkerPool(bool force_shut_down)
     : is_shutting_down_(false), force_shut_down_(force_shut_down) {
@@ -47,8 +47,7 @@ void WorkerPool::AddWorker(Literal name, const SimpleWorker& worker,
   }
 }
 
-bool WorkerPool::WaitUntilShutdown(
-    const std::chrono::duration<double, std::ratio<1>>& duration) {
+bool WorkerPool::WaitUntilShutdown(const std::chrono::seconds& duration) {
   if (is_shutting_down_) {
     return true;
   }

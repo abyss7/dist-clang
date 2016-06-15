@@ -19,8 +19,7 @@ class WorkerPool {
   void AddWorker(Literal name, const NetWorker& worker, ui32 count = 1);
   void AddWorker(Literal name, const SimpleWorker& worker, ui32 count = 1);
 
-  bool WaitUntilShutdown(
-      const std::chrono::duration<double, std::ratio<1>>& duration);
+  bool WaitUntilShutdown(const std::chrono::seconds& duration);
 
   bool IsShuttingDown() {
     return WaitUntilShutdown(ZERO_DURATION);
@@ -33,7 +32,7 @@ class WorkerPool {
   std::condition_variable shutdown_condition_;
   Pipe self_;
 
-  static const std::chrono::duration<double, std::ratio<1>> ZERO_DURATION;
+  static const std::chrono::seconds ZERO_DURATION;
 };
 
 }  // namespace base
