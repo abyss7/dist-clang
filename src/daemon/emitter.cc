@@ -190,7 +190,7 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
   return false;
 }
 
-void Emitter::DoCheckCache(base::WorkerPool& pool) {
+void Emitter::DoCheckCache(const base::WorkerPool& pool) {
   using namespace cache::string;
 
   while (!pool.IsShuttingDown()) {
@@ -279,7 +279,7 @@ void Emitter::DoCheckCache(base::WorkerPool& pool) {
   }
 }
 
-void Emitter::DoLocalExecute(base::WorkerPool& pool) {
+void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
   while (!pool.IsShuttingDown()) {
     Optional&& task = local_tasks_->Pop();
     if (!task) {
@@ -342,7 +342,7 @@ void Emitter::DoLocalExecute(base::WorkerPool& pool) {
   }
 }
 
-void Emitter::DoRemoteExecute(base::WorkerPool& pool,
+void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
                               ResolveFn resolver) {
   net::EndPointPtr end_point;
   ui32 sleep_period = 1;

@@ -33,7 +33,8 @@ bool EpollEventLoop::ReadyForSend(ConnectionImplPtr connection) {
   return ReadyFor(connection, EPOLLOUT);
 }
 
-void EpollEventLoop::DoListenWork(base::WorkerPool& pool, base::Data& self) {
+void EpollEventLoop::DoListenWork(const base::WorkerPool& pool,
+                                  base::Data& self) {
   std::array<struct epoll_event, 64> events;
 
   listen_.Add(self, EPOLLIN);
@@ -68,7 +69,7 @@ void EpollEventLoop::DoListenWork(base::WorkerPool& pool, base::Data& self) {
   }
 }
 
-void EpollEventLoop::DoIOWork(base::WorkerPool& pool, base::Data& self) {
+void EpollEventLoop::DoIOWork(const base::WorkerPool& pool, base::Data& self) {
   io_.Add(self, EPOLLIN);
 
   std::array<struct epoll_event, 1> event;

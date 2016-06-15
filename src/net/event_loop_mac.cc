@@ -31,7 +31,8 @@ bool KqueueEventLoop::ReadyForSend(ConnectionImplPtr connection) {
   return ReadyFor(connection, EVFILT_WRITE);
 }
 
-void KqueueEventLoop::DoListenWork(base::WorkerPool& pool, base::Data& self) {
+void KqueueEventLoop::DoListenWork(const base::WorkerPool& pool,
+                                   base::Data& self) {
   std::array<struct kevent, 64> events;
 
   listen_.Add(self, EVFILT_READ);
@@ -65,7 +66,7 @@ void KqueueEventLoop::DoListenWork(base::WorkerPool& pool, base::Data& self) {
   }
 }
 
-void KqueueEventLoop::DoIOWork(base::WorkerPool& pool, base::Data& self) {
+void KqueueEventLoop::DoIOWork(const base::WorkerPool& pool, base::Data& self) {
   io_.Add(self, EVFILT_READ);
 
   std::array<struct kevent, 1> event;

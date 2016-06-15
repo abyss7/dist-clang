@@ -23,7 +23,7 @@ class Absorber : public CompilationDaemon {
   bool HandleNewMessage(net::ConnectionPtr connection, Universal message,
                         const net::proto::Status& status) override;
 
-  void DoExecute(base::WorkerPool& pool);
+  void DoExecute(const base::WorkerPool& pool);
 
   UniquePtr<Queue> tasks_;
   UniquePtr<base::WorkerPool> workers_;

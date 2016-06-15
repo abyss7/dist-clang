@@ -77,7 +77,7 @@ bool Absorber::HandleNewMessage(net::ConnectionPtr connection,
   return false;
 }
 
-void Absorber::DoExecute(base::WorkerPool& pool) {
+void Absorber::DoExecute(const base::WorkerPool& pool) {
   using namespace cache::string;
 
   while (!pool.IsShuttingDown()) {

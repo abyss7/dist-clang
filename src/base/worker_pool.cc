@@ -47,7 +47,7 @@ void WorkerPool::AddWorker(Literal name, const SimpleWorker& worker,
   }
 }
 
-bool WorkerPool::WaitUntilShutdown(const std::chrono::seconds& duration) {
+bool WorkerPool::WaitUntilShutdown(const std::chrono::seconds& duration) const {
   if (is_shutting_down_) {
     return true;
   }
