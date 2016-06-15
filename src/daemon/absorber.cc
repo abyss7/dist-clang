@@ -5,6 +5,7 @@
 #include <base/logging.h>
 #include <base/process.h>
 #include <base/protobuf_utils.h>
+#include <base/temporary_dir.h>
 #include <net/connection.h>
 
 #include <base/using_log.h>
@@ -12,22 +13,15 @@
 using namespace std::placeholders;
 
 namespace {
-  struct raii_scope_deleter {
-    raii_scope_deleter() {}
-    explicit raii_scope_deleter(const std::function<void()>& func): on_exit_(func) {}
-    ~raii_scope_deleter() {
-      if (on_exit_)
-        on_exit_();
-    }
-    template <typename T>
-    void set_deleter(const T& t) {
-      on_exit_ = t;
-    }
-  private:
-    std::function<void()> on_exit_;
-  };
+  std::vector<dist_clang::cache::string::HandledSource> GetAdditionalSources(const dist_clang::daemon::proto::Remote& remote) {
+    std::vector<dist_clang::cache::string::HandledSource> result;
 
-  std::mutex g_sanitize_blacklist_file_write_lock;
+    if (remote.has_sanitize_blacklist_content()) {
+      result.push_back(dist_clang::cache::string::HandledSource(remote.sanitize_blacklist_content()));
+    }
+
+    return result;
+  }
 }
 
 namespace dist_clang {
@@ -134,8 +128,10 @@ void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
       }
     }
 
+    auto additional_sources = GetAdditionalSources(*incoming);
+
     cache::FileCache::Entry entry;
-    if (SearchSimpleCache(incoming->flags(), HandledSource(source), &entry)) {
+    if (SearchSimpleCache(incoming->flags(), HandledSource(source), &entry, additional_sources)) {
       Universal outgoing(new net::proto::Universal);
       auto* result = outgoing->MutableExtension(proto::Result::extension);
       result->set_obj(entry.object);
@@ -157,51 +153,57 @@ void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
 
     Universal outgoing(new net::proto::Universal);
 
-    raii_scope_deleter sanitize_blacklist_deleter;
-    if (incoming->has_sanitize_blacklist() && incoming->flags().has_sanitize_blacklist()) {
-      g_sanitize_blacklist_file_write_lock.lock();
-      raii_scope_deleter mtx_lck([] () {
-          g_sanitize_blacklist_file_write_lock.unlock();
-        });
+    std::unique_ptr<base::TemporaryDir> temp_dir;
 
-      String sanitize_blacklist_file = base::File::TmpUniqFile();
-      base::File::Write(sanitize_blacklist_file, Immutable(incoming->sanitize_blacklist()));
-      incoming->mutable_flags()->set_sanitize_blacklist(sanitize_blacklist_file);
+    status.set_code(net::proto::Status::OK);
 
-      sanitize_blacklist_deleter.set_deleter([sanitize_blacklist_file] () {
-          base::File::Delete(sanitize_blacklist_file);
-        });
+    if (incoming->has_sanitize_blacklist_content() && incoming->flags().has_sanitize_blacklist()) {
+      temp_dir.reset(new base::TemporaryDir());
+
+      String sanitize_blacklist_file = temp_dir->GetPath() + '/' + "sanitize.blacklist";
+      if (!base::File::Write(
+            sanitize_blacklist_file,
+            Immutable(incoming->sanitize_blacklist_content())
+              ))
+      {
+        status.set_code(net::proto::Status::EXECUTION);
+        status.set_description("Can't write sanitize blacklist file to " +
+                               sanitize_blacklist_file);
+      } else {
+        incoming->mutable_flags()->set_sanitize_blacklist(sanitize_blacklist_file);
+      }
     }
 
     // Pipe the input file to the compiler and read output file from the
     // compiler's stdout.
     String error;
     base::ProcessPtr process = CreateProcess(incoming->flags());
-    if (!process->Run(conf()->absorber().run_timeout(), source, &error)) {
-      status.set_code(net::proto::Status::EXECUTION);
-      if (!process->stdout().empty() || !process->stderr().empty()) {
-        status.set_description(process->stderr());
-        LOG(WARNING) << "Compilation failed with error:" << std::endl
+    if (status.code() == net::proto::Status::OK) {
+      if (!process->Run(conf()->absorber().run_timeout(), source, &error)) {
+        status.set_code(net::proto::Status::EXECUTION);
+        if (!process->stdout().empty() || !process->stderr().empty()) {
+          status.set_description(process->stderr());
+          LOG(WARNING) << "Compilation failed with error:" << std::endl
                      << process->stderr() << std::endl
                      << process->stdout();
-      } else if (!error.empty()) {
-        status.set_description(error);
-        LOG(WARNING) << "Compilation failed with error: " << error;
-      } else {
-        status.set_description("without errors");
-        LOG(WARNING) << "Compilation failed without errors";
-      }
+        } else if (!error.empty()) {
+          status.set_description(error);
+          LOG(WARNING) << "Compilation failed with error: " << error;
+        } else {
+          status.set_description("without errors");
+          LOG(WARNING) << "Compilation failed without errors";
+        }
 
-      // We lose atomicity, but the WARNING level will be less verbose.
-      LOG(VERBOSE) << static_cast<const google::protobuf::Message&>(
+        // We lose atomicity, but the WARNING level will be less verbose.
+        LOG(VERBOSE) << static_cast<const google::protobuf::Message&>(
           incoming->flags());
-    } else {
-      status.set_code(net::proto::Status::OK);
-      status.set_description(process->stderr());
-      LOG(INFO) << "External compilation successful";
+      } else {
+        status.set_description(process->stderr());
+        LOG(INFO) << "External compilation successful";
 
-      const auto& result = proto::Result::extension;
-      outgoing->MutableExtension(result)->set_obj(process->stdout());
+        const auto& result = proto::Result::extension;
+        outgoing->MutableExtension(result)->set_obj(process->stdout());
+      }
     }
 
     outgoing->MutableExtension(net::proto::Status::extension)->CopyFrom(status);
@@ -212,7 +214,7 @@ void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
       entry.object = process->stdout();
       entry.stderr = Immutable(status.description());
 
-      UpdateSimpleCache(incoming->flags(), HandledSource(source), entry);
+      UpdateSimpleCache(incoming->flags(), HandledSource(source), entry, additional_sources);
     }
 
     task->first->SendAsync(std::move(outgoing));

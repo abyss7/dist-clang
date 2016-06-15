@@ -254,7 +254,7 @@ ConstString ConstString::operator+(const ConstString& other) const {
   return Rope{*this, other};
 }
 
-ConstString ConstString::Hash(ui8 output_size) {
+ConstString ConstString::Hash(ui8 output_size) const {
   // Implements the algorithm MurmurHash3 for x64 with 128 bits.
 
   if (empty()) {

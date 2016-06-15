@@ -32,6 +32,7 @@ namespace string {
     explicit type(Immutable str) : str(str) {}                            \
     operator Immutable() const { return str; }                            \
     bool operator==(const type& other) const { return str == other.str; } \
+    bool operator!=(const type& other) const { return str != other.str; } \
                                                                           \
     /* TODO: remove this */                                               \
     explicit type(const String& str) : str(str) {}                        \
@@ -97,27 +98,46 @@ class FileCache {
   bool Run(ui64 clean_period);
   // |clean_period| is in seconds.
 
-  static string::HandledHash Hash(string::HandledSource code,
-                                  string::CommandLine command_line,
-                                  string::Version version);
+  static string::HandledHash Hash(
+    string::HandledSource code,
+    string::CommandLine command_line,
+    string::Version version,
+    const std::vector<string::HandledSource>& additional_sources);
 
-  static string::UnhandledHash Hash(string::UnhandledSource code,
-                                    string::CommandLine command_line,
-                                    string::Version version);
+  static string::UnhandledHash Hash(
+    string::UnhandledSource code,
+    string::CommandLine command_line,
+    string::Version version,
+    const std::vector<string::UnhandledSource>& additional_sources);
 
-  bool Find(string::HandledSource code, string::CommandLine command_line,
-            string::Version version, Entry* entry) const;
+  bool Find(
+    string::HandledSource code,
+    string::CommandLine command_line,
+    string::Version version,
+    Entry* entry,
+    const std::vector<string::HandledSource>& additional_sources) const;
 
-  bool Find(string::UnhandledSource code, string::CommandLine command_line,
-            string::Version version, const String& current_dir,
-            Entry* entry) const;
+  bool Find(
+    string::UnhandledSource code,
+    string::CommandLine command_line,
+    string::Version version,
+    const String& current_dir,
+    Entry* entry,
+    const std::vector<string::UnhandledSource>& additional_sources) const;
 
-  void Store(string::UnhandledSource code, string::CommandLine command_line,
-             string::Version version, const List<String>& headers,
-             const String& current_dir, string::HandledHash hash);
+  void Store(string::UnhandledSource code,
+             string::CommandLine command_line,
+             string::Version version,
+             const List<String>& headers,
+             const String& current_dir,
+             string::HandledHash hash,
+             const std::vector<string::UnhandledSource>& additional_sources);
 
-  void Store(string::HandledSource code, string::CommandLine command_line,
-             string::Version version, const Entry& entry);
+  void Store(string::HandledSource code,
+             string::CommandLine command_line,
+             string::Version version,
+             const Entry& entry,
+             const std::vector<string::HandledSource>& additional_sources);
 
  private:
   FRIEND_TEST(FileCacheTest, DoubleLocks);
