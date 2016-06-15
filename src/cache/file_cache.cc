@@ -487,6 +487,7 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
 }
 
 void FileCache::Clean(UniquePtr<EntryList> list) {
+  entries_->BeginTransaction();
   while (auto new_entry = list->Pop()) {
     const auto& hash = new_entry->second;
     SQLite::Value entry;
@@ -511,6 +512,7 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
   }
 
   if (max_size_ == UNLIMITED) {
+    entries_->EndTransaction();
     return;
   }
 
@@ -527,6 +529,7 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
       DCHECK_O_EVAL(RemoveEntry(hash));
     }
   }
+  entries_->EndTransaction();
 }
 
 FileCache::ReadLock::ReadLock(const FileCache* file_cache, const String& path)
