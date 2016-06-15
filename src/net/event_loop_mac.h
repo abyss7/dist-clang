@@ -19,10 +19,8 @@ class KqueueEventLoop : public EventLoop {
   bool ReadyForSend(ConnectionImplPtr connection) THREAD_SAFE override;
 
  private:
-  void DoListenWork(const Atomic<bool>& is_shutting_down,
-                    base::Data& self) override;
-  void DoIOWork(const Atomic<bool>& is_shutting_down,
-                base::Data& self_pipe) override;
+  void DoListenWork(base::WorkerPool* pool, base::Data& self) override;
+  void DoIOWork(base::WorkerPool* pool, base::Data& self_pipe) override;
 
   inline bool ReadyForListen(const Passive& fd) {
     return listen_.Update(fd, EVFILT_READ);

@@ -14,6 +14,7 @@ WorkerPool::WorkerPool(bool force_shut_down)
 WorkerPool::~WorkerPool() {
   if (force_shut_down_) {
     is_shutting_down_ = true;
+    shutdown_condition_.notify_all();
     self_[1].Close();
   }
   for (auto& thread : workers_) {
@@ -22,12 +23,13 @@ WorkerPool::~WorkerPool() {
   }
   if (!force_shut_down_) {
     is_shutting_down_ = true;
+    shutdown_condition_.notify_all();
   }
 }
 
 void WorkerPool::AddWorker(Literal name, const NetWorker& worker, ui32 count) {
   CHECK(count);
-  auto closure = [this, worker] { worker(is_shutting_down_, self_[0]); };
+  auto closure = [this, worker] { worker(this, self_[0]); };
   for (ui32 i = 0; i < count; ++i) {
     workers_.emplace_back(name, closure);
   }
@@ -36,10 +38,26 @@ void WorkerPool::AddWorker(Literal name, const NetWorker& worker, ui32 count) {
 void WorkerPool::AddWorker(Literal name, const SimpleWorker& worker,
                            ui32 count) {
   CHECK(count);
-  auto closure = [this, worker] { worker(is_shutting_down_); };
+  auto closure = [this, worker] { worker(this); };
   for (ui32 i = 0; i < count; ++i) {
     workers_.emplace_back(name, closure);
   }
+}
+
+bool WorkerPool::WaitUntilShutdown(
+    const std::chrono::duration<double, std::milli>& duration) {
+  if (is_shutting_down_) {
+    return true;
+  }
+
+  if (duration == std::chrono::duration<double, std::milli>::zero()) {
+    return is_shutting_down_;
+  }
+
+  auto target_time = std::chrono::high_resolution_clock::now() + duration;
+  std::unique_lock<std::mutex> lock(shutdown_mutex_);
+  return shutdown_condition_.wait_until(
+      lock, target_time, [this]() -> bool { return is_shutting_down_; });
 }
 
 }  // namespace base

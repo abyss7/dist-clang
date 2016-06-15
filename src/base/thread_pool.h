@@ -26,7 +26,7 @@ class ThreadPool {
   inline ui64 TaskCount() const { return tasks_.Size() + active_task_count_; }
 
  private:
-  void DoWork(const Atomic<bool>& is_shutting_down);
+  void DoWork(base::WorkerPool* pool);
 
   TaskQueue tasks_;
   WorkerPool pool_;

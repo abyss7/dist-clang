@@ -41,10 +41,8 @@ class EventLoop {
     STOPPED,
   };
 
-  virtual void DoListenWork(const Atomic<bool>& is_shutting_down,
-                            base::Data& self) = 0;
-  virtual void DoIOWork(const Atomic<bool>& is_shutting_down,
-                        base::Data& self) = 0;
+  virtual void DoListenWork(base::WorkerPool* pool, base::Data& self) = 0;
+  virtual void DoIOWork(base::WorkerPool* pool, base::Data& self) = 0;
 
   Atomic<Status> is_running_;
   ui32 concurrency_;

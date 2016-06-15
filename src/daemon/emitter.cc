@@ -190,10 +190,10 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
   return false;
 }
 
-void Emitter::DoCheckCache(const Atomic<bool>& is_shutting_down) {
+void Emitter::DoCheckCache(base::WorkerPool* pool) {
   using namespace cache::string;
 
-  while (!is_shutting_down) {
+  while (!pool->IsShuttingDown()) {
     Optional&& task = cache_tasks_->Pop();
     if (!task) {
       break;
@@ -279,8 +279,8 @@ void Emitter::DoCheckCache(const Atomic<bool>& is_shutting_down) {
   }
 }
 
-void Emitter::DoLocalExecute(const Atomic<bool>& is_shutting_down) {
-  while (!is_shutting_down) {
+void Emitter::DoLocalExecute(base::WorkerPool* pool) {
+  while (!pool->IsShuttingDown()) {
     Optional&& task = local_tasks_->Pop();
     if (!task) {
       break;
@@ -342,8 +342,7 @@ void Emitter::DoLocalExecute(const Atomic<bool>& is_shutting_down) {
   }
 }
 
-void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
-                              ResolveFn resolver) {
+void Emitter::DoRemoteExecute(base::WorkerPool* pool, ResolveFn resolver) {
   net::EndPointPtr end_point;
   ui32 sleep_period = 1;
   auto Sleep = [&sleep_period]() mutable {
@@ -355,7 +354,7 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
     }
   };
 
-  while (!is_shutting_down) {
+  while (!pool->IsShuttingDown()) {
     if (!end_point) {
       end_point = resolver();
       if (!end_point) {

@@ -77,10 +77,10 @@ bool Absorber::HandleNewMessage(net::ConnectionPtr connection,
   return false;
 }
 
-void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
+void Absorber::DoExecute(base::WorkerPool* pool) {
   using namespace cache::string;
 
-  while (!is_shutting_down) {
+  while (!pool->IsShuttingDown()) {
     Optional&& task = tasks_->Pop();
     if (!task) {
       break;
