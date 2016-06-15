@@ -77,10 +77,10 @@ bool Absorber::HandleNewMessage(net::ConnectionPtr connection,
   return false;
 }
 
-void Absorber::DoExecute(base::WorkerPool* pool) {
+void Absorber::DoExecute(base::WorkerPool& pool) {
   using namespace cache::string;
 
-  while (!pool->IsShuttingDown()) {
+  while (!pool.IsShuttingDown()) {
     Optional&& task = tasks_->Pop();
     if (!task) {
       break;

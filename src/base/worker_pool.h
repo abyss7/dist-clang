@@ -10,8 +10,8 @@ namespace base {
 
 class WorkerPool {
  public:
-  using NetWorker = Fn<void(WorkerPool*, Data&)>;
-  using SimpleWorker = Fn<void(WorkerPool*)>;
+  using NetWorker = Fn<void(WorkerPool&, Data&)>;
+  using SimpleWorker = Fn<void(WorkerPool&)>;
 
   explicit WorkerPool(bool force_shut_down = false);
   ~WorkerPool();
@@ -20,10 +20,10 @@ class WorkerPool {
   void AddWorker(Literal name, const SimpleWorker& worker, ui32 count = 1);
 
   bool WaitUntilShutdown(
-      const std::chrono::duration<double, std::milli>& duration);
+      const std::chrono::duration<double, std::ratio<1>>& duration);
 
   bool IsShuttingDown() {
-    return WaitUntilShutdown(std::chrono::duration<double, std::milli>::zero());
+    return WaitUntilShutdown(ZERO_DURATION);
   }
 
  private:
@@ -32,6 +32,8 @@ class WorkerPool {
   std::mutex shutdown_mutex_;
   std::condition_variable shutdown_condition_;
   Pipe self_;
+
+  static const std::chrono::duration<double, std::ratio<1>> ZERO_DURATION;
 };
 
 }  // namespace base

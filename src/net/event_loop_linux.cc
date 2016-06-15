@@ -33,12 +33,12 @@ bool EpollEventLoop::ReadyForSend(ConnectionImplPtr connection) {
   return ReadyFor(connection, EPOLLOUT);
 }
 
-void EpollEventLoop::DoListenWork(base::WorkerPool* pool, base::Data& self) {
+void EpollEventLoop::DoListenWork(base::WorkerPool& pool, base::Data& self) {
   std::array<struct epoll_event, 64> events;
 
   listen_.Add(self, EPOLLIN);
 
-  while (!pool->IsShuttingDown()) {
+  while (!pool.IsShuttingDown()) {
     auto events_count = listen_.Wait(events, -1);
     if (events_count == -1 && errno != EINTR) {
       break;
@@ -68,12 +68,12 @@ void EpollEventLoop::DoListenWork(base::WorkerPool* pool, base::Data& self) {
   }
 }
 
-void EpollEventLoop::DoIOWork(base::WorkerPool* pool, base::Data& self) {
+void EpollEventLoop::DoIOWork(base::WorkerPool& pool, base::Data& self) {
   io_.Add(self, EPOLLIN);
 
   std::array<struct epoll_event, 1> event;
 
-  while (!pool->IsShuttingDown()) {
+  while (!pool.IsShuttingDown()) {
     auto events_count = io_.Wait(event, -1);
     if (events_count == -1) {
       if (errno != EINTR) {

@@ -264,17 +264,17 @@ class TestServer : public EventLoop {
     return true;
   }
 
-  void DoListenWork(base::WorkerPool* pool, base::Data& self) override {
+  void DoListenWork(const base::WorkerPool& pool, base::Data& self) override {
     // Test server doesn't do listening work.
   }
 
-  void DoIOWork(base::WorkerPool* pool, base::Data& self) override {
+  void DoIOWork(const base::WorkerPool& pool, base::Data& self) override {
     const int TIMEOUT = 1 * 1000;  // In milliseconds.
     std::array<struct epoll_event, 1> event;
 
     epoll_fd_.Add(self, EPOLLIN);
 
-    while (!pool->IsShuttingDown()) {
+    while (!pool.IsShuttingDown()) {
       auto events_count = epoll_fd_.Wait(event, TIMEOUT);
       if (events_count == -1) {
         if (errno != EINTR) {
