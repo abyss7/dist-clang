@@ -19,7 +19,7 @@ if ! test -d "$clang_root"; then
         exit 1
     fi
     base_url=https://commondatastorage.googleapis.com/chromium-browser-clang
-    wget -O- "$base_url/$platform/clang-${clang_revision}.tgz" |
+    curl "$base_url/$platform/clang-${clang_revision}.tgz" |
         tar -C "$clang_root" -xzf -
 fi
 
