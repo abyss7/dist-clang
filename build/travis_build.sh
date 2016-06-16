@@ -10,8 +10,16 @@ clang_revision=268813-1
 clang_root="$root_dir/out/clang-$clang_revision"
 if ! test -d "$clang_root"; then
     mkdir "$clang_root"
+    if [[ "$(uname)" == Linux ]]; then
+        platform=Linux_x64
+    elif [[ "$(uname)" == Darwin ]]; then
+        platform=Mac
+    else
+        echo "unknown clang platform '$(uname)'" 1>&2
+        exit 1
+    fi
     base_url=https://commondatastorage.googleapis.com/chromium-browser-clang
-    wget -O- "$base_url/Linux_x64/clang-${clang_revision}.tgz" |
+    wget -O- "$base_url/$platform/clang-${clang_revision}.tgz" |
         tar -C "$clang_root" -xzf -
 fi
 

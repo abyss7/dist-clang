@@ -1,8 +1,12 @@
-dist: trusty
+os: [linux, osx]
 
 addons:
   apt:
     packages:
       - ninja-build
+
+before_install:
+  - brew update
+  - brew install ninja
 
 script: ./build/travis_build.sh
