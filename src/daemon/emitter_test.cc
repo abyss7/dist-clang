@@ -1524,7 +1524,7 @@ TEST_F(EmitterTest, UpdateConfiguration) {
       << "Daemon must not store references to the connection";
 }
 
-TEST_F(EmitterTest, DISABLED_HitDirectCacheFromTwoLocations) {
+TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
   // Prepare environment.
   const base::TemporaryDir temp_dir1, temp_dir2;
   const auto path = Immutable(String(temp_dir1));

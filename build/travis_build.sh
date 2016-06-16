@@ -14,4 +14,4 @@ build_dir="$(dirname $0)"
 # Use system clang for the build.
 PATH=/usr/bin:$PATH ninja -C "$build_dir/../out/Test.gn" Tests
 
-"$build_dir/run_all_tests"
+"$build_dir/run_all_tests" --test-launcher-bot-mode
