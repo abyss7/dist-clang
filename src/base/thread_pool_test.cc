@@ -9,33 +9,39 @@ TEST(ThreadPoolTest, CompleteAllTasksOnDestruction) {
   Mutex mutex;
   std::condition_variable condition;
   bool ready = false;
-  bool done = false;
+
+  const size_t expected_count = 200;
+  Atomic<size_t> done = {0};
+
   UniquePtr<ThreadPool> pool(new ThreadPool);
 
   UniqueLock lock(mutex);
 
-  auto future = pool->Push([&] {
-    UniqueLock lock(mutex);
-    condition.wait(lock, [&ready] { return ready; });
-    done = true;
-    condition.notify_all();
-  });
+  std::vector<ThreadPool::Optional> futures;
+  for (size_t i = 0; i != expected_count; ++i) {
+    futures.emplace_back(pool->Push([&] {
+      UniqueLock lock(mutex);
+      condition.wait(lock, [&ready] { return ready; });
+      ++done;
+      condition.notify_all();
+    }));
+  }
   pool->Run();
 
-  EXPECT_EQ(1u, pool->TaskCount());
+  EXPECT_EQ(expected_count, pool->TaskCount());
 
-  Thread thread("Test"_l, [&] { pool.reset(); });
-  EXPECT_TRUE(!!future);
-  ready = true;
-  condition.wait_for(lock, std::chrono::seconds(1), [&done] { return done; });
-
-  if (!done) {
-    thread.detach();
-  } else {
-    thread.join();
+  for (size_t i = 0; i != expected_count; ++i) {
+    EXPECT_TRUE(!!futures[i]);
   }
 
-  ASSERT_TRUE(done);
+  Thread thread("Test"_l, [&] { pool.reset(); });
+
+  ready = true;
+  lock.unlock();
+  condition.notify_one();
+
+  thread.join();
+  ASSERT_EQ(expected_count, done);
 }
 
 }  // namespace base
