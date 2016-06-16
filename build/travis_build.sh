@@ -2,7 +2,7 @@
 
 set -ex
 
-root_dir="$(readlink -e $(dirname $0)/..)"
+root_dir="$(cd "$(dirname $0)/.." && pwd -P)"
 
 "$root_dir/build/configure"
 
