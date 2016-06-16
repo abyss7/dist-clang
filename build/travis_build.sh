@@ -2,16 +2,19 @@
 
 set -ex
 
-# Trusty's clang package has no 3.8 version, so make symlinks ourselves.
-for binary in clang clang++ llvm-symbolizer; do
-    sudo ln -s "/usr/bin/${binary}-3.8" "/usr/bin/${binary}"
-done
+root_dir="$(dirname $0)/.."
 
-build_dir="$(dirname $0)"
+"$root_dir/build/configure"
 
-"$build_dir/configure"
+clang_revision=268813-1
+clang_root="$root_dir/out/clang-$clang_revision"
+if ! test -d "$clang_root"; then
+    mkdir "$clang_root"
+    base_url=https://commondatastorage.googleapis.com/chromium-browser-clang
+    wget -O- "$base_url/Linux_x64/clang-${clang_revision}.tgz" |
+        tar -C "$clang_root" -xzf -
+fi
 
-# Use system clang for the build.
-PATH=/usr/bin:$PATH ninja -C "$build_dir/../out/Test.gn" Tests
+PATH=$clang_root/bin:$PATH ninja -C "$root_dir/out/Test.gn" Tests
 
-"$build_dir/run_all_tests" --test-launcher-bot-mode
+"$root_dir/build/run_all_tests" --test-launcher-bot-mode
