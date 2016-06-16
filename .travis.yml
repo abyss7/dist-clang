@@ -6,7 +6,7 @@ addons:
       - ninja-build
 
 before_install:
-  - brew update
-  - brew install ninja
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update       ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install ninja; fi
 
 script: ./build/travis_build.sh
