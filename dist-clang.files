@@ -2254,6 +2254,7 @@ src/base/thread_pool_test.cc
 src/base/using_log.h
 src/base/worker_pool.cc
 src/base/worker_pool.h
+src/base/worker_pool_test.cc
 src/cache/BUILD.gn
 src/cache/database.h
 src/cache/database_leveldb.cc
