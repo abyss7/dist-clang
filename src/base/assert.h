@@ -15,24 +15,24 @@ void GetStackTrace(ui8 depth, Vector<String>& strings);
 // In tests it's better to throw unhandled exception - not to crash the whole
 // binary, but catch the failure.
 #if __has_feature(cxx_exceptions)
-#define CHECK(expr)                                                  \
-  if (!(expr))                                                       \
-  [] {                                                               \
-    using namespace dist_clang::base;                                \
-    std::stringstream ss;                                            \
-    Vector<String> strings;                                          \
-    GetStackTrace(62, strings);                                      \
-    ss << "Assertion failed: " << #expr << std::endl;                \
-    for (size_t i = 1; i < strings.size(); ++i) {                    \
-      ss << "  " << strings[i] << std::endl;                         \
-    }                                                                \
-    if (!std::uncaught_exception()) {                                \
-      throw std::runtime_error(ss.str());                            \
-    } else {                                                         \
-      std::cerr << "Exception is not thrown - are we in destructor?" \
-                << std::endl;                                        \
-    }                                                                \
-    return Log(named_levels::ASSERT);                                \
+#define CHECK(expr)                                                          \
+  if (!(expr))                                                               \
+  [] {                                                                       \
+    using namespace dist_clang::base;                                        \
+    std::stringstream ss;                                                    \
+    Vector<String> strings;                                                  \
+    GetStackTrace(62, strings);                                              \
+    ss << "Assertion failed: " << #expr << std::endl;                        \
+    for (size_t i = 1; i < strings.size(); ++i) {                            \
+      ss << "  " << strings[i] << std::endl;                                 \
+    }                                                                        \
+    if (!std::uncaught_exception()) {                                        \
+      throw std::runtime_error(ss.str());                                    \
+    } else {                                                                 \
+      Log log(named_levels::ASSERT);                                         \
+      log << "Exception is not thrown - are we in destructor?" << std::endl; \
+      return log;                                                            \
+    }                                                                        \
   }()
 #else  // !__has_feature(cxx_exceptions)
 #define CHECK(expr)                                    \
