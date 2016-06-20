@@ -45,8 +45,6 @@ class File final : public Data {
                    String* error = nullptr);
   static bool Delete(const String& path, String* error = nullptr);
 
-  static String TmpUniqFile();
-
  private:
   File(const String& path, ui64 size);  // Open truncated write-only file
   bool Close(String* error = nullptr);
