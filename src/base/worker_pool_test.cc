@@ -25,6 +25,7 @@ TEST(WorkerPoolTest, InstantExitOnShutdown) {
 
   Thread thread("Test"_l, [&] { pool.reset(); });
   ready = true;
+  condition.notify_one();
   condition.wait_for(lock, std::chrono::seconds(1), [&done] { return done; });
   ASSERT_TRUE(done);
 
@@ -52,6 +53,7 @@ TEST(WorkerPoolTest, DoesNotForciblyExitOnShutdown) {
 
   Thread thread("Test"_l, [&] { pool.reset(); });
   ready = true;
+  condition.notify_one();
   condition.wait_for(lock, std::chrono::seconds(2), [&done] { return done; });
   ASSERT_TRUE(done);
   ASSERT_LE(std::chrono::seconds(1), Clock::now() - start);
