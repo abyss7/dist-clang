@@ -8,7 +8,7 @@ namespace base {
 TEST(ThreadPoolTest, CompleteAllTasksOnDestruction) {
   Mutex mutex;
   std::condition_variable condition;
-  bool ready = false;
+  Atomic<bool> ready(false);
 
   const size_t expected_count = 200;
   Atomic<size_t> done = {0};
@@ -21,7 +21,7 @@ TEST(ThreadPoolTest, CompleteAllTasksOnDestruction) {
   for (size_t i = 0; i != expected_count; ++i) {
     futures.emplace_back(pool->Push([&] {
       UniqueLock lock(mutex);
-      condition.wait(lock, [&ready] { return ready; });
+      condition.wait(lock, [&ready] () -> bool { return ready; });
       ++done;
       condition.notify_all();
     }));
