@@ -17,7 +17,7 @@ TEST(ThreadPoolTest, CompleteAllTasksOnDestruction) {
 
   UniqueLock lock(mutex);
 
-  std::vector<ThreadPool::Optional> futures;
+  Vector<ThreadPool::Optional> futures;
   for (size_t i = 0; i != expected_count; ++i) {
     futures.emplace_back(pool->Push([&] {
       UniqueLock lock(mutex);
