@@ -9,15 +9,15 @@ namespace base {
 TEST(WorkerPoolTest, InstantExitOnShutdown) {
   Mutex mutex;
   std::condition_variable condition;
-  bool ready = false;
-  bool done = false;
+  Atomic<bool> ready(false);
+  Atomic<bool> done(false);
   UniquePtr<WorkerPool> pool(new WorkerPool(true));
 
   UniqueLock lock(mutex);
 
   pool->AddWorker("TestWorker"_l, [&] (const WorkerPool& pool) {
     UniqueLock lock(mutex);
-    condition.wait(lock, [&ready] { return ready; });
+    condition.wait(lock, [&ready] () -> bool { return ready; });
     EXPECT_TRUE(pool.WaitUntilShutdown(std::chrono::seconds(5)));
     done = true;
     condition.notify_one();
@@ -26,7 +26,8 @@ TEST(WorkerPoolTest, InstantExitOnShutdown) {
   Thread thread("Test"_l, [&] { pool.reset(); });
   ready = true;
   condition.notify_one();
-  condition.wait_for(lock, std::chrono::seconds(1), [&done] { return done; });
+  condition.wait_for(lock, std::chrono::seconds(1),
+                     [&done] () -> bool { return done; });
   ASSERT_TRUE(done);
 
   thread.join();
@@ -35,8 +36,8 @@ TEST(WorkerPoolTest, InstantExitOnShutdown) {
 TEST(WorkerPoolTest, DoesNotForciblyExitOnShutdown) {
   Mutex mutex;
   std::condition_variable condition;
-  bool ready = false;
-  bool done = false;
+  Atomic<bool> ready(false);
+  Atomic<bool> done(false);
   UniquePtr<WorkerPool> pool(new WorkerPool);
 
   UniqueLock lock(mutex);
@@ -45,7 +46,7 @@ TEST(WorkerPoolTest, DoesNotForciblyExitOnShutdown) {
 
   pool->AddWorker("TestWorker"_l, [&] (const WorkerPool& pool) {
     UniqueLock lock(mutex);
-    condition.wait(lock, [&ready] { return ready; });
+    condition.wait(lock, [&ready] () -> bool { return ready; });
     EXPECT_FALSE(pool.WaitUntilShutdown(std::chrono::seconds(1)));
     done = true;
     condition.notify_one();
@@ -54,7 +55,8 @@ TEST(WorkerPoolTest, DoesNotForciblyExitOnShutdown) {
   Thread thread("Test"_l, [&] { pool.reset(); });
   ready = true;
   condition.notify_one();
-  condition.wait_for(lock, std::chrono::seconds(2), [&done] { return done; });
+  condition.wait_for(lock, std::chrono::seconds(2),
+                     [&done] () -> bool { return done; });
   ASSERT_TRUE(done);
   ASSERT_LE(std::chrono::seconds(1), Clock::now() - start);
 
