@@ -99,9 +99,8 @@ bool FileCache::Run(ui64 clean_period) {
   new_entries_.reset(new EntryList, new_entries_deleter_);
 
   base::WorkerPool::SimpleWorker worker = [this, clean_period](
-      const Atomic<bool>& is_shutting_down) {
-    while (!is_shutting_down) {
-      std::this_thread::sleep_for(std::chrono::seconds(clean_period));
+      const base::WorkerPool& pool) {
+    while (!pool.WaitUntilShutdown(std::chrono::seconds(clean_period))) {
       new_entries_.reset(new EntryList, new_entries_deleter_);
     }
   };

@@ -31,13 +31,13 @@ bool KqueueEventLoop::ReadyForSend(ConnectionImplPtr connection) {
   return ReadyFor(connection, EVFILT_WRITE);
 }
 
-void KqueueEventLoop::DoListenWork(const Atomic<bool>& is_shutting_down,
+void KqueueEventLoop::DoListenWork(const base::WorkerPool& pool,
                                    base::Data& self) {
   std::array<struct kevent, 64> events;
 
   listen_.Add(self, EVFILT_READ);
 
-  while (!is_shutting_down) {
+  while (!pool.IsShuttingDown()) {
     auto events_count = listen_.Wait(events, base::Kqueue::UNLIMITED);
     if (events_count == -1 && errno != EINTR) {
       break;
@@ -66,13 +66,12 @@ void KqueueEventLoop::DoListenWork(const Atomic<bool>& is_shutting_down,
   }
 }
 
-void KqueueEventLoop::DoIOWork(const Atomic<bool>& is_shutting_down,
-                               base::Data& self) {
+void KqueueEventLoop::DoIOWork(const base::WorkerPool& pool, base::Data& self) {
   io_.Add(self, EVFILT_READ);
 
   std::array<struct kevent, 1> event;
 
-  while (!is_shutting_down) {
+  while (!pool.IsShuttingDown()) {
     auto events_count = io_.Wait(event, base::Kqueue::UNLIMITED);
     if (events_count == -1) {
       if (errno != EINTR) {

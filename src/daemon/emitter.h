@@ -31,10 +31,9 @@ class Emitter : public CompilationDaemon {
   bool HandleNewMessage(net::ConnectionPtr connection, Universal message,
                         const net::proto::Status& status) override;
 
-  void DoCheckCache(const Atomic<bool>& is_shutting_down);
-  void DoLocalExecute(const Atomic<bool>& is_shutting_down);
-  void DoRemoteExecute(const Atomic<bool>& is_shutting_down,
-                       ResolveFn resolver);
+  void DoCheckCache(const base::WorkerPool&);
+  void DoLocalExecute(const base::WorkerPool&);
+  void DoRemoteExecute(const base::WorkerPool&, ResolveFn resolver);
 
   UniquePtr<Queue> all_tasks_, cache_tasks_, failed_tasks_;
   UniquePtr<QueueAggregator> local_tasks_;

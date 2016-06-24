@@ -6,6 +6,9 @@
 namespace dist_clang {
 namespace base {
 
+const std::chrono::seconds WorkerPool::ZERO_DURATION
+    = std::chrono::seconds::zero();
+
 WorkerPool::WorkerPool(bool force_shut_down)
     : is_shutting_down_(false), force_shut_down_(force_shut_down) {
   // TODO: check somehow for error in the |pipe()| call.
@@ -14,6 +17,7 @@ WorkerPool::WorkerPool(bool force_shut_down)
 WorkerPool::~WorkerPool() {
   if (force_shut_down_) {
     is_shutting_down_ = true;
+    shutdown_condition_.notify_all();
     self_[1].Close();
   }
   for (auto& thread : workers_) {
@@ -22,12 +26,13 @@ WorkerPool::~WorkerPool() {
   }
   if (!force_shut_down_) {
     is_shutting_down_ = true;
+    shutdown_condition_.notify_all();
   }
 }
 
 void WorkerPool::AddWorker(Literal name, const NetWorker& worker, ui32 count) {
   CHECK(count);
-  auto closure = [this, worker] { worker(is_shutting_down_, self_[0]); };
+  auto closure = [this, worker] { worker(*this, self_[0]); };
   for (ui32 i = 0; i < count; ++i) {
     workers_.emplace_back(name, closure);
   }
@@ -36,10 +41,24 @@ void WorkerPool::AddWorker(Literal name, const NetWorker& worker, ui32 count) {
 void WorkerPool::AddWorker(Literal name, const SimpleWorker& worker,
                            ui32 count) {
   CHECK(count);
-  auto closure = [this, worker] { worker(is_shutting_down_); };
+  auto closure = [this, worker] { worker(*this); };
   for (ui32 i = 0; i < count; ++i) {
     workers_.emplace_back(name, closure);
   }
+}
+
+bool WorkerPool::WaitUntilShutdown(const std::chrono::seconds& duration) const {
+  if (is_shutting_down_) {
+    return true;
+  }
+
+  if (duration == ZERO_DURATION) {
+    return is_shutting_down_;
+  }
+
+  UniqueLock lock(shutdown_mutex_);
+  return shutdown_condition_.wait_for(
+      lock, duration, [this]() -> bool { return is_shutting_down_; });
 }
 
 }  // namespace base
