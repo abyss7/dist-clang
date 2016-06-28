@@ -1,14 +1,28 @@
 #include <daemon/absorber.h>
 
 #include <base/file_utils.h>
+#include <base/file/file.h>
 #include <base/logging.h>
 #include <base/process.h>
 #include <base/protobuf_utils.h>
+#include <base/temporary_dir.h>
 #include <net/connection.h>
 
 #include <base/using_log.h>
 
 using namespace std::placeholders;
+
+namespace {
+  std::vector<dist_clang::cache::string::HandledSource> GetAdditionalSources(const dist_clang::daemon::proto::Remote& remote) {
+    std::vector<dist_clang::cache::string::HandledSource> result;
+
+    if (remote.has_sanitize_blacklist_content()) {
+      result.push_back(dist_clang::cache::string::HandledSource(remote.sanitize_blacklist_content()));
+    }
+
+    return result;
+  }
+}
 
 namespace dist_clang {
 namespace daemon {
@@ -114,8 +128,10 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
       }
     }
 
+    auto additional_sources = GetAdditionalSources(*incoming);
+
     cache::FileCache::Entry entry;
-    if (SearchSimpleCache(incoming->flags(), HandledSource(source), &entry)) {
+    if (SearchSimpleCache(incoming->flags(), HandledSource(source), &entry, additional_sources)) {
       Universal outgoing(new net::proto::Universal);
       auto* result = outgoing->MutableExtension(proto::Result::extension);
       result->set_obj(entry.object);
@@ -137,35 +153,57 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
 
     Universal outgoing(new net::proto::Universal);
 
+    std::unique_ptr<base::TemporaryDir> temp_dir;
+
+    status.set_code(net::proto::Status::OK);
+
+    if (incoming->has_sanitize_blacklist_content() && incoming->flags().has_sanitize_blacklist()) {
+      temp_dir.reset(new base::TemporaryDir());
+
+      String sanitize_blacklist_file = temp_dir->GetPath() + '/' + "sanitize.blacklist";
+      if (!base::File::Write(
+            sanitize_blacklist_file,
+            Immutable(incoming->sanitize_blacklist_content())
+              ))
+      {
+        status.set_code(net::proto::Status::EXECUTION);
+        status.set_description("Can't write sanitize blacklist file to " +
+                               sanitize_blacklist_file);
+      } else {
+        incoming->mutable_flags()->set_sanitize_blacklist(sanitize_blacklist_file);
+      }
+    }
+
     // Pipe the input file to the compiler and read output file from the
     // compiler's stdout.
     String error;
     base::ProcessPtr process = CreateProcess(incoming->flags());
-    if (!process->Run(conf()->absorber().run_timeout(), source, &error)) {
-      status.set_code(net::proto::Status::EXECUTION);
-      if (!process->stdout().empty() || !process->stderr().empty()) {
-        status.set_description(process->stderr());
-        LOG(WARNING) << "Compilation failed with error:" << std::endl
+    if (status.code() == net::proto::Status::OK) {
+      if (!process->Run(conf()->absorber().run_timeout(), source, &error)) {
+        status.set_code(net::proto::Status::EXECUTION);
+        if (!process->stdout().empty() || !process->stderr().empty()) {
+          status.set_description(process->stderr());
+          LOG(WARNING) << "Compilation failed with error:" << std::endl
                      << process->stderr() << std::endl
                      << process->stdout();
-      } else if (!error.empty()) {
-        status.set_description(error);
-        LOG(WARNING) << "Compilation failed with error: " << error;
-      } else {
-        status.set_description("without errors");
-        LOG(WARNING) << "Compilation failed without errors";
-      }
+        } else if (!error.empty()) {
+          status.set_description(error);
+          LOG(WARNING) << "Compilation failed with error: " << error;
+        } else {
+          status.set_description("without errors");
+          LOG(WARNING) << "Compilation failed without errors";
+        }
 
-      // We lose atomicity, but the WARNING level will be less verbose.
-      LOG(VERBOSE) << static_cast<const google::protobuf::Message&>(
+        // We lose atomicity, but the WARNING level will be less verbose.
+        LOG(VERBOSE) << static_cast<const google::protobuf::Message&>(
           incoming->flags());
-    } else {
-      status.set_code(net::proto::Status::OK);
-      status.set_description(process->stderr());
-      LOG(INFO) << "External compilation successful";
+      } else {
+        status.set_description(process->stderr());
+        LOG(INFO) << "External compilation successful";
 
-      const auto& result = proto::Result::extension;
-      outgoing->MutableExtension(result)->set_obj(process->stdout());
+        const auto& result = proto::Result::extension;
+        outgoing->MutableExtension(result)->set_obj(process->stdout());
+      }
     }
 
     outgoing->MutableExtension(net::proto::Status::extension)->CopyFrom(status);
@@ -176,7 +214,7 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
       entry.object = process->stdout();
       entry.stderr = Immutable(status.description());
 
-      UpdateSimpleCache(incoming->flags(), HandledSource(source), entry);
+      UpdateSimpleCache(incoming->flags(), HandledSource(source), entry, additional_sources);
     }
 
     task->first->SendAsync(std::move(outgoing));

@@ -47,6 +47,9 @@ message Flags {
   // Preprocessing = All - output - cc_only
   // Cache = other + language + cc_only
   // Direct = other + language + non_cached + cc_only
+
+  optional string sanitize_blacklist = 11;
+  // asan blacklist file
 }
 
 // Sent from client to emitter.

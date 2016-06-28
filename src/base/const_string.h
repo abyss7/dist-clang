@@ -85,7 +85,7 @@ class ConstString {
     return !this->operator==(other);
   }
 
-  ConstString Hash(ui8 output_size = 16);  // 0-copy
+  ConstString Hash(ui8 output_size = 16) const;  // 0-copy
 
  private:
   struct Internal {

@@ -7,6 +7,7 @@ package dist_clang.daemon.proto;
 message Remote {
   optional base.proto.Flags flags = 1;
   optional string source          = 2;
+  optional string sanitize_blacklist_content  = 3;
 
   extend net.proto.Universal {
     optional Remote extension = 6;
