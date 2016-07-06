@@ -20,13 +20,15 @@ namespace client {
 bool DoMain(int argc, const char* const argv[], Immutable socket_path,
             Immutable clang_path, Immutable version, ui32 read_timeout_secs,
             ui32 send_timeout_secs, ui32 read_min_bytes,
-            const HashMap<String, String>& plugins, bool disabled) {
+            const HashMap<String, String>& plugins, bool disabled,
+            ui32 connect_timeout_secs) {
   if (clang_path.empty() || disabled) {
     return true;
   }
 
-  auto service = net::NetworkService::Create(read_timeout_secs,
-                                             send_timeout_secs, read_min_bytes);
+  auto service = net::NetworkService::Create(
+      read_timeout_secs, send_timeout_secs, read_min_bytes,
+      connect_timeout_secs);
   auto end_point = net::EndPoint::UnixSocket(socket_path);
 
   String error;

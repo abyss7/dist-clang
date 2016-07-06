@@ -78,4 +78,7 @@ message Configuration {
 
   optional uint32 read_minimum  = 12 [ default = 32 ];
   // in bytes.
+
+  optional uint32 connect_timeout = 13 [ default = 10 ];
+  // in seconds.
 }

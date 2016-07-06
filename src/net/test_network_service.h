@@ -39,7 +39,8 @@ class TestNetworkService : public NetworkService {
 
     UniquePtr<NetworkService> Create(ui32 read_timeout_secs,
                                      ui32 send_timeout_secs,
-                                     ui32 read_min_bytes) override;
+                                     ui32 read_min_bytes,
+                                     ui32 connect_timeout_secs) override;
 
     inline void CallOnCreate(OnCreateCallback callback) {
       on_create_ = callback;

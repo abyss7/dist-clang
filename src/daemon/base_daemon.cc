@@ -17,7 +17,7 @@ BaseDaemon::BaseDaemon(const proto::Configuration& configuration)
     : resolver_(net::EndPointResolver::Create()),
       network_service_(net::NetworkService::Create(
           configuration.read_timeout(), configuration.send_timeout(),
-          configuration.read_minimum())) {
+          configuration.read_minimum(), configuration.connect_timeout())) {
 }
 
 BaseDaemon::~BaseDaemon() {
