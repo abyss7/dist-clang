@@ -25,26 +25,6 @@ NetworkServiceImpl::NetworkServiceImpl(ui32 read_timeout_secs,
 
 NetworkServiceImpl::ConnectedStatus
 NetworkServiceImpl::WaitForConnection(const base::Handle& fd, String* error) {
-
-#if 0
-  fd_set wfds;
-  FD_ZERO(&wfds);
-  FD_SET(fd.native(), &wfds);
-
-  struct timeval tv;
-  tv.tv_sec = connect_timeout_secs_;
-  tv.tv_usec = 0;
-
-  int retval = select(fd.native()+1, nullptr, &wfds, nullptr, &tv);
-  if (retval == -1) {
-    base::GetLastError(error);
-    return ConnectedStatus::FAILED;
-  }
-
-  DCHECK(retval < 2);
-  return retval == 1 ? ConnectedStatus::CONNECTED : ConnectedStatus::TIMED_OUT;
-#endif
-
   base::Epoll waiter;
   if (!waiter.IsValid()) {
     waiter.GetCreationError(error);
@@ -56,7 +36,8 @@ NetworkServiceImpl::WaitForConnection(const base::Handle& fd, String* error) {
   }
 
   std::array<struct epoll_event, 1> event;
-  auto events_count = waiter.Wait(event, connect_timeout_secs_ * 1000);
+  int timeout = connect_timeout_secs_ ? connect_timeout_secs_ * 1000 : -1;
+  auto events_count = waiter.Wait(event, timeout);
   // TODO: handle EINTR?
   if (events_count == -1) {
     base::GetLastError(error);
