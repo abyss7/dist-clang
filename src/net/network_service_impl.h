@@ -24,12 +24,21 @@ class NetworkServiceImpl : public NetworkService {
                                 String* error) THREAD_SAFE override;
 
  private:
+  enum class ConnectedStatus {
+    CONNECTED,
+    TIMED_OUT,
+    FAILED
+  };
+
   friend class DefaultFactory;
 
   NetworkServiceImpl(ui32 read_timeout_secs, ui32 send_timeout_secs,
                      ui32 read_min_bytes, ui32 connect_timeout_secs);
 
   void HandleNewConnection(const Passive& fd, ConnectionPtr connection);
+
+  ConnectedStatus WaitForConnection(const base::Handle& fd,
+                                    String* error) THREAD_SAFE;
 
   UniquePtr<EventLoop> event_loop_;
 

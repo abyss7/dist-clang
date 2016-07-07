@@ -3,6 +3,7 @@
 #include <base/c_utils.h>
 #include <net/end_point.h>
 
+#include <errno.h>
 #include <sys/socket.h>
 
 namespace dist_clang {
@@ -28,6 +29,37 @@ bool Socket::Connect(EndPointPtr peer, String* error) {
   }
 
   return true;
+}
+
+Socket::ConnectionStatus Socket::StartConnecting(EndPointPtr peer,
+                                                 String* error) {
+  if (connect(native(), *peer, peer->size()) == -1) {
+    if (errno == EINPROGRESS) {
+      return Socket::ConnectionStatus::CONNECTING;
+    } else {
+      base::GetLastError(error);
+      return Socket::ConnectionStatus::FAILED;
+    }
+  }
+  return Socket::ConnectionStatus::CONNECTED;
+}
+
+bool Socket::GetPendingError(String* error_str) {
+  int error = 0;
+  socklen_t optlen = sizeof(error);
+  if (getsockopt(native(), SOL_SOCKET, SO_ERROR, &error, &optlen) == -1) {
+    base::GetLastError(error_str);
+    return true;
+  }
+  DCHECK(optlen == sizeof(error));
+
+  if (error) {
+    errno = error;
+    base::GetLastError(error_str);
+    return true;
+  }
+
+  return false;
 }
 
 bool Socket::ReuseAddress(String* error) {
