@@ -27,6 +27,7 @@ executable("unit_tests") {
     "//src/daemon/common_daemon_test.h",
     "//src/daemon/compilation_daemon_test.cc",
     "//src/daemon/emitter_test.cc",
+    "//src/net/end_point_test.cc",
     "//src/net/event_loop_linux_test.cc",
     "//src/net/event_loop_mac_test.cc",
     "//src/net/test_connection.cc",
