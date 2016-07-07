@@ -3,8 +3,6 @@
 #include <base/c_utils.h>
 #include <net/event_loop_linux.h>
 
-#include <sys/select.h>
-
 using namespace std::placeholders;
 
 namespace dist_clang {
