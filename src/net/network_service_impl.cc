@@ -124,12 +124,16 @@ ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point,
 
   DCHECK(!fd.IsBlocking());
 
-  if (!fd.CloseOnExec(error) ||
-      !fd.SendTimeout(send_timeout_secs_, error) ||
-      !fd.ReadTimeout(read_timeout_secs_, error) ||
-      !fd.ReadLowWatermark(read_min_bytes_, error)) {
-    return ConnectionPtr();
-  }
+  auto finish_connection = [this, &fd, &error, &end_point] () -> ConnectionPtr {
+    if (!fd.MakeBlocking(true, error) ||
+        !fd.CloseOnExec(error) ||
+        !fd.SendTimeout(send_timeout_secs_, error) ||
+        !fd.ReadTimeout(read_timeout_secs_, error) ||
+        !fd.ReadLowWatermark(read_min_bytes_, error)) {
+      return ConnectionPtr();
+    }
+    return ConnectionImpl::Create(*event_loop_, std::move(fd), end_point);
+  };
 
   Socket::ConnectionStatus status = fd.StartConnecting(end_point, error);
   switch (status) {
@@ -137,9 +141,7 @@ ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point,
       switch (WaitForConnection(fd, error)) {
         case ConnectedStatus::CONNECTED:
           if (!fd.GetPendingError(error)) {
-            fd.MakeBlocking(true);
-            return ConnectionImpl::Create(*event_loop_, std::move(fd),
-                                          end_point);
+            return finish_connection();
           }
           break;
         case ConnectedStatus::FAILED:
@@ -152,8 +154,7 @@ ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point,
       }
       break;
     case Socket::ConnectionStatus::CONNECTED:
-      fd.MakeBlocking(true);
-      return ConnectionImpl::Create(*event_loop_, std::move(fd), end_point);
+      return finish_connection();
     case Socket::ConnectionStatus::FAILED:
       break;
   }

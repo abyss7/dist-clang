@@ -34,7 +34,7 @@ NetworkServiceImpl::WaitForConnection(const base::Handle& fd, String* error) {
   }
 
   std::array<struct kevent, 1> event;
-  auto events_count = waiter.Wait(event, connect_timeout_secs_ * 1000);
+  auto events_count = waiter.Wait(event, connect_timeout_secs_);
   // TODO: handle EINTR?
   if (events_count == -1) {
     base::GetLastError(error);

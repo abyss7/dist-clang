@@ -19,7 +19,7 @@ class NetworkServiceTest : public ::testing::Test {
 };
 
 TEST_F(NetworkServiceTest, ConnectTimedOut) {
-  auto service = net::NetworkService::Create(0, 0, 0, 1);
+  auto service = net::NetworkService::Create(0, 0, 1, 1);
   EndPointPtr unreachable = EndPoint::TcpHost("example.com", 12345, false);
 
   auto start = Clock::now();
@@ -30,7 +30,7 @@ TEST_F(NetworkServiceTest, ConnectTimedOut) {
 }
 
 TEST_F(NetworkServiceTest, ConnectSucceeded) {
-  auto service = net::NetworkService::Create(0, 0, 0, 1);
+  auto service = net::NetworkService::Create(0, 0, 1, 1);
   EndPointPtr listen = EndPoint::TcpHost("localhost", 0, false);
 
   Socket socket(listen);
