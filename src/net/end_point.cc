@@ -110,9 +110,11 @@ EndPointPtr EndPoint::UnixSocket(const String& path) {
 // static
 EndPointPtr EndPoint::FromPassive(const Passive& socket, String* error) {
   EndPointPtr end_point(new EndPoint);
+  end_point->size_ = sizeof(end_point->address_);
   if (getsockname(socket.native(),
                   reinterpret_cast<struct sockaddr*>(&end_point->address_),
                   &end_point->size_) == -1) {
+    CHECK(end_point->size_ >= sizeof(end_point->address_));
     base::GetLastError(error);
     return EndPointPtr();
   }

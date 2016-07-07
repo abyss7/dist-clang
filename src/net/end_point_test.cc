@@ -27,13 +27,13 @@ TEST(EndPointTest, Inet6) {
 }
 
 TEST(EndPointTest, FromPassive) {
-  EndPointPtr expected = EndPoint::LocalHost("localhost", 0, false);
+  EndPointPtr expected = EndPoint::LocalHost("ya.ru", 12345, false);
   Socket socket(expected);
   socket.MakeBlocking(false);
   socket.Bind(expected);
   Passive listener(std::move(socket));
   EndPointPtr actual = EndPoint::FromPassive(listener);
-  ASSERT_EQ("127.0.0.1", expected->Address());
+  ASSERT_EQ("127.0.0.1", actual->Address());
   ASSERT_GT(1024, expected->Port());
 }
 
