@@ -143,15 +143,12 @@ CompilationDaemon::CompilationDaemon(const proto::Configuration& configuration)
   }
 }
 
-HandledHash
-CompilationDaemon::GenerateHash(
-  const base::proto::Flags& flags,
-  const HandledSource& code,
-  const std::vector<HandledSource>& additional_sources) const
-{
+HandledHash CompilationDaemon::GenerateHash(
+    const base::proto::Flags& flags, const HandledSource& code,
+    const std::vector<HandledSource>& additional_sources) const {
   const Version version(flags.compiler().version());
-  return cache::FileCache::Hash(code, CommandLineForSimpleCache(flags),
-                                version, additional_sources);
+  return cache::FileCache::Hash(code, CommandLineForSimpleCache(flags), version,
+                                additional_sources);
 }
 
 bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
@@ -184,8 +181,8 @@ bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
     }
   }
 
-  auto getPluginsByCompilerVersion = [&config](String version,
-                                               PluginNameMap& plugin_map) {
+  auto getPluginsByCompilerVersion =
+      [&config](String version, PluginNameMap& plugin_map) {
     for (const auto& conf_version : config->versions()) {
       if (conf_version.version() == version) {
         const auto& conf_plugins = conf_version.plugins();
@@ -216,13 +213,10 @@ bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
   return true;
 }
 
-bool
-CompilationDaemon::SearchSimpleCache(
-  const base::proto::Flags& flags,
-  const HandledSource& source,
-  cache::FileCache::Entry* entry,
-  const std::vector<cache::string::HandledSource>& additional_sources) const
-{
+bool CompilationDaemon::SearchSimpleCache(
+    const base::proto::Flags& flags, const HandledSource& source,
+    cache::FileCache::Entry* entry,
+    const std::vector<cache::string::HandledSource>& additional_sources) const {
   if (!cache_) {
     return false;
   }
@@ -238,13 +232,11 @@ CompilationDaemon::SearchSimpleCache(
   return true;
 }
 
-bool
-CompilationDaemon::SearchDirectCache(
-  const base::proto::Flags& flags,
-  const String& current_dir,
-  cache::FileCache::Entry* entry,
-  const std::vector<cache::string::UnhandledSource>& additional_sources) const
-{
+bool CompilationDaemon::SearchDirectCache(
+    const base::proto::Flags& flags, const String& current_dir,
+    cache::FileCache::Entry* entry,
+    const std::vector<cache::string::UnhandledSource>& additional_sources)
+    const {
   auto config = conf();
   DCHECK(config->has_emitter() && !config->has_absorber());
   DCHECK(flags.has_input());
@@ -264,7 +256,8 @@ CompilationDaemon::SearchDirectCache(
     return false;
   }
 
-  if (!cache_->Find(code, command_line, version, current_dir, entry, additional_sources)) {
+  if (!cache_->Find(code, command_line, version, current_dir, entry,
+                    additional_sources)) {
     LOG(CACHE_INFO) << "Direct cache miss: " << flags.input();
     return false;
   }
@@ -272,13 +265,10 @@ CompilationDaemon::SearchDirectCache(
   return true;
 }
 
-void
-CompilationDaemon::UpdateSimpleCache(
-  const base::proto::Flags& flags,
-  const HandledSource& source,
-  const cache::FileCache::Entry& entry,
-  const std::vector<cache::string::HandledSource>& additional_sources)
-{
+void CompilationDaemon::UpdateSimpleCache(
+    const base::proto::Flags& flags, const HandledSource& source,
+    const cache::FileCache::Entry& entry,
+    const std::vector<cache::string::HandledSource>& additional_sources) {
   const Version version(flags.compiler().version());
   const auto command_line = CommandLineForSimpleCache(flags);
 
@@ -290,11 +280,9 @@ CompilationDaemon::UpdateSimpleCache(
 }
 
 void CompilationDaemon::UpdateDirectCache(
-  const base::proto::Local* message,
-  const HandledSource& source,
-  const cache::FileCache::Entry& entry,
-  const std::vector<cache::string::HandledSource>& additional_sources)
-{
+    const base::proto::Local* message, const HandledSource& source,
+    const cache::FileCache::Entry& entry,
+    const std::vector<cache::string::HandledSource>& additional_sources) {
   const auto& flags = message->flags();
   auto config = conf();
   DCHECK(config->has_emitter() && !config->has_absorber());
@@ -311,8 +299,8 @@ void CompilationDaemon::UpdateDirectCache(
   }
 
   const Version version(flags.compiler().version());
-  const auto hash =
-    cache_->Hash(source, CommandLineForSimpleCache(flags), version, additional_sources);
+  const auto hash = cache_->Hash(source, CommandLineForSimpleCache(flags),
+                                 version, additional_sources);
   const auto command_line = CommandLineForDirectCache(flags);
   const String input_path = flags.input()[0] != '/'
                                 ? message->current_dir() + "/" + flags.input()
@@ -322,15 +310,12 @@ void CompilationDaemon::UpdateDirectCache(
 
   if (ParseDeps(entry.deps, headers) &&
       base::File::Read(input_path, &original_code.str)) {
-
     std::vector<UnhandledSource> unhandled_additionals;
-    std::transform(
-        std::begin(additional_sources),
-        std::end(additional_sources),
-        std::back_inserter(unhandled_additionals),
-        [] (const HandledSource& hs) -> UnhandledSource {
-            return UnhandledSource(hs.str.string_copy());
-        });
+    std::transform(std::begin(additional_sources), std::end(additional_sources),
+                   std::back_inserter(unhandled_additionals),
+                   [](const HandledSource& hs) -> UnhandledSource {
+      return UnhandledSource(hs.str.string_copy());
+    });
     cache_->Store(original_code, command_line, version, headers,
                   message->current_dir(), hash, unhandled_additionals);
   } else {

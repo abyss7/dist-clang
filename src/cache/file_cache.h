@@ -99,44 +99,31 @@ class FileCache {
   // |clean_period| is in seconds.
 
   static string::HandledHash Hash(
-    string::HandledSource code,
-    string::CommandLine command_line,
-    string::Version version,
-    const std::vector<string::HandledSource>& additional_sources);
+      string::HandledSource code, string::CommandLine command_line,
+      string::Version version,
+      const std::vector<string::HandledSource>& additional_sources);
 
   static string::UnhandledHash Hash(
-    string::UnhandledSource code,
-    string::CommandLine command_line,
-    string::Version version,
-    const std::vector<string::UnhandledSource>& additional_sources);
+      string::UnhandledSource code, string::CommandLine command_line,
+      string::Version version,
+      const std::vector<string::UnhandledSource>& additional_sources);
+
+  bool Find(string::HandledSource code, string::CommandLine command_line,
+            string::Version version, Entry* entry,
+            const std::vector<string::HandledSource>& additional_sources) const;
 
   bool Find(
-    string::HandledSource code,
-    string::CommandLine command_line,
-    string::Version version,
-    Entry* entry,
-    const std::vector<string::HandledSource>& additional_sources) const;
+      string::UnhandledSource code, string::CommandLine command_line,
+      string::Version version, const String& current_dir, Entry* entry,
+      const std::vector<string::UnhandledSource>& additional_sources) const;
 
-  bool Find(
-    string::UnhandledSource code,
-    string::CommandLine command_line,
-    string::Version version,
-    const String& current_dir,
-    Entry* entry,
-    const std::vector<string::UnhandledSource>& additional_sources) const;
-
-  void Store(string::UnhandledSource code,
-             string::CommandLine command_line,
-             string::Version version,
-             const List<String>& headers,
-             const String& current_dir,
-             string::HandledHash hash,
+  void Store(string::UnhandledSource code, string::CommandLine command_line,
+             string::Version version, const List<String>& headers,
+             const String& current_dir, string::HandledHash hash,
              const std::vector<string::UnhandledSource>& additional_sources);
 
-  void Store(string::HandledSource code,
-             string::CommandLine command_line,
-             string::Version version,
-             const Entry& entry,
+  void Store(string::HandledSource code, string::CommandLine command_line,
+             string::Version version, const Entry& entry,
              const std::vector<string::HandledSource>& additional_sources);
 
  private:

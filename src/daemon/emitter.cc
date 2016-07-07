@@ -17,11 +17,8 @@ namespace dist_clang {
 
 namespace {
 
-static
-std::vector<std::string>
-GetAdditionalSourceFiles(
-  base::proto::Local* message)
-{
+static std::vector<std::string> GetAdditionalSourceFiles(
+    base::proto::Local* message) {
   std::vector<std::string> files;
   if (message->flags().has_sanitize_blacklist()) {
     auto blacklist = message->current_dir();
@@ -33,36 +30,30 @@ GetAdditionalSourceFiles(
   return files;
 }
 
-static
-std::unique_ptr<std::vector<cache::string::UnhandledSource>>
-ReadUnhandledSources(
-  base::proto::Local* message)
-{
+static std::unique_ptr<std::vector<cache::string::UnhandledSource>>
+ReadUnhandledSources(base::proto::Local* message) {
   auto files = GetAdditionalSourceFiles(message);
-  std::unique_ptr<std::vector<cache::string::UnhandledSource> > result(new std::vector<cache::string::UnhandledSource>);
+  std::unique_ptr<std::vector<cache::string::UnhandledSource>> result(
+      new std::vector<cache::string::UnhandledSource>);
   for (auto& it : files) {
     cache::string::UnhandledSource content;
     if (!base::File::Read(it, &content.str)) {
-      return std::unique_ptr<std::vector<cache::string::UnhandledSource> >();
+      return std::unique_ptr<std::vector<cache::string::UnhandledSource>>();
     }
     result->push_back(content);
   }
   return result;
 }
 
-static
-std::vector<cache::string::HandledSource>
-HandleSources(const std::vector<cache::string::UnhandledSource>& src) {
+static std::vector<cache::string::HandledSource> HandleSources(
+    const std::vector<cache::string::UnhandledSource>& src) {
   std::vector<cache::string::HandledSource> result;
 
-  std::transform(
-    std::cbegin(src),
-    std::cend(src),
-    std::back_inserter(result),
-    [] (const cache::string::UnhandledSource& src) -> cache::string::HandledSource {
-      return cache::string::HandledSource(src.str);
-    }
-  );
+  std::transform(std::cbegin(src), std::cend(src), std::back_inserter(result),
+                 [](const cache::string::UnhandledSource& src)
+                     -> cache::string::HandledSource {
+    return cache::string::HandledSource(src.str);
+  });
 
   return result;
 }
@@ -256,7 +247,9 @@ void Emitter::DoCheckCache(const Atomic<bool>& is_shutting_down) {
     base::proto::Local* incoming = std::get<MESSAGE>(*task).get();
     cache::FileCache::Entry entry;
 
-    auto RestoreFromCache = [&](const HandledSource& source, std::vector<HandledSource>& additional_sources) {
+    auto RestoreFromCache =
+        [&](const HandledSource& source,
+            std::vector<HandledSource>& additional_sources) {
       String error;
       const String output_path = GetOutputPath(incoming);
 
@@ -299,14 +292,15 @@ void Emitter::DoCheckCache(const Atomic<bool>& is_shutting_down) {
     auto additional = ReadUnhandledSources(incoming);
 
     if (!additional) {
-        LOG(ERROR) << "Can't open additional sources";
-        failed_tasks_->Push(std::move(*task));
-        continue;
+      LOG(ERROR) << "Can't open additional sources";
+      failed_tasks_->Push(std::move(*task));
+      continue;
     }
 
     auto handled_additional = HandleSources(*additional.get());
 
-    if (SearchDirectCache(incoming->flags(), incoming->current_dir(), &entry, *additional.get()) &&
+    if (SearchDirectCache(incoming->flags(), incoming->current_dir(), &entry,
+                          *additional.get()) &&
         RestoreFromCache(HandledSource(), handled_additional)) {
       STAT(DIRECT_CACHE_HIT);
       continue;
@@ -327,7 +321,8 @@ void Emitter::DoCheckCache(const Atomic<bool>& is_shutting_down) {
       continue;
     }
 
-    if (SearchSimpleCache(incoming->flags(), source, &entry, handled_additional) &&
+    if (SearchSimpleCache(incoming->flags(), source, &entry,
+                          handled_additional) &&
         RestoreFromCache(source, handled_additional)) {
       STAT(SIMPLE_CACHE_HIT);
       continue;
@@ -388,14 +383,14 @@ void Emitter::DoLocalExecute(const Atomic<bool>& is_shutting_down) {
         cache::FileCache::Entry entry;
         auto unhandled = ReadUnhandledSources(incoming);
         if (unhandled) {
-            auto handled = HandleSources(*unhandled.get());
-            if (base::File::Read(GetOutputPath(incoming), &entry.object) &&
-                (!incoming->flags().has_deps_file() ||
-                 base::File::Read(GetDepsPath(incoming), &entry.deps))) {
-                entry.stderr = process->stderr();
-                UpdateSimpleCache(incoming->flags(), source, entry, handled);
-                UpdateDirectCache(incoming, source, entry, handled);
-            }
+          auto handled = HandleSources(*unhandled.get());
+          if (base::File::Read(GetOutputPath(incoming), &entry.object) &&
+              (!incoming->flags().has_deps_file() ||
+               base::File::Read(GetDepsPath(incoming), &entry.deps))) {
+            entry.stderr = process->stderr();
+            UpdateSimpleCache(incoming->flags(), source, entry, handled);
+            UpdateDirectCache(incoming, source, entry, handled);
+          }
         }
       }
 
@@ -557,12 +552,12 @@ void Emitter::DoRemoteExecute(const Atomic<bool>& is_shutting_down,
         };
 
         if (GenerateEntry()) {
-            auto unhandled = ReadUnhandledSources(incoming);
-            if (unhandled) {
-                auto handled = HandleSources(*unhandled.get());
-                UpdateSimpleCache(incoming->flags(), source, entry, handled);
-                UpdateDirectCache(incoming, source, entry, handled);
-            }
+          auto unhandled = ReadUnhandledSources(incoming);
+          if (unhandled) {
+            auto handled = HandleSources(*unhandled.get());
+            UpdateSimpleCache(incoming->flags(), source, entry, handled);
+            UpdateDirectCache(incoming, source, entry, handled);
+          }
         }
 
         std::get<CONNECTION>(*task)->ReportStatus(status);

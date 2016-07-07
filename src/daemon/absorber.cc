@@ -13,15 +13,17 @@
 using namespace std::placeholders;
 
 namespace {
-  std::vector<dist_clang::cache::string::HandledSource> GetAdditionalSources(const dist_clang::daemon::proto::Remote& remote) {
-    std::vector<dist_clang::cache::string::HandledSource> result;
+std::vector<dist_clang::cache::string::HandledSource> GetAdditionalSources(
+    const dist_clang::daemon::proto::Remote& remote) {
+  std::vector<dist_clang::cache::string::HandledSource> result;
 
-    if (remote.has_sanitize_blacklist_content()) {
-      result.push_back(dist_clang::cache::string::HandledSource(remote.sanitize_blacklist_content()));
-    }
-
-    return result;
+  if (remote.has_sanitize_blacklist_content()) {
+    result.push_back(dist_clang::cache::string::HandledSource(
+        remote.sanitize_blacklist_content()));
   }
+
+  return result;
+}
 }
 
 namespace dist_clang {
@@ -131,7 +133,8 @@ void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
     auto additional_sources = GetAdditionalSources(*incoming);
 
     cache::FileCache::Entry entry;
-    if (SearchSimpleCache(incoming->flags(), HandledSource(source), &entry, additional_sources)) {
+    if (SearchSimpleCache(incoming->flags(), HandledSource(source), &entry,
+                          additional_sources)) {
       Universal outgoing(new net::proto::Universal);
       auto* result = outgoing->MutableExtension(proto::Result::extension);
       result->set_obj(entry.object);
@@ -157,20 +160,21 @@ void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
 
     status.set_code(net::proto::Status::OK);
 
-    if (incoming->has_sanitize_blacklist_content() && incoming->flags().has_sanitize_blacklist()) {
+    if (incoming->has_sanitize_blacklist_content() &&
+        incoming->flags().has_sanitize_blacklist()) {
       temp_dir.reset(new base::TemporaryDir());
 
-      String sanitize_blacklist_file = temp_dir->GetPath() + '/' + "sanitize.blacklist";
+      String sanitize_blacklist_file =
+          temp_dir->GetPath() + '/' + "sanitize.blacklist";
       if (!base::File::Write(
-            sanitize_blacklist_file,
-            Immutable(incoming->sanitize_blacklist_content())
-              ))
-      {
+              sanitize_blacklist_file,
+              Immutable(incoming->sanitize_blacklist_content()))) {
         status.set_code(net::proto::Status::EXECUTION);
         status.set_description("Can't write sanitize blacklist file to " +
                                sanitize_blacklist_file);
       } else {
-        incoming->mutable_flags()->set_sanitize_blacklist(sanitize_blacklist_file);
+        incoming->mutable_flags()->set_sanitize_blacklist(
+            sanitize_blacklist_file);
       }
     }
 
@@ -184,8 +188,7 @@ void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
         if (!process->stdout().empty() || !process->stderr().empty()) {
           status.set_description(process->stderr());
           LOG(WARNING) << "Compilation failed with error:" << std::endl
-                     << process->stderr() << std::endl
-                     << process->stdout();
+                       << process->stderr() << std::endl << process->stdout();
         } else if (!error.empty()) {
           status.set_description(error);
           LOG(WARNING) << "Compilation failed with error: " << error;
@@ -196,7 +199,7 @@ void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
 
         // We lose atomicity, but the WARNING level will be less verbose.
         LOG(VERBOSE) << static_cast<const google::protobuf::Message&>(
-          incoming->flags());
+            incoming->flags());
       } else {
         status.set_description(process->stderr());
         LOG(INFO) << "External compilation successful";
@@ -214,7 +217,8 @@ void Absorber::DoExecute(const Atomic<bool>& is_shutting_down) {
       entry.object = process->stdout();
       entry.stderr = Immutable(status.description());
 
-      UpdateSimpleCache(incoming->flags(), HandledSource(source), entry, additional_sources);
+      UpdateSimpleCache(incoming->flags(), HandledSource(source), entry,
+                        additional_sources);
     }
 
     task->first->SendAsync(std::move(outgoing));
