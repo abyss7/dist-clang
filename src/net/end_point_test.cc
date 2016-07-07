@@ -27,7 +27,7 @@ TEST(EndPointTest, Inet6) {
 }
 
 TEST(EndPointTest, FromPassive) {
-  EndPointPtr expected = EndPoint::LocalHost("ya.ru", 12345, false);
+  EndPointPtr expected = EndPoint::LocalHost("localhost", 0, false);
   Socket socket(expected);
   socket.MakeBlocking(false);
   socket.Bind(expected);
