@@ -80,5 +80,5 @@ message Configuration {
   // in bytes.
 
   optional uint32 connect_timeout = 13 [ default = 10 ];
-  // in seconds. Zero means indefinite.
+  // in seconds. Zero means default.
 }

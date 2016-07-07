@@ -33,5 +33,5 @@ message Configuration {
   optional base.proto.Verbosity verbosity = 8;
 
   optional uint32 connect_timeout = 9 [ default = 10 ];
-  // in seconds. Zero means indefinite.
+  // in seconds. Zero means default.
 }
