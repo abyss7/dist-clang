@@ -169,7 +169,11 @@ ui16 EndPoint::Port() const {
 }
 
 String EndPoint::Print() const {
-  return Address() + ":" + std::to_string(Port());
+  String result = Address();
+  if (auto port = Port()) {
+    return result + ":" + std::to_string(port);
+  }
+  return result;
 }
 
 }  // namespace net
