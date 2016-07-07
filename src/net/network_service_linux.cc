@@ -3,6 +3,8 @@
 #include <base/c_utils.h>
 #include <net/event_loop_linux.h>
 
+#include <sys/select.h>
+
 using namespace std::placeholders;
 
 namespace dist_clang {
@@ -23,6 +25,26 @@ NetworkServiceImpl::NetworkServiceImpl(ui32 read_timeout_secs,
 
 NetworkServiceImpl::ConnectedStatus
 NetworkServiceImpl::WaitForConnection(const base::Handle& fd, String* error) {
+
+#if 0
+  fd_set wfds;
+  FD_ZERO(&wfds);
+  FD_SET(fd.native(), &wfds);
+
+  struct timeval tv;
+  tv.tv_sec = connect_timeout_secs_;
+  tv.tv_usec = 0;
+
+  int retval = select(fd.native()+1, nullptr, &wfds, nullptr, &tv);
+  if (retval == -1) {
+    base::GetLastError(error);
+    return ConnectedStatus::FAILED;
+  }
+
+  DCHECK(retval < 2);
+  return retval == 1 ? ConnectedStatus::CONNECTED : ConnectedStatus::TIMED_OUT;
+#endif
+
   base::Epoll waiter;
   if (!waiter.IsValid()) {
     waiter.GetCreationError(error);
