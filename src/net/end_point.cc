@@ -133,7 +133,7 @@ String EndPoint::Address() const {
       break;
     }
     case AF_INET6: {
-      char buf[INET_ADDRSTRLEN];
+      char buf[INET6_ADDRSTRLEN];
       auto* addr = reinterpret_cast<const struct sockaddr_in6*>(&address_);
       if (inet_ntop(domain(), &addr->sin6_addr, buf, INET6_ADDRSTRLEN)) {
         return buf;
