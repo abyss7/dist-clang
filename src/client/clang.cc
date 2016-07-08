@@ -26,8 +26,8 @@ bool DoMain(int argc, const char* const argv[], Immutable socket_path,
   }
 
   auto service = net::NetworkService::Create(
-      read_timeout_secs, send_timeout_secs, read_min_bytes,
-      connect_timeout_secs);
+      connect_timeout_secs, read_timeout_secs, send_timeout_secs,
+      read_min_bytes);
   auto end_point = net::EndPoint::UnixSocket(socket_path);
 
   String error;

@@ -21,8 +21,8 @@ NetworkServiceImpl::NetworkServiceImpl(ui32 connect_timeout_secs,
   event_loop_.reset(new EpollEventLoop(callback));
 }
 
-NetworkServiceImpl::ConnectedStatus
-NetworkServiceImpl::WaitForConnection(const base::Handle& fd, String* error) {
+NetworkServiceImpl::ConnectedStatus NetworkServiceImpl::WaitForConnection(
+    const base::Handle& fd, String* error) {
   base::Epoll waiter;
   if (!waiter.IsValid()) {
     waiter.GetCreationError(error);
@@ -43,8 +43,8 @@ NetworkServiceImpl::WaitForConnection(const base::Handle& fd, String* error) {
   }
 
   DCHECK(events_count < 2);
-  return events_count == 1 ? ConnectedStatus::CONNECTED :
-                             ConnectedStatus::TIMED_OUT;
+  return events_count == 1 ? ConnectedStatus::CONNECTED
+                           : ConnectedStatus::TIMED_OUT;
 }
 
 }  // namespace net
