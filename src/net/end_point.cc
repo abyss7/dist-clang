@@ -107,22 +107,7 @@ EndPointPtr EndPoint::UnixSocket(const String& path) {
   return end_point;
 }
 
-// static
-EndPointPtr EndPoint::FromPassive(const Passive& socket, String* error) {
-  EndPointPtr end_point(new EndPoint);
-  end_point->size_ = sizeof(end_point->address_);
-  if (getsockname(socket.native(),
-                  reinterpret_cast<struct sockaddr*>(&end_point->address_),
-                  &end_point->size_) == -1) {
-    base::GetLastError(error);
-    return EndPointPtr();
-  }
-
-  CHECK(end_point->size_ <= sizeof(end_point->address_));
-  return end_point;
-}
-
-String EndPoint::Address() const {
+String EndPoint::Print() const {
   switch (address_.ss_family) {
     case AF_INET: {
       char buf[INET_ADDRSTRLEN];
@@ -145,35 +130,9 @@ String EndPoint::Address() const {
       return addr->sun_path;
     }
     default:
-      NOTREACHED();
+      break;
   }
   return String();
-}
-
-ui16 EndPoint::Port() const {
-  switch (address_.ss_family) {
-    case AF_INET: {
-      auto *addr = reinterpret_cast<const struct sockaddr_in*>(&address_);
-      return ntohs(addr->sin_port);
-    }
-    case AF_INET6: {
-      auto *addr = reinterpret_cast<const struct sockaddr_in6*>(&address_);
-      return ntohs(addr->sin6_port);
-    }
-    case AF_UNIX:
-      return 0;
-    default:
-      NOTREACHED();
-      return 0;
-  }
-}
-
-String EndPoint::Print() const {
-  String result = Address();
-  if (auto port = Port()) {
-    return result + ":" + std::to_string(port);
-  }
-  return result;
 }
 
 }  // namespace net
