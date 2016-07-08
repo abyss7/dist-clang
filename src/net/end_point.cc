@@ -114,11 +114,11 @@ EndPointPtr EndPoint::FromPassive(const Passive& socket, String* error) {
   if (getsockname(socket.native(),
                   reinterpret_cast<struct sockaddr*>(&end_point->address_),
                   &end_point->size_) == -1) {
-    CHECK(end_point->size_ >= sizeof(end_point->address_));
     base::GetLastError(error);
     return EndPointPtr();
   }
 
+  CHECK(end_point->size_ <= sizeof(end_point->address_));
   return end_point;
 }
 
