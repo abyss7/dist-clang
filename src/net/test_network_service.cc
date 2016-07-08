@@ -6,8 +6,8 @@ namespace dist_clang {
 namespace net {
 
 UniquePtr<NetworkService> TestNetworkService::Factory::Create(
-    ui32 read_timeout_secs, ui32 send_timeout_secs, ui32 read_min_bytes,
-    ui32 connect_timeout_secs) {
+    ui32 connect_timeout_secs, ui32 send_timeout_secs, ui32 read_min_bytes,
+    ui32 read_timeout_secs) {
   auto new_t = new TestNetworkService;
   on_create_(new_t);
   return UniquePtr<NetworkService>(new_t);

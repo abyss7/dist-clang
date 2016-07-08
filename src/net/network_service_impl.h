@@ -32,8 +32,8 @@ class NetworkServiceImpl : public NetworkService {
 
   friend class DefaultFactory;
 
-  NetworkServiceImpl(ui32 read_timeout_secs, ui32 send_timeout_secs,
-                     ui32 read_min_bytes, ui32 connect_timeout_secs);
+  NetworkServiceImpl(ui32 connect_timeout_secs, ui32 read_timeout_secs,
+                     ui32 send_timeout_secs, ui32 read_min_bytes);
 
   void HandleNewConnection(const Passive& fd, ConnectionPtr connection);
 
@@ -45,8 +45,8 @@ class NetworkServiceImpl : public NetworkService {
   // FIXME: implement true |Passive::Ref|.
   HashMap<Passive::NativeType, ListenCallback> listen_callbacks_;
 
-  const ui32 read_timeout_secs_, send_timeout_secs_, read_min_bytes_;
   const ui32 connect_timeout_secs_;
+  const ui32 read_timeout_secs_, send_timeout_secs_, read_min_bytes_;
   List<String> unix_sockets_;
 };
 
