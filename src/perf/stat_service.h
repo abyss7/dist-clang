@@ -18,7 +18,7 @@ class StatService {
   void Dump(proto::Metric& report);
 
  private:
-  Array<SharedPtr<Atomic<ui64>>, proto::Metric::Name_ARRAYSIZE> values_;
+  Array<Atomic<ui64>, proto::Metric::Name_ARRAYSIZE> values_;
 };
 
 }  // namespace perf
