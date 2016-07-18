@@ -18,15 +18,16 @@ namespace dist_clang {
 namespace client {
 
 bool DoMain(int argc, const char* const argv[], Immutable socket_path,
-            Immutable clang_path, Immutable version, ui32 read_timeout_secs,
-            ui32 send_timeout_secs, ui32 read_min_bytes,
+            Immutable clang_path, Immutable version, ui32 connect_timeout_secs,
+            ui32 read_timeout_secs, ui32 send_timeout_secs, ui32 read_min_bytes,
             const HashMap<String, String>& plugins, bool disabled) {
   if (clang_path.empty() || disabled) {
     return true;
   }
 
-  auto service = net::NetworkService::Create(read_timeout_secs,
-                                             send_timeout_secs, read_min_bytes);
+  auto service = net::NetworkService::Create(
+      connect_timeout_secs, read_timeout_secs, send_timeout_secs,
+      read_min_bytes);
   auto end_point = net::EndPoint::UnixSocket(socket_path);
 
   String error;

@@ -24,18 +24,28 @@ class NetworkServiceImpl : public NetworkService {
                                 String* error) THREAD_SAFE override;
 
  private:
+  enum class ConnectedStatus {
+    CONNECTED,
+    TIMED_OUT,
+    FAILED
+  };
+
   friend class DefaultFactory;
 
-  NetworkServiceImpl(ui32 read_timeout_secs, ui32 send_timeout_secs,
-                     ui32 read_min_bytes);
+  NetworkServiceImpl(ui32 connect_timeout_secs, ui32 read_timeout_secs,
+                     ui32 send_timeout_secs, ui32 read_min_bytes);
 
   void HandleNewConnection(const Passive& fd, ConnectionPtr connection);
+
+  ConnectedStatus WaitForConnection(const base::Handle& fd,
+                                    String* error) THREAD_SAFE;
 
   UniquePtr<EventLoop> event_loop_;
 
   // FIXME: implement true |Passive::Ref|.
   HashMap<Passive::NativeType, ListenCallback> listen_callbacks_;
 
+  const ui32 connect_timeout_secs_;
   const ui32 read_timeout_secs_, send_timeout_secs_, read_min_bytes_;
   List<String> unix_sockets_;
 };

@@ -1,7 +1,10 @@
 #include <net/end_point.h>
 
 #include <base/assert.h>
+#include <base/c_utils.h>
 #include <base/logging.h>
+
+#include <net/passive.h>
 
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -105,10 +108,29 @@ EndPointPtr EndPoint::UnixSocket(const String& path) {
 }
 
 String EndPoint::Print() const {
-  char buf[INET6_ADDRSTRLEN];
-  auto* addr = reinterpret_cast<const struct sockaddr_in6*>(&address_);
-  if (inet_ntop(domain(), &addr->sin6_addr, buf, INET6_ADDRSTRLEN)) {
-    return buf;
+  switch (address_.ss_family) {
+    case AF_INET: {
+      char buf[INET_ADDRSTRLEN];
+      auto *addr = reinterpret_cast<const struct sockaddr_in*>(&address_);
+      if (inet_ntop(domain(), &addr->sin_addr, buf, INET_ADDRSTRLEN)) {
+        return buf;
+      }
+      break;
+    }
+    case AF_INET6: {
+      char buf[INET6_ADDRSTRLEN];
+      auto* addr = reinterpret_cast<const struct sockaddr_in6*>(&address_);
+      if (inet_ntop(domain(), &addr->sin6_addr, buf, INET6_ADDRSTRLEN)) {
+        return buf;
+      }
+      break;
+    }
+    case AF_UNIX: {
+      auto* addr = reinterpret_cast<const struct sockaddr_un*>(&address_);
+      return addr->sun_path;
+    }
+    default:
+      break;
   }
   return String();
 }

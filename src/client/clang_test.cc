@@ -89,7 +89,7 @@ TEST_F(ClientTest, NoConnection) {
 
   do_connect = false;
   EXPECT_TRUE(client::DoMain(argc, argv, "socket_path"_l, clang_path, version,
-                             0, 0, 0, HashMap<String, String>(), false));
+                             0, 0, 0, 0, HashMap<String, String>(), false));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -102,7 +102,7 @@ TEST_F(ClientTest, EmptyClangPath) {
   const int argc = 3;
 
   EXPECT_TRUE(client::DoMain(argc, argv, Immutable(), Immutable(), Immutable(),
-                             0, 0, 0, HashMap<String, String>(), false));
+                             0, 0, 0, 0, HashMap<String, String>(), false));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -115,7 +115,7 @@ TEST_F(ClientTest, Disabled) {
   const int argc = 3;
 
   EXPECT_TRUE(client::DoMain(argc, argv, "socket_path"_l, clang_path, version,
-                             0, 0, 0, HashMap<String, String>(), true));
+                             0, 0, 0, 0, HashMap<String, String>(), true));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -138,7 +138,7 @@ TEST_F(ClientTest, NoInputFile) {
   const int argc = 3;
 
   EXPECT_TRUE(client::DoMain(argc, argv, "socket_path"_l, clang_path, version,
-                             0, 0, 0, HashMap<String, String>(), false));
+                             0, 0, 0, 0, HashMap<String, String>(), false));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -159,7 +159,7 @@ TEST_F(ClientTest, CannotSendMessage) {
   };
 
   EXPECT_TRUE(client::DoMain(argc, argv, String(), clang_path, version, 0, 0, 0,
-                             HashMap<String, String>(), false));
+                             0, HashMap<String, String>(), false));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -224,7 +224,7 @@ TEST_F(ClientTest, CannotReadMessage) {
   };
 
   EXPECT_TRUE(client::DoMain(argc, argv, Immutable(), clang_path, version, 0, 0,
-                             0, HashMap<String, String>(), false));
+                             0, 0, HashMap<String, String>(), false));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -242,7 +242,7 @@ TEST_F(ClientTest, ReadMessageWithoutStatus) {
   };
 
   EXPECT_TRUE(client::DoMain(argc, argv, Immutable(), clang_path, version, 0, 0,
-                             0, HashMap<String, String>(), false));
+                             0, 0, HashMap<String, String>(), false));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -266,7 +266,7 @@ TEST_F(ClientTest, ReadMessageWithBadStatus) {
   };
 
   EXPECT_TRUE(client::DoMain(argc, argv, Immutable(), clang_path, version, 0, 0,
-                             0, HashMap<String, String>(), false));
+                             0, 0, HashMap<String, String>(), false));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -290,7 +290,7 @@ TEST_F(ClientTest, SuccessfulCompilation) {
   };
 
   EXPECT_FALSE(client::DoMain(argc, argv, Immutable(), clang_path, version, 0,
-                              0, 0, HashMap<String, String>(), false));
+                              0, 0, 0, HashMap<String, String>(), false));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);
@@ -314,7 +314,7 @@ TEST_F(ClientTest, FailedCompilation) {
   };
 
   EXPECT_EXIT(client::DoMain(argc, argv, String(), clang_path, version, 0, 0, 0,
-                             HashMap<String, String>(), false),
+                             0, HashMap<String, String>(), false),
               ::testing::ExitedWithCode(1), ".*");
 }
 
@@ -356,7 +356,7 @@ TEST_F(ClientTest, SendPluginPath) {
   HashMap<String, String> plugins;
   plugins.emplace(plugin_name, plugin_path);
   EXPECT_FALSE(client::DoMain(argc, argv, Immutable(), clang_path, version, 0,
-                              0, 0, plugins, false));
+                              0, 0, 0, plugins, false));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);

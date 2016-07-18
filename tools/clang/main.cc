@@ -69,8 +69,9 @@ int main(int argc, char* argv[]) {
   if (client::DoMain(argc, argv, socket_path,
                      Immutable::WrapString(config.path()),
                      Immutable::WrapString(config.version()),
-                     config.read_timeout(), config.send_timeout(),
-                     config.read_minimum(), plugins, config.disabled())) {
+                     config.connect_timeout(), config.read_timeout(),
+                     config.send_timeout(), config.read_minimum(),
+                     plugins, config.disabled())) {
     return ExecuteLocally(argv, config.path());
   }
 

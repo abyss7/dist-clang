@@ -118,17 +118,47 @@ ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point,
     return ConnectionPtr();
   }
 
-  DCHECK(fd.IsBlocking());
-  fd.CloseOnExec();
-
-  if (!fd.Connect(end_point, error) ||
-      !fd.SendTimeout(send_timeout_secs_, error) ||
-      !fd.ReadTimeout(read_timeout_secs_, error) ||
-      !fd.ReadLowWatermark(read_min_bytes_, error)) {
+  if (!fd.MakeBlocking(false, error)) {
     return ConnectionPtr();
   }
 
-  return ConnectionImpl::Create(*event_loop_, std::move(fd), end_point);
+  DCHECK(!fd.IsBlocking());
+
+  auto finish_connection = [this, &fd, &error, &end_point] () -> ConnectionPtr {
+    if (!fd.MakeBlocking(true, error) ||
+        !fd.CloseOnExec(error) ||
+        !fd.SendTimeout(send_timeout_secs_, error) ||
+        !fd.ReadTimeout(read_timeout_secs_, error) ||
+        !fd.ReadLowWatermark(read_min_bytes_, error)) {
+      return ConnectionPtr();
+    }
+    return ConnectionImpl::Create(*event_loop_, std::move(fd), end_point);
+  };
+
+  Socket::ConnectionStatus status = fd.StartConnecting(end_point, error);
+  switch (status) {
+    case Socket::ConnectionStatus::CONNECTING:
+      switch (WaitForConnection(fd, error)) {
+        case ConnectedStatus::CONNECTED:
+          if (!fd.GetPendingError(error)) {
+            return finish_connection();
+          }
+          break;
+        case ConnectedStatus::FAILED:
+          break;
+        case ConnectedStatus::TIMED_OUT:
+          if (error) {
+            *error = "timed out";
+          }
+          break;
+      }
+      break;
+    case Socket::ConnectionStatus::CONNECTED:
+      return finish_connection();
+    case Socket::ConnectionStatus::FAILED:
+      break;
+  }
+  return ConnectionPtr();
 }
 
 void NetworkServiceImpl::HandleNewConnection(const Passive& fd,

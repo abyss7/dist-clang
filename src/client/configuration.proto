@@ -16,19 +16,22 @@ message Plugin {
 }
 
 message Configuration {
-  required string path         = 1;
-  optional string version      = 2;
+  required string path            = 1;
+  optional string version         = 2;
 
-  optional uint32 send_timeout = 3 [ default = 5  ];
+  optional uint32 connect_timeout = 3 [ default = 10 ];
+  // in seconds. Zero means default.
+
+  optional uint32 send_timeout    = 4 [ default = 5  ];
   // in seconds.
 
-  optional uint32 read_timeout = 4 [ default = 60 ];
+  optional uint32 read_timeout    = 5 [ default = 60 ];
   // in seconds.
 
-  optional uint32 read_minimum = 5 [ default = 32 ];
+  optional uint32 read_minimum    = 6 [ default = 32 ];
   // in bytes.
 
-  repeated Plugin plugins      = 6;
-  optional bool disabled       = 7 [ default = false ];
-  optional base.proto.Verbosity verbosity = 8;
+  repeated Plugin plugins         = 7;
+  optional bool disabled          = 8 [ default = false ];
+  optional base.proto.Verbosity verbosity = 9;
 }
