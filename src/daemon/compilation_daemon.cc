@@ -14,7 +14,11 @@ using namespace cache::string;
 
 namespace {
 
-inline String GetRelativePath(const String current_dir, const String input) {
+// Returns relative path from |current_dir| to |input|. If |input| does
+// not contain |current_dir| as a prefix or is smaller, returns |input|
+// untouched. If |input| is equal to |current_dir|, returns ".".
+// |current_dir| must not end with '/'.
+inline String GetRelativePath(const String& current_dir, const String& input) {
   if (input.size() < current_dir.size()) {
     return input;
   } else if (input.size() == current_dir.size()) {
@@ -39,7 +43,7 @@ inline CommandLine CommandLineForSimpleCache(const base::proto::Flags& flags) {
   return CommandLine(command_line);
 }
 
-inline CommandLine CommandLineForDirectCache(const String current_dir,
+inline CommandLine CommandLineForDirectCache(const String& current_dir,
                                              const base::proto::Flags& flags) {
   String command_line =
       base::JoinString<' '>(flags.other().begin(), flags.other().end());
