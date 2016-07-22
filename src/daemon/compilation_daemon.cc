@@ -14,6 +14,21 @@ using namespace cache::string;
 
 namespace {
 
+// Returns relative path from |current_dir| to |input|. If |input| does
+// not contain |current_dir| as a prefix or is smaller, returns |input|
+// untouched. If |input| is equal to |current_dir|, returns ".".
+// |current_dir| must not end with '/'.
+inline String GetRelativePath(const String& current_dir, const String& input) {
+  if (input.size() < current_dir.size()) {
+    return input;
+  } else if (input.size() == current_dir.size()) {
+    return input == current_dir ? String(".") : input;
+  }
+  return input.substr(0, current_dir.size()) == current_dir
+      ? input.substr(current_dir.size() + 1)
+      : input;
+}
+
 inline CommandLine CommandLineForSimpleCache(const base::proto::Flags& flags) {
   String command_line =
       base::JoinString<' '>(flags.other().begin(), flags.other().end());
@@ -28,7 +43,8 @@ inline CommandLine CommandLineForSimpleCache(const base::proto::Flags& flags) {
   return CommandLine(command_line);
 }
 
-inline CommandLine CommandLineForDirectCache(const base::proto::Flags& flags) {
+inline CommandLine CommandLineForDirectCache(const String& current_dir,
+                                             const base::proto::Flags& flags) {
   String command_line =
       base::JoinString<' '>(flags.other().begin(), flags.other().end());
   if (flags.has_language()) {
@@ -42,6 +58,10 @@ inline CommandLine CommandLineForDirectCache(const base::proto::Flags& flags) {
     command_line += " " + base::JoinString<' '>(flags.cc_only().begin(),
                                                 flags.cc_only().end());
   }
+
+  // Compiler implicitly appends file's directory as an include path - so do we.
+  String input_path = flags.input().substr(0, flags.input().find_last_of('/'));
+  command_line += " -I" + GetRelativePath(current_dir, input_path);
 
   return CommandLine(command_line);
 }
@@ -245,7 +265,7 @@ bool CompilationDaemon::SearchDirectCache(
   const String input = flags.input()[0] != '/'
                            ? current_dir + "/" + flags.input()
                            : flags.input();
-  const CommandLine command_line(CommandLineForDirectCache(flags));
+  const CommandLine command_line(CommandLineForDirectCache(current_dir, flags));
 
   UnhandledSource code;
   if (!base::File::Read(input, &code.str)) {
@@ -294,7 +314,8 @@ void CompilationDaemon::UpdateDirectCache(
   const Version version(flags.compiler().version());
   const auto hash =
       cache_->Hash(source, CommandLineForSimpleCache(flags), version);
-  const auto command_line = CommandLineForDirectCache(flags);
+  const auto command_line = CommandLineForDirectCache(message->current_dir(),
+                                                      flags);
   const String input_path = flags.input()[0] != '/'
                                 ? message->current_dir() + "/" + flags.input()
                                 : flags.input();
