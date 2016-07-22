@@ -109,8 +109,8 @@ class FileCache {
             string::Version version, Entry* entry) const;
 
   bool Find(string::UnhandledSource code, string::CommandLine command_line,
-            string::Version version, const String& current_dir,
-            Entry* entry) const;
+            string::Version version, const std::string& input,
+            const String& current_dir, Entry* entry) const;
 
   void Store(string::UnhandledSource code, string::CommandLine command_line,
              string::Version version, const List<String>& headers,

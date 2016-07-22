@@ -136,8 +136,8 @@ bool FileCache::Find(HandledSource code, CommandLine command_line,
 }
 
 bool FileCache::Find(UnhandledSource code, CommandLine command_line,
-                     Version version, const String& current_dir,
-                     Entry* entry) const {
+                     Version version, const std::string& input,
+                     const String& current_dir, Entry* entry) const {
   DCHECK(entry);
 
   auto hash1 = Hash(code, command_line, version);
@@ -156,8 +156,13 @@ bool FileCache::Find(UnhandledSource code, CommandLine command_line,
   utime(manifest_path.c_str(), nullptr);
   new_entries_->Append({time(nullptr), hash1});
 
+  bool found_input = false;
+
   Immutable::Rope hash_rope = {hash1};
   for (const auto& header : manifest.direct().headers()) {
+    if (header == input) {
+      found_input = true;
+    }
     Immutable header_hash;
     const String header_path =
         header[0] == '/' ? header : current_dir + "/" + header;
@@ -166,6 +171,11 @@ bool FileCache::Find(UnhandledSource code, CommandLine command_line,
     }
     hash_rope.push_back(header_hash);
   }
+
+  if (!found_input) {
+    return false;
+  }
+
   Immutable hash2 = base::Hexify(Immutable(hash_rope).Hash()), hash3;
 
   DCHECK(database_);
