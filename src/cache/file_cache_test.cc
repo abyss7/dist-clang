@@ -291,6 +291,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
 TEST(FileCacheTest, RestoreDirectEntry) {
   const base::TemporaryDir tmp_dir;
   const String path = tmp_dir;
+  const String source_path = path + "/test.c";
   const String object_path = path + "/test.o";
   const String deps_path = path + "/test.d";
   const String header1_path = path + "/test1.h";
@@ -298,7 +299,7 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   const String header2_rel_path = "test2.h";
   const auto expected_stderr = "some warning"_l;
   const auto expected_object_code = "some object code"_l;
-  const auto expected_deps = "some deps"_l;
+  const auto expected_deps = "test.o: test.c /test1.h test2.h"_l;
   FileCache cache(path);
   ASSERT_TRUE(cache.Run(1));
   FileCache::Entry entry1, entry2;
@@ -307,6 +308,8 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
 
+  const UnhandledSource orig_code("int main() {}"_l);
+  ASSERT_TRUE(base::File::Write(source_path, orig_code));
   ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
   ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
   ASSERT_TRUE(base::File::Write(header1_path, "#define A"_l));
@@ -320,13 +323,12 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   cache.Store(code, cl, version, entry1);
 
   // Store the direct entry.
-  const UnhandledSource orig_code("int main() {}"_l);
-  const List<String> headers = {header1_path, header2_rel_path};
+  const List<String> headers = {source_path, header1_path, header2_rel_path};
   cache.Store(orig_code, cl, version, headers, path,
               FileCache::Hash(code, cl, version));
 
   // Restore the entry.
-  ASSERT_TRUE(cache.Find(orig_code, cl, version, path, &entry2));
+  ASSERT_TRUE(cache.Find(orig_code, cl, version, source_path, path, &entry2));
   EXPECT_EQ(expected_object_code, entry2.object);
   EXPECT_EQ(expected_deps, entry2.deps);
   EXPECT_EQ(expected_stderr, entry2.stderr);
@@ -335,6 +337,7 @@ TEST(FileCacheTest, RestoreDirectEntry) {
 TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
   const base::TemporaryDir tmp_dir;
   const String path = tmp_dir;
+  const String source_path = path + "/test.c";
   const String object_path = path + "/test.o";
   const String deps_path = path + "/test.d";
   const String header1_path = path + "/test1.h";
@@ -345,40 +348,45 @@ TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
   const auto expected_deps = "some deps"_l;
   FileCache cache(path);
   ASSERT_TRUE(cache.Run(1));
-  FileCache::Entry entry;
+  FileCache::Entry entry1, entry2;
 
   const HandledSource code("int main() { return 0; }"_l);
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
 
+  const UnhandledSource orig_code("int main() {}"_l);
+  ASSERT_TRUE(base::File::Write(source_path, orig_code));
   ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
   ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
   ASSERT_TRUE(base::File::Write(header1_path, "#define A"_l));
   ASSERT_TRUE(base::File::Write(header2_path, "#define B"_l));
 
-  entry.object = expected_object_code;
-  entry.deps = expected_deps;
-  entry.stderr = expected_stderr;
+  entry1.object = expected_object_code;
+  entry1.deps = expected_deps;
+  entry1.stderr = expected_stderr;
 
   // Store the entry.
-  cache.Store(code, cl, version, entry);
+  cache.Store(code, cl, version, entry1);
 
   // Store the direct entry.
-  const UnhandledSource orig_code("int main() {}"_l);
-  const List<String> headers = {header1_path, header2_rel_path};
+  const List<String> headers = {source_path, header1_path, header2_rel_path};
   cache.Store(orig_code, cl, version, headers, path,
               FileCache::Hash(code, cl, version));
+
+  // Check that entry can be restored.
+  EXPECT_TRUE(cache.Find(orig_code, cl, version, source_path, path, &entry2));
 
   // Change header contents.
   ASSERT_TRUE(base::File::Write(header2_path, "#define C"_l));
 
   // Restore the entry.
-  EXPECT_FALSE(cache.Find(orig_code, cl, version, path, &entry));
+  EXPECT_FALSE(cache.Find(orig_code, cl, version, source_path, path, &entry2));
 }
 
 TEST(FileCacheTest, DirectEntry_RewriteManifest) {
   const base::TemporaryDir tmp_dir;
   const String path = tmp_dir;
+  const String source_path = path + "/test.c";
   const String object_path = path + "/test.o";
   const String deps_path = path + "/test.d";
   const String header1_path = path + "/test1.h";
@@ -395,6 +403,8 @@ TEST(FileCacheTest, DirectEntry_RewriteManifest) {
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
 
+  const UnhandledSource orig_code("int main() {}"_l);
+  ASSERT_TRUE(base::File::Write(source_path, orig_code));
   ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
   ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
   ASSERT_TRUE(base::File::Write(header1_path, "#define A"_l));
@@ -408,8 +418,7 @@ TEST(FileCacheTest, DirectEntry_RewriteManifest) {
   cache.Store(code, cl, version, entry1);
 
   // Store the direct entry.
-  const UnhandledSource orig_code("int main() {}"_l);
-  List<String> headers = {header1_path, header2_path};
+  List<String> headers = {source_path, header1_path, header2_path};
   cache.Store(orig_code, cl, version, headers, path,
               FileCache::Hash(code, cl, version));
 
@@ -420,7 +429,7 @@ TEST(FileCacheTest, DirectEntry_RewriteManifest) {
               FileCache::Hash(code, cl, version));
 
   // Restore the entry.
-  EXPECT_TRUE(cache.Find(orig_code, cl, version, path, &entry2));
+  EXPECT_TRUE(cache.Find(orig_code, cl, version, source_path, path, &entry2));
 }
 
 TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
@@ -461,7 +470,7 @@ TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
 
   // Restore the entry.
   const UnhandledSource bad_orig_code(orig_code.str.string_copy() + " ");
-  EXPECT_FALSE(cache.Find(bad_orig_code, cl, version, path, &entry));
+  EXPECT_FALSE(cache.Find(bad_orig_code, cl, version, "", path, &entry));
 }
 
 TEST(FileCacheTest, RestoreAndMigrateSnappyEntry) {

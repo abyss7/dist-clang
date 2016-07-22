@@ -252,7 +252,8 @@ bool CompilationDaemon::SearchDirectCache(
     return false;
   }
 
-  if (!cache_->Find(code, command_line, version, current_dir, entry)) {
+  if (!cache_->Find(code, command_line, version, flags.input(),
+                    current_dir, entry)) {
     LOG(CACHE_INFO) << "Direct cache miss: " << flags.input();
     return false;
   }
