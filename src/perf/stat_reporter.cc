@@ -3,8 +3,7 @@
 namespace dist_clang {
 namespace perf {
 
-StatReporter::StatReporter(proto::Metric::Name name) : name_(name) {
-}
+StatReporter::StatReporter(proto::Metric::Name name) : name_(name) {}
 
 void StatReporter::Report(const TimePoint& start, const TimePoint& end) const {
   // TODO: implement different types of metrics. Right now just report the time

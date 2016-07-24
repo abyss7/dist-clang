@@ -2,6 +2,19 @@
 
 #include <base/testable.h>
 
+// FIXME: Clang version 3.9.0 (trunk 270823) generates bad code for:
+//
+//            template <class T>
+//            UniquePtr<T> base::Singleton<T>::instance_;
+//
+//        Replace this with a template instance definition when compiler gets
+//        fixed.
+#define DECLARE_SINGLETON(Class)                      \
+  template <>                                         \
+  UniquePtr<Class> base::Singleton<Class>::instance_; \
+  template <>                                         \
+  std::once_flag base::Singleton<Class>::once_flag_;
+
 #define DEFINE_SINGLETON(Class)                            \
   template <>                                              \
   UniquePtr<Class> base::Singleton<Class>::instance_ = {}; \

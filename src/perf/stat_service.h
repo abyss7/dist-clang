@@ -22,4 +22,7 @@ class StatService {
 };
 
 }  // namespace perf
+
+DECLARE_SINGLETON(perf::StatService)
+
 }  // namespace dist_clang
