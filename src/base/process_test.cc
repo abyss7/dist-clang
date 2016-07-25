@@ -123,15 +123,17 @@ TEST_F(ProcessTest, DISABLED_WaitPidWithTimeOut) {
   // TODO: implement this test.
 }
 
+// FIXME: we shouldn't wait the signal for a second here
 TEST_F(ProcessTest, ProcessAborts) {
   ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
-  process->AppendArg("-c"_l).AppendArg("kill -ABRT $$"_l);
+  process->AppendArg("-c"_l).AppendArg("kill -ABRT $$ && sleep 1"_l);
   ASSERT_FALSE(process->Run(1));
 }
 
+// FIXME: we shouldn't wait the signal for a second here
 TEST_F(ProcessTest, ProcessCrashes) {
   ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
-  process->AppendArg("-c"_l).AppendArg("kill -SEGV $$"_l);
+  process->AppendArg("-c"_l).AppendArg("kill -SEGV $$ && sleep 1"_l);
   ASSERT_FALSE(process->Run(1));
 }
 
