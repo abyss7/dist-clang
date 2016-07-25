@@ -88,8 +88,21 @@ bool ProcessImpl::WaitPid(int pid, ui64 sec_timeout, String* error) {
   }
 
   CHECK(result == pid);
-  // TODO: if compiler crashes it returns 134, but we return true nevertheless.
-  return !WEXITSTATUS(status);
+
+  if (WIFEXITED(status)) {
+    return !WEXITSTATUS(status);
+  } else if (WIFSIGNALED(status)) {
+    if (error) {
+      std::ostringstream ss;
+      ss << "received signal " << WTERMSIG(status);
+      *error = ss.str();
+    }
+    return false;
+  } else {
+    // The process may have been stopped, but we are not interested in it
+    // for now.
+    return false;
+  }
 }
 
 void ProcessImpl::kill(int pid) {

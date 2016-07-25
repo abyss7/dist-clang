@@ -123,5 +123,17 @@ TEST_F(ProcessTest, DISABLED_WaitPidWithTimeOut) {
   // TODO: implement this test.
 }
 
+TEST_F(ProcessTest, ProcessAborts) {
+  ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+  process->AppendArg("-c"_l).AppendArg("kill -ABRT $$"_l);
+  ASSERT_FALSE(process->Run(1));
+}
+
+TEST_F(ProcessTest, ProcessCrashes) {
+  ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+  process->AppendArg("-c"_l).AppendArg("kill -SEGV $$"_l);
+  ASSERT_FALSE(process->Run(1));
+}
+
 }  // namespace base
 }  // namespace dist_clang
