@@ -124,6 +124,12 @@ bool FileCache::Run(ui64 clean_period) {
 using namespace string;
 
 // static
+HandledHash FileCache::Hash(HandledSource code, CommandLine command_line,
+                            Version version) {
+  return FileCache::Hash(code, Vector<ExtraFile>{}, command_line, version);
+}
+
+// static
 HandledHash FileCache::Hash(HandledSource code,
                             const Vector<ExtraFile>& extra_files,
                             CommandLine command_line, Version version) {
@@ -131,6 +137,12 @@ HandledHash FileCache::Hash(HandledSource code,
                      HashMultipleFiles(extra_files) + "-" +
                      base::Hexify(command_line.str.Hash(4)) + "-" +
                      base::Hexify(version.str.Hash(4)));
+}
+
+// static
+UnhandledHash FileCache::Hash(UnhandledSource code, CommandLine command_line,
+                              Version version) {
+  return FileCache::Hash(code, Vector<ExtraFile>{}, command_line, version);
 }
 
 // static
@@ -144,10 +156,22 @@ UnhandledHash FileCache::Hash(UnhandledSource code,
           (version.str + "\n"_l + clang::getClangFullVersion()).Hash(4)));
 }
 
+bool FileCache::Find(HandledSource code, CommandLine command_line,
+                     Version version, Entry* entry) const {
+  return Find(code, Vector<ExtraFile>{}, command_line, version, entry);
+}
+
 bool FileCache::Find(HandledSource code, const Vector<ExtraFile>& extra_files,
                      CommandLine command_line, Version version,
                      Entry* entry) const {
   return FindByHash(Hash(code, extra_files, command_line, version), entry);
+}
+
+bool FileCache::Find(UnhandledSource code, CommandLine command_line,
+                     Version version, const String& current_dir,
+                     Entry* entry) const {
+  return Find(code, Vector<ExtraFile>{}, command_line, version, current_dir,
+              entry);
 }
 
 bool FileCache::Find(UnhandledSource code, const Vector<ExtraFile>& extra_files,
@@ -191,6 +215,13 @@ bool FileCache::Find(UnhandledSource code, const Vector<ExtraFile>& extra_files,
   return false;
 }
 
+void FileCache::Store(UnhandledSource code, CommandLine command_line,
+                      Version version, const List<String>& headers,
+                      const String& current_dir, string::HandledHash hash) {
+  Store(code, Vector<ExtraFile>{}, command_line, version, headers, current_dir,
+        hash);
+}
+
 void FileCache::Store(UnhandledSource code,
                       const Vector<ExtraFile>& extra_files,
                       CommandLine command_line, Version version,
@@ -198,6 +229,11 @@ void FileCache::Store(UnhandledSource code,
                       string::HandledHash hash) {
   DoStore(Hash(code, extra_files, command_line, version), headers, current_dir,
           hash);
+}
+
+void FileCache::Store(HandledSource code, CommandLine command_line,
+                      Version version, const Entry& entry) {
+  Store(code, Vector<ExtraFile>{}, command_line, version, entry);
 }
 
 void FileCache::Store(HandledSource code, const Vector<ExtraFile>& extra_files,
