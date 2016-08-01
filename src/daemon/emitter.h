@@ -19,10 +19,12 @@ class Emitter : public CompilationDaemon {
     CONNECTION = 0,
     MESSAGE = 1,
     SOURCE = 2,
+    EXTRA_FILES = 3,
   };
 
   using Message = UniquePtr<base::proto::Local>;
-  using Task = Tuple<net::ConnectionPtr, Message, cache::string::HandledSource>;
+  using Task = Tuple<net::ConnectionPtr, Message, cache::string::HandledSource,
+                     Vector<cache::string::ExtraFile>>;
   using Queue = base::LockedQueue<Task>;
   using QueueAggregator = base::QueueAggregator<Task>;
   using Optional = Queue::Optional;

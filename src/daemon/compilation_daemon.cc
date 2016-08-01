@@ -25,8 +25,8 @@ inline String GetRelativePath(const String& current_dir, const String& input) {
     return input == current_dir ? String(".") : input;
   }
   return input.substr(0, current_dir.size()) == current_dir
-      ? input.substr(current_dir.size() + 1)
-      : input;
+             ? input.substr(current_dir.size() + 1)
+             : input;
 }
 
 inline CommandLine CommandLineForSimpleCache(const base::proto::Flags& flags) {
@@ -81,6 +81,27 @@ bool ParseDeps(String deps, List<String>& headers) {
   base::SplitString<' '>(lines.front().substr(deps_start), headers);
 
   return true;
+}
+
+Vector<ExtraFile> ReadExtraFiles(const base::proto::Flags& flags,
+                                 const String& current_dir) {
+  if (!flags.has_sanitize_blacklist()) {
+    return Vector<ExtraFile>();
+  }
+
+  ExtraFile sanitize_blacklist_contents;
+  const String sanitize_blacklist =
+      flags.sanitize_blacklist()[0] != '/'
+          ? current_dir + "/" + flags.sanitize_blacklist()
+          : flags.sanitize_blacklist();
+
+  if (!base::File::Read(sanitize_blacklist, &sanitize_blacklist_contents.str)) {
+    LOG(CACHE_ERROR) << "Failed to read sanitize blacklist file "
+                     << sanitize_blacklist;
+    return Vector<ExtraFile>();
+  }
+
+  return Vector<ExtraFile>{sanitize_blacklist_contents};
 }
 
 }  // namespace
@@ -163,11 +184,12 @@ CompilationDaemon::CompilationDaemon(const proto::Configuration& configuration)
   }
 }
 
-HandledHash CompilationDaemon::GenerateHash(const base::proto::Flags& flags,
-                                            const HandledSource& code) const {
+HandledHash CompilationDaemon::GenerateHash(
+    const base::proto::Flags& flags, const HandledSource& code,
+    const Vector<ExtraFile>& extra_files) const {
   const Version version(flags.compiler().version());
-  return cache::FileCache::Hash(code, CommandLineForSimpleCache(flags),
-                                version);
+  return cache::FileCache::Hash(code, extra_files,
+                                CommandLineForSimpleCache(flags), version);
 }
 
 bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
@@ -234,6 +256,7 @@ bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
 
 bool CompilationDaemon::SearchSimpleCache(
     const base::proto::Flags& flags, const HandledSource& source,
+    const Vector<ExtraFile>& extra_files,
     cache::FileCache::Entry* entry) const {
   if (!cache_) {
     return false;
@@ -242,7 +265,7 @@ bool CompilationDaemon::SearchSimpleCache(
   const Version version(flags.compiler().version());
   const auto command_line = CommandLineForSimpleCache(flags);
 
-  if (!cache_->Find(source, command_line, version, entry)) {
+  if (!cache_->Find(source, extra_files, command_line, version, entry)) {
     LOG(CACHE_INFO) << "Cache miss: " << flags.input();
     return false;
   }
@@ -272,7 +295,9 @@ bool CompilationDaemon::SearchDirectCache(
     return false;
   }
 
-  if (!cache_->Find(code, command_line, version, current_dir, entry)) {
+  Vector<ExtraFile> extra_files = ReadExtraFiles(flags, current_dir);
+  if (!cache_->Find(code, extra_files, command_line, version, current_dir,
+                    entry)) {
     LOG(CACHE_INFO) << "Direct cache miss: " << flags.input();
     return false;
   }
@@ -282,6 +307,7 @@ bool CompilationDaemon::SearchDirectCache(
 
 void CompilationDaemon::UpdateSimpleCache(
     const base::proto::Flags& flags, const HandledSource& source,
+    const Vector<ExtraFile>& extra_files,
     const cache::FileCache::Entry& entry) {
   const Version version(flags.compiler().version());
   const auto command_line = CommandLineForSimpleCache(flags);
@@ -290,11 +316,12 @@ void CompilationDaemon::UpdateSimpleCache(
     return;
   }
 
-  cache_->Store(source, command_line, version, entry);
+  cache_->Store(source, extra_files, command_line, version, entry);
 }
 
 void CompilationDaemon::UpdateDirectCache(
     const base::proto::Local* message, const HandledSource& source,
+    const Vector<ExtraFile>& extra_files,
     const cache::FileCache::Entry& entry) {
   const auto& flags = message->flags();
   auto config = conf();
@@ -312,10 +339,10 @@ void CompilationDaemon::UpdateDirectCache(
   }
 
   const Version version(flags.compiler().version());
-  const auto hash =
-      cache_->Hash(source, CommandLineForSimpleCache(flags), version);
-  const auto command_line = CommandLineForDirectCache(message->current_dir(),
-                                                      flags);
+  const auto hash = cache_->Hash(source, extra_files,
+                                 CommandLineForSimpleCache(flags), version);
+  const auto command_line =
+      CommandLineForDirectCache(message->current_dir(), flags);
   const String input_path = flags.input()[0] != '/'
                                 ? message->current_dir() + "/" + flags.input()
                                 : flags.input();
@@ -324,7 +351,7 @@ void CompilationDaemon::UpdateDirectCache(
 
   if (ParseDeps(entry.deps, headers) &&
       base::File::Read(input_path, &original_code.str)) {
-    cache_->Store(original_code, command_line, version, headers,
+    cache_->Store(original_code, extra_files, command_line, version, headers,
                   message->current_dir(), hash);
   } else {
     LOG(CACHE_ERROR) << "Failed to parse deps or read input " << input_path;
@@ -363,6 +390,10 @@ base::ProcessPtr CompilationDaemon::CreateProcess(
   }
   if (flags.has_input()) {
     process->AppendArg(Immutable(flags.input()));
+  }
+  if (flags.has_sanitize_blacklist()) {
+    process->AppendArg("-fsanitize-blacklist"_l)
+        .AppendArg(Immutable(flags.sanitize_blacklist()));
   }
 
   return process;

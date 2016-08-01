@@ -13,6 +13,24 @@ using namespace std::placeholders;
 namespace dist_clang {
 namespace daemon {
 
+namespace {
+
+Vector<cache::string::ExtraFile> GetExtraFiles(proto::Remote* incoming) {
+  using namespace cache::string;
+
+  Vector<ExtraFile> extra_files;
+  std::transform(
+      std::begin(incoming->extra_files()), std::end(incoming->extra_files()),
+      std::back_inserter(extra_files),
+      [](const String& extra_file) -> ExtraFile {
+        auto extra_file_immutable = Immutable::WrapString(extra_file);
+        return ExtraFile(extra_file_immutable);
+      });
+  return extra_files;
+}
+
+}  // namespace
+
 Absorber::Absorber(const proto::Configuration& configuration)
     : CompilationDaemon(configuration) {
   using Worker = base::WorkerPool::SimpleWorker;
@@ -92,6 +110,7 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
 
     proto::Remote* incoming = task->second.get();
     auto source = Immutable::WrapString(incoming->source());
+    auto extra_files = GetExtraFiles(incoming);
 
     incoming->mutable_flags()->set_output("-");
     incoming->mutable_flags()->clear_input();
@@ -115,7 +134,8 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
     }
 
     cache::FileCache::Entry entry;
-    if (SearchSimpleCache(incoming->flags(), HandledSource(source), &entry)) {
+    if (SearchSimpleCache(incoming->flags(), HandledSource(source), extra_files,
+                          &entry)) {
       Universal outgoing(new net::proto::Universal);
       auto* result = outgoing->MutableExtension(proto::Result::extension);
       result->set_obj(entry.object);
@@ -176,7 +196,8 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
       entry.object = process->stdout();
       entry.stderr = Immutable(status.description());
 
-      UpdateSimpleCache(incoming->flags(), HandledSource(source), entry);
+      UpdateSimpleCache(incoming->flags(), HandledSource(source), extra_files,
+                        entry);
     }
 
     task->first->SendAsync(std::move(outgoing));

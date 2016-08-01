@@ -43,6 +43,9 @@ message Flags {
   repeated string non_direct   = 10;
   // flags, that shouldn't be neither direct cached, nor cached.
 
+  optional string sanitize_blacklist = 11;
+  // sanitizer blacklist file
+
   // Compilation = All
   // Preprocessing = All - output - cc_only
   // Cache = other + language + cc_only

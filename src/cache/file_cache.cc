@@ -27,6 +27,17 @@ String ReplaceTildeInPath(const String& path) {
   return path;
 }
 
+template <class Container>
+String HashMultipleFiles(const Container& files) {
+  Vector<String> file_hashes;
+  std::transform(std::begin(files), std::end(files),
+                 std::back_inserter(file_hashes),
+                 [](auto&& file) { return base::Hexify(file.str.Hash(4)); });
+  Immutable hashes_string =
+      base::JoinString<'-'>(std::begin(file_hashes), std::end(file_hashes));
+  return base::Hexify(hashes_string.Hash());
+}
+
 }  // namespace
 
 namespace cache {
@@ -98,12 +109,12 @@ bool FileCache::Run(ui64 clean_period) {
 
   new_entries_.reset(new EntryList, new_entries_deleter_);
 
-  base::WorkerPool::SimpleWorker worker = [this, clean_period](
-      const base::WorkerPool& pool) {
-    while (!pool.WaitUntilShutdown(std::chrono::seconds(clean_period))) {
-      new_entries_.reset(new EntryList, new_entries_deleter_);
-    }
-  };
+  base::WorkerPool::SimpleWorker worker =
+      [this, clean_period](const base::WorkerPool& pool) {
+        while (!pool.WaitUntilShutdown(std::chrono::seconds(clean_period))) {
+          new_entries_.reset(new EntryList, new_entries_deleter_);
+        }
+      };
   resetter_->AddWorker("Cache Resetter Worker"_l, worker);
   cleaner_.Run();
 
@@ -113,34 +124,38 @@ bool FileCache::Run(ui64 clean_period) {
 using namespace string;
 
 // static
-HandledHash FileCache::Hash(HandledSource code, CommandLine command_line,
-                            Version version) {
+HandledHash FileCache::Hash(HandledSource code,
+                            const Vector<ExtraFile>& extra_files,
+                            CommandLine command_line, Version version) {
   return HandledHash(base::Hexify(code.str.Hash()) + "-" +
+                     HashMultipleFiles(extra_files) + "-" +
                      base::Hexify(command_line.str.Hash(4)) + "-" +
                      base::Hexify(version.str.Hash(4)));
 }
 
 // static
-UnhandledHash FileCache::Hash(UnhandledSource code, CommandLine command_line,
-                              Version version) {
+UnhandledHash FileCache::Hash(UnhandledSource code,
+                              const Vector<ExtraFile>& extra_files,
+                              CommandLine command_line, Version version) {
   return UnhandledHash(
-      base::Hexify(code.str.Hash()) + "-" +
-      base::Hexify(command_line.str.Hash(4)) + "-" +
+      base::Hexify(code.str.Hash()) + "-" + HashMultipleFiles(extra_files) +
+      "-" + base::Hexify(command_line.str.Hash(4)) + "-" +
       base::Hexify(
           (version.str + "\n"_l + clang::getClangFullVersion()).Hash(4)));
 }
 
-bool FileCache::Find(HandledSource code, CommandLine command_line,
-                     Version version, Entry* entry) const {
-  return FindByHash(Hash(code, command_line, version), entry);
+bool FileCache::Find(HandledSource code, const Vector<ExtraFile>& extra_files,
+                     CommandLine command_line, Version version,
+                     Entry* entry) const {
+  return FindByHash(Hash(code, extra_files, command_line, version), entry);
 }
 
-bool FileCache::Find(UnhandledSource code, CommandLine command_line,
-                     Version version, const String& current_dir,
-                     Entry* entry) const {
+bool FileCache::Find(UnhandledSource code, const Vector<ExtraFile>& extra_files,
+                     CommandLine command_line, Version version,
+                     const String& current_dir, Entry* entry) const {
   DCHECK(entry);
 
-  auto hash1 = Hash(code, command_line, version);
+  auto hash1 = Hash(code, extra_files, command_line, version);
   const String manifest_path = CommonPath(hash1) + ".manifest";
   const ReadLock lock(this, manifest_path);
 
@@ -176,15 +191,19 @@ bool FileCache::Find(UnhandledSource code, CommandLine command_line,
   return false;
 }
 
-void FileCache::Store(UnhandledSource code, CommandLine command_line,
-                      Version version, const List<String>& headers,
-                      const String& current_dir, string::HandledHash hash) {
-  DoStore(Hash(code, command_line, version), headers, current_dir, hash);
+void FileCache::Store(UnhandledSource code,
+                      const Vector<ExtraFile>& extra_files,
+                      CommandLine command_line, Version version,
+                      const List<String>& headers, const String& current_dir,
+                      string::HandledHash hash) {
+  DoStore(Hash(code, extra_files, command_line, version), headers, current_dir,
+          hash);
 }
 
-void FileCache::Store(HandledSource code, CommandLine command_line,
-                      Version version, const Entry& entry) {
-  DoStore(Hash(code, command_line, version), entry);
+void FileCache::Store(HandledSource code, const Vector<ExtraFile>& extra_files,
+                      CommandLine command_line, Version version,
+                      const Entry& entry) {
+  DoStore(Hash(code, extra_files, command_line, version), entry);
 }
 
 bool FileCache::FindByHash(HandledHash hash, Entry* entry) const {
