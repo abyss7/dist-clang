@@ -102,16 +102,23 @@ bool DoMain(int argc, const char* const argv[], Immutable socket_path,
     message->set_current_dir(current_dir);
 
     auto* flags = message->mutable_flags();
-    if (!command->FillFlags(flags, clang_path, major_version)) {
-      auto process = command->CreateProcess(current_dir, getuid());
-      if (!process->Run(base::Process::UNLIMITED)) {
-        LOG(WARNING) << "Subcommand failed: " << command->GetExecutable()
-                     << std::endl
-                     << process->stderr();
-        LOG(VERBOSE) << "Arguments: " << command->RenderAllArgs();
-        return true;
+    switch (command->FillFlags(flags, clang_path, major_version)) {
+      case Command::FillResult::FILLED_OK:
+        break;
+      case Command::FillResult::DID_NOT_FILL: {
+        auto process = command->CreateProcess(current_dir, getuid());
+        if (!process->Run(base::Process::UNLIMITED)) {
+          LOG(WARNING) << "Subcommand failed: " << command->GetExecutable()
+                       << std::endl
+                       << process->stderr();
+          LOG(VERBOSE) << "Arguments: " << command->RenderAllArgs();
+          return true;
+        }
+        continue;
       }
-      continue;
+      case Command::FillResult::FILL_FAILED:
+        LOG(WARNING) << "Failed to fill flags for subcommand";
+        return true;
     }
 
     if (!flags->has_action() || flags->input() == "-") {

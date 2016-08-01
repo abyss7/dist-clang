@@ -28,12 +28,13 @@ class DriverCommand : public Command {
                                  ui32 user_id) const override;
   String GetExecutable() const override;
   String RenderAllArgs() const override;
-  inline bool FillFlags(base::proto::Flags* flags, const String& clang_path,
-                        const String& clang_major_version) const override {
+  inline FillResult FillFlags(
+      base::proto::Flags* flags, const String& clang_path,
+      const String& clang_major_version) const override {
     if (clang_) {
       return clang_->FillFlags(flags, clang_path, clang_major_version);
     }
-    return false;
+    return FillResult::DID_NOT_FILL;
   }
 
  private:

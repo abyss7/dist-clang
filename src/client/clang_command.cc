@@ -45,11 +45,11 @@ String ClangCommand::RenderAllArgs() const {
   return result.substr(1);
 }
 
-bool ClangCommand::FillFlags(base::proto::Flags* flags,
-                             const String& clang_path,
-                             const String& clang_major_version) const {
+ClangCommand::FillResult ClangCommand::FillFlags(
+    base::proto::Flags* flags, const String& clang_path,
+    const String& clang_major_version) const {
   if (!flags) {
-    return true;
+    return FillResult::FILLED_OK;
   }
 
   flags->Clear();
@@ -120,7 +120,12 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
       replaced_command = std::regex_replace(
           replaced_command, version_regex, "/lib/clang/" + clang_major_version);
 
-      const String self_path = base::GetSelfPath();
+      String self_path;
+      String error;
+      if (!base::GetSelfPath(&self_path, &error)) {
+        LOG(WARNING) << "Failed to get executable path: " << error;
+        return FillResult::FILL_FAILED;
+      }
 
       // Assume the -resource-dir and -internal-isystem that are based on Clang
       // installation path to be the same for all compilers with the same
@@ -156,7 +161,7 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
     flags->add_other(value);
   }
 
-  return true;
+  return FillResult::FILLED_OK;
 }
 
 }  // namespace client

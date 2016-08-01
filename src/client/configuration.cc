@@ -104,10 +104,12 @@ Configuration::Configuration() {
     List<String> path_dirs;
     base::SplitString<':'>(path, path_dirs);
 
+    String self_path;
+    CHECK(base::GetSelfPath(&self_path, nullptr));
+
     for (const auto& dir : path_dirs) {
       // TODO: convert |dir + "/clang"| to canonical path.
-      if (base::File::IsExecutable(dir + "/clang") &&
-          dir != base::GetSelfPath()) {
+      if (base::File::IsExecutable(dir + "/clang") && dir != self_path) {
         config_.set_path(dir + "/clang");
         break;
       }
