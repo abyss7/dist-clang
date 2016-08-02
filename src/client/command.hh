@@ -1,6 +1,7 @@
 #pragma once
 
 #include <base/aliases.h>
+#include <base/assert.h>
 #include <base/process_forward.h>
 
 namespace dist_clang {
@@ -25,9 +26,16 @@ class Command {
                                          ui32 user_id) const = 0;
   virtual String GetExecutable() const = 0;
   virtual String RenderAllArgs() const = 0;  // For testing.
-  virtual bool FillFlags(base::proto::Flags* flags, const String& clang_path,
-                         const String& clang_major_version) const {
+
+  virtual bool CanFillFlags() const {
     // By default no one can fill flags.
+    return false;
+  }
+
+  virtual bool FillFlags(base::proto::Flags* flags,
+                         const String& clang_path,
+                         const String& clang_major_version) const {
+    NOTREACHED();
     return false;
   }
 
