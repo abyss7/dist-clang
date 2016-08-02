@@ -76,6 +76,7 @@ inline Literal GetHomeDir(String* error) {
 }
 
 inline bool GetSelfPath(String* result, String* error) {
+  CHECK(result);
   // TODO: self-path is not a subject to change during the execution. Cache it.
   char path[PATH_MAX];
 #if defined(OS_LINUX)
@@ -89,7 +90,9 @@ inline bool GetSelfPath(String* result, String* error) {
   ui32 size = sizeof(path);
   if (_NSGetExecutablePath(path, &size) == -1) {
     // TODO: handle not-enough-sized buffer issue.
-    *error = "not enough buffer size";
+    if (error) {
+      *error = "not enough buffer size";
+    }
     return false;
   }
 // FIXME: convert path to absolute with |realpath()|.
