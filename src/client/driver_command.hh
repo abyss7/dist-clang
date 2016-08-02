@@ -1,5 +1,6 @@
 #pragma once
 
+#include <base/assert.h>
 #include <base/attributes.h>
 #include <client/clang_command.hh>
 
@@ -28,12 +29,13 @@ class DriverCommand : public Command {
                                  ui32 user_id) const override;
   String GetExecutable() const override;
   String RenderAllArgs() const override;
+
+  bool CanFillFlags() const override { return !!clang_; }
+
   inline bool FillFlags(base::proto::Flags* flags, const String& clang_path,
                         const String& clang_major_version) const override {
-    if (clang_) {
-      return clang_->FillFlags(flags, clang_path, clang_major_version);
-    }
-    return false;
+    DCHECK(CanFillFlags());
+    return clang_->FillFlags(flags, clang_path, clang_major_version);
   }
 
  private:

@@ -102,7 +102,7 @@ bool DoMain(int argc, const char* const argv[], Immutable socket_path,
     message->set_current_dir(current_dir);
 
     auto* flags = message->mutable_flags();
-    if (!command->FillFlags(flags, clang_path, major_version)) {
+    if (!command->CanFillFlags()) {
       auto process = command->CreateProcess(current_dir, getuid());
       if (!process->Run(base::Process::UNLIMITED)) {
         LOG(WARNING) << "Subcommand failed: " << command->GetExecutable()
@@ -112,6 +112,11 @@ bool DoMain(int argc, const char* const argv[], Immutable socket_path,
         return true;
       }
       continue;
+    } else {
+      if (!command->FillFlags(flags, clang_path, major_version)) {
+        LOG(WARNING) << "Failed to fill flags for subcommand";
+        return true;
+      }
     }
 
     if (!flags->has_action() || flags->input() == "-") {

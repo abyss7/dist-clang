@@ -145,6 +145,7 @@ TEST(CommandTest, ParseCC1Args) {
   }
 
   base::proto::Flags flags;
+  ASSERT_TRUE(command->CanFillFlags());
   ASSERT_TRUE(command->FillFlags(&flags, "/some/clang/path", "1.0.0"));
 
   if (HasNonfatalFailure()) {
@@ -179,6 +180,7 @@ TEST(CommandTest, FillFlags) {
 
   auto& command = commands.front();
   base::proto::Flags flags;
+  ASSERT_TRUE(command->CanFillFlags());
   ASSERT_TRUE(command->FillFlags(&flags, "/some/clang/path", "1.0.0"));
 
   EXPECT_EQ(input, flags.input());

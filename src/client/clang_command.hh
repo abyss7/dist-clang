@@ -17,6 +17,7 @@ class ClangCommand : public Command {
                                  ui32 user_id) const override;
   String GetExecutable() const override;
   String RenderAllArgs() const override;
+  bool CanFillFlags() const override { return true; }
   bool FillFlags(base::proto::Flags* flags, const String& clang_path,
                  const String& clang_major_version) const override;
 
