@@ -34,7 +34,7 @@ class DriverCommand : public Command {
 
   inline bool FillFlags(base::proto::Flags* flags, const String& clang_path,
                         const String& clang_major_version) const override {
-    CHECK(clang_);
+    DCHECK(CanFillFlags());
     return clang_->FillFlags(flags, clang_path, clang_major_version);
   }
 

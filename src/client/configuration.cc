@@ -105,7 +105,9 @@ Configuration::Configuration() {
     base::SplitString<':'>(path, path_dirs);
 
     String self_path;
-    CHECK(base::GetSelfPath(self_path, nullptr));
+    if (!base::GetSelfPath(self_path, nullptr)) {
+      LOG(FATAL) << "Can't reliably detect myself in $PATH";
+    }
 
     for (const auto& dir : path_dirs) {
       // TODO: convert |dir + "/clang"| to canonical path.
