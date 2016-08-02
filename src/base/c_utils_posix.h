@@ -75,28 +75,33 @@ inline Literal GetHomeDir(String* error) {
   return Literal(pw->pw_dir);
 }
 
-inline String GetSelfPath(String* error) {
+inline bool GetSelfPath(String& result, String* error) {
   // TODO: self-path is not a subject to change during the execution. Cache it.
   char path[PATH_MAX];
 #if defined(OS_LINUX)
-  ssize_t read = readlink("/proc/self/exe", path, PATH_MAX);
+  ssize_t read = readlink("/proc/self/exe", path, sizeof(path));
   if (read == -1) {
     GetLastError(error);
-    return String();
+    return false;
   }
   path[read] = '\0';
 #elif defined(OS_MACOSX)
   ui32 size = sizeof(path);
   if (_NSGetExecutablePath(path, &size) == -1) {
     // TODO: handle not-enough-sized buffer issue.
+    if (error) {
+      *error = "not enough buffer size";
+    }
+    return false;
   }
 // FIXME: convert path to absolute with |realpath()|.
 #else
 #pragma message "Don't know how to get self-path on this platform!"
 #endif
 
-  String&& result = String(path);
-  return result.substr(0, result.find_last_of('/'));
+  result = String(path);
+  result = result.substr(0, result.find_last_of('/'));
+  return true;
 }
 
 inline bool SetPermissions(const String& path, int mask, String* error) {
