@@ -122,7 +122,7 @@ ClangCommand::FillResult ClangCommand::FillFlags(
 
       String self_path;
       String error;
-      if (!base::GetSelfPath(&self_path, &error)) {
+      if (!base::GetSelfPath(self_path, &error)) {
         LOG(WARNING) << "Failed to get executable path: " << error;
         return FillResult::FILL_FAILED;
       }

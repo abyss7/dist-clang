@@ -75,8 +75,7 @@ inline Literal GetHomeDir(String* error) {
   return Literal(pw->pw_dir);
 }
 
-inline bool GetSelfPath(String* result, String* error) {
-  CHECK(result);
+inline bool GetSelfPath(String& result, String* error) {
   // TODO: self-path is not a subject to change during the execution. Cache it.
   char path[PATH_MAX];
 #if defined(OS_LINUX)
@@ -100,8 +99,8 @@ inline bool GetSelfPath(String* result, String* error) {
 #pragma message "Don't know how to get self-path on this platform!"
 #endif
 
-  *result = String(path);
-  *result = result->substr(0, result->find_last_of('/'));
+  result = String(path);
+  result = result.substr(0, result.find_last_of('/'));
   return true;
 }
 
