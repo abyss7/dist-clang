@@ -14,7 +14,7 @@ namespace cache {
 using namespace string;
 
 TEST(FileCacheTest, HashCompliesWithRegex) {
-  std::regex hash_regex("[a-f0-9]{32}-[a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8}");
+  std::regex hash_regex("[a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8}");
   EXPECT_TRUE(std::regex_match(
       FileCache::Hash(HandledSource("1"_l),
                       Vector<ExtraFile>{ExtraFile("21"_l), ExtraFile("22"_l)},
@@ -74,8 +74,7 @@ TEST(FileCacheTest, RemoveEntry) {
   const base::TemporaryDir tmp_dir;
   FileCache cache(tmp_dir, 100, false, false);
 
-  string::Hash hash1{
-      "12345678901234567890123456789012-12345678901234567890123456789012-12345678-00000001"_l};
+  string::Hash hash1{"12345678901234567890123456789012-12345678-00000001"_l};
   {
     ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash1)));
     const String common_path = cache.CommonPath(hash1);
@@ -95,8 +94,7 @@ TEST(FileCacheTest, RemoveEntry) {
     ASSERT_TRUE(base::File::Write(stderr_path, "1"_l));
   }
 
-  string::Hash hash2{
-      "12345678901234567890123456789012-12345678901234567890123456789012-12345678-00000002"_l};
+  string::Hash hash2{"12345678901234567890123456789012-12345678-00000002"_l};
   {
     ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash2)));
     const String common_path = cache.CommonPath(hash2);
@@ -114,8 +112,7 @@ TEST(FileCacheTest, RemoveEntry) {
     ASSERT_TRUE(base::File::Write(deps_path, "1"_l));
   }
 
-  string::Hash hash3{
-      "12345678901234567890123456789012-12345678901234567890123456789012-12345678-00000003"_l};
+  string::Hash hash3{"12345678901234567890123456789012-12345678-00000003"_l};
   {
     ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash3)));
     const String common_path = cache.CommonPath(hash3);

@@ -28,13 +28,9 @@ String ReplaceTildeInPath(const String& path) {
 }
 
 template <class Container>
-String HashMultipleFiles(const Container& files) {
-  Vector<String> file_hashes;
-  std::transform(std::begin(files), std::end(files),
-                 std::back_inserter(file_hashes),
-                 [](auto&& file) { return base::Hexify(file.str.Hash(4)); });
+String CombineHashes(const Container& hashes) {
   Immutable hashes_string =
-      base::JoinString<'-'>(std::begin(file_hashes), std::end(file_hashes));
+      base::JoinString<'-'>(std::begin(hashes), std::end(hashes));
   return base::Hexify(hashes_string.Hash());
 }
 
@@ -133,8 +129,13 @@ HandledHash FileCache::Hash(HandledSource code, CommandLine command_line,
 HandledHash FileCache::Hash(HandledSource code,
                             const Vector<ExtraFile>& extra_files,
                             CommandLine command_line, Version version) {
-  return HandledHash(base::Hexify(code.str.Hash()) + "-" +
-                     HashMultipleFiles(extra_files) + "-" +
+  Vector<Immutable> hashes{code.str.Hash()};
+  std::transform(std::begin(extra_files), std::end(extra_files),
+                 std::back_inserter(hashes),
+                 [](const ExtraFile& extra_file) -> Immutable {
+                   return extra_file.str.Hash();
+                 });
+  return HandledHash(CombineHashes(hashes) + "-" +
                      base::Hexify(command_line.str.Hash(4)) + "-" +
                      base::Hexify(version.str.Hash(4)));
 }
@@ -149,11 +150,16 @@ UnhandledHash FileCache::Hash(UnhandledSource code, CommandLine command_line,
 UnhandledHash FileCache::Hash(UnhandledSource code,
                               const Vector<ExtraFile>& extra_files,
                               CommandLine command_line, Version version) {
+  Vector<Immutable> hashes{code.str.Hash()};
+  std::transform(std::begin(extra_files), std::end(extra_files),
+                 std::back_inserter(hashes),
+                 [](const ExtraFile& extra_file) -> Immutable {
+                   return extra_file.str.Hash();
+                 });
   return UnhandledHash(
-      base::Hexify(code.str.Hash()) + "-" + HashMultipleFiles(extra_files) +
-      "-" + base::Hexify(command_line.str.Hash(4)) + "-" +
-      base::Hexify(
-          (version.str + "\n"_l + clang::getClangFullVersion()).Hash(4)));
+      CombineHashes(hashes) + "-" + base::Hexify(command_line.str.Hash(4)) +
+      "-" + base::Hexify(
+                (version.str + "\n"_l + clang::getClangFullVersion()).Hash(4)));
 }
 
 bool FileCache::Find(HandledSource code, CommandLine command_line,
