@@ -17,9 +17,9 @@ class ClangCommand : public Command {
                                  ui32 user_id) const override;
   String GetExecutable() const override;
   String RenderAllArgs() const override;
-  FillResult FillFlags(base::proto::Flags* flags,
-                       const String& clang_path,
-                       const String& clang_major_version) const override;
+  bool CanFillFlags() const override { return true; }
+  bool FillFlags(base::proto::Flags* flags, const String& clang_path,
+                 const String& clang_major_version) const override;
 
  private:
   const llvm::opt::InputArgList arg_list_;

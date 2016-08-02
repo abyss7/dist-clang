@@ -45,11 +45,11 @@ String ClangCommand::RenderAllArgs() const {
   return result.substr(1);
 }
 
-ClangCommand::FillResult ClangCommand::FillFlags(
-    base::proto::Flags* flags, const String& clang_path,
-    const String& clang_major_version) const {
+bool ClangCommand::FillFlags(base::proto::Flags* flags,
+                             const String& clang_path,
+                             const String& clang_major_version) const {
   if (!flags) {
-    return FillResult::FILLED_OK;
+    return true;
   }
 
   flags->Clear();
@@ -124,7 +124,7 @@ ClangCommand::FillResult ClangCommand::FillFlags(
       String error;
       if (!base::GetSelfPath(self_path, &error)) {
         LOG(WARNING) << "Failed to get executable path: " << error;
-        return FillResult::FILL_FAILED;
+        return false;
       }
 
       // Assume the -resource-dir and -internal-isystem that are based on Clang
@@ -161,7 +161,7 @@ ClangCommand::FillResult ClangCommand::FillFlags(
     flags->add_other(value);
   }
 
-  return FillResult::FILLED_OK;
+  return true;
 }
 
 }  // namespace client

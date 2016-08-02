@@ -1,6 +1,7 @@
 #pragma once
 
 #include <base/aliases.h>
+#include <base/assert.h>
 #include <base/process_forward.h>
 
 namespace dist_clang {
@@ -19,23 +20,23 @@ class Command {
  public:
   using List = List<UniquePtr<Command>>;
 
-  enum class FillResult {
-    FILLED_OK,
-    DID_NOT_FILL,
-    FILL_FAILED
-  };
-
   virtual ~Command() {}
 
   virtual base::ProcessPtr CreateProcess(Immutable current_dir,
                                          ui32 user_id) const = 0;
   virtual String GetExecutable() const = 0;
   virtual String RenderAllArgs() const = 0;  // For testing.
-  virtual FillResult FillFlags(base::proto::Flags* flags,
-                               const String& clang_path,
-                               const String& clang_major_version) const {
+
+  virtual bool CanFillFlags() const {
     // By default no one can fill flags.
-    return FillResult::DID_NOT_FILL;
+    return false;
+  }
+
+  virtual bool FillFlags(base::proto::Flags* flags,
+                         const String& clang_path,
+                         const String& clang_major_version) const {
+    NOTREACHED();
+    return false;
   }
 
   static bool GenerateFromArgs(int argc, const char* const raw_argv[],
