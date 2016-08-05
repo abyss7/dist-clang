@@ -23,14 +23,14 @@ class CompilationDaemon : public BaseDaemon {
 
   cache::string::HandledHash GenerateHash(
       const base::proto::Flags& flags, const cache::string::HandledSource& code,
-      const Vector<cache::string::ExtraFile>& extra_files) const;
+      const List<Immutable>& extra_files) const;
 
   bool SetupCompiler(base::proto::Flags* flags,
                      net::proto::Status* status) const;
 
   bool SearchSimpleCache(const base::proto::Flags& flags,
                          const cache::string::HandledSource& source,
-                         const Vector<cache::string::ExtraFile>& extra_files,
+                         const List<Immutable>& extra_files,
                          cache::FileCache::Entry* entry) const;
 
   bool SearchDirectCache(const base::proto::Flags& flags,
@@ -39,12 +39,12 @@ class CompilationDaemon : public BaseDaemon {
 
   void UpdateSimpleCache(const base::proto::Flags& flags,
                          const cache::string::HandledSource& source,
-                         const Vector<cache::string::ExtraFile>& extra_files,
+                         const List<Immutable>& extra_files,
                          const cache::FileCache::Entry& entry);
 
   void UpdateDirectCache(const base::proto::Local* message,
                          const cache::string::HandledSource& source,
-                         const Vector<cache::string::ExtraFile>& extra_files,
+                         const List<Immutable>& extra_files,
                          const cache::FileCache::Entry& entry);
 
   inline SharedPtr<const proto::Configuration> conf() const { return conf_; }

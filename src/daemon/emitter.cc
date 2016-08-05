@@ -69,8 +69,10 @@ inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
 }
 
 inline bool ReadExtraFiles(const base::proto::Local* WEAK_PTR message,
-                           Vector<cache::string::ExtraFile>* extra_files) {
+                           List<Immutable>* extra_files) {
   DCHECK(message);
+  DCHECK(extra_files);
+  DCHECK(extra_files->empty());
 
   if (!message->flags().has_sanitize_blacklist()) {
     return true;
@@ -80,8 +82,8 @@ inline bool ReadExtraFiles(const base::proto::Local* WEAK_PTR message,
                                   ? message->flags().sanitize_blacklist()
                                   : message->current_dir() + "/" +
                                         message->flags().sanitize_blacklist();
-  cache::string::ExtraFile sanitize_blacklist_contents;
-  if (!base::File::Read(sanitize_blacklist, &sanitize_blacklist_contents.str)) {
+  Immutable sanitize_blacklist_contents;
+  if (!base::File::Read(sanitize_blacklist, &sanitize_blacklist_contents)) {
     LOG(ERROR) << "Failed to open sanitize blacklist " << sanitize_blacklist;
     return false;
   }
@@ -198,13 +200,11 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
   if (message->HasExtension(base::proto::Local::extension)) {
     Message execute(message->ReleaseExtension(base::proto::Local::extension));
     if (config->has_cache() && !config->cache().disabled()) {
-      return cache_tasks_->Push(std::make_tuple(connection, std::move(execute),
-                                                HandledSource(),
-                                                Vector<ExtraFile>()));
+      return cache_tasks_->Push(std::make_tuple(
+          connection, std::move(execute), HandledSource(), List<Immutable>{}));
     } else {
-      return all_tasks_->Push(std::make_tuple(connection, std::move(execute),
-                                              HandledSource(),
-                                              Vector<ExtraFile>()));
+      return all_tasks_->Push(std::make_tuple(
+          connection, std::move(execute), HandledSource(), List<Immutable>{}));
     }
   }
 
@@ -229,7 +229,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     cache::FileCache::Entry entry;
 
     auto RestoreFromCache = [&](const HandledSource& source,
-                                const Vector<ExtraFile>& extra_files) {
+                                const List<Immutable>& extra_files) {
       String error;
       const String output_path = GetOutputPath(incoming);
 
@@ -270,7 +270,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     };
 
     if (SearchDirectCache(incoming->flags(), incoming->current_dir(), &entry) &&
-        RestoreFromCache(HandledSource(), Vector<ExtraFile>())) {
+        RestoreFromCache(HandledSource(), List<Immutable>{})) {
       STAT(DIRECT_CACHE_HIT);
       continue;
     }
@@ -438,7 +438,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
     outgoing->mutable_flags()->CopyFrom(incoming->flags());
     outgoing->set_source(Immutable(source.str).string_copy(false));
     for (auto&& extra_file : extra_files) {
-      outgoing->add_extra_files(Immutable(extra_file.str).string_copy(false));
+      outgoing->add_extra_files(extra_file);
     }
 
     // Filter outgoing flags.

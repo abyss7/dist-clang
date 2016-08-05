@@ -15,17 +15,14 @@ namespace daemon {
 
 namespace {
 
-Vector<cache::string::ExtraFile> GetExtraFiles(proto::Remote* incoming) {
-  using namespace cache::string;
-
-  Vector<ExtraFile> extra_files;
-  std::transform(
-      std::begin(incoming->extra_files()), std::end(incoming->extra_files()),
-      std::back_inserter(extra_files),
-      [](const String& extra_file) -> ExtraFile {
-        auto extra_file_immutable = Immutable::WrapString(extra_file);
-        return ExtraFile(extra_file_immutable);
-      });
+List<Immutable> GetExtraFiles(proto::Remote* incoming) {
+  List<Immutable> extra_files;
+  std::transform(std::begin(incoming->extra_files()),
+                 std::end(incoming->extra_files()),
+                 std::back_inserter(extra_files),
+                 [](const String& extra_file) -> Immutable {
+                   return Immutable::WrapString(extra_file);
+                 });
   return extra_files;
 }
 

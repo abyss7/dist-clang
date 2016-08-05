@@ -83,25 +83,27 @@ bool ParseDeps(String deps, List<String>& headers) {
   return true;
 }
 
-Vector<ExtraFile> ReadExtraFiles(const base::proto::Flags& flags,
-                                 const String& current_dir) {
+inline String GetFullPath(const String& current_dir, const String& path) {
+  return path[0] == '/' ? path : current_dir + "/" + path;
+}
+
+List<Immutable> ReadExtraFiles(const base::proto::Flags& flags,
+                               const String& current_dir) {
   if (!flags.has_sanitize_blacklist()) {
-    return Vector<ExtraFile>();
+    return List<Immutable>{};
   }
 
-  ExtraFile sanitize_blacklist_contents;
+  Immutable sanitize_blacklist_contents;
   const String sanitize_blacklist =
-      flags.sanitize_blacklist()[0] != '/'
-          ? current_dir + "/" + flags.sanitize_blacklist()
-          : flags.sanitize_blacklist();
+      GetFullPath(current_dir, flags.sanitize_blacklist());
 
-  if (!base::File::Read(sanitize_blacklist, &sanitize_blacklist_contents.str)) {
+  if (!base::File::Read(sanitize_blacklist, &sanitize_blacklist_contents)) {
     LOG(CACHE_ERROR) << "Failed to read sanitize blacklist file "
                      << sanitize_blacklist;
-    return Vector<ExtraFile>();
+    return List<Immutable>{};
   }
 
-  return Vector<ExtraFile>{sanitize_blacklist_contents};
+  return List<Immutable>{sanitize_blacklist_contents};
 }
 
 }  // namespace
@@ -186,7 +188,7 @@ CompilationDaemon::CompilationDaemon(const proto::Configuration& configuration)
 
 HandledHash CompilationDaemon::GenerateHash(
     const base::proto::Flags& flags, const HandledSource& code,
-    const Vector<ExtraFile>& extra_files) const {
+    const List<Immutable>& extra_files) const {
   const Version version(flags.compiler().version());
   return cache::FileCache::Hash(code, extra_files,
                                 CommandLineForSimpleCache(flags), version);
@@ -256,8 +258,7 @@ bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
 
 bool CompilationDaemon::SearchSimpleCache(
     const base::proto::Flags& flags, const HandledSource& source,
-    const Vector<ExtraFile>& extra_files,
-    cache::FileCache::Entry* entry) const {
+    const List<Immutable>& extra_files, cache::FileCache::Entry* entry) const {
   if (!cache_) {
     return false;
   }
@@ -285,9 +286,7 @@ bool CompilationDaemon::SearchDirectCache(
   }
 
   const Version version(flags.compiler().version());
-  const String input = flags.input()[0] != '/'
-                           ? current_dir + "/" + flags.input()
-                           : flags.input();
+  const String input = GetFullPath(current_dir, flags.input());
   const CommandLine command_line(CommandLineForDirectCache(current_dir, flags));
 
   UnhandledSource code;
@@ -295,7 +294,7 @@ bool CompilationDaemon::SearchDirectCache(
     return false;
   }
 
-  Vector<ExtraFile> extra_files = ReadExtraFiles(flags, current_dir);
+  List<Immutable> extra_files = ReadExtraFiles(flags, current_dir);
   if (!cache_->Find(code, extra_files, command_line, version, current_dir,
                     entry)) {
     LOG(CACHE_INFO) << "Direct cache miss: " << flags.input();
@@ -307,8 +306,7 @@ bool CompilationDaemon::SearchDirectCache(
 
 void CompilationDaemon::UpdateSimpleCache(
     const base::proto::Flags& flags, const HandledSource& source,
-    const Vector<ExtraFile>& extra_files,
-    const cache::FileCache::Entry& entry) {
+    const List<Immutable>& extra_files, const cache::FileCache::Entry& entry) {
   const Version version(flags.compiler().version());
   const auto command_line = CommandLineForSimpleCache(flags);
 
@@ -321,8 +319,7 @@ void CompilationDaemon::UpdateSimpleCache(
 
 void CompilationDaemon::UpdateDirectCache(
     const base::proto::Local* message, const HandledSource& source,
-    const Vector<ExtraFile>& extra_files,
-    const cache::FileCache::Entry& entry) {
+    const List<Immutable>& extra_files, const cache::FileCache::Entry& entry) {
   const auto& flags = message->flags();
   auto config = conf();
   DCHECK(config->has_emitter() && !config->has_absorber());
@@ -343,9 +340,7 @@ void CompilationDaemon::UpdateDirectCache(
                                  CommandLineForSimpleCache(flags), version);
   const auto command_line =
       CommandLineForDirectCache(message->current_dir(), flags);
-  const String input_path = flags.input()[0] != '/'
-                                ? message->current_dir() + "/" + flags.input()
-                                : flags.input();
+  const String input_path = GetFullPath(message->current_dir(), flags.input());
   List<String> headers;
   UnhandledSource original_code;
 

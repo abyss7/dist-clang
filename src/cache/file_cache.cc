@@ -7,6 +7,7 @@
 #include <perf/stat_service.h>
 
 #include <third_party/snappy/exported/snappy.h>
+#include STL(numeric)
 #include STL(regex)
 
 #include <clang/Basic/Version.h>
@@ -27,10 +28,23 @@ String ReplaceTildeInPath(const String& path) {
   return path;
 }
 
-template <class Container>
-String CombineHashes(const Container& hashes) {
-  Immutable hashes_string =
-      base::JoinString<'-'>(std::begin(hashes), std::end(hashes));
+String CombineHashes(const Immutable& first, const Immutable& second) {
+  if (second.empty()) {
+    return first;
+  }
+  return base::Hexify((first + "-"_l + second).Hash());
+}
+
+String HashCombine(const List<Immutable>& files) {
+  Immutable hashes_string = std::accumulate(
+      std::begin(files), std::end(files), Immutable{},
+      [](const Immutable& acc, const Immutable& elem) -> Immutable {
+        if (acc.empty()) {
+          return base::Hexify(elem.Hash());
+        } else {
+          return acc + "-"_l + base::Hexify(elem.Hash());
+        }
+      });
   return base::Hexify(hashes_string.Hash());
 }
 
@@ -122,52 +136,41 @@ using namespace string;
 // static
 HandledHash FileCache::Hash(HandledSource code, CommandLine command_line,
                             Version version) {
-  return FileCache::Hash(code, Vector<ExtraFile>{}, command_line, version);
+  return FileCache::Hash(code, List<Immutable>{}, command_line, version);
 }
 
 // static
 HandledHash FileCache::Hash(HandledSource code,
-                            const Vector<ExtraFile>& extra_files,
+                            const List<Immutable>& extra_files,
                             CommandLine command_line, Version version) {
-  Vector<Immutable> hashes{code.str.Hash()};
-  std::transform(std::begin(extra_files), std::end(extra_files),
-                 std::back_inserter(hashes),
-                 [](const ExtraFile& extra_file) -> Immutable {
-                   return extra_file.str.Hash();
-                 });
-  return HandledHash(CombineHashes(hashes) + "-" +
-                     base::Hexify(command_line.str.Hash(4)) + "-" +
+  return HandledHash(CombineHashes(code.str.Hash(), HashCombine(extra_files)) +
+                     "-" + base::Hexify(command_line.str.Hash(4)) + "-" +
                      base::Hexify(version.str.Hash(4)));
 }
 
 // static
 UnhandledHash FileCache::Hash(UnhandledSource code, CommandLine command_line,
                               Version version) {
-  return FileCache::Hash(code, Vector<ExtraFile>{}, command_line, version);
+  return FileCache::Hash(code, List<Immutable>{}, command_line, version);
 }
 
 // static
 UnhandledHash FileCache::Hash(UnhandledSource code,
-                              const Vector<ExtraFile>& extra_files,
+                              const List<Immutable>& extra_files,
                               CommandLine command_line, Version version) {
-  Vector<Immutable> hashes{code.str.Hash()};
-  std::transform(std::begin(extra_files), std::end(extra_files),
-                 std::back_inserter(hashes),
-                 [](const ExtraFile& extra_file) -> Immutable {
-                   return extra_file.str.Hash();
-                 });
   return UnhandledHash(
-      CombineHashes(hashes) + "-" + base::Hexify(command_line.str.Hash(4)) +
-      "-" + base::Hexify(
-                (version.str + "\n"_l + clang::getClangFullVersion()).Hash(4)));
+      CombineHashes(code.str.Hash(), HashCombine(extra_files)) + "-" +
+      base::Hexify(command_line.str.Hash(4)) + "-" +
+      base::Hexify(
+          (version.str + "\n"_l + clang::getClangFullVersion()).Hash(4)));
 }
 
 bool FileCache::Find(HandledSource code, CommandLine command_line,
                      Version version, Entry* entry) const {
-  return Find(code, Vector<ExtraFile>{}, command_line, version, entry);
+  return Find(code, List<Immutable>{}, command_line, version, entry);
 }
 
-bool FileCache::Find(HandledSource code, const Vector<ExtraFile>& extra_files,
+bool FileCache::Find(HandledSource code, const List<Immutable>& extra_files,
                      CommandLine command_line, Version version,
                      Entry* entry) const {
   return FindByHash(Hash(code, extra_files, command_line, version), entry);
@@ -176,17 +179,17 @@ bool FileCache::Find(HandledSource code, const Vector<ExtraFile>& extra_files,
 bool FileCache::Find(UnhandledSource code, CommandLine command_line,
                      Version version, const String& current_dir,
                      Entry* entry) const {
-  return Find(code, Vector<ExtraFile>{}, command_line, version, current_dir,
+  return Find(code, List<Immutable>{}, command_line, version, current_dir,
               entry);
 }
 
-bool FileCache::Find(UnhandledSource code, const Vector<ExtraFile>& extra_files,
+bool FileCache::Find(UnhandledSource code, const List<Immutable>& extra_files,
                      CommandLine command_line, Version version,
                      const String& current_dir, Entry* entry) const {
   DCHECK(entry);
 
-  auto hash1 = Hash(code, extra_files, command_line, version);
-  const String manifest_path = CommonPath(hash1) + ".manifest";
+  auto unhandled_hash = Hash(code, extra_files, command_line, version);
+  const String manifest_path = CommonPath(unhandled_hash) + ".manifest";
   const ReadLock lock(this, manifest_path);
 
   if (!lock) {
@@ -199,9 +202,9 @@ bool FileCache::Find(UnhandledSource code, const Vector<ExtraFile>& extra_files,
   }
 
   utime(manifest_path.c_str(), nullptr);
-  new_entries_->Append({time(nullptr), hash1});
+  new_entries_->Append({time(nullptr), unhandled_hash});
 
-  Immutable::Rope hash_rope = {hash1};
+  Immutable::Rope hash_rope = {unhandled_hash};
   for (const auto& header : manifest.direct().headers()) {
     Immutable header_hash;
     const String header_path =
@@ -211,11 +214,12 @@ bool FileCache::Find(UnhandledSource code, const Vector<ExtraFile>& extra_files,
     }
     hash_rope.push_back(header_hash);
   }
-  Immutable hash2 = base::Hexify(Immutable(hash_rope).Hash()), hash3;
+  Immutable hash_with_headers = base::Hexify(Immutable(hash_rope).Hash());
+  Immutable handled_hash;
 
   DCHECK(database_);
-  if (database_->Get(hash2, &hash3)) {
-    return FindByHash(HandledHash(hash3), entry);
+  if (database_->Get(hash_with_headers, &handled_hash)) {
+    return FindByHash(HandledHash(handled_hash), entry);
   }
 
   return false;
@@ -224,12 +228,11 @@ bool FileCache::Find(UnhandledSource code, const Vector<ExtraFile>& extra_files,
 void FileCache::Store(UnhandledSource code, CommandLine command_line,
                       Version version, const List<String>& headers,
                       const String& current_dir, string::HandledHash hash) {
-  Store(code, Vector<ExtraFile>{}, command_line, version, headers, current_dir,
+  Store(code, List<Immutable>{}, command_line, version, headers, current_dir,
         hash);
 }
 
-void FileCache::Store(UnhandledSource code,
-                      const Vector<ExtraFile>& extra_files,
+void FileCache::Store(UnhandledSource code, const List<Immutable>& extra_files,
                       CommandLine command_line, Version version,
                       const List<String>& headers, const String& current_dir,
                       string::HandledHash hash) {
@@ -239,10 +242,10 @@ void FileCache::Store(UnhandledSource code,
 
 void FileCache::Store(HandledSource code, CommandLine command_line,
                       Version version, const Entry& entry) {
-  Store(code, Vector<ExtraFile>{}, command_line, version, entry);
+  Store(code, List<Immutable>{}, command_line, version, entry);
 }
 
-void FileCache::Store(HandledSource code, const Vector<ExtraFile>& extra_files,
+void FileCache::Store(HandledSource code, const List<Immutable>& extra_files,
                       CommandLine command_line, Version version,
                       const Entry& entry) {
   DoStore(Hash(code, extra_files, command_line, version), entry);

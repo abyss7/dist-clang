@@ -16,8 +16,7 @@ using namespace string;
 TEST(FileCacheTest, HashCompliesWithRegex) {
   std::regex hash_regex("[a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8}");
   EXPECT_TRUE(std::regex_match(
-      FileCache::Hash(HandledSource("1"_l),
-                      Vector<ExtraFile>{ExtraFile("21"_l), ExtraFile("22"_l)},
+      FileCache::Hash(HandledSource("1"_l), List<Immutable>{"21"_l, "22"_l},
                       CommandLine("3"_l), Version("4"_l))
           .str.string_copy(),
       hash_regex));
