@@ -13,18 +13,6 @@ using namespace std::placeholders;
 namespace dist_clang {
 namespace daemon {
 
-namespace {
-
-List<Immutable> GetExtraFiles(proto::Remote* incoming) {
-  List<Immutable> extra_files;
-  for (auto&& file : incoming->extra_files()) {
-    extra_files.emplace_back(Immutable::WrapString(file));
-  }
-  return extra_files;
-}
-
-}  // namespace
-
 Absorber::Absorber(const proto::Configuration& configuration)
     : CompilationDaemon(configuration) {
   using Worker = base::WorkerPool::SimpleWorker;
@@ -104,7 +92,10 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
 
     proto::Remote* incoming = task->second.get();
     auto source = Immutable::WrapString(incoming->source());
-    auto extra_files = GetExtraFiles(incoming);
+    List<Immutable> extra_files;
+    for (auto&& file : incoming->extra_files()) {
+      extra_files.emplace_back(Immutable::WrapString(file));
+    }
 
     incoming->mutable_flags()->set_output("-");
     incoming->mutable_flags()->clear_input();

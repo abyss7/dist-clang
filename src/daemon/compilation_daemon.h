@@ -28,6 +28,10 @@ class CompilationDaemon : public BaseDaemon {
   bool SetupCompiler(base::proto::Flags* flags,
                      net::proto::Status* status) const;
 
+  bool ReadExtraFiles(const base::proto::Flags& flags,
+                      const String& current_dir,
+                      List<Immutable>* extra_files) const;
+
   bool SearchSimpleCache(const base::proto::Flags& flags,
                          const cache::string::HandledSource& source,
                          const List<Immutable>& extra_files,

@@ -68,30 +68,6 @@ inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
   return true;
 }
 
-inline bool ReadExtraFiles(const base::proto::Local* WEAK_PTR message,
-                           List<Immutable>* extra_files) {
-  DCHECK(message);
-  DCHECK(extra_files);
-  DCHECK(extra_files->empty());
-
-  if (!message->flags().has_sanitize_blacklist()) {
-    return true;
-  }
-
-  String sanitize_blacklist = message->flags().sanitize_blacklist()[0] == '/'
-                                  ? message->flags().sanitize_blacklist()
-                                  : message->current_dir() + "/" +
-                                        message->flags().sanitize_blacklist();
-  Immutable sanitize_blacklist_contents;
-  if (!base::File::Read(sanitize_blacklist, &sanitize_blacklist_contents)) {
-    LOG(ERROR) << "Failed to open sanitize blacklist " << sanitize_blacklist;
-    return false;
-  }
-  extra_files->emplace_back(std::move(sanitize_blacklist_contents));
-
-  return true;
-}
-
 }  // namespace
 
 namespace daemon {
@@ -291,7 +267,8 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     }
 
     auto& extra_files = std::get<EXTRA_FILES>(*task);
-    if (!ReadExtraFiles(incoming, &extra_files)) {
+    if (!ReadExtraFiles(incoming->flags(), incoming->current_dir(),
+                        &extra_files)) {
       failed_tasks_->Push(std::move(*task));
       continue;
     }

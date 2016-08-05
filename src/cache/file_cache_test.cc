@@ -156,7 +156,7 @@ TEST(FileCacheTest, RestoreSingleEntry) {
 
   ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
   ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
-  EXPECT_FALSE(cache.Find(code, cl, version, &entry1));
+  EXPECT_FALSE(cache.Find(code, List<Immutable>{}, cl, version, &entry1));
   EXPECT_TRUE(entry1.object.empty());
   EXPECT_TRUE(entry1.deps.empty());
   EXPECT_TRUE(entry1.stderr.empty());
@@ -165,9 +165,9 @@ TEST(FileCacheTest, RestoreSingleEntry) {
   entry1.deps = expected_deps;
   entry1.stderr = expected_stderr;
 
-  cache.Store(code, cl, version, entry1);
+  cache.Store(code, List<Immutable>{}, cl, version, entry1);
 
-  ASSERT_TRUE(cache.Find(code, cl, version, &entry2));
+  ASSERT_TRUE(cache.Find(code, List<Immutable>{}, cl, version, &entry2));
   EXPECT_EQ(expected_object_code, entry2.object);
   EXPECT_EQ(expected_deps, entry2.deps);
   EXPECT_EQ(expected_stderr, entry2.stderr);
@@ -197,13 +197,14 @@ TEST(FileCacheTest, RestoreEntryWithMissingFile) {
   entry1.stderr = expected_stderr;
 
   // Store the entry.
-  cache.Store(code, cl, version, entry1);
+  cache.Store(code, List<Immutable>{}, cl, version, entry1);
 
-  base::File::Delete(cache.CommonPath(FileCache::Hash(code, cl, version)) +
-                     ".d");
+  base::File::Delete(
+      cache.CommonPath(FileCache::Hash(code, List<Immutable>{}, cl, version)) +
+      ".d");
 
   // Restore the entry.
-  ASSERT_FALSE(cache.Find(code, cl, version, &entry2));
+  ASSERT_FALSE(cache.Find(code, List<Immutable>{}, cl, version, &entry2));
 }
 
 TEST(FileCacheTest, DISABLED_RestoreEntryWithMalfordedManifest) {
@@ -262,7 +263,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
 
   {
     FileCache::Entry entry{obj_content[0], String(), String()};
-    cache.Store(code[0], cl, version, entry);
+    cache.Store(code[0], List<Immutable>{}, cl, version, entry);
     EXPECT_EQ(68u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
@@ -270,7 +271,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
 
   {
     FileCache::Entry entry{obj_content[1], String(), String()};
-    cache.Store(code[1], cl, version, entry);
+    cache.Store(code[1], List<Immutable>{}, cl, version, entry);
     EXPECT_EQ(137u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
@@ -278,15 +279,15 @@ TEST(FileCacheTest, ExceedCacheSize) {
 
   {
     FileCache::Entry entry{obj_content[2], String(), String()};
-    cache.Store(code[2], cl, version, entry);
+    cache.Store(code[2], List<Immutable>{}, cl, version, entry);
     std::this_thread::sleep_for(std::chrono::seconds(3));
     EXPECT_EQ(70u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
   FileCache::Entry entry;
-  EXPECT_FALSE(cache.Find(code[0], cl, version, &entry));
-  EXPECT_FALSE(cache.Find(code[1], cl, version, &entry));
-  EXPECT_TRUE(cache.Find(code[2], cl, version, &entry));
+  EXPECT_FALSE(cache.Find(code[0], List<Immutable>{}, cl, version, &entry));
+  EXPECT_FALSE(cache.Find(code[1], List<Immutable>{}, cl, version, &entry));
+  EXPECT_TRUE(cache.Find(code[2], List<Immutable>{}, cl, version, &entry));
 }
 
 TEST(FileCacheTest, RestoreDirectEntry) {
@@ -318,16 +319,17 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   entry1.stderr = expected_stderr;
 
   // Store the entry.
-  cache.Store(code, cl, version, entry1);
+  cache.Store(code, List<Immutable>{}, cl, version, entry1);
 
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   const List<String> headers = {header1_path, header2_rel_path};
-  cache.Store(orig_code, cl, version, headers, path,
-              FileCache::Hash(code, cl, version));
+  cache.Store(orig_code, List<Immutable>{}, cl, version, headers, path,
+              FileCache::Hash(code, List<Immutable>{}, cl, version));
 
   // Restore the entry.
-  ASSERT_TRUE(cache.Find(orig_code, cl, version, path, &entry2));
+  ASSERT_TRUE(
+      cache.Find(orig_code, List<Immutable>{}, cl, version, path, &entry2));
   EXPECT_EQ(expected_object_code, entry2.object);
   EXPECT_EQ(expected_deps, entry2.deps);
   EXPECT_EQ(expected_stderr, entry2.stderr);
@@ -362,19 +364,20 @@ TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
   entry.stderr = expected_stderr;
 
   // Store the entry.
-  cache.Store(code, cl, version, entry);
+  cache.Store(code, List<Immutable>{}, cl, version, entry);
 
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   const List<String> headers = {header1_path, header2_rel_path};
-  cache.Store(orig_code, cl, version, headers, path,
-              FileCache::Hash(code, cl, version));
+  cache.Store(orig_code, List<Immutable>{}, cl, version, headers, path,
+              FileCache::Hash(code, List<Immutable>{}, cl, version));
 
   // Change header contents.
   ASSERT_TRUE(base::File::Write(header2_path, "#define C"_l));
 
   // Restore the entry.
-  EXPECT_FALSE(cache.Find(orig_code, cl, version, path, &entry));
+  EXPECT_FALSE(
+      cache.Find(orig_code, List<Immutable>{}, cl, version, path, &entry));
 }
 
 TEST(FileCacheTest, DirectEntry_RewriteManifest) {
@@ -406,22 +409,23 @@ TEST(FileCacheTest, DirectEntry_RewriteManifest) {
   entry1.stderr = expected_stderr;
 
   // Store the entry.
-  cache.Store(code, cl, version, entry1);
+  cache.Store(code, List<Immutable>{}, cl, version, entry1);
 
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   List<String> headers = {header1_path, header2_path};
-  cache.Store(orig_code, cl, version, headers, path,
-              FileCache::Hash(code, cl, version));
+  cache.Store(orig_code, List<Immutable>{}, cl, version, headers, path,
+              FileCache::Hash(code, List<Immutable>{}, cl, version));
 
   headers.pop_back();
 
   // Store the direct entry - again.
-  cache.Store(orig_code, cl, version, headers, path,
-              FileCache::Hash(code, cl, version));
+  cache.Store(orig_code, List<Immutable>{}, cl, version, headers, path,
+              FileCache::Hash(code, List<Immutable>{}, cl, version));
 
   // Restore the entry.
-  EXPECT_TRUE(cache.Find(orig_code, cl, version, path, &entry2));
+  EXPECT_TRUE(
+      cache.Find(orig_code, List<Immutable>{}, cl, version, path, &entry2));
 }
 
 TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
@@ -452,17 +456,18 @@ TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
   entry.stderr = expected_stderr;
 
   // Store the entry.
-  cache.Store(code, cl, version, entry);
+  cache.Store(code, List<Immutable>{}, cl, version, entry);
 
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   const List<String> headers = {header1_path, header2_path};
-  cache.Store(orig_code, cl, version, headers, path,
-              FileCache::Hash(code, cl, version));
+  cache.Store(orig_code, List<Immutable>{}, cl, version, headers, path,
+              FileCache::Hash(code, List<Immutable>{}, cl, version));
 
   // Restore the entry.
   const UnhandledSource bad_orig_code(orig_code.str.string_copy() + " ");
-  EXPECT_FALSE(cache.Find(bad_orig_code, cl, version, path, &entry));
+  EXPECT_FALSE(
+      cache.Find(bad_orig_code, List<Immutable>{}, cl, version, path, &entry));
 }
 
 TEST(FileCacheTest, RestoreAndMigrateSnappyEntry) {
@@ -485,7 +490,7 @@ TEST(FileCacheTest, RestoreAndMigrateSnappyEntry) {
 
     ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
     ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
-    EXPECT_FALSE(cache.Find(code, cl, version, &entry1));
+    EXPECT_FALSE(cache.Find(code, List<Immutable>{}, cl, version, &entry1));
     EXPECT_TRUE(entry1.object.empty());
     EXPECT_TRUE(entry1.deps.empty());
     EXPECT_TRUE(entry1.stderr.empty());
@@ -494,9 +499,9 @@ TEST(FileCacheTest, RestoreAndMigrateSnappyEntry) {
     entry1.deps = expected_deps;
     entry1.stderr = expected_stderr;
 
-    cache.Store(code, cl, version, entry1);
+    cache.Store(code, List<Immutable>{}, cl, version, entry1);
 
-    ASSERT_TRUE(cache.Find(code, cl, version, &entry2));
+    ASSERT_TRUE(cache.Find(code, List<Immutable>{}, cl, version, &entry2));
     EXPECT_EQ(expected_object_code, entry2.object);
     EXPECT_EQ(expected_deps, entry2.deps);
     EXPECT_EQ(expected_stderr, entry2.stderr);
@@ -508,7 +513,7 @@ TEST(FileCacheTest, RestoreAndMigrateSnappyEntry) {
     const HandledSource code("int main() { return 0; }"_l);
     const CommandLine cl("-c"_l);
     const Version version("3.5 (revision 100000)"_l);
-    ASSERT_TRUE(cache.Find(code, cl, version, &entry));
+    ASSERT_TRUE(cache.Find(code, List<Immutable>{}, cl, version, &entry));
     EXPECT_EQ(expected_object_code, entry.object);
     EXPECT_EQ(expected_deps, entry.deps);
     EXPECT_EQ(expected_stderr, entry.stderr);

@@ -87,25 +87,6 @@ inline String GetFullPath(const String& current_dir, const String& path) {
   return path[0] == '/' ? path : current_dir + "/" + path;
 }
 
-List<Immutable> ReadExtraFiles(const base::proto::Flags& flags,
-                               const String& current_dir) {
-  if (!flags.has_sanitize_blacklist()) {
-    return List<Immutable>{};
-  }
-
-  Immutable sanitize_blacklist_contents;
-  const String sanitize_blacklist =
-      GetFullPath(current_dir, flags.sanitize_blacklist());
-
-  if (!base::File::Read(sanitize_blacklist, &sanitize_blacklist_contents)) {
-    LOG(CACHE_ERROR) << "Failed to read sanitize blacklist file "
-                     << sanitize_blacklist;
-    return List<Immutable>{};
-  }
-
-  return List<Immutable>{sanitize_blacklist_contents};
-}
-
 }  // namespace
 
 namespace daemon {
@@ -256,6 +237,28 @@ bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
   return true;
 }
 
+bool CompilationDaemon::ReadExtraFiles(const base::proto::Flags& flags,
+                                       const String& current_dir,
+                                       List<Immutable>* extra_files) const {
+  DCHECK(extra_files);
+  DCHECK(extra_files->empty());
+
+  if (!flags.has_sanitize_blacklist()) {
+    return true;
+  }
+
+  Immutable sanitize_blacklist_contents;
+  const String sanitize_blacklist =
+      GetFullPath(current_dir, flags.sanitize_blacklist());
+  if (!base::File::Read(sanitize_blacklist, &sanitize_blacklist_contents)) {
+    LOG(CACHE_ERROR) << "Failed to read sanitize blacklist file"
+                     << sanitize_blacklist;
+    return false;
+  }
+  extra_files->emplace_back(std::move(sanitize_blacklist_contents));
+  return true;
+}
+
 bool CompilationDaemon::SearchSimpleCache(
     const base::proto::Flags& flags, const HandledSource& source,
     const List<Immutable>& extra_files, cache::FileCache::Entry* entry) const {
@@ -294,7 +297,11 @@ bool CompilationDaemon::SearchDirectCache(
     return false;
   }
 
-  List<Immutable> extra_files = ReadExtraFiles(flags, current_dir);
+  List<Immutable> extra_files;
+  if (!ReadExtraFiles(flags, current_dir, &extra_files)) {
+    return false;
+  }
+
   if (!cache_->Find(code, extra_files, command_line, version, current_dir,
                     entry)) {
     LOG(CACHE_INFO) << "Direct cache miss: " << flags.input();
