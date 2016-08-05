@@ -27,21 +27,13 @@ String ReplaceTildeInPath(const String& path) {
   return path;
 }
 
-String CombineHashes(const Immutable& first, const Immutable& second) {
-  if (second.empty()) {
-    return first;
+String HashCombine(const Immutable& source, const List<Immutable>& files) {
+  if (files.empty()) {  // we want hash to be compatible with old versions
+    return source.Hash();
   }
-  return base::Hexify((first + "-"_l + second).Hash());
-}
-
-String HashCombine(const List<Immutable>& files) {
-  Immutable::Rope hashes_string;
+  Immutable::Rope hashes_string{source.Hash()};
   for (auto&& file : files) {
-    if (hashes_string.empty()) {
-      hashes_string.emplace_back(base::Hexify(file.Hash()));
-    } else {
-      hashes_string.emplace_back("-" + base::Hexify(file.Hash()));
-    }
+    hashes_string.emplace_back(file.Hash());
   }
   return base::Hexify(Immutable(hashes_string).Hash());
 }
@@ -141,8 +133,8 @@ HandledHash FileCache::Hash(HandledSource code, CommandLine command_line,
 HandledHash FileCache::Hash(HandledSource code,
                             const List<Immutable>& extra_files,
                             CommandLine command_line, Version version) {
-  return HandledHash(CombineHashes(code.str.Hash(), HashCombine(extra_files)) +
-                     "-" + base::Hexify(command_line.str.Hash(4)) + "-" +
+  return HandledHash(HashCombine(code.str, extra_files) + "-" +
+                     base::Hexify(command_line.str.Hash(4)) + "-" +
                      base::Hexify(version.str.Hash(4)));
 }
 
@@ -157,7 +149,7 @@ UnhandledHash FileCache::Hash(UnhandledSource code,
                               const List<Immutable>& extra_files,
                               CommandLine command_line, Version version) {
   return UnhandledHash(
-      CombineHashes(code.str.Hash(), HashCombine(extra_files)) + "-" +
+      HashCombine(code.str, extra_files) + "-" +
       base::Hexify(command_line.str.Hash(4)) + "-" +
       base::Hexify(
           (version.str + "\n"_l + clang::getClangFullVersion()).Hash(4)));
