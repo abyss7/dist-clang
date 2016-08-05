@@ -7,7 +7,6 @@
 #include <perf/stat_service.h>
 
 #include <third_party/snappy/exported/snappy.h>
-#include STL(numeric)
 #include STL(regex)
 
 #include <clang/Basic/Version.h>
@@ -36,16 +35,15 @@ String CombineHashes(const Immutable& first, const Immutable& second) {
 }
 
 String HashCombine(const List<Immutable>& files) {
-  Immutable hashes_string = std::accumulate(
-      std::begin(files), std::end(files), Immutable{},
-      [](const Immutable& acc, const Immutable& elem) -> Immutable {
-        if (acc.empty()) {
-          return base::Hexify(elem.Hash());
-        } else {
-          return acc + "-"_l + base::Hexify(elem.Hash());
-        }
-      });
-  return base::Hexify(hashes_string.Hash());
+  Immutable::Rope hashes_string;
+  for (auto&& file : files) {
+    if (hashes_string.empty()) {
+      hashes_string.emplace_back(base::Hexify(file.Hash()));
+    } else {
+      hashes_string.emplace_back("-" + base::Hexify(file.Hash()));
+    }
+  }
+  return base::Hexify(Immutable(hashes_string).Hash());
 }
 
 }  // namespace

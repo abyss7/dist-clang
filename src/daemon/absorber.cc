@@ -17,12 +17,9 @@ namespace {
 
 List<Immutable> GetExtraFiles(proto::Remote* incoming) {
   List<Immutable> extra_files;
-  std::transform(std::begin(incoming->extra_files()),
-                 std::end(incoming->extra_files()),
-                 std::back_inserter(extra_files),
-                 [](const String& extra_file) -> Immutable {
-                   return Immutable::WrapString(extra_file);
-                 });
+  for (auto&& file : incoming->extra_files()) {
+    extra_files.emplace_back(Immutable::WrapString(file));
+  }
   return extra_files;
 }
 
