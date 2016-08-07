@@ -1,9 +1,11 @@
 #include <daemon/absorber.h>
 
+#include <base/file/file.h>
 #include <base/file_utils.h>
 #include <base/logging.h>
 #include <base/process.h>
 #include <base/protobuf_utils.h>
+#include <base/temporary_dir.h>
 #include <net/connection.h>
 
 #include <base/using_log.h>
@@ -77,6 +79,45 @@ bool Absorber::HandleNewMessage(net::ConnectionPtr connection,
   return false;
 }
 
+CompilationDaemon::ExtraFiles Absorber::GetExtraFiles(
+    const proto::Remote* message) {
+  DCHECK(message);
+
+  ExtraFiles extra_files;
+
+  if (message->has_sanitize_blacklist()) {
+    extra_files.emplace(SANITIZE_BLACKLIST,
+                        Immutable::WrapString(message->sanitize_blacklist()));
+  }
+
+  return extra_files;
+}
+
+bool Absorber::PrepareExtraFilesForCompiler(const ExtraFiles& extra_files,
+                                            const String& temp_dir_path,
+                                            base::proto::Flags* flags,
+                                            net::proto::Status* status) {
+  DCHECK(flags);
+  DCHECK(status);
+
+  auto sanitize_blacklist = extra_files.find(SANITIZE_BLACKLIST);
+  if (sanitize_blacklist != extra_files.end()) {
+    String sanitize_blacklist_file = temp_dir_path + "/sanitize_blacklist";
+    if (!base::File::Write(sanitize_blacklist_file,
+                           sanitize_blacklist->second)) {
+      LOG(WARNING) << "Failed to write sanitize blacklist file "
+                   << sanitize_blacklist_file;
+      status->set_code(net::proto::Status::EXECUTION);
+      status->set_description("Failed to write sanitize blacklist file " +
+                              sanitize_blacklist_file);
+      return false;
+    }
+    flags->set_sanitize_blacklist(sanitize_blacklist_file);
+  }
+
+  return true;
+}
+
 void Absorber::DoExecute(const base::WorkerPool& pool) {
   using namespace cache::string;
 
@@ -92,10 +133,7 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
 
     proto::Remote* incoming = task->second.get();
     auto source = Immutable::WrapString(incoming->source());
-    List<Immutable> extra_files;
-    for (auto&& file : incoming->extra_files()) {
-      extra_files.emplace_back(Immutable::WrapString(file));
-    }
+    auto extra_files = GetExtraFiles(incoming);
 
     incoming->mutable_flags()->set_output("-");
     incoming->mutable_flags()->clear_input();
@@ -136,6 +174,13 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
     // Check that we have a compiler of a requested version.
     net::proto::Status status;
     if (!SetupCompiler(incoming->mutable_flags(), &status)) {
+      task->first->ReportStatus(status);
+      continue;
+    }
+
+    base::TemporaryDir temp_dir;
+    if (!PrepareExtraFilesForCompiler(extra_files, temp_dir.GetPath(),
+                                      incoming->mutable_flags(), &status)) {
       task->first->ReportStatus(status);
       continue;
     }

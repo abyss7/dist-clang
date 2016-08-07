@@ -5,9 +5,9 @@ package dist_clang.daemon.proto;
 
 // Sent from emitter to absorber.
 message Remote {
-  optional base.proto.Flags flags = 1;
-  optional string source          = 2;
-  repeated string extra_files     = 3;
+  optional base.proto.Flags flags        = 1;
+  optional string source                 = 2;
+  optional string sanitize_blacklist     = 3;
 
   extend net.proto.Universal {
     optional Remote extension = 6;

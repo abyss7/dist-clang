@@ -24,7 +24,7 @@ class Emitter : public CompilationDaemon {
 
   using Message = UniquePtr<base::proto::Local>;
   using Task = Tuple<net::ConnectionPtr, Message, cache::string::HandledSource,
-                     List<Immutable>>;
+                     ExtraFiles>;
   using Queue = base::LockedQueue<Task>;
   using QueueAggregator = base::QueueAggregator<Task>;
   using Optional = Queue::Optional;
@@ -32,6 +32,8 @@ class Emitter : public CompilationDaemon {
 
   bool HandleNewMessage(net::ConnectionPtr connection, Universal message,
                         const net::proto::Status& status) override;
+
+  void SetExtraFiles(const ExtraFiles& extra_files, proto::Remote* message);
 
   void DoCheckCache(const base::WorkerPool&);
   void DoLocalExecute(const base::WorkerPool&);

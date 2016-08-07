@@ -98,29 +98,33 @@ class FileCache {
   // |clean_period| is in seconds.
 
   static string::HandledHash Hash(string::HandledSource code,
-                                  const List<Immutable>& extra_files,
+                                  const HashMap<int, Immutable>& extra_files,
                                   string::CommandLine command_line,
                                   string::Version version);
 
   static string::UnhandledHash Hash(string::UnhandledSource code,
-                                    const List<Immutable>& extra_files,
+                                    const HashMap<int, Immutable>& extra_files,
                                     string::CommandLine command_line,
                                     string::Version version);
 
-  bool Find(string::HandledSource code, const List<Immutable>& extra_files,
+  bool Find(string::HandledSource code,
+            const HashMap<int, Immutable>& extra_files,
             string::CommandLine command_line, string::Version version,
             Entry* entry) const;
 
-  bool Find(string::UnhandledSource code, const List<Immutable>& extra_files,
+  bool Find(string::UnhandledSource code,
+            const HashMap<int, Immutable>& extra_files,
             string::CommandLine command_line, string::Version version,
             const String& current_dir, Entry* entry) const;
 
-  void Store(string::UnhandledSource code, const List<Immutable>& extra_files,
+  void Store(string::UnhandledSource code,
+             const HashMap<int, Immutable>& extra_files,
              string::CommandLine command_line, string::Version version,
              const List<String>& headers, const String& current_dir,
              string::HandledHash hash);
 
-  void Store(string::HandledSource code, const List<Immutable>& extra_files,
+  void Store(string::HandledSource code,
+             const HashMap<int, Immutable>& extra_files,
              string::CommandLine command_line, string::Version version,
              const Entry& entry);
 

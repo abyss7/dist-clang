@@ -176,16 +176,26 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
   if (message->HasExtension(base::proto::Local::extension)) {
     Message execute(message->ReleaseExtension(base::proto::Local::extension));
     if (config->has_cache() && !config->cache().disabled()) {
-      return cache_tasks_->Push(std::make_tuple(
-          connection, std::move(execute), HandledSource(), List<Immutable>{}));
+      return cache_tasks_->Push(std::make_tuple(connection, std::move(execute),
+                                                HandledSource(), ExtraFiles{}));
     } else {
-      return all_tasks_->Push(std::make_tuple(
-          connection, std::move(execute), HandledSource(), List<Immutable>{}));
+      return all_tasks_->Push(std::make_tuple(connection, std::move(execute),
+                                              HandledSource(), ExtraFiles{}));
     }
   }
 
   NOTREACHED();
   return false;
+}
+
+void Emitter::SetExtraFiles(const ExtraFiles& extra_files,
+                            proto::Remote* message) {
+  DCHECK(message);
+
+  auto sanitize_blacklist = extra_files.find(SANITIZE_BLACKLIST);
+  if (sanitize_blacklist != extra_files.end()) {
+    message->set_sanitize_blacklist(sanitize_blacklist->second);
+  }
 }
 
 void Emitter::DoCheckCache(const base::WorkerPool& pool) {
@@ -205,7 +215,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     cache::FileCache::Entry entry;
 
     auto RestoreFromCache = [&](const HandledSource& source,
-                                const List<Immutable>& extra_files) {
+                                const ExtraFiles& extra_files) {
       String error;
       const String output_path = GetOutputPath(incoming);
 
@@ -246,7 +256,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     };
 
     if (SearchDirectCache(incoming->flags(), incoming->current_dir(), &entry) &&
-        RestoreFromCache(HandledSource(), List<Immutable>{})) {
+        RestoreFromCache(HandledSource(), ExtraFiles{})) {
       STAT(DIRECT_CACHE_HIT);
       continue;
     }
@@ -414,9 +424,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
 
     outgoing->mutable_flags()->CopyFrom(incoming->flags());
     outgoing->set_source(Immutable(source.str).string_copy(false));
-    for (auto&& extra_file : extra_files) {
-      outgoing->add_extra_files(extra_file);
-    }
+    SetExtraFiles(extra_files, outgoing.get());
 
     // Filter outgoing flags.
     auto* flags = outgoing->mutable_flags();

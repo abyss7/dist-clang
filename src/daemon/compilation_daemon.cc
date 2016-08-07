@@ -169,7 +169,7 @@ CompilationDaemon::CompilationDaemon(const proto::Configuration& configuration)
 
 HandledHash CompilationDaemon::GenerateHash(
     const base::proto::Flags& flags, const HandledSource& code,
-    const List<Immutable>& extra_files) const {
+    const ExtraFiles& extra_files) const {
   const Version version(flags.compiler().version());
   return cache::FileCache::Hash(code, extra_files,
                                 CommandLineForSimpleCache(flags), version);
@@ -239,7 +239,7 @@ bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
 
 bool CompilationDaemon::ReadExtraFiles(const base::proto::Flags& flags,
                                        const String& current_dir,
-                                       List<Immutable>* extra_files) const {
+                                       ExtraFiles* extra_files) const {
   DCHECK(extra_files);
   DCHECK(extra_files->empty());
 
@@ -255,13 +255,14 @@ bool CompilationDaemon::ReadExtraFiles(const base::proto::Flags& flags,
                      << sanitize_blacklist;
     return false;
   }
-  extra_files->emplace_back(std::move(sanitize_blacklist_contents));
+  extra_files->emplace(SANITIZE_BLACKLIST,
+                       std::move(sanitize_blacklist_contents));
   return true;
 }
 
 bool CompilationDaemon::SearchSimpleCache(
     const base::proto::Flags& flags, const HandledSource& source,
-    const List<Immutable>& extra_files, cache::FileCache::Entry* entry) const {
+    const ExtraFiles& extra_files, cache::FileCache::Entry* entry) const {
   if (!cache_) {
     return false;
   }
@@ -297,7 +298,7 @@ bool CompilationDaemon::SearchDirectCache(
     return false;
   }
 
-  List<Immutable> extra_files;
+  ExtraFiles extra_files;
   if (!ReadExtraFiles(flags, current_dir, &extra_files)) {
     return false;
   }
@@ -313,7 +314,7 @@ bool CompilationDaemon::SearchDirectCache(
 
 void CompilationDaemon::UpdateSimpleCache(
     const base::proto::Flags& flags, const HandledSource& source,
-    const List<Immutable>& extra_files, const cache::FileCache::Entry& entry) {
+    const ExtraFiles& extra_files, const cache::FileCache::Entry& entry) {
   const Version version(flags.compiler().version());
   const auto command_line = CommandLineForSimpleCache(flags);
 
@@ -326,7 +327,7 @@ void CompilationDaemon::UpdateSimpleCache(
 
 void CompilationDaemon::UpdateDirectCache(
     const base::proto::Local* message, const HandledSource& source,
-    const List<Immutable>& extra_files, const cache::FileCache::Entry& entry) {
+    const ExtraFiles& extra_files, const cache::FileCache::Entry& entry) {
   const auto& flags = message->flags();
   auto config = conf();
   DCHECK(config->has_emitter() && !config->has_absorber());
