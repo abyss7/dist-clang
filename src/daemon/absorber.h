@@ -23,9 +23,9 @@ class Absorber : public CompilationDaemon {
   bool HandleNewMessage(net::ConnectionPtr connection, Universal message,
                         const net::proto::Status& status) override;
 
-  ExtraFiles GetExtraFiles(const proto::Remote* message);
+  cache::ExtraFiles GetExtraFiles(const proto::Remote* message);
 
-  bool PrepareExtraFilesForCompiler(const ExtraFiles& extra_files,
+  bool PrepareExtraFilesForCompiler(const cache::ExtraFiles& extra_files,
                                     const String& temp_dir_path,
                                     base::proto::Flags* flags,
                                     net::proto::Status* status);

@@ -177,10 +177,12 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
     Message execute(message->ReleaseExtension(base::proto::Local::extension));
     if (config->has_cache() && !config->cache().disabled()) {
       return cache_tasks_->Push(std::make_tuple(connection, std::move(execute),
-                                                HandledSource(), ExtraFiles{}));
+                                                HandledSource(),
+                                                cache::ExtraFiles{}));
     } else {
       return all_tasks_->Push(std::make_tuple(connection, std::move(execute),
-                                              HandledSource(), ExtraFiles{}));
+                                              HandledSource(),
+                                              cache::ExtraFiles{}));
     }
   }
 
@@ -188,11 +190,11 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
   return false;
 }
 
-void Emitter::SetExtraFiles(const ExtraFiles& extra_files,
+void Emitter::SetExtraFiles(const cache::ExtraFiles& extra_files,
                             proto::Remote* message) {
   DCHECK(message);
 
-  auto sanitize_blacklist = extra_files.find(SANITIZE_BLACKLIST);
+  auto sanitize_blacklist = extra_files.find(cache::SANITIZE_BLACKLIST);
   if (sanitize_blacklist != extra_files.end()) {
     message->set_sanitize_blacklist(sanitize_blacklist->second);
   }
@@ -215,7 +217,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     cache::FileCache::Entry entry;
 
     auto RestoreFromCache = [&](const HandledSource& source,
-                                const ExtraFiles& extra_files) {
+                                const cache::ExtraFiles& extra_files) {
       String error;
       const String output_path = GetOutputPath(incoming);
 
@@ -256,7 +258,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     };
 
     if (SearchDirectCache(incoming->flags(), incoming->current_dir(), &entry) &&
-        RestoreFromCache(HandledSource(), ExtraFiles{})) {
+        RestoreFromCache(HandledSource(), cache::ExtraFiles{})) {
       STAT(DIRECT_CACHE_HIT);
       continue;
     }

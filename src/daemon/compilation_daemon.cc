@@ -10,6 +10,7 @@
 
 namespace dist_clang {
 
+using cache::ExtraFiles;
 using namespace cache::string;
 
 namespace {
@@ -255,7 +256,7 @@ bool CompilationDaemon::ReadExtraFiles(const base::proto::Flags& flags,
                      << sanitize_blacklist;
     return false;
   }
-  extra_files->emplace(SANITIZE_BLACKLIST,
+  extra_files->emplace(cache::SANITIZE_BLACKLIST,
                        std::move(sanitize_blacklist_contents));
   return true;
 }
@@ -388,15 +389,15 @@ base::ProcessPtr CompilationDaemon::CreateProcess(
   if (flags.has_language()) {
     process->AppendArg("-x"_l).AppendArg(Immutable(flags.language()));
   }
+  if (flags.has_sanitize_blacklist()) {
+    process->AppendArg("-fsanitize-blacklist"_l)
+        .AppendArg(Immutable(flags.sanitize_blacklist()));
+  }
   if (flags.has_output()) {
     process->AppendArg("-o"_l).AppendArg(Immutable(flags.output()));
   }
   if (flags.has_input()) {
     process->AppendArg(Immutable(flags.input()));
-  }
-  if (flags.has_sanitize_blacklist()) {
-    process->AppendArg("-fsanitize-blacklist"_l)
-        .AppendArg(Immutable(flags.sanitize_blacklist()));
   }
 
   return process;

@@ -21,25 +21,20 @@ class CompilationDaemon : public BaseDaemon {
  protected:
   explicit CompilationDaemon(const proto::Configuration& configuration);
 
-  enum ExtraFileType {
-    SANITIZE_BLACKLIST = 0,
-  };
-
-  using ExtraFiles = HashMap<int, Immutable>;
-
   cache::string::HandledHash GenerateHash(
       const base::proto::Flags& flags, const cache::string::HandledSource& code,
-      const ExtraFiles& extra_files) const;
+      const cache::ExtraFiles& extra_files) const;
 
   bool SetupCompiler(base::proto::Flags* flags,
                      net::proto::Status* status) const;
 
   bool ReadExtraFiles(const base::proto::Flags& flags,
-                      const String& current_dir, ExtraFiles* extra_files) const;
+                      const String& current_dir,
+                      cache::ExtraFiles* extra_files) const;
 
   bool SearchSimpleCache(const base::proto::Flags& flags,
                          const cache::string::HandledSource& source,
-                         const ExtraFiles& extra_files,
+                         const cache::ExtraFiles& extra_files,
                          cache::FileCache::Entry* entry) const;
 
   bool SearchDirectCache(const base::proto::Flags& flags,
@@ -48,12 +43,12 @@ class CompilationDaemon : public BaseDaemon {
 
   void UpdateSimpleCache(const base::proto::Flags& flags,
                          const cache::string::HandledSource& source,
-                         const ExtraFiles& extra_files,
+                         const cache::ExtraFiles& extra_files,
                          const cache::FileCache::Entry& entry);
 
   void UpdateDirectCache(const base::proto::Local* message,
                          const cache::string::HandledSource& source,
-                         const ExtraFiles& extra_files,
+                         const cache::ExtraFiles& extra_files,
                          const cache::FileCache::Entry& entry);
 
   inline SharedPtr<const proto::Configuration> conf() const { return conf_; }

@@ -7,7 +7,6 @@
 #include <perf/stat_service.h>
 
 #include <third_party/snappy/exported/snappy.h>
-#include STL(functional)
 #include STL(regex)
 
 #include <clang/Basic/Version.h>
@@ -28,8 +27,7 @@ String ReplaceTildeInPath(const String& path) {
   return path;
 }
 
-String HashCombine(const Immutable& source,
-                   const HashMap<int, Immutable>& files) {
+String HashCombine(const Immutable& source, const cache::ExtraFiles& files) {
   if (files.empty()) {  // we want hash to be compatible with previous versions
     return base::Hexify(source.Hash());
   }
@@ -129,8 +127,7 @@ bool FileCache::Run(ui64 clean_period) {
 using namespace string;
 
 // static
-HandledHash FileCache::Hash(HandledSource code,
-                            const HashMap<int, Immutable>& extra_files,
+HandledHash FileCache::Hash(HandledSource code, const ExtraFiles& extra_files,
                             CommandLine command_line, Version version) {
   return HandledHash(HashCombine(code.str, extra_files) + "-" +
                      base::Hexify(command_line.str.Hash(4)) + "-" +
@@ -139,7 +136,7 @@ HandledHash FileCache::Hash(HandledSource code,
 
 // static
 UnhandledHash FileCache::Hash(UnhandledSource code,
-                              const HashMap<int, Immutable>& extra_files,
+                              const ExtraFiles& extra_files,
                               CommandLine command_line, Version version) {
   return UnhandledHash(
       HashCombine(code.str, extra_files) + "-" +
@@ -148,15 +145,13 @@ UnhandledHash FileCache::Hash(UnhandledSource code,
           (version.str + "\n"_l + clang::getClangFullVersion()).Hash(4)));
 }
 
-bool FileCache::Find(HandledSource code,
-                     const HashMap<int, Immutable>& extra_files,
+bool FileCache::Find(HandledSource code, const ExtraFiles& extra_files,
                      CommandLine command_line, Version version,
                      Entry* entry) const {
   return FindByHash(Hash(code, extra_files, command_line, version), entry);
 }
 
-bool FileCache::Find(UnhandledSource code,
-                     const HashMap<int, Immutable>& extra_files,
+bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
                      CommandLine command_line, Version version,
                      const String& current_dir, Entry* entry) const {
   DCHECK(entry);
@@ -198,8 +193,7 @@ bool FileCache::Find(UnhandledSource code,
   return false;
 }
 
-void FileCache::Store(UnhandledSource code,
-                      const HashMap<int, Immutable>& extra_files,
+void FileCache::Store(UnhandledSource code, const ExtraFiles& extra_files,
                       CommandLine command_line, Version version,
                       const List<String>& headers, const String& current_dir,
                       string::HandledHash hash) {
@@ -207,8 +201,7 @@ void FileCache::Store(UnhandledSource code,
           hash);
 }
 
-void FileCache::Store(HandledSource code,
-                      const HashMap<int, Immutable>& extra_files,
+void FileCache::Store(HandledSource code, const ExtraFiles& extra_files,
                       CommandLine command_line, Version version,
                       const Entry& entry) {
   DoStore(Hash(code, extra_files, command_line, version), entry);

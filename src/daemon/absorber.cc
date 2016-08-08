@@ -79,28 +79,26 @@ bool Absorber::HandleNewMessage(net::ConnectionPtr connection,
   return false;
 }
 
-CompilationDaemon::ExtraFiles Absorber::GetExtraFiles(
-    const proto::Remote* message) {
+cache::ExtraFiles Absorber::GetExtraFiles(const proto::Remote* message) {
   DCHECK(message);
 
-  ExtraFiles extra_files;
+  cache::ExtraFiles extra_files;
 
   if (message->has_sanitize_blacklist()) {
-    extra_files.emplace(SANITIZE_BLACKLIST,
+    extra_files.emplace(cache::SANITIZE_BLACKLIST,
                         Immutable::WrapString(message->sanitize_blacklist()));
   }
 
   return extra_files;
 }
 
-bool Absorber::PrepareExtraFilesForCompiler(const ExtraFiles& extra_files,
-                                            const String& temp_dir_path,
-                                            base::proto::Flags* flags,
-                                            net::proto::Status* status) {
+bool Absorber::PrepareExtraFilesForCompiler(
+    const cache::ExtraFiles& extra_files, const String& temp_dir_path,
+    base::proto::Flags* flags, net::proto::Status* status) {
   DCHECK(flags);
   DCHECK(status);
 
-  auto sanitize_blacklist = extra_files.find(SANITIZE_BLACKLIST);
+  auto sanitize_blacklist = extra_files.find(cache::SANITIZE_BLACKLIST);
   if (sanitize_blacklist != extra_files.end()) {
     String sanitize_blacklist_file = temp_dir_path + "/sanitize_blacklist";
     if (!base::File::Write(sanitize_blacklist_file,
