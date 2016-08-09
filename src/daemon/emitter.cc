@@ -48,6 +48,9 @@ inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
   // Clang plugins can't affect source code.
   pp_flags.mutable_compiler()->clear_plugins();
 
+  // Sanitize blacklist can't affect source code
+  pp_flags.clear_sanitize_blacklist();
+
   base::ProcessPtr process;
   if (message->has_user_id()) {
     process = daemon::CompilationDaemon::CreateProcess(

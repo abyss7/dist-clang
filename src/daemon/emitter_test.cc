@@ -1111,6 +1111,147 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
   // TODO: check that removal of original files doesn't fail cache filling.
 }
 
+TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
+  const base::TemporaryDir temp_dir;
+  const String socket_path = "/tmp/test.socket";
+  const auto expected_code = net::proto::Status::OK;
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const auto source = "fake_source"_l;
+  const auto language = "fake_language"_l;
+  const auto action = "fake_action"_l;
+  const auto input_path = "test.cc"_l;
+  const auto output_path1 = "test1.o"_l;
+  const auto output_path2 = "test2.o"_l;
+  const auto plugin_name = "fake_plugin"_l;
+  const auto plugin_path = "fake_plugin_path"_l;
+  const auto sanitize_blacklist_path = "asan-blacklist.txt"_l;
+
+  conf.mutable_emitter()->set_socket_path(socket_path);
+  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_direct(false);
+  conf.mutable_cache()->set_clean_period(1);
+
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+  auto* plugin = version->add_plugins();
+  plugin->set_name(plugin_name);
+  plugin->set_path(plugin_path);
+
+  listen_callback = [&](const String& host, ui16 port, String*) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+    return !::testing::Test::HasNonfatalFailure();
+  };
+
+  connect_callback = [&](net::TestConnection* connection) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_EQ(expected_code, status.code()) << status.description();
+
+      send_condition.notify_all();
+    });
+  };
+
+  run_callback = [&](base::TestProcess* process) {
+    if (run_count == 1) {
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l,
+                                 input_path}),
+                process->args_);
+      process->stdout_ = source;
+    } else if (run_count == 2) {
+      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-x"_l,
+                                 language, "-o"_l, output_path1, input_path}),
+                process->args_);
+    } else if (run_count == 3) {
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l,
+                                 input_path}),
+                process->args_);
+      process->stdout_ = source;
+    } else if (run_count == 4) {
+      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-x"_l, language,
+              "-fsanitize-blacklist"_l, sanitize_blacklist_path, "-o"_l, output_path2, input_path}),
+        process->args_);
+    }
+  };
+
+  emitter.reset(new Emitter(conf));
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto connection1 = test_service->TriggerListen(socket_path);
+  {
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection1);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(temp_dir);
+
+    extension->mutable_flags()->set_input(input_path);
+    extension->mutable_flags()->set_output(output_path1);
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
+    compiler->set_version(compiler_version);
+    compiler->add_plugins()->set_name(plugin_name);
+    extension->mutable_flags()->set_action(action);
+    extension->mutable_flags()->set_language(language);
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
+                                        [this] { return send_count == 1; }));
+  }
+
+  auto connection2 = test_service->TriggerListen(socket_path);
+  {
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection2);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(temp_dir);
+
+    extension->mutable_flags()->set_input(input_path);
+    extension->mutable_flags()->set_output(output_path2);
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
+    compiler->set_version(compiler_version);
+    compiler->add_plugins()->set_name(plugin_name);
+    extension->mutable_flags()->set_action(action);
+    extension->mutable_flags()->set_language(language);
+    extension->mutable_flags()->set_sanitize_blacklist(sanitize_blacklist_path);
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
+                                        [this] { return send_count == 2; }));
+  }
+
+  emitter.reset();
+
+  EXPECT_EQ(4u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(2u, connect_count);
+  EXPECT_EQ(2u, connections_created);
+  EXPECT_EQ(2u, read_count);
+  EXPECT_EQ(2u, send_count);
+  EXPECT_EQ(1, connection1.use_count())
+      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count())
+      << "Daemon must not store references to the connection";
+
+  // TODO: check that original files are not moved.
+  // TODO: check that removal of original files doesn't fail cache filling.
+}
+
 TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
   // Prepare environment.
   const base::TemporaryDir temp_dir;
@@ -1660,8 +1801,7 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
     if (run_count == 1) {
       EXPECT_EQ(
           (Immutable::Rope{"-E"_l, "-dependency-file"_l, deps_path, "-x"_l,
-                           language, "-fsanitize-blacklist"_l,
-                           sanitize_blacklist_path, "-o"_l, "-"_l, input_path}),
+                           language, "-o"_l, "-"_l, input_path}),
           process->args_);
       process->stdout_ = preprocessed_source;
       EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + deps_path,
