@@ -24,7 +24,7 @@ net::Connection::ScopedMessage CreateMessage(
     extension->mutable_flags()->set_language(language);
   }
   if (sanitize_blacklist != String()) {
-    extension->mutable_flags()->set_sanitize_blacklist(sanitize_blacklist);
+    extension->set_sanitize_blacklist(sanitize_blacklist);
   }
 
   return message;

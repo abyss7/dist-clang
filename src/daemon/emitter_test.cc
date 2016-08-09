@@ -1,7 +1,7 @@
 #include <daemon/emitter.h>
 
-#include <base/file_utils.h>
 #include <base/file/file.h>
+#include <base/file_utils.h>
 #include <base/temporary_dir.h>
 #include <daemon/common_daemon_test.h>
 #include <net/test_connection.h>
@@ -475,6 +475,77 @@ TEST_F(EmitterTest, LocalMessageWithPluginPath) {
     plugin->set_name(plugin_name);
     plugin->set_path(plugin_path);
     extension->mutable_flags()->set_action(action);
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+    emitter.reset();
+  }
+
+  EXPECT_EQ(1u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(1u, connect_count);
+  EXPECT_EQ(1u, connections_created);
+  EXPECT_EQ(1u, read_count);
+  EXPECT_EQ(1u, send_count);
+  EXPECT_EQ(1, connection.use_count())
+      << "Daemon must not store references to the connection";
+
+  // TODO: check absolute output path.
+}
+
+TEST_F(EmitterTest, LocalMessageWithSanitizeBlacklist) {
+  const String socket_path = "/tmp/test.socket";
+  const auto expected_code = net::proto::Status::OK;
+  const String compiler_version = "fake_compiler_version";
+  const auto compiler_path = "fake_compiler_path"_l;
+  const String current_dir = "fake_current_dir";
+  const auto action = "fake_action"_l;
+  const auto sanitize_blacklist_path = "asan-blacklist.txt"_l;
+  const ui32 user_id = 1234;
+
+  conf.mutable_emitter()->set_socket_path(socket_path);
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+
+  listen_callback = [&](const String& host, ui16 port, String*) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+    return true;
+  };
+  connect_callback = [&](net::TestConnection* connection) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_EQ(expected_code, status.code());
+    });
+  };
+  run_callback = [&](base::TestProcess* process) {
+    EXPECT_EQ(compiler_path, process->exec_path_);
+    EXPECT_EQ((Immutable::Rope{action, "-fsanitize-blacklist"_l,
+                               sanitize_blacklist_path}),
+              process->args_);
+    EXPECT_EQ(user_id, process->uid_);
+  };
+
+  emitter.reset(new Emitter(conf));
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto connection = test_service->TriggerListen(socket_path);
+  {
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(current_dir);
+    extension->set_user_id(user_id);
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
+    compiler->set_version(compiler_version);
+    extension->mutable_flags()->set_action(action);
+    extension->mutable_flags()->set_sanitize_blacklist(sanitize_blacklist_path);
 
     net::proto::Status status;
     status.set_code(net::proto::Status::OK);
@@ -1530,11 +1601,15 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
   const auto path = Immutable(String(temp_dir1));
   const auto input_path = path + "/test.cc"_l;
   const auto header_path = path + "/header.h"_l;
+  const auto sanitize_blacklist_path = path + "/asan-blacklist.txt"_l;
   const auto source_code = "int main() {}"_l;
   const auto header_contents = "#define A"_l;
+  const auto sanitize_blacklist_contents = "fun:main"_l;
 
   ASSERT_TRUE(base::File::Write(input_path, source_code));
   ASSERT_TRUE(base::File::Write(header_path, header_contents));
+  ASSERT_TRUE(
+      base::File::Write(sanitize_blacklist_path, sanitize_blacklist_contents));
 
   // Prepare configuration.
   const String socket_path = "/tmp/test.socket";
@@ -1583,16 +1658,19 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-dependency-file"_l, deps_path,
-                                 "-x"_l, language, "-o"_l, "-"_l, input_path}),
-                process->args_);
+      EXPECT_EQ(
+          (Immutable::Rope{"-E"_l, "-dependency-file"_l, deps_path, "-x"_l,
+                           language, "-fsanitize-blacklist"_l,
+                           sanitize_blacklist_path, "-o"_l, "-"_l, input_path}),
+          process->args_);
       process->stdout_ = preprocessed_source;
       EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + deps_path,
                                     deps_contents));
     } else if (run_count == 2) {
-      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path,
-                                 "-dependency-file"_l, deps_path, "-x"_l,
-                                 language, "-o"_l, output_path, input_path}),
+      EXPECT_EQ((Immutable::Rope{
+                    action, "-load"_l, plugin_path, "-dependency-file"_l,
+                    deps_path, "-x"_l, language, "-fsanitize-blacklist"_l,
+                    sanitize_blacklist_path, "-o"_l, output_path, input_path}),
                 process->args_)
           << process->PrintArgs();
       EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + output_path,
@@ -1620,6 +1698,7 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
     compiler->add_plugins()->set_name(plugin_name);
     extension->mutable_flags()->set_action(action);
     extension->mutable_flags()->set_language(language);
+    extension->mutable_flags()->set_sanitize_blacklist(sanitize_blacklist_path);
 
     net::proto::Status status;
     status.set_code(net::proto::Status::OK);
@@ -1639,9 +1718,12 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
     const auto path = Immutable(String(temp_dir2));
     const auto input_path = path + "/test.cc"_l;
     const auto header_path = path + "/header.h"_l;
+    const auto sanitize_blacklist_path = path + "/asan-blacklist.txt"_l;
 
     ASSERT_TRUE(base::File::Write(input_path, source_code));
     ASSERT_TRUE(base::File::Write(header_path, header_contents));
+    ASSERT_TRUE(base::File::Write(sanitize_blacklist_path,
+                                  sanitize_blacklist_contents));
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -1655,6 +1737,7 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
     compiler->add_plugins()->set_name(plugin_name);
     extension->mutable_flags()->set_action(action);
     extension->mutable_flags()->set_language(language);
+    extension->mutable_flags()->set_sanitize_blacklist(sanitize_blacklist_path);
 
     net::proto::Status status;
     status.set_code(net::proto::Status::OK);

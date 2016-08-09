@@ -26,6 +26,7 @@ FORWARD_TEST(AbsorberTest, StoreLocalCacheWithAndWithoutBlacklist);
 FORWARD_TEST(CollectorTest, SimpleReport);
 FORWARD_TEST(CompilationDaemonTest, CreateProcessFromFlags);
 FORWARD_TEST(EmitterTest, LocalMessageWithPluginPath);
+FORWARD_TEST(EmitterTest, LocalMessageWithSanitizeBlacklist);
 FORWARD_TEST(EmitterTest, ConfigurationWithoutVersions);
 FORWARD_TEST(EmitterTest, LocalSuccessfulCompilation);
 FORWARD_TEST(EmitterTest, StoreSimpleCacheForLocalResult);
@@ -96,6 +97,7 @@ class Process
   FRIEND_TEST(daemon::CollectorTest, SimpleReport);
   FRIEND_TEST(daemon::CompilationDaemonTest, CreateProcessFromFlags);
   FRIEND_TEST(daemon::EmitterTest, LocalMessageWithPluginPath);
+  FRIEND_TEST(daemon::EmitterTest, LocalMessageWithSanitizeBlacklist);
   FRIEND_TEST(daemon::EmitterTest, ConfigurationWithoutVersions);
   FRIEND_TEST(daemon::EmitterTest, LocalSuccessfulCompilation);
   FRIEND_TEST(daemon::EmitterTest, StoreSimpleCacheForLocalResult);
