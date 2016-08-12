@@ -20,14 +20,18 @@ FORWARD_TEST(ClientTest, SendPluginPath);
 }  // namespace client
 
 namespace daemon {
-FORWARD_TEST(AbsorberTest, StoreLocalCache);
+FORWARD_TEST(AbsorberTest, StoreLocalCacheWithoutBlacklist);
+FORWARD_TEST(AbsorberTest, StoreLocalCacheWithBlacklist);
+FORWARD_TEST(AbsorberTest, StoreLocalCacheWithAndWithoutBlacklist);
 FORWARD_TEST(CollectorTest, SimpleReport);
 FORWARD_TEST(CompilationDaemonTest, CreateProcessFromFlags);
 FORWARD_TEST(EmitterTest, LocalMessageWithPluginPath);
+FORWARD_TEST(EmitterTest, LocalMessageWithSanitizeBlacklist);
 FORWARD_TEST(EmitterTest, ConfigurationWithoutVersions);
 FORWARD_TEST(EmitterTest, LocalSuccessfulCompilation);
 FORWARD_TEST(EmitterTest, StoreSimpleCacheForLocalResult);
 FORWARD_TEST(EmitterTest, StoreSimpleCacheForRemoteResult);
+FORWARD_TEST(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist);
 FORWARD_TEST(EmitterTest, StoreDirectCacheForLocalResult);
 FORWARD_TEST(EmitterTest, StoreDirectCacheForRemoteResult);
 FORWARD_TEST(EmitterTest, UpdateConfiguration);
@@ -88,14 +92,18 @@ class Process
   FRIEND_TEST(client::ClientTest, SuccessfulCompilation);
   FRIEND_TEST(client::ClientTest, FailedCompilation);
   FRIEND_TEST(client::ClientTest, SendPluginPath);
-  FRIEND_TEST(daemon::AbsorberTest, StoreLocalCache);
+  FRIEND_TEST(daemon::AbsorberTest, StoreLocalCacheWithoutBlacklist);
+  FRIEND_TEST(daemon::AbsorberTest, StoreLocalCacheWithBlacklist);
+  FRIEND_TEST(daemon::AbsorberTest, StoreLocalCacheWithAndWithoutBlacklist);
   FRIEND_TEST(daemon::CollectorTest, SimpleReport);
   FRIEND_TEST(daemon::CompilationDaemonTest, CreateProcessFromFlags);
   FRIEND_TEST(daemon::EmitterTest, LocalMessageWithPluginPath);
+  FRIEND_TEST(daemon::EmitterTest, LocalMessageWithSanitizeBlacklist);
   FRIEND_TEST(daemon::EmitterTest, ConfigurationWithoutVersions);
   FRIEND_TEST(daemon::EmitterTest, LocalSuccessfulCompilation);
   FRIEND_TEST(daemon::EmitterTest, StoreSimpleCacheForLocalResult);
   FRIEND_TEST(daemon::EmitterTest, StoreSimpleCacheForRemoteResult);
+  FRIEND_TEST(daemon::EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist);
   FRIEND_TEST(daemon::EmitterTest, StoreDirectCacheForLocalResult);
   FRIEND_TEST(daemon::EmitterTest, StoreDirectCacheForRemoteResult);
   FRIEND_TEST(daemon::EmitterTest, UpdateConfiguration);

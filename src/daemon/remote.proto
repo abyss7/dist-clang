@@ -5,8 +5,10 @@ package dist_clang.daemon.proto;
 
 // Sent from emitter to absorber.
 message Remote {
-  optional base.proto.Flags flags = 1;
-  optional string source          = 2;
+  optional base.proto.Flags flags        = 1;
+  optional string source                 = 2;
+  optional string sanitize_blacklist     = 3;
+  // FIXME: replace with map after protobuf upgrade
 
   extend net.proto.Universal {
     optional Remote extension = 6;

@@ -9,9 +9,20 @@ namespace daemon {
 
 TEST(CompilationDaemonTest, CreateProcessFromFlags) {
   const List<Literal> expected_args = {
-      "-cc1"_l, "-emit-obj"_l, "-I."_l, "-load"_l, "/usr/lib/libplugin.so"_l,
-      "-dependency-file"_l, "some_deps_file"_l, "-x"_l, "c++"_l, "-o"_l,
-      "test.o"_l, "test.cc"_l,
+      "-cc1"_l,
+      "-emit-obj"_l,
+      "-I."_l,
+      "-load"_l,
+      "/usr/lib/libplugin.so"_l,
+      "-dependency-file"_l,
+      "some_deps_file"_l,
+      "-x"_l,
+      "c++"_l,
+      "-fsanitize-blacklist"_l,
+      "asan-blacklist.txt"_l,
+      "-o"_l,
+      "test.o"_l,
+      "test.cc"_l,
   };
   const ui32 expected_user_id = 1u;
 
@@ -26,6 +37,7 @@ TEST(CompilationDaemonTest, CreateProcessFromFlags) {
   flags.set_output("test.o");
   flags.set_language("c++");
   flags.set_deps_file("some_deps_file");
+  flags.set_sanitize_blacklist("asan-blacklist.txt");
 
   {
     base::ProcessPtr process =

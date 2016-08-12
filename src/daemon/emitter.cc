@@ -48,6 +48,9 @@ inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
   // Clang plugins can't affect source code.
   pp_flags.mutable_compiler()->clear_plugins();
 
+  // Sanitize blacklist can't affect source code
+  pp_flags.clear_sanitize_blacklist();
+
   base::ProcessPtr process;
   if (message->has_user_id()) {
     process = daemon::CompilationDaemon::CreateProcess(
@@ -108,9 +111,7 @@ Emitter::Emitter(const proto::Configuration& configuration)
   for (const auto& remote : config->emitter().remotes()) {
     if (!remote.disabled()) {
       auto resolver = [
-        this,
-        host = remote.host(),
-        port = static_cast<ui16>(remote.port()),
+        this, host = remote.host(), port = static_cast<ui16>(remote.port()),
         ipv6 = remote.ipv6()
       ]() {
         auto optional = resolver_->Resolve(host, port, ipv6);
@@ -178,16 +179,28 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
   if (message->HasExtension(base::proto::Local::extension)) {
     Message execute(message->ReleaseExtension(base::proto::Local::extension));
     if (config->has_cache() && !config->cache().disabled()) {
-      return cache_tasks_->Push(
-          std::make_tuple(connection, std::move(execute), HandledSource()));
+      return cache_tasks_->Push(std::make_tuple(connection, std::move(execute),
+                                                HandledSource(),
+                                                cache::ExtraFiles{}));
     } else {
-      return all_tasks_->Push(
-          std::make_tuple(connection, std::move(execute), HandledSource()));
+      return all_tasks_->Push(std::make_tuple(connection, std::move(execute),
+                                              HandledSource(),
+                                              cache::ExtraFiles{}));
     }
   }
 
   NOTREACHED();
   return false;
+}
+
+void Emitter::SetExtraFiles(const cache::ExtraFiles& extra_files,
+                            proto::Remote* message) {
+  DCHECK(message);
+
+  auto sanitize_blacklist = extra_files.find(cache::SANITIZE_BLACKLIST);
+  if (sanitize_blacklist != extra_files.end()) {
+    message->set_sanitize_blacklist(sanitize_blacklist->second);
+  }
 }
 
 void Emitter::DoCheckCache(const base::WorkerPool& pool) {
@@ -206,7 +219,8 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     base::proto::Local* incoming = std::get<MESSAGE>(*task).get();
     cache::FileCache::Entry entry;
 
-    auto RestoreFromCache = [&](const HandledSource& source) {
+    auto RestoreFromCache = [&](const HandledSource& source,
+                                const cache::ExtraFiles& extra_files) {
       String error;
       const String output_path = GetOutputPath(incoming);
 
@@ -234,7 +248,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       }
 
       if (!source.str.empty()) {
-        UpdateDirectCache(incoming, source, entry);
+        UpdateDirectCache(incoming, source, extra_files, entry);
       }
 
       net::proto::Status status;
@@ -247,7 +261,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     };
 
     if (SearchDirectCache(incoming->flags(), incoming->current_dir(), &entry) &&
-        RestoreFromCache(HandledSource())) {
+        RestoreFromCache(HandledSource(), cache::ExtraFiles{})) {
       STAT(DIRECT_CACHE_HIT);
       continue;
     }
@@ -267,8 +281,15 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       continue;
     }
 
-    if (SearchSimpleCache(incoming->flags(), source, &entry) &&
-        RestoreFromCache(source)) {
+    auto& extra_files = std::get<EXTRA_FILES>(*task);
+    if (!ReadExtraFiles(incoming->flags(), incoming->current_dir(),
+                        &extra_files)) {
+      failed_tasks_->Push(std::move(*task));
+      continue;
+    }
+
+    if (SearchSimpleCache(incoming->flags(), source, extra_files, &entry) &&
+        RestoreFromCache(source, extra_files)) {
       STAT(SIMPLE_CACHE_HIT);
       continue;
     }
@@ -323,6 +344,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
                 << incoming->flags().input();
 
       const auto& source = std::get<SOURCE>(*task);
+      const auto& extra_files = std::get<EXTRA_FILES>(*task);
 
       if (!source.str.empty()) {
         cache::FileCache::Entry entry;
@@ -330,8 +352,8 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
             (!incoming->flags().has_deps_file() ||
              base::File::Read(GetDepsPath(incoming), &entry.deps))) {
           entry.stderr = process->stderr();
-          UpdateSimpleCache(incoming->flags(), source, entry);
-          UpdateDirectCache(incoming, source, entry);
+          UpdateSimpleCache(incoming->flags(), source, extra_files, entry);
+          UpdateDirectCache(incoming, source, extra_files, entry);
         }
       }
 
@@ -375,6 +397,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
 
     base::proto::Local* incoming = std::get<MESSAGE>(*task).get();
     auto& source = std::get<SOURCE>(*task);
+    auto& extra_files = std::get<EXTRA_FILES>(*task);
 
     // Check that we have a compiler of a requested version.
     net::proto::Status status;
@@ -406,6 +429,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
 
     outgoing->mutable_flags()->CopyFrom(incoming->flags());
     outgoing->set_source(Immutable(source.str).string_copy(false));
+    SetExtraFiles(extra_files, outgoing.get());
 
     // Filter outgoing flags.
     auto* flags = outgoing->mutable_flags();
@@ -483,8 +507,8 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
         };
 
         if (GenerateEntry()) {
-          UpdateSimpleCache(incoming->flags(), source, entry);
-          UpdateDirectCache(incoming, source, entry);
+          UpdateSimpleCache(incoming->flags(), source, extra_files, entry);
+          UpdateDirectCache(incoming, source, extra_files, entry);
         }
 
         std::get<CONNECTION>(*task)->ReportStatus(status);
