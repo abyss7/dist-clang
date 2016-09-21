@@ -50,12 +50,14 @@ def send_message(sock, message):
 
 
 def Main(args):
-    for arg in args[2:]:
+    metrics = args[2:] or [descriptor.name for descriptor in
+                           stat_pb2._METRIC_NAME.values]
+    for metric in metrics:
         s = socket.create_connection((args[0], args[1]))
 
         m = universal_pb2.Universal()
         r = m.Extensions[stat_pb2.Report.extension].metric.add()
-        r.name = stat_pb2._METRIC_NAME.values_by_name[arg].number
+        r.name = stat_pb2._METRIC_NAME.values_by_name[metric].number
         send_message(s, m)
 
         m = get_message(s, universal_pb2.Universal)
