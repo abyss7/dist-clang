@@ -50,7 +50,7 @@ TEST(CommandTest, ParseSimpleArgs) {
   expected_regex.push_back(rep("-masm-verbose"));
   expected_regex.push_back(rep("-munwind-tables"));
   expected_regex.push_back(rep("-target-cpu [a-z0-9_]+"));
-  expected_regex.push_back(rep2("-coverage-file " + expected_output));
+  expected_regex.push_back(rep("-coverage-notes-file /tmp/output.gcno"));
   expected_regex.push_back(rep("-resource-dir"));
   expected_regex.push_back(rep("-fdeprecated-macro"));
   expected_regex.push_back(rep("-fdebug-compilation-dir"));

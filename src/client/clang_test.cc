@@ -214,7 +214,7 @@ TEST_F(ClientTest, CannotReadMessage) {
         auto begin = non_direct.begin();
         auto end = non_direct.end();
         EXPECT_NE(end, std::find(begin, end, "-main-file-name"));
-        EXPECT_NE(end, std::find(begin, end, "-coverage-file"));
+        EXPECT_NE(end, std::find(begin, end, "-coverage-notes-file"));
       }
     });
   };

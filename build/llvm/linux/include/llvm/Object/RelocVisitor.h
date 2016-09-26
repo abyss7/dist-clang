@@ -16,7 +16,6 @@
 #ifndef LLVM_OBJECT_RELOCVISITOR_H
 #define LLVM_OBJECT_RELOCVISITOR_H
 
-#include "llvm/ADT/StringRef.h"
 #include "llvm/Object/COFF.h"
 #include "llvm/Object/ELFObjectFile.h"
 #include "llvm/Object/MachO.h"
@@ -140,6 +139,14 @@ private:
           HasError = true;
           return RelocToApply();
         }
+      case Triple::amdgcn:
+        switch (RelocType) {
+        case llvm::ELF::R_AMDGPU_ABS32:
+          return visitELF_AMDGPU_ABS32(R, Value);
+        default:
+          HasError = true;
+          return RelocToApply();
+        }
       default:
         HasError = true;
         return RelocToApply();
@@ -175,6 +182,14 @@ private:
         case llvm::ELF::R_ARM_ABS32:
           return visitELF_ARM_ABS32(R, Value);
         }
+      case Triple::lanai:
+        switch (RelocType) {
+        case llvm::ELF::R_LANAI_32:
+          return visitELF_Lanai_32(R, Value);
+        default:
+          HasError = true;
+          return RelocToApply();
+        }
       case Triple::mipsel:
       case Triple::mips:
         switch (RelocType) {
@@ -189,6 +204,14 @@ private:
         case llvm::ELF::R_SPARC_32:
         case llvm::ELF::R_SPARC_UA32:
           return visitELF_SPARC_32(R, Value);
+        default:
+          HasError = true;
+          return RelocToApply();
+        }
+      case Triple::hexagon:
+        switch (RelocType) {
+        case llvm::ELF::R_HEX_32:
+          return visitELF_HEX_32(R, Value);
         default:
           HasError = true;
           return RelocToApply();
@@ -311,6 +334,13 @@ private:
     return RelocToApply(Res, 4);
   }
 
+  /// Lanai ELF
+  RelocToApply visitELF_Lanai_32(RelocationRef R, uint64_t Value) {
+    int64_t Addend = getELFAddend(R);
+    uint32_t Res = (Value + Addend) & 0xFFFFFFFF;
+    return RelocToApply(Res, 4);
+  }
+
   /// MIPS ELF
   RelocToApply visitELF_MIPS_32(RelocationRef R, uint64_t Value) {
     uint32_t Res = Value & 0xFFFFFFFF;
@@ -387,6 +417,16 @@ private:
       HasError = true;
 
     return RelocToApply(static_cast<uint32_t>(Res), 4);
+  }
+
+  RelocToApply visitELF_HEX_32(RelocationRef R, uint64_t Value) {
+    int64_t Addend = getELFAddend(R);
+    return RelocToApply(Value + Addend, 4);
+  }
+
+  RelocToApply visitELF_AMDGPU_ABS32(RelocationRef R, uint64_t Value) {
+    int64_t Addend = getELFAddend(R);
+    return RelocToApply(Value + Addend, 4);
   }
 
   /// I386 COFF
