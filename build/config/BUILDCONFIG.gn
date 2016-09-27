@@ -72,7 +72,6 @@ if (host_os == "linux") {
 }
 if (host_os == "mac") {
   default_configs += [ "//build/config/mac:base" ]
-  default_configs -= [ "//build/config:no_stdlibs" ]
 }
 if (host_os == "win") {
   default_configs += [ "//build/config/win:base" ]
