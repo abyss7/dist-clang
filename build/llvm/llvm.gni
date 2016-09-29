@@ -139,14 +139,11 @@ llvm_libs = [
 ]
 
 llvm_system_libs = [
-  "curses",
-  "dl",
   "m",
-  "pthread",
-  "rt",
-  "tinfo",
   "z",
 ]
 if (host_os == "linux") {
-  llvm_system_libs += [ "dl" ]
+  llvm_system_libs += [ "dl", "pthread", "rt", "tinfo" ]
+} else if (host_os == "mac") {
+  llvm_system_libs += [ "curses" ]
 }
