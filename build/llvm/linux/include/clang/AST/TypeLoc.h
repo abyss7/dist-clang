@@ -254,7 +254,7 @@ public:
     unsigned align =
         TypeLoc::getLocalAlignmentForType(QualType(getTypePtr(), 0));
     uintptr_t dataInt = reinterpret_cast<uintptr_t>(Data);
-    dataInt = llvm::RoundUpToAlignment(dataInt, align);
+    dataInt = llvm::alignTo(dataInt, align);
     return UnqualTypeLoc(getTypePtr(), reinterpret_cast<void*>(dataInt));
   }
 
@@ -353,7 +353,7 @@ public:
   unsigned getLocalDataSize() const {
     unsigned size = sizeof(LocalData);
     unsigned extraAlign = asDerived()->getExtraLocalDataAlignment();
-    size = llvm::RoundUpToAlignment(size, extraAlign);
+    size = llvm::alignTo(size, extraAlign);
     size += asDerived()->getExtraLocalDataSize();
     return size;
   }
@@ -399,14 +399,14 @@ protected:
   void *getExtraLocalData() const {
     unsigned size = sizeof(LocalData);
     unsigned extraAlign = asDerived()->getExtraLocalDataAlignment();
-    size = llvm::RoundUpToAlignment(size, extraAlign);
+    size = llvm::alignTo(size, extraAlign);
     return reinterpret_cast<char*>(Base::Data) + size;
   }
 
   void *getNonLocalData() const {
     uintptr_t data = reinterpret_cast<uintptr_t>(Base::Data);
     data += asDerived()->getLocalDataSize();
-    data = llvm::RoundUpToAlignment(data, getNextTypeAlign());
+    data = llvm::alignTo(data, getNextTypeAlign());
     return reinterpret_cast<void*>(data);
   }
 
@@ -538,7 +538,7 @@ public:
   bool needsExtraLocalData() const {
     BuiltinType::Kind bk = getTypePtr()->getKind();
     return (bk >= BuiltinType::UShort && bk <= BuiltinType::UInt128)
-      || (bk >= BuiltinType::Short && bk <= BuiltinType::LongDouble)
+      || (bk >= BuiltinType::Short && bk <= BuiltinType::Float128)
       || bk == BuiltinType::UChar
       || bk == BuiltinType::SChar;
   }
@@ -691,6 +691,91 @@ class TemplateTypeParmTypeLoc :
                                      TemplateTypeParmType> {
 public:
   TemplateTypeParmDecl *getDecl() const { return getTypePtr()->getDecl(); }
+};
+
+struct ObjCTypeParamTypeLocInfo {
+  SourceLocation NameLoc;
+};
+
+/// ProtocolLAngleLoc, ProtocolRAngleLoc, and the source locations for
+/// protocol qualifiers are stored after Info.
+class ObjCTypeParamTypeLoc : public ConcreteTypeLoc<UnqualTypeLoc,
+                                     ObjCTypeParamTypeLoc,
+                                     ObjCTypeParamType,
+                                     ObjCTypeParamTypeLocInfo> {
+  // SourceLocations are stored after Info, one for each protocol qualifier.
+  SourceLocation *getProtocolLocArray() const {
+    return (SourceLocation*)this->getExtraLocalData() + 2;
+  }
+
+public:
+  ObjCTypeParamDecl *getDecl() const { return getTypePtr()->getDecl(); }
+
+  SourceLocation getNameLoc() const {
+    return this->getLocalData()->NameLoc;
+  }
+
+  void setNameLoc(SourceLocation Loc) {
+    this->getLocalData()->NameLoc = Loc;
+  }
+
+  SourceLocation getProtocolLAngleLoc() const {
+    return getNumProtocols()  ?
+      *((SourceLocation*)this->getExtraLocalData()) :
+      SourceLocation();
+  }
+  void setProtocolLAngleLoc(SourceLocation Loc) {
+    *((SourceLocation*)this->getExtraLocalData()) = Loc;
+  }
+
+  SourceLocation getProtocolRAngleLoc() const {
+    return getNumProtocols()  ?
+      *((SourceLocation*)this->getExtraLocalData() + 1) :
+      SourceLocation();
+  }
+  void setProtocolRAngleLoc(SourceLocation Loc) {
+    *((SourceLocation*)this->getExtraLocalData() + 1) = Loc;
+  }
+
+  unsigned getNumProtocols() const {
+    return this->getTypePtr()->getNumProtocols();
+  }
+
+  SourceLocation getProtocolLoc(unsigned i) const {
+    assert(i < getNumProtocols() && "Index is out of bounds!");
+    return getProtocolLocArray()[i];
+  }
+  void setProtocolLoc(unsigned i, SourceLocation Loc) {
+    assert(i < getNumProtocols() && "Index is out of bounds!");
+    getProtocolLocArray()[i] = Loc;
+  }
+
+  ObjCProtocolDecl *getProtocol(unsigned i) const {
+    assert(i < getNumProtocols() && "Index is out of bounds!");
+    return *(this->getTypePtr()->qual_begin() + i);
+  }
+
+  ArrayRef<SourceLocation> getProtocolLocs() const {
+    return llvm::makeArrayRef(getProtocolLocArray(), getNumProtocols());
+  }
+
+  void initializeLocal(ASTContext &Context, SourceLocation Loc);
+
+  unsigned getExtraLocalDataSize() const {
+    if (!this->getNumProtocols()) return 0;
+    // When there are protocol qualifers, we have LAngleLoc and RAngleLoc
+    // as well.
+    return (this->getNumProtocols() + 2) * sizeof(SourceLocation) ;
+  }
+  unsigned getExtraLocalDataAlignment() const {
+    return llvm::alignOf<SourceLocation>();
+  }
+  SourceRange getLocalSourceRange() const {
+    SourceLocation start = getNameLoc();
+    SourceLocation end = getProtocolRAngleLoc();
+    if (end.isInvalid()) return SourceRange(start, start);
+    return SourceRange(start, end);
+  }
 };
 
 /// \brief Wrapper for substituted template type parameters.
@@ -2033,7 +2118,26 @@ public:
   }
 };
 
+struct PipeTypeLocInfo {
+  SourceLocation KWLoc;
+};
 
+class PipeTypeLoc : public ConcreteTypeLoc<UnqualTypeLoc, PipeTypeLoc, PipeType,
+                                           PipeTypeLocInfo> {
+public:
+  TypeLoc getValueLoc() const { return this->getInnerTypeLoc(); }
+
+  SourceRange getLocalSourceRange() const { return SourceRange(getKWLoc()); }
+
+  SourceLocation getKWLoc() const { return this->getLocalData()->KWLoc; }
+  void setKWLoc(SourceLocation Loc) { this->getLocalData()->KWLoc = Loc; }
+
+  void initializeLocal(ASTContext &Context, SourceLocation Loc) {
+    setKWLoc(Loc);
+  }
+
+  QualType getInnerType() const { return this->getTypePtr()->getElementType(); }
+};
 }
 
 #endif

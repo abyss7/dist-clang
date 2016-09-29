@@ -100,7 +100,8 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
              arg->getOption().matches(OPT_D) ||
              arg->getOption().matches(OPT_I)) {
       arg->render(arg_list_, non_cached_list);
-    } else if (arg->getOption().matches(OPT_coverage_file) ||
+    } else if (arg->getOption().matches(OPT_coverage_data_file) ||
+               arg->getOption().matches(OPT_coverage_notes_file) ||
                arg->getOption().matches(OPT_fdebug_compilation_dir) ||
                arg->getOption().matches(OPT_ferror_limit) ||
                arg->getOption().matches(OPT_main_file_name) ||

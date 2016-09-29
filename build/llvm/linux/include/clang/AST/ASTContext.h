@@ -28,6 +28,7 @@
 #include "clang/Basic/AddressSpaces.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/LangOptions.h"
+#include "clang/Basic/Module.h"
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/PartialDiagnostic.h"
 #include "clang/Basic/SanitizerBlacklist.h"
@@ -35,6 +36,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/TinyPtrVector.h"
 #include "llvm/Support/Allocator.h"
@@ -112,6 +114,7 @@ class ASTContext : public RefCountedBase<ASTContext> {
   mutable llvm::FoldingSet<DependentTypeOfExprType> DependentTypeOfExprTypes;
   mutable llvm::FoldingSet<DependentDecltypeType> DependentDecltypeTypes;
   mutable llvm::FoldingSet<TemplateTypeParmType> TemplateTypeParmTypes;
+  mutable llvm::FoldingSet<ObjCTypeParamType> ObjCTypeParamTypes;
   mutable llvm::FoldingSet<SubstTemplateTypeParmType>
     SubstTemplateTypeParmTypes;
   mutable llvm::FoldingSet<SubstTemplateTypeParmPackType>
@@ -127,9 +130,12 @@ class ASTContext : public RefCountedBase<ASTContext> {
   llvm::FoldingSet<PackExpansionType> PackExpansionTypes;
   mutable llvm::FoldingSet<ObjCObjectTypeImpl> ObjCObjectTypes;
   mutable llvm::FoldingSet<ObjCObjectPointerType> ObjCObjectPointerTypes;
+  mutable llvm::FoldingSet<DependentUnaryTransformType>
+    DependentUnaryTransformTypes;
   mutable llvm::FoldingSet<AutoType> AutoTypes;
   mutable llvm::FoldingSet<AtomicType> AtomicTypes;
   llvm::FoldingSet<AttributedType> AttributedTypes;
+  mutable llvm::FoldingSet<PipeType> PipeTypes;
 
   mutable llvm::FoldingSet<QualifiedTemplateName> QualifiedTemplateNames;
   mutable llvm::FoldingSet<DependentTemplateName> DependentTemplateNames;
@@ -210,9 +216,6 @@ class ASTContext : public RefCountedBase<ASTContext> {
   /// \brief The typedef for the __uint128_t type.
   mutable TypedefDecl *UInt128Decl;
 
-  /// \brief The typedef for the __float128 stub type.
-  mutable TypeDecl *Float128StubDecl;
-  
   /// \brief The typedef for the target specific predefined
   /// __builtin_va_list type.
   mutable TypedefDecl *BuiltinVaListDecl;
@@ -241,6 +244,9 @@ class ASTContext : public RefCountedBase<ASTContext> {
   QualType ObjCClassRedefinitionType;
   QualType ObjCSelRedefinitionType;
 
+  /// The identifier 'bool'.
+  mutable IdentifierInfo *BoolName = nullptr;
+
   /// The identifier 'NSObject'.
   IdentifierInfo *NSObjectName = nullptr;
 
@@ -250,9 +256,13 @@ class ASTContext : public RefCountedBase<ASTContext> {
   /// The identifier '__make_integer_seq'.
   mutable IdentifierInfo *MakeIntegerSeqName = nullptr;
 
+  /// The identifier '__type_pack_element'.
+  mutable IdentifierInfo *TypePackElementName = nullptr;
+
   QualType ObjCConstantStringType;
-  mutable RecordDecl *CFConstantStringTypeDecl;
-  
+  mutable RecordDecl *CFConstantStringTagDecl;
+  mutable TypedefDecl *CFConstantStringTypeDecl;
+
   mutable QualType ObjCSuperType;
   
   QualType ObjCNSStringType;
@@ -302,6 +312,24 @@ class ASTContext : public RefCountedBase<ASTContext> {
   /// than the owning module of the declaration) that contain merged
   /// definitions of that entity.
   llvm::DenseMap<NamedDecl*, llvm::TinyPtrVector<Module*>> MergedDefModules;
+
+  /// \brief Initializers for a module, in order. Each Decl will be either
+  /// something that has a semantic effect on startup (such as a variable with
+  /// a non-constant initializer), or an ImportDecl (which recursively triggers
+  /// initialization of another module).
+  struct PerModuleInitializers {
+    llvm::SmallVector<Decl*, 4> Initializers;
+    llvm::SmallVector<uint32_t, 4> LazyInitializers;
+
+    void resolve(ASTContext &Ctx);
+  };
+  llvm::DenseMap<Module*, PerModuleInitializers*> ModuleInitializers;
+
+  /// Diagnostics that are emitted if and only if the given function is
+  /// codegen'ed.  Access these through FunctionDecl::addDeferredDiag() and
+  /// FunctionDecl::takeDeferredDiags().
+  llvm::DenseMap<const FunctionDecl *, std::vector<PartialDiagnosticAt>>
+      DeferredDiags;
 
 public:
   /// \brief A type synonym for the TemplateOrInstantiation mapping.
@@ -390,8 +418,8 @@ private:
 
   /// \brief Side-table of mangling numbers for declarations which rarely
   /// need them (like static local vars).
-  llvm::DenseMap<const NamedDecl *, unsigned> MangleNumbers;
-  llvm::DenseMap<const VarDecl *, unsigned> StaticLocalNumbers;
+  llvm::MapVector<const NamedDecl *, unsigned> MangleNumbers;
+  llvm::MapVector<const VarDecl *, unsigned> StaticLocalNumbers;
 
   /// \brief Mapping that stores parameterIndex values for ParmVarDecls when
   /// that value exceeds the bitfield size of ParmVarDeclBits.ParameterIndex.
@@ -404,6 +432,7 @@ private:
   TranslationUnitDecl *TUDecl;
   mutable ExternCContextDecl *ExternCContext;
   mutable BuiltinTemplateDecl *MakeIntegerSeqDecl;
+  mutable BuiltinTemplateDecl *TypePackElementDecl;
 
   /// \brief The associated SourceManager object.a
   SourceManager &SourceMgr;
@@ -573,6 +602,11 @@ public:
   
   PartialDiagnostic::StorageAllocator &getDiagAllocator() {
     return DiagAllocator;
+  }
+
+  decltype(DeferredDiags) &getDeferredDiags() { return DeferredDiags; }
+  const decltype(DeferredDiags) &getDeferredDiags() const {
+    return DeferredDiags;
   }
 
   const TargetInfo &getTargetInfo() const { return *Target; }
@@ -815,6 +849,9 @@ public:
   overridden_methods_end(const CXXMethodDecl *Method) const;
 
   unsigned overridden_methods_size(const CXXMethodDecl *Method) const;
+  typedef llvm::iterator_range<overridden_cxx_method_iterator>
+      overridden_method_range;
+  overridden_method_range overridden_methods(const CXXMethodDecl *Method) const;
 
   /// \brief Note that the given C++ \p Method overrides the given \p
   /// Overridden method.
@@ -870,10 +907,22 @@ public:
     return MergedIt->second;
   }
 
+  /// Add a declaration to the list of declarations that are initialized
+  /// for a module. This will typically be a global variable (with internal
+  /// linkage) that runs module initializers, such as the iostream initializer,
+  /// or an ImportDecl nominating another module that has initializers.
+  void addModuleInitializer(Module *M, Decl *Init);
+
+  void addLazyModuleInitializers(Module *M, ArrayRef<uint32_t> IDs);
+
+  /// Get the initializations to perform when importing a module, if any.
+  ArrayRef<Decl*> getModuleInitializers(Module *M);
+
   TranslationUnitDecl *getTranslationUnitDecl() const { return TUDecl; }
 
   ExternCContextDecl *getExternCContextDecl() const;
   BuiltinTemplateDecl *getMakeIntegerSeqDecl() const;
+  BuiltinTemplateDecl *getTypePackElementDecl() const;
 
   // Builtin Types.
   CanQualType VoidTy;
@@ -887,20 +936,19 @@ public:
   CanQualType SignedCharTy, ShortTy, IntTy, LongTy, LongLongTy, Int128Ty;
   CanQualType UnsignedCharTy, UnsignedShortTy, UnsignedIntTy, UnsignedLongTy;
   CanQualType UnsignedLongLongTy, UnsignedInt128Ty;
-  CanQualType FloatTy, DoubleTy, LongDoubleTy;
+  CanQualType FloatTy, DoubleTy, LongDoubleTy, Float128Ty;
   CanQualType HalfTy; // [OpenCL 6.1.1.1], ARM NEON
   CanQualType FloatComplexTy, DoubleComplexTy, LongDoubleComplexTy;
+  CanQualType Float128ComplexTy;
   CanQualType VoidPtrTy, NullPtrTy;
   CanQualType DependentTy, OverloadTy, BoundMemberTy, UnknownAnyTy;
   CanQualType BuiltinFnTy;
   CanQualType PseudoObjectTy, ARCUnbridgedCastTy;
   CanQualType ObjCBuiltinIdTy, ObjCBuiltinClassTy, ObjCBuiltinSelTy;
   CanQualType ObjCBuiltinBoolTy;
-  CanQualType OCLImage1dTy, OCLImage1dArrayTy, OCLImage1dBufferTy;
-  CanQualType OCLImage2dTy, OCLImage2dArrayTy, OCLImage2dDepthTy;
-  CanQualType OCLImage2dArrayDepthTy, OCLImage2dMSAATy, OCLImage2dArrayMSAATy;
-  CanQualType OCLImage2dMSAADepthTy, OCLImage2dArrayMSAADepthTy;
-  CanQualType OCLImage3dTy;
+#define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
+  CanQualType SingletonId;
+#include "clang/Basic/OpenCLImageTypes.def"
   CanQualType OCLSamplerTy, OCLEventTy, OCLClkEventTy;
   CanQualType OCLQueueTy, OCLNDRangeTy, OCLReserveIDTy;
   CanQualType OMPArraySectionTy;
@@ -964,9 +1012,6 @@ public:
   /// \brief Retrieve the declaration for the 128-bit unsigned integer type.
   TypedefDecl *getUInt128Decl() const;
 
-  /// \brief Retrieve the declaration for a 128-bit float stub type.
-  TypeDecl *getFloat128StubType() const;
-
   //===--------------------------------------------------------------------===//
   //                           Type Constructors
   //===--------------------------------------------------------------------===//
@@ -985,6 +1030,14 @@ public:
   /// space. If T already has an address space specifier, it is silently
   /// replaced.
   QualType getAddrSpaceQualType(QualType T, unsigned AddressSpace) const;
+
+  /// \brief Apply Objective-C protocol qualifiers to the given type.
+  /// \param allowOnPointerType specifies if we can apply protocol
+  /// qualifiers on ObjCObjectPointerType. It can be set to true when
+  /// contructing the canonical type of a Objective-C type parameter.
+  QualType applyObjCProtocolQualifiers(QualType type,
+      ArrayRef<ObjCProtocolDecl *> protocols, bool &hasError,
+      bool allowOnPointerType = false) const;
 
   /// \brief Return the uniqued reference to the type for an Objective-C
   /// gc-qualified type.
@@ -1077,6 +1130,9 @@ public:
   /// Gets the struct used to keep track of the descriptor for pointer to
   /// blocks.
   QualType getBlockDescriptorType() const;
+
+  /// \brief Return pipe type for the specified type.
+  QualType getPipeType(QualType T) const;
 
   /// Gets the struct used to keep track of the extended descriptor for
   /// pointer to blocks.
@@ -1224,13 +1280,12 @@ public:
                           TemplateTypeParmDecl *ParmDecl = nullptr) const;
 
   QualType getTemplateSpecializationType(TemplateName T,
-                                         const TemplateArgument *Args,
-                                         unsigned NumArgs,
+                                         ArrayRef<TemplateArgument> Args,
                                          QualType Canon = QualType()) const;
 
-  QualType getCanonicalTemplateSpecializationType(TemplateName T,
-                                                  const TemplateArgument *Args,
-                                                  unsigned NumArgs) const;
+  QualType
+  getCanonicalTemplateSpecializationType(TemplateName T,
+                                         ArrayRef<TemplateArgument> Args) const;
 
   QualType getTemplateSpecializationType(TemplateName T,
                                          const TemplateArgumentListInfo &Args,
@@ -1255,11 +1310,9 @@ public:
                                                   NestedNameSpecifier *NNS,
                                                   const IdentifierInfo *Name,
                                     const TemplateArgumentListInfo &Args) const;
-  QualType getDependentTemplateSpecializationType(ElaboratedTypeKeyword Keyword,
-                                                  NestedNameSpecifier *NNS,
-                                                  const IdentifierInfo *Name,
-                                                  unsigned NumArgs,
-                                            const TemplateArgument *Args) const;
+  QualType getDependentTemplateSpecializationType(
+      ElaboratedTypeKeyword Keyword, NestedNameSpecifier *NNS,
+      const IdentifierInfo *Name, ArrayRef<TemplateArgument> Args) const;
 
   QualType getPackExpansionType(QualType Pattern,
                                 Optional<unsigned> NumExpansions);
@@ -1276,6 +1329,10 @@ public:
                              ArrayRef<QualType> typeArgs,
                              ArrayRef<ObjCProtocolDecl *> protocols,
                              bool isKindOf) const;
+
+  QualType getObjCTypeParamType(const ObjCTypeParamDecl *Decl,
+                                ArrayRef<ObjCProtocolDecl *> protocols,
+                                QualType Canonical = QualType()) const;
   
   bool ObjCObjectAdoptsQTypeProtocols(QualType QT, ObjCInterfaceDecl *Decl);
   /// QIdProtocolsAdoptObjCObjectProtocols - Checks that protocols in
@@ -1376,10 +1433,12 @@ public:
   /// if it hasn't yet been built.
   QualType getRawCFConstantStringType() const {
     if (CFConstantStringTypeDecl)
-      return getTagDeclType(CFConstantStringTypeDecl);
+      return getTypedefType(CFConstantStringTypeDecl);
     return QualType();
   }
   void setCFConstantStringType(QualType T);
+  TypedefDecl *getCFConstantStringDecl() const;
+  RecordDecl *getCFConstantStringTagDecl() const;
 
   // This setter/getter represents the ObjC type for an NSConstantString.
   void setObjCConstantStringInterface(ObjCInterfaceDecl *Decl);
@@ -1453,10 +1512,23 @@ public:
     return NSCopyingName;
   }
 
+  /// Retrieve the identifier 'bool'.
+  IdentifierInfo *getBoolName() const {
+    if (!BoolName)
+      BoolName = &Idents.get("bool");
+    return BoolName;
+  }
+
   IdentifierInfo *getMakeIntegerSeqName() const {
     if (!MakeIntegerSeqName)
       MakeIntegerSeqName = &Idents.get("__make_integer_seq");
     return MakeIntegerSeqName;
+  }
+
+  IdentifierInfo *getTypePackElementName() const {
+    if (!TypePackElementName)
+      TypePackElementName = &Idents.get("__type_pack_element");
+    return TypePackElementName;
   }
 
   /// \brief Retrieve the Objective-C "instancetype" type, if already known;
@@ -2252,13 +2324,11 @@ public:
   
   QualType mergeObjCGCQualifiers(QualType, QualType);
     
-  bool FunctionTypesMatchOnNSConsumedAttrs(
+  bool doFunctionTypesMatchOnExtParameterInfos(
          const FunctionProtoType *FromFunctionType,
          const FunctionProtoType *ToFunctionType);
 
-  void ResetObjCLayout(const ObjCContainerDecl *CD) {
-    ObjCLayouts[CD] = nullptr;
-  }
+  void ResetObjCLayout(const ObjCContainerDecl *CD);
 
   //===--------------------------------------------------------------------===//
   //                    Integer Predicates
@@ -2280,9 +2350,13 @@ public:
   /// \brief Make an APSInt of the appropriate width and signedness for the
   /// given \p Value and integer \p Type.
   llvm::APSInt MakeIntValue(uint64_t Value, QualType Type) const {
-    llvm::APSInt Res(getIntWidth(Type), 
-                     !Type->isSignedIntegerOrEnumerationType());
+    // If Type is a signed integer type larger than 64 bits, we need to be sure
+    // to sign extend Res appropriately.
+    llvm::APSInt Res(64, !Type->isSignedIntegerOrEnumerationType());
     Res = Value;
+    unsigned Width = getIntWidth(Type);
+    if (Width != Res.getBitWidth())
+      return Res.extOrTrunc(Width);
     return Res;
   }
 
@@ -2309,16 +2383,11 @@ public:
 
   /// \brief Get the duplicate declaration of a ObjCMethod in the same
   /// interface, or null if none exists.
-  const ObjCMethodDecl *getObjCMethodRedeclaration(
-                                               const ObjCMethodDecl *MD) const {
-    return ObjCMethodRedecls.lookup(MD);
-  }
+  const ObjCMethodDecl *
+  getObjCMethodRedeclaration(const ObjCMethodDecl *MD) const;
 
   void setObjCMethodRedeclaration(const ObjCMethodDecl *MD,
-                                  const ObjCMethodDecl *Redecl) {
-    assert(!getObjCMethodRedeclaration(MD) && "MD already has a redeclaration");
-    ObjCMethodRedecls[MD] = Redecl;
-  }
+                                  const ObjCMethodDecl *Redecl);
 
   /// \brief Returns the Objective-C interface that \p ND belongs to if it is
   /// an Objective-C method/property/ivar etc. that is part of an interface,
@@ -2506,7 +2575,21 @@ public:
   /// \brief Returns true if this is an inline-initialized static data member
   /// which is treated as a definition for MSVC compatibility.
   bool isMSStaticDataMemberInlineDefinition(const VarDecl *VD) const;
-  
+
+  enum class InlineVariableDefinitionKind {
+    None,        ///< Not an inline variable.
+    Weak,        ///< Weak definition of inline variable.
+    WeakUnknown, ///< Weak for now, might become strong later in this TU.
+    Strong       ///< Strong definition.
+  };
+  /// \brief Determine whether a definition of this inline variable should
+  /// be treated as a weak or strong definition. For compatibility with
+  /// C++14 and before, for a constexpr static data member, if there is an
+  /// out-of-line declaration of the member, we may promote it from weak to
+  /// strong.
+  InlineVariableDefinitionKind
+  getInlineVariableDefinitionKind(const VarDecl *VD) const;
+
 private:
   const ASTRecordLayout &
   getObjCLayout(const ObjCInterfaceDecl *D,
@@ -2514,9 +2597,15 @@ private:
 
   /// \brief A set of deallocations that should be performed when the
   /// ASTContext is destroyed.
-  typedef llvm::SmallDenseMap<void(*)(void*), llvm::SmallVector<void*, 16> >
-    DeallocationMap;
-  DeallocationMap Deallocations;
+  // FIXME: We really should have a better mechanism in the ASTContext to
+  // manage running destructors for types which do variable sized allocation
+  // within the AST. In some places we thread the AST bump pointer allocator
+  // into the datastructures which avoids this mess during deallocation but is
+  // wasteful of memory, and here we require a lot of error prone book keeping
+  // in order to track and run destructors while we're tearing things down.
+  typedef llvm::SmallVector<std::pair<void (*)(void *), void *>, 16>
+      DeallocationFunctionsAndArguments;
+  DeallocationFunctionsAndArguments Deallocations;
 
   // FIXME: This currently contains the set of StoredDeclMaps used
   // by DeclContext objects.  This probably should not be in ASTContext,
