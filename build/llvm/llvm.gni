@@ -139,9 +139,6 @@ llvm_libs = [
 ]
 
 llvm_system_libs = [
-  "rt",
-  "dl",
-  "tinfo",
   "pthread",
   "z",
   "m",
