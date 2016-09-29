@@ -10,9 +10,12 @@
 #ifndef LLVM_ANALYSIS_EHPERSONALITIES_H
 #define LLVM_ANALYSIS_EHPERSONALITIES_H
 
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/TinyPtrVector.h"
 #include "llvm/Support/ErrorHandling.h"
 
 namespace llvm {
+class BasicBlock;
 class Function;
 class Value;
 
@@ -20,12 +23,15 @@ enum class EHPersonality {
   Unknown,
   GNU_Ada,
   GNU_C,
+  GNU_C_SjLj,
   GNU_CXX,
+  GNU_CXX_SjLj,
   GNU_ObjC,
   MSVC_X86SEH,
   MSVC_Win64SEH,
   MSVC_CXX,
-  CoreCLR
+  CoreCLR,
+  Rust
 };
 
 /// \brief See if the given exception handling personality function is one
@@ -77,6 +83,14 @@ inline bool isNoOpWithoutInvoke(EHPersonality Pers) {
 }
 
 bool canSimplifyInvokeNoUnwind(const Function *F);
+
+typedef TinyPtrVector<BasicBlock *> ColorVector;
+
+/// \brief If an EH funclet personality is in use (see isFuncletEHPersonality),
+/// this will recompute which blocks are in which funclet. It is possible that
+/// some blocks are in multiple funclets. Consider this analysis to be
+/// expensive.
+DenseMap<BasicBlock *, ColorVector> colorEHFunclets(Function &F);
 
 } // end namespace llvm
 
