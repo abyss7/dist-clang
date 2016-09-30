@@ -34,6 +34,7 @@ class ConstantArray;
 class DIE;
 class DIEAbbrev;
 class GCMetadataPrinter;
+class GlobalIndirectSymbol;
 class GlobalValue;
 class GlobalVariable;
 class MachineBasicBlock;
@@ -87,10 +88,6 @@ public:
 
   /// This is a pointer to the current MachineModuleInfo.
   MachineModuleInfo *MMI;
-
-  /// Name-mangler for global names.
-  ///
-  Mangler *Mang;
 
   /// The symbol for the current function. This is recalculated at the beginning
   /// of each call to runOnMachineFunction().
@@ -147,6 +144,8 @@ public:
   DwarfDebug *getDwarfDebug() { return DD; }
   DwarfDebug *getDwarfDebug() const { return DD; }
 
+  bool isPositionIndependent() const;
+
   /// Return true if assembly output should contain comments.
   ///
   bool isVerbose() const { return VerboseAsm; }
@@ -183,6 +182,34 @@ public:
                          const GlobalValue *GV) const;
 
   MCSymbol *getSymbol(const GlobalValue *GV) const;
+
+  //===------------------------------------------------------------------===//
+  // XRay instrumentation implementation.
+  //===------------------------------------------------------------------===//
+public:
+  // This describes the kind of sled we're storing in the XRay table.
+  enum class SledKind : uint8_t {
+    FUNCTION_ENTER = 0,
+    FUNCTION_EXIT = 1,
+    TAIL_CALL = 2,
+  };
+
+  // The table will contain these structs that point to the sled, the function
+  // containing the sled, and what kind of sled (and whether they should always
+  // be instrumented).
+  struct XRayFunctionEntry {
+    const MCSymbol *Sled;
+    const MCSymbol *Function;
+    SledKind Kind;
+    bool AlwaysInstrument;
+    const class Function *Fn;
+  };
+
+  // All the sleds to be emitted.
+  std::vector<XRayFunctionEntry> Sleds;
+
+  // Helper function to record a given XRay sled.
+  void recordSled(MCSymbol *Sled, const MachineInstr &MI, SledKind Kind);
 
   //===------------------------------------------------------------------===//
   // MachineFunctionPass Implementation.
@@ -238,11 +265,6 @@ public:
   ///
   virtual void EmitJumpTableInfo();
 
-  /// Emit the control variable for an emulated TLS variable.
-  virtual void EmitEmulatedTLSControlVariable(const GlobalVariable *GV,
-                                              MCSymbol *EmittedSym,
-                                              bool AllZeroInitValue);
-
   /// Emit the specified global variable to the .s file.
   virtual void EmitGlobalVariable(const GlobalVariable *GV);
 
@@ -259,7 +281,7 @@ public:
   void EmitAlignment(unsigned NumBits, const GlobalObject *GO = nullptr) const;
 
   /// Lower the specified LLVM Constant to an MCExpr.
-  const MCExpr *lowerConstant(const Constant *CV);
+  virtual const MCExpr *lowerConstant(const Constant *CV);
 
   /// \brief Print a general LLVM constant to the .s file.
   void EmitGlobalConstant(const DataLayout &DL, const Constant *CV);
@@ -551,6 +573,9 @@ private:
   void EmitXXStructorList(const DataLayout &DL, const Constant *List,
                           bool isCtor);
   GCMetadataPrinter *GetOrCreateGCPrinter(GCStrategy &C);
+  /// Emit GlobalAlias or GlobalIFunc.
+  void emitGlobalIndirectSymbol(Module &M,
+                                const GlobalIndirectSymbol& GIS);
 };
 }
 

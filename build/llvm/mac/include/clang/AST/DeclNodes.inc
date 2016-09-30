@@ -47,6 +47,12 @@ CLASSSCOPEFUNCTIONSPECIALIZATION(ClassScopeFunctionSpecialization, Decl)
 EMPTY(Empty, Decl)
 #undef EMPTY
 
+#ifndef EXPORT
+#  define EXPORT(Type, Base) DECL(Type, Base)
+#endif
+EXPORT(Export, Decl)
+#undef EXPORT
+
 #ifndef EXTERNCCONTEXT
 #  define EXTERNCCONTEXT(Type, Base) DECL(Type, Base)
 #endif
@@ -327,12 +333,26 @@ USINGDIRECTIVE(UsingDirective, NamedDecl)
 #  define USINGSHADOW(Type, Base) NAMED(Type, Base)
 #endif
 USINGSHADOW(UsingShadow, NamedDecl)
+#ifndef CONSTRUCTORUSINGSHADOW
+#  define CONSTRUCTORUSINGSHADOW(Type, Base) USINGSHADOW(Type, Base)
+#endif
+CONSTRUCTORUSINGSHADOW(ConstructorUsingShadow, UsingShadowDecl)
+#undef CONSTRUCTORUSINGSHADOW
+
+DECL_RANGE(UsingShadow, UsingShadow, ConstructorUsingShadow)
+
 #undef USINGSHADOW
 
 #ifndef VALUE
 #  define VALUE(Type, Base) NAMED(Type, Base)
 #endif
 ABSTRACT_DECL(VALUE(Value, NamedDecl))
+#ifndef BINDING
+#  define BINDING(Type, Base) VALUE(Type, Base)
+#endif
+BINDING(Binding, ValueDecl)
+#undef BINDING
+
 #ifndef DECLARATOR
 #  define DECLARATOR(Type, Base) VALUE(Type, Base)
 #endif
@@ -407,11 +427,23 @@ NONTYPETEMPLATEPARM(NonTypeTemplateParm, DeclaratorDecl)
 #  define VAR(Type, Base) DECLARATOR(Type, Base)
 #endif
 VAR(Var, DeclaratorDecl)
+#ifndef DECOMPOSITION
+#  define DECOMPOSITION(Type, Base) VAR(Type, Base)
+#endif
+DECOMPOSITION(Decomposition, VarDecl)
+#undef DECOMPOSITION
+
 #ifndef IMPLICITPARAM
 #  define IMPLICITPARAM(Type, Base) VAR(Type, Base)
 #endif
 IMPLICITPARAM(ImplicitParam, VarDecl)
 #undef IMPLICITPARAM
+
+#ifndef OMPCAPTUREDEXPR
+#  define OMPCAPTUREDEXPR(Type, Base) VAR(Type, Base)
+#endif
+OMPCAPTUREDEXPR(OMPCapturedExpr, VarDecl)
+#undef OMPCAPTUREDEXPR
 
 #ifndef PARMVAR
 #  define PARMVAR(Type, Base) VAR(Type, Base)
@@ -453,13 +485,19 @@ ENUMCONSTANT(EnumConstant, ValueDecl)
 INDIRECTFIELD(IndirectField, ValueDecl)
 #undef INDIRECTFIELD
 
+#ifndef OMPDECLAREREDUCTION
+#  define OMPDECLAREREDUCTION(Type, Base) VALUE(Type, Base)
+#endif
+OMPDECLAREREDUCTION(OMPDeclareReduction, ValueDecl)
+#undef OMPDECLAREREDUCTION
+
 #ifndef UNRESOLVEDUSINGVALUE
 #  define UNRESOLVEDUSINGVALUE(Type, Base) VALUE(Type, Base)
 #endif
 UNRESOLVEDUSINGVALUE(UnresolvedUsingValue, ValueDecl)
 #undef UNRESOLVEDUSINGVALUE
 
-DECL_RANGE(Value, Field, UnresolvedUsingValue)
+DECL_RANGE(Value, Binding, UnresolvedUsingValue)
 
 #undef VALUE
 
@@ -478,6 +516,18 @@ OMPTHREADPRIVATE(OMPThreadPrivate, Decl)
 #endif
 OBJCPROPERTYIMPL(ObjCPropertyImpl, Decl)
 #undef OBJCPROPERTYIMPL
+
+#ifndef PRAGMACOMMENT
+#  define PRAGMACOMMENT(Type, Base) DECL(Type, Base)
+#endif
+PRAGMACOMMENT(PragmaComment, Decl)
+#undef PRAGMACOMMENT
+
+#ifndef PRAGMADETECTMISMATCH
+#  define PRAGMADETECTMISMATCH(Type, Base) DECL(Type, Base)
+#endif
+PRAGMADETECTMISMATCH(PragmaDetectMismatch, Decl)
+#undef PRAGMADETECTMISMATCH
 
 #ifndef STATICASSERT
 #  define STATICASSERT(Type, Base) DECL(Type, Base)
@@ -516,9 +566,11 @@ DECL_CONTEXT_BASE(Tag)
 DECL_CONTEXT_BASE(ObjCContainer)
 DECL_CONTEXT(Block)
 DECL_CONTEXT(Captured)
+DECL_CONTEXT(Export)
 DECL_CONTEXT(ExternCContext)
 DECL_CONTEXT(LinkageSpec)
 DECL_CONTEXT(Namespace)
+DECL_CONTEXT(OMPDeclareReduction)
 DECL_CONTEXT(ObjCMethod)
 DECL_CONTEXT(TranslationUnit)
 #undef DECL_CONTEXT

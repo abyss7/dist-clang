@@ -19,6 +19,7 @@
 #include "llvm/ADT/FoldingSet.h"
 
 namespace clang {
+class CFGBlock;
 
 namespace ento {
 
@@ -323,6 +324,22 @@ public:
   /// Return the tag associated with this visitor.  This tag will be used
   /// to make all PathDiagnosticPieces created by this visitor.
   static const char *getTag();
+
+  PathDiagnosticPiece *VisitNode(const ExplodedNode *Succ,
+                                 const ExplodedNode *Pred,
+                                 BugReporterContext &BRC,
+                                 BugReport &BR) override;
+};
+
+class CXXSelfAssignmentBRVisitor final
+  : public BugReporterVisitorImpl<CXXSelfAssignmentBRVisitor> {
+  
+  bool Satisfied;
+
+public:
+  CXXSelfAssignmentBRVisitor() : Satisfied(false) {}
+
+  void Profile(llvm::FoldingSetNodeID &ID) const override {}
 
   PathDiagnosticPiece *VisitNode(const ExplodedNode *Succ,
                                  const ExplodedNode *Pred,

@@ -82,14 +82,11 @@ public:
   // \brief Returns true if this terminator relates to exception handling.
   bool isExceptional() const {
     switch (getOpcode()) {
-    case Instruction::CatchPad:
-    case Instruction::CatchEndPad:
+    case Instruction::CatchSwitch:
     case Instruction::CatchRet:
-    case Instruction::CleanupEndPad:
     case Instruction::CleanupRet:
     case Instruction::Invoke:
     case Instruction::Resume:
-    case Instruction::TerminatePad:
       return true;
     default:
       return false;
@@ -389,6 +386,15 @@ public:
   }
 #include "llvm/IR/Instruction.def"
 
+  static BinaryOperator *CreateWithCopiedFlags(BinaryOps Opc,
+                                               Value *V1, Value *V2,
+                                               BinaryOperator *CopyBO,
+                                               const Twine &Name = "") {
+    BinaryOperator *BO = Create(Opc, V1, V2, Name);
+    BO->copyIRFlags(CopyBO);
+    return BO;
+  }
+
   static BinaryOperator *CreateNSW(BinaryOps Opc, Value *V1, Value *V2,
                                    const Twine &Name = "") {
     BinaryOperator *BO = Create(Opc, V1, V2, Name);
@@ -528,35 +534,6 @@ public:
   /// cannot be reversed (ie, it's a Div), then return true.
   ///
   bool swapOperands();
-
-  /// Set or clear the nsw flag on this instruction, which must be an operator
-  /// which supports this flag. See LangRef.html for the meaning of this flag.
-  void setHasNoUnsignedWrap(bool b = true);
-
-  /// Set or clear the nsw flag on this instruction, which must be an operator
-  /// which supports this flag. See LangRef.html for the meaning of this flag.
-  void setHasNoSignedWrap(bool b = true);
-
-  /// Set or clear the exact flag on this instruction, which must be an operator
-  /// which supports this flag. See LangRef.html for the meaning of this flag.
-  void setIsExact(bool b = true);
-
-  /// Determine whether the no unsigned wrap flag is set.
-  bool hasNoUnsignedWrap() const;
-
-  /// Determine whether the no signed wrap flag is set.
-  bool hasNoSignedWrap() const;
-
-  /// Determine whether the exact flag is set.
-  bool isExact() const;
-
-  /// Convenience method to copy supported wrapping, exact, and fast-math flags
-  /// from V to this instruction.
-  void copyIRFlags(const Value *V);
-
-  /// Logical 'and' of any supported wrapping, exact, and fast-math flags of
-  /// V and this instruction.
-  void andIRFlags(const Value *V);
 
   // Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const Instruction *I) {
@@ -877,25 +854,15 @@ public:
 /// This class is the base class for the comparison instructions.
 /// @brief Abstract base class of comparison instructions.
 class CmpInst : public Instruction {
-  void *operator new(size_t, unsigned) = delete;
-  CmpInst() = delete;
-
-protected:
-  CmpInst(Type *ty, Instruction::OtherOps op, unsigned short pred,
-          Value *LHS, Value *RHS, const Twine &Name = "",
-          Instruction *InsertBefore = nullptr);
-
-  CmpInst(Type *ty, Instruction::OtherOps op, unsigned short pred,
-          Value *LHS, Value *RHS, const Twine &Name,
-          BasicBlock *InsertAtEnd);
-
-  void anchor() override; // Out of line virtual method.
-
 public:
   /// This enumeration lists the possible predicates for CmpInst subclasses.
   /// Values in the range 0-31 are reserved for FCmpInst, while values in the
   /// range 32-64 are reserved for ICmpInst. This is necessary to ensure the
   /// predicate values are not overlapping between the classes.
+  ///
+  /// Some passes (e.g. InstCombine) depend on the bit-wise characteristics of
+  /// FCMP_* values. Changing the bit patterns requires a potential change to
+  /// those passes.
   enum Predicate {
     // Opcode              U L G E    Intuitive operation
     FCMP_FALSE =  0,  ///< 0 0 0 0    Always false (always folded)
@@ -932,6 +899,22 @@ public:
     BAD_ICMP_PREDICATE = ICMP_SLE + 1
   };
 
+private:
+  void *operator new(size_t, unsigned) = delete;
+  CmpInst() = delete;
+
+protected:
+  CmpInst(Type *ty, Instruction::OtherOps op, Predicate pred,
+          Value *LHS, Value *RHS, const Twine &Name = "",
+          Instruction *InsertBefore = nullptr);
+
+  CmpInst(Type *ty, Instruction::OtherOps op, Predicate pred,
+          Value *LHS, Value *RHS, const Twine &Name,
+          BasicBlock *InsertAtEnd);
+
+  void anchor() override; // Out of line virtual method.
+
+public:
   // allocate space for exactly two operands
   void *operator new(size_t s) {
     return User::operator new(s, 2);
@@ -942,7 +925,7 @@ public:
   /// The specified Instruction is allowed to be a dereferenced end iterator.
   /// @brief Create a CmpInst
   static CmpInst *Create(OtherOps Op,
-                         unsigned short predicate, Value *S1,
+                         Predicate predicate, Value *S1,
                          Value *S2, const Twine &Name = "",
                          Instruction *InsertBefore = nullptr);
 
@@ -950,7 +933,7 @@ public:
   /// two operands.  Also automatically insert this instruction to the end of
   /// the BasicBlock specified.
   /// @brief Create a CmpInst
-  static CmpInst *Create(OtherOps Op, unsigned short predicate, Value *S1,
+  static CmpInst *Create(OtherOps Op, Predicate predicate, Value *S1,
                          Value *S2, const Twine &Name, BasicBlock *InsertAtEnd);
 
   /// @brief Get the opcode casted to the right type
@@ -973,6 +956,8 @@ public:
   static bool isIntPredicate(Predicate P) {
     return P >= FIRST_ICMP_PREDICATE && P <= LAST_ICMP_PREDICATE;
   }
+
+  static StringRef getPredicateName(Predicate P);
 
   bool isFPPredicate() const { return isFPPredicate(getPredicate()); }
   bool isIntPredicate() const { return isIntPredicate(getPredicate()); }
@@ -1059,25 +1044,45 @@ public:
     return isFalseWhenEqual(getPredicate());
   }
 
+  /// @brief Determine if Pred1 implies Pred2 is true when two compares have
+  /// matching operands.
+  bool isImpliedTrueByMatchingCmp(Predicate Pred2) {
+    return isImpliedTrueByMatchingCmp(getPredicate(), Pred2);
+  }
+
+  /// @brief Determine if Pred1 implies Pred2 is false when two compares have
+  /// matching operands.
+  bool isImpliedFalseByMatchingCmp(Predicate Pred2) {
+    return isImpliedFalseByMatchingCmp(getPredicate(), Pred2);
+  }
+
   /// @returns true if the predicate is unsigned, false otherwise.
   /// @brief Determine if the predicate is an unsigned operation.
-  static bool isUnsigned(unsigned short predicate);
+  static bool isUnsigned(Predicate predicate);
 
   /// @returns true if the predicate is signed, false otherwise.
   /// @brief Determine if the predicate is an signed operation.
-  static bool isSigned(unsigned short predicate);
+  static bool isSigned(Predicate predicate);
 
   /// @brief Determine if the predicate is an ordered operation.
-  static bool isOrdered(unsigned short predicate);
+  static bool isOrdered(Predicate predicate);
 
   /// @brief Determine if the predicate is an unordered operation.
-  static bool isUnordered(unsigned short predicate);
+  static bool isUnordered(Predicate predicate);
 
   /// Determine if the predicate is true when comparing a value with itself.
-  static bool isTrueWhenEqual(unsigned short predicate);
+  static bool isTrueWhenEqual(Predicate predicate);
 
   /// Determine if the predicate is false when comparing a value with itself.
-  static bool isFalseWhenEqual(unsigned short predicate);
+  static bool isFalseWhenEqual(Predicate predicate);
+
+  /// Determine if Pred1 implies Pred2 is true when two compares have matching
+  /// operands.
+  static bool isImpliedTrueByMatchingCmp(Predicate Pred1, Predicate Pred2);
+
+  /// Determine if Pred1 implies Pred2 is false when two compares have matching
+  /// operands.
+  static bool isImpliedFalseByMatchingCmp(Predicate Pred1, Predicate Pred2);
 
   /// @brief Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const Instruction *I) {
@@ -1112,6 +1117,75 @@ struct OperandTraits<CmpInst> : public FixedNumOperandTraits<CmpInst, 2> {
 
 DEFINE_TRANSPARENT_OPERAND_ACCESSORS(CmpInst, Value)
 
+//===----------------------------------------------------------------------===//
+//                           FuncletPadInst Class
+//===----------------------------------------------------------------------===//
+class FuncletPadInst : public Instruction {
+private:
+  void init(Value *ParentPad, ArrayRef<Value *> Args, const Twine &NameStr);
+
+  FuncletPadInst(const FuncletPadInst &CPI);
+
+  explicit FuncletPadInst(Instruction::FuncletPadOps Op, Value *ParentPad,
+                          ArrayRef<Value *> Args, unsigned Values,
+                          const Twine &NameStr, Instruction *InsertBefore);
+  explicit FuncletPadInst(Instruction::FuncletPadOps Op, Value *ParentPad,
+                          ArrayRef<Value *> Args, unsigned Values,
+                          const Twine &NameStr, BasicBlock *InsertAtEnd);
+
+protected:
+  // Note: Instruction needs to be a friend here to call cloneImpl.
+  friend class Instruction;
+  friend class CatchPadInst;
+  friend class CleanupPadInst;
+  FuncletPadInst *cloneImpl() const;
+
+public:
+  /// Provide fast operand accessors
+  DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
+
+  /// getNumArgOperands - Return the number of funcletpad arguments.
+  ///
+  unsigned getNumArgOperands() const { return getNumOperands() - 1; }
+
+  /// Convenience accessors
+
+  /// \brief Return the outer EH-pad this funclet is nested within.
+  ///
+  /// Note: This returns the associated CatchSwitchInst if this FuncletPadInst
+  /// is a CatchPadInst.
+  Value *getParentPad() const { return Op<-1>(); }
+  void setParentPad(Value *ParentPad) {
+    assert(ParentPad);
+    Op<-1>() = ParentPad;
+  }
+
+  /// getArgOperand/setArgOperand - Return/set the i-th funcletpad argument.
+  ///
+  Value *getArgOperand(unsigned i) const { return getOperand(i); }
+  void setArgOperand(unsigned i, Value *v) { setOperand(i, v); }
+
+  /// arg_operands - iteration adapter for range-for loops.
+  op_range arg_operands() { return op_range(op_begin(), op_end() - 1); }
+
+  /// arg_operands - iteration adapter for range-for loops.
+  const_op_range arg_operands() const {
+    return const_op_range(op_begin(), op_end() - 1);
+  }
+
+  // Methods for support type inquiry through isa, cast, and dyn_cast:
+  static inline bool classof(const Instruction *I) { return I->isFuncletPad(); }
+  static inline bool classof(const Value *V) {
+    return isa<Instruction>(V) && classof(cast<Instruction>(V));
+  }
+};
+
+template <>
+struct OperandTraits<FuncletPadInst>
+    : public VariadicOperandTraits<FuncletPadInst, /*MINARITY=*/1> {};
+
+DEFINE_TRANSPARENT_OPERAND_ACCESSORS(FuncletPadInst, Value)
+
 /// \brief A lightweight accessor for an operand bundle meant to be passed
 /// around by value.
 struct OperandBundleUse {
@@ -1130,7 +1204,7 @@ struct OperandBundleUse {
 
     // Conservative answer:  no operands have any attributes.
     return false;
-  };
+  }
 
   /// \brief Return the tag of this operand bundle as a string.
   StringRef getTagName() const {
@@ -1151,6 +1225,11 @@ struct OperandBundleUse {
     return getTagID() == LLVMContext::OB_deopt;
   }
 
+  /// \brief Return true if this is a "funclet" operand bundle.
+  bool isFuncletOperandBundle() const {
+    return getTagID() == LLVMContext::OB_funclet;
+  }
+
 private:
   /// \brief Pointer to an entry in LLVMContextImpl::getOrInsertBundleTag.
   StringMapEntry<uint32_t> *Tag;
@@ -1169,6 +1248,8 @@ template <typename InputTy> class OperandBundleDefT {
 public:
   explicit OperandBundleDefT(std::string Tag, std::vector<InputTy> Inputs)
       : Tag(std::move(Tag)), Inputs(std::move(Inputs)) {}
+  explicit OperandBundleDefT(std::string Tag, ArrayRef<InputTy> Inputs)
+      : Tag(std::move(Tag)), Inputs(Inputs) {}
 
   explicit OperandBundleDefT(const OperandBundleUse &OBU) {
     Tag = OBU.getTagName();
@@ -1362,11 +1443,12 @@ public:
   /// may write to the heap.
   bool hasClobberingOperandBundles() const {
     for (auto &BOI : bundle_op_infos()) {
-      if (BOI.Tag->second == LLVMContext::OB_deopt)
+      if (BOI.Tag->second == LLVMContext::OB_deopt ||
+          BOI.Tag->second == LLVMContext::OB_funclet)
         continue;
 
-      // This instruction has an operand bundle that is not a "deopt" operand
-      // bundle.  Assume the worst.
+      // This instruction has an operand bundle that is not known to us.
+      // Assume the worst.
       return true;
     }
 
@@ -1379,6 +1461,29 @@ public:
     auto &BOI = getBundleOpInfoForOperand(OpIdx);
     auto OBU = operandBundleFromBundleOpInfo(BOI);
     return OBU.operandHasAttr(OpIdx - BOI.Begin, A);
+  }
+
+  /// \brief Return true if \p Other has the same sequence of operand bundle
+  /// tags with the same number of operands on each one of them as this
+  /// OperandBundleUser.
+  bool hasIdenticalOperandBundleSchema(
+      const OperandBundleUser<InstrTy, OpIteratorTy> &Other) const {
+    if (getNumOperandBundles() != Other.getNumOperandBundles())
+      return false;
+
+    return std::equal(bundle_op_info_begin(), bundle_op_info_end(),
+                      Other.bundle_op_info_begin());
+  }
+
+  /// \brief Return true if this operand bundle user contains operand bundles
+  /// with tags other than those specified in \p IDs.
+  bool hasOperandBundlesOtherThan(ArrayRef<uint32_t> IDs) const {
+    for (unsigned i = 0, e = getNumOperandBundles(); i != e; ++i) {
+      uint32_t ID = getOperandBundleAt(i).getTagID();
+      if (!is_contained(IDs, ID))
+        return true;
+    }
+    return false;
   }
 
 protected:
@@ -1424,6 +1529,10 @@ protected:
     /// \brief The index in the Use& vector where operands for this operand
     /// bundle ends.
     uint32_t End;
+
+    bool operator==(const BundleOpInfo &Other) const {
+      return Tag == Other.Tag && Begin == Other.Begin && End == Other.End;
+    }
   };
 
   /// \brief Simple helper function to map a BundleOpInfo to an

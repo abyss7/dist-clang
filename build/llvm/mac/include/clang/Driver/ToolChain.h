@@ -11,13 +11,14 @@
 #define LLVM_CLANG_DRIVER_TOOLCHAIN_H
 
 #include "clang/Basic/Sanitizers.h"
+#include "clang/Basic/VersionTuple.h"
 #include "clang/Driver/Action.h"
 #include "clang/Driver/Multilib.h"
 #include "clang/Driver/Types.h"
 #include "clang/Driver/Util.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Triple.h"
-#include "llvm/Support/Path.h"
+#include "llvm/Target/TargetOptions.h"
 #include <memory>
 #include <string>
 
@@ -39,6 +40,7 @@ namespace driver {
   class Compilation;
   class Driver;
   class JobAction;
+  class RegisterEffectiveTriple;
   class SanitizerArgs;
   class Tool;
 
@@ -90,6 +92,14 @@ private:
 
   mutable std::unique_ptr<SanitizerArgs> SanitizerArguments;
 
+  /// The effective clang triple for the current Job.
+  mutable llvm::Triple EffectiveTriple;
+
+  /// Set the toolchain's effective clang triple.
+  void setEffectiveTriple(llvm::Triple ET) const { EffectiveTriple = ET; }
+
+  friend class RegisterEffectiveTriple;
+
 protected:
   MultilibSet Multilibs;
   const char *DefaultLinker = "ld";
@@ -133,11 +143,17 @@ public:
   StringRef getOS() const { return Triple.getOSName(); }
 
   /// \brief Provide the default architecture name (as expected by -arch) for
-  /// this toolchain. Note t
+  /// this toolchain.
   StringRef getDefaultUniversalArchName() const;
 
   std::string getTripleString() const {
     return Triple.getTriple();
+  }
+
+  /// Get the toolchain's effective clang triple.
+  const llvm::Triple &getEffectiveTriple() const {
+    assert(!EffectiveTriple.getTriple().empty() && "No effective triple");
+    return EffectiveTriple;
   }
 
   path_list &getFilePaths() { return FilePaths; }
@@ -227,7 +243,7 @@ public:
   virtual bool IsIntegratedAssemblerDefault() const { return false; }
 
   /// \brief Check if the toolchain should use the integrated assembler.
-  bool useIntegratedAs() const;
+  virtual bool useIntegratedAs() const;
 
   /// IsMathErrnoDefault - Does this tool chain use -fmath-errno by default.
   virtual bool IsMathErrnoDefault() const { return true; }
@@ -253,6 +269,10 @@ public:
   /// GetDefaultRuntimeLibType - Get the default runtime library variant to use.
   virtual RuntimeLibType GetDefaultRuntimeLibType() const {
     return ToolChain::RLT_Libgcc;
+  }
+
+  virtual CXXStdlibType GetDefaultCXXStdlibType() const {
+    return ToolChain::CST_Libstdcxx;
   }
 
   virtual std::string getCompilerRT(const llvm::opt::ArgList &Args,
@@ -304,8 +324,18 @@ public:
   // i.e. a value of 'true' does not imply that debugging is wanted.
   virtual bool GetDefaultStandaloneDebug() const { return false; }
 
+  // Return the default debugger "tuning."
+  virtual llvm::DebuggerKind getDefaultDebuggerTuning() const {
+    return llvm::DebuggerKind::GDB;
+  }
+
   /// UseSjLjExceptions - Does this tool chain use SjLj exceptions.
   virtual bool UseSjLjExceptions(const llvm::opt::ArgList &Args) const {
+    return false;
+  }
+
+  /// SupportsEmbeddedBitcode - Does this tool chain support embedded bitcode.
+  virtual bool SupportsEmbeddedBitcode() const {
     return false;
   }
 
@@ -402,8 +432,32 @@ public:
   virtual void AddCudaIncludeArgs(const llvm::opt::ArgList &DriverArgs,
                                   llvm::opt::ArgStringList &CC1Args) const;
 
+  /// \brief Add arguments to use MCU GCC toolchain includes.
+  virtual void AddIAMCUIncludeArgs(const llvm::opt::ArgList &DriverArgs,
+                                   llvm::opt::ArgStringList &CC1Args) const;
+
   /// \brief Return sanitizers which are available in this toolchain.
   virtual SanitizerMask getSupportedSanitizers() const;
+
+  /// \brief Return sanitizers which are enabled by default.
+  virtual SanitizerMask getDefaultSanitizers() const { return 0; }
+
+  /// \brief On Windows, returns the version of cl.exe.  On other platforms,
+  /// returns an empty VersionTuple.
+  virtual VersionTuple getMSVCVersionFromExe() const { return VersionTuple(); }
+};
+
+/// Set a ToolChain's effective triple. Reset it when the registration object
+/// is destroyed.
+class RegisterEffectiveTriple {
+  const ToolChain &TC;
+
+public:
+  RegisterEffectiveTriple(const ToolChain &TC, llvm::Triple T) : TC(TC) {
+    TC.setEffectiveTriple(T);
+  }
+
+  ~RegisterEffectiveTriple() { TC.setEffectiveTriple(llvm::Triple()); }
 };
 
 } // end namespace driver
