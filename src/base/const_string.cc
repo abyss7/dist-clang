@@ -96,6 +96,14 @@ ConstString::ConstString(const Rope& rope)
 ConstString::ConstString(const Rope& rope, size_t hint_size)
     : internals_(new Internal{.rope = rope}), size_(hint_size) {}
 
+ConstString::ConstString(ConstString& str, size_t size) {
+  size_ = std::min(size, str.size());
+  internals_.reset(new Internal{
+      .string = {new char[size_ + 1], CharArrayDeleter}, .null_end = true});
+  memcpy(const_cast<char*>(internals_->string.get()), str.data(), size_);
+  const_cast<char*>(internals_->string.get())[size_] = '\0';
+}
+
 ConstString::ConstString(const String& str)
     : internals_(
           new Internal{.string = {new char[str.size() + 1], CharArrayDeleter},

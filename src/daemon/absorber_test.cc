@@ -367,9 +367,12 @@ TEST_F(AbsorberTest, StoreLocalCacheWithBlacklist) {
     EXPECT_EQ(action, *(process_args_iter++));
     EXPECT_EQ("-x"_l, *(process_args_iter++));
     EXPECT_EQ(converted_language, *(process_args_iter++));
-    EXPECT_EQ("-fsanitize-blacklist"_l, *(process_args_iter++));
-    ++process_args_iter;  // we don't know in advance which filename will
-                          // sanitize blacklist have on absorber
+    // we don't know in advance which filename will sanitize blacklist
+    // have on absorber
+    auto sanitize_blacklist_prefix = "-fsanitize-blacklist="_l;
+    EXPECT_EQ(
+        sanitize_blacklist_prefix,
+        Immutable(*(process_args_iter++), sanitize_blacklist_prefix.size()));
     EXPECT_EQ("-o"_l, *(process_args_iter++));
     EXPECT_EQ("-"_l, *(process_args_iter++));
     EXPECT_EQ(process->args_.end(), process_args_iter);
