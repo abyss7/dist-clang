@@ -524,8 +524,8 @@ TEST_F(EmitterTest, LocalMessageWithSanitizeBlacklist) {
   };
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(compiler_path, process->exec_path_);
-    EXPECT_EQ((Immutable::Rope{action, "-fsanitize-blacklist"_l,
-                               sanitize_blacklist_path}),
+    EXPECT_EQ((Immutable::Rope{action, Immutable("-fsanitize-blacklist="_l) +
+                                           Immutable(sanitize_blacklist_path)}),
               process->args_);
     EXPECT_EQ(user_id, process->uid_);
   };
@@ -1171,9 +1171,12 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
                 process->args_);
       process->stdout_ = source;
     } else if (run_count == 4) {
-      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-x"_l, language,
-              "-fsanitize-blacklist"_l, sanitize_blacklist_path, "-o"_l, output_path2, input_path}),
-        process->args_);
+      EXPECT_EQ(
+          (Immutable::Rope{action, "-load"_l, plugin_path, "-x"_l, language,
+                           Immutable("-fsanitize-blacklist="_l) +
+                               Immutable(sanitize_blacklist_path),
+                           "-o"_l, output_path2, input_path}),
+          process->args_);
     }
   };
 
@@ -1799,19 +1802,20 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ(
-          (Immutable::Rope{"-E"_l, "-dependency-file"_l, deps_path, "-x"_l,
-                           language, "-o"_l, "-"_l, input_path}),
-          process->args_);
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-dependency-file"_l, deps_path,
+                                 "-x"_l, language, "-o"_l, "-"_l, input_path}),
+                process->args_);
       process->stdout_ = preprocessed_source;
       EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + deps_path,
                                     deps_contents));
     } else if (run_count == 2) {
-      EXPECT_EQ((Immutable::Rope{
-                    action, "-load"_l, plugin_path, "-dependency-file"_l,
-                    deps_path, "-x"_l, language, "-fsanitize-blacklist"_l,
-                    sanitize_blacklist_path, "-o"_l, output_path, input_path}),
-                process->args_)
+      EXPECT_EQ(
+          (Immutable::Rope{action, "-load"_l, plugin_path, "-dependency-file"_l,
+                           deps_path, "-x"_l, language,
+                           Immutable("-fsanitize-blacklist="_l) +
+                               Immutable(sanitize_blacklist_path),
+                           "-o"_l, output_path, input_path}),
+          process->args_)
           << process->PrintArgs();
       EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + output_path,
                                     object_code));
