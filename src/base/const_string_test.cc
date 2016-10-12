@@ -7,6 +7,18 @@
 namespace dist_clang {
 namespace base {
 
+TEST(ConstStringTest, PrefixConstructor) {
+  ConstString string("abcdef"_l);
+
+  ConstString prefix(string, 4);
+  EXPECT_EQ(4u, prefix.size());
+  EXPECT_EQ("abcd"_l, prefix.string_copy(false));
+
+  ConstString prefix_too_large(string, 10);
+  EXPECT_EQ(6u, prefix_too_large.size());
+  EXPECT_EQ("abcdef"_l, prefix_too_large.string_copy(false));
+}
+
 TEST(ConstStringTest, Find) {
   ConstString string("cdabcdcef"_l);
   EXPECT_EQ(4u, string.find("cdc"));

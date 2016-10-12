@@ -390,8 +390,8 @@ base::ProcessPtr CompilationDaemon::CreateProcess(
     process->AppendArg("-x"_l).AppendArg(Immutable(flags.language()));
   }
   if (flags.has_sanitize_blacklist()) {
-    process->AppendArg("-fsanitize-blacklist"_l)
-        .AppendArg(Immutable(flags.sanitize_blacklist()));
+    process->AppendArg(Immutable("-fsanitize-blacklist="_l) +
+                       Immutable(flags.sanitize_blacklist()));
   }
   if (flags.has_output()) {
     process->AppendArg("-o"_l).AppendArg(Immutable(flags.output()));
