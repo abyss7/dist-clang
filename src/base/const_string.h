@@ -60,7 +60,7 @@ class ConstString {
   ConstString(const Rope& rope);                     // 0-copy
   ConstString(const Rope& rope, size_t hint_size);   // 0-copy
 
-  ConstString(ConstString& str, size_t size);        // 1-copy
+  ConstString(ConstString& str, size_t size);        // 0-copy
   explicit ConstString(const String& str);           // 1-copy
   static ConstString WrapString(const String& str);  // 0-copy
 
