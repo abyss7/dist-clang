@@ -2177,6 +2177,7 @@ build/template/protobuf.gni
 build/toolchain/linux/BUILD.gn
 build/toolchain/mac/BUILD.gn
 build/toolchain/win/BUILD.gn
+build/travis_build.sh
 build/version.py
 src/base/aliases.h
 src/base/assert_debug_posix_test.cc

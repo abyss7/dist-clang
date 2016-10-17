@@ -62,6 +62,9 @@ source_set("configuration") {
 }
 
 protobuf("config_proto") {
+  deps = [
+    "//src/base:base_proto",
+  ]
   sources = [
     "configuration.proto",
   ]

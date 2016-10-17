@@ -1,0 +1,12 @@
+os: [linux, osx]
+osx_image: xcode7.2
+
+addons:
+  apt:
+    packages: [ninja-build, liblzma-dev, zlib1g-dev]
+
+before_install:
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update       ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install ninja; fi
+
+script: ./build/travis_build.sh
