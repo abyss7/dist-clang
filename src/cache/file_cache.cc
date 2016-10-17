@@ -71,6 +71,11 @@ bool FileCache::Run(ui64 clean_period) {
   database_.reset(new LevelDB(path_, "direct"));
   if (store_index_) {
     entries_.reset(new SQLite(path_, "index"));
+    if (!entries_->CheckIntegrity()) {
+      LOG(WARNING)
+          << "Index file on disk is broken - using in-memory database instead!";
+      entries_.reset(new SQLite);
+    }
   } else {
     entries_.reset(new SQLite);
   }

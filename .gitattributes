@@ -1,3 +1,4 @@
 bin/ binary
 build/llvm/linux/lib binary
 build/llvm/mac/lib binary
+data/ filter=lfs diff=lfs merge=lfs -text

@@ -38,6 +38,8 @@ class SQLite : public Database<size_t /* mtime */, size_t /* size */,
   bool BeginTransaction();
   bool EndTransaction();
 
+  bool CheckIntegrity() const;
+
  private:
   bool Migrate() const;
 

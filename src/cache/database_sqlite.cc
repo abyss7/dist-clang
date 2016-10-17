@@ -247,5 +247,42 @@ bool SQLite::EndTransaction() {
   return true;
 }
 
+bool SQLite::CheckIntegrity() const {
+  sqlite3_stmt* stmt;
+  const String sql = "PRAGMA quick_check;";
+  auto result =
+      sqlite3_prepare_v2(db_, sql.c_str(), sql.size(), &stmt, nullptr);
+  if (result != SQLITE_OK) {
+    LOG(DB_ERROR) << "Failed to prepare SQL statement with error: "
+                  << sqlite3_errmsg(db_);
+    return false;
+  }
+
+  bool check = false;
+  while (result = sqlite3_step(stmt)) {
+    if (result == SQLITE_ROW) {
+      const String value =
+          reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+      if (value == "ok") {
+        check = true;
+        break;
+      } else {
+        LOG(DB_ERROR) << "Integrity check error: " << value;
+      }
+    } else if (result != SQLITE_DONE) {
+      LOG(DB_ERROR) << "Failed to get integrity check result with error: "
+                    << sqlite3_errstr(result);
+    }
+  }
+
+  result = sqlite3_finalize(stmt);
+  if (result != SQLITE_OK) {
+    LOG(DB_ERROR) << "Failed to finalize SQL statement with error: "
+                  << sqlite3_errstr(result);
+  }
+
+  return check;
+}
+
 }  // namespace cache
 }  // namespace dist_clang

@@ -714,5 +714,12 @@ TEST(FileCacheTest, UseIndexFromDisk) {
   }
 }
 
+// ISSUE-75: if the on-disk database is broken, then we should fallback to the
+//           in-memory database.
+TEST(FileCacheTest, FallbackToInMemoryIndex) {
+  const base::TemporaryDir tmp_dir;
+  // TODO: implement this test.
+}
+
 }  // namespace cache
 }  // namespace dist_clang
