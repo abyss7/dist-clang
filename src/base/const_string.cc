@@ -96,6 +96,10 @@ ConstString::ConstString(const Rope& rope)
 ConstString::ConstString(const Rope& rope, size_t hint_size)
     : internals_(new Internal{.rope = rope}), size_(hint_size) {}
 
+ConstString::ConstString(ConstString& str, size_t size)
+  : internals_(str.internals_),
+    size_(std::min(size, str.size())) {}
+
 ConstString::ConstString(const String& str)
     : internals_(
           new Internal{.string = {new char[str.size() + 1], CharArrayDeleter},
