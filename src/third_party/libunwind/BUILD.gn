@@ -124,6 +124,7 @@ source_set("unwind") {
     "-Wall",
     "-Wsign-compare",
     "-Wno-absolute-value",
+    "-Wno-header-guard",
   ]
 
   defines = [
