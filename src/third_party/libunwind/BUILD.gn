@@ -123,6 +123,7 @@ source_set("unwind") {
     "-fPIC",
     "-Wall",
     "-Wsign-compare",
+    "-Wno-absolute-value",
   ]
 
   defines = [
