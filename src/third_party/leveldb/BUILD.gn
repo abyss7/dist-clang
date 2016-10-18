@@ -11,6 +11,7 @@ config("flags") {
 
   cflags = [
     "-fno-builtin-memcmp",
+    "-Wno-deprecated-declarations",  # MacOS X 10.12
     "-Wno-sign-compare",
   ]
 }
