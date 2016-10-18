@@ -1,6 +1,7 @@
 group("All") {
   deps = [
     "//src/daemon:clangd",
+    ":Packages",
     ":Tools",
   ]
 }
@@ -268,6 +269,13 @@ if (host_os == "linux") {
 
     deps = package_deps
   }
+
+  group("Packages") {
+    deps = [
+      ":deb_package",
+      ":rpm_package",
+    ]
+  }
 }
 
 if (host_os == "mac") {
@@ -369,5 +377,11 @@ if (host_os == "mac") {
     ]
 
     deps = package_deps
+  }
+
+  group("Packages") {
+    deps = [
+      ":pkg_package",
+    ]
   }
 }
