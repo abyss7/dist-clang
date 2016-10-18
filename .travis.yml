@@ -10,5 +10,6 @@ addons:
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update       ; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install ninja; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install tree ; fi
 
 script: ./build/travis.sh

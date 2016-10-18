@@ -20,9 +20,14 @@ if ! test -d "$clang_root"; then
     curl "$base_url/$arch/clang-${clang_revision}.tgz" |
         tar -C "$clang_root" -xzf -
 fi
-export PATH=$clang_root/bin:$PATH
+export PATH="$clang_root/bin:$PATH"
 
-git -C $root_dir fetch origin master
+git -C "$root_dir" fetch origin master
+ninja -C "$root_dir/out/Debug.gn" All
+ninja -C "$root_dir/out/Release.gn" All Packages
 ninja -C "$root_dir/out/Test.gn" Tests
+
+# XXX: for debug only
+tree "$root_dir/out/Test.gn/gen"
 
 "$root_dir/build/run_all_tests" --test-launcher-bot-mode

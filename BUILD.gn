@@ -1,7 +1,6 @@
 group("All") {
   deps = [
     "//src/daemon:clangd",
-    ":Packages",
     ":Tools",
   ]
 }
