@@ -24,7 +24,7 @@ export PATH="$clang_root/bin:$PATH"
 
 git -C "$root_dir" fetch origin master
 ninja -C "$root_dir/out/Debug.gn" All
-ninja -C "$root_dir/out/Release.gn" All Packages
+ninja -C "$root_dir/out/Release.gn" All
 ninja -C "$root_dir/out/Test.gn" Tests
 
 # XXX: for debug only
