@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-set -ex
+export PS4="🢒"
+
+set -x
 
 root_dir="$(cd "$(dirname $0)/.." && pwd -P)"
 
