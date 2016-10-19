@@ -5,6 +5,7 @@ addons:
     packages:
       - liblzma-dev
       - ninja-build
+      - tree
       - zlib1g-dev
 
 before_install:
