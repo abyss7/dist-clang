@@ -28,6 +28,7 @@ ninja -C "$root_dir/out/Release.gn" All
 ninja -C "$root_dir/out/Test.gn" Tests
 
 # XXX: for debug only
-tree "$root_dir/out/Test.gn/gen"
+tree "$root_dir/out/Test.gn"
+ninja --version
 
 "$root_dir/build/run_all_tests" --test-launcher-bot-mode
