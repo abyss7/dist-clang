@@ -1,14 +1,20 @@
-*README is under construction!*
+[![Build Status](https://travis-ci.org/abyss7/dist-clang.svg?branch=master)](https://travis-ci.org/abyss7/dist-clang)
 
----
+**DistClang** is the Clang compiler extension with a client-server infrastructure. It features the distributed cross-platform compilation and the intermediate result caching.
+
+The project consists of 2 executables and a couple of configuration files.
+
+**clang** is a client part and should reside on the machine where the compilation is invoked. It should replace the invocation of the original compiler.
+
+**clangd** is a server that has 2 different roles: **emitter** and **absorber**.
 
 # How to build
 
-The common part is to make a checkout and to configure the dist-clang setup:
+First of all do clone with an argument `--recurse-submodules` and then configure the project:
 
-    git clone --recurse-submodules <dist-clang.git> dist-clang
-    cd dist-clang
     ./build/configure
+    
+To build You have to use a recent Clang compiler with C++14 support.
 
 ## For debugging and local usage
 
@@ -16,11 +22,9 @@ The common part is to make a checkout and to configure the dist-clang setup:
     cd out/Debug.gn
     ln -s clang clang++
 
-You need to use recent clang compiler which supports C++14.
-
 The resulting files `clang`, `clang++` and `clangd` are located in the `out/Debug.gn` folder.
 
-## For Linux deployment
+## Linux DEB and RPM packages
 
     ninja -C out/Release.gn rpm_package deb_package
 
@@ -29,19 +33,13 @@ The resulting packages are:
     out/Release.gn/dist-clang_<version>_amd64.deb
     out/Release.gn/rpmbuild/RPMS/x86_64/dist-clang-<version>-1.x86_64.rpm
 
-Don't use the `clang` and `clangd` from the `out/Release.gn` folder since they are hardcoded to use libraries from `/usr/lib/dist-clang` folder.
+Don't use locally the `clang` and `clangd` from the `out/Release.gn` folder since they are hardcoded to use libraries from `/usr/lib/dist-clang` folder.
 
-## For Mac OS X deployment
+## Mac OS X package
 
     ninja -C out/Release.gn pkg_package
 
 The resulting package is `out/Release.gn/dist-clang-<version>.pkg`
-
-Both on Mac OS X and Linux the packages install files in the following folders:
-  - /etc
-  - /usr/bin/dist-clang/
-  - /usr/lib/dist-clang/
-  - /usr/lib/python2.7/dist_clang/
 
 # How to configure the emitter
 
