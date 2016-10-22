@@ -259,7 +259,7 @@ bool SQLite::CheckIntegrity() const {
   }
 
   bool check = false;
-  while (result = sqlite3_step(stmt)) {
+  while ((result = sqlite3_step(stmt))) {
     if (result == SQLITE_ROW) {
       const String value =
           reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
