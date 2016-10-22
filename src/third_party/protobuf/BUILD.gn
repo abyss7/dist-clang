@@ -1,6 +1,7 @@
 config("includes") {
   cflags = [
     "-Wno-bitfield-width",
+    "-Wno-deprecated-declarations",  # MacOS X 10.12
   ]
 
   include_dirs = [ "exported/src" ]

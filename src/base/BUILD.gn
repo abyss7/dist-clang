@@ -127,6 +127,13 @@ shared_library("logging") {
 }
 
 protobuf("base_proto") {
+  shared = true
+
+  visibility = [
+    "//src/client:config_proto",
+    "//src/daemon:config_proto",
+  ]
+
   deps = [
     "//src/net:net_proto",
   ]

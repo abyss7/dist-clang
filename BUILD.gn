@@ -60,6 +60,7 @@ if (host_os == "linux") {
       "$root_out_dir/clang",
       "$root_out_dir/clangd",
       "$root_out_dir/libbase.so",
+      "$root_out_dir/libbase_proto.so",
       "$root_out_dir/libc++.so",
       "$root_out_dir/libc++abi.so",
       "$root_out_dir/libcommand.so",
@@ -91,6 +92,7 @@ if (host_os == "linux") {
       "$root_out_dir/deb/debian/tmp/usr/bin/dist-clang/clang++",
       "$root_out_dir/deb/debian/tmp/usr/bin/dist-clang/clangd",
       "$root_out_dir/deb/debian/tmp/usr/lib/dist-clang/libbase.so",
+      "$root_out_dir/deb/debian/tmp/usr/lib/dist-clang/libbase_proto.so",
       "$root_out_dir/deb/debian/tmp/usr/lib/dist-clang/libc++.so",
       "$root_out_dir/deb/debian/tmp/usr/lib/dist-clang/libc++abi.so",
       "$root_out_dir/deb/debian/tmp/usr/lib/dist-clang/libcommand.so",
@@ -176,6 +178,7 @@ if (host_os == "linux") {
       "$root_out_dir/clang",
       "$root_out_dir/clangd",
       "$root_out_dir/libbase.so",
+      "$root_out_dir/libbase_proto.so",
       "$root_out_dir/libc++.so",
       "$root_out_dir/libc++abi.so",
       "$root_out_dir/libcommand.so",
@@ -201,6 +204,7 @@ if (host_os == "linux") {
       "$root_out_dir/rpm/usr/bin/dist-clang/clang++",
       "$root_out_dir/rpm/usr/bin/dist-clang/clangd",
       "$root_out_dir/rpm/usr/lib/dist-clang/libbase.so",
+      "$root_out_dir/rpm/usr/lib/dist-clang/libbase_proto.so",
       "$root_out_dir/rpm/usr/lib/dist-clang/libc++.so",
       "$root_out_dir/rpm/usr/lib/dist-clang/libc++abi.so",
       "$root_out_dir/rpm/usr/lib/dist-clang/libcommand.so",
@@ -268,6 +272,13 @@ if (host_os == "linux") {
 
     deps = package_deps
   }
+
+  group("Packages") {
+    deps = [
+      ":deb_package",
+      ":rpm_package",
+    ]
+  }
 }
 
 if (host_os == "mac") {
@@ -282,6 +293,7 @@ if (host_os == "mac") {
       "$root_out_dir/clang",
       "$root_out_dir/clangd",
       "$root_out_dir/libbase.dylib",
+      "$root_out_dir/libbase_proto.dylib",
       "$root_out_dir/libc++.dylib",
       "$root_out_dir/libc++abi.dylib",
       "$root_out_dir/libcommand.dylib",
@@ -305,6 +317,7 @@ if (host_os == "mac") {
       "$root_out_dir/pkg/usr/local/bin/dist-clang/clang++",
       "$root_out_dir/pkg/usr/local/bin/dist-clang/clangd",
       "$root_out_dir/pkg/usr/local/lib/dist-clang/libbase.dylib",
+      "$root_out_dir/pkg/usr/local/lib/dist-clang/libbase_proto.dylib",
       "$root_out_dir/pkg/usr/local/lib/dist-clang/libc++.dylib",
       "$root_out_dir/pkg/usr/local/lib/dist-clang/libc++abi.dylib",
       "$root_out_dir/pkg/usr/local/lib/dist-clang/libcommand.dylib",
@@ -369,5 +382,11 @@ if (host_os == "mac") {
     ]
 
     deps = package_deps
+  }
+
+  group("Packages") {
+    deps = [
+      ":pkg_package",
+    ]
   }
 }
