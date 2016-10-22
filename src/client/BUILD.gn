@@ -74,6 +74,10 @@ source_set("configuration") {
 protobuf("config_proto") {
   visibility = [ "//tools/args_parser" ]
 
+  deps = [
+    "//src/base:base_proto",
+  ]
+
   sources = [
     "configuration.proto",
   ]
