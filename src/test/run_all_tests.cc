@@ -3,9 +3,13 @@
 #include <base/logging.h>
 #include <base/string_utils.h>
 
+#include <gflags.h>
 #include <third_party/gtest/exported/include/gtest/gtest.h>
 
 #include <base/using_log.h>
+
+DEFINE_string(data, String(), "Path to the external data for tests");
+// XXX: Declare this flag in unit-test source files where needed.
 
 int main(int argc, char* argv[]) {
   // Ignore SIGPIPE to prevent application crashes.
@@ -33,6 +37,14 @@ int main(int argc, char* argv[]) {
   }
 
   ::testing::InitGoogleTest(&argc, argv);
-  ::testing::FLAGS_gtest_death_test_style = "fast";
+  ::testing::GTEST_FLAG(death_test_style) = "fast";
+  ::testing::GTEST_FLAG(show_internal_stack_frames) = false;
+
+  gflags::ParseCommandLineFlags(&argc, &argv, false);
+
+  if (FLAGS_data.empty()) {
+    LOG(WARNING) << "No data path specified - some tests may fail!";
+  }
+
   return RUN_ALL_TESTS();
 }
