@@ -34,6 +34,7 @@ def MakeInstall(top_dir, product_dir, package_dir):
 
   # Copy libraries
   shutil.copy(os.path.join(product_dir, "libbase."+ext), lib_dir)
+  shutil.copy(os.path.join(product_dir, "libbase_proto."+ext), lib_dir)
   shutil.copy(os.path.join(product_dir, "libc++."+ext), lib_dir)
   shutil.copy(os.path.join(product_dir, "libc++abi."+ext), lib_dir)
   shutil.copy(os.path.join(product_dir, "libcommand."+ext), lib_dir)
