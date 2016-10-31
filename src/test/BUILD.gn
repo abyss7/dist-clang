@@ -50,6 +50,7 @@ executable("unit_tests") {
     "//src/daemon:daemon",
     "//src/net:net",
     "//src/perf:stat_service",
+    "//src/third_party/gflags:gflags",
     "//src/third_party/gtest:gtest",
   ]
 }

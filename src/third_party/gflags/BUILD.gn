@@ -20,7 +20,10 @@ config("warnings") {
 }
 
 static_library("gflags") {
-  visibility += [ "//src/daemon:configuration" ]
+  visibility += [
+    "//src/daemon:configuration",
+    "//src/test:unit_tests",
+  ]
 
   sources = [
     "exported/src/gflags.cc",

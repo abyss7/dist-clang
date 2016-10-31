@@ -8,8 +8,10 @@
 
 #include <base/using_log.h>
 
+namespace dist_clang {
 DEFINE_string(data, String(), "Path to the external data for tests");
 // XXX: Declare this flag in unit-test source files where needed.
+}
 
 int main(int argc, char* argv[]) {
   // Ignore SIGPIPE to prevent application crashes.

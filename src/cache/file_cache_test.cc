@@ -5,10 +5,14 @@
 #include <base/protobuf_utils.h>
 #include <base/temporary_dir.h>
 
+#include <gflags.h>
 #include <third_party/gtest/exported/include/gtest/gtest.h>
 #include STL(regex)
 
 namespace dist_clang {
+
+DECLARE_string(data);
+
 namespace cache {
 
 using namespace string;
@@ -716,7 +720,6 @@ TEST(FileCacheTest, UseIndexFromDisk) {
 
 // ISSUE-75: if the on-disk database is broken, then we should fallback to the
 //           in-memory database.
-DECLARE_string(data);
 TEST(FileCacheTest, FallbackToInMemoryIndex) {
   const base::TemporaryDir tmp_dir;
   // TODO: implement this test.
