@@ -29,4 +29,4 @@ ninja -C "$root_dir/out/Debug.gn" All
 ninja -C "$root_dir/out/Release.gn" All # TODO: also build 'Packages'
 ninja -C "$root_dir/out/Test.gn" Tests
 
-"$root_dir/build/run_all_tests" --test-launcher-bot-mode
+"$root_dir/build/run_all_tests"
