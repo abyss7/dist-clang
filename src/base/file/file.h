@@ -40,7 +40,7 @@ class File final : public Data {
   static bool Copy(const String& src_path, const String& dst_path,
                    String* error = nullptr);
   static bool Link(const String& src_path, const String& dst_path,
-                   String* error = nullptr);
+                   bool hard = true, String* error = nullptr);
   static bool Move(const String& src, const String& dst,
                    String* error = nullptr);
   static bool Delete(const String& path, String* error = nullptr);

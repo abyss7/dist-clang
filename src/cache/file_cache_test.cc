@@ -722,7 +722,51 @@ TEST(FileCacheTest, UseIndexFromDisk) {
 //           in-memory database.
 TEST(FileCacheTest, FallbackToInMemoryIndex) {
   const base::TemporaryDir tmp_dir;
-  // TODO: implement this test.
+  const String path = tmp_dir;
+  const String cache_path = path + "/cache";
+  const String db_path =
+      base::NormalizePath(FLAGS_data + "/issue-75-test.sqlite");
+  const String cache_db_path = cache_path + "/index.sqlite";
+  const Literal obj_content[] = {"22"_l, "333"_l, "4444"_l};
+  const HandledSource code[] = {HandledSource("int main() { return 0; }"_l),
+                                HandledSource("int main() { return 1; }"_l),
+                                HandledSource("int main() { return 2; }"_l)};
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+
+  ASSERT_TRUE(base::CreateDirectory(cache_path));
+  ASSERT_TRUE(base::File::Link(db_path, cache_db_path, false));
+
+  FileCache cache(cache_path, 138, false, true);
+  // 138 = sizeof(obj_content[0]) + sizeof(obj_content[1]) + 1 + 2 *
+  // <size_of_manifest>. The current typical size of manifest is 66 bytes.
+
+  ASSERT_TRUE(cache.Run(1));
+
+  {
+    FileCache::Entry entry{obj_content[0], String(), String()};
+    cache.Store(code[0], {}, cl, version, entry);
+  }
+
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+
+  {
+    FileCache::Entry entry{obj_content[1], String(), String()};
+    cache.Store(code[1], {}, cl, version, entry);
+  }
+
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+
+  {
+    FileCache::Entry entry{obj_content[2], String(), String()};
+    cache.Store(code[2], {}, cl, version, entry);
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+  }
+
+  FileCache::Entry entry;
+  EXPECT_FALSE(cache.Find(code[0], {}, cl, version, &entry));
+  EXPECT_FALSE(cache.Find(code[1], {}, cl, version, &entry));
+  EXPECT_TRUE(cache.Find(code[2], {}, cl, version, &entry));
 }
 
 }  // namespace cache

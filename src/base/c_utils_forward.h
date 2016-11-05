@@ -14,6 +14,7 @@ Literal GetEnv(Literal env_name, Literal default_env = Literal::empty);
 Literal GetHomeDir(String* error = nullptr);
 void GetLastError(String* error);
 bool GetSelfPath(String& result, String* error = nullptr);
+String NormalizePath(const String& path, String* error = nullptr);
 Literal SetEnv(Literal env_name, const String& value, String* error = nullptr);
 bool SetPermissions(const String& path, int mask, String* error = nullptr);
 

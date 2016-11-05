@@ -104,6 +104,17 @@ inline bool GetSelfPath(String& result, String* error) {
   return true;
 }
 
+inline String NormalizePath(const String& path, String* error) {
+  char new_path[PATH_MAX];
+
+  if (realpath(path.c_str(), new_path) == nullptr) {
+    GetLastError(error);
+    return path;
+  }
+
+  return String(new_path);
+}
+
 inline bool SetPermissions(const String& path, int mask, String* error) {
   if (chmod(path.c_str(), mask) == -1) {
     GetLastError(error);

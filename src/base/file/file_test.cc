@@ -150,7 +150,7 @@ TEST(FileTest, Copy) {
   EXPECT_EQ(expected_content2, content);
 }
 
-TEST(FileTest, Link) {
+TEST(FileTest, HardLink) {
   const auto expected_content = "All your base are belong to us"_l;
   const TemporaryDir temp_dir;
   const String file1 = String(temp_dir) + "/1";
@@ -191,6 +191,10 @@ TEST(FileTest, Link) {
   EXPECT_EQ(2u, st.st_nlink);
   EXPECT_EQ(mode, st.st_mode & mode);
   EXPECT_EQ(inode, st.st_ino);
+}
+
+TEST(FileTest, DISABLED_SoftLink) {
+  // TODO: implement this test.
 }
 
 }  // namespace base

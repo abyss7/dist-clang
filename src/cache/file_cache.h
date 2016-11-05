@@ -19,6 +19,7 @@ FORWARD_TEST(FileCacheTest, LockNonExistentFile);
 FORWARD_TEST(FileCacheTest, RemoveEntry);
 FORWARD_TEST(FileCacheTest, RestoreEntryWithMissingFile);
 FORWARD_TEST(FileCacheTest, UseIndexFromDisk);
+FORWARD_TEST(FileCacheTest, FallbackToInMemoryIndex);
 FORWARD_TEST(FileCacheMigratorTest, Version_0_to_1_Direct);
 FORWARD_TEST(FileCacheMigratorTest, Version_0_to_1_Simple);
 FORWARD_TEST(FileCacheMigratorTest, Version_1_to_2_Direct);
@@ -137,6 +138,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, RemoveEntry);
   FRIEND_TEST(FileCacheTest, RestoreEntryWithMissingFile);
   FRIEND_TEST(FileCacheTest, UseIndexFromDisk);
+  FRIEND_TEST(FileCacheTest, FallbackToInMemoryIndex);
   FRIEND_TEST(FileCacheMigratorTest, Version_0_to_1_Direct);
   FRIEND_TEST(FileCacheMigratorTest, Version_0_to_1_Simple);
   FRIEND_TEST(FileCacheMigratorTest, Version_1_to_2_Direct);

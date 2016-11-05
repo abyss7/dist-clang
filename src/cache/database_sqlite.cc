@@ -258,21 +258,21 @@ bool SQLite::CheckIntegrity() const {
     return false;
   }
 
+  // "PRAGMA quick_check" behaves like a SELECT with a single row.
+  result = sqlite3_step(stmt);
+
   bool check = false;
-  while ((result = sqlite3_step(stmt))) {
-    if (result == SQLITE_ROW) {
-      const String value =
-          reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-      if (value == "ok") {
-        check = true;
-        break;
-      } else {
-        LOG(DB_ERROR) << "Integrity check error: " << value;
-      }
-    } else if (result != SQLITE_DONE) {
-      LOG(DB_ERROR) << "Failed to get integrity check result with error: "
-                    << sqlite3_errstr(result);
+  if (result == SQLITE_ROW) {
+    const String value =
+        reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+    if (value == "ok") {
+      check = true;
+    } else {
+      LOG(DB_ERROR) << "Integrity check error: " << value;
     }
+  } else if (result != SQLITE_DONE) {
+    LOG(DB_ERROR) << "Failed to get integrity check result with error: "
+                  << sqlite3_errstr(result);
   }
 
   result = sqlite3_finalize(stmt);

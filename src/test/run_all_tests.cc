@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, false);
 
   if (FLAGS_data.empty()) {
-    LOG(WARNING) << "No data path specified - some tests may fail!";
+    LOG(ERROR) << "No data path specified - some tests may fail!";
   }
 
   return RUN_ALL_TESTS();

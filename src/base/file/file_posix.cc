@@ -284,29 +284,47 @@ bool File::Copy(const String& src_path, const String& dst_path, String* error) {
 }
 
 // static
-bool File::Link(const String& src, const String& dst, String* error) {
-  auto Link = [&src, &dst]() -> int {
+bool File::Link(const String& src, const String& dst, bool hard,
+                String* error) {
+  auto Link = [&src, &dst](bool hard) -> int {
+    if (hard) {
 #if defined(OS_LINUX)
-    // Linux doesn't guarantee that |link()| do dereferences symlinks, thus
-    // we use |linkat()| which does for sure.
-    return linkat(AT_FDCWD, src.c_str(), AT_FDCWD, dst.c_str(),
-                  AT_SYMLINK_FOLLOW);
+      // Linux doesn't guarantee that |link()| do dereferences symlinks, thus
+      // we use |linkat()| which does for sure.
+      return linkat(AT_FDCWD, src.c_str(), AT_FDCWD, dst.c_str(),
+                    AT_SYMLINK_FOLLOW);
 #elif defined(OS_MACOSX)
-    return link(src.c_str(), dst.c_str());
+      return link(src.c_str(), dst.c_str());
 #else
 #pragma message "This platform doesn't support hardlinks!"
-    errno = EACCES;
-    return -1;
+      errno = EACCES;
+      return -1;
 #endif
+    } else {
+#if defined(OS_LINUX) || defined(OS_MACOSX)
+      return symlink(src.c_str(), dst.c_str());
+#else
+#pragma message "This platform doesn't support softlinks!"
+      errno = EACCES;
+      return -1;
+#endif
+    }
   };
 
-  // Try to create hard-link at first.
-  if (Link() == 0 ||
-      (errno == EEXIST && unlink(dst.c_str()) == 0 && Link() == 0)) {
+  // Try to create hard or soft link at first.
+  if (Link(hard) == 0 ||
+      (errno == EEXIST && unlink(dst.c_str()) == 0 && Link(hard) == 0)) {
     return true;
   }
 
-  return File::Copy(src, dst, error);
+  if (!File::Copy(src, dst, error)) {
+    if (error) {
+        error->assign("Failed to link " + dst + " to " + src + ": " + *error);
+    }
+    return false;
+  }
+
+  return true;
 }
 
 // static

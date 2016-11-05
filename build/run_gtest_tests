@@ -1,8 +1,9 @@
 #!/bin/sh
 
-test_dir=`dirname $0`/../out/Test.gn
+script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+test_dir="${script_dir}/../out/Test.gn"
 
 export ASAN_OPTIONS=new_delete_type_mismatch=0
 export LSAN_OPTIONS=suppressions=`dirname $0`/lsan_suppression.txt
 
-"${test_dir}/unit_tests" "$@"
+"${test_dir}/unit_tests" --data="${test_dir}/../../data" "$@"
