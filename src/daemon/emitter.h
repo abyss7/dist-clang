@@ -15,6 +15,8 @@ class Emitter : public CompilationDaemon {
   bool Initialize() override;
 
  private:
+  FRIEND_TEST(EmitterTest, GracefulConfigurationUpdate);
+  friend class CoordinatedTestEmitter;
   enum TaskIndex {
     CONNECTION = 0,
     MESSAGE = 1,
@@ -36,13 +38,22 @@ class Emitter : public CompilationDaemon {
   void SetExtraFiles(const cache::ExtraFiles& extra_files,
                      proto::Remote* message);
 
+  virtual void UpdateCompilationPool(const proto::Configuration& configuration);
+  void SpawnCompilationWorker(const proto::Host& remote);
+
   void DoCheckCache(const base::WorkerPool&);
   void DoLocalExecute(const base::WorkerPool&);
   void DoRemoteExecute(const base::WorkerPool&, ResolveFn resolver);
+  void DoCoordinator(const base::WorkerPool&, std::vector<ResolveFn> resolvers);
 
   UniquePtr<Queue> all_tasks_, cache_tasks_, failed_tasks_;
   UniquePtr<QueueAggregator> local_tasks_;
   UniquePtr<base::WorkerPool> workers_;
+  UniquePtr<base::WorkerPool> compilation_workers_;
+  Vector<proto::Host> remotes_;
+
+  bool runs_coordinators_task_;
+  std::chrono::minutes coordinator_poll_time_;
 };
 
 }  // namespace daemon

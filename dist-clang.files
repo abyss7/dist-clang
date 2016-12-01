@@ -2302,6 +2302,9 @@ src/daemon/compilation_daemon_test.cc
 src/daemon/configuration.cc
 src/daemon/configuration.h
 src/daemon/configuration.proto
+src/daemon/coordinator.h
+src/daemon/coordinator.cc
+src/daemon/coordinator_test.cc
 src/daemon/emitter.cc
 src/daemon/emitter.h
 src/daemon/emitter_test.cc

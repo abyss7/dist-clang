@@ -34,6 +34,7 @@ class QueueAggregator {
     for (auto& thread : threads_) {
       thread.join();
     }
+    threads_.clear();
   }
 
   void Aggregate(LockedQueue<T>* WEAK_PTR queue) THREAD_UNSAFE {

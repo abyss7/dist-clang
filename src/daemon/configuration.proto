@@ -1,13 +1,17 @@
 import "base/base.proto";
+import "net/universal.proto";
 
 package dist_clang.daemon.proto;
 
 message Host {
   required string host          = 1;
   optional uint32 port          = 2 [ default = 6000 ];
+  // Ignored for coordinators and collectors.
   optional uint32 threads       = 3 [ default = 2 ];
   optional bool disabled        = 4 [ default = false ];
   optional bool ipv6            = 5 [ default = false ];
+  // Ignored for coordinators and collectors.
+  optional uint32 distribution  = 6;
 }
 
 message Configuration {
@@ -35,10 +39,15 @@ message Configuration {
   }
 
   message Emitter {
-    required string socket_path = 1;
-    repeated Host remotes       = 2;
-    optional uint32 threads     = 3 [ default = 2 ];
-    optional bool only_failed   = 4 [ default = false ];
+    required string socket_path                = 1;
+    repeated Host remotes                      = 2;
+    optional uint32 threads                    = 3 [ default = 2 ];
+    optional bool only_failed                  = 4 [ default = false ];
+
+    optional uint32 poll_coordinators_interval = 5 [ default = 30 ];
+    // in minutes
+
+    repeated Host coordinators                 = 6;
   }
 
   message Absorber {
@@ -52,33 +61,44 @@ message Configuration {
     required Host local = 1;
   }
 
+  message Coordinator {
+    required Host local   = 1;
+    repeated Host remotes = 2;
+  }
+
   // FIXME: use new protobuf feature "anyof" for emitter and absorber.
-  optional Emitter emitter        = 1;
-  optional Absorber absorber      = 2;
+  optional Emitter emitter         = 1;
+  optional Absorber absorber       = 2;
 
-  optional Collector collector    = 3;
+  optional Collector collector     = 3;
 
-  optional uint32 pool_capacity   = 4 [ default = 16 ];
+  optional uint32 pool_capacity    = 4 [ default = 16 ];
   // 0 - is unlimited.
 
   repeated base.proto.Compiler versions = 5;
   optional base.proto.Verbosity verbosity  = 6;
-  optional uint32 user_id         = 7;
+  optional uint32 user_id          = 7;
 
-  optional string config_path     = 8;
+  optional string config_path      = 8;
   // allows reloading of config changes.
 
-  optional Cache cache            = 9;
+  optional Cache cache             = 9;
 
-  optional uint32 connect_timeout = 10 [ default = 10 ];
+  optional uint32 connect_timeout  = 10 [ default = 10 ];
   // in seconds. Zero means system default.
 
-  optional uint32 read_timeout    = 11 [ default = 60 ];
+  optional uint32 read_timeout     = 11 [ default = 60 ];
   // in seconds.
 
-  optional uint32 send_timeout    = 12 [ default = 5  ];
+  optional uint32 send_timeout     = 12 [ default = 5  ];
   // in seconds.
 
-  optional uint32 read_minimum    = 13 [ default = 32 ];
+  optional uint32 read_minimum     = 13 [ default = 32 ];
   // in bytes.
+
+  optional Coordinator coordinator = 14;
+
+  extend net.proto.Universal {
+    optional Configuration extension = 8;
+  }
 }

@@ -223,6 +223,117 @@ TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
       << "Daemon must not store references to the connection";
 }
 
+class CoordinatedTestEmitter : public Emitter {
+ public:
+  CoordinatedTestEmitter(const proto::Configuration& configuration)
+      : Emitter(configuration) {
+  }
+  ~CoordinatedTestEmitter() {
+    // We should reset workers here to make sure DoCoordinator doesn't make
+    // any calls to our virtual methors(like |UpdatecompilationPool|) after
+    // our distructor ended. It's ok to reset |workers_| later once again.
+    all_tasks_->Close();
+    cache_tasks_->Close();
+    failed_tasks_->Close();
+    local_tasks_->Close();
+    workers_.reset();
+  }
+  void CheckAfterConfigUpdate(Fn<void(void)> check_fun) {
+    after_update_ = check_fun;
+  }
+  void UpdateCompilationPool(
+      const proto::Configuration& configuration) override {
+    EXPECT_EQ(1, configuration.emitter().remotes_size());
+    base::WorkerPool* compilation_workers_pool_pointer =
+        compilation_workers_.get();
+    Emitter::UpdateCompilationPool(configuration);
+    EXPECT_NE(compilation_workers_pool_pointer,
+              compilation_workers_.get());
+    after_update_();
+  }
+
+ private:
+  Fn<void(void)> after_update_;
+};
+
+TEST_F(EmitterTest, GracefulConfigurationUpdate) {
+  const String socket_path = "/tmp/test.socket1";
+  const String coordinator_host = "coordinator";
+  const String remote_host = "remote";
+  const ui16 coordinator_port = 11111;
+  const ui16 remote_port = 12345;
+
+  conf.mutable_emitter()->set_socket_path(socket_path);
+  conf.mutable_emitter()->set_only_failed(true);
+
+  auto* coordinator = conf.mutable_emitter()->add_coordinators();
+  coordinator->set_host(coordinator_host);
+  coordinator->set_port(coordinator_port);
+
+  conf.mutable_emitter()->set_poll_coordinators_interval(0u);
+
+  connect_callback = [&](net::TestConnection* test_connection) {
+    test_connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(proto::Configuration::extension));
+      send_condition.notify_all();
+    });
+    test_connection->CallOnRead([&](net::Connection::Message* message) {
+      auto* configuration =
+          message->MutableExtension(proto::Configuration::extension);
+      proto::Host* remote = configuration->mutable_emitter()->add_remotes();
+      remote->set_host(remote_host);
+      remote->set_port(remote_port);
+      assert(false && "Added mutable configuration extension");
+    });
+  };
+  listen_callback = [&](const String& host, ui16 port, String*) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+    return true;
+  };
+
+  std::mutex config_update_mutex;
+  std::condition_variable config_updated_condition;
+  std::atomic<bool> config_updated{false};
+
+  UniquePtr<CoordinatedTestEmitter> coordinated_emitter(
+      new CoordinatedTestEmitter(conf));
+  coordinated_emitter->CheckAfterConfigUpdate([&] {
+    if (!config_updated) {
+      config_updated = true;
+      config_updated_condition.notify_all();
+    }
+  });
+  ASSERT_TRUE(coordinated_emitter->Initialize());
+
+  listen_callback = [&](const String& host, ui16 port, String*) {
+    EXPECT_EQ(coordinator_host, host);
+    EXPECT_EQ(coordinator_port, port);
+    return true;
+  };
+
+  test_service->CallOnListen(listen_callback);
+
+  String error;
+  test_service->Listen(coordinator_host, coordinator_port, true,
+                       [&](net::ConnectionPtr) {}, &error);
+
+  UniqueLock lock(config_update_mutex);
+  EXPECT_TRUE(config_updated_condition.wait_for(
+      lock, std::chrono::seconds(10), [&] { return bool(config_updated); }));
+  EXPECT_TRUE(config_updated);
+
+  coordinated_emitter.reset();
+
+  EXPECT_EQ(0u, run_count);
+  EXPECT_EQ(2u, listen_count); // Emitter listens and |Listen| called from test.
+  EXPECT_EQ(1u, connect_count);
+  EXPECT_EQ(1u, connections_created);
+  // There may be lots of send/read pairs on coordinator loop as we pass 0 as
+  // sleep period.
+  EXPECT_EQ(read_count, send_count);
+}
+
 /*
  * If a client requests compiler version, that we don't have - send NO_VERSION.
  * This test checks |DoRemoteExecute()|.
