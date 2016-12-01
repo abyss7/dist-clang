@@ -2302,6 +2302,9 @@ src/daemon/compilation_daemon_test.cc
 src/daemon/configuration.cc
 src/daemon/configuration.h
 src/daemon/configuration.proto
+src/daemon/coordinator.h
+src/daemon/coordinator.cc
+src/daemon/coordinator_test.cc
 src/daemon/emitter.cc
 src/daemon/emitter.h
 src/daemon/emitter_test.cc
@@ -2337,6 +2340,7 @@ src/net/socket.h
 src/net/test_connection.cc
 src/net/test_connection.h
 src/net/test_end_point_resolver.h
+src/net/test_end_point.h
 src/net/test_network_service.cc
 src/net/test_network_service.h
 src/net/test.proto
