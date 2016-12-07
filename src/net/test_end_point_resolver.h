@@ -2,6 +2,7 @@
 
 #include <net/end_point.h>
 #include <net/end_point_resolver.h>
+#include <net/test_end_point.h>
 
 namespace dist_clang {
 namespace net {
@@ -15,8 +16,8 @@ class TestEndPointResolver : public EndPointResolver {
     }
   };
 
-  Optional Resolve(const String&, ui16, bool) override {
-    return Promise(EndPointPtr(new EndPoint)).GetFuture();
+  Optional Resolve(const String& host, ui16, bool) override {
+    return Promise(EndPointPtr(new TestEndPoint(host))).GetFuture();
   }
 };
 

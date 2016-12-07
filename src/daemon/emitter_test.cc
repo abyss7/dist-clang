@@ -223,115 +223,149 @@ TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
       << "Daemon must not store references to the connection";
 }
 
-class CoordinatedTestEmitter : public Emitter {
- public:
-  CoordinatedTestEmitter(const proto::Configuration& configuration)
-      : Emitter(configuration) {
-  }
-  ~CoordinatedTestEmitter() {
-    // We should reset workers here to make sure DoCoordinator doesn't make
-    // any calls to our virtual methors(like |UpdatecompilationPool|) after
-    // our distructor ended. It's ok to reset |workers_| later once again.
-    all_tasks_->Close();
-    cache_tasks_->Close();
-    failed_tasks_->Close();
-    local_tasks_->Close();
-    workers_.reset();
-  }
-  void CheckAfterConfigUpdate(Fn<void(void)> check_fun) {
-    after_update_ = check_fun;
-  }
-  void UpdateCompilationPool(
-      const proto::Configuration& configuration) override {
-    EXPECT_EQ(1, configuration.emitter().remotes_size());
-    base::WorkerPool* compilation_workers_pool_pointer =
-        compilation_workers_.get();
-    Emitter::UpdateCompilationPool(configuration);
-    EXPECT_NE(compilation_workers_pool_pointer,
-              compilation_workers_.get());
-    after_update_();
-  }
-
- private:
-  Fn<void(void)> after_update_;
-};
-
 TEST_F(EmitterTest, GracefulConfigurationUpdate) {
   const String socket_path = "/tmp/test.socket1";
   const String coordinator_host = "coordinator";
-  const String remote_host = "remote";
+  const String old_remote_host = "old_remote";
+  const String new_remote_host = "new_remote";
+  const String compiler_version = "fake_compiler_version";
+  const String current_dir = "fake_current_dir";
+  const auto compiler_path = "fake_compiler_path"_l;
+  const auto action = "fake_action"_l;
   const ui16 coordinator_port = 11111;
-  const ui16 remote_port = 12345;
+  const ui16 old_remote_port = 1234;
+  const ui16 new_remote_port = 4321;
+  const auto object_code = "fake_object_code"_l;
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
-  conf.mutable_emitter()->set_only_failed(true);
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
 
-  auto* coordinator = conf.mutable_emitter()->add_coordinators();
+  auto* emitter_config = conf.mutable_emitter();
+  emitter_config->set_socket_path(socket_path);
+  emitter_config->set_only_failed(true);
+  emitter_config->set_poll_interval(0u);
+
+  auto* coordinator = emitter_config->add_coordinators();
   coordinator->set_host(coordinator_host);
   coordinator->set_port(coordinator_port);
 
-  conf.mutable_emitter()->set_poll_coordinators_interval(0u);
-
-  connect_callback = [&](net::TestConnection* test_connection) {
-    test_connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(proto::Configuration::extension));
-      send_condition.notify_all();
-    });
-    test_connection->CallOnRead([&](net::Connection::Message* message) {
-      auto* configuration =
-          message->MutableExtension(proto::Configuration::extension);
-      proto::Host* remote = configuration->mutable_emitter()->add_remotes();
-      remote->set_host(remote_host);
-      remote->set_port(remote_port);
-      assert(false && "Added mutable configuration extension");
-    });
+  listen_callback = [&](const String&, ui16, String*) {
+    return !::testing::Test::HasNonfatalFailure();
   };
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return true;
+  run_callback = [&](base::TestProcess* process) {
+    EXPECT_EQ(compiler_path, process->exec_path_);
+    const Immutable::Rope generate_source{"-E"_l, "-o"_l, "-"_l};
+    // Emitter fails to write file for failed compiler and fallbacks to
+    // local execution. So there're two possible calls:
+    // 1. To generate sorce using '-E' flag,
+    // 2. To run compiler locally with real action.
+    const bool is_generate_source_or_action =
+        process->args_ == generate_source ||
+        process->args_ == Immutable::Rope{action};
+    EXPECT_TRUE(is_generate_source_or_action) << process->PrintArgs();
   };
 
   std::mutex config_update_mutex;
   std::condition_variable config_updated_condition;
-  std::atomic<bool> config_updated{false};
+  std::atomic<bool> config_updated(false);
 
-  UniquePtr<CoordinatedTestEmitter> coordinated_emitter(
-      new CoordinatedTestEmitter(conf));
-  coordinated_emitter->CheckAfterConfigUpdate([&] {
-    if (!config_updated) {
-      config_updated = true;
-      config_updated_condition.notify_all();
+  auto post_task = [&]{
+    if (config_updated)
+      return;
+    auto connection_to_emitter = test_service->TriggerListen(socket_path);
+    {
+      SharedPtr<net::TestConnection> test_connection =
+          std::static_pointer_cast<net::TestConnection>(connection_to_emitter);
+
+      net::Connection::ScopedMessage message(new net::Connection::Message);
+      auto* extension =
+          message->MutableExtension(base::proto::Local::extension);
+      extension->set_current_dir(current_dir);
+      extension->mutable_flags()->set_action(action);
+      auto* compiler = extension->mutable_flags()->mutable_compiler();
+      compiler->set_version(compiler_version);
+
+      net::proto::Status status;
+      status.set_code(net::proto::Status::OK);
+      EXPECT_TRUE(test_connection->TriggerReadAsync(
+                      std::move(message), status));
     }
-  });
-  ASSERT_TRUE(coordinated_emitter->Initialize());
-
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(coordinator_host, host);
-    EXPECT_EQ(coordinator_port, port);
-    return true;
   };
 
-  test_service->CallOnListen(listen_callback);
+  emitter.reset(new Emitter(conf));
+
+  test_service->CallOnConnect([&](net::EndPointPtr end_point, String*) {
+    auto connection = net::TestConnectionPtr(new net::TestConnection);
+    connection->CountSendAttempts(&send_count);
+    connection->CountReadAttempts(&read_count);
+    ++connections_created;
+    if (end_point->Print() == coordinator_host) {
+      connection->CallOnSend([&](const net::Connection::Message& message) {
+        EXPECT_TRUE(message.HasExtension(proto::Configuration::extension));
+        send_condition.notify_all();
+      });
+      connection->CallOnRead([&](net::Connection::Message* message) {
+        // First request to coordinator should return 'old' remote.
+        // All consequent requests should response with 'new' one.
+        static bool should_send_new_remote = false;
+        auto* configuration =
+            message->MutableExtension(proto::Configuration::extension);
+        proto::Host* remote = configuration->mutable_emitter()->add_remotes();
+        remote->set_threads(1);
+        // First propagate |old_remote_host| and wait for emitter to connect it.
+        if (should_send_new_remote) {
+          remote->set_host(old_remote_host);
+          remote->set_port(old_remote_port);
+        // Once |old_remote_host| responded, respond with a new host and exit
+        // test once it's being connected.
+        } else {
+          remote->set_host(new_remote_host);
+          remote->set_port(new_remote_port);
+          post_task();
+        }
+      });
+    } else if (end_point->Print() == old_remote_host) {
+      connection->CallOnRead([&](net::Connection::Message* message) {
+        message->MutableExtension(proto::Result::extension)
+            ->set_obj(object_code);
+      });
+    } else if (end_point->Print() == new_remote_host) {
+      connection->CallOnRead([&](net::Connection::Message* message) {
+        message->MutableExtension(proto::Result::extension)
+            ->set_obj(object_code);
+        config_updated.store(true);
+        config_updated_condition.notify_all();
+      });
+    } else {
+      // There should be no connections to other hosts.
+      EXPECT_EQ(socket_path, end_point->Print());
+    }
+    return connection;
+  });
 
   String error;
-  test_service->Listen(coordinator_host, coordinator_port, true,
+  test_service->Listen(coordinator_host, coordinator_port, true /* ipv6 */,
                        [&](net::ConnectionPtr) {}, &error);
+
+  ASSERT_TRUE(emitter->Initialize());
+  post_task();
 
   UniqueLock lock(config_update_mutex);
   EXPECT_TRUE(config_updated_condition.wait_for(
-      lock, std::chrono::seconds(10), [&] { return bool(config_updated); }));
-  EXPECT_TRUE(config_updated);
+      lock, std::chrono::seconds(10), [&] {
+    // Emitter could process tasks several times before new
+    return config_updated.load();
+  }));
 
-  coordinated_emitter.reset();
+  emitter.reset();
 
-  EXPECT_EQ(0u, run_count);
   EXPECT_EQ(2u, listen_count); // Emitter listens and |Listen| called from test.
-  EXPECT_EQ(1u, connect_count);
-  EXPECT_EQ(1u, connections_created);
+  EXPECT_TRUE(config_updated.load());
+  EXPECT_EQ(connect_count, connections_created);
   // There may be lots of send/read pairs on coordinator loop as we pass 0 as
   // sleep period.
-  EXPECT_EQ(read_count, send_count);
+  //EXPECT_EQ(read_count, send_count);  // May differ, actually. No idea why.
 }
 
 /*

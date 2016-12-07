@@ -41,8 +41,8 @@ bool Absorber::Initialize() {
   auto config = conf();
   const auto& local = config->absorber().local();
   if (!Listen(local.host(), local.port(), local.ipv6(), &error)) {
-    LOG(ERROR) << "Failed to listen on " << local.host() << ":" << local.port()
-               << " : " << error;
+    LOG(ERROR) << "[Absorber] Failed to listen on " << local.host()
+               << ":" << local.port() << " : " << error;
     return false;
   }
 

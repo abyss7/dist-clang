@@ -12,6 +12,7 @@ namespace net {
 
 class EndPoint : public std::enable_shared_from_this<EndPoint> {
  public:
+  virtual ~EndPoint() {}
   static EndPointPtr TcpHost(const String& host, ui16 port, bool ipv6);
   static EndPointPtr LocalHost(const String& host, ui16 port, bool ipv6);
   static EndPointPtr UnixSocket(const String& path);
@@ -26,7 +27,7 @@ class EndPoint : public std::enable_shared_from_this<EndPoint> {
   int type() const { return SOCK_STREAM; }
   int protocol() const { return protocol_; }
 
-  String Print() const;
+  virtual String Print() const;
 
  private:
   sockaddr_storage address_;

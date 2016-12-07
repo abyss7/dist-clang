@@ -1,6 +1,7 @@
 #include <net/test_network_service.h>
 
 #include <net/test_connection.h>
+#include <net/test_end_point.h>
 
 namespace dist_clang {
 namespace net {
@@ -50,7 +51,8 @@ ConnectionPtr TestNetworkService::TriggerListen(const String& host, ui16 port) {
     if (connect_attempts_) {
       (*connect_attempts_)++;
     }
-    auto new_connection = on_connect_(EndPointPtr(), nullptr);
+    auto new_connection =
+        on_connect_(EndPointPtr(new TestEndPoint(host)), nullptr);
     it->second(new_connection);
     return new_connection;
   }

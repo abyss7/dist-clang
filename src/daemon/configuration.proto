@@ -6,12 +6,15 @@ package dist_clang.daemon.proto;
 message Host {
   required string host          = 1;
   optional uint32 port          = 2 [ default = 6000 ];
-  // Ignored for coordinators and collectors.
+
   optional uint32 threads       = 3 [ default = 2 ];
+  // Ignored for coordinators and collectors.
+
   optional bool disabled        = 4 [ default = false ];
   optional bool ipv6            = 5 [ default = false ];
-  // Ignored for coordinators and collectors.
+
   optional uint32 distribution  = 6;
+  // Ignored for coordinators and collectors.
 }
 
 message Configuration {
@@ -39,13 +42,13 @@ message Configuration {
   }
 
   message Emitter {
-    required string socket_path                = 1;
-    repeated Host remotes                      = 2;
-    optional uint32 threads                    = 3 [ default = 2 ];
-    optional bool only_failed                  = 4 [ default = false ];
+    required string socket_path   = 1;
+    repeated Host remotes         = 2;
+    optional uint32 threads       = 3 [ default = 2 ];
+    optional bool only_failed     = 4 [ default = false ];
 
-    optional uint32 poll_coordinators_interval = 5 [ default = 30 ];
-    // in minutes
+    optional uint32 poll_interval = 5 [ default = 300 ];
+    // Interval in seconds for polling coordinator.
 
     repeated Host coordinators                 = 6;
   }
@@ -63,7 +66,9 @@ message Configuration {
 
   message Coordinator {
     required Host local   = 1;
+
     repeated Host remotes = 2;
+    // Hosts to be propogated to clients and used as remotes.
   }
 
   // FIXME: use new protobuf feature "anyof" for emitter and absorber.

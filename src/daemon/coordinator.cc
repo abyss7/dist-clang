@@ -10,18 +10,18 @@ namespace dist_clang {
 namespace daemon {
 
 Coordinator::Coordinator(const proto::Configuration& configuration)
-    : BaseDaemon(configuration),
-      local_(configuration.coordinator().local()),
-      remotes_(configuration.coordinator().remotes().begin(),
-               configuration.coordinator().remotes().end()) {
+    : BaseDaemon(configuration) {
   CHECK(configuration.has_coordinator());
+  conf_.reset(new proto::Configuration(configuration));
+  conf_->CheckInitialized();
 }
 
 bool Coordinator::Initialize() {
   String error;
-  if (!Listen(local_.host(), local_.port(), local_.ipv6(), &error)) {
-    LOG(ERROR) << "[Coordinator] Failed to listen on " << local_.host() << ":"
-               << local_.port() << " : " << error;
+  const auto& local = conf_->coordinator().local();
+  if (!Listen(local.host(), local.port(), local.ipv6(), &error)) {
+    LOG(ERROR) << "[Coordinator] Failed to listen on " << local.host() << ":"
+               << local.port() << " : " << error;
     return false;
   }
 
@@ -44,12 +44,15 @@ bool Coordinator::HandleNewMessage(net::ConnectionPtr connection,
   if (message->HasExtension(proto::Configuration::extension)) {
     UniquePtr<proto::Configuration> configuration(
         message->ReleaseExtension(proto::Configuration::extension));
+    configuration->Clear();
 
     proto::Configuration::Emitter* emitter = configuration->mutable_emitter();
+    // FIXME(matthewtff): Remove |socket_path| as required fields go away after
+    // migration to Protobuf 3.
     emitter->set_socket_path("no-op");
-    for (const proto::Host& remote : remotes_) {
+    for (const proto::Host& remote : conf_->coordinator().remotes()) {
       proto::Host* host = emitter->add_remotes();
-      *host = remote;
+      host->CopyFrom(remote);
     }
 
     connection->SendAsync(std::move(configuration));

@@ -30,7 +30,7 @@ TEST_F(CoordinatorTest, ConfigurationRespond) {
     coordinated_remotes.push_back(host);
 
     // Also push it to coordinator's config.
-    *conf.mutable_coordinator()->add_remotes() = host;
+    conf.mutable_coordinator()->add_remotes()->CopyFrom(host);
   }
 
   listen_callback = [&](const String& host, ui16 port, String*) {

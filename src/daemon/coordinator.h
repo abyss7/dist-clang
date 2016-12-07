@@ -10,17 +10,12 @@ class Coordinator : public BaseDaemon {
   explicit Coordinator(const proto::Configuration& configuration);
 
   bool Initialize() override;
-  inline bool UpdateConfiguration(
-      const proto::Configuration& configuration) override {
-    return true;
-  }
 
  private:
   bool HandleNewMessage(net::ConnectionPtr connection, Universal message,
                         const net::proto::Status& status) override;
 
-  const proto::Host local_;
-  Vector<proto::Host> remotes_;
+  SharedPtr<const proto::Configuration> conf_;
 };
 
 }  // namespace daemon
