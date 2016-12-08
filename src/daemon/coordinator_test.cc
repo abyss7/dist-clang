@@ -38,7 +38,7 @@ TEST_F(CoordinatorTest, ConfigurationRespond) {
     EXPECT_EQ(expected_port, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(proto::Configuration::extension));
       const auto& config =
@@ -55,6 +55,7 @@ TEST_F(CoordinatorTest, ConfigurationRespond) {
         EXPECT_EQ(expected_host.distribution(), received_host.distribution());
       }
     });
+    return true;
   };
 
   coordinator.reset(new Coordinator(conf));

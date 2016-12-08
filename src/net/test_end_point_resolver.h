@@ -16,8 +16,8 @@ class TestEndPointResolver : public EndPointResolver {
     }
   };
 
-  Optional Resolve(const String& host, ui16, bool) override {
-    return Promise(EndPointPtr(new TestEndPoint(host))).GetFuture();
+  Optional Resolve(const String& host, ui16 port, bool) override {
+    return Promise(EndPointPtr(new TestEndPoint(host, port))).GetFuture();
   }
 };
 

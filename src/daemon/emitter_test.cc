@@ -9,6 +9,12 @@
 namespace dist_clang {
 namespace daemon {
 
+namespace {
+std::string ToEndPointPrint(const String& host, const ui16 port = 0) {
+  return host + ":" + std::to_string(port);
+}
+}  // anonymous namespace
+
 TEST(EmitterConfigurationTest, NoEmitterSection) {
   ASSERT_ANY_THROW((Emitter((proto::Configuration()))));
 }
@@ -41,6 +47,9 @@ TEST(EmitterConfigurationTest, OnlyFailedWithoutRemotes) {
 class EmitterTest : public CommonDaemonTest {
  protected:
   UniquePtr<Emitter> emitter;
+
+  Atomic<ui32> remote_send_count = {0}, remote_read_count = {0},
+               coordinator_send_count = {0}, coordinator_read_count = {0};
 };
 
 /*
@@ -85,13 +94,14 @@ TEST_F(EmitterTest, BadLocalMessage) {
     EXPECT_EQ(0u, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
       EXPECT_EQ(expected_description, status.description());
     });
+    return true;
   };
 
   emitter.reset(new Emitter(conf));
@@ -184,12 +194,13 @@ TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
     EXPECT_EQ(0u, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
+    return true;
   };
 
   emitter.reset(new Emitter(conf));
@@ -230,11 +241,11 @@ TEST_F(EmitterTest, GracefulConfigurationUpdate) {
   const String new_remote_host = "new_remote";
   const String compiler_version = "fake_compiler_version";
   const String current_dir = "fake_current_dir";
-  const auto compiler_path = "fake_compiler_path"_l;
-  const auto action = "fake_action"_l;
   const ui16 coordinator_port = 11111;
   const ui16 old_remote_port = 1234;
   const ui16 new_remote_port = 4321;
+  const auto compiler_path = "fake_compiler_path"_l;
+  const auto action = "fake_action"_l;
   const auto object_code = "fake_object_code"_l;
 
   auto* version = conf.add_versions();
@@ -288,19 +299,22 @@ TEST_F(EmitterTest, GracefulConfigurationUpdate) {
 
       net::proto::Status status;
       status.set_code(net::proto::Status::OK);
-      EXPECT_TRUE(test_connection->TriggerReadAsync(
-                      std::move(message), status));
+      // |EXPECT_TRUE| is skipped as there's a possibility of such case:
+      // 1. Emitter::~Emitter() runs on main loop, already called
+      // |all_tasks_->Close()| and waits for threads to join. Meanwhile
+      // we posted a new task that being handled with Emitter::HandleNewMessage.
+      // It tries to post a task to |all_tasks_|, fails and returns false.
+      test_connection->TriggerReadAsync(std::move(message), status);
     }
   };
 
-  emitter.reset(new Emitter(conf));
-
-  test_service->CallOnConnect([&](net::EndPointPtr end_point, String*) {
-    auto connection = net::TestConnectionPtr(new net::TestConnection);
-    connection->CountSendAttempts(&send_count);
-    connection->CountReadAttempts(&read_count);
-    ++connections_created;
-    if (end_point->Print() == coordinator_host) {
+  size_t number_of_coordinator_requests = 0u;
+  connect_callback = [&](net::TestConnection* connection,
+                         net::EndPointPtr end_point) {
+    if (end_point->Print() ==
+        ToEndPointPrint(coordinator_host, coordinator_port)) {
+      connection->CountSendAttempts(&coordinator_send_count);
+      connection->CountReadAttempts(&coordinator_read_count);
       connection->CallOnSend([&](const net::Connection::Message& message) {
         EXPECT_TRUE(message.HasExtension(proto::Configuration::extension));
         send_condition.notify_all();
@@ -308,29 +322,39 @@ TEST_F(EmitterTest, GracefulConfigurationUpdate) {
       connection->CallOnRead([&](net::Connection::Message* message) {
         // First request to coordinator should return 'old' remote.
         // All consequent requests should response with 'new' one.
-        static bool should_send_new_remote = false;
-        auto* configuration =
-            message->MutableExtension(proto::Configuration::extension);
-        proto::Host* remote = configuration->mutable_emitter()->add_remotes();
-        remote->set_threads(1);
-        // First propagate |old_remote_host| and wait for emitter to connect it.
-        if (should_send_new_remote) {
-          remote->set_host(old_remote_host);
-          remote->set_port(old_remote_port);
-        // Once |old_remote_host| responded, respond with a new host and exit
-        // test once it's being connected.
-        } else {
-          remote->set_host(new_remote_host);
-          remote->set_port(new_remote_port);
+        if (number_of_coordinator_requests < 2u) {
+          auto* configuration =
+              message->MutableExtension(proto::Configuration::extension);
+          proto::Host* remote = configuration->mutable_emitter()->add_remotes();
+          remote->set_threads(1);
+          if (number_of_coordinator_requests == 0u) {
+            remote->set_host(old_remote_host);
+            remote->set_port(old_remote_port);
+          // After |old_remote_host| responded, respond with a new host and exit
+          // test once it's being connected.
+          } else if (number_of_coordinator_requests == 1u) {
+            remote->set_host(new_remote_host);
+            remote->set_port(new_remote_port);
+          }
+        } else if (number_of_coordinator_requests == 2u) {
+          post_task();
+          post_task();
           post_task();
         }
+        ++number_of_coordinator_requests;
       });
-    } else if (end_point->Print() == old_remote_host) {
+    } else if (end_point->Print() ==
+               ToEndPointPrint(old_remote_host, old_remote_port)) {
+      connection->CountSendAttempts(&remote_send_count);
+      connection->CountReadAttempts(&remote_read_count);
       connection->CallOnRead([&](net::Connection::Message* message) {
         message->MutableExtension(proto::Result::extension)
             ->set_obj(object_code);
       });
-    } else if (end_point->Print() == new_remote_host) {
+    } else if (end_point->Print() ==
+               ToEndPointPrint(new_remote_host, new_remote_port)) {
+      connection->CountSendAttempts(&remote_send_count);
+      connection->CountReadAttempts(&remote_read_count);
       connection->CallOnRead([&](net::Connection::Message* message) {
         message->MutableExtension(proto::Result::extension)
             ->set_obj(object_code);
@@ -339,16 +363,20 @@ TEST_F(EmitterTest, GracefulConfigurationUpdate) {
       });
     } else {
       // There should be no connections to other hosts.
-      EXPECT_EQ(socket_path, end_point->Print());
+      EXPECT_EQ(ToEndPointPrint(socket_path), end_point->Print());
     }
-    return connection;
-  });
+    return true;
+  };
+
+  emitter.reset(new Emitter(conf));
 
   String error;
   test_service->Listen(coordinator_host, coordinator_port, true /* ipv6 */,
                        [&](net::ConnectionPtr) {}, &error);
 
   ASSERT_TRUE(emitter->Initialize());
+  post_task();
+  post_task();
   post_task();
 
   UniqueLock lock(config_update_mutex);
@@ -363,9 +391,120 @@ TEST_F(EmitterTest, GracefulConfigurationUpdate) {
   EXPECT_EQ(2u, listen_count); // Emitter listens and |Listen| called from test.
   EXPECT_TRUE(config_updated.load());
   EXPECT_EQ(connect_count, connections_created);
-  // There may be lots of send/read pairs on coordinator loop as we pass 0 as
-  // sleep period.
-  //EXPECT_EQ(read_count, send_count);  // May differ, actually. No idea why.
+  // Emitter MUST do at least 2 connections to coordinator to receive old remote
+  // and a new one.
+  EXPECT_GE(coordinator_read_count, 2u);
+  EXPECT_GE(coordinator_send_count, 2u);
+  // We post 6 tasks, so we expect all 6 connections to be done by emitter.
+  EXPECT_GE(6u, remote_send_count);
+  EXPECT_GE(6u, remote_read_count);
+}
+
+TEST_F(EmitterTest, CoordinatorRotation) {
+  const String socket_path = "/tmp/test.socket1";
+  const String compiler_version = "fake_compiler_version";
+  const String remote_host = "remote_host";
+  const auto compiler_path = "fake_compiler_path"_l;
+  const ui16 remote_port = 22222;
+  // Use 3 coordinators:
+  // 1. Fails connections.
+  // 2. Fails sends.
+  // 3. Fails reads.
+  // 4. Doesn't respond with a configuration.
+  // 5. OK
+  // Expect only one connection to first 4 and several to 5th.
+  const ui16 number_of_coordinators = 5;
+  Vector<proto::Host> coordinators;
+  coordinators.reserve(number_of_coordinators);
+
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+
+  auto* emitter_config = conf.mutable_emitter();
+  emitter_config->set_socket_path(socket_path);
+  emitter_config->set_only_failed(true);
+  emitter_config->set_poll_interval(0u);
+
+  for (ui16 coordinator_index = 0; coordinator_index < number_of_coordinators;
+       ++coordinator_index) {
+    auto* coordinator = emitter_config->add_coordinators();
+    coordinator->set_host(std::to_string(coordinator_index));
+    coordinator->set_port(coordinator_index);
+    coordinators.emplace_back(*coordinator);
+  }
+
+  listen_callback = [&](const String&, ui16, String*) {
+    return !::testing::Test::HasNonfatalFailure();
+  };
+
+  std::mutex coordinators_rotated_mutex;
+  std::condition_variable coordinators_rotated_condition;
+  std::atomic<bool> coordinators_rotated(false);
+
+  size_t number_of_coordinator_requests = 0u;
+  connect_callback = [&](net::TestConnection* connection,
+                         net::EndPointPtr end_point) {
+    ++number_of_coordinator_requests;
+    if (number_of_coordinator_requests <= 4u) {
+      auto coordinator = std::find_if(coordinators.begin(), coordinators.end(),
+          [&end_point](const proto::Host& coordinator) {
+        return ToEndPointPrint(coordinator.host(), coordinator.port()) ==
+            end_point->Print();
+      });
+      EXPECT_NE(coordinator, coordinators.end());
+      coordinators.erase(coordinator);
+
+      if (number_of_coordinator_requests == 1u) {
+        // Cancel connection.
+        return false;
+      } else if (number_of_coordinator_requests == 2u) {
+        connection->AbortOnSend();
+      } else if (number_of_coordinator_requests == 3u) {
+        connection->AbortOnRead();
+      } else if (number_of_coordinator_requests == 4u) {
+        // Do not send any configuration.
+      }
+      return true;
+    // Wait for second requests to 'good' host.
+    } else if (number_of_coordinator_requests > 5) {
+      coordinators_rotated.store(true);
+      coordinators_rotated_condition.notify_all();
+    }
+    connection->CallOnRead([&](net::Connection::Message* message) {
+      auto* configuration =
+          message->MutableExtension(proto::Configuration::extension);
+      proto::Host* remote = configuration->mutable_emitter()->add_remotes();
+      remote->set_host(remote_host);
+      remote->set_port(remote_port);
+      remote->set_threads(1);
+    });
+    return true;
+  };
+  emitter.reset(new Emitter(conf));
+
+  String error;
+  for (ui16 coordinator_index = 0u; coordinator_index < number_of_coordinators;
+       ++coordinator_index) {
+    test_service->Listen(coordinators[coordinator_index].host(),
+                         coordinators[coordinator_index].port(),
+                         true /* ipv6 */,
+                         [&](net::ConnectionPtr) {}, &error);
+  }
+
+  ASSERT_TRUE(emitter->Initialize());
+
+  UniqueLock lock(coordinators_rotated_mutex);
+  EXPECT_TRUE(coordinators_rotated_condition.wait_for(
+      lock, std::chrono::seconds(10), [&] {
+    return coordinators_rotated.load();
+  }));
+
+  emitter.reset();
+
+  // Emitter listens and |Listen| called from test for each coordinator.
+  EXPECT_EQ(1u + number_of_coordinators, listen_count);
+  EXPECT_TRUE(coordinators_rotated.load());
 }
 
 /*
@@ -405,12 +544,13 @@ TEST_F(EmitterTest, RemoteMessageWithBadCompiler) {
     EXPECT_EQ(0u, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
+    return true;
   };
 
   emitter.reset(new Emitter(conf));
@@ -462,12 +602,13 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin) {
     EXPECT_EQ(0u, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
+    return true;
   };
 
   emitter.reset(new Emitter(conf));
@@ -526,12 +667,13 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin2) {
     EXPECT_EQ(0u, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
+    return true;
   };
 
   emitter.reset(new Emitter(conf));
@@ -588,12 +730,13 @@ TEST_F(EmitterTest, LocalMessageWithPluginPath) {
     EXPECT_EQ(0u, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
+    return true;
   };
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(compiler_path, process->exec_path_);
@@ -660,12 +803,13 @@ TEST_F(EmitterTest, LocalMessageWithSanitizeBlacklist) {
     EXPECT_EQ(0u, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
+    return true;
   };
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(compiler_path, process->exec_path_);
@@ -729,12 +873,13 @@ TEST_F(EmitterTest, ConfigurationWithoutVersions) {
     EXPECT_EQ(0u, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
+    return true;
   };
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(compiler_path, process->exec_path_);
@@ -806,12 +951,13 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
     EXPECT_EQ(0u, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
+    return true;
   };
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(compiler_path, process->exec_path_);
@@ -880,12 +1026,13 @@ TEST_F(EmitterTest, LocalFailedCompilation) {
     EXPECT_EQ(0u, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
+    return true;
   };
   do_run = false;
 
@@ -963,7 +1110,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
     return !::testing::Test::HasNonfatalFailure();
   };
 
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
@@ -971,6 +1118,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
 
       send_condition.notify_all();
     });
+    return true;
   };
 
   run_callback = [&](base::TestProcess* process) {
@@ -1117,7 +1265,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
     return !::testing::Test::HasNonfatalFailure();
   };
 
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     if (connect_count == 1) {
       // Connection from client to local daemon.
 
@@ -1156,6 +1304,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
         send_condition.notify_all();
       });
     }
+    return true;
   };
 
   run_callback = [&](base::TestProcess* process) {
@@ -1290,7 +1439,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
     return !::testing::Test::HasNonfatalFailure();
   };
 
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
@@ -1298,6 +1447,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
 
       send_condition.notify_all();
     });
+    return true;
   };
 
   run_callback = [&](base::TestProcess* process) {
@@ -1454,7 +1604,7 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
     return !::testing::Test::HasNonfatalFailure();
   };
 
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
@@ -1462,6 +1612,7 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
 
       send_condition.notify_all();
     });
+    return true;
   };
 
   run_callback = [&](base::TestProcess* process) {
@@ -1631,7 +1782,7 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
     return !::testing::Test::HasNonfatalFailure();
   };
 
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     if (connect_count == 1) {
       // Connection from client to local daemon.
 
@@ -1670,6 +1821,7 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
         send_condition.notify_all();
       });
     }
+    return true;
   };
 
   run_callback = [&](base::TestProcess* process) {
@@ -1805,12 +1957,13 @@ TEST_F(EmitterTest, UpdateConfiguration) {
     EXPECT_EQ(0u, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code_no_version, status.code());
     });
+    return true;
   };
 
   emitter.reset(new Emitter(conf));
@@ -1841,12 +1994,13 @@ TEST_F(EmitterTest, UpdateConfiguration) {
   std::this_thread::sleep_for(std::chrono::seconds(1));
   emitter->UpdateConfiguration(conf);
 
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code_ok, status.code());
     });
+    return true;
   };
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(compiler_path, process->exec_path_);
@@ -1935,7 +2089,7 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
     return !::testing::Test::HasNonfatalFailure();
   };
 
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
@@ -1943,6 +2097,7 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
 
       send_condition.notify_all();
     });
+    return true;
   };
 
   run_callback = [&](base::TestProcess* process) {
@@ -2139,7 +2294,7 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
     return !::testing::Test::HasNonfatalFailure();
   };
 
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
@@ -2147,6 +2302,7 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
 
       send_condition.notify_all();
     });
+    return true;
   };
 
   run_callback = [&](base::TestProcess* process) {

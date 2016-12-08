@@ -28,7 +28,7 @@ TEST_F(CollectorTest, SimpleReport) {
     EXPECT_EQ(expected_port, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(perf::proto::Report::extension));
       const auto& report = message.GetExtension(perf::proto::Report::extension);
@@ -38,6 +38,7 @@ TEST_F(CollectorTest, SimpleReport) {
       EXPECT_EQ(perf::proto::Metric::SIMPLE_CACHE_HIT, report.metric(1).name());
       EXPECT_EQ(3u, report.metric(1).value());
     });
+    return true;
   };
 
   collector.reset(new Collector(conf));

@@ -7,13 +7,14 @@ namespace net {
 
 class TestEndPoint : public EndPoint {
  public:
-  TestEndPoint(const String& host) : host_(host) {}
+  TestEndPoint(const String& host, ui16 port = 0u) : host_(host), port_(port) {}
   ~TestEndPoint() override {}
   String Print() const override {
-    return host_;
+    return host_ + ":" + std::to_string(port_);
   }
  private:
-  String host_;
+  const String host_;
+  const ui16 port_;
 };
 
 }  // namespace net

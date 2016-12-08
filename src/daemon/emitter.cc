@@ -601,8 +601,8 @@ void Emitter::DoPoll(const base::WorkerPool& pool,
 
   while (!pool.IsShuttingDown()) {
     net::ConnectionPtr connection;
-    auto resolver_it = resolvers.begin();
-    for (; resolver_it != resolvers.end(); ++resolver_it) {
+    for (auto resolver_it = resolvers.begin(); resolver_it != resolvers.end();
+         ++resolver_it) {
       net::EndPointPtr end_point;
       end_point = (*resolver_it)();
       if (!end_point) {
@@ -614,6 +614,7 @@ void Emitter::DoPoll(const base::WorkerPool& pool,
       if (!connection) {
         LOG(WARNING) << "Failed to connect to " << end_point->Print() << ": "
                      << error;
+        continue;
       } else {
         // In success case rotate resolvers to make sure we start skip 'bad'
         // coordinators and start with a 'good' one.
@@ -629,13 +630,13 @@ void Emitter::DoPoll(const base::WorkerPool& pool,
     sleep_period = 1;
     UniquePtr<proto::Configuration> configuration(new proto::Configuration);
     if (!connection->SendSync(std::move(configuration))) {
-      std::rotate(resolver_it, resolver_it + 1, resolvers.end());
+      std::rotate(resolvers.begin(), resolvers.begin() + 1, resolvers.end());
       continue;
     }
 
     Universal reply(new net::proto::Universal);
     if (!connection->ReadSync(reply.get())) {
-      std::rotate(resolver_it, resolver_it + 1, resolvers.end());
+      std::rotate(resolvers.begin(), resolvers.begin() + 1, resolvers.end());
       continue;
     }
 
@@ -649,6 +650,8 @@ void Emitter::DoPoll(const base::WorkerPool& pool,
     } else {
       LOG(WARNING) << "Got reply from coordinator, but without configuration "
                    << "extension";
+      std::rotate(resolvers.begin(), resolvers.begin() + 1, resolvers.end());
+      continue;
     }
     std::this_thread::sleep_for(
         std::chrono::seconds(conf()->emitter().poll_interval()));
