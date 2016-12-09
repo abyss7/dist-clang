@@ -71,6 +71,22 @@ inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
   return true;
 }
 
+String GetFileName(const String& input) {
+  const size_t slash_position = input.rfind('/');
+  if (slash_position == String::npos ||
+      slash_position == input.length() - 1) {
+    return input;
+  }
+  return input.substr(slash_position + 1);
+}
+
+ui64 IntegerHash(Immutable input) {
+  // While calculating 64bit hash make sure string doesn't exceed 8 characters.
+  Immutable hash_buffer = input.Hash(8u);
+  ui64 hash = *(reinterpret_cast<const ui64*>(hash_buffer.c_str()));
+  return hash;
+}
+
 }  // namespace
 
 namespace daemon {
@@ -178,9 +194,13 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
                                                 HandledSource(),
                                                 cache::ExtraFiles{}));
     } else {
+      Immutable input_file = GetFileName(execute->flags().input());
+      // Compute |hash| first, as we're moving from |execute|.
+      const ui64 hash = IntegerHash(input_file);
       return all_tasks_->Push(std::make_tuple(connection, std::move(execute),
                                               HandledSource(),
-                                              cache::ExtraFiles{}));
+                                              cache::ExtraFiles{}),
+                              hash);
     }
   }
 
@@ -291,7 +311,10 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
 
     STAT(SIMPLE_CACHE_MISS);
 
-    all_tasks_->Push(std::move(*task));
+    Immutable input_file = GetFileName(incoming->flags().input());
+    // Compute |hash| first, as we're moving from |task|.
+    const ui64 hash = IntegerHash(input_file);
+    all_tasks_->Push(std::move(*task), hash);
   }
 }
 
@@ -360,7 +383,8 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
 }
 
 void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
-                              ResolveFn resolver) {
+                              ResolveFn resolver,
+                              const ui32 distribution) {
   net::EndPointPtr end_point;
   ui32 sleep_period = 1;
   auto Sleep = [&sleep_period]() mutable {
@@ -381,7 +405,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
       }
     }
 
-    Optional&& task = all_tasks_->Pop();
+    Optional&& task = all_tasks_->Pop(distribution);
     if (!task) {
       break;
     }
@@ -432,6 +456,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
     for (auto& plugin : plugins) {
       plugin.clear_path();
     }
+    Immutable input_file = GetFileName(flags->input());
     flags->mutable_compiler()->clear_path();
     flags->clear_output();
     flags->clear_input();
@@ -441,7 +466,9 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
     perf::Counter<perf::StatReporter, false> counter(
         perf::proto::Metric::REMOTE_TIME_WASTED);
     if (!connection->SendSync(std::move(outgoing))) {
-      all_tasks_->Push(std::move(*task));
+      // Compute |hash| first, as we're moving from |task|.
+      const ui64 hash = IntegerHash(input_file);
+      all_tasks_->Push(std::move(*task), hash);
       counter.ReportOnDestroy(true);
       continue;
     }
@@ -643,7 +670,11 @@ bool Emitter::Reload(const proto::Configuration& conf) {
 
   // Create new pool before swapping, so we won't postpone new tasks.
   auto new_pool = std::make_unique<base::WorkerPool>(!handle_all_tasks_);
+  ui32 distribution_range = 0u;
   for (const auto& remote : conf.emitter().remotes()) {
+    if (remote.disabled()) {
+      continue;
+    }
     auto resolver = [
       this, host = remote.host(), port = static_cast<ui16>(remote.port()),
       ipv6 = remote.ipv6()
@@ -653,9 +684,14 @@ bool Emitter::Reload(const proto::Configuration& conf) {
       optional->Wait();
       return optional->GetValue();
     };
-    Worker worker = std::bind(&Emitter::DoRemoteExecute, this, _1, resolver);
+    const ui32 distribution =
+        remote.has_distribution() ? remote.distribution() : 0u;
+    Worker worker =
+        std::bind(&Emitter::DoRemoteExecute, this, _1, resolver, distribution);
     new_pool->AddWorker("Remote Execute Worker"_l, worker, remote.threads());
+    distribution_range = std::max(distribution, distribution_range);
   }
+  all_tasks_->UpdateDistribution(distribution_range + 1u);
   std::swap(new_pool, remote_workers_);
 
   return CompilationDaemon::Reload(conf);

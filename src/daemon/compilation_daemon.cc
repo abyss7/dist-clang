@@ -144,14 +144,6 @@ CompilationDaemon::CompilationDaemon(const Configuration& conf)
   }
 }
 
-HandledHash CompilationDaemon::GenerateHash(
-    const base::proto::Flags& flags, const HandledSource& code,
-    const ExtraFiles& extra_files) const {
-  const Version version(flags.compiler().version());
-  return cache::FileCache::Hash(code, extra_files,
-                                CommandLineForSimpleCache(flags), version);
-}
-
 bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
                                       net::proto::Status* status) const {
   auto conf = this->conf();

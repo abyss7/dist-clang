@@ -44,7 +44,8 @@ class Emitter : public CompilationDaemon {
 
   void DoCheckCache(const base::WorkerPool&);
   void DoLocalExecute(const base::WorkerPool&);
-  void DoRemoteExecute(const base::WorkerPool&, ResolveFn resolver);
+  void DoRemoteExecute(const base::WorkerPool&, ResolveFn resolver,
+                       const ui32 distribution);
   void DoPoll(const base::WorkerPool&, Vector<ResolveFn> resolvers);
 
   UniquePtr<Queue> all_tasks_, cache_tasks_, failed_tasks_;

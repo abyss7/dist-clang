@@ -20,10 +20,6 @@ class CompilationDaemon : public BaseDaemon {
  protected:
   explicit CompilationDaemon(const Configuration& conf);
 
-  cache::string::HandledHash GenerateHash(
-      const base::proto::Flags& flags, const cache::string::HandledSource& code,
-      const cache::ExtraFiles& extra_files) const;
-
   bool SetupCompiler(base::proto::Flags* flags,
                      net::proto::Status* status) const;
 
