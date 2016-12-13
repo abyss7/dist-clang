@@ -16,6 +16,9 @@ class BaseDaemon {
   virtual bool Initialize() THREAD_UNSAFE = 0;
   inline virtual bool UpdateConfiguration(
       const proto::Configuration& configuration) THREAD_SAFE {
+    configuration.CheckInitialized();
+    UniqueLock lock(conf_mutex_);
+    conf_.reset(new proto::Configuration(configuration));
     return true;
   }
 
@@ -46,10 +49,21 @@ class BaseDaemon {
     return network_service_->Connect(end_point, error);
   }
 
+  inline SharedPtr<proto::Configuration> conf() const {
+    UniqueLock lock(conf_mutex_);
+    return conf_;
+  }
+
   UniquePtr<net::EndPointResolver> resolver_;
 
  private:
   void HandleNewConnection(net::ConnectionPtr connection);
+
+  // Aquire mutex to make sure |conf_| changes aren't made simultaneously.
+  // Also aquire mutex on conpying |conf_| as it might change on other thread
+  // and result in an invalid copy.
+  mutable Mutex conf_mutex_;
+  SharedPtr<proto::Configuration> conf_;
 
   UniquePtr<net::NetworkService> network_service_;
 };

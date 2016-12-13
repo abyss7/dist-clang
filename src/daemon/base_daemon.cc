@@ -15,9 +15,11 @@ bool BaseDaemon::Initialize() {
 
 BaseDaemon::BaseDaemon(const proto::Configuration& configuration)
     : resolver_(net::EndPointResolver::Create()),
+      conf_(new proto::Configuration(configuration)),
       network_service_(net::NetworkService::Create(
           configuration.connect_timeout(), configuration.read_timeout(),
           configuration.send_timeout(), configuration.read_minimum())) {
+  conf_->CheckInitialized();
 }
 
 BaseDaemon::~BaseDaemon() {

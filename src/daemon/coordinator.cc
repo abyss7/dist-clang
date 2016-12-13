@@ -12,13 +12,11 @@ namespace daemon {
 Coordinator::Coordinator(const proto::Configuration& configuration)
     : BaseDaemon(configuration) {
   CHECK(configuration.has_coordinator());
-  conf_.reset(new proto::Configuration(configuration));
-  conf_->CheckInitialized();
 }
 
 bool Coordinator::Initialize() {
   String error;
-  const auto& local = conf_->coordinator().local();
+  const auto& local = conf()->coordinator().local();
   if (!Listen(local.host(), local.port(), local.ipv6(), &error)) {
     LOG(ERROR) << "[Coordinator] Failed to listen on " << local.host() << ":"
                << local.port() << " : " << error;
@@ -50,7 +48,7 @@ bool Coordinator::HandleNewMessage(net::ConnectionPtr connection,
     // FIXME(matthewtff): Remove |socket_path| as required fields go away after
     // migration to Protobuf 3.
     emitter->set_socket_path("no-op");
-    for (const proto::Host& remote : conf_->coordinator().remotes()) {
+    for (const proto::Host& remote : conf()->coordinator().remotes()) {
       proto::Host* host = emitter->add_remotes();
       host->CopyFrom(remote);
     }

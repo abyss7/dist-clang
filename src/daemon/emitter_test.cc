@@ -47,9 +47,6 @@ TEST(EmitterConfigurationTest, OnlyFailedWithoutRemotes) {
 class EmitterTest : public CommonDaemonTest {
  protected:
   UniquePtr<Emitter> emitter;
-
-  Atomic<ui32> remote_send_count = {0}, remote_read_count = {0},
-               coordinator_send_count = {0}, coordinator_read_count = {0};
 };
 
 /*
@@ -248,6 +245,9 @@ TEST_F(EmitterTest, GracefulConfigurationUpdate) {
   const auto action = "fake_action"_l;
   const auto object_code = "fake_object_code"_l;
 
+  Atomic<ui32> remote_send_count = {0}, remote_read_count = {0},
+               coordinator_send_count = {0}, coordinator_read_count = {0};
+
   auto* version = conf.add_versions();
   version->set_version(compiler_version);
   version->set_path(compiler_path);
@@ -257,25 +257,14 @@ TEST_F(EmitterTest, GracefulConfigurationUpdate) {
   emitter_config->set_only_failed(true);
   emitter_config->set_poll_interval(0u);
 
+  auto* remote = emitter_config->add_remotes();
+  remote->set_host(old_remote_host);
+  remote->set_port(old_remote_port);
+  remote->set_threads(1);
+
   auto* coordinator = emitter_config->add_coordinators();
   coordinator->set_host(coordinator_host);
   coordinator->set_port(coordinator_port);
-
-  listen_callback = [&](const String&, ui16, String*) {
-    return !::testing::Test::HasNonfatalFailure();
-  };
-  run_callback = [&](base::TestProcess* process) {
-    EXPECT_EQ(compiler_path, process->exec_path_);
-    const Immutable::Rope generate_source{"-E"_l, "-o"_l, "-"_l};
-    // Emitter fails to write file for failed compiler and fallbacks to
-    // local execution. So there're two possible calls:
-    // 1. To generate sorce using '-E' flag,
-    // 2. To run compiler locally with real action.
-    const bool is_generate_source_or_action =
-        process->args_ == generate_source ||
-        process->args_ == Immutable::Rope{action};
-    EXPECT_TRUE(is_generate_source_or_action) << process->PrintArgs();
-  };
 
   std::mutex config_update_mutex;
   std::condition_variable config_updated_condition;
@@ -308,7 +297,27 @@ TEST_F(EmitterTest, GracefulConfigurationUpdate) {
     }
   };
 
-  size_t number_of_coordinator_requests = 0u;
+  service_callback = [&](net::TestNetworkService* service) {
+    service->Listen(coordinator_host, coordinator_port, true /* ipv6 */,
+                    [&](net::ConnectionPtr) {}, nullptr);
+  };
+  listen_callback = [&](const String&, ui16, String*) {
+    return !::testing::Test::HasNonfatalFailure();
+  };
+  run_callback = [&](base::TestProcess* process) {
+    EXPECT_EQ(compiler_path, process->exec_path_);
+    const Immutable::Rope generate_source{"-E"_l, "-o"_l, "-"_l};
+    // Emitter fails to write file for failed compiler and fallbacks to
+    // local execution. So there're two possible calls:
+    // 1. To generate sorce using '-E' flag,
+    // 2. To run compiler locally with real action.
+    const bool is_generate_source_or_action =
+        process->args_ == generate_source ||
+        process->args_ == Immutable::Rope{action};
+    EXPECT_TRUE(is_generate_source_or_action) << process->PrintArgs();
+  };
+
+  Atomic<size_t> number_of_coordinator_requests{0u};
   connect_callback = [&](net::TestConnection* connection,
                          net::EndPointPtr end_point) {
     if (end_point->Print() ==
@@ -320,28 +329,22 @@ TEST_F(EmitterTest, GracefulConfigurationUpdate) {
         send_condition.notify_all();
       });
       connection->CallOnRead([&](net::Connection::Message* message) {
-        // First request to coordinator should return 'old' remote.
-        // All consequent requests should response with 'new' one.
-        if (number_of_coordinator_requests < 2u) {
+        ++number_of_coordinator_requests;
+        // First respond should contain new remote host info.
+        // All consequent requests shouldn't contain any remotes to prevent
+        // |remote_workers_| resets.
+        if (number_of_coordinator_requests == 1u) {
           auto* configuration =
               message->MutableExtension(proto::Configuration::extension);
           proto::Host* remote = configuration->mutable_emitter()->add_remotes();
+          remote->set_host(new_remote_host);
+          remote->set_port(new_remote_port);
           remote->set_threads(1);
-          if (number_of_coordinator_requests == 0u) {
-            remote->set_host(old_remote_host);
-            remote->set_port(old_remote_port);
-          // After |old_remote_host| responded, respond with a new host and exit
-          // test once it's being connected.
-          } else if (number_of_coordinator_requests == 1u) {
-            remote->set_host(new_remote_host);
-            remote->set_port(new_remote_port);
-          }
         } else if (number_of_coordinator_requests == 2u) {
           post_task();
           post_task();
           post_task();
         }
-        ++number_of_coordinator_requests;
       });
     } else if (end_point->Print() ==
                ToEndPointPrint(old_remote_host, old_remote_port)) {
@@ -369,19 +372,12 @@ TEST_F(EmitterTest, GracefulConfigurationUpdate) {
   };
 
   emitter.reset(new Emitter(conf));
-
-  String error;
-  test_service->Listen(coordinator_host, coordinator_port, true /* ipv6 */,
-                       [&](net::ConnectionPtr) {}, &error);
-
   ASSERT_TRUE(emitter->Initialize());
-  post_task();
-  post_task();
   post_task();
 
   UniqueLock lock(config_update_mutex);
   EXPECT_TRUE(config_updated_condition.wait_for(
-      lock, std::chrono::seconds(10), [&] {
+      lock, std::chrono::seconds(2), [&] {
     // Emitter could process tasks several times before new
     return config_updated.load();
   }));
@@ -391,13 +387,12 @@ TEST_F(EmitterTest, GracefulConfigurationUpdate) {
   EXPECT_EQ(2u, listen_count); // Emitter listens and |Listen| called from test.
   EXPECT_TRUE(config_updated.load());
   EXPECT_EQ(connect_count, connections_created);
-  // Emitter MUST do at least 2 connections to coordinator to receive old remote
-  // and a new one.
   EXPECT_GE(coordinator_read_count, 2u);
   EXPECT_GE(coordinator_send_count, 2u);
-  // We post 6 tasks, so we expect all 6 connections to be done by emitter.
-  EXPECT_GE(6u, remote_send_count);
-  EXPECT_GE(6u, remote_read_count);
+  EXPECT_GE(number_of_coordinator_requests, 2u);
+  // We post 4 tasks, so we expect all 4 connections to be done by emitter.
+  EXPECT_GE(4u, remote_send_count);
+  EXPECT_GE(4u, remote_read_count);
 }
 
 TEST_F(EmitterTest, CoordinatorRotation) {
@@ -434,13 +429,22 @@ TEST_F(EmitterTest, CoordinatorRotation) {
     coordinators.emplace_back(*coordinator);
   }
 
-  listen_callback = [&](const String&, ui16, String*) {
-    return !::testing::Test::HasNonfatalFailure();
-  };
-
   std::mutex coordinators_rotated_mutex;
   std::condition_variable coordinators_rotated_condition;
   std::atomic<bool> coordinators_rotated(false);
+
+  listen_callback = [&](const String&, ui16, String*) {
+    return !::testing::Test::HasNonfatalFailure();
+  };
+  service_callback = [&](net::TestNetworkService* service) {
+    for (ui16 coordinator_index = 0u;
+         coordinator_index < number_of_coordinators; ++coordinator_index) {
+      service->Listen(coordinators[coordinator_index].host(),
+                      coordinators[coordinator_index].port(),
+                      true /* ipv6 */,
+                      [&](net::ConnectionPtr) {}, nullptr);
+    }
+  };
 
   size_t number_of_coordinator_requests = 0u;
   connect_callback = [&](net::TestConnection* connection,
@@ -466,8 +470,8 @@ TEST_F(EmitterTest, CoordinatorRotation) {
         // Do not send any configuration.
       }
       return true;
-    // Wait for second requests to 'good' host.
-    } else if (number_of_coordinator_requests > 5) {
+    // Wait for second request to 'good' host.
+    } else if (number_of_coordinator_requests > 5u) {
       coordinators_rotated.store(true);
       coordinators_rotated_condition.notify_all();
     }
@@ -476,22 +480,12 @@ TEST_F(EmitterTest, CoordinatorRotation) {
           message->MutableExtension(proto::Configuration::extension);
       proto::Host* remote = configuration->mutable_emitter()->add_remotes();
       remote->set_host(remote_host);
-      remote->set_port(remote_port);
+      remote->set_port(remote_port + number_of_coordinator_requests);
       remote->set_threads(1);
     });
     return true;
   };
   emitter.reset(new Emitter(conf));
-
-  String error;
-  for (ui16 coordinator_index = 0u; coordinator_index < number_of_coordinators;
-       ++coordinator_index) {
-    test_service->Listen(coordinators[coordinator_index].host(),
-                         coordinators[coordinator_index].port(),
-                         true /* ipv6 */,
-                         [&](net::ConnectionPtr) {}, &error);
-  }
-
   ASSERT_TRUE(emitter->Initialize());
 
   UniqueLock lock(coordinators_rotated_mutex);

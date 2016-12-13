@@ -110,6 +110,8 @@ Emitter::Emitter(const proto::Configuration& configuration)
     }
   }
 
+  remote_workers_.reset(new base::WorkerPool(true));
+  SpawnRemoteWorkers();
   if (runs_coordinators_task_) {
     Vector<ResolveFn> resolvers;
     resolvers.reserve(config->emitter().coordinators_size());
@@ -131,9 +133,6 @@ Emitter::Emitter(const proto::Configuration& configuration)
     }
     Worker worker = std::bind(&Emitter::DoPoll, this, _1, resolvers);
     workers_->AddWorker("Coordinator Poll Worker"_l, worker);
-  } else {
-    remote_workers_.reset(new base::WorkerPool);
-    SpawnCompilationWorkers(*conf());
   }
 }
 
@@ -143,12 +142,7 @@ Emitter::~Emitter() {
   failed_tasks_->Close();
   local_tasks_->Close();
   workers_.reset();
-  // Create and destroy |compilation_workers_| pool on same thread.
-  // If coordinators are used - on coordinators task thread, otherwise on main
-  // thread.
-  if (!runs_coordinators_task_) {
-    remote_workers_.reset();
-  }
+  remote_workers_.reset();
 }
 
 bool Emitter::Initialize() {
@@ -243,9 +237,9 @@ void Emitter::SetExtraFiles(const cache::ExtraFiles& extra_files,
   }
 }
 
-void Emitter::SpawnCompilationWorkers(const proto::Configuration& config) {
+void Emitter::SpawnRemoteWorkers() {
   using Worker = base::WorkerPool::SimpleWorker;
-  for (const auto& remote : config.emitter().remotes()) {
+  for (const auto& remote : conf()->emitter().remotes()) {
     if (remote.disabled())
       return;
     auto resolver = [
@@ -601,10 +595,10 @@ void Emitter::DoPoll(const base::WorkerPool& pool,
 
   while (!pool.IsShuttingDown()) {
     net::ConnectionPtr connection;
-    for (auto resolver_it = resolvers.begin(); resolver_it != resolvers.end();
-         ++resolver_it) {
+    for (auto resolver = resolvers.begin(); resolver != resolvers.end();
+         ++resolver) {
       net::EndPointPtr end_point;
-      end_point = (*resolver_it)();
+      end_point = (*resolver)();
       if (!end_point) {
         continue;
       }
@@ -618,7 +612,7 @@ void Emitter::DoPoll(const base::WorkerPool& pool,
       } else {
         // In success case rotate resolvers to make sure we start skip 'bad'
         // coordinators and start with a 'good' one.
-        std::rotate(resolvers.begin(), resolver_it, resolvers.end());
+        std::rotate(resolvers.begin(), resolver, resolvers.end());
         break;
       }
     }
@@ -646,7 +640,7 @@ void Emitter::DoPoll(const base::WorkerPool& pool,
       UniquePtr<base::WorkerPool> extinction_compilation_pool(
           new base::WorkerPool(true));
       std::swap(extinction_compilation_pool, remote_workers_);
-      SpawnCompilationWorkers(*conf());
+      SpawnRemoteWorkers();
     } else {
       LOG(WARNING) << "Got reply from coordinator, but without configuration "
                    << "extension";
@@ -656,7 +650,11 @@ void Emitter::DoPoll(const base::WorkerPool& pool,
     std::this_thread::sleep_for(
         std::chrono::seconds(conf()->emitter().poll_interval()));
   }
-  remote_workers_.reset();
+  // After all create a pool that is not forced to shut down.
+  // It ensures all remote tasks are resolved.
+  UniquePtr<base::WorkerPool> finishing_pool(new base::WorkerPool);
+  std::swap(finishing_pool, remote_workers_);
+  SpawnRemoteWorkers();
 }
 
 }  // namespace daemon

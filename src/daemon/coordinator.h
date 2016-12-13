@@ -14,8 +14,6 @@ class Coordinator : public BaseDaemon {
  private:
   bool HandleNewMessage(net::ConnectionPtr connection, Universal message,
                         const net::proto::Status& status) override;
-
-  SharedPtr<const proto::Configuration> conf_;
 };
 
 }  // namespace daemon

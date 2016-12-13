@@ -8,7 +8,6 @@ namespace net {
 class TestEndPoint : public EndPoint {
  public:
   TestEndPoint(const String& host, ui16 port = 0u) : host_(host), port_(port) {}
-  ~TestEndPoint() override {}
   String Print() const override {
     return host_ + ":" + std::to_string(port_);
   }

@@ -16,8 +16,6 @@ class Emitter : public CompilationDaemon {
   bool UpdateConfiguration(const proto::Configuration& configuration) override;
 
  private:
-  FRIEND_TEST(EmitterTest, GracefulConfigurationUpdate);
-  friend class CoordinatedTestEmitter;
   enum TaskIndex {
     CONNECTION = 0,
     MESSAGE = 1,
@@ -39,7 +37,7 @@ class Emitter : public CompilationDaemon {
   void SetExtraFiles(const cache::ExtraFiles& extra_files,
                      proto::Remote* message);
 
-  void SpawnCompilationWorkers(const proto::Configuration& config);
+  void SpawnRemoteWorkers();
 
   void DoCheckCache(const base::WorkerPool&);
   void DoLocalExecute(const base::WorkerPool&);

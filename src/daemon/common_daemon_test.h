@@ -15,6 +15,7 @@ namespace daemon {
 
 struct CommonDaemonTest : public ::testing::Test {
   using Service = net::TestNetworkService;
+  using ServiceCallback = Fn<void(Service*)>;
   using ListenCallback = Fn<bool(const String&, ui16, String*)>;
   // Reject connection by returning |false| from |connect_callback|.
   using ConnectCallback = Fn<bool(net::TestConnection*, net::EndPointPtr)>;
@@ -28,6 +29,7 @@ struct CommonDaemonTest : public ::testing::Test {
         test_service = service;
         service->CountConnectAttempts(&connect_count);
         service->CountListenAttempts(&listen_count);
+        service_callback(service);
         service->CallOnConnect([this](net::EndPointPtr end_point, String*) {
           auto connection = net::TestConnectionPtr(new net::TestConnection);
           connection->CountSendAttempts(&send_count);
@@ -71,6 +73,7 @@ struct CommonDaemonTest : public ::testing::Test {
     net::EndPointResolver::SetFactory<net::TestEndPointResolver::Factory>();
   }
 
+  ServiceCallback service_callback = EmptyLambda<>();
   ListenCallback listen_callback = EmptyLambda<bool>(true);
   ConnectCallback connect_callback = EmptyLambda<bool>(true);
   RunCallback run_callback = EmptyLambda<>();
