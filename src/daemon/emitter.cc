@@ -116,8 +116,9 @@ Emitter::Emitter(const proto::Configuration& configuration)
     Vector<ResolveFn> resolvers;
     resolvers.reserve(config->emitter().coordinators_size());
     for (const auto& coordinator : config->emitter().coordinators()) {
-      if (coordinator.disabled())
+      if (coordinator.disabled()) {
         continue;
+      }
       auto resolver = [
         this,
         host = coordinator.host(),
@@ -240,8 +241,9 @@ void Emitter::SetExtraFiles(const cache::ExtraFiles& extra_files,
 void Emitter::SpawnRemoteWorkers() {
   using Worker = base::WorkerPool::SimpleWorker;
   for (const auto& remote : conf()->emitter().remotes()) {
-    if (remote.disabled())
+    if (remote.disabled()) {
       return;
+    }
     auto resolver = [
       this, host = remote.host(), port = static_cast<ui16>(remote.port()),
       ipv6 = remote.ipv6()

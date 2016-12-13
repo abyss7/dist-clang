@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
       coordinator.reset(new daemon::Coordinator(configuration.config()));
     }
 
-    if (coordinator && coordinator->Initialize()) {
+    if (coordinator && !coordinator->Initialize()) {
       LOG(FATAL) << "Coordinator failed to initialize.";
     }
   }
