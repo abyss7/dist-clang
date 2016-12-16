@@ -11,7 +11,7 @@ class EmptyLambda {
 
   template <class... Args>
   ReturnType operator()(Args&&...) {
-    return ReturnType();
+    return value_;
   }
 
  private:

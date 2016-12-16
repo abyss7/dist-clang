@@ -16,6 +16,8 @@ class EndPoint : public std::enable_shared_from_this<EndPoint> {
   static EndPointPtr LocalHost(const String& host, ui16 port, bool ipv6);
   static EndPointPtr UnixSocket(const String& path);
 
+  virtual ~EndPoint() {}
+
   operator const sockaddr*() const {
     return reinterpret_cast<const sockaddr*>(&address_);
   }
@@ -26,7 +28,7 @@ class EndPoint : public std::enable_shared_from_this<EndPoint> {
   int type() const { return SOCK_STREAM; }
   int protocol() const { return protocol_; }
 
-  String Print() const;
+  virtual String Print() const;
 
  private:
   sockaddr_storage address_;

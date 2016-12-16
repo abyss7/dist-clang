@@ -85,13 +85,14 @@ TEST_F(EmitterTest, BadLocalMessage) {
     EXPECT_EQ(0u, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
       EXPECT_EQ(expected_description, status.description());
     });
+    return true;
   };
 
   emitter.reset(new Emitter(conf));
@@ -184,12 +185,13 @@ TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
     EXPECT_EQ(0u, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
+    return true;
   };
 
   emitter.reset(new Emitter(conf));
@@ -260,12 +262,13 @@ TEST_F(EmitterTest, RemoteMessageWithBadCompiler) {
     EXPECT_EQ(0u, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
+    return true;
   };
 
   emitter.reset(new Emitter(conf));
@@ -317,12 +320,13 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin) {
     EXPECT_EQ(0u, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
+    return true;
   };
 
   emitter.reset(new Emitter(conf));
@@ -381,12 +385,13 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin2) {
     EXPECT_EQ(0u, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
+    return true;
   };
 
   emitter.reset(new Emitter(conf));
@@ -443,12 +448,13 @@ TEST_F(EmitterTest, LocalMessageWithPluginPath) {
     EXPECT_EQ(0u, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
+    return true;
   };
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(compiler_path, process->exec_path_);
@@ -515,12 +521,13 @@ TEST_F(EmitterTest, LocalMessageWithSanitizeBlacklist) {
     EXPECT_EQ(0u, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
+    return true;
   };
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(compiler_path, process->exec_path_);
@@ -584,12 +591,13 @@ TEST_F(EmitterTest, ConfigurationWithoutVersions) {
     EXPECT_EQ(0u, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
+    return true;
   };
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(compiler_path, process->exec_path_);
@@ -661,12 +669,13 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
     EXPECT_EQ(0u, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
+    return true;
   };
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(compiler_path, process->exec_path_);
@@ -735,12 +744,13 @@ TEST_F(EmitterTest, LocalFailedCompilation) {
     EXPECT_EQ(0u, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code, status.code());
     });
+    return true;
   };
   do_run = false;
 
@@ -818,7 +828,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
     return !::testing::Test::HasNonfatalFailure();
   };
 
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
@@ -826,6 +836,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
 
       send_condition.notify_all();
     });
+    return true;
   };
 
   run_callback = [&](base::TestProcess* process) {
@@ -972,7 +983,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
     return !::testing::Test::HasNonfatalFailure();
   };
 
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     if (connect_count == 1) {
       // Connection from client to local daemon.
 
@@ -1011,6 +1022,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
         send_condition.notify_all();
       });
     }
+    return true;
   };
 
   run_callback = [&](base::TestProcess* process) {
@@ -1145,7 +1157,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
     return !::testing::Test::HasNonfatalFailure();
   };
 
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
@@ -1153,6 +1165,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
 
       send_condition.notify_all();
     });
+    return true;
   };
 
   run_callback = [&](base::TestProcess* process) {
@@ -1309,7 +1322,7 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
     return !::testing::Test::HasNonfatalFailure();
   };
 
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
@@ -1317,6 +1330,7 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
 
       send_condition.notify_all();
     });
+    return true;
   };
 
   run_callback = [&](base::TestProcess* process) {
@@ -1486,7 +1500,7 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
     return !::testing::Test::HasNonfatalFailure();
   };
 
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     if (connect_count == 1) {
       // Connection from client to local daemon.
 
@@ -1525,6 +1539,7 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
         send_condition.notify_all();
       });
     }
+    return true;
   };
 
   run_callback = [&](base::TestProcess* process) {
@@ -1660,12 +1675,13 @@ TEST_F(EmitterTest, UpdateConfiguration) {
     EXPECT_EQ(0u, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code_no_version, status.code());
     });
+    return true;
   };
 
   emitter.reset(new Emitter(conf));
@@ -1696,12 +1712,13 @@ TEST_F(EmitterTest, UpdateConfiguration) {
   std::this_thread::sleep_for(std::chrono::seconds(1));
   emitter->UpdateConfiguration(conf);
 
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
       EXPECT_EQ(expected_code_ok, status.code());
     });
+    return true;
   };
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(compiler_path, process->exec_path_);
@@ -1790,7 +1807,7 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
     return !::testing::Test::HasNonfatalFailure();
   };
 
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
@@ -1798,6 +1815,7 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
 
       send_condition.notify_all();
     });
+    return true;
   };
 
   run_callback = [&](base::TestProcess* process) {
@@ -1994,7 +2012,7 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
     return !::testing::Test::HasNonfatalFailure();
   };
 
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
@@ -2002,6 +2020,7 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
 
       send_condition.notify_all();
     });
+    return true;
   };
 
   run_callback = [&](base::TestProcess* process) {

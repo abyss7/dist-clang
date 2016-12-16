@@ -16,7 +16,7 @@ namespace daemon {
 struct CommonDaemonTest : public ::testing::Test {
   using Service = net::TestNetworkService;
   using ListenCallback = Fn<bool(const String&, ui16, String*)>;
-  using ConnectCallback = Fn<void(net::TestConnection*)>;
+  using ConnectCallback = Fn<bool(net::TestConnection*, net::EndPointPtr)>;
   using RunCallback = Fn<void(base::TestProcess*)>;
 
   void SetUp() override {
@@ -27,12 +27,15 @@ struct CommonDaemonTest : public ::testing::Test {
         test_service = service;
         service->CountConnectAttempts(&connect_count);
         service->CountListenAttempts(&listen_count);
-        service->CallOnConnect([this](net::EndPointPtr, String*) {
+        service->CallOnConnect([this](net::EndPointPtr end_point, String*) {
           auto connection = net::TestConnectionPtr(new net::TestConnection);
           connection->CountSendAttempts(&send_count);
           connection->CountReadAttempts(&read_count);
           ++connections_created;
-          connect_callback(connection.get());
+
+          if (!connect_callback(connection.get(), end_point)) {
+            return net::TestConnectionPtr();
+          }
 
           return connection;
         });
@@ -69,7 +72,7 @@ struct CommonDaemonTest : public ::testing::Test {
   }
 
   ListenCallback listen_callback = EmptyLambda<bool>(true);
-  ConnectCallback connect_callback = EmptyLambda<>();
+  ConnectCallback connect_callback = EmptyLambda<bool>(true);
   RunCallback run_callback = EmptyLambda<>();
 
   Service* WEAK_PTR test_service = nullptr;

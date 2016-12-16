@@ -137,8 +137,8 @@ bool Emitter::Initialize() {
   String error;
   auto config = conf();
   if (!Listen(config->emitter().socket_path(), &error)) {
-    LOG(ERROR) << "Failed to listen on " << config->emitter().socket_path()
-               << " : " << error;
+    LOG(ERROR) << "Emitter failed to listen on "
+               << config->emitter().socket_path() << " : " << error;
     return false;
   }
 
