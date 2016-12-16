@@ -5,12 +5,12 @@
 namespace dist_clang {
 namespace net {
 
+// TODO(ilezhankin): rewrite this stuff using |Testable| and factories, if possible.
 class TestEndPoint : public EndPoint {
  public:
   TestEndPoint(const String& host, ui16 port = 0u) : host_(host), port_(port) {}
-  String Print() const override {
-    return host_ + ":" + std::to_string(port_);
-  }
+  String Print() const override { return host_ + ":" + std::to_string(port_); }
+
  private:
   const String host_;
   const ui16 port_;
