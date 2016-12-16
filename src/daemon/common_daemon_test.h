@@ -17,7 +17,6 @@ struct CommonDaemonTest : public ::testing::Test {
   using Service = net::TestNetworkService;
   using ServiceCallback = Fn<void(Service*)>;
   using ListenCallback = Fn<bool(const String&, ui16, String*)>;
-  // Reject connection by returning |false| from |connect_callback|.
   using ConnectCallback = Fn<bool(net::TestConnection*, net::EndPointPtr)>;
   using RunCallback = Fn<void(base::TestProcess*)>;
 
@@ -35,8 +34,9 @@ struct CommonDaemonTest : public ::testing::Test {
           connection->CountSendAttempts(&send_count);
           connection->CountReadAttempts(&read_count);
           ++connections_created;
+
           if (!connect_callback(connection.get(), end_point)) {
-            connection.reset();
+            return net::TestConnectionPtr();
           }
 
           return connection;

@@ -34,6 +34,7 @@ class QueueAggregator {
     for (auto& thread : threads_) {
       thread.join();
     }
+
     threads_.clear();
   }
 

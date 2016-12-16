@@ -95,10 +95,8 @@ namespace daemon {
 bool CompilationDaemon::Initialize() {
   if (conf()->has_cache() && !conf()->cache().disabled()) {
     cache_.reset(new cache::FileCache(
-        conf()->cache().path(),
-        conf()->cache().size(),
-        conf()->cache().snappy(),
-        conf()->cache().store_index()));
+        conf()->cache().path(), conf()->cache().size(),
+        conf()->cache().snappy(), conf()->cache().store_index()));
     if (!cache_->Run(conf()->cache().clean_period())) {
       cache_.reset();
     }

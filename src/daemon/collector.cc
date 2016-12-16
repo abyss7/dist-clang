@@ -12,14 +12,14 @@ namespace daemon {
 
 Collector::Collector(const proto::Configuration& configuration)
     : BaseDaemon(configuration) {
-  CHECK(configuration.has_collector());
+  CHECK(conf()->has_collector());
 }
 
 bool Collector::Initialize() {
   String error;
   const auto& local = conf()->collector().local();
   if (!Listen(local.host(), local.port(), local.ipv6(), &error)) {
-    LOG(ERROR) << "[Collector] Failed to listen on " << local.host() << ":"
+    LOG(ERROR) << "Collector failed to listen on " << local.host() << ":"
                << local.port() << " : " << error;
     return false;
   }

@@ -51,8 +51,7 @@ ConnectionPtr TestNetworkService::TriggerListen(const String& host, ui16 port) {
     if (connect_attempts_) {
       (*connect_attempts_)++;
     }
-    auto new_connection =
-        on_connect_(EndPointPtr(new TestEndPoint(host, port)), nullptr);
+    auto new_connection = on_connect_(EndPointPtr(new TestEndPoint(host, port)), nullptr);
     it->second(new_connection);
     return new_connection;
   }

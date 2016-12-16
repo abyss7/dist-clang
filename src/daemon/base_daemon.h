@@ -49,7 +49,7 @@ class BaseDaemon {
     return network_service_->Connect(end_point, error);
   }
 
-  inline SharedPtr<proto::Configuration> conf() const {
+  inline SharedPtr<proto::Configuration> conf() const THREAD_SAFE {
     UniqueLock lock(conf_mutex_);
     return conf_;
   }
@@ -59,9 +59,8 @@ class BaseDaemon {
  private:
   void HandleNewConnection(net::ConnectionPtr connection);
 
-  // Aquire mutex to make sure |conf_| changes aren't made simultaneously.
-  // Also aquire mutex on conpying |conf_| as it might change on other thread
-  // and result in an invalid copy.
+  // TODO(ilezhankin): Implement and use WeaklessPtr here. Otherwise, the
+  //                   |SharedPtr::reset()| is non-atomic and thread-unsafe.
   mutable Mutex conf_mutex_;
   SharedPtr<proto::Configuration> conf_;
 

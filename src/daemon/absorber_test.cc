@@ -607,8 +607,7 @@ TEST_F(AbsorberTest, BadMessageStatus) {
     EXPECT_EQ(expected_port, port);
     return true;
   };
-  connect_callback = [expected_code](net::TestConnection* connection,
-                                     net::EndPointPtr) {
+  connect_callback = [expected_code](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([expected_code](
         const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));

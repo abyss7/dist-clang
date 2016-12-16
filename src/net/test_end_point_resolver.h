@@ -1,6 +1,5 @@
 #pragma once
 
-#include <net/end_point.h>
 #include <net/end_point_resolver.h>
 #include <net/test_end_point.h>
 
