@@ -93,15 +93,15 @@ inline String GetFullPath(const String& current_dir, const String& path) {
 namespace daemon {
 
 bool CompilationDaemon::Initialize() {
-  if (conf_->has_cache() && !conf_->cache().disabled()) {
+  if (conf()->has_cache() && !conf()->cache().disabled()) {
     cache_.reset(new cache::FileCache(
-        conf_->cache().path(), conf_->cache().size(), conf_->cache().snappy(),
-        conf_->cache().store_index()));
-    if (!cache_->Run(conf_->cache().clean_period())) {
+        conf()->cache().path(), conf()->cache().size(),
+        conf()->cache().snappy(), conf()->cache().store_index()));
+    if (!cache_->Run(conf()->cache().clean_period())) {
       cache_.reset();
     }
   }
-  if (!UpdateConfiguration(*conf_)) {
+  if (!UpdateConfiguration(*conf())) {
     return false;
   }
 
@@ -110,7 +110,6 @@ bool CompilationDaemon::Initialize() {
 
 bool CompilationDaemon::UpdateConfiguration(
     const proto::Configuration& configuration) {
-  CHECK(conf_->IsInitialized());
   for (const auto& version : configuration.versions()) {
     if (!version.has_path() || version.path().empty()) {
       LOG(ERROR) << "Compiler " << version.version() << " has no path.";
@@ -124,20 +123,16 @@ bool CompilationDaemon::UpdateConfiguration(
       }
     }
   }
-  conf_.reset(new proto::Configuration(configuration));
   return BaseDaemon::UpdateConfiguration(configuration);
 }
 
 CompilationDaemon::CompilationDaemon(const proto::Configuration& configuration)
     : BaseDaemon(configuration) {
-  conf_.reset(new proto::Configuration(configuration));
-  conf_->CheckInitialized();
-
   // Setup log's verbosity early - even before configuration integrity check.
   // Everything else is done in the method |Initialize()|.
-  if (conf_->has_verbosity()) {
+  if (conf()->has_verbosity()) {
     base::Log::RangeSet ranges;
-    for (const auto& level : conf_->verbosity().levels()) {
+    for (const auto& level : conf()->verbosity().levels()) {
       if (level.has_left() && level.left() > level.right()) {
         continue;
       }
@@ -164,7 +159,7 @@ CompilationDaemon::CompilationDaemon(const proto::Configuration& configuration)
       }
       range_set.emplace(current.second, current.first);
     }
-    base::Log::Reset(conf_->verbosity().error_mark(), std::move(range_set));
+    base::Log::Reset(conf()->verbosity().error_mark(), std::move(range_set));
   }
 }
 

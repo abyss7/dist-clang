@@ -80,7 +80,7 @@ TEST_F(AbsorberTest, SuccessfulCompilation) {
     EXPECT_EQ(expected_port, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
@@ -89,6 +89,7 @@ TEST_F(AbsorberTest, SuccessfulCompilation) {
       EXPECT_TRUE(message.HasExtension(proto::Result::extension));
       EXPECT_TRUE(message.GetExtension(proto::Result::extension).has_obj());
     });
+    return true;
   };
 
   absorber.reset(new Absorber(conf));
@@ -134,7 +135,7 @@ TEST_F(AbsorberTest, SuccessfulCompilationWithBlacklist) {
     EXPECT_EQ(expected_port, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
@@ -143,6 +144,7 @@ TEST_F(AbsorberTest, SuccessfulCompilationWithBlacklist) {
       EXPECT_TRUE(message.HasExtension(proto::Result::extension));
       EXPECT_TRUE(message.GetExtension(proto::Result::extension).has_obj());
     });
+    return true;
   };
 
   absorber.reset(new Absorber(conf));
@@ -188,7 +190,7 @@ TEST_F(AbsorberTest, FailedCompilation) {
     EXPECT_EQ(expected_port, port);
     return true;
   };
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
@@ -196,6 +198,7 @@ TEST_F(AbsorberTest, FailedCompilation) {
 
       EXPECT_FALSE(message.HasExtension(proto::Result::extension));
     });
+    return true;
   };
   do_run = false;
 
@@ -251,7 +254,7 @@ TEST_F(AbsorberTest, StoreLocalCacheWithoutBlacklist) {
     return !::testing::Test::HasNonfatalFailure();
   };
 
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
@@ -264,6 +267,7 @@ TEST_F(AbsorberTest, StoreLocalCacheWithoutBlacklist) {
 
       send_condition.notify_all();
     });
+    return true;
   };
 
   run_callback = [&](base::TestProcess* process) {
@@ -347,7 +351,7 @@ TEST_F(AbsorberTest, StoreLocalCacheWithBlacklist) {
     return !::testing::Test::HasNonfatalFailure();
   };
 
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
@@ -360,6 +364,7 @@ TEST_F(AbsorberTest, StoreLocalCacheWithBlacklist) {
 
       send_condition.notify_all();
     });
+    return true;
   };
 
   run_callback = [&](base::TestProcess* process) {
@@ -455,7 +460,7 @@ TEST_F(AbsorberTest, StoreLocalCacheWithAndWithoutBlacklist) {
     return !::testing::Test::HasNonfatalFailure();
   };
 
-  connect_callback = [&](net::TestConnection* connection) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
       const auto& status = message.GetExtension(net::proto::Status::extension);
@@ -468,6 +473,7 @@ TEST_F(AbsorberTest, StoreLocalCacheWithAndWithoutBlacklist) {
 
       send_condition.notify_all();
     });
+    return true;
   };
 
   run_callback = [&](base::TestProcess* process) {
@@ -545,7 +551,8 @@ TEST_F(AbsorberTest, BadCompilerVersion) {
     EXPECT_EQ(expected_port, port);
     return true;
   };
-  connect_callback = [expected_code](net::TestConnection* connection) {
+  connect_callback = [expected_code](net::TestConnection* connection,
+                                     net::EndPointPtr) {
     connection->CallOnSend([expected_code](
         const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
@@ -554,6 +561,7 @@ TEST_F(AbsorberTest, BadCompilerVersion) {
 
       EXPECT_FALSE(message.HasExtension(proto::Result::extension));
     });
+    return true;
   };
 
   absorber.reset(new Absorber(conf));
@@ -599,7 +607,7 @@ TEST_F(AbsorberTest, BadMessageStatus) {
     EXPECT_EQ(expected_port, port);
     return true;
   };
-  connect_callback = [expected_code](net::TestConnection* connection) {
+  connect_callback = [expected_code](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([expected_code](
         const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
@@ -608,6 +616,7 @@ TEST_F(AbsorberTest, BadMessageStatus) {
 
       EXPECT_FALSE(message.HasExtension(proto::Result::extension));
     });
+    return true;
   };
 
   absorber.reset(new Absorber(conf));

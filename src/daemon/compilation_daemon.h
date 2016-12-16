@@ -51,12 +51,9 @@ class CompilationDaemon : public BaseDaemon {
                          const cache::ExtraFiles& extra_files,
                          const cache::FileCache::Entry& entry);
 
-  inline SharedPtr<const proto::Configuration> conf() const { return conf_; }
-
  private:
   using PluginNameMap = HashMap<String /* name */, String /* path */>;
 
-  SharedPtr<const proto::Configuration> conf_;
   UniquePtr<cache::FileCache> cache_;
 };
 

@@ -16,6 +16,9 @@ class BaseDaemon {
   virtual bool Initialize() THREAD_UNSAFE = 0;
   inline virtual bool UpdateConfiguration(
       const proto::Configuration& configuration) THREAD_SAFE {
+    configuration.CheckInitialized();
+    UniqueLock lock(conf_mutex_);
+    conf_.reset(new proto::Configuration(configuration));
     return true;
   }
 
@@ -46,10 +49,20 @@ class BaseDaemon {
     return network_service_->Connect(end_point, error);
   }
 
+  inline SharedPtr<proto::Configuration> conf() const THREAD_SAFE {
+    UniqueLock lock(conf_mutex_);
+    return conf_;
+  }
+
   UniquePtr<net::EndPointResolver> resolver_;
 
  private:
   void HandleNewConnection(net::ConnectionPtr connection);
+
+  // TODO(ilezhankin): Implement and use WeaklessPtr here. Otherwise, the
+  //                   |SharedPtr::reset()| is non-atomic and thread-unsafe.
+  mutable Mutex conf_mutex_;
+  SharedPtr<proto::Configuration> conf_;
 
   UniquePtr<net::NetworkService> network_service_;
 };
