@@ -81,10 +81,12 @@ Emitter::Emitter(const proto::Configuration& configuration)
   auto config = conf();
   CHECK(config->has_emitter());
 
-  workers_.reset(new base::WorkerPool);
+  workers_.reset(new base::WorkerPool(true));
   all_tasks_.reset(new Queue);
   cache_tasks_.reset(new Queue);
   failed_tasks_.reset(new Queue);
+
+  runs_coordinators_task_ = config->emitter().coordinators_size() > 0;
 
   local_tasks_.reset(new QueueAggregator);
   local_tasks_->Aggregate(failed_tasks_.get());
@@ -108,20 +110,30 @@ Emitter::Emitter(const proto::Configuration& configuration)
     }
   }
 
-  for (const auto& remote : config->emitter().remotes()) {
-    if (!remote.disabled()) {
+  remote_workers_.reset(new base::WorkerPool(true));
+  SpawnRemoteWorkers();
+  if (runs_coordinators_task_) {
+    Vector<ResolveFn> resolvers;
+    resolvers.reserve(config->emitter().coordinators_size());
+    for (const auto& coordinator : config->emitter().coordinators()) {
+      if (coordinator.disabled()) {
+        continue;
+      }
       auto resolver = [
-        this, host = remote.host(), port = static_cast<ui16>(remote.port()),
-        ipv6 = remote.ipv6()
+        this,
+        host = coordinator.host(),
+        port = static_cast<ui16>(coordinator.port()),
+        ipv6 = coordinator.ipv6()
       ]() {
         auto optional = resolver_->Resolve(host, port, ipv6);
         DCHECK(optional);
         optional->Wait();
         return optional->GetValue();
       };
-      Worker worker = std::bind(&Emitter::DoRemoteExecute, this, _1, resolver);
-      workers_->AddWorker("Remote Execute Worker"_l, worker, remote.threads());
+      resolvers.push_back(resolver);
     }
+    Worker worker = std::bind(&Emitter::DoPoll, this, _1, resolvers);
+    workers_->AddWorker("Coordinator Poll Worker"_l, worker);
   }
 }
 
@@ -131,6 +143,7 @@ Emitter::~Emitter() {
   failed_tasks_->Close();
   local_tasks_->Close();
   workers_.reset();
+  remote_workers_.reset();
 }
 
 bool Emitter::Initialize() {
@@ -143,23 +156,45 @@ bool Emitter::Initialize() {
   }
 
   if (config->emitter().only_failed()) {
-    bool has_active_remote = false;
+    bool has_active_remote_or_coordinator = false;
 
     for (const auto& remote : config->emitter().remotes()) {
       if (!remote.disabled()) {
-        has_active_remote = true;
+        has_active_remote_or_coordinator = true;
         break;
       }
     }
 
-    if (!has_active_remote) {
-      LOG(ERROR) << "Daemon will hang without active remotes and set flag "
-                    "\"emitter.only_failed\"";
+    for (const auto& coordinator : config->emitter().coordinators()) {
+      if (!coordinator.disabled()) {
+        has_active_remote_or_coordinator = true;
+        break;
+      }
+    }
+
+    if (!has_active_remote_or_coordinator) {
+      LOG(ERROR) << "Daemon will hang without active remotes or coordinators "
+                    "and set flag \"emitter.only_failed\"";
       return false;
     }
   }
 
   return CompilationDaemon::Initialize();
+}
+
+
+bool Emitter::UpdateConfiguration(const proto::Configuration& configuration) {
+  if (runs_coordinators_task_ && configuration.has_emitter()
+      && configuration.emitter().remotes_size() > 0) {
+    proto::Configuration config(*conf());
+    auto* emitter = config.mutable_emitter();
+    emitter->clear_remotes();
+    for (const auto& remote : configuration.emitter().remotes()) {
+      emitter->add_remotes()->CopyFrom(remote);
+    }
+    return CompilationDaemon::UpdateConfiguration(config);
+  }
+  return CompilationDaemon::UpdateConfiguration(configuration);
 }
 
 bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
@@ -200,6 +235,27 @@ void Emitter::SetExtraFiles(const cache::ExtraFiles& extra_files,
   auto sanitize_blacklist = extra_files.find(cache::SANITIZE_BLACKLIST);
   if (sanitize_blacklist != extra_files.end()) {
     message->set_sanitize_blacklist(sanitize_blacklist->second);
+  }
+}
+
+void Emitter::SpawnRemoteWorkers() {
+  using Worker = base::WorkerPool::SimpleWorker;
+  for (const auto& remote : conf()->emitter().remotes()) {
+    if (remote.disabled()) {
+      return;
+    }
+    auto resolver = [
+      this, host = remote.host(), port = static_cast<ui16>(remote.port()),
+      ipv6 = remote.ipv6()
+    ]() {
+      auto optional = resolver_->Resolve(host, port, ipv6);
+      DCHECK(optional);
+      optional->Wait();
+      return optional->GetValue();
+    };
+    Worker worker = std::bind(&Emitter::DoRemoteExecute, this, _1, resolver);
+    remote_workers_->AddWorker(
+        "Remote Execute Worker"_l, worker, remote.threads());
   }
 }
 
@@ -525,6 +581,81 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
     failed_tasks_->Push(std::move(*task));
     counter.ReportOnDestroy(true);
   }
+}
+
+void Emitter::DoPoll(const base::WorkerPool& pool,
+                     Vector<ResolveFn> resolvers) {
+  ui32 sleep_period = 1;
+  auto Sleep = [&sleep_period]() mutable {
+    LOG(INFO) << "Sleeping for " << sleep_period
+              << " seconds before next attempt";
+    std::this_thread::sleep_for(std::chrono::seconds(sleep_period));
+    if (sleep_period < static_cast<ui32>(-1) / 2) {
+      sleep_period <<= 1;
+    }
+  };
+
+  do {
+    net::ConnectionPtr connection;
+    for (auto resolver = resolvers.begin(); resolver != resolvers.end();
+         ++resolver) {
+      net::EndPointPtr end_point;
+      end_point = (*resolver)();
+      if (!end_point) {
+        continue;
+      }
+
+      String error;
+      connection = Connect(end_point, &error);
+      if (!connection) {
+        LOG(WARNING) << "Failed to connect to " << end_point->Print() << ": "
+                     << error;
+        continue;
+      } else {
+        // In success case rotate resolvers to make sure we start skip 'bad'
+        // coordinators and start with a 'good' one.
+        std::rotate(resolvers.begin(), resolver, resolvers.end());
+        break;
+      }
+    }
+    if (!connection) {
+      Sleep();
+      continue;
+    }
+
+    sleep_period = 1;
+    UniquePtr<proto::Configuration> configuration(new proto::Configuration);
+    if (!connection->SendSync(std::move(configuration))) {
+      std::rotate(resolvers.begin(), resolvers.begin() + 1, resolvers.end());
+      continue;
+    }
+
+    Universal reply(new net::proto::Universal);
+    if (!connection->ReadSync(reply.get())) {
+      std::rotate(resolvers.begin(), resolvers.begin() + 1, resolvers.end());
+      continue;
+    }
+
+    if (reply->HasExtension(proto::Configuration::extension)) {
+      auto* config = reply->MutableExtension(proto::Configuration::extension);
+      UpdateConfiguration(*config);
+      UniquePtr<base::WorkerPool> extinction_compilation_pool(
+          new base::WorkerPool(true));
+      std::swap(extinction_compilation_pool, remote_workers_);
+      SpawnRemoteWorkers();
+    } else {
+      LOG(WARNING) << "Got reply from coordinator, but without configuration "
+                   << "extension";
+      std::rotate(resolvers.begin(), resolvers.begin() + 1, resolvers.end());
+      continue;
+    }
+  } while (!pool.WaitUntilShutdown(
+      std::chrono::seconds(conf()->emitter().poll_interval())));
+  // After all create a pool that is not forced to shut down.
+  // It ensures all remote tasks are resolved.
+  UniquePtr<base::WorkerPool> finishing_pool(new base::WorkerPool);
+  std::swap(finishing_pool, remote_workers_);
+  SpawnRemoteWorkers();
 }
 
 }  // namespace daemon

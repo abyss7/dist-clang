@@ -26,6 +26,8 @@ source_set("daemon") {
     "collector.h",
     "compilation_daemon.cc",
     "compilation_daemon.h",
+    "coordinator.cc",
+    "coordinator.h",
     "emitter.cc",
     "emitter.h",
   ]

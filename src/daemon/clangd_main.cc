@@ -3,6 +3,7 @@
 #include <daemon/absorber.h>
 #include <daemon/collector.h>
 #include <daemon/configuration.h>
+#include <daemon/coordinator.h>
 #include <daemon/emitter.h>
 
 #include STL(iostream)
@@ -29,7 +30,7 @@ int main(int argc, char* argv[]) {
   signal(SIGSEGV, signal_handler);
 
   daemon::Configuration configuration(argc, argv);
-  UniquePtr<daemon::BaseDaemon> daemon, collector;
+  UniquePtr<daemon::BaseDaemon> daemon, collector, coordinator;
 
   if (configuration.daemonize()) {
 // The function |daemon()| is deprecated on Mac. Use launchd instead.
@@ -50,12 +51,26 @@ int main(int argc, char* argv[]) {
                << configuration.config().user_id();
   }
 
-  if (configuration.config().has_collector()) {
-    collector.reset(new daemon::Collector(configuration.config()));
+  // Initialize collector, if any.
+  {
+    if (configuration.config().has_collector()) {
+      collector.reset(new daemon::Collector(configuration.config()));
+    }
+
+    if (collector && !collector->Initialize()) {
+      LOG(FATAL) << "Collector failed to initialize.";
+    }
   }
 
-  if (collector && !collector->Initialize()) {
-    LOG(FATAL) << "Collector failed to initialize.";
+  // Initialize coordinator, if any.
+  {
+    if (configuration.config().has_coordinator()) {
+      coordinator.reset(new daemon::Coordinator(configuration.config()));
+    }
+
+    if (coordinator && !coordinator->Initialize()) {
+      LOG(FATAL) << "Coordinator failed to initialize.";
+    }
   }
 
   if (configuration.config().has_absorber()) {

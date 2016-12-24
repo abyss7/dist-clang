@@ -12,7 +12,7 @@ namespace daemon {
 
 Collector::Collector(const proto::Configuration& configuration)
     : BaseDaemon(configuration) {
-  CHECK(conf()->has_collector());
+  CHECK(configuration.has_collector());
 }
 
 bool Collector::Initialize() {
