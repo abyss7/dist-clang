@@ -9,16 +9,17 @@
 namespace dist_clang {
 namespace daemon {
 
-Coordinator::Coordinator(const proto::Configuration& configuration)
-    : BaseDaemon(configuration) {
-  CHECK(configuration.has_coordinator());
+Coordinator::Coordinator(const Configuration& conf) : BaseDaemon(conf) {
+  CHECK(conf.has_coordinator());
 }
 
 bool Coordinator::Initialize() {
+  auto conf = this->conf();
+
   String error;
-  const auto& local = conf()->coordinator().local();
+  const auto& local = conf->coordinator().local();
   if (!Listen(local.host(), local.port(), local.ipv6(), &error)) {
-    LOG(ERROR) << "[Coordinator] Failed to listen on " << local.host() << ":"
+    LOG(ERROR) << "Coordinator failed to listen on " << local.host() << ":"
                << local.port() << " : " << error;
     return false;
   }
@@ -39,12 +40,12 @@ bool Coordinator::HandleNewMessage(net::ConnectionPtr connection,
     return connection->ReportStatus(status);
   }
 
-  if (message->HasExtension(proto::Configuration::extension)) {
-    UniquePtr<proto::Configuration> configuration(
-        message->ReleaseExtension(proto::Configuration::extension));
+  if (message->HasExtension(Configuration::extension)) {
+    UniquePtr<Configuration> configuration(
+        message->ReleaseExtension(Configuration::extension));
     configuration->Clear();
 
-    proto::Configuration::Emitter* emitter = configuration->mutable_emitter();
+    Configuration::Emitter* emitter = configuration->mutable_emitter();
     // FIXME(matthewtff): Remove |socket_path| as required fields go away after
     // migration to Protobuf 3.
     emitter->set_socket_path("no-op");

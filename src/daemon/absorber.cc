@@ -15,19 +15,17 @@ using namespace std::placeholders;
 namespace dist_clang {
 namespace daemon {
 
-Absorber::Absorber(const proto::Configuration& configuration)
-    : CompilationDaemon(configuration) {
+Absorber::Absorber(const Configuration& conf) : CompilationDaemon(conf) {
   using Worker = base::WorkerPool::SimpleWorker;
-  auto config = conf();
-  CHECK(config->has_absorber() && !config->absorber().local().disabled());
+  CHECK(conf.has_absorber() && !conf.absorber().local().disabled());
 
-  workers_.reset(new base::WorkerPool);
-  tasks_.reset(new Queue(config->pool_capacity()));
+  workers_ = std::make_unique<base::WorkerPool>();
+  tasks_ = std::make_unique<Queue>(conf.pool_capacity());
 
   {
     Worker worker = std::bind(&Absorber::DoExecute, this, _1);
     workers_->AddWorker("Execute Worker"_l, worker,
-                        config->absorber().local().threads());
+                        conf.absorber().local().threads());
   }
 }
 
@@ -37,16 +35,17 @@ Absorber::~Absorber() {
 }
 
 bool Absorber::Initialize() {
+  auto conf = this->conf();
+
   String error;
-  auto config = conf();
-  const auto& local = config->absorber().local();
+  const auto& local = conf->absorber().local();
   if (!Listen(local.host(), local.port(), local.ipv6(), &error)) {
     LOG(ERROR) << "Absorber failed to listen on " << local.host() << ":"
                << local.port() << " : " << error;
     return false;
   }
 
-  if (config->has_cache() && config->cache().has_direct()) {
+  if (conf->has_cache() && conf->cache().has_direct()) {
     LOG(WARNING) << "Absorber doesn't use the Direct Cache mode. The flag "
                     "\"cache.direct\" will be ignored";
   }

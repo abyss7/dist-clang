@@ -10,7 +10,6 @@ namespace daemon {
 class CompilationDaemon : public BaseDaemon {
  public:
   bool Initialize() override;
-  bool UpdateConfiguration(const proto::Configuration& configuration) override;
 
   static base::ProcessPtr CreateProcess(const base::proto::Flags& flags,
                                         ui32 user_id,
@@ -19,7 +18,7 @@ class CompilationDaemon : public BaseDaemon {
                                         Immutable cwd_path = Immutable());
 
  protected:
-  explicit CompilationDaemon(const proto::Configuration& configuration);
+  explicit CompilationDaemon(const Configuration& conf);
 
   cache::string::HandledHash GenerateHash(
       const base::proto::Flags& flags, const cache::string::HandledSource& code,
@@ -50,6 +49,11 @@ class CompilationDaemon : public BaseDaemon {
                          const cache::string::HandledSource& source,
                          const cache::ExtraFiles& extra_files,
                          const cache::FileCache::Entry& entry);
+
+  bool Check(const Configuration& conf) const override;
+  inline bool Reload(const Configuration& conf) override {
+    return BaseDaemon::Reload(conf);
+  }
 
  private:
   using PluginNameMap = HashMap<String /* name */, String /* path */>;

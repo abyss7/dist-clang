@@ -9,7 +9,7 @@ namespace daemon {
 
 class Absorber : public CompilationDaemon {
  public:
-  explicit Absorber(const proto::Configuration& configuration);
+  explicit Absorber(const Configuration& conf);
   virtual ~Absorber();
 
   bool Initialize() override;

@@ -7,7 +7,7 @@ namespace daemon {
 
 class Coordinator : public BaseDaemon {
  public:
-  explicit Coordinator(const proto::Configuration& configuration);
+  explicit Coordinator(const Configuration& conf);
 
   bool Initialize() override;
 

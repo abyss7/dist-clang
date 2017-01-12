@@ -21,9 +21,7 @@ class WorkerPool {
 
   bool WaitUntilShutdown(const std::chrono::seconds& duration) const;
 
-  bool IsShuttingDown() const {
-    return WaitUntilShutdown(ZERO_DURATION);
-  }
+  bool IsShuttingDown() const { return WaitUntilShutdown(ZERO_DURATION); }
 
  private:
   Vector<Thread> workers_;
@@ -32,7 +30,8 @@ class WorkerPool {
   mutable std::condition_variable shutdown_condition_;
   Pipe self_;
 
-  static const std::chrono::seconds ZERO_DURATION;
+  static const constexpr std::chrono::seconds ZERO_DURATION =
+      std::chrono::seconds::zero();
 };
 
 }  // namespace base

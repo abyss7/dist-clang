@@ -10,14 +10,15 @@
 namespace dist_clang {
 namespace daemon {
 
-Collector::Collector(const proto::Configuration& configuration)
-    : BaseDaemon(configuration) {
-  CHECK(configuration.has_collector());
+Collector::Collector(const Configuration& conf) : BaseDaemon(conf) {
+  CHECK(conf.has_collector());
 }
 
 bool Collector::Initialize() {
+  auto conf = this->conf();
+
   String error;
-  const auto& local = conf()->collector().local();
+  const auto& local = conf->collector().local();
   if (!Listen(local.host(), local.port(), local.ipv6(), &error)) {
     LOG(ERROR) << "Collector failed to listen on " << local.host() << ":"
                << local.port() << " : " << error;

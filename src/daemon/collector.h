@@ -7,7 +7,7 @@ namespace daemon {
 
 class Collector : public BaseDaemon {
  public:
-  explicit Collector(const proto::Configuration& configuration);
+  explicit Collector(const Configuration& conf);
 
   bool Initialize() override;
 
