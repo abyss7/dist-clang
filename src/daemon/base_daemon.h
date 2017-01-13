@@ -13,24 +13,41 @@ namespace daemon {
 /** Daemon and configuration.
  *
  *  Construction.
- *      Use configuration only to initialize non-reloadable internals. Don't
- *      call |UpdateConfiguration()| here since it's a virtual method!
+ *      Initialize unconditional non-reloadable parts. Make vital checks.
+ *      |BaseDaemon| stores initial configuration internally.
+ *      Don't call |conf()|, |Check()|, |Reload()| or |Update()| here!
  *
- *  Initialization.
- *      |Initialize()| reloadable parts (via |UpdateConfiguration()|,
- *      and parts that may fail since we don't use exceptions. Don't forget to
- *      call the method |Initialize()| of a base class.
+ *  Initialize()
+ *      Initialize non-reloadable parts that may fail at run-time.
+ *      |BaseDaemon::Initialize()| also calls |Check()| and |Reload()| on
+ *      current configuration, thus, initializing reloadable parts too.
+ *      Don't forget to call |Initialize()| of a base class at the end!
  *
- *  Configuration update.
- *      Configuration may be updated in a thread-safe (read, atomic) manner at
- *      any time, and the daemon should reload corresponding parts.
- *      |UpdateConfiguration()| should check the correctness of new
- *      configuration, the full new configuration is required. Don't forget to
- *      call the method |UpdateConfiguration()| of a base class.
+ *  Check()
+ *      Make checks for a _full_ current or new configuration.
+ *      This method is called automatically on a configuration update attempt.
+ *      Don't forget to call |Check()| of a base class at the beginning!
+ *
+ *  Reload()
+ *      Replace reloadable parts according to a _full_ current or new
+ *      configuration, leaving room to restore previous state in case of
+ *      failure - new configuration won't be applied if reloading fails.
+ *      Don't forget to call |Reload()| of a base class at the end!
+ *
+ *  Update()
+ *      It's a thread-safe (read: atomic) way to update configuration with all
+ *      checks and reloads. This method applies new configuration if there are
+ *      no any failures.
  *
  *  Configuration usage.
- *      If some method uses configuration then store the shared pointer at the
- *      beginning (via |conf()|) so that configuration won't suddenly change.
+ *      If some method wants to use current configuration, then it should store
+ *      the reference at the beginning:
+ *
+ *          auto conf = this->conf();
+ *
+ *      It's necessary to make sure that configuration is the same during method
+ *      execution. Also it's a little syntax hack that prevents accidental usage
+ *      of |conf()| - a compiler will require explicit call |this->conf()|.
  */
 class BaseDaemon {
  public:
