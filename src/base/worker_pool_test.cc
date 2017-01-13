@@ -15,10 +15,10 @@ TEST(WorkerPoolTest, InstantExitOnShutdown) {
 
   UniqueLock lock(mutex);
 
-  pool->AddWorker("TestWorker"_l, [&] (const WorkerPool& pool) {
+  pool->AddWorker("TestWorker"_l, [&](const WorkerPool& pool) {
     UniqueLock lock(mutex);
-    condition.wait(lock, [&ready] () -> bool { return ready; });
-    EXPECT_TRUE(pool.WaitUntilShutdown(std::chrono::seconds(5)));
+    condition.wait(lock, [&ready]() -> bool { return ready; });
+    EXPECT_TRUE(pool.WaitUntilShutdown(Seconds(5)));
     done = true;
     condition.notify_one();
   });
@@ -26,8 +26,7 @@ TEST(WorkerPoolTest, InstantExitOnShutdown) {
   Thread thread("Test"_l, [&] { pool.reset(); });
   ready = true;
   condition.notify_one();
-  condition.wait_for(lock, std::chrono::seconds(1),
-                     [&done] () -> bool { return done; });
+  condition.wait_for(lock, Seconds(1), [&done]() -> bool { return done; });
   ASSERT_TRUE(done);
 
   thread.join();
@@ -44,10 +43,10 @@ TEST(WorkerPoolTest, DoesNotForciblyExitOnShutdown) {
 
   Clock::time_point start = Clock::now();
 
-  pool->AddWorker("TestWorker"_l, [&] (const WorkerPool& pool) {
+  pool->AddWorker("TestWorker"_l, [&](const WorkerPool& pool) {
     UniqueLock lock(mutex);
-    condition.wait(lock, [&ready] () -> bool { return ready; });
-    EXPECT_FALSE(pool.WaitUntilShutdown(std::chrono::seconds(1)));
+    condition.wait(lock, [&ready]() -> bool { return ready; });
+    EXPECT_FALSE(pool.WaitUntilShutdown(Seconds(1)));
     done = true;
     condition.notify_one();
   });
@@ -55,10 +54,9 @@ TEST(WorkerPoolTest, DoesNotForciblyExitOnShutdown) {
   Thread thread("Test"_l, [&] { pool.reset(); });
   ready = true;
   condition.notify_one();
-  condition.wait_for(lock, std::chrono::seconds(2),
-                     [&done] () -> bool { return done; });
+  condition.wait_for(lock, Seconds(2), [&done]() -> bool { return done; });
   ASSERT_TRUE(done);
-  ASSERT_LE(std::chrono::seconds(1), Clock::now() - start);
+  ASSERT_LE(Seconds(1), Clock::now() - start);
 
   thread.join();
 }

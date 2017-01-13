@@ -114,7 +114,7 @@ bool FileCache::Run(ui64 clean_period) {
 
   base::WorkerPool::SimpleWorker worker =
       [this, clean_period](const base::WorkerPool& pool) {
-        while (!pool.WaitUntilShutdown(std::chrono::seconds(clean_period))) {
+        while (!pool.WaitUntilShutdown(Seconds(clean_period))) {
           new_entries_.reset(new EntryList, new_entries_deleter_);
         }
       };
