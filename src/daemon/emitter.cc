@@ -537,7 +537,7 @@ void Emitter::DoPoll(const base::WorkerPool& pool,
   auto conf = this->conf();
   const auto poll_interval = conf->emitter().poll_interval();
 
-  while (!pool.WaitUntilShutdown(std::chrono::seconds(poll_interval))) {
+  do {
     net::ConnectionPtr connection;
 
     // Try to get first successful connection to a coordinator.
@@ -597,7 +597,7 @@ void Emitter::DoPoll(const base::WorkerPool& pool,
       std::rotate(resolvers.begin(), resolvers.begin() + 1, resolvers.end());
       continue;
     }
-  }
+  } while (!pool.WaitUntilShutdown(std::chrono::seconds(poll_interval)));
 
   // To ensure all remote tasks are handled before exit - create a pool that is
   // not forced to shut down.
