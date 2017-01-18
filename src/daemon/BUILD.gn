@@ -74,6 +74,7 @@ protobuf("config_proto") {
 
 protobuf("remote_proto") {
   deps = [
+    "//src/base:base_proto",
     "//src/net:net_proto",
   ]
   sources = [
