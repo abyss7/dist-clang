@@ -10,20 +10,34 @@ namespace dist_clang {
 namespace daemon {
 
 bool BaseDaemon::Initialize() {
-  return network_service_->Run();
+  return Check() && network_service_->Run() && Reload();
 }
 
-BaseDaemon::BaseDaemon(const proto::Configuration& configuration)
+BaseDaemon::BaseDaemon(const Configuration& conf)
     : resolver_(net::EndPointResolver::Create()),
-      conf_(new proto::Configuration(configuration)),
+      conf_(std::make_shared<Configuration>(conf)),
       network_service_(net::NetworkService::Create(
-          configuration.connect_timeout(), configuration.read_timeout(),
-          configuration.send_timeout(), configuration.read_minimum())) {
+          conf.connect_timeout(), conf.read_timeout(), conf.send_timeout(),
+          conf.read_minimum())) {
   conf_->CheckInitialized();
 }
 
 BaseDaemon::~BaseDaemon() {
   network_service_.reset();
+}
+
+bool BaseDaemon::Update(const Configuration& conf) {
+  if (!Check(conf)) {
+    return false;
+  }
+
+  if (Reload(conf)) {
+    UniqueLock lock(conf_mutex_);
+    conf_ = std::make_shared<Configuration>(conf);
+    return true;
+  }
+
+  return false;
 }
 
 void BaseDaemon::HandleNewConnection(net::ConnectionPtr connection) {

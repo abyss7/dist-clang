@@ -329,7 +329,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
     EXPECT_EQ(68u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  std::this_thread::sleep_for(Seconds(1));
 
   {
     FileCache::Entry entry{obj_content[1], String(), String()};
@@ -337,12 +337,12 @@ TEST(FileCacheTest, ExceedCacheSize) {
     EXPECT_EQ(137u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  std::this_thread::sleep_for(Seconds(1));
 
   {
     FileCache::Entry entry{obj_content[2], String(), String()};
     cache.Store(code[2], {}, cl, version, entry);
-    std::this_thread::sleep_for(std::chrono::seconds(3));
+    std::this_thread::sleep_for(Seconds(3));
     EXPECT_EQ(70u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 

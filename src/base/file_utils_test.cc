@@ -55,7 +55,7 @@ TEST(FileUtilsTest, LeastRecentPath) {
 
   ASSERT_NE(-1, mkdir(dir.c_str(), 0777));
 
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  std::this_thread::sleep_for(Seconds(1));
   int fd = open(file1.c_str(), O_CREAT, 0777);
   ASSERT_NE(-1, fd);
   close(fd);
@@ -67,7 +67,7 @@ TEST(FileUtilsTest, LeastRecentPath) {
                        << " ; path mtime is " << GetModificationTime(path).first
                        << ":" << GetModificationTime(path).second;
 
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  std::this_thread::sleep_for(Seconds(1));
   fd = open(file2.c_str(), O_CREAT, 0777);
   ASSERT_NE(-1, fd);
   close(fd);
@@ -80,7 +80,7 @@ TEST(FileUtilsTest, LeastRecentPath) {
                          << GetModificationTime(path).first << ":"
                          << GetModificationTime(path).second;
 
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  std::this_thread::sleep_for(Seconds(1));
   fd = open(file3.c_str(), O_CREAT, 0777);
   ASSERT_NE(-1, fd);
   close(fd);
@@ -103,7 +103,7 @@ TEST(FileUtilsTest, LeastRecentPathWithRegex) {
   ASSERT_NE(-1, fd);
   close(fd);
 
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  std::this_thread::sleep_for(Seconds(1));
   fd = open(file2.c_str(), O_CREAT, 0777);
   ASSERT_NE(-1, fd);
   close(fd);
@@ -117,8 +117,8 @@ TEST(FileUtilsTest, TempFile) {
   String error;
   const String temp_file = CreateTempFile(&error);
 
-  ASSERT_FALSE(temp_file.empty())
-      << "Failed to create temporary file: " << error;
+  ASSERT_FALSE(temp_file.empty()) << "Failed to create temporary file: "
+                                  << error;
   ASSERT_TRUE(File::Exists(temp_file));
   ASSERT_TRUE(File::Delete(temp_file));
 }

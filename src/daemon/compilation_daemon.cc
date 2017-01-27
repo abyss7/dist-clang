@@ -93,46 +93,27 @@ inline String GetFullPath(const String& current_dir, const String& path) {
 namespace daemon {
 
 bool CompilationDaemon::Initialize() {
-  if (conf()->has_cache() && !conf()->cache().disabled()) {
-    cache_.reset(new cache::FileCache(
-        conf()->cache().path(), conf()->cache().size(),
-        conf()->cache().snappy(), conf()->cache().store_index()));
-    if (!cache_->Run(conf()->cache().clean_period())) {
+  auto conf = this->conf();
+
+  if (conf->has_cache() && !conf->cache().disabled()) {
+    cache_ = std::make_unique<cache::FileCache>(
+        conf->cache().path(), conf->cache().size(), conf->cache().snappy(),
+        conf->cache().store_index());
+    if (!cache_->Run(conf->cache().clean_period())) {
       cache_.reset();
     }
-  }
-  if (!UpdateConfiguration(*conf())) {
-    return false;
   }
 
   return BaseDaemon::Initialize();
 }
 
-bool CompilationDaemon::UpdateConfiguration(
-    const proto::Configuration& configuration) {
-  for (const auto& version : configuration.versions()) {
-    if (!version.has_path() || version.path().empty()) {
-      LOG(ERROR) << "Compiler " << version.version() << " has no path.";
-      return false;
-    }
-    for (const auto& plugin : version.plugins()) {
-      if (!plugin.has_path() || plugin.path().empty()) {
-        LOG(ERROR) << "Plugin " << plugin.name() << " for compiler "
-                   << version.version() << " has no path.";
-        return false;
-      }
-    }
-  }
-  return BaseDaemon::UpdateConfiguration(configuration);
-}
-
-CompilationDaemon::CompilationDaemon(const proto::Configuration& configuration)
-    : BaseDaemon(configuration) {
-  // Setup log's verbosity early - even before configuration integrity check.
+CompilationDaemon::CompilationDaemon(const Configuration& conf)
+    : BaseDaemon(conf) {
+  // Setup log verbosity early - even before configuration integrity check.
   // Everything else is done in the method |Initialize()|.
-  if (conf()->has_verbosity()) {
+  if (conf.has_verbosity()) {
     base::Log::RangeSet ranges;
-    for (const auto& level : conf()->verbosity().levels()) {
+    for (const auto& level : conf.verbosity().levels()) {
       if (level.has_left() && level.left() > level.right()) {
         continue;
       }
@@ -159,7 +140,7 @@ CompilationDaemon::CompilationDaemon(const proto::Configuration& configuration)
       }
       range_set.emplace(current.second, current.first);
     }
-    base::Log::Reset(conf()->verbosity().error_mark(), std::move(range_set));
+    base::Log::Reset(conf.verbosity().error_mark(), std::move(range_set));
   }
 }
 
@@ -173,9 +154,9 @@ HandledHash CompilationDaemon::GenerateHash(
 
 bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
                                       net::proto::Status* status) const {
-  auto config = conf();
-  auto getCompilerPath = [&config](String version, String* path) {
-    for (const auto& conf_version : config->versions()) {
+  auto conf = this->conf();
+  auto getCompilerPath = [&conf](String version, String* path) {
+    for (const auto& conf_version : conf->versions()) {
       if (conf_version.version() == version) {
         path->assign(conf_version.path());
         return true;
@@ -201,9 +182,9 @@ bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
     }
   }
 
-  auto getPluginsByCompilerVersion = [&config](String version,
-                                               PluginNameMap& plugin_map) {
-    for (const auto& conf_version : config->versions()) {
+  auto getPluginsByCompilerVersion = [&conf](String version,
+                                             PluginNameMap& plugin_map) {
+    for (const auto& conf_version : conf->versions()) {
       if (conf_version.version() == version) {
         const auto& conf_plugins = conf_version.plugins();
         for (const auto& conf_plugin : conf_plugins) {
@@ -277,11 +258,12 @@ bool CompilationDaemon::SearchSimpleCache(
 bool CompilationDaemon::SearchDirectCache(
     const base::proto::Flags& flags, const String& current_dir,
     cache::FileCache::Entry* entry) const {
-  auto config = conf();
-  DCHECK(config->has_emitter() && !config->has_absorber());
+  auto conf = this->conf();
+
+  DCHECK(conf->has_emitter() && !conf->has_absorber());
   DCHECK(flags.has_input());
 
-  if (!cache_ || !config->cache().direct()) {
+  if (!cache_ || !conf->cache().direct()) {
     return false;
   }
 
@@ -324,12 +306,13 @@ void CompilationDaemon::UpdateSimpleCache(
 void CompilationDaemon::UpdateDirectCache(
     const base::proto::Local* message, const HandledSource& source,
     const ExtraFiles& extra_files, const cache::FileCache::Entry& entry) {
+  auto conf = this->conf();
+  DCHECK(conf->has_emitter() && !conf->has_absorber());
+
   const auto& flags = message->flags();
-  auto config = conf();
-  DCHECK(config->has_emitter() && !config->has_absorber());
   DCHECK(flags.has_input());
 
-  if (!cache_ || !config->cache().direct()) {
+  if (!cache_ || !conf->cache().direct()) {
     return;
   }
 
@@ -355,6 +338,28 @@ void CompilationDaemon::UpdateDirectCache(
   } else {
     LOG(CACHE_ERROR) << "Failed to parse deps or read input " << input_path;
   }
+}
+
+bool CompilationDaemon::Check(const Configuration& conf) const {
+  if (!BaseDaemon::Check(conf)) {
+    return false;
+  }
+
+  for (const auto& version : conf.versions()) {
+    if (!version.has_path() || version.path().empty()) {
+      LOG(ERROR) << "Compiler " << version.version() << " has no path.";
+      return false;
+    }
+    for (const auto& plugin : version.plugins()) {
+      if (!plugin.has_path() || plugin.path().empty()) {
+        LOG(ERROR) << "Plugin " << plugin.name() << " for compiler "
+                   << version.version() << " has no path.";
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
 
 // static

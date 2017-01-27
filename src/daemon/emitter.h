@@ -9,11 +9,14 @@ namespace daemon {
 
 class Emitter : public CompilationDaemon {
  public:
-  explicit Emitter(const proto::Configuration& configuration);
+  explicit Emitter(const Configuration& conf);
   virtual ~Emitter();
 
   bool Initialize() override;
-  bool UpdateConfiguration(const proto::Configuration& configuration) override;
+
+ protected:
+  bool Check(const Configuration& conf) const override;
+  bool Reload(const Configuration& conf) override;
 
  private:
   enum TaskIndex {
@@ -49,7 +52,9 @@ class Emitter : public CompilationDaemon {
   UniquePtr<base::WorkerPool> workers_;
   UniquePtr<base::WorkerPool> remote_workers_;
 
-  bool runs_coordinators_task_;
+  bool handle_all_tasks_ = true;
+  // Indicates if we force shutdown of the remote workers pool: we shouldn't if
+  // there is no coordinators, or if we stopped to poll coordinators.
 };
 
 }  // namespace daemon

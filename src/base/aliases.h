@@ -4,6 +4,7 @@
 
 #include STL(array)
 #include STL(atomic)
+#include STL(chrono)
 #include STL(cstdint)
 #include STL(functional)
 #include STL(list)
@@ -65,6 +66,8 @@ using Mutex = std::mutex;
 
 template <class U, class V = U>
 using Pair = std::pair<U, V>;
+
+using Seconds = std::chrono::seconds;
 
 template <class T>
 using SharedPtr = std::shared_ptr<T>;

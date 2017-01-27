@@ -6,9 +6,6 @@
 namespace dist_clang {
 namespace base {
 
-const std::chrono::seconds WorkerPool::ZERO_DURATION
-    = std::chrono::seconds::zero();
-
 WorkerPool::WorkerPool(bool force_shut_down)
     : is_shutting_down_(false), force_shut_down_(force_shut_down) {
   // TODO: check somehow for error in the |pipe()| call.
@@ -47,7 +44,7 @@ void WorkerPool::AddWorker(Literal name, const SimpleWorker& worker,
   }
 }
 
-bool WorkerPool::WaitUntilShutdown(const std::chrono::seconds& duration) const {
+bool WorkerPool::WaitUntilShutdown(const Seconds& duration) const {
   if (is_shutting_down_) {
     return true;
   }
