@@ -90,7 +90,7 @@ class QueueAggregator {
         UniqueLock lock(orders_mutex_);
 
         if (order_count_) {
-          auto task = queue->GetFromIndex(0u);
+          auto task = queue->index_.Get(0u);
           orders_.push_back(std::move(*task));
           queue->queue_.erase(task);
           --queue->size_;

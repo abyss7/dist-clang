@@ -384,7 +384,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
 
 void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
                               ResolveFn resolver,
-                              const ui32 distribution) {
+                              const ui32 shard) {
   net::EndPointPtr end_point;
   ui32 sleep_period = 1;
   auto Sleep = [&sleep_period]() mutable {
@@ -405,7 +405,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
       }
     }
 
-    Optional&& task = all_tasks_->Pop(distribution);
+    Optional&& task = all_tasks_->Pop(shard);
     if (!task) {
       break;
     }
@@ -670,7 +670,7 @@ bool Emitter::Reload(const proto::Configuration& conf) {
 
   // Create new pool before swapping, so we won't postpone new tasks.
   auto new_pool = std::make_unique<base::WorkerPool>(!handle_all_tasks_);
-  ui32 distribution_range = 0u;
+  ui32 shards_number = 0u;
   for (const auto& remote : conf.emitter().remotes()) {
     if (remote.disabled()) {
       continue;
@@ -684,14 +684,14 @@ bool Emitter::Reload(const proto::Configuration& conf) {
       optional->Wait();
       return optional->GetValue();
     };
-    const ui32 distribution =
+    const ui32 shard =
         remote.has_distribution() ? remote.distribution() : 0u;
     Worker worker =
-        std::bind(&Emitter::DoRemoteExecute, this, _1, resolver, distribution);
+        std::bind(&Emitter::DoRemoteExecute, this, _1, resolver, shard);
     new_pool->AddWorker("Remote Execute Worker"_l, worker, remote.threads());
-    distribution_range = std::max(distribution, distribution_range);
+    shards_number = std::max(shard, shards_number);
   }
-  all_tasks_->UpdateDistribution(distribution_range + 1u);
+  all_tasks_->UpdateIndex(shards_number + 1u);
   std::swap(new_pool, remote_workers_);
 
   return CompilationDaemon::Reload(conf);

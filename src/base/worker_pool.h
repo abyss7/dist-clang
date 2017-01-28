@@ -2,7 +2,8 @@
 
 #include <base/aliases.h>
 #include <base/file/pipe.h>
-#include <base/thread.h>
+
+#include STL(thread)
 
 namespace dist_clang {
 namespace base {
@@ -21,10 +22,6 @@ class WorkerPool {
   bool WaitUntilShutdown(const Seconds& duration) const;
 
   bool IsShuttingDown() const { return WaitUntilShutdown(ZERO_DURATION); }
-
-  size_t GetWorkersNumber() const {
-    return workers_.size();
-  }
 
  private:
   Vector<Thread> workers_;
