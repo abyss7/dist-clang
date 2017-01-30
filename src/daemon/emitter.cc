@@ -71,22 +71,6 @@ inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
   return true;
 }
 
-String GetFileName(const String& input) {
-  const size_t slash_position = input.rfind('/');
-  if (slash_position == String::npos ||
-      slash_position == input.length() - 1) {
-    return input;
-  }
-  return input.substr(slash_position + 1);
-}
-
-ui64 IntegerHash(Immutable input) {
-  // While calculating 64bit hash make sure string doesn't exceed 8 characters.
-  Immutable hash_buffer = input.Hash(8u);
-  ui64 hash = *(reinterpret_cast<const ui64*>(hash_buffer.c_str()));
-  return hash;
-}
-
 }  // namespace
 
 namespace daemon {
@@ -192,15 +176,15 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
     if (conf->has_cache() && !conf->cache().disabled()) {
       return cache_tasks_->Push(std::make_tuple(connection, std::move(execute),
                                                 HandledSource(),
-                                                cache::ExtraFiles{}));
+                                                cache::ExtraFiles{}, 0u));
     } else {
-      Immutable input_file = GetFileName(execute->flags().input());
-      // Compute |hash| first, as we're moving from |execute|.
-      const ui64 hash = IntegerHash(input_file);
-      return all_tasks_->Push(std::make_tuple(connection, std::move(execute),
-                                              HandledSource(),
-                                              cache::ExtraFiles{}),
-                              hash);
+      Task task = std::make_tuple(connection, std::move(execute),
+                                  HandledSource(), cache::ExtraFiles{}, 0u);
+      if (!PopulateTask(&task)) {
+        return false;
+      }
+      const auto hash = std::get<HASH>(task);
+      return all_tasks_->Push(std::move(task), hash);
     }
   }
 
@@ -283,26 +267,12 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
 
     STAT(DIRECT_CACHE_MISS);
 
-    // Check that we have a compiler of a requested version.
-    net::proto::Status status;
-    if (!SetupCompiler(incoming->mutable_flags(), &status)) {
-      std::get<CONNECTION>(*task)->ReportStatus(status);
+    if (!PopulateTask(&(*task))) {
       continue;
     }
 
     auto& source = std::get<SOURCE>(*task);
-    if (!GenerateSource(incoming, &source)) {
-      failed_tasks_->Push(std::move(*task));
-      continue;
-    }
-
     auto& extra_files = std::get<EXTRA_FILES>(*task);
-    if (!ReadExtraFiles(incoming->flags(), incoming->current_dir(),
-                        &extra_files)) {
-      failed_tasks_->Push(std::move(*task));
-      continue;
-    }
-
     if (SearchSimpleCache(incoming->flags(), source, extra_files, &entry) &&
         RestoreFromCache(source, extra_files)) {
       STAT(SIMPLE_CACHE_HIT);
@@ -311,9 +281,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
 
     STAT(SIMPLE_CACHE_MISS);
 
-    Immutable input_file = GetFileName(incoming->flags().input());
-    // Compute |hash| first, as we're moving from |task|.
-    const ui64 hash = IntegerHash(input_file);
+    const auto hash = std::get<HASH>(*task);
     all_tasks_->Push(std::move(*task), hash);
   }
 }
@@ -418,18 +386,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
     auto& source = std::get<SOURCE>(*task);
     auto& extra_files = std::get<EXTRA_FILES>(*task);
 
-    // Check that we have a compiler of a requested version.
-    net::proto::Status status;
-    if (!SetupCompiler(incoming->mutable_flags(), &status)) {
-      std::get<CONNECTION>(*task)->ReportStatus(status);
-      continue;
-    }
-
-    auto outgoing = std::make_unique<proto::Remote>();
-    if (source.str.empty() && !GenerateSource(incoming, &source)) {
-      failed_tasks_->Push(std::move(*task));
-      continue;
-    }
+    CHECK(!source.str.empty());
 
     String error;
     auto connection = Connect(end_point, &error);
@@ -446,6 +403,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
 
     sleep_period = 1;
 
+    auto outgoing = std::make_unique<proto::Remote>();
     outgoing->mutable_flags()->CopyFrom(incoming->flags());
     outgoing->set_source(Immutable(source.str).string_copy(false));
     SetExtraFiles(extra_files, outgoing.get());
@@ -456,7 +414,6 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
     for (auto& plugin : plugins) {
       plugin.clear_path();
     }
-    Immutable input_file = GetFileName(flags->input());
     flags->mutable_compiler()->clear_path();
     flags->clear_output();
     flags->clear_input();
@@ -466,8 +423,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
     perf::Counter<perf::StatReporter, false> counter(
         perf::proto::Metric::REMOTE_TIME_WASTED);
     if (!connection->SendSync(std::move(outgoing))) {
-      // Compute |hash| first, as we're moving from |task|.
-      const ui64 hash = IntegerHash(input_file);
+      const auto hash = std::get<HASH>(*task);
       all_tasks_->Push(std::move(*task), hash);
       counter.ReportOnDestroy(true);
       continue;
@@ -695,6 +651,34 @@ bool Emitter::Reload(const proto::Configuration& conf) {
   std::swap(new_pool, remote_workers_);
 
   return CompilationDaemon::Reload(conf);
+}
+
+bool Emitter::PopulateTask(Task* task) {
+  CHECK(task);
+  base::proto::Local* incoming = std::get<MESSAGE>(*task).get();
+  // Check that we have a compiler of a requested version.
+  net::proto::Status status;
+  if (!SetupCompiler(incoming->mutable_flags(), &status)) {
+    std::get<CONNECTION>(*task)->ReportStatus(status);
+    return false;
+  }
+
+  auto& source = std::get<SOURCE>(*task);
+  if (!GenerateSource(incoming, &source)) {
+    failed_tasks_->Push(std::move(*task));
+    return false;
+  }
+
+  auto& extra_files = std::get<EXTRA_FILES>(*task);
+  if (!ReadExtraFiles(incoming->flags(), incoming->current_dir(),
+                      &extra_files)) {
+    failed_tasks_->Push(std::move(*task));
+    return false;
+  }
+
+  auto& hash = std::get<HASH>(*task);
+  hash = GenerateIntegerHash(incoming->flags(), source, extra_files);
+  return true;
 }
 
 }  // namespace daemon
