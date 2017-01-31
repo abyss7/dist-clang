@@ -124,6 +124,7 @@ class LockedQueue {
       }
       return index_size;
     }
+
     void Put(typename Queue::iterator item, const ui64 hash) {
       const ui32 shard = static_cast<ui32>(hash / chunk_size_);
       CHECK(shard < index_.size()) << "Invalid shard for hash / chunk_size "
