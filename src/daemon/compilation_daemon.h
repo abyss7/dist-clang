@@ -20,6 +20,10 @@ class CompilationDaemon : public BaseDaemon {
  protected:
   explicit CompilationDaemon(const Configuration& conf);
 
+  ui64 GenerateIntegerHash(
+      const base::proto::Flags& flags, const cache::string::HandledSource& code,
+      const cache::ExtraFiles& extra_files) const;
+
   cache::string::HandledHash GenerateHash(
       const base::proto::Flags& flags, const cache::string::HandledSource& code,
       const cache::ExtraFiles& extra_files) const;

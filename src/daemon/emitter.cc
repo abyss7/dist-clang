@@ -176,11 +176,15 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
     if (conf->has_cache() && !conf->cache().disabled()) {
       return cache_tasks_->Push(std::make_tuple(connection, std::move(execute),
                                                 HandledSource(),
-                                                cache::ExtraFiles{}));
+                                                cache::ExtraFiles{}, 0u));
     } else {
-      return all_tasks_->Push(std::make_tuple(connection, std::move(execute),
-                                              HandledSource(),
-                                              cache::ExtraFiles{}));
+      Task task = std::make_tuple(connection, std::move(execute),
+                                  HandledSource(), cache::ExtraFiles{}, 0u);
+      if (!PopulateTask(&task)) {
+        return false;
+      }
+      const auto hash = std::get<HASH>(task);
+      return all_tasks_->Push(std::move(task), hash);
     }
   }
 
@@ -263,26 +267,12 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
 
     STAT(DIRECT_CACHE_MISS);
 
-    // Check that we have a compiler of a requested version.
-    net::proto::Status status;
-    if (!SetupCompiler(incoming->mutable_flags(), &status)) {
-      std::get<CONNECTION>(*task)->ReportStatus(status);
+    if (!PopulateTask(&(*task))) {
       continue;
     }
 
     auto& source = std::get<SOURCE>(*task);
-    if (!GenerateSource(incoming, &source)) {
-      failed_tasks_->Push(std::move(*task));
-      continue;
-    }
-
     auto& extra_files = std::get<EXTRA_FILES>(*task);
-    if (!ReadExtraFiles(incoming->flags(), incoming->current_dir(),
-                        &extra_files)) {
-      failed_tasks_->Push(std::move(*task));
-      continue;
-    }
-
     if (SearchSimpleCache(incoming->flags(), source, extra_files, &entry) &&
         RestoreFromCache(source, extra_files)) {
       STAT(SIMPLE_CACHE_HIT);
@@ -291,7 +281,8 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
 
     STAT(SIMPLE_CACHE_MISS);
 
-    all_tasks_->Push(std::move(*task));
+    const auto hash = std::get<HASH>(*task);
+    all_tasks_->Push(std::move(*task), hash);
   }
 }
 
@@ -360,7 +351,8 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
 }
 
 void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
-                              ResolveFn resolver) {
+                              ResolveFn resolver,
+                              const ui32 shard) {
   net::EndPointPtr end_point;
   ui32 sleep_period = 1;
   auto Sleep = [&sleep_period]() mutable {
@@ -381,7 +373,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
       }
     }
 
-    Optional&& task = all_tasks_->Pop();
+    Optional&& task = all_tasks_->Pop(shard);
     if (!task) {
       break;
     }
@@ -394,18 +386,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
     auto& source = std::get<SOURCE>(*task);
     auto& extra_files = std::get<EXTRA_FILES>(*task);
 
-    // Check that we have a compiler of a requested version.
-    net::proto::Status status;
-    if (!SetupCompiler(incoming->mutable_flags(), &status)) {
-      std::get<CONNECTION>(*task)->ReportStatus(status);
-      continue;
-    }
-
-    auto outgoing = std::make_unique<proto::Remote>();
-    if (source.str.empty() && !GenerateSource(incoming, &source)) {
-      failed_tasks_->Push(std::move(*task));
-      continue;
-    }
+    CHECK(!source.str.empty());
 
     String error;
     auto connection = Connect(end_point, &error);
@@ -422,6 +403,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
 
     sleep_period = 1;
 
+    auto outgoing = std::make_unique<proto::Remote>();
     outgoing->mutable_flags()->CopyFrom(incoming->flags());
     outgoing->set_source(Immutable(source.str).string_copy(false));
     SetExtraFiles(extra_files, outgoing.get());
@@ -441,7 +423,8 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
     perf::Counter<perf::StatReporter, false> counter(
         perf::proto::Metric::REMOTE_TIME_WASTED);
     if (!connection->SendSync(std::move(outgoing))) {
-      all_tasks_->Push(std::move(*task));
+      const auto hash = std::get<HASH>(*task);
+      all_tasks_->Push(std::move(*task), hash);
       counter.ReportOnDestroy(true);
       continue;
     }
@@ -643,7 +626,11 @@ bool Emitter::Reload(const proto::Configuration& conf) {
 
   // Create new pool before swapping, so we won't postpone new tasks.
   auto new_pool = std::make_unique<base::WorkerPool>(!handle_all_tasks_);
+  ui32 shards_number = 0u;
   for (const auto& remote : conf.emitter().remotes()) {
+    if (remote.disabled()) {
+      continue;
+    }
     auto resolver = [
       this, host = remote.host(), port = static_cast<ui16>(remote.port()),
       ipv6 = remote.ipv6()
@@ -653,12 +640,45 @@ bool Emitter::Reload(const proto::Configuration& conf) {
       optional->Wait();
       return optional->GetValue();
     };
-    Worker worker = std::bind(&Emitter::DoRemoteExecute, this, _1, resolver);
+    const ui32 shard =
+        remote.has_distribution() ? remote.distribution() : 0u;
+    Worker worker =
+        std::bind(&Emitter::DoRemoteExecute, this, _1, resolver, shard);
     new_pool->AddWorker("Remote Execute Worker"_l, worker, remote.threads());
+    shards_number = std::max(shard, shards_number);
   }
+  all_tasks_->UpdateIndex(shards_number + 1u);
   std::swap(new_pool, remote_workers_);
 
   return CompilationDaemon::Reload(conf);
+}
+
+bool Emitter::PopulateTask(Task* task) {
+  CHECK(task);
+  base::proto::Local* incoming = std::get<MESSAGE>(*task).get();
+  // Check that we have a compiler of a requested version.
+  net::proto::Status status;
+  if (!SetupCompiler(incoming->mutable_flags(), &status)) {
+    std::get<CONNECTION>(*task)->ReportStatus(status);
+    return false;
+  }
+
+  auto& source = std::get<SOURCE>(*task);
+  if (!GenerateSource(incoming, &source)) {
+    failed_tasks_->Push(std::move(*task));
+    return false;
+  }
+
+  auto& extra_files = std::get<EXTRA_FILES>(*task);
+  if (!ReadExtraFiles(incoming->flags(), incoming->current_dir(),
+                      &extra_files)) {
+    failed_tasks_->Push(std::move(*task));
+    return false;
+  }
+
+  auto& hash = std::get<HASH>(*task);
+  hash = GenerateIntegerHash(incoming->flags(), source, extra_files);
+  return true;
 }
 
 }  // namespace daemon

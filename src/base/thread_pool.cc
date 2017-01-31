@@ -40,7 +40,7 @@ ThreadPool::Optional ThreadPool::Push(Closure&& task) {
 
 void ThreadPool::DoWork(const base::WorkerPool& pool) {
   while (!pool.IsShuttingDown()) {
-    TaskQueue::Optional&& task = tasks_.Pop(active_task_count_);
+    TaskQueue::Optional&& task = tasks_.Pop(&active_task_count_);
     if (!task) {
       break;
     }
