@@ -166,7 +166,6 @@ HandledHash CompilationDaemon::GenerateHash(
                                 CommandLineForSimpleCache(flags), version);
 }
 
-
 bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
                                       net::proto::Status* status) const {
   auto conf = this->conf();
