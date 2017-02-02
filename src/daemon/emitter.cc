@@ -637,7 +637,7 @@ bool Emitter::Check(const Configuration& conf) const {
     }
   }
 
-  if (!conf.has_cache() || !conf.cache().disabled()) {
+  if (!conf.has_cache() || conf.cache().disabled()) {
     for (const auto& remote : emitter.remotes()) {
       if (!remote.disabled() && remote.has_distribution()) {
         // FIXME: if we don't have cache workers, then we can't
