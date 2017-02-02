@@ -88,13 +88,6 @@ inline String GetFullPath(const String& current_dir, const String& path) {
   return path[0] == '/' ? path : current_dir + "/" + path;
 }
 
-ui64 IntegerHash(Immutable input) {
-  // While calculating 64bit hash make sure string doesn't exceed 8 characters.
-  Immutable hash_buffer = input.Hash(8u);
-  ui64 hash = *(reinterpret_cast<const ui64*>(hash_buffer.c_str()));
-  return hash;
-}
-
 }  // namespace
 
 namespace daemon {
@@ -149,13 +142,6 @@ CompilationDaemon::CompilationDaemon(const Configuration& conf)
     }
     base::Log::Reset(conf.verbosity().error_mark(), std::move(range_set));
   }
-}
-
-ui64 CompilationDaemon::GenerateIntegerHash(
-    const base::proto::Flags& flags, const cache::string::HandledSource& code,
-    const cache::ExtraFiles& extra_files) const {
-  const HandledHash handled_hash = GenerateHash(flags, code, extra_files);
-  return IntegerHash(handled_hash);
 }
 
 HandledHash CompilationDaemon::GenerateHash(

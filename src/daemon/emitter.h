@@ -44,8 +44,7 @@ class Emitter : public CompilationDaemon {
 
   void DoCheckCache(const base::WorkerPool&);
   void DoLocalExecute(const base::WorkerPool&);
-  void DoRemoteExecute(const base::WorkerPool&, ResolveFn resolver,
-                       const ui32 distribution);
+  void DoRemoteExecute(const base::WorkerPool&, ResolveFn resolver, ui32 shard);
   void DoPoll(const base::WorkerPool&, Vector<ResolveFn> resolvers);
 
   UniquePtr<Queue> all_tasks_, cache_tasks_, failed_tasks_;
@@ -58,8 +57,8 @@ class Emitter : public CompilationDaemon {
   // there is no coordinators, or if we stopped to poll coordinators.
 
   bool use_shards_ = false;
-  // Indicates whether we should should always generate unhandled source for
-  // tasks, since it's required for proper sharding even without local cache.
+  // Indicates whether we should always generate unhandled source for tasks,
+  // since it's required for proper sharding even without local cache.
 };
 
 }  // namespace daemon

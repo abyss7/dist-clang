@@ -396,7 +396,18 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
     auto& source = std::get<SOURCE>(*task);
     auto& extra_files = std::get<EXTRA_FILES>(*task);
 
-    CHECK(!source.str.empty());
+    // Check that we have a compiler of a requested version.
+    ￼net::proto::Status status;
+    ￼if(!SetupCompiler(incoming->mutable_flags(), &status)) {
+      std::get<CONNECTION>(*task)->ReportStatus(status);
+      continue;
+    }
+    ￼auto outgoing = std::make_unique<proto::Remote>();
+    ￼if(source.str.empty() && !GenerateSource(incoming, &source)) {
+      failed_tasks_->Push(std::move(*task));
+      continue;
+      ￼
+    }
 
     String error;
     auto connection = Connect(end_point, &error);
@@ -663,7 +674,7 @@ bool Emitter::Reload(const proto::Configuration& conf) {
       return optional->GetValue();
     };
 
-    ui32 shard = 0u;
+    ui32 shard = Queue::DEFAULT_SHARD;
     if (remote.has_distribution()) {
       use_shards_ = true;
       shard = remote.distribution();
