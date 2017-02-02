@@ -14,7 +14,7 @@ elif [[ "$(uname)" == Darwin ]]; then
     arch="Mac"
 fi
 
-clang_revision=282487-1
+clang_revision=283753-1
 clang_root="$root_dir/out/clang-$clang_revision"
 if ! test -d "$clang_root"; then
     mkdir "$clang_root"
