@@ -12,6 +12,7 @@ namespace base {
 template <class T>
 class QueueAggregator;
 
+// If the queue is shardless then by default it uses only zero shard.
 template <class T>
 class LockedQueue {
  public:
@@ -20,10 +21,11 @@ class LockedQueue {
 
   enum {
     UNLIMITED = 0,
+    DEFAULT_SHARD = 0,
   };
 
-  LockedQueue() : index_(this) {}
-  explicit LockedQueue(ui32 capacity) : capacity_(capacity), index_(this) {}
+  LockedQueue() = default;
+  explicit LockedQueue(ui32 capacity) : capacity_(capacity) {}
   ~LockedQueue() {
     DCHECK(closed_);
     DCHECK(index_.Size() == queue_.size());
@@ -40,7 +42,7 @@ class LockedQueue {
 
   // Returns |false| only when this queue is closed or when the capacity is
   // exceeded.
-  bool Push(T obj, const ui64 hash = 0u) THREAD_SAFE {
+  bool Push(T obj, ui32 shard = DEFAULT_SHARD) THREAD_SAFE {
     if (closed_) {
       return false;
     }
@@ -50,11 +52,7 @@ class LockedQueue {
       if (queue_.size() >= capacity_ && capacity_ != UNLIMITED) {
         return false;
       }
-      queue_.push_back(std::move(obj));
-      auto last = queue_.end();
-      --last;
-
-      index_.Put(last, hash);
+      index_.Put(queue_.insert(queue_.end(), std::move(obj)), shard);
     }
     ++size_;
     pop_condition_.notify_one();
@@ -63,22 +61,21 @@ class LockedQueue {
   }
 
   // Returns disengaged object only when this queue is closed and empty.
-  Optional Pop(const ui32 shard = 0u) THREAD_SAFE {
+  Optional Pop(ui32 shard = DEFAULT_SHARD) THREAD_SAFE {
     return Pop(nullptr, shard);
   }
 
   Optional Pop(Atomic<ui64>* external_counter,
-               const ui32 shard = 0u) THREAD_SAFE {
+               ui32 shard = DEFAULT_SHARD) THREAD_SAFE {
     UniqueLock lock(pop_mutex_);
     pop_condition_.wait(lock, [this] { return closed_ || !queue_.empty(); });
     if (closed_ && queue_.empty()) {
       return Optional();
     }
 
-    auto task = index_.Get(shard);
-
-    Optional&& obj = std::move(*task);
-    queue_.erase(task);
+    auto it = index_.Get(shard, queue_.begin());
+    Optional&& obj = std::move(*it);
+    queue_.erase(it);
     --size_;
     if (external_counter) {
       ++(*external_counter);
@@ -86,98 +83,59 @@ class LockedQueue {
     return std::move(obj);
   }
 
-  void UpdateIndex(const ui32 shards_number) THREAD_SAFE {
-    CHECK(shards_number > 0u);
-    UniqueLock lock(pop_mutex_);
-    index_.Update(shards_number);
-  }
-
  private:
   friend class QueueAggregator<T>;
 
   class Index {
    public:
-    using TaskInfo = Tuple<typename Queue::iterator, size_t>;
-    using ShardsList = List<TaskInfo>;  // List of tasks from same shard.
-    enum InfoIndex {
-      ITERATOR = 0u,
-      HASH = 1u,
-    };
-    enum ReverseInfoIndex {
-      RANGE = 0u,
-      REVERSE_ITERATOR = 1u,
-    };
-
-    Index(LockedQueue<T>* const queue) : queue_(queue) {
-      CHECK(queue_) << "Queue must be specified";
-    }
+    using QueueIterator = typename Queue::iterator;
+    using Shard = List<QueueIterator>;
 
     ~Index() {
-      // Make sure we don't leak tasks.
+      // Make sure we don't leak iterators.
       DCHECK(reverse_index_.size() == Size());
     }
 
-    size_t Size() const THREAD_UNSAFE {
-      size_t index_size = 0u;
-      for (const ShardsList& shards_list : index_) {
-        index_size += shards_list.size();
+    ui64 Size() const THREAD_UNSAFE {
+      ui64 index_size = 0u;
+      for (const auto& shard : index_) {
+        index_size += shard.size();
       }
       return index_size;
     }
 
-    void Put(typename Queue::iterator item, const ui64 hash) {
-      const ui32 shard = static_cast<ui32>(hash / chunk_size_);
-      CHECK(shard < index_.size()) << "Invalid shard for hash / chunk_size "
-                                   << hash << "/" << chunk_size_;
-      index_[shard].emplace_back(std::make_tuple(item, hash));
-      typename ShardsList::iterator last = index_[shard].end();
-      --last;
-
-      const T* const item_pointer = &(*item);
-      reverse_index_[item_pointer] = std::make_tuple(shard, last);
+    void Put(QueueIterator it, ui32 shard) {
+      // TODO(ilezhankin): describe rationale for this place.
+      if (shard >= index_.size()) {
+        index_.resize(shard + 1);
+      }
+      reverse_index_[&*it] = index_[shard].insert(index_[shard].end(), it);
     }
 
-    typename Queue::iterator Get(const ui32 shard) {
-      typename Queue::iterator task;
-      if (shard < index_.size() && index_[shard].size() > 0) {
-        task = std::get<ITERATOR>(index_[shard].front());
+    QueueIterator Get(ui32 shard, QueueIterator begin) THREAD_UNSAFE {
+      CHECK(shard < index_.size());
+
+      QueueIterator item;
+      if (!index_[shard].empty()) {
+        item = index_[shard].front();
+        index_[shard].pop_front();
+        reverse_index_.erase(&*item);
       } else {
-        task = queue_->queue_.begin();
+        item = begin;
+        index_[shard].erase(reverse_index_[&*begin]);
+        reverse_index_.erase(&*begin);
       }
-      // Clean up all indexes:
-      const T* const task_pointer = &(*task);
-      const auto& reverse_info =  reverse_index_[task_pointer];
-      ShardsList& shards_list = index_[std::get<RANGE>(reverse_info)];
-      shards_list.erase(std::get<REVERSE_ITERATOR>(reverse_info));
-      reverse_index_.erase(task_pointer);
-      return task;
-    }
 
-    void Update(const ui32 shards_number) THREAD_UNSAFE {
-      if (queue_->closed_ && queue_->queue_.empty()) {
-        index_.resize(shards_number);
-        return;
-      }
-      Vector<ShardsList> old_index(index_);
-      reverse_index_.clear();
-      index_.clear();
-      index_.resize(shards_number);
-      chunk_size_ = std::numeric_limits<size_t>::max() / shards_number;
-      for (const ShardsList& shards_list : old_index) {
-        for (const TaskInfo& task_info : shards_list) {
-          Put(std::get<ITERATOR>(task_info), std::get<HASH>(task_info));
-        }
-      }
+      return item;
     }
 
    private:
-    LockedQueue<T>* const queue_;
-    size_t chunk_size_ = {std::numeric_limits<size_t>::max()};
-    Vector<ShardsList> index_{1};
-    // |reverse_index_| is used to remove tasks from |index_| in O(1) when
+    Vector<Shard> index_;
+
+    // FIXME: use anything more shiny for hashing than |T*|.
+    HashMap<const T*, typename Shard::const_iterator> reverse_index_;
+    // |reverse_index_| is used to remove items from |index_| in O(1) when
     // those are picked from the top of the |queue_|.
-    HashMap<const T*,
-            std::tuple<size_t, typename ShardsList::iterator>> reverse_index_;
   };
 
   std::mutex pop_mutex_;

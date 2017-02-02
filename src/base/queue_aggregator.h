@@ -8,6 +8,8 @@
 namespace dist_clang {
 namespace base {
 
+// Queue aggregator doesn't work with shards and uses default zero shard -
+// like if with shardless queues.
 template <class T>
 class QueueAggregator {
  public:
@@ -90,9 +92,10 @@ class QueueAggregator {
         UniqueLock lock(orders_mutex_);
 
         if (order_count_) {
-          auto task = queue->index_.Get(0u);
-          orders_.push_back(std::move(*task));
-          queue->queue_.erase(task);
+          auto item = queue->index_.Get(LockedQueue<T>::DEFAULT_SHARD,
+                                        queue->queue_.begin());
+          orders_.push_back(std::move(*item));
+          queue->queue_.erase(item);
           --queue->size_;
           --order_count_;
           lock.unlock();

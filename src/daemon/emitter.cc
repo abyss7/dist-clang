@@ -176,15 +176,11 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
     if (conf->has_cache() && !conf->cache().disabled()) {
       return cache_tasks_->Push(std::make_tuple(connection, std::move(execute),
                                                 HandledSource(),
-                                                cache::ExtraFiles{}, 0u));
+                                                cache::ExtraFiles{}));
     } else {
-      Task task = std::make_tuple(connection, std::move(execute),
-                                  HandledSource(), cache::ExtraFiles{}, 0u);
-      if (!PopulateTask(&task)) {
-        return false;
-      }
-      const auto hash = std::get<HASH>(task);
-      return all_tasks_->Push(std::move(task), hash);
+      return all_tasks_->Push(std::make_tuple(connection, std::move(execute),
+                                              HandledSource(),
+                                              cache::ExtraFiles{}));
     }
   }
 
@@ -267,12 +263,26 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
 
     STAT(DIRECT_CACHE_MISS);
 
-    if (!PopulateTask(&(*task))) {
+    // Check that we have a compiler of a requested version.
+    net::proto::Status status;
+    if (!SetupCompiler(incoming->mutable_flags(), &status)) {
+      std::get<CONNECTION>(*task)->ReportStatus(status);
       continue;
     }
 
     auto& source = std::get<SOURCE>(*task);
+    if (!GenerateSource(incoming, &source)) {
+      failed_tasks_->Push(std::move(*task));
+      continue;
+    }
+
     auto& extra_files = std::get<EXTRA_FILES>(*task);
+    if (!ReadExtraFiles(incoming->flags(), incoming->current_dir(),
+                        &extra_files)) {
+      failed_tasks_->Push(std::move(*task));
+      continue;
+    }
+
     if (SearchSimpleCache(incoming->flags(), source, extra_files, &entry) &&
         RestoreFromCache(source, extra_files)) {
       STAT(SIMPLE_CACHE_HIT);
@@ -281,8 +291,9 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
 
     STAT(SIMPLE_CACHE_MISS);
 
-    const auto hash = std::get<HASH>(*task);
-    all_tasks_->Push(std::move(*task), hash);
+    // TODO: calculate shard from handled source.
+    ui32 shard = 0u;
+    all_tasks_->Push(std::move(*task), shard);
   }
 }
 
@@ -350,8 +361,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
   }
 }
 
-void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
-                              ResolveFn resolver,
+void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
                               const ui32 shard) {
   net::EndPointPtr end_point;
   ui32 sleep_period = 1;
@@ -423,8 +433,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
     perf::Counter<perf::StatReporter, false> counter(
         perf::proto::Metric::REMOTE_TIME_WASTED);
     if (!connection->SendSync(std::move(outgoing))) {
-      const auto hash = std::get<HASH>(*task);
-      all_tasks_->Push(std::move(*task), hash);
+      all_tasks_->Push(std::move(*task), shard);
       counter.ReportOnDestroy(true);
       continue;
     }
@@ -618,6 +627,19 @@ bool Emitter::Check(const Configuration& conf) const {
     }
   }
 
+  if (!conf.has_cache() || !conf.cache().disabled()) {
+    for (const auto& remote : emitter.remotes()) {
+      if (!remote.disabled() && remote.has_distribution()) {
+        // FIXME: if we don't have cache workers, then we can't
+        //        |GenerateSource()| in any separate thread pool.
+        //        Also we don't want to pollute sharded remotes with random
+        //        builds - so just don't use them for now.
+        LOG(ERROR) << "Can't use sharded remotes with disabled local cache";
+        return false;
+      }
+    }
+  }
+
   return true;
 }
 
@@ -626,11 +648,11 @@ bool Emitter::Reload(const proto::Configuration& conf) {
 
   // Create new pool before swapping, so we won't postpone new tasks.
   auto new_pool = std::make_unique<base::WorkerPool>(!handle_all_tasks_);
-  ui32 shards_number = 0u;
   for (const auto& remote : conf.emitter().remotes()) {
     if (remote.disabled()) {
       continue;
     }
+
     auto resolver = [
       this, host = remote.host(), port = static_cast<ui16>(remote.port()),
       ipv6 = remote.ipv6()
@@ -640,45 +662,20 @@ bool Emitter::Reload(const proto::Configuration& conf) {
       optional->Wait();
       return optional->GetValue();
     };
-    const ui32 shard =
-        remote.has_distribution() ? remote.distribution() : 0u;
+
+    ui32 shard = 0u;
+    if (remote.has_distribution()) {
+      use_shards_ = true;
+      shard = remote.distribution();
+    }
+
     Worker worker =
         std::bind(&Emitter::DoRemoteExecute, this, _1, resolver, shard);
     new_pool->AddWorker("Remote Execute Worker"_l, worker, remote.threads());
-    shards_number = std::max(shard, shards_number);
   }
-  all_tasks_->UpdateIndex(shards_number + 1u);
   std::swap(new_pool, remote_workers_);
 
   return CompilationDaemon::Reload(conf);
-}
-
-bool Emitter::PopulateTask(Task* task) {
-  CHECK(task);
-  base::proto::Local* incoming = std::get<MESSAGE>(*task).get();
-  // Check that we have a compiler of a requested version.
-  net::proto::Status status;
-  if (!SetupCompiler(incoming->mutable_flags(), &status)) {
-    std::get<CONNECTION>(*task)->ReportStatus(status);
-    return false;
-  }
-
-  auto& source = std::get<SOURCE>(*task);
-  if (!GenerateSource(incoming, &source)) {
-    failed_tasks_->Push(std::move(*task));
-    return false;
-  }
-
-  auto& extra_files = std::get<EXTRA_FILES>(*task);
-  if (!ReadExtraFiles(incoming->flags(), incoming->current_dir(),
-                      &extra_files)) {
-    failed_tasks_->Push(std::move(*task));
-    return false;
-  }
-
-  auto& hash = std::get<HASH>(*task);
-  hash = GenerateIntegerHash(incoming->flags(), source, extra_files);
-  return true;
 }
 
 }  // namespace daemon

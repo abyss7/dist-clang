@@ -24,12 +24,11 @@ class Emitter : public CompilationDaemon {
     MESSAGE = 1,
     SOURCE = 2,
     EXTRA_FILES = 3,
-    HASH = 4,
   };
 
   using Message = UniquePtr<base::proto::Local>;
   using Task = Tuple<net::ConnectionPtr, Message, cache::string::HandledSource,
-                     cache::ExtraFiles, ui64>;
+                     cache::ExtraFiles>;
   using Queue = base::LockedQueue<Task>;
   using QueueAggregator = base::QueueAggregator<Task>;
   using Optional = Queue::Optional;
@@ -49,10 +48,6 @@ class Emitter : public CompilationDaemon {
                        const ui32 distribution);
   void DoPoll(const base::WorkerPool&, Vector<ResolveFn> resolvers);
 
-  // Returns |true| if task was successfully populated.
-  // When |false| is returned - |task| may be moved from, so use with caution.
-  bool PopulateTask(Task* task);
-
   UniquePtr<Queue> all_tasks_, cache_tasks_, failed_tasks_;
   UniquePtr<QueueAggregator> local_tasks_;
   UniquePtr<base::WorkerPool> workers_;
@@ -61,6 +56,10 @@ class Emitter : public CompilationDaemon {
   bool handle_all_tasks_ = true;
   // Indicates if we force shutdown of the remote workers pool: we shouldn't if
   // there is no coordinators, or if we stopped to poll coordinators.
+
+  bool use_shards_ = false;
+  // Indicates whether we should should always generate unhandled source for
+  // tasks, since it's required for proper sharding even without local cache.
 };
 
 }  // namespace daemon
