@@ -403,6 +403,9 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
       continue;
     }
 
+    // If we're using shards we should have generated source by now.
+    DCHECK(!use_shards_ || !source.str.empty());
+
     auto outgoing = std::make_unique<proto::Remote>();
     if (source.str.empty() && !GenerateSource(incoming, &source)) {
       failed_tasks_->Push(std::move(*task));
