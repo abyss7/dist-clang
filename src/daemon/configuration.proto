@@ -13,7 +13,7 @@ message Host {
   optional bool disabled        = 4 [ default = false ];
   optional bool ipv6            = 5 [ default = false ];
 
-  optional uint32 distribution  = 6;
+  optional uint32 shard         = 6;
   // Ignored for coordinators and collectors.
 }
 
@@ -50,7 +50,9 @@ message Configuration {
     optional uint32 poll_interval = 5 [ default = 300 ];
     // Interval in seconds for polling coordinator.
 
-    repeated Host coordinators                 = 6;
+    repeated Host coordinators    = 6;
+    optional uint32 total_shards  = 7 [ default = 0 ];
+    // Coordinator should set this field: 0 - means that shards not used.
   }
 
   message Absorber {

@@ -26,7 +26,7 @@ TEST_F(CoordinatorTest, ConfigurationRespond) {
     host.set_port(expected_port + remote);
     host.set_threads(remote);
     host.set_ipv6(remote % 2 == 0);
-    host.set_distribution(remote);
+    host.set_shard(remote);
     coordinated_remotes.push_back(host);
 
     // Also push it to coordinator's config.
@@ -52,7 +52,7 @@ TEST_F(CoordinatorTest, ConfigurationRespond) {
         EXPECT_EQ(expected_host.port(), received_host.port());
         EXPECT_EQ(expected_host.threads(), received_host.threads());
         EXPECT_EQ(expected_host.ipv6(), received_host.ipv6());
-        EXPECT_EQ(expected_host.distribution(), received_host.distribution());
+        EXPECT_EQ(expected_host.shard(), received_host.shard());
       }
     });
     return true;

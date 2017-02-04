@@ -202,6 +202,8 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
   using namespace cache::string;
 
   while (!pool.IsShuttingDown()) {
+    auto conf = this->conf();
+
     Optional&& task = cache_tasks_->Pop();
     if (!task) {
       break;
@@ -291,8 +293,11 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
 
     STAT(SIMPLE_CACHE_MISS);
 
-    // TODO: calculate shard from handled source.
-    ui32 shard = 0u;
+    auto hash = GenerateHash(incoming->flags(), source, extra_files);
+    ui32 shard = use_shards_
+                     ? std::hash<Immutable>{}(hash.str.Hash(4)) %
+                           conf->emitter().total_shards()
+                     : 0;
     all_tasks_->Push(std::move(*task), shard);
   }
 }
@@ -642,7 +647,7 @@ bool Emitter::Check(const Configuration& conf) const {
 
   if (!conf.has_cache() || conf.cache().disabled()) {
     for (const auto& remote : emitter.remotes()) {
-      if (!remote.disabled() && remote.has_distribution()) {
+      if (!remote.disabled() && remote.has_shard()) {
         // FIXME: if we don't have cache workers, then we can't
         //        |GenerateSource()| in any separate thread pool.
         //        Also we don't want to pollute sharded remotes with random
@@ -651,6 +656,26 @@ bool Emitter::Check(const Configuration& conf) const {
         return false;
       }
     }
+  }
+
+  for (const auto& remote : emitter.remotes()) {
+    if (remote.has_shard() && remote.shard() >= emitter.total_shards()) {
+      LOG(ERROR) << "Remote's shard number is out of range (total shards: "
+                 << emitter.total_shards() << ")";
+      return false;
+    }
+  }
+
+  if (emitter.total_shards() > max_total_shards) {
+    LOG(ERROR)
+        << "Due to peculiarities of implementation emitter can't use more than "
+        << max_total_shards << " total shards";
+    return false;
+  }
+
+  if (emitter.total_shards() == 1) {
+    LOG(WARNING)
+        << "Single shard is meaningless, since it adds CPU load without profit";
   }
 
   return true;
@@ -677,9 +702,9 @@ bool Emitter::Reload(const proto::Configuration& conf) {
     };
 
     ui32 shard = Queue::DEFAULT_SHARD;
-    if (remote.has_distribution()) {
+    if (remote.has_shard()) {
       use_shards_ = true;
-      shard = remote.distribution();
+      shard = remote.shard();
     }
 
     Worker worker =
