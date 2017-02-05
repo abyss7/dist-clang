@@ -59,7 +59,7 @@ TEST_F(EmitterTest, IdleConnection) {
   listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
-    return true;
+    return !::testing::Test::HasNonfatalFailure();
   };
 
   emitter = std::make_unique<Emitter>(conf);
@@ -89,7 +89,7 @@ TEST_F(EmitterTest, BadLocalMessage) {
   listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
-    return true;
+    return !::testing::Test::HasNonfatalFailure();
   };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
@@ -134,7 +134,7 @@ TEST_F(EmitterTest, LocalMessageWithoutCommand) {
   listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
-    return true;
+    return !::testing::Test::HasNonfatalFailure();
   };
 
   emitter.reset(new Emitter(conf));
@@ -189,7 +189,7 @@ TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
   listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
-    return true;
+    return !::testing::Test::HasNonfatalFailure();
   };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
@@ -231,6 +231,7 @@ TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
       << "Daemon must not store references to the connection";
 }
 
+// TODO(ilezhankin): rewrite this test.
 TEST_F(EmitterTest, DISABLED_GracefulConfigurationUpdate) {
   const String socket_path = "/tmp/test.socket1";
   const String coordinator_host = "coordinator";
@@ -301,15 +302,12 @@ TEST_F(EmitterTest, DISABLED_GracefulConfigurationUpdate) {
     service->Listen(coordinator_host, coordinator_port, true /* ipv6 */,
                     [&](net::ConnectionPtr) {}, nullptr);
   };
-  listen_callback = [&](const String&, ui16, String*) {
-    return !::testing::Test::HasNonfatalFailure();
-  };
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(compiler_path, process->exec_path_);
     const Immutable::Rope generate_source{"-E"_l, "-o"_l, "-"_l};
     // Emitter fails to write file for failed compiler and fallbacks to
     // local execution. So there're two possible calls:
-    // 1. To generate sorce using '-E' flag,
+    // 1. To generate source using '-E' flag,
     // 2. To run compiler locally with real action.
     const bool is_generate_source_or_action =
         process->args_ == generate_source ||
@@ -407,7 +405,144 @@ TEST_F(EmitterTest, DISABLED_GracefulConfigurationUpdate) {
  *  - coordinator responds without enabled remotes
  *  - everything is fine
  */
-TEST_F(EmitterTest, CoordinatorRotation) {
+
+/*
+ * Check that we don't enter infinite loop - and quit.
+ */
+TEST_F(EmitterTest, NoGoodCoordinator) {
+  const String socket_path = "/tmp/test.socket";
+  const String bad_coordinator_host1 = "bad_host1";
+  const ui16 bad_coordinator_port1 = 1;
+  const String bad_coordinator_host2 = "bad_host2";
+  const ui16 bad_coordinator_port2 = 2;
+
+  conf.mutable_emitter()->set_socket_path(socket_path);
+  conf.mutable_emitter()->set_only_failed(false);
+  conf.mutable_emitter()->set_poll_interval(1u);
+
+  // FIXME(ilezhankin): in this test we rely on order of coordinators inside
+  //                    a Protobuf object.
+  auto coordinator = conf.mutable_emitter()->add_coordinators();
+  coordinator->set_host(bad_coordinator_host1);
+  coordinator->set_port(bad_coordinator_port1);
+
+  coordinator = conf.mutable_emitter()->add_coordinators();
+  coordinator->set_host(bad_coordinator_host2);
+  coordinator->set_port(bad_coordinator_port2);
+
+  listen_callback = [&](const String& host, ui16 port, String*) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+    return !::testing::Test::HasNonfatalFailure();
+  };
+
+  connect_callback = [&](net::TestConnection* connection,
+                         net::EndPointPtr end_point) {
+    if (connections_created == 1) {
+      EXPECT_EQ(end_point->Print(),
+                ToEndPointPrint(bad_coordinator_host1, bad_coordinator_port1));
+      return false;
+    }
+    if (connections_created == 2) {
+      EXPECT_EQ(end_point->Print(),
+                ToEndPointPrint(bad_coordinator_host2, bad_coordinator_port2));
+      return false;
+    }
+    if (connections_created > 2) {
+      send_condition.notify_all();
+      return false;
+    }
+
+    NOTREACHED();
+    return true;
+  };
+
+  emitter.reset(new Emitter(conf));
+  ASSERT_TRUE(emitter->Initialize());
+
+  UniqueLock lock(send_mutex);
+  EXPECT_TRUE(send_condition.wait_for(
+      lock, Seconds(2), [this] { return connections_created > 2; }));
+
+  emitter.reset();
+
+  EXPECT_EQ(0u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(connections_created, connect_count);
+  EXPECT_LE(3u, connections_created);
+  EXPECT_EQ(0u, read_count);
+  EXPECT_EQ(0u, send_count);
+}
+
+// TODO(ilezhankin): finish some TODOs.
+TEST_F(EmitterTest, DISABLED_CoordinatorNoConnection) {
+  const String socket_path = "/tmp/test.socket";
+  const String bad_coordinator_host = "bad_host";
+  const ui16 bad_coordinator_port = 1;
+  const String good_coordinator_host = "good_host";
+  const ui16 good_coordinator_port = 2;
+
+  conf.mutable_emitter()->set_socket_path(socket_path);
+  conf.mutable_emitter()->set_only_failed(false);
+  conf.mutable_emitter()->set_poll_interval(1u);
+
+  // FIXME(ilezhankin): in this test we rely on order of coordinators inside
+  //                    a Protobuf object.
+  auto coordinator = conf.mutable_emitter()->add_coordinators();
+  coordinator->set_host(bad_coordinator_host);
+  coordinator->set_port(bad_coordinator_port);
+
+  coordinator = conf.mutable_emitter()->add_coordinators();
+  coordinator->set_host(good_coordinator_host);
+  coordinator->set_port(good_coordinator_port);
+
+  listen_callback = [&](const String& host, ui16 port, String*) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+    return !::testing::Test::HasNonfatalFailure();
+  };
+
+  connect_callback = [&](net::TestConnection* connection,
+                         net::EndPointPtr end_point) {
+    if (connections_created == 1) {
+      EXPECT_EQ(end_point->Print(),
+                ToEndPointPrint(bad_coordinator_host, bad_coordinator_port));
+      return false;
+    }
+    if (connections_created == 2) {
+      EXPECT_EQ(end_point->Print(),
+                ToEndPointPrint(good_coordinator_host, good_coordinator_port));
+      connection->CallOnRead([&](net::Connection::Message* message) {
+        // TODO: return minimal acceptable config.
+      });
+      return true;
+    }
+    if (connections_created > 2) {
+      EXPECT_EQ(end_point->Print(),
+                ToEndPointPrint(good_coordinator_host, good_coordinator_port));
+      connection->CallOnRead([&](net::Connection::Message* message) {
+        // TODO: return minimal acceptable config.
+      });
+      send_condition.notify_all();
+      return true;
+    }
+
+    NOTREACHED();
+    return true;
+  };
+
+  emitter.reset(new Emitter(conf));
+  ASSERT_TRUE(emitter->Initialize());
+
+  UniqueLock lock(send_mutex);
+  EXPECT_TRUE(send_condition.wait_for(
+      lock, Seconds(2), [this] { return connections_created > 2; }));
+
+  emitter.reset();
+}
+
+// TODO(ilezhankin): split this test.
+TEST_F(EmitterTest, DISABLED_CoordinatorRotation) {
   const String socket_path = "/tmp/test.socket1";
   const String compiler_version = "fake_compiler_version";
   const String remote_host = "remote_host";
@@ -426,6 +561,11 @@ TEST_F(EmitterTest, CoordinatorRotation) {
   emitter_config->set_only_failed(true);
   emitter_config->set_poll_interval(0u);
 
+  auto* remote = emitter_config->add_remotes();
+  remote->set_host(remote_host);
+  remote->set_port(remote_port);
+  remote->set_threads(1);
+
   for (ui16 i = 0; i < number_of_coordinators; ++i) {
     auto* coordinator = emitter_config->add_coordinators();
     coordinator->set_host(std::to_string(i));
@@ -437,9 +577,6 @@ TEST_F(EmitterTest, CoordinatorRotation) {
   std::condition_variable coordinators_rotated_condition;
   Atomic<bool> coordinators_rotated(false);
 
-  listen_callback = [&](const String&, ui16, String*) {
-    return !::testing::Test::HasNonfatalFailure();
-  };
   service_callback = [&](net::TestNetworkService* service) {
     for (ui16 coordinator_index = 0u;
          coordinator_index < number_of_coordinators; ++coordinator_index) {
@@ -539,7 +676,7 @@ TEST_F(EmitterTest, RemoteMessageWithBadCompiler) {
   listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
-    return true;
+    return !::testing::Test::HasNonfatalFailure();
   };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
@@ -597,7 +734,7 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin) {
   listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
-    return true;
+    return !::testing::Test::HasNonfatalFailure();
   };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
@@ -662,7 +799,7 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin2) {
   listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
-    return true;
+    return !::testing::Test::HasNonfatalFailure();
   };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
@@ -725,7 +862,7 @@ TEST_F(EmitterTest, LocalMessageWithPluginPath) {
   listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
-    return true;
+    return !::testing::Test::HasNonfatalFailure();
   };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
@@ -798,7 +935,7 @@ TEST_F(EmitterTest, LocalMessageWithSanitizeBlacklist) {
   listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
-    return true;
+    return !::testing::Test::HasNonfatalFailure();
   };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
@@ -810,8 +947,9 @@ TEST_F(EmitterTest, LocalMessageWithSanitizeBlacklist) {
   };
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(compiler_path, process->exec_path_);
-    EXPECT_EQ((Immutable::Rope{action, Immutable("-fsanitize-blacklist="_l) +
-                                           Immutable(sanitize_blacklist_path)}),
+    EXPECT_EQ((Immutable::Rope{action,
+                               Immutable("-fsanitize-blacklist="_l) +
+                                   Immutable(sanitize_blacklist_path)}),
               process->args_);
     EXPECT_EQ(user_id, process->uid_);
   };
@@ -868,7 +1006,7 @@ TEST_F(EmitterTest, ConfigurationWithoutVersions) {
   listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
-    return true;
+    return !::testing::Test::HasNonfatalFailure();
   };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
@@ -946,7 +1084,7 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
   listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
-    return true;
+    return !::testing::Test::HasNonfatalFailure();
   };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
@@ -1021,7 +1159,7 @@ TEST_F(EmitterTest, LocalFailedCompilation) {
   listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
-    return true;
+    return !::testing::Test::HasNonfatalFailure();
   };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
@@ -1952,7 +2090,7 @@ TEST_F(EmitterTest, UpdateConfiguration) {
   listen_callback = [&](const String& host, ui16 port, String*) {
     EXPECT_EQ(socket_path, host);
     EXPECT_EQ(0u, port);
-    return true;
+    return !::testing::Test::HasNonfatalFailure();
   };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
