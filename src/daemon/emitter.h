@@ -50,6 +50,7 @@ class Emitter : public CompilationDaemon {
   UniquePtr<Queue> all_tasks_, cache_tasks_, failed_tasks_;
   UniquePtr<QueueAggregator> local_tasks_;
   UniquePtr<base::WorkerPool> workers_;
+  UniquePtr<base::WorkerPool> coordinator_workers_;
   UniquePtr<base::WorkerPool> remote_workers_;
 
   bool handle_all_tasks_ = true;

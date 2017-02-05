@@ -81,6 +81,7 @@ Emitter::Emitter(const proto::Configuration& conf) : CompilationDaemon(conf) {
   CHECK(conf.has_emitter());
 
   workers_ = std::make_unique<base::WorkerPool>();
+  coordinator_workers_ = std::make_unique<base::WorkerPool>(true);
   all_tasks_ = std::make_unique<Queue>();
   cache_tasks_ = std::make_unique<Queue>();
   failed_tasks_ = std::make_unique<Queue>();
@@ -129,7 +130,7 @@ Emitter::Emitter(const proto::Configuration& conf) : CompilationDaemon(conf) {
     if (!resolvers.empty()) {
       handle_all_tasks_ = false;
       Worker worker = std::bind(&Emitter::DoPoll, this, _1, resolvers);
-      workers_->AddWorker("Coordinator Poll Worker"_l, worker);
+      coordinator_workers_->AddWorker("Coordinator Poll Worker"_l, worker);
     }
   }
 }
@@ -139,6 +140,7 @@ Emitter::~Emitter() {
   cache_tasks_->Close();
   failed_tasks_->Close();
   local_tasks_->Close();
+  coordinator_workers_.reset();
   workers_.reset();
   remote_workers_.reset();
 }
@@ -534,16 +536,6 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
 
 void Emitter::DoPoll(const base::WorkerPool& pool,
                      Vector<ResolveFn> resolvers) {
-  ui32 sleep_period = 1;
-  auto Sleep = [&sleep_period]() mutable {
-    LOG(INFO) << "Sleeping for " << sleep_period
-              << " seconds before next attempt";
-    std::this_thread::sleep_for(std::chrono::seconds(sleep_period));
-    if (sleep_period < static_cast<ui32>(-1) / 2) {
-      sleep_period <<= 1;
-    }
-  };
-
   auto conf = this->conf();
   const auto poll_interval = conf->emitter().poll_interval();
 
@@ -572,11 +564,9 @@ void Emitter::DoPoll(const base::WorkerPool& pool,
       }
     }
     if (!connection) {
-      Sleep();
       continue;
     }
 
-    sleep_period = 1;
     if (!connection->SendSync(std::make_unique<Configuration>())) {
       std::rotate(resolvers.begin(), resolvers.begin() + 1, resolvers.end());
       continue;
