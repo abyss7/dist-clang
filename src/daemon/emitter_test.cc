@@ -474,8 +474,7 @@ TEST_F(EmitterTest, NoGoodCoordinator) {
   EXPECT_EQ(0u, send_count);
 }
 
-// TODO(ilezhankin): finish some TODOs.
-TEST_F(EmitterTest, DISABLED_CoordinatorNoConnection) {
+TEST_F(EmitterTest, CoordinatorNoConnection) {
   const String socket_path = "/tmp/test.socket";
   const String bad_coordinator_host = "bad_host";
   const ui16 bad_coordinator_port = 1;
@@ -513,7 +512,8 @@ TEST_F(EmitterTest, DISABLED_CoordinatorNoConnection) {
       EXPECT_EQ(end_point->Print(),
                 ToEndPointPrint(good_coordinator_host, good_coordinator_port));
       connection->CallOnRead([&](net::Connection::Message* message) {
-        // TODO: return minimal acceptable config.
+        message->MutableExtension(proto::Configuration::extension)
+            ->mutable_emitter();
       });
       return true;
     }
@@ -521,7 +521,8 @@ TEST_F(EmitterTest, DISABLED_CoordinatorNoConnection) {
       EXPECT_EQ(end_point->Print(),
                 ToEndPointPrint(good_coordinator_host, good_coordinator_port));
       connection->CallOnRead([&](net::Connection::Message* message) {
-        // TODO: return minimal acceptable config.
+        message->MutableExtension(proto::Configuration::extension)
+            ->mutable_emitter();
       });
       send_condition.notify_all();
       return true;
@@ -539,6 +540,13 @@ TEST_F(EmitterTest, DISABLED_CoordinatorNoConnection) {
       lock, Seconds(2), [this] { return connections_created > 2; }));
 
   emitter.reset();
+
+  EXPECT_EQ(0u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(connections_created, connect_count);
+  EXPECT_LE(3u, connections_created);
+  EXPECT_EQ(connections_created - 1, read_count);
+  EXPECT_EQ(connections_created - 1, send_count);
 }
 
 // TODO(ilezhankin): split this test.
