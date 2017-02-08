@@ -3,6 +3,8 @@
 #include <base/assert.h>
 #include <base/attributes.h>
 
+#include <third_party/gtest/exported/include/gtest/gtest_prod.h>
+
 #include STL(condition_variable)
 #include STL(experimental/optional)
 
@@ -84,6 +86,9 @@ class LockedQueue {
   }
 
  private:
+  FRIEND_TEST(LockedQueueIndexTest, BasicUsage);
+  FRIEND_TEST(LockedQueueIndexTest, GetFromHead);
+  FRIEND_TEST(LockedQueueIndexTest, ShardIndexGrows);
   friend class QueueAggregator<T>;
 
   class Index {
@@ -132,6 +137,9 @@ class LockedQueue {
     }
 
    private:
+    FRIEND_TEST(LockedQueueIndexTest, BasicUsage);
+    FRIEND_TEST(LockedQueueIndexTest, GetFromHead);
+    FRIEND_TEST(LockedQueueIndexTest, ShardIndexGrows);
     Vector<Shard> index_;
 
     // FIXME: use anything more shiny for hashing than |T*|.
