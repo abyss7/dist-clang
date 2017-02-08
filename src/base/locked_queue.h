@@ -109,7 +109,8 @@ class LockedQueue {
       if (shard >= index_.size()) {
         index_.resize(shard + 1);
       }
-      reverse_index_[&*it] = index_[shard].insert(index_[shard].end(), it);
+      reverse_index_[&*it] =
+          std::make_pair(index_[shard].insert(index_[shard].end(), it), shard);
     }
 
     QueueIterator Get(ui32 shard, QueueIterator begin) THREAD_UNSAFE {
@@ -122,7 +123,8 @@ class LockedQueue {
         reverse_index_.erase(&*item);
       } else {
         item = begin;
-        index_[shard].erase(reverse_index_[&*begin]);
+        shard = reverse_index_[&*begin].second;
+        index_[shard].erase(reverse_index_[&*begin].first);
         reverse_index_.erase(&*begin);
       }
 
@@ -133,7 +135,8 @@ class LockedQueue {
     Vector<Shard> index_;
 
     // FIXME: use anything more shiny for hashing than |T*|.
-    HashMap<const T*, typename Shard::const_iterator> reverse_index_;
+    HashMap<const T*, Pair<typename Shard::const_iterator, ui32 /* shard */>>
+        reverse_index_;
     // |reverse_index_| is used to remove items from |index_| in O(1) when
     // those are picked from the top of the |queue_|.
   };
