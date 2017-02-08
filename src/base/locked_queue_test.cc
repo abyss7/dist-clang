@@ -115,5 +115,71 @@ TEST(LockedQueueTest, DISABLED_BasicMultiThreadedUsage) {
   // TODO: implement this test.
 }
 
+TEST(LockedQueueIndexTest, BasicUsage) {
+  List<int> list;
+  LockedQueue<int>::Index index;
+
+  const ui32 shard = 4u;
+
+  auto inserted_item = list.insert(list.end(), 1);
+  index.Put(inserted_item, shard);
+  EXPECT_EQ(shard + 1, index.index_.size());
+  EXPECT_EQ(1u, index.index_[shard].size());
+  EXPECT_EQ(1u, index.reverse_index_.size());
+  EXPECT_EQ(1u, index.reverse_index_.count(&*inserted_item));
+
+  EXPECT_EQ(inserted_item, index.Get(shard, list.begin()));
+
+  // Index shouldn't shrink on elements removal.
+  EXPECT_EQ(shard + 1, index.index_.size());
+  EXPECT_EQ(0u, index.index_[shard].size());
+  EXPECT_EQ(0u, index.reverse_index_.size());
+  EXPECT_EQ(0u, index.reverse_index_.count(&*inserted_item));
+}
+
+TEST(LockedQueueIndexTest, GetFromHead) {
+  List<int> list;
+  LockedQueue<int>::Index index;
+
+  const ui32 shard = 4u;
+  const ui32 empty_shard = 3u;
+
+  auto inserted_item = list.insert(list.end(), 1);
+  index.Put(inserted_item, shard);
+  EXPECT_EQ(shard + 1, index.index_.size());
+  EXPECT_EQ(1u, index.index_[shard].size());
+  EXPECT_EQ(1u, index.reverse_index_.size());
+  EXPECT_EQ(1u, index.reverse_index_.count(&*inserted_item));
+
+  EXPECT_EQ(inserted_item, index.Get(empty_shard, list.begin()));
+
+  // Index shouldn't shrink on elements removal.
+  EXPECT_EQ(shard + 1, index.index_.size());
+  EXPECT_EQ(0u, index.index_[shard].size());
+  EXPECT_EQ(0u, index.reverse_index_.size());
+  EXPECT_EQ(0u, index.reverse_index_.count(&*inserted_item));
+}
+
+TEST(LockedQueueIndexTest, ShardIndexGrows) {
+  List<int> list;
+  LockedQueue<int>::Index index;
+
+  const ui32 shard1 = 4u;
+  const ui32 shard2 = 5u;
+
+  auto inserted_item = list.insert(list.end(), 1);
+  index.Put(inserted_item, shard1);
+  EXPECT_EQ(shard1 + 1, index.index_.size());
+  EXPECT_EQ(1u, index.index_[shard1].size());
+  EXPECT_EQ(1u, index.reverse_index_.count(&*inserted_item));
+
+  inserted_item = list.insert(list.end(), 5);
+  index.Put(inserted_item, shard2);
+  EXPECT_EQ(shard2 + 1, index.index_.size());
+  EXPECT_EQ(1u, index.index_[shard1].size());
+  EXPECT_EQ(1u, index.index_[shard2].size());
+  EXPECT_EQ(1u, index.reverse_index_.count(&*inserted_item));
+}
+
 }  // namespace base
 }  // namespace dist_clang
