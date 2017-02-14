@@ -82,7 +82,7 @@ Emitter::Emitter(const proto::Configuration& conf) : CompilationDaemon(conf) {
 
   workers_ = std::make_unique<base::WorkerPool>();
   coordinator_workers_ = std::make_unique<base::WorkerPool>(true);
-  all_tasks_ = std::make_unique<Queue>();
+  all_tasks_ = std::make_unique<Queue>(Seconds(conf.emitter().pop_timeout()));
   cache_tasks_ = std::make_unique<Queue>();
   failed_tasks_ = std::make_unique<Queue>();
 

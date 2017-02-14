@@ -6,7 +6,7 @@
 #include <third_party/gtest/exported/include/gtest/gtest_prod.h>
 
 #include STL(condition_variable)
-#include STL(experimental/optional)
+#include STL_EXPERIMENTAL(optional)
 
 namespace dist_clang {
 namespace base {
@@ -26,7 +26,11 @@ class LockedQueue {
     DEFAULT_SHARD = 0,
   };
 
-  explicit LockedQueue(ui32 capacity = UNLIMITED) : capacity_(capacity) {}
+  explicit LockedQueue(ui32 capacity = UNLIMITED)
+      : capacity_(capacity), timeout_(Seconds::zero()) {}
+  explicit LockedQueue(Seconds pop_timeout) : timeout_(pop_timeout) {
+    DCHECK(timeout_ > Seconds::zero());
+  }
   ~LockedQueue() {
     DCHECK(closed_);
     DCHECK(index_.Size() == queue_.size());
@@ -87,11 +91,13 @@ class LockedQueue {
   std::mutex pop_mutex_;
   std::condition_variable pop_condition_;
   Queue queue_;
+  Index index_;
+
+  const ui64 capacity_ = UNLIMITED;
+  const Seconds timeout_ = Seconds::zero();
 
   Atomic<ui64> size_ = {0};
-  const ui64 capacity_;
   Atomic<bool> closed_ = {false};
-  Index index_;
 };
 
 }  // namespace base
