@@ -46,6 +46,7 @@ shared_library("base") {
     "future.h",
     "locked_list.h",
     "locked_queue.h",
+    "locked_queue_index.h",
     "process.cc",
     "process.h",
     "process_forward.h",
