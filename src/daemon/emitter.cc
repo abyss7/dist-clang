@@ -390,7 +390,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
       }
     }
 
-    Optional&& task = all_tasks_->Pop(shard);
+    Optional&& task = all_tasks_->Pop(pool, shard);
     if (!task) {
       break;
     }

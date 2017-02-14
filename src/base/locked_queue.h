@@ -2,6 +2,7 @@
 
 #include <base/assert.h>
 #include <base/attributes.h>
+#include <base/worker_pool.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest_prod.h>
 
@@ -70,6 +71,26 @@ class LockedQueue {
     UniqueLock lock(pop_mutex_);
     pop_condition_.wait(lock, [this] { return closed_ || !queue_.empty(); });
     if (closed_ && queue_.empty()) {
+      return Optional();
+    }
+
+    auto it = index_.Get(shard, queue_.begin());
+    Optional&& obj = std::move(*it);
+    queue_.erase(it);
+    --size_;
+    return std::move(obj);
+  }
+
+  // Returns disengaged object only when this queue is closed and empty, or pool
+  // is shutting down.
+  Optional Pop(const WorkerPool& pool, ui32 shard = DEFAULT_SHARD) THREAD_SAFE {
+    DCHECK(timeout_ > Seconds::zero());
+
+    UniqueLock lock(pop_mutex_);
+    do {
+      pop_condition_.wait_for(lock, timeout_);
+    } while (!closed_ && queue_.empty() && !pool.IsShuttingDown());
+    if ((closed_ && queue_.empty()) || pool.IsShuttingDown()) {
       return Optional();
     }
 
