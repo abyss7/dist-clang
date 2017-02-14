@@ -28,8 +28,6 @@ TEST(ThreadPoolTest, CompleteAllTasksOnDestruction) {
   }
   pool->Run();
 
-  EXPECT_EQ(expected_count, pool->TaskCount());
-
   for (size_t i = 0; i != expected_count; ++i) {
     EXPECT_TRUE(!!futures[i]);
   }

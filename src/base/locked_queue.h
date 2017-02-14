@@ -26,8 +26,7 @@ class LockedQueue {
     DEFAULT_SHARD = 0,
   };
 
-  LockedQueue() = default;
-  explicit LockedQueue(ui32 capacity) : capacity_(capacity) {}
+  explicit LockedQueue(ui32 capacity = UNLIMITED) : capacity_(capacity) {}
   ~LockedQueue() {
     DCHECK(closed_);
     DCHECK(index_.Size() == queue_.size());
@@ -64,11 +63,6 @@ class LockedQueue {
 
   // Returns disengaged object only when this queue is closed and empty.
   Optional Pop(ui32 shard = DEFAULT_SHARD) THREAD_SAFE {
-    return Pop(nullptr, shard);
-  }
-
-  Optional Pop(Atomic<ui64>* external_counter,
-               ui32 shard = DEFAULT_SHARD) THREAD_SAFE {
     UniqueLock lock(pop_mutex_);
     pop_condition_.wait(lock, [this] { return closed_ || !queue_.empty(); });
     if (closed_ && queue_.empty()) {
@@ -79,9 +73,6 @@ class LockedQueue {
     Optional&& obj = std::move(*it);
     queue_.erase(it);
     --size_;
-    if (external_counter) {
-      ++(*external_counter);
-    }
     return std::move(obj);
   }
 
@@ -154,7 +145,7 @@ class LockedQueue {
   Queue queue_;
 
   Atomic<ui64> size_ = {0};
-  const ui64 capacity_ = UNLIMITED;
+  const ui64 capacity_;
   Atomic<bool> closed_ = {false};
   Index index_;
 };

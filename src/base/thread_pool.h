@@ -23,7 +23,6 @@ class ThreadPool {
   void Run();
   Optional Push(const Closure& task);
   Optional Push(Closure&& task);
-  inline ui64 TaskCount() const { return tasks_.Size() + active_task_count_; }
 
  private:
   void DoWork(const base::WorkerPool& pool);
@@ -31,7 +30,6 @@ class ThreadPool {
   TaskQueue tasks_;
   WorkerPool pool_;
   ui32 concurrency_;
-  Atomic<ui64> active_task_count_ = {0};
 };
 
 }  // namespace base
