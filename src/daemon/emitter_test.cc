@@ -836,7 +836,96 @@ TEST_F(EmitterTest, CoordinatorNoRemotes) {
 
   UniqueLock lock(send_mutex);
   EXPECT_TRUE(send_condition.wait_for(
-      lock, Seconds(3), [this] { return connections_created > 2; }));
+      lock, Seconds(5), [this] { return connections_created > 2; }));
+
+  emitter.reset();
+
+  EXPECT_EQ(0u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(connections_created, connect_count);
+  EXPECT_LE(3u, connections_created);
+  EXPECT_EQ(connections_created, read_count);
+  EXPECT_EQ(connections_created, send_count);
+}
+
+/*
+ * Coordinator should get rotated if it doesn't provide enabled remotes
+ * when |only_failed| is true.
+ */
+TEST_F(EmitterTest, CoordinatorNoEnabledRemotes) {
+  const String socket_path = "/tmp/test.socket";
+  const String bad_coordinator_host = "bad_host";
+  const ui16 bad_coordinator_port = 1;
+  const String good_coordinator_host = "good_host";
+  const ui16 good_coordinator_port = 2;
+  const String remote_host = "fake_host";
+  const ui16 remote_port = 12345;
+
+  conf.mutable_emitter()->set_socket_path(socket_path);
+  conf.mutable_emitter()->set_only_failed(true);
+  conf.mutable_emitter()->set_poll_interval(1u);
+
+  auto remote = conf.mutable_emitter()->add_remotes();
+  remote->set_host(remote_host);
+  remote->set_port(remote_port);
+
+  // FIXME(ilezhankin): in this test we rely on order of coordinators inside
+  //                    a Protobuf object.
+  auto coordinator = conf.mutable_emitter()->add_coordinators();
+  coordinator->set_host(bad_coordinator_host);
+  coordinator->set_port(bad_coordinator_port);
+
+  coordinator = conf.mutable_emitter()->add_coordinators();
+  coordinator->set_host(good_coordinator_host);
+  coordinator->set_port(good_coordinator_port);
+
+  listen_callback = [&](const String& host, ui16 port, String*) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+    return !::testing::Test::HasNonfatalFailure();
+  };
+
+  connect_callback = [&](net::TestConnection* connection,
+                         net::EndPointPtr end_point) {
+    if (connections_created == 1) {
+      EXPECT_EQ(end_point->Print(),
+                ToEndPointPrint(bad_coordinator_host, bad_coordinator_port));
+      connection->CallOnRead([&](net::Connection::Message* message) {
+        auto remote = message->MutableExtension(proto::Configuration::extension)
+                          ->mutable_emitter()
+                          ->add_remotes();
+        remote->set_host(remote_host);
+        remote->set_port(remote_port);
+        remote->set_disabled(true);
+      });
+      return true;
+    }
+    if (connections_created >= 2) {
+      EXPECT_EQ(end_point->Print(),
+                ToEndPointPrint(good_coordinator_host, good_coordinator_port));
+      connection->CallOnRead([&](net::Connection::Message* message) {
+        auto remote = message->MutableExtension(proto::Configuration::extension)
+                          ->mutable_emitter()
+                          ->add_remotes();
+        remote->set_host(remote_host);
+        remote->set_port(remote_port);
+      });
+      if (connections_created > 2) {
+        send_condition.notify_all();
+      }
+      return true;
+    }
+
+    NOTREACHED();
+    return true;
+  };
+
+  emitter.reset(new Emitter(conf));
+  ASSERT_TRUE(emitter->Initialize());
+
+  UniqueLock lock(send_mutex);
+  EXPECT_TRUE(send_condition.wait_for(
+      lock, Seconds(5), [this] { return connections_created > 2; }));
 
   emitter.reset();
 
@@ -905,14 +994,14 @@ TEST_F(EmitterTest, CoordinatorSuccessfulUpdate) {
 
   UniqueLock lock(send_mutex);
   EXPECT_TRUE(send_condition.wait_for(
-      lock, Seconds(6), [this] { return connections_created > 1; }));
+      lock, Seconds(4), [this] { return connections_created > 1; }));
 
   emitter.reset();
 
   EXPECT_EQ(0u, run_count);
   EXPECT_EQ(1u, listen_count);
   EXPECT_EQ(connections_created, connect_count);
-  EXPECT_LE(3u, connections_created);
+  EXPECT_LE(2u, connections_created);
   EXPECT_EQ(connections_created, read_count);
   EXPECT_EQ(connections_created, send_count);
 }
