@@ -395,19 +395,7 @@ TEST_F(EmitterTest, DISABLED_GracefulConfigurationUpdate) {
 }
 
 /*
- * Test rotation in case of:
- *  - connection to coordinator fails
- *  - send to coordinator fails
- *  - read from coordinator fails
- *  - coordinator responds without configuration
- *  - coordinator responds without emitter
- *  - coordinator responds without remotes
- *  - coordinator responds without enabled remotes
- *  - everything is fine
- */
-
-/*
- * Check that we don't enter infinite loop - and quit.
+ * Check that emitter doesn't enter infinite loop while polling coordinators.
  */
 TEST_F(EmitterTest, NoGoodCoordinator) {
   const String socket_path = "/tmp/test.socket";
@@ -474,6 +462,14 @@ TEST_F(EmitterTest, NoGoodCoordinator) {
   EXPECT_EQ(0u, send_count);
 }
 
+/*
+ * Coordinator should get rotated if emitter can't connect to it:
+ *   - connect to bad coordinator
+ *   - (rotate coordinators)
+ *   - connect to good coordinator without waiting
+ *   - (wait poll interval)
+ *   - connect to good coordinator again
+ */
 TEST_F(EmitterTest, CoordinatorNoConnection) {
   const String socket_path = "/tmp/test.socket";
   const String bad_coordinator_host = "bad_host";
@@ -508,23 +504,15 @@ TEST_F(EmitterTest, CoordinatorNoConnection) {
                 ToEndPointPrint(bad_coordinator_host, bad_coordinator_port));
       return false;
     }
-    if (connections_created == 2) {
+    if (connections_created >= 2) {
       EXPECT_EQ(end_point->Print(),
                 ToEndPointPrint(good_coordinator_host, good_coordinator_port));
       connection->CallOnRead([&](net::Connection::Message* message) {
-        message->MutableExtension(proto::Configuration::extension)
-            ->mutable_emitter();
+        message->MutableExtension(proto::Configuration::extension);
       });
-      return true;
-    }
-    if (connections_created > 2) {
-      EXPECT_EQ(end_point->Print(),
-                ToEndPointPrint(good_coordinator_host, good_coordinator_port));
-      connection->CallOnRead([&](net::Connection::Message* message) {
-        message->MutableExtension(proto::Configuration::extension)
-            ->mutable_emitter();
-      });
-      send_condition.notify_all();
+      if (connections_created > 2) {
+        send_condition.notify_all();
+      }
       return true;
     }
 
@@ -549,7 +537,398 @@ TEST_F(EmitterTest, CoordinatorNoConnection) {
   EXPECT_EQ(connections_created - 1, send_count);
 }
 
+/*
+ * Coordinator should get rotated if emitter can't send to it:
+ *   - connect to bad coordinator
+ *   - try to send message
+ *   - (rotate coordinators)
+ *   - (wait poll interval)
+ *   - connect to good coordinator without waiting
+ *   - (wait poll interval)
+ *   - connect to good coordinator again
+ */
+TEST_F(EmitterTest, CoordinatorSendFailed) {
+  const String socket_path = "/tmp/test.socket";
+  const String bad_coordinator_host = "bad_host";
+  const ui16 bad_coordinator_port = 1;
+  const String good_coordinator_host = "good_host";
+  const ui16 good_coordinator_port = 2;
+
+  conf.mutable_emitter()->set_socket_path(socket_path);
+  conf.mutable_emitter()->set_only_failed(false);
+  conf.mutable_emitter()->set_poll_interval(1u);
+
+  // FIXME(ilezhankin): in this test we rely on order of coordinators inside
+  //                    a Protobuf object.
+  auto coordinator = conf.mutable_emitter()->add_coordinators();
+  coordinator->set_host(bad_coordinator_host);
+  coordinator->set_port(bad_coordinator_port);
+
+  coordinator = conf.mutable_emitter()->add_coordinators();
+  coordinator->set_host(good_coordinator_host);
+  coordinator->set_port(good_coordinator_port);
+
+  listen_callback = [&](const String& host, ui16 port, String*) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+    return !::testing::Test::HasNonfatalFailure();
+  };
+
+  connect_callback = [&](net::TestConnection* connection,
+                         net::EndPointPtr end_point) {
+    if (connections_created == 1) {
+      connection->AbortOnSend();
+      EXPECT_EQ(end_point->Print(),
+                ToEndPointPrint(bad_coordinator_host, bad_coordinator_port));
+      return true;
+    }
+    if (connections_created >= 2) {
+      EXPECT_EQ(end_point->Print(),
+                ToEndPointPrint(good_coordinator_host, good_coordinator_port));
+      connection->CallOnRead([&](net::Connection::Message* message) {
+        message->MutableExtension(proto::Configuration::extension);
+      });
+      if (connections_created > 2) {
+        send_condition.notify_all();
+      }
+      return true;
+    }
+
+    NOTREACHED();
+    return true;
+  };
+
+  emitter.reset(new Emitter(conf));
+  ASSERT_TRUE(emitter->Initialize());
+
+  UniqueLock lock(send_mutex);
+  EXPECT_TRUE(send_condition.wait_for(
+      lock, Seconds(3), [this] { return connections_created > 2; }));
+
+  emitter.reset();
+
+  EXPECT_EQ(0u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(connections_created, connect_count);
+  EXPECT_LE(3u, connections_created);
+  EXPECT_EQ(connections_created - 1, read_count);
+  EXPECT_EQ(connections_created, send_count);
+}
+
+/*
+ * Coordinator should get rotated if emitter can't read from it:
+ *   - connect to bad coordinator
+ *   - try to read message
+ *   - (rotate coordinators)
+ *   - (wait poll interval)
+ *   - connect to good coordinator without waiting
+ *   - (wait poll interval)
+ *   - connect to good coordinator again
+ */
+TEST_F(EmitterTest, CoordinatorReadFailed) {
+  const String socket_path = "/tmp/test.socket";
+  const String bad_coordinator_host = "bad_host";
+  const ui16 bad_coordinator_port = 1;
+  const String good_coordinator_host = "good_host";
+  const ui16 good_coordinator_port = 2;
+
+  conf.mutable_emitter()->set_socket_path(socket_path);
+  conf.mutable_emitter()->set_only_failed(false);
+  conf.mutable_emitter()->set_poll_interval(1u);
+
+  // FIXME(ilezhankin): in this test we rely on order of coordinators inside
+  //                    a Protobuf object.
+  auto coordinator = conf.mutable_emitter()->add_coordinators();
+  coordinator->set_host(bad_coordinator_host);
+  coordinator->set_port(bad_coordinator_port);
+
+  coordinator = conf.mutable_emitter()->add_coordinators();
+  coordinator->set_host(good_coordinator_host);
+  coordinator->set_port(good_coordinator_port);
+
+  listen_callback = [&](const String& host, ui16 port, String*) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+    return !::testing::Test::HasNonfatalFailure();
+  };
+
+  connect_callback = [&](net::TestConnection* connection,
+                         net::EndPointPtr end_point) {
+    if (connections_created == 1) {
+      connection->AbortOnRead();
+      EXPECT_EQ(end_point->Print(),
+                ToEndPointPrint(bad_coordinator_host, bad_coordinator_port));
+      return true;
+    }
+    if (connections_created >= 2) {
+      EXPECT_EQ(end_point->Print(),
+                ToEndPointPrint(good_coordinator_host, good_coordinator_port));
+      connection->CallOnRead([&](net::Connection::Message* message) {
+        message->MutableExtension(proto::Configuration::extension);
+      });
+      if (connections_created > 2) {
+        send_condition.notify_all();
+      }
+      return true;
+    }
+
+    NOTREACHED();
+    return true;
+  };
+
+  emitter.reset(new Emitter(conf));
+  ASSERT_TRUE(emitter->Initialize());
+
+  UniqueLock lock(send_mutex);
+  EXPECT_TRUE(send_condition.wait_for(
+      lock, Seconds(3), [this] { return connections_created > 2; }));
+
+  emitter.reset();
+
+  EXPECT_EQ(0u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(connections_created, connect_count);
+  EXPECT_LE(3u, connections_created);
+  EXPECT_EQ(connections_created, read_count);
+  EXPECT_EQ(connections_created, send_count);
+}
+
+/*
+ * Coordinator should get rotated if it doesn't provide configuration.
+ */
+TEST_F(EmitterTest, CoordinatorNoConfiguration) {
+  const String socket_path = "/tmp/test.socket";
+  const String bad_coordinator_host = "bad_host";
+  const ui16 bad_coordinator_port = 1;
+  const String good_coordinator_host = "good_host";
+  const ui16 good_coordinator_port = 2;
+
+  conf.mutable_emitter()->set_socket_path(socket_path);
+  conf.mutable_emitter()->set_only_failed(false);
+  conf.mutable_emitter()->set_poll_interval(1u);
+
+  // FIXME(ilezhankin): in this test we rely on order of coordinators inside
+  //                    a Protobuf object.
+  auto coordinator = conf.mutable_emitter()->add_coordinators();
+  coordinator->set_host(bad_coordinator_host);
+  coordinator->set_port(bad_coordinator_port);
+
+  coordinator = conf.mutable_emitter()->add_coordinators();
+  coordinator->set_host(good_coordinator_host);
+  coordinator->set_port(good_coordinator_port);
+
+  listen_callback = [&](const String& host, ui16 port, String*) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+    return !::testing::Test::HasNonfatalFailure();
+  };
+
+  connect_callback = [&](net::TestConnection* connection,
+                         net::EndPointPtr end_point) {
+    if (connections_created == 1) {
+      EXPECT_EQ(end_point->Print(),
+                ToEndPointPrint(bad_coordinator_host, bad_coordinator_port));
+      connection->CallOnRead([&](net::Connection::Message* message) {});
+      return true;
+    }
+    if (connections_created >= 2) {
+      EXPECT_EQ(end_point->Print(),
+                ToEndPointPrint(good_coordinator_host, good_coordinator_port));
+      connection->CallOnRead([&](net::Connection::Message* message) {
+        message->MutableExtension(proto::Configuration::extension);
+      });
+      if (connections_created > 2) {
+        send_condition.notify_all();
+      }
+      return true;
+    }
+
+    NOTREACHED();
+    return true;
+  };
+
+  emitter.reset(new Emitter(conf));
+  ASSERT_TRUE(emitter->Initialize());
+
+  UniqueLock lock(send_mutex);
+  EXPECT_TRUE(send_condition.wait_for(
+      lock, Seconds(3), [this] { return connections_created > 2; }));
+
+  emitter.reset();
+
+  EXPECT_EQ(0u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(connections_created, connect_count);
+  EXPECT_LE(3u, connections_created);
+  EXPECT_EQ(connections_created, read_count);
+  EXPECT_EQ(connections_created, send_count);
+}
+
+/*
+ * Coordinator should get rotated if it doesn't provide remotes
+ * when |only_failed| is true.
+ */
+TEST_F(EmitterTest, CoordinatorNoRemotes) {
+  const String socket_path = "/tmp/test.socket";
+  const String bad_coordinator_host = "bad_host";
+  const ui16 bad_coordinator_port = 1;
+  const String good_coordinator_host = "good_host";
+  const ui16 good_coordinator_port = 2;
+  const String remote_host = "fake_host";
+  const ui16 remote_port = 12345;
+
+  conf.mutable_emitter()->set_socket_path(socket_path);
+  conf.mutable_emitter()->set_only_failed(true);
+  conf.mutable_emitter()->set_poll_interval(1u);
+
+  auto remote = conf.mutable_emitter()->add_remotes();
+  remote->set_host(remote_host);
+  remote->set_port(remote_port);
+
+  // FIXME(ilezhankin): in this test we rely on order of coordinators inside
+  //                    a Protobuf object.
+  auto coordinator = conf.mutable_emitter()->add_coordinators();
+  coordinator->set_host(bad_coordinator_host);
+  coordinator->set_port(bad_coordinator_port);
+
+  coordinator = conf.mutable_emitter()->add_coordinators();
+  coordinator->set_host(good_coordinator_host);
+  coordinator->set_port(good_coordinator_port);
+
+  listen_callback = [&](const String& host, ui16 port, String*) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+    return !::testing::Test::HasNonfatalFailure();
+  };
+
+  connect_callback = [&](net::TestConnection* connection,
+                         net::EndPointPtr end_point) {
+    if (connections_created == 1) {
+      EXPECT_EQ(end_point->Print(),
+                ToEndPointPrint(bad_coordinator_host, bad_coordinator_port));
+      connection->CallOnRead([&](net::Connection::Message* message) {
+        message->MutableExtension(proto::Configuration::extension);
+      });
+      return true;
+    }
+    if (connections_created >= 2) {
+      EXPECT_EQ(end_point->Print(),
+                ToEndPointPrint(good_coordinator_host, good_coordinator_port));
+      connection->CallOnRead([&](net::Connection::Message* message) {
+        auto remote = message->MutableExtension(proto::Configuration::extension)
+                          ->mutable_emitter()
+                          ->add_remotes();
+        remote->set_host(remote_host);
+        remote->set_port(remote_port);
+      });
+      if (connections_created > 2) {
+        send_condition.notify_all();
+      }
+      return true;
+    }
+
+    NOTREACHED();
+    return true;
+  };
+
+  emitter.reset(new Emitter(conf));
+  ASSERT_TRUE(emitter->Initialize());
+
+  UniqueLock lock(send_mutex);
+  EXPECT_TRUE(send_condition.wait_for(
+      lock, Seconds(3), [this] { return connections_created > 2; }));
+
+  emitter.reset();
+
+  EXPECT_EQ(0u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(connections_created, connect_count);
+  EXPECT_LE(3u, connections_created);
+  EXPECT_EQ(connections_created, read_count);
+  EXPECT_EQ(connections_created, send_count);
+}
+
+TEST_F(EmitterTest, CoordinatorSuccessfulUpdate) {
+  const String socket_path = "/tmp/test.socket";
+  const String bad_coordinator_host = "bad_host";
+  const ui16 bad_coordinator_port = 1;
+  const String good_coordinator_host = "good_host";
+  const ui16 good_coordinator_port = 2;
+  const String remote_host = "fake_host";
+  const ui16 remote_port = 12345;
+
+  conf.mutable_emitter()->set_socket_path(socket_path);
+  conf.mutable_emitter()->set_only_failed(true);
+  conf.mutable_emitter()->set_poll_interval(1u);
+
+  auto remote = conf.mutable_emitter()->add_remotes();
+  remote->set_host(remote_host);
+  remote->set_port(remote_port);
+
+  // FIXME(ilezhankin): in this test we rely on order of coordinators inside
+  //                    a Protobuf object.
+  auto coordinator = conf.mutable_emitter()->add_coordinators();
+  coordinator->set_host(good_coordinator_host);
+  coordinator->set_port(good_coordinator_port);
+
+  coordinator = conf.mutable_emitter()->add_coordinators();
+  coordinator->set_host(bad_coordinator_host);
+  coordinator->set_port(bad_coordinator_port);
+
+  listen_callback = [&](const String& host, ui16 port, String*) {
+    EXPECT_EQ(socket_path, host);
+    EXPECT_EQ(0u, port);
+    return !::testing::Test::HasNonfatalFailure();
+  };
+
+  connect_callback = [&](net::TestConnection* connection,
+                         net::EndPointPtr end_point) {
+    EXPECT_EQ(end_point->Print(),
+              ToEndPointPrint(good_coordinator_host, good_coordinator_port));
+    connection->CallOnRead([&](net::Connection::Message* message) {
+      auto remote = message->MutableExtension(proto::Configuration::extension)
+                        ->mutable_emitter()
+                        ->add_remotes();
+      remote->set_host(remote_host);
+      remote->set_port(remote_port);
+    });
+
+    if (connections_created > 1) {
+      send_condition.notify_all();
+    }
+
+    return true;
+  };
+
+  emitter.reset(new Emitter(conf));
+  ASSERT_TRUE(emitter->Initialize());
+
+  UniqueLock lock(send_mutex);
+  EXPECT_TRUE(send_condition.wait_for(
+      lock, Seconds(6), [this] { return connections_created > 1; }));
+
+  emitter.reset();
+
+  EXPECT_EQ(0u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(connections_created, connect_count);
+  EXPECT_LE(3u, connections_created);
+  EXPECT_EQ(connections_created, read_count);
+  EXPECT_EQ(connections_created, send_count);
+}
+
 // TODO(ilezhankin): split this test.
+/*
+ * Test rotation in case of:
+ *  - connection to coordinator fails
+ *  - send to coordinator fails
+ *  - read from coordinator fails
+ *  - coordinator responds without configuration
+ *  - coordinator responds without emitter
+ *  - coordinator responds without remotes
+ *  - coordinator responds without enabled remotes
+ *  - everything is fine
+ */
 TEST_F(EmitterTest, DISABLED_CoordinatorRotation) {
   const String socket_path = "/tmp/test.socket1";
   const String compiler_version = "fake_compiler_version";

@@ -10,7 +10,7 @@ namespace dist_clang {
 namespace daemon {
 
 bool BaseDaemon::Initialize() {
-  return Check() && network_service_->Run() && Reload();
+  return Check() && Reload() && network_service_->Run();
 }
 
 BaseDaemon::BaseDaemon(const Configuration& conf)
