@@ -10,9 +10,11 @@ namespace dist_clang {
 namespace daemon {
 
 namespace {
+
 std::string ToEndPointPrint(const String& host, const ui16 port = 0) {
   return host + ":" + std::to_string(port);
 }
+
 }  // anonymous namespace
 
 TEST(EmitterConfigurationTest, NoEmitterSection) {
@@ -46,22 +48,25 @@ TEST(EmitterConfigurationTest, OnlyFailedWithoutRemotes) {
 
 class EmitterTest : public CommonDaemonTest {
  protected:
+  EmitterTest() : socket_path("/tmp/test.socket") {
+    auto* emitter = conf.mutable_emitter();
+    emitter->set_socket_path(socket_path);
+
+    listen_callback = [this](const String& host, ui16 port, String*) {
+      EXPECT_EQ(socket_path, host);
+      EXPECT_EQ(0u, port);
+      return !::testing::Test::HasNonfatalFailure();
+    };
+  }
+
   UniquePtr<Emitter> emitter;
+  const String socket_path;
 };
 
 /*
  * We can connect, and when we connect the emitter waits for message.
  */
 TEST_F(EmitterTest, IdleConnection) {
-  const String socket_path = "/tmp/test.socket";
-
-  conf.mutable_emitter()->set_socket_path(socket_path);
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
-
   emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
@@ -81,16 +86,9 @@ TEST_F(EmitterTest, IdleConnection) {
  * If we receive a bad message from client, then say it back to him.
  */
 TEST_F(EmitterTest, BadLocalMessage) {
-  const String socket_path = "/tmp/test.socket";
   const auto expected_code = net::proto::Status::BAD_MESSAGE;
   const String expected_description = "Test description";
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
@@ -101,7 +99,7 @@ TEST_F(EmitterTest, BadLocalMessage) {
     return true;
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   auto connection = test_service->TriggerListen(socket_path);
@@ -109,7 +107,7 @@ TEST_F(EmitterTest, BadLocalMessage) {
     SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
 
-    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto message = std::make_unique<net::Connection::Message>();
     net::proto::Status status;
     status.set_code(expected_code);
     status.set_description(expected_description);
@@ -128,16 +126,7 @@ TEST_F(EmitterTest, BadLocalMessage) {
 }
 
 TEST_F(EmitterTest, LocalMessageWithoutCommand) {
-  const String socket_path = "/tmp/test.socket";
-
-  conf.mutable_emitter()->set_socket_path(socket_path);
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
-
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   auto connection = test_service->TriggerListen(socket_path);
@@ -169,7 +158,6 @@ TEST_F(EmitterTest, LocalMessageWithoutCommand) {
  * This test checks |DoLocalExecute()|.
  */
 TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
-  const String socket_path = "/tmp/test.socket";
   const auto expected_code = net::proto::Status::NO_VERSION;
   const String compiler_version = "fake_compiler_version";
   const String bad_version = "another_compiler_version";
@@ -178,7 +166,6 @@ TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
   const String plugin_path = "fake_plugin_path";
   const String current_dir = "fake_current_dir";
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   auto* version = conf.add_versions();
   version->set_version(compiler_version);
   version->set_path(compiler_path);
@@ -186,11 +173,6 @@ TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
   plugin->set_name(plugin_name);
   plugin->set_path(plugin_path);
 
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
@@ -200,7 +182,7 @@ TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
     return true;
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   auto connection = test_service->TriggerListen(socket_path);
@@ -231,9 +213,12 @@ TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
       << "Daemon must not store references to the connection";
 }
 
+TEST_F(EmitterTest, ConfigurationUpdate) {
+  // TODO: implement this test.
+}
+
 // TODO(ilezhankin): rewrite this test.
 TEST_F(EmitterTest, DISABLED_GracefulConfigurationUpdate) {
-  const String socket_path = "/tmp/test.socket1";
   const String coordinator_host = "coordinator";
   const String old_remote_host = "old_remote";
   const String new_remote_host = "new_remote";
@@ -254,7 +239,6 @@ TEST_F(EmitterTest, DISABLED_GracefulConfigurationUpdate) {
   version->set_path(compiler_path);
 
   auto* emitter_config = conf.mutable_emitter();
-  emitter_config->set_socket_path(socket_path);
   emitter_config->set_only_failed(true);
   emitter_config->set_poll_interval(0u);
 
@@ -369,7 +353,7 @@ TEST_F(EmitterTest, DISABLED_GracefulConfigurationUpdate) {
     return true;
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
   post_task();
 
@@ -398,13 +382,11 @@ TEST_F(EmitterTest, DISABLED_GracefulConfigurationUpdate) {
  * Check that emitter doesn't enter infinite loop while polling coordinators.
  */
 TEST_F(EmitterTest, NoGoodCoordinator) {
-  const String socket_path = "/tmp/test.socket";
   const String bad_coordinator_host1 = "bad_host1";
   const ui16 bad_coordinator_port1 = 1;
   const String bad_coordinator_host2 = "bad_host2";
   const ui16 bad_coordinator_port2 = 2;
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   conf.mutable_emitter()->set_only_failed(false);
   conf.mutable_emitter()->set_poll_interval(1u);
 
@@ -417,12 +399,6 @@ TEST_F(EmitterTest, NoGoodCoordinator) {
   coordinator = conf.mutable_emitter()->add_coordinators();
   coordinator->set_host(bad_coordinator_host2);
   coordinator->set_port(bad_coordinator_port2);
-
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
 
   connect_callback = [&](net::TestConnection* connection,
                          net::EndPointPtr end_point) {
@@ -445,7 +421,7 @@ TEST_F(EmitterTest, NoGoodCoordinator) {
     return true;
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   UniqueLock lock(send_mutex);
@@ -471,13 +447,11 @@ TEST_F(EmitterTest, NoGoodCoordinator) {
  *   - connect to good coordinator again
  */
 TEST_F(EmitterTest, CoordinatorNoConnection) {
-  const String socket_path = "/tmp/test.socket";
   const String bad_coordinator_host = "bad_host";
   const ui16 bad_coordinator_port = 1;
   const String good_coordinator_host = "good_host";
   const ui16 good_coordinator_port = 2;
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   conf.mutable_emitter()->set_only_failed(false);
   conf.mutable_emitter()->set_poll_interval(1u);
 
@@ -490,12 +464,6 @@ TEST_F(EmitterTest, CoordinatorNoConnection) {
   coordinator = conf.mutable_emitter()->add_coordinators();
   coordinator->set_host(good_coordinator_host);
   coordinator->set_port(good_coordinator_port);
-
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
 
   connect_callback = [&](net::TestConnection* connection,
                          net::EndPointPtr end_point) {
@@ -520,7 +488,7 @@ TEST_F(EmitterTest, CoordinatorNoConnection) {
     return true;
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   UniqueLock lock(send_mutex);
@@ -548,13 +516,11 @@ TEST_F(EmitterTest, CoordinatorNoConnection) {
  *   - connect to good coordinator again
  */
 TEST_F(EmitterTest, CoordinatorSendFailed) {
-  const String socket_path = "/tmp/test.socket";
   const String bad_coordinator_host = "bad_host";
   const ui16 bad_coordinator_port = 1;
   const String good_coordinator_host = "good_host";
   const ui16 good_coordinator_port = 2;
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   conf.mutable_emitter()->set_only_failed(false);
   conf.mutable_emitter()->set_poll_interval(1u);
 
@@ -567,12 +533,6 @@ TEST_F(EmitterTest, CoordinatorSendFailed) {
   coordinator = conf.mutable_emitter()->add_coordinators();
   coordinator->set_host(good_coordinator_host);
   coordinator->set_port(good_coordinator_port);
-
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
 
   connect_callback = [&](net::TestConnection* connection,
                          net::EndPointPtr end_point) {
@@ -598,7 +558,7 @@ TEST_F(EmitterTest, CoordinatorSendFailed) {
     return true;
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   UniqueLock lock(send_mutex);
@@ -626,13 +586,11 @@ TEST_F(EmitterTest, CoordinatorSendFailed) {
  *   - connect to good coordinator again
  */
 TEST_F(EmitterTest, CoordinatorReadFailed) {
-  const String socket_path = "/tmp/test.socket";
   const String bad_coordinator_host = "bad_host";
   const ui16 bad_coordinator_port = 1;
   const String good_coordinator_host = "good_host";
   const ui16 good_coordinator_port = 2;
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   conf.mutable_emitter()->set_only_failed(false);
   conf.mutable_emitter()->set_poll_interval(1u);
 
@@ -645,12 +603,6 @@ TEST_F(EmitterTest, CoordinatorReadFailed) {
   coordinator = conf.mutable_emitter()->add_coordinators();
   coordinator->set_host(good_coordinator_host);
   coordinator->set_port(good_coordinator_port);
-
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
 
   connect_callback = [&](net::TestConnection* connection,
                          net::EndPointPtr end_point) {
@@ -676,7 +628,7 @@ TEST_F(EmitterTest, CoordinatorReadFailed) {
     return true;
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   UniqueLock lock(send_mutex);
@@ -697,13 +649,11 @@ TEST_F(EmitterTest, CoordinatorReadFailed) {
  * Coordinator should get rotated if it doesn't provide configuration.
  */
 TEST_F(EmitterTest, CoordinatorNoConfiguration) {
-  const String socket_path = "/tmp/test.socket";
   const String bad_coordinator_host = "bad_host";
   const ui16 bad_coordinator_port = 1;
   const String good_coordinator_host = "good_host";
   const ui16 good_coordinator_port = 2;
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   conf.mutable_emitter()->set_only_failed(false);
   conf.mutable_emitter()->set_poll_interval(1u);
 
@@ -716,12 +666,6 @@ TEST_F(EmitterTest, CoordinatorNoConfiguration) {
   coordinator = conf.mutable_emitter()->add_coordinators();
   coordinator->set_host(good_coordinator_host);
   coordinator->set_port(good_coordinator_port);
-
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
 
   connect_callback = [&](net::TestConnection* connection,
                          net::EndPointPtr end_point) {
@@ -747,7 +691,7 @@ TEST_F(EmitterTest, CoordinatorNoConfiguration) {
     return true;
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   UniqueLock lock(send_mutex);
@@ -769,7 +713,6 @@ TEST_F(EmitterTest, CoordinatorNoConfiguration) {
  * when |only_failed| is true.
  */
 TEST_F(EmitterTest, CoordinatorNoRemotes) {
-  const String socket_path = "/tmp/test.socket";
   const String bad_coordinator_host = "bad_host";
   const ui16 bad_coordinator_port = 1;
   const String good_coordinator_host = "good_host";
@@ -777,7 +720,6 @@ TEST_F(EmitterTest, CoordinatorNoRemotes) {
   const String remote_host = "fake_host";
   const ui16 remote_port = 12345;
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   conf.mutable_emitter()->set_only_failed(true);
   conf.mutable_emitter()->set_poll_interval(1u);
 
@@ -794,12 +736,6 @@ TEST_F(EmitterTest, CoordinatorNoRemotes) {
   coordinator = conf.mutable_emitter()->add_coordinators();
   coordinator->set_host(good_coordinator_host);
   coordinator->set_port(good_coordinator_port);
-
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
 
   connect_callback = [&](net::TestConnection* connection,
                          net::EndPointPtr end_point) {
@@ -831,7 +767,7 @@ TEST_F(EmitterTest, CoordinatorNoRemotes) {
     return true;
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   UniqueLock lock(send_mutex);
@@ -853,7 +789,6 @@ TEST_F(EmitterTest, CoordinatorNoRemotes) {
  * when |only_failed| is true.
  */
 TEST_F(EmitterTest, CoordinatorNoEnabledRemotes) {
-  const String socket_path = "/tmp/test.socket";
   const String bad_coordinator_host = "bad_host";
   const ui16 bad_coordinator_port = 1;
   const String good_coordinator_host = "good_host";
@@ -861,7 +796,6 @@ TEST_F(EmitterTest, CoordinatorNoEnabledRemotes) {
   const String remote_host = "fake_host";
   const ui16 remote_port = 12345;
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   conf.mutable_emitter()->set_only_failed(true);
   conf.mutable_emitter()->set_poll_interval(1u);
 
@@ -878,12 +812,6 @@ TEST_F(EmitterTest, CoordinatorNoEnabledRemotes) {
   coordinator = conf.mutable_emitter()->add_coordinators();
   coordinator->set_host(good_coordinator_host);
   coordinator->set_port(good_coordinator_port);
-
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
 
   connect_callback = [&](net::TestConnection* connection,
                          net::EndPointPtr end_point) {
@@ -920,7 +848,7 @@ TEST_F(EmitterTest, CoordinatorNoEnabledRemotes) {
     return true;
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   UniqueLock lock(send_mutex);
@@ -938,7 +866,6 @@ TEST_F(EmitterTest, CoordinatorNoEnabledRemotes) {
 }
 
 TEST_F(EmitterTest, CoordinatorSuccessfulUpdate) {
-  const String socket_path = "/tmp/test.socket";
   const String bad_coordinator_host = "bad_host";
   const ui16 bad_coordinator_port = 1;
   const String good_coordinator_host = "good_host";
@@ -946,7 +873,6 @@ TEST_F(EmitterTest, CoordinatorSuccessfulUpdate) {
   const String remote_host = "fake_host";
   const ui16 remote_port = 12345;
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   conf.mutable_emitter()->set_only_failed(true);
   conf.mutable_emitter()->set_poll_interval(1u);
 
@@ -963,12 +889,6 @@ TEST_F(EmitterTest, CoordinatorSuccessfulUpdate) {
   coordinator = conf.mutable_emitter()->add_coordinators();
   coordinator->set_host(bad_coordinator_host);
   coordinator->set_port(bad_coordinator_port);
-
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
 
   connect_callback = [&](net::TestConnection* connection,
                          net::EndPointPtr end_point) {
@@ -989,7 +909,7 @@ TEST_F(EmitterTest, CoordinatorSuccessfulUpdate) {
     return true;
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   UniqueLock lock(send_mutex);
@@ -1006,123 +926,11 @@ TEST_F(EmitterTest, CoordinatorSuccessfulUpdate) {
   EXPECT_EQ(connections_created, send_count);
 }
 
-// TODO(ilezhankin): split this test.
-/*
- * Test rotation in case of:
- *  - connection to coordinator fails
- *  - send to coordinator fails
- *  - read from coordinator fails
- *  - coordinator responds without configuration
- *  - coordinator responds without emitter
- *  - coordinator responds without remotes
- *  - coordinator responds without enabled remotes
- *  - everything is fine
- */
-TEST_F(EmitterTest, DISABLED_CoordinatorRotation) {
-  const String socket_path = "/tmp/test.socket1";
-  const String compiler_version = "fake_compiler_version";
-  const String remote_host = "remote_host";
-  const auto compiler_path = "fake_compiler_path"_l;
-  const ui16 remote_port = 12345;
-  const ui16 number_of_coordinators = 5;
-  Vector<proto::Host> coordinators;
-  coordinators.reserve(number_of_coordinators);
-
-  auto* version = conf.add_versions();
-  version->set_version(compiler_version);
-  version->set_path(compiler_path);
-
-  auto* emitter_config = conf.mutable_emitter();
-  emitter_config->set_socket_path(socket_path);
-  emitter_config->set_only_failed(true);
-  emitter_config->set_poll_interval(0u);
-
-  auto* remote = emitter_config->add_remotes();
-  remote->set_host(remote_host);
-  remote->set_port(remote_port);
-  remote->set_threads(1);
-
-  for (ui16 i = 0; i < number_of_coordinators; ++i) {
-    auto* coordinator = emitter_config->add_coordinators();
-    coordinator->set_host(std::to_string(i));
-    coordinator->set_port(i);
-    coordinators.emplace_back(*coordinator);
-  }
-
-  Mutex coordinators_rotated_mutex;
-  std::condition_variable coordinators_rotated_condition;
-  Atomic<bool> coordinators_rotated(false);
-
-  service_callback = [&](net::TestNetworkService* service) {
-    for (ui16 coordinator_index = 0u;
-         coordinator_index < number_of_coordinators; ++coordinator_index) {
-      service->Listen(coordinators[coordinator_index].host(),
-                      coordinators[coordinator_index].port(), true /* ipv6 */,
-                      [&](net::ConnectionPtr) {}, nullptr);
-    }
-  };
-
-  size_t number_of_coordinator_requests = 0u;
-  connect_callback = [&](net::TestConnection* connection,
-                         net::EndPointPtr end_point) {
-    ++number_of_coordinator_requests;
-    if (number_of_coordinator_requests <= 4u) {
-      auto coordinator = std::find_if(
-          coordinators.begin(), coordinators.end(),
-          [&end_point](const proto::Host& coordinator) {
-            return ToEndPointPrint(coordinator.host(), coordinator.port()) ==
-                   end_point->Print();
-          });
-      EXPECT_NE(coordinator, coordinators.end());
-      coordinators.erase(coordinator);
-
-      if (number_of_coordinator_requests == 1u) {
-        // Cancel connection.
-        return false;
-      } else if (number_of_coordinator_requests == 2u) {
-        connection->AbortOnSend();
-      } else if (number_of_coordinator_requests == 3u) {
-        connection->AbortOnRead();
-      } else if (number_of_coordinator_requests == 4u) {
-        // Do not send any configuration.
-      }
-      return true;
-      // Wait for second request to 'good' host.
-    } else if (number_of_coordinator_requests > 5u) {
-      coordinators_rotated.store(true);
-      coordinators_rotated_condition.notify_all();
-    }
-    connection->CallOnRead([&](net::Connection::Message* message) {
-      auto* configuration =
-          message->MutableExtension(proto::Configuration::extension);
-      proto::Host* remote = configuration->mutable_emitter()->add_remotes();
-      remote->set_host(remote_host);
-      remote->set_port(remote_port + number_of_coordinator_requests);
-      remote->set_threads(1);
-    });
-    return true;
-  };
-  emitter.reset(new Emitter(conf));
-  ASSERT_TRUE(emitter->Initialize());
-
-  UniqueLock lock(coordinators_rotated_mutex);
-  EXPECT_TRUE(coordinators_rotated_condition.wait_for(
-      lock, std::chrono::seconds(10),
-      [&] { return coordinators_rotated.load(); }));
-
-  emitter.reset();
-
-  // Emitter listens and |Listen| called from test for each coordinator.
-  EXPECT_EQ(1u + number_of_coordinators, listen_count);
-  EXPECT_TRUE(coordinators_rotated.load());
-}
-
 /*
  * If a client requests compiler version, that we don't have - send NO_VERSION.
  * This test checks |DoRemoteExecute()|.
  */
 TEST_F(EmitterTest, RemoteMessageWithBadCompiler) {
-  const String socket_path = "/tmp/test.socket";
   const auto expected_code = net::proto::Status::NO_VERSION;
   const String compiler_version = "fake_compiler_version";
   const String bad_version = "another_compiler_version";
@@ -1133,7 +941,6 @@ TEST_F(EmitterTest, RemoteMessageWithBadCompiler) {
   const String host = "fake_host";
   const ui16 port = 12345;
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   conf.mutable_emitter()->set_only_failed(true);
 
   auto* remote = conf.mutable_emitter()->add_remotes();
@@ -1149,11 +956,6 @@ TEST_F(EmitterTest, RemoteMessageWithBadCompiler) {
   plugin->set_name(plugin_name);
   plugin->set_path(plugin_path);
 
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
@@ -1163,7 +965,7 @@ TEST_F(EmitterTest, RemoteMessageWithBadCompiler) {
     return true;
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   auto connection = test_service->TriggerListen(socket_path);
@@ -1195,23 +997,16 @@ TEST_F(EmitterTest, RemoteMessageWithBadCompiler) {
 }
 
 TEST_F(EmitterTest, LocalMessageWithBadPlugin) {
-  const String socket_path = "/tmp/test.socket";
   const auto expected_code = net::proto::Status::NO_VERSION;
   const String compiler_version = "1.0";
   const String compiler_path = "fake_compiler_path";
   const String current_dir = "fake_current_dir";
   const String bad_plugin_name = "bad_plugin_name";
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   auto* version = conf.add_versions();
   version->set_version(compiler_version);
   version->set_path(compiler_path);
 
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
@@ -1221,7 +1016,7 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin) {
     return true;
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   auto connection = test_service->TriggerListen(socket_path);
@@ -1255,7 +1050,6 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin) {
 }
 
 TEST_F(EmitterTest, LocalMessageWithBadPlugin2) {
-  const String socket_path = "/tmp/test.socket";
   const auto expected_code = net::proto::Status::NO_VERSION;
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
@@ -1264,7 +1058,6 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin2) {
   const String current_dir = "fake_current_dir";
   const String bad_plugin_name = "another_plugin_name";
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   auto* version = conf.add_versions();
   version->set_version(compiler_version);
   version->set_path(compiler_path);
@@ -1272,11 +1065,6 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin2) {
   plugin->set_name(plugin_name);
   plugin->set_path(plugin_path);
 
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
@@ -1286,7 +1074,7 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin2) {
     return true;
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   auto connection = test_service->TriggerListen(socket_path);
@@ -1320,7 +1108,6 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin2) {
 }
 
 TEST_F(EmitterTest, LocalMessageWithPluginPath) {
-  const String socket_path = "/tmp/test.socket";
   const auto expected_code = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const auto compiler_path = "fake_compiler_path"_l;
@@ -1330,16 +1117,10 @@ TEST_F(EmitterTest, LocalMessageWithPluginPath) {
   const auto action = "fake_action"_l;
   const ui32 user_id = 1234;
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   auto* version = conf.add_versions();
   version->set_version(compiler_version);
   version->set_path(compiler_path);
 
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
@@ -1355,7 +1136,7 @@ TEST_F(EmitterTest, LocalMessageWithPluginPath) {
     EXPECT_EQ(user_id, process->uid_);
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   auto connection = test_service->TriggerListen(socket_path);
@@ -1394,7 +1175,6 @@ TEST_F(EmitterTest, LocalMessageWithPluginPath) {
 }
 
 TEST_F(EmitterTest, LocalMessageWithSanitizeBlacklist) {
-  const String socket_path = "/tmp/test.socket";
   const auto expected_code = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const auto compiler_path = "fake_compiler_path"_l;
@@ -1403,16 +1183,10 @@ TEST_F(EmitterTest, LocalMessageWithSanitizeBlacklist) {
   const auto sanitize_blacklist_path = "asan-blacklist.txt"_l;
   const ui32 user_id = 1234;
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   auto* version = conf.add_versions();
   version->set_version(compiler_version);
   version->set_path(compiler_path);
 
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
@@ -1423,14 +1197,13 @@ TEST_F(EmitterTest, LocalMessageWithSanitizeBlacklist) {
   };
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(compiler_path, process->exec_path_);
-    EXPECT_EQ((Immutable::Rope{action,
-                               Immutable("-fsanitize-blacklist="_l) +
-                                   Immutable(sanitize_blacklist_path)}),
+    EXPECT_EQ((Immutable::Rope{action, Immutable("-fsanitize-blacklist="_l) +
+                                           Immutable(sanitize_blacklist_path)}),
               process->args_);
     EXPECT_EQ(user_id, process->uid_);
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   auto connection = test_service->TriggerListen(socket_path);
@@ -1467,7 +1240,6 @@ TEST_F(EmitterTest, LocalMessageWithSanitizeBlacklist) {
 }
 
 TEST_F(EmitterTest, ConfigurationWithoutVersions) {
-  const String socket_path = "/tmp/test.socket";
   const auto expected_code = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const auto compiler_path = "fake_compiler_path"_l;
@@ -1477,13 +1249,6 @@ TEST_F(EmitterTest, ConfigurationWithoutVersions) {
   const auto action = "fake_action"_l;
   const ui32 user_id = 1234;
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
-
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
@@ -1499,7 +1264,7 @@ TEST_F(EmitterTest, ConfigurationWithoutVersions) {
     EXPECT_EQ(user_id, process->uid_);
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   auto connection = test_service->TriggerListen(socket_path);
@@ -1539,7 +1304,6 @@ TEST_F(EmitterTest, ConfigurationWithoutVersions) {
 }
 
 TEST_F(EmitterTest, LocalSuccessfulCompilation) {
-  const String socket_path = "/tmp/test.socket";
   const auto expected_code = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const auto compiler_path = "fake_compiler_path"_l;
@@ -1549,7 +1313,6 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
   const auto action = "fake_action"_l;
   const ui32 user_id = 1234;
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   auto* version = conf.add_versions();
   version->set_version(compiler_version);
   version->set_path(compiler_path);
@@ -1557,11 +1320,6 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
   plugin->set_name(plugin_name);
   plugin->set_path(plugin_path);
 
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
@@ -1577,7 +1335,7 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
     EXPECT_EQ(user_id, process->uid_);
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   auto connection = test_service->TriggerListen(socket_path);
@@ -1621,22 +1379,15 @@ TEST_F(EmitterTest, DISABLED_RemoteSuccessfulCompilation) {
 }
 
 TEST_F(EmitterTest, LocalFailedCompilation) {
-  const String socket_path = "/tmp/test.socket";
   const auto expected_code = net::proto::Status::EXECUTION;
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
   const String current_dir = "fake_current_dir";
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   auto* version = conf.add_versions();
   version->set_version(compiler_version);
   version->set_path(compiler_path);
 
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
@@ -1647,7 +1398,7 @@ TEST_F(EmitterTest, LocalFailedCompilation) {
   };
   do_run = false;
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   auto connection = test_service->TriggerListen(socket_path);
@@ -1686,7 +1437,6 @@ TEST_F(EmitterTest, LocalFailedCompilation) {
  */
 TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
   const base::TemporaryDir temp_dir;
-  const String socket_path = "/tmp/test.socket";
   const auto expected_code = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
@@ -1703,7 +1453,6 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
   const String output_path2 = String(temp_dir) + "/test2.o";
   // |output_path2| checks that everything works fine with absolute paths.
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   conf.mutable_cache()->set_path(temp_dir);
   conf.mutable_cache()->set_direct(false);
   conf.mutable_cache()->set_clean_period(1);
@@ -1714,12 +1463,6 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
   auto* plugin = version->add_plugins();
   plugin->set_name(plugin_name);
   plugin->set_path(plugin_path);
-
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
@@ -1752,7 +1495,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
     }
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   auto connection1 = test_service->TriggerListen(socket_path);
@@ -1833,7 +1576,6 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
 
 TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
   const base::TemporaryDir temp_dir;
-  const String socket_path = "/tmp/test.socket";
   const String host = "fake_host";
   const ui16 port = 12345;
   const auto expected_code = net::proto::Status::OK;
@@ -1852,7 +1594,6 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
   const String output_path2 = String(temp_dir) + "/test2.o";
   // |output_path2| checks that everything works fine with absolute paths.
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   conf.mutable_emitter()->set_only_failed(true);
   conf.mutable_cache()->set_path(temp_dir);
   conf.mutable_cache()->set_direct(false);
@@ -1869,12 +1610,6 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
   auto* plugin = version->add_plugins();
   plugin->set_name(plugin_name);
   plugin->set_path(plugin_path);
-
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     if (connect_count == 1) {
@@ -1932,7 +1667,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
     }
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   auto connection1 = test_service->TriggerListen(socket_path);
@@ -2018,7 +1753,6 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
 
 TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
   const base::TemporaryDir temp_dir;
-  const String socket_path = "/tmp/test.socket";
   const auto expected_code = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
@@ -2032,7 +1766,6 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
   const auto plugin_path = "fake_plugin_path"_l;
   const auto sanitize_blacklist_path = "asan-blacklist.txt"_l;
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   conf.mutable_cache()->set_path(temp_dir);
   conf.mutable_cache()->set_direct(false);
   conf.mutable_cache()->set_clean_period(1);
@@ -2043,12 +1776,6 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
   auto* plugin = version->add_plugins();
   plugin->set_name(plugin_name);
   plugin->set_path(plugin_path);
-
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
@@ -2086,7 +1813,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
     }
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   auto connection1 = test_service->TriggerListen(socket_path);
@@ -2177,13 +1904,11 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
   ASSERT_TRUE(base::File::Write(header2_path, "#define B"_l));
 
   // Prepare configuration.
-  const String socket_path = "/tmp/test.socket";
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
   const String plugin_name = "fake_plugin";
   const auto plugin_path = "fake_plugin_path"_l;
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   conf.mutable_cache()->set_path(temp_dir);
   conf.mutable_cache()->set_direct(true);
   conf.mutable_cache()->set_clean_period(1);
@@ -2208,12 +1933,6 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
 
   const auto output2_path = path + "/test2.o"_l;
   // |output_path2| checks that everything works fine with absolute paths.
-
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
@@ -2245,7 +1964,7 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
     }
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   auto connection1 = test_service->TriggerListen(socket_path);
@@ -2349,7 +2068,6 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
   ASSERT_TRUE(base::File::Write(header2_path, "#define B"_l));
 
   // Prepare configuration.
-  const String socket_path = "/tmp/test.socket";
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
   const String plugin_name = "fake_plugin";
@@ -2357,7 +2075,6 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
   const String host = "fake_host";
   const ui16 port = 12345;
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   conf.mutable_emitter()->set_only_failed(true);
   conf.mutable_cache()->set_path(temp_dir);
   conf.mutable_cache()->set_direct(true);
@@ -2386,12 +2103,6 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
 
   const auto output2_path = path + "/test2.o"_l;
   // |output_path2| checks that everything works fine with absolute paths.
-
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     if (connect_count == 1) {
@@ -2444,7 +2155,7 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
                                   "test1.o: test1.cc header1.h header2.h"_l));
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   auto connection1 = test_service->TriggerListen(socket_path);
@@ -2544,7 +2255,6 @@ TEST_F(EmitterTest, DISABLED_SkipTaskWithClosedConnection) {
  * |connection| should return |message| with ok status.
  */
 TEST_F(EmitterTest, UpdateConfiguration) {
-  const String socket_path = "/tmp/test.socket";
   const auto expected_code_no_version = net::proto::Status::NO_VERSION;
   const auto expected_code_ok = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
@@ -2555,7 +2265,6 @@ TEST_F(EmitterTest, UpdateConfiguration) {
   const String current_dir = "fake_current_dir";
   const auto action = "fake_action"_l;
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   auto* version = conf.add_versions();
   version->set_version(compiler_version);
   version->set_path(compiler_path);
@@ -2563,11 +2272,6 @@ TEST_F(EmitterTest, UpdateConfiguration) {
   plugin->set_name(plugin_name);
   plugin->set_path(plugin_path);
 
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
@@ -2577,7 +2281,7 @@ TEST_F(EmitterTest, UpdateConfiguration) {
     return true;
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   auto connection1 = test_service->TriggerListen(socket_path);
@@ -2666,13 +2370,11 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
       base::File::Write(sanitize_blacklist_path, sanitize_blacklist_contents));
 
   // Prepare configuration.
-  const String socket_path = "/tmp/test.socket";
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
   const String plugin_name = "fake_plugin";
   const auto plugin_path = "fake_plugin_path"_l;
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   conf.mutable_cache()->set_path(temp_dir1);
   conf.mutable_cache()->set_direct(true);
   conf.mutable_cache()->set_clean_period(1);
@@ -2693,12 +2395,6 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
   const auto output_path = "test.o"_l;
   const auto object_code = "fake_object_code"_l;
   const auto deps_contents = "test.o: test.cc header.h"_l;
-
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
@@ -2733,7 +2429,7 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
     }
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   auto connection1 = test_service->TriggerListen(socket_path);
@@ -2861,13 +2557,11 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
   ASSERT_TRUE(base::File::Write(header_path2, header_contents2));
 
   // Prepare configuration.
-  const String socket_path = "/tmp/test.socket";
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
   const String plugin_name = "fake_plugin";
   const auto plugin_path = "fake_plugin_path"_l;
 
-  conf.mutable_emitter()->set_socket_path(socket_path);
   conf.mutable_cache()->set_path(temp_dir);
   conf.mutable_cache()->set_direct(true);
   conf.mutable_cache()->set_clean_period(1);
@@ -2898,12 +2592,6 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
 
   const auto deps_contents = "path1/test.o: path1/test.cc path1/header.h"_l;
   const auto deps_contents2 = "path2/test.o: path2/test.cc path2/header.h"_l;
-
-  listen_callback = [&](const String& host, ui16 port, String*) {
-    EXPECT_EQ(socket_path, host);
-    EXPECT_EQ(0u, port);
-    return !::testing::Test::HasNonfatalFailure();
-  };
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
@@ -2950,7 +2638,7 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
     }
   };
 
-  emitter.reset(new Emitter(conf));
+  emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
   auto connection1 = test_service->TriggerListen(socket_path);
