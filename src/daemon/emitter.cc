@@ -580,8 +580,11 @@ void Emitter::DoPoll(const base::WorkerPool& pool,
 
     if (reply->HasExtension(Configuration::extension)) {
       Configuration new_conf(*this->conf());
+      const auto& emitter =
+          reply->GetExtension(Configuration::extension).emitter();
       new_conf.mutable_emitter()->mutable_remotes()->CopyFrom(
-          reply->GetExtension(Configuration::extension).emitter().remotes());
+          emitter.remotes());
+      new_conf.mutable_emitter()->set_total_shards(emitter.total_shards());
       if (!Update(new_conf)) {
         // FIXME(ilezhankin): print coordinator's address for clarity.
         LOG(WARNING) << "Failed to update to configuration from coordinator!";
