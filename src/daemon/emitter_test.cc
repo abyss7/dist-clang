@@ -9,14 +9,6 @@
 namespace dist_clang {
 namespace daemon {
 
-namespace {
-
-std::string ToEndPointPrint(const String& host, const ui16 port = 0) {
-  return host + ":" + std::to_string(port);
-}
-
-}  // anonymous namespace
-
 TEST(EmitterConfigurationTest, NoEmitterSection) {
   ASSERT_ANY_THROW((Emitter((proto::Configuration()))));
 }
@@ -213,169 +205,249 @@ TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
       << "Daemon must not store references to the connection";
 }
 
-TEST_F(EmitterTest, ConfigurationUpdate) {
-  // TODO: implement this test.
+namespace {
+
+// FIXME: maybe make it a lambda?
+String EndPointString(const String& host, const ui16 port = 0) {
+  return host + ":" + std::to_string(port);
 }
 
-// TODO(ilezhankin): rewrite this test.
-TEST_F(EmitterTest, DISABLED_GracefulConfigurationUpdate) {
-  const String coordinator_host = "coordinator";
-  const String old_remote_host = "old_remote";
-  const String new_remote_host = "new_remote";
-  const String compiler_version = "fake_compiler_version";
-  const String current_dir = "fake_current_dir";
-  const ui16 coordinator_port = 11111;
-  const ui16 old_remote_port = 1234;
-  const ui16 new_remote_port = 4321;
-  const auto compiler_path = "fake_compiler_path"_l;
-  const auto action = "fake_action"_l;
-  const auto object_code = "fake_object_code"_l;
+}  // namespace
 
-  Atomic<ui32> remote_send_count = {0}, remote_read_count = {0},
-               coordinator_send_count = {0}, coordinator_read_count = {0};
+TEST_F(EmitterTest, ConfigurationUpdate) {
+  const base::TemporaryDir temp_dir;
+  const auto expected_code = net::proto::Status::OK;
+  const auto action = "fake_action"_l;
+  const auto handled_source = "fake_source"_l;
+  const String object_code = "fake_object_code";
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const String default_remote_host = "default_remote_host";
+  const ui16 default_remote_port = 1;
+  const String old_remote_host = "old_remote_host";
+  const ui16 old_remote_port = 2;
+  const String new_remote_host = "new_remote_host";
+  const ui16 new_remote_port = 3;
+  const String coordinator_host = "coordinator_host";
+  const ui16 coordinator_port = 4;
+  const ui32 old_total_shards = 5;
+  const ui32 new_total_shards = 6;
+
+  conf.mutable_emitter()->set_only_failed(true);
+  conf.mutable_emitter()->set_poll_interval(1u);
+
+  auto* coordinator = conf.mutable_emitter()->add_coordinators();
+  coordinator->set_host(coordinator_host);
+  coordinator->set_port(coordinator_port);
+
+  auto* remote = conf.mutable_emitter()->add_remotes();
+  remote->set_host(default_remote_host);
+  remote->set_port(default_remote_port);
+  remote->set_threads(1);
 
   auto* version = conf.add_versions();
   version->set_version(compiler_version);
   version->set_path(compiler_path);
 
-  auto* emitter_config = conf.mutable_emitter();
-  emitter_config->set_only_failed(true);
-  emitter_config->set_poll_interval(0u);
-
-  auto* remote = emitter_config->add_remotes();
-  remote->set_host(old_remote_host);
-  remote->set_port(old_remote_port);
-  remote->set_threads(1);
-
-  auto* coordinator = emitter_config->add_coordinators();
-  coordinator->set_host(coordinator_host);
-  coordinator->set_port(coordinator_port);
-
-  std::mutex config_update_mutex;
-  std::condition_variable config_updated_condition;
-  std::atomic<bool> config_updated(false);
-
-  auto post_task = [&] {
-    if (config_updated)
-      return;
-    auto connection_to_emitter = test_service->TriggerListen(socket_path);
-    {
-      SharedPtr<net::TestConnection> test_connection =
-          std::static_pointer_cast<net::TestConnection>(connection_to_emitter);
-
-      net::Connection::ScopedMessage message(new net::Connection::Message);
-      auto* extension =
-          message->MutableExtension(base::proto::Local::extension);
-      extension->set_current_dir(current_dir);
-      extension->mutable_flags()->set_action(action);
-      auto* compiler = extension->mutable_flags()->mutable_compiler();
-      compiler->set_version(compiler_version);
-
-      net::proto::Status status;
-      status.set_code(net::proto::Status::OK);
-      // |EXPECT_TRUE| is skipped as there's a possibility of such case:
-      // 1. Emitter::~Emitter() runs on main loop, already called
-      // |all_tasks_->Close()| and waits for threads to join. Meanwhile
-      // we posted a new task that being handled with Emitter::HandleNewMessage.
-      // It tries to post a task to |all_tasks_|, fails and returns false.
-      test_connection->TriggerReadAsync(std::move(message), status);
-    }
-  };
-
-  service_callback = [&](net::TestNetworkService* service) {
-    service->Listen(coordinator_host, coordinator_port, true /* ipv6 */,
-                    [&](net::ConnectionPtr) {}, nullptr);
-  };
-  run_callback = [&](base::TestProcess* process) {
-    EXPECT_EQ(compiler_path, process->exec_path_);
-    const Immutable::Rope generate_source{"-E"_l, "-o"_l, "-"_l};
-    // Emitter fails to write file for failed compiler and fallbacks to
-    // local execution. So there're two possible calls:
-    // 1. To generate source using '-E' flag,
-    // 2. To run compiler locally with real action.
-    const bool is_generate_source_or_action =
-        process->args_ == generate_source ||
-        process->args_ == Immutable::Rope{action};
-    EXPECT_TRUE(is_generate_source_or_action) << process->PrintArgs();
-  };
-
-  Atomic<size_t> number_of_coordinator_requests{0u};
   connect_callback = [&](net::TestConnection* connection,
                          net::EndPointPtr end_point) {
-    if (end_point->Print() ==
-        ToEndPointPrint(coordinator_host, coordinator_port)) {
-      connection->CountSendAttempts(&coordinator_send_count);
-      connection->CountReadAttempts(&coordinator_read_count);
-      connection->CallOnSend([&](const net::Connection::Message& message) {
-        EXPECT_TRUE(message.HasExtension(proto::Configuration::extension));
+    // All connection callbacks are on emitter side.
+
+    if (connect_count == 1) {
+      // Connection from emitter to coordinator.
+
+      EXPECT_EQ(EndPointString(coordinator_host, coordinator_port),
+                end_point->Print());
+
+      connection->CallOnRead([&](net::Connection::Message* message) {
+        auto* emitter =
+            message->MutableExtension(proto::Configuration::extension)
+                ->mutable_emitter();
+        auto* remote = emitter->add_remotes();
+        remote->set_host(old_remote_host);
+        remote->set_port(old_remote_port);
+        remote->set_threads(1);
+
+        emitter->set_total_shards(old_total_shards);
+      });
+    } else if (connect_count == 2) {
+      // Connection from emitter to coordinator.
+
+      EXPECT_EQ(EndPointString(coordinator_host, coordinator_port),
+                end_point->Print());
+
+      connection->CallOnSend([this](const net::Connection::Message&) {
         send_condition.notify_all();
+        // Run the task #1 on old remote before sending anything to coordinator.
+
+        UniqueLock lock(send_mutex);
+        EXPECT_TRUE(send_condition.wait_for(
+            lock, Seconds(1), [this] { return send_count == 4; }));
+        // Send #1: emitter → coordinator.
+        // Send #2: emitter → coordinator (current one).
+        // Send #3: local → emitter.
+        // Send #4: emitter → remote.
       });
+
       connection->CallOnRead([&](net::Connection::Message* message) {
-        ++number_of_coordinator_requests;
-        // First respond should contain new remote host info.
-        // All consequent requests shouldn't contain any remotes to prevent
-        // |remote_workers_| resets.
-        if (number_of_coordinator_requests == 1u) {
-          auto* configuration =
-              message->MutableExtension(proto::Configuration::extension);
-          proto::Host* remote = configuration->mutable_emitter()->add_remotes();
-          remote->set_host(new_remote_host);
-          remote->set_port(new_remote_port);
-          remote->set_threads(1);
-        } else if (number_of_coordinator_requests == 2u) {
-          post_task();
-          post_task();
-          post_task();
-        }
+        auto* emitter =
+            message->MutableExtension(proto::Configuration::extension)
+                ->mutable_emitter();
+        auto* remote = emitter->add_remotes();
+        remote->set_host(new_remote_host);
+        remote->set_port(new_remote_port);
+        remote->set_threads(1);
+
+        emitter->set_total_shards(new_total_shards);
       });
-    } else if (end_point->Print() ==
-               ToEndPointPrint(old_remote_host, old_remote_port)) {
-      connection->CountSendAttempts(&remote_send_count);
-      connection->CountReadAttempts(&remote_read_count);
+    } else if (connect_count == 3) {
+      // Connection from local client to emitter. Task #1.
+
+      EXPECT_EQ(EndPointString(socket_path, 0), end_point->Print());
+
+      connection->CallOnSend([&](const net::Connection::Message& message) {
+        EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+        const auto& status =
+            message.GetExtension(net::proto::Status::extension);
+        EXPECT_EQ(expected_code, status.code()) << status.description();
+      });
+    } else if (connect_count == 4) {
+      // Connection from emitter to remote absorber. Task #1.
+
+      EXPECT_EQ(EndPointString(old_remote_host, old_remote_port),
+                end_point->Print());
+      EXPECT_EQ(old_total_shards, emitter->conf()->emitter().total_shards());
+
+      connection->CallOnSend([this](const net::Connection::Message&) {
+        send_condition.notify_all();
+        // Continue sending message to coordinator.
+      });
+
       connection->CallOnRead([&](net::Connection::Message* message) {
         message->MutableExtension(proto::Result::extension)
             ->set_obj(object_code);
       });
-    } else if (end_point->Print() ==
-               ToEndPointPrint(new_remote_host, new_remote_port)) {
-      connection->CountSendAttempts(&remote_send_count);
-      connection->CountReadAttempts(&remote_read_count);
+    } else if (connect_count == 5) {
+      // Connection from emitter to coordinator.
+
+      EXPECT_EQ(EndPointString(coordinator_host, coordinator_port),
+                end_point->Print());
+
+      connection->CallOnSend([this](const net::Connection::Message&) {
+        send_condition.notify_all();
+        // Run the task #2 on new remote before sending anything to coordinator.
+      });
+    } else if (connect_count == 6) {
+      // Connection from local client to emitter. Task #2.
+
+      EXPECT_EQ(EndPointString(socket_path, 0), end_point->Print());
+    } else if (connect_count == 7) {
+      // Connection from emitter to remote absorber. Task #2.
+
+      EXPECT_EQ(EndPointString(new_remote_host, new_remote_port),
+                end_point->Print());
+      EXPECT_EQ(new_total_shards, emitter->conf()->emitter().total_shards());
+
+      connection->CallOnSend([this](const net::Connection::Message&) {
+        send_condition.notify_all();
+        // Now we can reset |emitter|.
+      });
+
       connection->CallOnRead([&](net::Connection::Message* message) {
         message->MutableExtension(proto::Result::extension)
             ->set_obj(object_code);
-        config_updated.store(true);
-        config_updated_condition.notify_all();
       });
-    } else {
-      // There should be no connections to other hosts.
-      EXPECT_EQ(ToEndPointPrint(socket_path), end_point->Print());
     }
+
     return true;
+  };
+
+  run_callback = [&](base::TestProcess* process) {
+    EXPECT_EQ((Immutable::Rope{"-E"_l, "-o"_l, "-"_l}), process->args_);
+    process->stdout_ = handled_source;
   };
 
   emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
-  post_task();
 
-  UniqueLock lock(config_update_mutex);
-  EXPECT_TRUE(
-      config_updated_condition.wait_for(lock, std::chrono::seconds(2), [&] {
-        // Emitter could process tasks several times before new
-        return config_updated.load();
-      }));
+  {
+    // Wait for a second connection to coordinator:
+    //  * 1st second - wait for queue to pop in default remote.
+    //  * 2nd second - wait for coordinator to poll.
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(3),
+                                        [this] { return send_count == 2; }));
+    // Send #1: emitter → coordinator.
+    // Send #2: emitter → coordinator (not complete at this moment).
+  }
+
+  auto connection1 = test_service->TriggerListen(socket_path);
+  {
+    auto test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection1);
+
+    auto message = std::make_unique<net::Connection::Message>();
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(temp_dir);
+
+    auto* flags = extension->mutable_flags();
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action(action);
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    // Wait for a third connection to coordinator:
+    //  * 1st second - wait for queue to pop in old remote.
+    //  * 2nd second - wait for coordinator to poll.
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(3),
+                                        [this] { return send_count == 5; }));
+    // Send #3: local → emitter.
+    // Send #4: emitter → remote.
+    // Send #5: emitter → coordinator (not complete at this moment).
+  }
+
+  auto connection2 = test_service->TriggerListen(socket_path);
+  {
+    auto test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection2);
+
+    auto message = std::make_unique<net::Connection::Message>();
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(temp_dir);
+
+    auto* flags = extension->mutable_flags();
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action(action);
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    // Wait for a connection to remote absorber.
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(1),
+                                        [this] { return send_count == 7; }));
+    // Send #6: local → emitter.
+    // Send #7: emitter → remote.
+  }
 
   emitter.reset();
 
-  EXPECT_EQ(2u,
-            listen_count);  // Emitter listens and |Listen| called from test.
-  EXPECT_TRUE(config_updated.load());
-  EXPECT_EQ(connect_count, connections_created);
-  EXPECT_GE(coordinator_read_count, 2u);
-  EXPECT_GE(coordinator_send_count, 2u);
-  EXPECT_GE(number_of_coordinator_requests, 2u);
-  // We post 4 tasks, so we expect all 4 connections to be done by emitter.
-  EXPECT_GE(4u, remote_send_count);
-  EXPECT_GE(4u, remote_read_count);
+  EXPECT_EQ(2u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(connections_created, connect_count);
+  EXPECT_LE(7u, connections_created);
+  EXPECT_EQ(connections_created, read_count);
+  EXPECT_EQ(connections_created, send_count);
+  EXPECT_EQ(1, connection1.use_count())
+      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count())
+      << "Daemon must not store references to the connection";
 }
 
 /*
@@ -404,12 +476,12 @@ TEST_F(EmitterTest, NoGoodCoordinator) {
                          net::EndPointPtr end_point) {
     if (connections_created == 1) {
       EXPECT_EQ(end_point->Print(),
-                ToEndPointPrint(bad_coordinator_host1, bad_coordinator_port1));
+                EndPointString(bad_coordinator_host1, bad_coordinator_port1));
       return false;
     }
     if (connections_created == 2) {
       EXPECT_EQ(end_point->Print(),
-                ToEndPointPrint(bad_coordinator_host2, bad_coordinator_port2));
+                EndPointString(bad_coordinator_host2, bad_coordinator_port2));
       return false;
     }
     if (connections_created > 2) {
@@ -469,12 +541,12 @@ TEST_F(EmitterTest, CoordinatorNoConnection) {
                          net::EndPointPtr end_point) {
     if (connections_created == 1) {
       EXPECT_EQ(end_point->Print(),
-                ToEndPointPrint(bad_coordinator_host, bad_coordinator_port));
+                EndPointString(bad_coordinator_host, bad_coordinator_port));
       return false;
     }
     if (connections_created >= 2) {
       EXPECT_EQ(end_point->Print(),
-                ToEndPointPrint(good_coordinator_host, good_coordinator_port));
+                EndPointString(good_coordinator_host, good_coordinator_port));
       connection->CallOnRead([&](net::Connection::Message* message) {
         message->MutableExtension(proto::Configuration::extension);
       });
@@ -539,12 +611,12 @@ TEST_F(EmitterTest, CoordinatorSendFailed) {
     if (connections_created == 1) {
       connection->AbortOnSend();
       EXPECT_EQ(end_point->Print(),
-                ToEndPointPrint(bad_coordinator_host, bad_coordinator_port));
+                EndPointString(bad_coordinator_host, bad_coordinator_port));
       return true;
     }
     if (connections_created >= 2) {
       EXPECT_EQ(end_point->Print(),
-                ToEndPointPrint(good_coordinator_host, good_coordinator_port));
+                EndPointString(good_coordinator_host, good_coordinator_port));
       connection->CallOnRead([&](net::Connection::Message* message) {
         message->MutableExtension(proto::Configuration::extension);
       });
@@ -609,12 +681,12 @@ TEST_F(EmitterTest, CoordinatorReadFailed) {
     if (connections_created == 1) {
       connection->AbortOnRead();
       EXPECT_EQ(end_point->Print(),
-                ToEndPointPrint(bad_coordinator_host, bad_coordinator_port));
+                EndPointString(bad_coordinator_host, bad_coordinator_port));
       return true;
     }
     if (connections_created >= 2) {
       EXPECT_EQ(end_point->Print(),
-                ToEndPointPrint(good_coordinator_host, good_coordinator_port));
+                EndPointString(good_coordinator_host, good_coordinator_port));
       connection->CallOnRead([&](net::Connection::Message* message) {
         message->MutableExtension(proto::Configuration::extension);
       });
@@ -671,13 +743,13 @@ TEST_F(EmitterTest, CoordinatorNoConfiguration) {
                          net::EndPointPtr end_point) {
     if (connections_created == 1) {
       EXPECT_EQ(end_point->Print(),
-                ToEndPointPrint(bad_coordinator_host, bad_coordinator_port));
+                EndPointString(bad_coordinator_host, bad_coordinator_port));
       connection->CallOnRead([&](net::Connection::Message* message) {});
       return true;
     }
     if (connections_created >= 2) {
       EXPECT_EQ(end_point->Print(),
-                ToEndPointPrint(good_coordinator_host, good_coordinator_port));
+                EndPointString(good_coordinator_host, good_coordinator_port));
       connection->CallOnRead([&](net::Connection::Message* message) {
         message->MutableExtension(proto::Configuration::extension);
       });
@@ -741,7 +813,7 @@ TEST_F(EmitterTest, CoordinatorNoRemotes) {
                          net::EndPointPtr end_point) {
     if (connections_created == 1) {
       EXPECT_EQ(end_point->Print(),
-                ToEndPointPrint(bad_coordinator_host, bad_coordinator_port));
+                EndPointString(bad_coordinator_host, bad_coordinator_port));
       connection->CallOnRead([&](net::Connection::Message* message) {
         message->MutableExtension(proto::Configuration::extension);
       });
@@ -749,7 +821,7 @@ TEST_F(EmitterTest, CoordinatorNoRemotes) {
     }
     if (connections_created >= 2) {
       EXPECT_EQ(end_point->Print(),
-                ToEndPointPrint(good_coordinator_host, good_coordinator_port));
+                EndPointString(good_coordinator_host, good_coordinator_port));
       connection->CallOnRead([&](net::Connection::Message* message) {
         auto remote = message->MutableExtension(proto::Configuration::extension)
                           ->mutable_emitter()
@@ -817,7 +889,7 @@ TEST_F(EmitterTest, CoordinatorNoEnabledRemotes) {
                          net::EndPointPtr end_point) {
     if (connections_created == 1) {
       EXPECT_EQ(end_point->Print(),
-                ToEndPointPrint(bad_coordinator_host, bad_coordinator_port));
+                EndPointString(bad_coordinator_host, bad_coordinator_port));
       connection->CallOnRead([&](net::Connection::Message* message) {
         auto remote = message->MutableExtension(proto::Configuration::extension)
                           ->mutable_emitter()
@@ -830,7 +902,7 @@ TEST_F(EmitterTest, CoordinatorNoEnabledRemotes) {
     }
     if (connections_created >= 2) {
       EXPECT_EQ(end_point->Print(),
-                ToEndPointPrint(good_coordinator_host, good_coordinator_port));
+                EndPointString(good_coordinator_host, good_coordinator_port));
       connection->CallOnRead([&](net::Connection::Message* message) {
         auto remote = message->MutableExtension(proto::Configuration::extension)
                           ->mutable_emitter()
@@ -893,7 +965,7 @@ TEST_F(EmitterTest, CoordinatorSuccessfulUpdate) {
   connect_callback = [&](net::TestConnection* connection,
                          net::EndPointPtr end_point) {
     EXPECT_EQ(end_point->Print(),
-              ToEndPointPrint(good_coordinator_host, good_coordinator_port));
+              EndPointString(good_coordinator_host, good_coordinator_port));
     connection->CallOnRead([&](net::Connection::Message* message) {
       auto remote = message->MutableExtension(proto::Configuration::extension)
                         ->mutable_emitter()
@@ -2254,6 +2326,7 @@ TEST_F(EmitterTest, DISABLED_SkipTaskWithClosedConnection) {
  * but if then |conf_| has been updated with a missing version,
  * |connection| should return |message| with ok status.
  */
+// TODO(ilezhankin): merge with EmitterTest.ConfigurationUpdate
 TEST_F(EmitterTest, UpdateConfiguration) {
   const auto expected_code_no_version = net::proto::Status::NO_VERSION;
   const auto expected_code_ok = net::proto::Status::OK;
