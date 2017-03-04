@@ -214,7 +214,7 @@ String EndPointString(const String& host, const ui16 port = 0) {
 
 }  // namespace
 
-TEST_F(EmitterTest, ConfigurationUpdate) {
+TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
   const base::TemporaryDir temp_dir;
   const auto expected_code = net::proto::Status::OK;
   const auto action = "fake_action"_l;
@@ -222,6 +222,7 @@ TEST_F(EmitterTest, ConfigurationUpdate) {
   const String object_code = "fake_object_code";
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
+  const String output_path = "test.o";
   const String default_remote_host = "default_remote_host";
   const ui16 default_remote_port = 1;
   const String old_remote_host = "old_remote_host";
@@ -282,11 +283,10 @@ TEST_F(EmitterTest, ConfigurationUpdate) {
 
         UniqueLock lock(send_mutex);
         EXPECT_TRUE(send_condition.wait_for(
-            lock, Seconds(1), [this] { return send_count == 4; }));
+            lock, Seconds(1), [this] { return send_count == 3; }));
         // Send #1: emitter → coordinator.
         // Send #2: emitter → coordinator (current one).
-        // Send #3: local → emitter.
-        // Send #4: emitter → remote.
+        // Send #3: emitter → remote.
       });
 
       connection->CallOnRead([&](net::Connection::Message* message) {
@@ -393,6 +393,7 @@ TEST_F(EmitterTest, ConfigurationUpdate) {
     auto* flags = extension->mutable_flags();
     flags->mutable_compiler()->set_version(compiler_version);
     flags->set_action(action);
+    flags->set_output(output_path);
 
     net::proto::Status status;
     status.set_code(net::proto::Status::OK);
@@ -405,8 +406,8 @@ TEST_F(EmitterTest, ConfigurationUpdate) {
     UniqueLock lock(send_mutex);
     EXPECT_TRUE(send_condition.wait_for(lock, Seconds(3),
                                         [this] { return send_count == 5; }));
-    // Send #3: local → emitter.
-    // Send #4: emitter → remote.
+    // Send #3: emitter → remote.
+    // Send #4: emitter → local.
     // Send #5: emitter → coordinator (not complete at this moment).
   }
 
@@ -422,6 +423,7 @@ TEST_F(EmitterTest, ConfigurationUpdate) {
     auto* flags = extension->mutable_flags();
     flags->mutable_compiler()->set_version(compiler_version);
     flags->set_action(action);
+    flags->set_output(output_path);
 
     net::proto::Status status;
     status.set_code(net::proto::Status::OK);
@@ -431,9 +433,9 @@ TEST_F(EmitterTest, ConfigurationUpdate) {
     // Wait for a connection to remote absorber.
     UniqueLock lock(send_mutex);
     EXPECT_TRUE(send_condition.wait_for(lock, Seconds(1),
-                                        [this] { return send_count == 7; }));
-    // Send #6: local → emitter.
-    // Send #7: emitter → remote.
+                                        [this] { return send_count == 6; }));
+    // Send #6: emitter → remote.
+    // Send #7: emitter → local.
   }
 
   emitter.reset();
@@ -1269,8 +1271,9 @@ TEST_F(EmitterTest, LocalMessageWithSanitizeBlacklist) {
   };
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(compiler_path, process->exec_path_);
-    EXPECT_EQ((Immutable::Rope{action, Immutable("-fsanitize-blacklist="_l) +
-                                           Immutable(sanitize_blacklist_path)}),
+    EXPECT_EQ((Immutable::Rope{action,
+                               Immutable("-fsanitize-blacklist="_l) +
+                                   Immutable(sanitize_blacklist_path)}),
               process->args_);
     EXPECT_EQ(user_id, process->uid_);
   };
@@ -2326,8 +2329,7 @@ TEST_F(EmitterTest, DISABLED_SkipTaskWithClosedConnection) {
  * but if then |conf_| has been updated with a missing version,
  * |connection| should return |message| with ok status.
  */
-// TODO(ilezhankin): merge with EmitterTest.ConfigurationUpdate
-TEST_F(EmitterTest, UpdateConfiguration) {
+TEST_F(EmitterTest, ConfigurationUpdateCompiler) {
   const auto expected_code_no_version = net::proto::Status::NO_VERSION;
   const auto expected_code_ok = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";

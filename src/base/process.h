@@ -25,7 +25,7 @@ FORWARD_TEST(AbsorberTest, StoreLocalCacheWithBlacklist);
 FORWARD_TEST(AbsorberTest, StoreLocalCacheWithAndWithoutBlacklist);
 FORWARD_TEST(CollectorTest, SimpleReport);
 FORWARD_TEST(CompilationDaemonTest, CreateProcessFromFlags);
-FORWARD_TEST(EmitterTest, ConfigurationUpdate);
+FORWARD_TEST(EmitterTest, ConfigurationUpdateFromCoordinator);
 FORWARD_TEST(EmitterTest, LocalMessageWithPluginPath);
 FORWARD_TEST(EmitterTest, LocalMessageWithSanitizeBlacklist);
 FORWARD_TEST(EmitterTest, ConfigurationWithoutVersions);
@@ -36,7 +36,7 @@ FORWARD_TEST(EmitterTest,
              StoreSimpleCacheForLocalResultWithAndWithoutBlacklist);
 FORWARD_TEST(EmitterTest, StoreDirectCacheForLocalResult);
 FORWARD_TEST(EmitterTest, StoreDirectCacheForRemoteResult);
-FORWARD_TEST(EmitterTest, UpdateConfiguration);
+FORWARD_TEST(EmitterTest, ConfigurationUpdateCompiler);
 FORWARD_TEST(EmitterTest, HitDirectCacheFromTwoLocations);
 FORWARD_TEST(EmitterTest, DontHitDirectCacheFromTwoRelativeSources);
 }  // namespace daemon
@@ -99,7 +99,7 @@ class Process
   FRIEND_TEST(daemon::AbsorberTest, StoreLocalCacheWithAndWithoutBlacklist);
   FRIEND_TEST(daemon::CollectorTest, SimpleReport);
   FRIEND_TEST(daemon::CompilationDaemonTest, CreateProcessFromFlags);
-  FRIEND_TEST(daemon::EmitterTest, ConfigurationUpdate);
+  FRIEND_TEST(daemon::EmitterTest, ConfigurationUpdateFromCoordinator);
   FRIEND_TEST(daemon::EmitterTest, LocalMessageWithPluginPath);
   FRIEND_TEST(daemon::EmitterTest, LocalMessageWithSanitizeBlacklist);
   FRIEND_TEST(daemon::EmitterTest, ConfigurationWithoutVersions);
@@ -110,7 +110,7 @@ class Process
               StoreSimpleCacheForLocalResultWithAndWithoutBlacklist);
   FRIEND_TEST(daemon::EmitterTest, StoreDirectCacheForLocalResult);
   FRIEND_TEST(daemon::EmitterTest, StoreDirectCacheForRemoteResult);
-  FRIEND_TEST(daemon::EmitterTest, UpdateConfiguration);
+  FRIEND_TEST(daemon::EmitterTest, ConfigurationUpdateCompiler);
   FRIEND_TEST(daemon::EmitterTest, HitDirectCacheFromTwoLocations);
   FRIEND_TEST(daemon::EmitterTest, DontHitDirectCacheFromTwoRelativeSources);
 };
