@@ -47,12 +47,13 @@ bool Coordinator::HandleNewMessage(net::ConnectionPtr connection,
 
     Configuration::Emitter* emitter = configuration->mutable_emitter();
     // FIXME(matthewtff): Remove |socket_path| as required fields go away after
-    // migration to Protobuf 3.
+    //                    migration to Protobuf 3.
     emitter->set_socket_path("no-op");
     for (const proto::Host& remote : conf()->coordinator().remotes()) {
       proto::Host* host = emitter->add_remotes();
       host->CopyFrom(remote);
     }
+    emitter->set_total_shards(conf()->coordinator().total_shards());
 
     connection->SendAsync(std::move(configuration));
     return true;

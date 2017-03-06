@@ -15,9 +15,12 @@ TEST_F(CoordinatorTest, ConfigurationRespond) {
   const String expected_host = "fake_host";
   const ui16 expected_port = 12345;
   const ui16 number_of_remotes = 10;
+  const ui32 total_shards = 5;
 
   conf.mutable_coordinator()->mutable_local()->set_host(expected_host);
   conf.mutable_coordinator()->mutable_local()->set_port(expected_port);
+  conf.mutable_coordinator()->set_total_shards(total_shards);
+
   Vector<proto::Host> coordinated_remotes;
   coordinated_remotes.reserve(number_of_remotes);
   for (ui16 remote = 0; remote < number_of_remotes; ++remote) {
@@ -54,6 +57,7 @@ TEST_F(CoordinatorTest, ConfigurationRespond) {
         EXPECT_EQ(expected_host.ipv6(), received_host.ipv6());
         EXPECT_EQ(expected_host.shard(), received_host.shard());
       }
+      EXPECT_EQ(total_shards, config.emitter().total_shards());
     });
     return true;
   };
