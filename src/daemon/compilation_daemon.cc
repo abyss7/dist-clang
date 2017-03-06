@@ -309,12 +309,12 @@ void CompilationDaemon::UpdateDirectCache(
   auto conf = this->conf();
   DCHECK(conf->has_emitter() && !conf->has_absorber());
 
-  const auto& flags = message->flags();
-  DCHECK(flags.has_input());
-
   if (!cache_ || !conf->cache().direct()) {
     return;
   }
+
+  const auto& flags = message->flags();
+  DCHECK(flags.has_input());
 
   if (entry.deps.empty()) {
     LOG(CACHE_WARNING) << "Can't update direct cache without deps : "

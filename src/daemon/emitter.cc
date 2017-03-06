@@ -81,7 +81,8 @@ Emitter::Emitter(const proto::Configuration& conf) : CompilationDaemon(conf) {
   CHECK(conf.has_emitter());
 
   workers_ = std::make_unique<base::WorkerPool>();
-  all_tasks_ = std::make_unique<Queue>();
+  coordinator_workers_ = std::make_unique<base::WorkerPool>(true);
+  all_tasks_ = std::make_unique<Queue>(Seconds(conf.emitter().pop_timeout()));
   cache_tasks_ = std::make_unique<Queue>();
   failed_tasks_ = std::make_unique<Queue>();
 
@@ -129,7 +130,7 @@ Emitter::Emitter(const proto::Configuration& conf) : CompilationDaemon(conf) {
     if (!resolvers.empty()) {
       handle_all_tasks_ = false;
       Worker worker = std::bind(&Emitter::DoPoll, this, _1, resolvers);
-      workers_->AddWorker("Coordinator Poll Worker"_l, worker);
+      coordinator_workers_->AddWorker("Coordinator Poll Worker"_l, worker);
     }
   }
 }
@@ -139,6 +140,7 @@ Emitter::~Emitter() {
   cache_tasks_->Close();
   failed_tasks_->Close();
   local_tasks_->Close();
+  coordinator_workers_.reset();
   workers_.reset();
   remote_workers_.reset();
 }
@@ -202,6 +204,8 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
   using namespace cache::string;
 
   while (!pool.IsShuttingDown()) {
+    auto conf = this->conf();
+
     Optional&& task = cache_tasks_->Pop();
     if (!task) {
       break;
@@ -291,7 +295,12 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
 
     STAT(SIMPLE_CACHE_MISS);
 
-    all_tasks_->Push(std::move(*task));
+    auto hash = GenerateHash(incoming->flags(), source, extra_files);
+    ui32 shard = use_shards_
+                     ? std::hash<Immutable>{}(hash.str.Hash(4)) %
+                           conf->emitter().total_shards()
+                     : 0;
+    all_tasks_->Push(std::move(*task), shard);
   }
 }
 
@@ -359,8 +368,8 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
   }
 }
 
-void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
-                              ResolveFn resolver) {
+void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
+                              const ui32 shard) {
   net::EndPointPtr end_point;
   ui32 sleep_period = 1;
   auto Sleep = [&sleep_period]() mutable {
@@ -381,7 +390,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
       }
     }
 
-    Optional&& task = all_tasks_->Pop();
+    Optional&& task = all_tasks_->Pop(pool, shard);
     if (!task) {
       break;
     }
@@ -400,6 +409,9 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
       std::get<CONNECTION>(*task)->ReportStatus(status);
       continue;
     }
+
+    // If we're using shards we should have generated source by now.
+    DCHECK(!use_shards_ || !source.str.empty());
 
     auto outgoing = std::make_unique<proto::Remote>();
     if (source.str.empty() && !GenerateSource(incoming, &source)) {
@@ -441,7 +453,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
     perf::Counter<perf::StatReporter, false> counter(
         perf::proto::Metric::REMOTE_TIME_WASTED);
     if (!connection->SendSync(std::move(outgoing))) {
-      all_tasks_->Push(std::move(*task));
+      all_tasks_->Push(std::move(*task), shard);
       counter.ReportOnDestroy(true);
       continue;
     }
@@ -524,16 +536,6 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool,
 
 void Emitter::DoPoll(const base::WorkerPool& pool,
                      Vector<ResolveFn> resolvers) {
-  ui32 sleep_period = 1;
-  auto Sleep = [&sleep_period]() mutable {
-    LOG(INFO) << "Sleeping for " << sleep_period
-              << " seconds before next attempt";
-    std::this_thread::sleep_for(std::chrono::seconds(sleep_period));
-    if (sleep_period < static_cast<ui32>(-1) / 2) {
-      sleep_period <<= 1;
-    }
-  };
-
   auto conf = this->conf();
   const auto poll_interval = conf->emitter().poll_interval();
 
@@ -562,11 +564,9 @@ void Emitter::DoPoll(const base::WorkerPool& pool,
       }
     }
     if (!connection) {
-      Sleep();
       continue;
     }
 
-    sleep_period = 1;
     if (!connection->SendSync(std::make_unique<Configuration>())) {
       std::rotate(resolvers.begin(), resolvers.begin() + 1, resolvers.end());
       continue;
@@ -580,8 +580,11 @@ void Emitter::DoPoll(const base::WorkerPool& pool,
 
     if (reply->HasExtension(Configuration::extension)) {
       Configuration new_conf(*this->conf());
+      const auto& emitter =
+          reply->GetExtension(Configuration::extension).emitter();
       new_conf.mutable_emitter()->mutable_remotes()->CopyFrom(
-          reply->GetExtension(Configuration::extension).emitter().remotes());
+          emitter.remotes());
+      new_conf.mutable_emitter()->set_total_shards(emitter.total_shards());
       if (!Update(new_conf)) {
         // FIXME(ilezhankin): print coordinator's address for clarity.
         LOG(WARNING) << "Failed to update to configuration from coordinator!";
@@ -635,6 +638,39 @@ bool Emitter::Check(const Configuration& conf) const {
     }
   }
 
+  if (!conf.has_cache() || conf.cache().disabled()) {
+    for (const auto& remote : emitter.remotes()) {
+      if (!remote.disabled() && remote.has_shard()) {
+        // FIXME: if we don't have cache workers, then we can't
+        //        |GenerateSource()| in any separate thread pool.
+        //        Also we don't want to pollute sharded remotes with random
+        //        builds - so just don't use them for now.
+        LOG(ERROR) << "Can't use sharded remotes with disabled local cache";
+        return false;
+      }
+    }
+  }
+
+  for (const auto& remote : emitter.remotes()) {
+    if (remote.has_shard() && remote.shard() >= emitter.total_shards()) {
+      LOG(ERROR) << "Remote's shard number is out of range (total shards: "
+                 << emitter.total_shards() << ")";
+      return false;
+    }
+  }
+
+  if (emitter.total_shards() > max_total_shards) {
+    LOG(ERROR)
+        << "Due to peculiarities of implementation emitter can't use more than "
+        << max_total_shards << " total shards";
+    return false;
+  }
+
+  if (emitter.total_shards() == 1) {
+    LOG(WARNING)
+        << "Single shard is meaningless, since it adds CPU load without profit";
+  }
+
   return true;
 }
 
@@ -644,6 +680,10 @@ bool Emitter::Reload(const proto::Configuration& conf) {
   // Create new pool before swapping, so we won't postpone new tasks.
   auto new_pool = std::make_unique<base::WorkerPool>(!handle_all_tasks_);
   for (const auto& remote : conf.emitter().remotes()) {
+    if (remote.disabled()) {
+      continue;
+    }
+
     auto resolver = [
       this, host = remote.host(), port = static_cast<ui16>(remote.port()),
       ipv6 = remote.ipv6()
@@ -653,7 +693,15 @@ bool Emitter::Reload(const proto::Configuration& conf) {
       optional->Wait();
       return optional->GetValue();
     };
-    Worker worker = std::bind(&Emitter::DoRemoteExecute, this, _1, resolver);
+
+    ui32 shard = Queue::DEFAULT_SHARD;
+    if (remote.has_shard()) {
+      use_shards_ = true;
+      shard = remote.shard();
+    }
+
+    Worker worker =
+        std::bind(&Emitter::DoRemoteExecute, this, _1, resolver, shard);
     new_pool->AddWorker("Remote Execute Worker"_l, worker, remote.threads());
   }
   std::swap(new_pool, remote_workers_);

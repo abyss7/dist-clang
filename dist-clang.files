@@ -2222,6 +2222,7 @@ src/base/future_test.cc
 src/base/locked_list.h
 src/base/locked_list_test.cc
 src/base/locked_queue.h
+src/base/locked_queue_index.h
 src/base/locked_queue_test.cc
 src/base/logging.cc
 src/base/logging.h

@@ -6,8 +6,7 @@ namespace dist_clang {
 namespace base {
 
 ThreadPool::ThreadPool(ui64 capacity, ui32 concurrency)
-    : tasks_(capacity), concurrency_(concurrency) {
-}
+    : tasks_(capacity), concurrency_(concurrency) {}
 
 ThreadPool::~ThreadPool() {
   tasks_.Close();
@@ -40,13 +39,12 @@ ThreadPool::Optional ThreadPool::Push(Closure&& task) {
 
 void ThreadPool::DoWork(const base::WorkerPool& pool) {
   while (!pool.IsShuttingDown()) {
-    TaskQueue::Optional&& task = tasks_.Pop(active_task_count_);
+    TaskQueue::Optional&& task = tasks_.Pop();
     if (!task) {
       break;
     }
     task->first();
     task->second.SetValue(true);
-    --active_task_count_;
   }
 }
 

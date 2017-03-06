@@ -44,17 +44,24 @@ class Emitter : public CompilationDaemon {
 
   void DoCheckCache(const base::WorkerPool&);
   void DoLocalExecute(const base::WorkerPool&);
-  void DoRemoteExecute(const base::WorkerPool&, ResolveFn resolver);
+  void DoRemoteExecute(const base::WorkerPool&, ResolveFn resolver, ui32 shard);
   void DoPoll(const base::WorkerPool&, Vector<ResolveFn> resolvers);
 
   UniquePtr<Queue> all_tasks_, cache_tasks_, failed_tasks_;
   UniquePtr<QueueAggregator> local_tasks_;
   UniquePtr<base::WorkerPool> workers_;
+  UniquePtr<base::WorkerPool> coordinator_workers_;
   UniquePtr<base::WorkerPool> remote_workers_;
 
   bool handle_all_tasks_ = true;
   // Indicates if we force shutdown of the remote workers pool: we shouldn't if
   // there is no coordinators, or if we stopped to poll coordinators.
+
+  bool use_shards_ = false;
+  // Indicates whether we should always generate unhandled source for tasks,
+  // since it's required for proper sharding even without local cache.
+
+  static const constexpr ui32 max_total_shards = 1024u;
 };
 
 }  // namespace daemon

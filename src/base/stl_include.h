@@ -9,3 +9,5 @@
 #endif  // !__has_feature(cxx_exceptions)
 #define STL(file_name) <file_name>
 #endif  // !defined(OS_WIN)
+
+#define STL_EXPERIMENTAL(file_name) STL(experimental/file_name)

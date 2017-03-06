@@ -53,11 +53,17 @@ class BaseDaemon {
  public:
   using Configuration = proto::Configuration;
   using ConfigurationPtr = SharedPtr<Configuration>;
+  using ConstConfigurationPtr = SharedPtr<const Configuration>;
 
   virtual ~BaseDaemon();
   virtual bool Initialize() THREAD_UNSAFE = 0;
 
   bool Update(const Configuration& conf) THREAD_SAFE;
+
+  inline ConstConfigurationPtr conf() const THREAD_SAFE {
+    UniqueLock lock(conf_mutex_);
+    return conf_;
+  }
 
  protected:
   using Universal = UniquePtr<net::proto::Universal>;
@@ -84,11 +90,6 @@ class BaseDaemon {
 
   inline auto Connect(net::EndPointPtr end_point, String* error = nullptr) {
     return network_service_->Connect(end_point, error);
-  }
-
-  inline ConfigurationPtr conf() const THREAD_SAFE {
-    UniqueLock lock(conf_mutex_);
-    return conf_;
   }
 
   // Check if new configuration is proper. Chain calls of this method from
