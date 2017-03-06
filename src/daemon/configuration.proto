@@ -70,9 +70,10 @@ message Configuration {
   }
 
   message Coordinator {
-    required Host local   = 1;
+    required Host local          = 1;
 
-    repeated Host remotes = 2;
+    optional uint32 total_shards = 2;
+    repeated Host remotes        = 3;
     // Hosts to be propogated to clients and used as remotes.
   }
 
