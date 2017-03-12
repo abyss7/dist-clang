@@ -142,7 +142,7 @@ TEST(LockedQueueIndexTest, GetFromHead) {
   LockedQueue<int>::Index index;
 
   const ui32 shard = 4u;
-  const ui32 empty_shard = 3u;
+  const ui32 empty_shard = 5u;
 
   auto inserted_item = list.insert(list.end(), 1);
   index.Put(inserted_item, shard);

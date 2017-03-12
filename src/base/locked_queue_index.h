@@ -34,10 +34,10 @@ class LockedQueue<T>::Index {
   }
 
   QueueIterator Get(ui32 shard, QueueIterator begin) THREAD_UNSAFE {
-    CHECK(shard < index_.size());
+    DCHECK(!index_.empty());
 
     QueueIterator item;
-    if (!index_[shard].empty()) {
+    if (shard < index_.size() && !index_[shard].empty()) {
       item = index_[shard].front();
       index_[shard].pop_front();
       reverse_index_.erase(&*item);

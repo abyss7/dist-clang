@@ -57,10 +57,6 @@ class Emitter : public CompilationDaemon {
   // Indicates if we force shutdown of the remote workers pool: we shouldn't if
   // there is no coordinators, or if we stopped to poll coordinators.
 
-  bool use_shards_ = false;
-  // Indicates whether we should always generate unhandled source for tasks,
-  // since it's required for proper sharding even without local cache.
-
   static const constexpr ui32 max_total_shards = 1024u;
 };
 

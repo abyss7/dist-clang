@@ -218,7 +218,8 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
   const base::TemporaryDir temp_dir;
   const auto expected_code = net::proto::Status::OK;
   const auto action = "fake_action"_l;
-  const auto handled_source = "fake_source"_l;
+  const auto handled_source1 = "fake_source1"_l;
+  const auto handled_source2 = "fake_source2"_l;
   const String object_code = "fake_object_code";
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
@@ -236,6 +237,9 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
 
   conf.mutable_emitter()->set_only_failed(true);
   conf.mutable_emitter()->set_poll_interval(1u);
+  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_direct(false);
+  conf.mutable_cache()->set_clean_period(1);
 
   auto* coordinator = conf.mutable_emitter()->add_coordinators();
   coordinator->set_host(coordinator_host);
@@ -267,6 +271,7 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
         auto* remote = emitter->add_remotes();
         remote->set_host(old_remote_host);
         remote->set_port(old_remote_port);
+        remote->set_shard(1);
         remote->set_threads(1);
 
         emitter->set_total_shards(old_total_shards);
@@ -296,6 +301,7 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
         auto* remote = emitter->add_remotes();
         remote->set_host(new_remote_host);
         remote->set_port(new_remote_port);
+        remote->set_shard(1);
         remote->set_threads(1);
 
         emitter->set_total_shards(new_total_shards);
@@ -346,6 +352,7 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
 
       EXPECT_EQ(EndPointString(new_remote_host, new_remote_port),
                 end_point->Print());
+      DCHECK(emitter);
       EXPECT_EQ(new_total_shards, emitter->conf()->emitter().total_shards());
 
       connection->CallOnSend([this](const net::Connection::Message&) {
@@ -364,7 +371,11 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
 
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ((Immutable::Rope{"-E"_l, "-o"_l, "-"_l}), process->args_);
-    process->stdout_ = handled_source;
+    if (run_count == 1) {
+      process->stdout_ = handled_source1;
+    } else if (run_count == 2) {
+      process->stdout_ = handled_source2;
+    }
   };
 
   emitter = std::make_unique<Emitter>(conf);
