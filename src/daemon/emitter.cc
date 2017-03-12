@@ -296,10 +296,12 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     STAT(SIMPLE_CACHE_MISS);
 
     auto hash = GenerateHash(incoming->flags(), source, extra_files);
-    ui32 shard = use_shards_
+    DCHECK(!conf->emitter().has_total_shards() ||
+           conf->emitter().total_shards() > 0);
+    ui32 shard = conf->emitter().has_total_shards()
                      ? std::hash<Immutable>{}(hash.str.Hash(4)) %
                            conf->emitter().total_shards()
-                     : 0;
+                     : Queue::DEFAULT_SHARD;
     all_tasks_->Push(std::move(*task), shard);
   }
 }
@@ -370,6 +372,8 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
 
 void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
                               const ui32 shard) {
+  auto conf = this->conf();
+
   net::EndPointPtr end_point;
   ui32 sleep_period = 1;
   auto Sleep = [&sleep_period]() mutable {
@@ -411,7 +415,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
     }
 
     // If we're using shards we should have generated source by now.
-    DCHECK(!use_shards_ || !source.str.empty());
+    DCHECK(!conf->emitter().has_total_shards() || !source.str.empty());
 
     auto outgoing = std::make_unique<proto::Remote>();
     if (source.str.empty() && !GenerateSource(incoming, &source)) {
@@ -584,7 +588,9 @@ void Emitter::DoPoll(const base::WorkerPool& pool,
           reply->GetExtension(Configuration::extension).emitter();
       new_conf.mutable_emitter()->mutable_remotes()->CopyFrom(
           emitter.remotes());
-      new_conf.mutable_emitter()->set_total_shards(emitter.total_shards());
+      if (emitter.has_total_shards()) {
+        new_conf.mutable_emitter()->set_total_shards(emitter.total_shards());
+      }
       if (!Update(new_conf)) {
         // FIXME(ilezhankin): print coordinator's address for clarity.
         LOG(WARNING) << "Failed to update to configuration from coordinator!";
@@ -619,56 +625,54 @@ bool Emitter::Check(const Configuration& conf) const {
 
   const auto& emitter = conf.emitter();
 
-  if (emitter.only_failed()) {
-    bool has_active_remote = false;
-    // We always should have enabled remotes even with active coordinators.
-    // Otherwise we risk to never get any remotes and be silent about it.
-
-    for (const auto& remote : emitter.remotes()) {
-      if (!remote.disabled()) {
-        has_active_remote = true;
-        break;
-      }
-    }
-
-    if (!has_active_remote) {
-      LOG(ERROR) << "Daemon will hang without active remotes "
-                    "and a set flag \"emitter.only_failed\"";
+  if (emitter.has_total_shards()) {
+    if (emitter.total_shards() > max_total_shards) {
+      LOG(ERROR) << "Due to peculiarities of implementation emitter can't use "
+                    "more than "
+                 << max_total_shards << " total shards";
+      return false;
+    } else if (emitter.total_shards() < 2) {
+      LOG(ERROR) << "Number of total shards must be greater than 1";
+      return false;
+    } else if (!conf.has_cache() || conf.cache().disabled()) {
+      // FIXME: if we don't have cache workers, then we can't
+      //        |GenerateSource()| in any separate thread pool.
+      //        Also we don't want to pollute sharded remotes with random
+      //        builds - so just don't use them for now.
+      LOG(ERROR) << "Can't use sharded remotes with disabled local cache";
       return false;
     }
   }
 
-  if (!conf.has_cache() || conf.cache().disabled()) {
-    for (const auto& remote : emitter.remotes()) {
-      if (!remote.disabled() && remote.has_shard()) {
-        // FIXME: if we don't have cache workers, then we can't
-        //        |GenerateSource()| in any separate thread pool.
-        //        Also we don't want to pollute sharded remotes with random
-        //        builds - so just don't use them for now.
-        LOG(ERROR) << "Can't use sharded remotes with disabled local cache";
+  bool has_active_remote = false;
+  for (const auto& remote : emitter.remotes()) {
+    if (!remote.disabled()) {
+      has_active_remote = true;
+
+      if (remote.has_shard()) {
+        if (!emitter.has_total_shards()) {
+          LOG(ERROR) << "Remote shouldn't have shard when the number of total "
+                        "shards isn't set";
+          return false;
+        } else if (remote.shard() >= emitter.total_shards()) {
+          LOG(ERROR) << "Remote's shard number is out of range (total shards: "
+                     << emitter.total_shards() << ")";
+          return false;
+        }
+      } else if (emitter.has_total_shards()) {
+        LOG(ERROR) << "All remotes should have their shards when the number of "
+                      "total shards is set";
         return false;
       }
     }
   }
 
-  for (const auto& remote : emitter.remotes()) {
-    if (remote.has_shard() && remote.shard() >= emitter.total_shards()) {
-      LOG(ERROR) << "Remote's shard number is out of range (total shards: "
-                 << emitter.total_shards() << ")";
-      return false;
-    }
-  }
-
-  if (emitter.total_shards() > max_total_shards) {
-    LOG(ERROR)
-        << "Due to peculiarities of implementation emitter can't use more than "
-        << max_total_shards << " total shards";
+  if (emitter.only_failed() && !has_active_remote) {
+    // We always should have enabled remotes even with active coordinators.
+    // Otherwise we risk to never get any remotes and be silent about it.
+    LOG(ERROR) << "Daemon will hang without active remotes and a set flag "
+                  "\"emitter.only_failed\"";
     return false;
-  }
-
-  if (emitter.total_shards() == 1) {
-    LOG(WARNING)
-        << "Single shard is meaningless, since it adds CPU load without profit";
   }
 
   return true;
@@ -694,12 +698,7 @@ bool Emitter::Reload(const proto::Configuration& conf) {
       return optional->GetValue();
     };
 
-    ui32 shard = Queue::DEFAULT_SHARD;
-    if (remote.has_shard()) {
-      use_shards_ = true;
-      shard = remote.shard();
-    }
-
+    ui32 shard = remote.has_shard() ? remote.shard() : Queue::DEFAULT_SHARD;
     Worker worker =
         std::bind(&Emitter::DoRemoteExecute, this, _1, resolver, shard);
     new_pool->AddWorker("Remote Execute Worker"_l, worker, remote.threads());

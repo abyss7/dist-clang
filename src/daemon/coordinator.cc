@@ -53,7 +53,9 @@ bool Coordinator::HandleNewMessage(net::ConnectionPtr connection,
       proto::Host* host = emitter->add_remotes();
       host->CopyFrom(remote);
     }
-    emitter->set_total_shards(conf()->coordinator().total_shards());
+    if (conf()->coordinator().has_total_shards()) {
+      emitter->set_total_shards(conf()->coordinator().total_shards());
+    }
 
     connection->SendAsync(std::move(configuration));
     return true;

@@ -261,11 +261,12 @@ bool CompilationDaemon::SearchDirectCache(
   auto conf = this->conf();
 
   DCHECK(conf->has_emitter() && !conf->has_absorber());
-  DCHECK(flags.has_input());
 
   if (!cache_ || !conf->cache().direct()) {
     return false;
   }
+
+  DCHECK(flags.has_input());
 
   const Version version(flags.compiler().version());
   const String input = GetFullPath(current_dir, flags.input());
