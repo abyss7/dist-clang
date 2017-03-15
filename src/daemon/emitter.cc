@@ -295,13 +295,13 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
 
     STAT(SIMPLE_CACHE_MISS);
 
-    auto hash = GenerateHash(incoming->flags(), source, extra_files);
-    DCHECK(!conf->emitter().has_total_shards() ||
-           conf->emitter().total_shards() > 0);
-    ui32 shard = conf->emitter().has_total_shards()
-                     ? std::hash<Immutable>{}(hash.str.Hash(4)) %
-                           conf->emitter().total_shards()
-                     : Queue::DEFAULT_SHARD;
+    ui32 shard = Queue::DEFAULT_SHARD;
+    if (conf->emitter().has_total_shards()) {
+      DCHECK(conf->emitter().total_shards() > 0);
+      auto hash = GenerateHash(incoming->flags(), source, extra_files);
+      shard = (*reinterpret_cast<const ui32*>(hash.str.Hash(4).c_str())) %
+               conf->emitter().total_shards();
+    }
     all_tasks_->Push(std::move(*task), shard);
   }
 }
