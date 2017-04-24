@@ -11,7 +11,7 @@ config("base") {
     "-Werror",
   ]
 
-  cflags_cc = [ "-std=c++1z" ]
+  cflags_cc = [ "-std=c++14" ]
 
   include_dirs = [
     "//src",
@@ -23,7 +23,7 @@ config("default_library") {
   cflags = [ "-fPIC" ]
 
   cflags_cc = [
-    "-std=c++1z",
+    "-std=c++14",
     "-nostdinc++",
   ]
 

@@ -57,7 +57,7 @@ class Emitter : public CompilationDaemon {
   // Indicates if we force shutdown of the remote workers pool: we shouldn't if
   // there is no coordinators, or if we stopped to poll coordinators.
 
-  static const constexpr ui32 max_total_shards = 1024u;
+  static const ui32 max_total_shards;
 };
 
 }  // namespace daemon
