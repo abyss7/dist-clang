@@ -329,6 +329,12 @@ USING(Using, NamedDecl)
 USINGDIRECTIVE(UsingDirective, NamedDecl)
 #undef USINGDIRECTIVE
 
+#ifndef USINGPACK
+#  define USINGPACK(Type, Base) NAMED(Type, Base)
+#endif
+USINGPACK(UsingPack, NamedDecl)
+#undef USINGPACK
+
 #ifndef USINGSHADOW
 #  define USINGSHADOW(Type, Base) NAMED(Type, Base)
 #endif
@@ -381,6 +387,12 @@ DECL_RANGE(Field, Field, ObjCIvar)
 #  define FUNCTION(Type, Base) DECLARATOR(Type, Base)
 #endif
 FUNCTION(Function, DeclaratorDecl)
+#ifndef CXXDEDUCTIONGUIDE
+#  define CXXDEDUCTIONGUIDE(Type, Base) FUNCTION(Type, Base)
+#endif
+CXXDEDUCTIONGUIDE(CXXDeductionGuide, FunctionDecl)
+#undef CXXDEDUCTIONGUIDE
+
 #ifndef CXXMETHOD
 #  define CXXMETHOD(Type, Base) FUNCTION(Type, Base)
 #endif

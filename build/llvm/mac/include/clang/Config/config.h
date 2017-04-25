@@ -8,6 +8,9 @@
 /* Bug report URL. */
 #define BUG_REPORT_URL ""
 
+/* Default linker to use. */
+#define CLANG_DEFAULT_LINKER ""
+
 /* Default C++ stdlib to use. */
 #define CLANG_DEFAULT_CXX_STDLIB ""
 
@@ -35,14 +38,17 @@
 /* Define if we have libxml2 */
 #define CLANG_HAVE_LIBXML 1
 
+/* Define if we have z3 and want to build it */
+/* #undef CLANG_ANALYZER_WITH_Z3 */
+
 /* Define if we have sys/resource.h (rlimits) */
 #define CLANG_HAVE_RLIMITS 1
 
 /* The LLVM product name and version */
-#define BACKEND_PACKAGE_STRING "LLVM 4.0.0svn"
+#define BACKEND_PACKAGE_STRING "LLVM 5.0.0svn"
 
 /* Linker version detected at compile time. */
-#define HOST_LINK_VERSION "242"
+#define HOST_LINK_VERSION "278.4"
 
 /* pass --build-id to ld */
 /* #undef ENABLE_LINKER_BUILD_ID */
