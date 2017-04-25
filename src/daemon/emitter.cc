@@ -75,6 +75,8 @@ inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
 
 namespace daemon {
 
+const ui32 Emitter::max_total_shards = 1024u;
+
 Emitter::Emitter(const proto::Configuration& conf) : CompilationDaemon(conf) {
   using Worker = base::WorkerPool::SimpleWorker;
 
