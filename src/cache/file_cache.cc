@@ -195,10 +195,12 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
 
 void FileCache::Store(UnhandledSource code, const ExtraFiles& extra_files,
                       CommandLine command_line, Version version,
-                      const List<String>& headers, const String& current_dir,
+                      const List<String>& headers,
+                      const List<String>& preprocessed_headers,
+                      const String& current_dir,
                       string::HandledHash hash) {
-  DoStore(Hash(code, extra_files, command_line, version), headers, current_dir,
-          hash);
+  DoStore(Hash(code, extra_files, command_line, version),
+          headers, preprocessed_headers, current_dir, hash);
 }
 
 void FileCache::Store(HandledSource code, const ExtraFiles& extra_files,
@@ -449,6 +451,7 @@ void FileCache::DoStore(string::HandledHash hash, Entry entry) {
 }
 
 void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
+                        const List<String>& preprocessed_headers,
                         const String& current_dir, const HandledHash& hash) {
   // We have to store manifest on the path based only on the hash of unhandled
   // source code. Otherwise, we won't be able to get list of the dependent
@@ -473,19 +476,24 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
   proto::Manifest manifest;
   manifest.set_version(kManifestVersion);
 
-  for (const auto& header : headers) {
-    String error;
-    Immutable header_hash;
-    const String header_path =
-        header[0] == '/' ? header : current_dir + "/" + header;
-    if (!base::File::Hash(header_path, &header_hash,
-                          {"__DATE__"_l, "__TIME__"_l}, &error)) {
-      LOG(CACHE_ERROR) << "Failed to hash " << header_path << ": " << error;
-      return;
+  auto hash_headers = [&](const List<String>& headers,
+                          const List<Literal>& skip_list) {
+    for (const String& header : headers) {
+      String error;
+      Immutable header_hash;
+      const String header_path =
+          header[0] == '/' ? header : current_dir + "/" + header;
+      if (!base::File::Hash(header_path, &header_hash, skip_list, &error)) {
+        LOG(CACHE_ERROR) << "Failed to hash " << header_path << ": " << error;
+        return;
+      }
+      hash_rope.push_back(header_hash);
+      manifest.mutable_direct()->add_headers(header);
     }
-    hash_rope.push_back(header_hash);
-    manifest.mutable_direct()->add_headers(header);
-  }
+  };
+
+  hash_headers(headers, {"__DATE__"_l, "__TIME__"_l});
+  hash_headers(preprocessed_headers, {});
 
   auto direct_hash = base::Hexify(Immutable(hash_rope).Hash());
   DCHECK(database_);

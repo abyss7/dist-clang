@@ -386,7 +386,7 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   const List<String> headers = {header1_path, header2_rel_path};
-  cache.Store(orig_code, {}, cl, version, headers, path,
+  cache.Store(orig_code, {}, cl, version, headers, {}, path,
               FileCache::Hash(code, {}, cl, version));
 
   // Restore the entry.
@@ -435,7 +435,7 @@ TEST(FileCacheTest, RestoreDirectEntryWithExtraFile) {
   const List<String> headers = {header1_path, header2_rel_path};
   cache.Store(
       orig_code, ExtraFiles{{SANITIZE_BLACKLIST, extra_file}}, cl, version,
-      headers, path,
+      headers, {}, path,
       FileCache::Hash(code, ExtraFiles{{SANITIZE_BLACKLIST, extra_file}}, cl,
                       version));
 
@@ -486,11 +486,58 @@ TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   const List<String> headers = {header1_path, header2_rel_path};
-  cache.Store(orig_code, {}, cl, version, headers, path,
+  cache.Store(orig_code, {}, cl, version, headers, {}, path,
               FileCache::Hash(code, {}, cl, version));
 
   // Change header contents.
   ASSERT_TRUE(base::File::Write(header2_path, "#define C"_l));
+
+  // Restore the entry.
+  EXPECT_FALSE(cache.Find(orig_code, {}, cl, version, path, &entry));
+}
+
+TEST(FileCacheTest, DirectEntry_ChangedPreprocessedHeaderContents) {
+  const base::TemporaryDir tmp_dir;
+  const String path = tmp_dir;
+  const String object_path = path + "/test.o";
+  const String deps_path = path + "/test.d";
+  const String header1_path = path + "/test1.h";
+  const String header2_path = path + "/test2.h";
+  const String preprocessed_header_path = path + "/precompile.h";
+  const auto expected_stderr = "some warning"_l;
+  const auto expected_object_code = "some object code"_l;
+  const auto expected_deps = "some deps"_l;
+  FileCache cache(path);
+  ASSERT_TRUE(cache.Run(1));
+  FileCache::Entry entry;
+
+  const HandledSource code("int main() { return 0; }"_l);
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+
+  ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
+  ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
+  ASSERT_TRUE(base::File::Write(header1_path, "#define A"_l));
+  ASSERT_TRUE(base::File::Write(header2_path, "#define B"_l));
+  ASSERT_TRUE(base::File::Write(preprocessed_header_path,
+                                "Any content should work"_l));
+
+  entry.object = expected_object_code;
+  entry.deps = expected_deps;
+  entry.stderr = expected_stderr;
+
+  // Store the entry.
+  cache.Store(code, {}, cl, version, entry);
+
+  // Store the direct entry.
+  const UnhandledSource orig_code("int main() {}"_l);
+  const List<String> headers = {header1_path, header2_path};
+  const List<String> preprocessed_headers = {preprocessed_header_path};
+  cache.Store(orig_code, {}, cl, version, headers, preprocessed_headers, path,
+              FileCache::Hash(code, {}, cl, version));
+
+  // Change header contents.
+  ASSERT_TRUE(base::File::Write(preprocessed_header_path, "Other content"_l));
 
   // Restore the entry.
   EXPECT_FALSE(cache.Find(orig_code, {}, cl, version, path, &entry));
@@ -530,13 +577,13 @@ TEST(FileCacheTest, DirectEntry_RewriteManifest) {
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   List<String> headers = {header1_path, header2_path};
-  cache.Store(orig_code, {}, cl, version, headers, path,
+  cache.Store(orig_code, {}, cl, version, headers, {}, path,
               FileCache::Hash(code, {}, cl, version));
 
   headers.pop_back();
 
   // Store the direct entry - again.
-  cache.Store(orig_code, {}, cl, version, headers, path,
+  cache.Store(orig_code, {}, cl, version, headers, {}, path,
               FileCache::Hash(code, {}, cl, version));
 
   // Restore the entry.
@@ -576,7 +623,7 @@ TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   const List<String> headers = {header1_path, header2_path};
-  cache.Store(orig_code, {}, cl, version, headers, path,
+  cache.Store(orig_code, {}, cl, version, headers, {}, path,
               FileCache::Hash(code, {}, cl, version));
 
   // Restore the entry.
@@ -621,7 +668,7 @@ TEST(FileCacheTest, DirectEntry_ChangedExtraFile) {
   const List<String> headers = {header1_path, header2_path};
   cache.Store(
       orig_code, ExtraFiles{{SANITIZE_BLACKLIST, extra_file}}, cl, version,
-      headers, path,
+      headers, {}, path,
       FileCache::Hash(code, ExtraFiles{{SANITIZE_BLACKLIST, extra_file}}, cl,
                       version));
 

@@ -123,7 +123,9 @@ class FileCache {
 
   void Store(string::UnhandledSource code, const ExtraFiles& extra_files,
              string::CommandLine command_line, string::Version version,
-             const List<String>& headers, const String& current_dir,
+             const List<String>& headers,
+             const List<String>& preprocessed_headers,
+             const String& current_dir,
              string::HandledHash hash);
 
   void Store(string::HandledSource code, const ExtraFiles& extra_files,
@@ -187,6 +189,7 @@ class FileCache {
   bool FindByHash(string::HandledHash hash, Entry* entry) const;
   void DoStore(string::HandledHash hash, Entry entry);
   void DoStore(string::UnhandledHash orig_hash, const List<String>& headers,
+               const List<String>& preprocessed_headers,
                const String& current_dir, const string::HandledHash& hash);
 
   using TimeHashPair = Pair<ui64 /* mtime */, string::Hash>;
