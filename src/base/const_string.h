@@ -102,6 +102,8 @@ class ConstString {
   InternalPtr CollapseRope();
   InternalPtr NullTerminate();
 
+  const char& at(const Internal* internal, size_t index) const;
+
   InternalPtr internals_ = InternalPtr(new Internal);
 
   size_t size_ = 0;
