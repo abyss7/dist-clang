@@ -196,7 +196,7 @@ bool ConstString::operator==(const ConstString& other) const {
 }
 
 size_t ConstString::find(const char* str) const {
-  i64 str_size = strlen(str);
+  const i64 str_size = strlen(str);
   Vector<i64> t(str_size + 1, -1);
 
   if (str_size == 0) {
@@ -213,8 +213,12 @@ size_t ConstString::find(const char* str) const {
 
   size_t sp = 0;
   i64 kp = 0;
+
+  auto internals = internals_;
+
   while (sp < size_) {
-    while (kp != -1 && (kp == str_size || str[kp] != this->operator[](sp))) {
+    while (kp != -1 &&
+           (kp == str_size || str[kp] != at(internals.get(), sp))) {
       kp = t[kp];
     }
     kp++;
@@ -232,18 +236,7 @@ const char& ConstString::operator[](size_t index) const {
 
   auto internals = internals_;
 
-  if (!internals->rope.empty()) {
-    for (const auto& str : internals->rope) {
-      if (index < str.size()) {
-        return str[index];
-      }
-
-      index -= str.size();
-    }
-  }
-
-  DCHECK(internals->string);
-  return *(internals->string.get() + index);
+  return at(internals.get(), index);
 }
 
 ConstString ConstString::operator+(const ConstString& other) const {
@@ -412,40 +405,40 @@ ConstString ConstString::Hash(ui8 output_size) const {
 
   switch (size() & 15) {
     case 15:
-      k2 ^= ((ui64) this->operator[](tail + 14)) << 48;
+      k2 ^= ((ui64) at(internals.get(), tail + 14)) << 48;
     case 14:
-      k2 ^= ((ui64) this->operator[](tail + 13)) << 40;
+      k2 ^= ((ui64) at(internals.get(), tail + 13)) << 40;
     case 13:
-      k2 ^= ((ui64) this->operator[](tail + 12)) << 32;
+      k2 ^= ((ui64) at(internals.get(), tail + 12)) << 32;
     case 12:
-      k2 ^= ((ui64) this->operator[](tail + 11)) << 24;
+      k2 ^= ((ui64) at(internals.get(), tail + 11)) << 24;
     case 11:
-      k2 ^= ((ui64) this->operator[](tail + 10)) << 16;
+      k2 ^= ((ui64) at(internals.get(), tail + 10)) << 16;
     case 10:
-      k2 ^= ((ui64) this->operator[](tail + 9)) << 8;
+      k2 ^= ((ui64) at(internals.get(), tail + 9)) << 8;
     case 9:
-      k2 ^= ((ui64) this->operator[](tail + 8)) << 0;
+      k2 ^= ((ui64) at(internals.get(), tail + 8)) << 0;
       k2 *= c2;
       k2 = rotl64(k2, 33);
       k2 *= c1;
       h2 ^= k2;
 
     case 8:
-      k1 ^= ((ui64) this->operator[](tail + 7)) << 56;
+      k1 ^= ((ui64) at(internals.get(), tail + 7)) << 56;
     case 7:
-      k1 ^= ((ui64) this->operator[](tail + 6)) << 48;
+      k1 ^= ((ui64) at(internals.get(), tail + 6)) << 48;
     case 6:
-      k1 ^= ((ui64) this->operator[](tail + 5)) << 40;
+      k1 ^= ((ui64) at(internals.get(), tail + 5)) << 40;
     case 5:
-      k1 ^= ((ui64) this->operator[](tail + 4)) << 32;
+      k1 ^= ((ui64) at(internals.get(), tail + 4)) << 32;
     case 4:
-      k1 ^= ((ui64) this->operator[](tail + 3)) << 24;
+      k1 ^= ((ui64) at(internals.get(), tail + 3)) << 24;
     case 3:
-      k1 ^= ((ui64) this->operator[](tail + 2)) << 16;
+      k1 ^= ((ui64) at(internals.get(), tail + 2)) << 16;
     case 2:
-      k1 ^= ((ui64) this->operator[](tail + 1)) << 8;
+      k1 ^= ((ui64) at(internals.get(), tail + 1)) << 8;
     case 1:
-      k1 ^= ((ui64) this->operator[](tail + 0)) << 0;
+      k1 ^= ((ui64) at(internals.get(), tail + 0)) << 0;
       k1 *= c1;
       k1 = rotl64(k1, 31);
       k1 *= c2;
@@ -519,6 +512,22 @@ ConstString::InternalPtr ConstString::NullTerminate() {
   InternalPtr new_internals(new Internal{
       .string = {new_string.release(), CharArrayDeleter}, .null_end = true});
   return internals_ = new_internals;
+}
+
+const char& ConstString::at(const Internal* internal, size_t index) const {
+  DCHECK(internal);
+  if (!internal->rope.empty()) {
+    for (const auto& str : internal->rope) {
+      if (index < str.size()) {
+        return str[index];
+      }
+
+      index -= str.size();
+    }
+  }
+
+  DCHECK(internal->string);
+  return *(internal->string.get() + index);
 }
 
 }  // namespace base
