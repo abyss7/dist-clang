@@ -6,7 +6,7 @@ set -ex
 
 root_dir="$(cd "$(dirname $0)/.." && pwd -P)"
 
-"$root_dir/build/configure"
+mkdir "$root_dir"/out
 
 if [[ "$(uname)" == Linux ]]; then
     arch="Linux_x64"
@@ -23,6 +23,12 @@ if ! test -d "$clang_root"; then
         tar -C "$clang_root" -xzf -
 fi
 export PATH="$clang_root/bin:$PATH"
+
+if [[ "$(uname)" == Linux ]]; then
+    export LD_LIBRARY_PATH="$clang_root/lib:$LD_LIBRARY_PATH"
+fi
+
+"$root_dir/build/configure"
 
 git -C "$root_dir" fetch origin master
 ninja -C "$root_dir/out/Debug.gn" All
