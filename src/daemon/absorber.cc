@@ -45,7 +45,8 @@ bool Absorber::Initialize() {
     return false;
   }
 
-  if (conf->has_cache() && conf->cache().has_direct()) {
+  if (conf->has_cache() && conf->cache().has_direct() &&
+      conf->cache().direct()) {
     LOG(WARNING) << "Absorber doesn't use the Direct Cache mode. The flag "
                     "\"cache.direct\" will be ignored";
   }
@@ -70,7 +71,15 @@ bool Absorber::HandleNewMessage(net::ConnectionPtr connection,
     Message execute(message->ReleaseExtension(proto::Remote::extension));
     DCHECK(!execute->flags().compiler().has_path());
     if (execute->has_source()) {
-      return tasks_->Push(Task{connection, std::move(execute)});
+      if (tasks_->Push(Task{connection, std::move(execute)})) {
+        return true;
+      } else {
+        net::proto::Status overload;
+        overload.set_code(net::proto::Status::OVERLOAD);
+        overload.set_description("Tasks queue reached limit");
+        connection->ReportStatus(overload);
+        return false;
+      }
     }
   }
 

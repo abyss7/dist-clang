@@ -1,7 +1,6 @@
 #pragma once
 
 #include <base/aliases.h>
-#include <base/attributes.h>
 
 namespace dist_clang {
 namespace perf {

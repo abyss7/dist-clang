@@ -5,6 +5,7 @@
 #include <base/temporary_dir.h>
 #include <daemon/common_daemon_test.h>
 #include <net/test_connection.h>
+#include <perf/stat_service.h>
 
 namespace dist_clang {
 namespace daemon {
@@ -1640,6 +1641,11 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
 
   emitter.reset();
 
+  perf::proto::Metric metric;
+  metric.set_name(perf::proto::Metric::SIMPLE_CACHE_HIT);
+  base::Singleton<perf::StatService>::Get().Dump(metric);
+  EXPECT_EQ(1u, metric.value());
+
   Immutable cache_output;
   EXPECT_TRUE(base::File::Exists(output_path2));
   EXPECT_TRUE(base::File::Read(output_path2, &cache_output));
@@ -1676,6 +1682,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
   const String output_path1 = "test1.o";
   const auto plugin_name = "fake_plugin"_l;
   const auto plugin_path = "fake_plugin_path"_l;
+  const auto remote_compilation_time = std::chrono::milliseconds(10);
 
   const String output_path2 = String(temp_dir) + "/test2.o";
   // |output_path2| checks that everything works fine with absolute paths.
@@ -1721,6 +1728,8 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
       });
 
       connection->CallOnRead([&](net::Connection::Message* message) {
+        // Used to check preprocess timing statistics.
+        std::this_thread::sleep_for(remote_compilation_time);
         message->MutableExtension(proto::Result::extension)
             ->set_obj(object_code);
       });
@@ -1813,12 +1822,450 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
 
   emitter.reset();
 
+  perf::proto::Metric metric;
+  metric.set_name(perf::proto::Metric::SIMPLE_CACHE_HIT);
+  base::Singleton<perf::StatService>::Get().Dump(metric);
+  EXPECT_EQ(1u, metric.value());
+
+  perf::proto::Metric remote_compilation_time_metric;
+  remote_compilation_time_metric.set_name(
+      perf::proto::Metric::REMOTE_COMPILATION_TIME);
+  base::Singleton<perf::StatService>::Get().Dump(
+      remote_compilation_time_metric);
+  EXPECT_GE(remote_compilation_time_metric.value(),
+            static_cast<ui64>(remote_compilation_time.count()));
+
   Immutable cache_output;
   ASSERT_TRUE(base::File::Exists(output_path2));
   ASSERT_TRUE(base::File::Read(output_path2, &cache_output));
   EXPECT_EQ(object_code, cache_output);
 
   EXPECT_EQ(2u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(3u, connect_count);
+  EXPECT_EQ(3u, connections_created);
+  EXPECT_EQ(3u, read_count);
+  EXPECT_EQ(3u, send_count)
+      << "There should be only these transmissions:" << std::endl
+      << "  1. Local daemon -> remote daemon." << std::endl
+      << "  2. Local daemon -> 1st client." << std::endl
+      << "  3. Local daemon -> 2nd client.";
+  EXPECT_EQ(1, connection1.use_count())
+      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count())
+      << "Daemon must not store references to the connection";
+
+  // TODO: check that original files are not moved.
+  // TODO: check that removal of original files doesn't fail cache filling.
+}
+
+/*
+ * 1. Trigger compilation on remote
+ * 2. Remote fails compilation
+ * 3. Run local compilation.
+ */
+TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteFail) {
+  const base::TemporaryDir temp_dir;
+  const String host = "fake_host";
+  const ui16 port = 12345;
+  const auto expected_code = net::proto::Status::OK;
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const auto object_code = "fake_object_code"_l;
+  const auto source = "fake_source"_l;
+  const auto language = "fake_language"_l;
+  const auto action = "fake_action"_l;
+  const auto input_path1 = "test1.cc"_l;
+  const auto input_path2 = "test2.cc"_l;
+  const auto output_path1 = "test1.o"_l;
+  const auto plugin_name = "fake_plugin"_l;
+  const auto plugin_path = "fake_plugin_path"_l;
+  const auto local_compilation_time = std::chrono::milliseconds(10);
+
+  const String output_path2 = String(temp_dir) + "/test2.o";
+  // |output_path2| checks that everything works fine with absolute paths.
+
+  conf.mutable_emitter()->set_only_failed(true);
+  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_direct(false);
+  conf.mutable_cache()->set_clean_period(1);
+
+  auto* remote = conf.mutable_emitter()->add_remotes();
+  remote->set_host(host);
+  remote->set_port(port);
+  remote->set_threads(1);
+
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+  auto* plugin = version->add_plugins();
+  plugin->set_name(plugin_name);
+  plugin->set_path(plugin_path);
+
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    if (connect_count == 1) {
+      // Connection from client to local daemon.
+
+      connection->CallOnSend([&](const net::Connection::Message& message) {
+        EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+        const auto& status =
+            message.GetExtension(net::proto::Status::extension);
+        EXPECT_EQ(expected_code, status.code()) << status.description();
+
+        send_condition.notify_all();
+      });
+    } else if (connect_count == 2) {
+      // Connection from local daemon to remote daemon.
+
+      connection->CallOnSend([&](const net::Connection::Message& message) {
+        EXPECT_TRUE(message.HasExtension(proto::Remote::extension));
+        const auto& command = message.GetExtension(proto::Remote::extension);
+        EXPECT_EQ(source, command.source());
+
+        send_condition.notify_all();
+      });
+      connection->CallOnRead([&](net::Connection::Message* message) {
+        message->MutableExtension(net::proto::Status::extension)
+            ->set_code(net::proto::Status::EXECUTION);
+      });
+    } else if (connect_count == 3) {
+      // Connection from client to local daemon.
+
+      connection->CallOnSend([&](const net::Connection::Message& message) {
+        EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+        const auto& status =
+            message.GetExtension(net::proto::Status::extension);
+        EXPECT_EQ(expected_code, status.code()) << status.description();
+
+        send_condition.notify_all();
+      });
+    }
+    return true;
+  };
+
+  run_callback = [&](base::TestProcess* process) {
+    if (run_count == 1) {
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l,
+                                 input_path1}),
+                process->args_);
+      process->stdout_ = source;
+    } else if (run_count == 2) {
+      // Used to check preprocess timing statistics.
+      std::this_thread::sleep_for(local_compilation_time);
+      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-x"_l,
+                                 language, "-o"_l, output_path1, input_path1}),
+                process->args_);
+      EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + output_path1,
+                                    object_code));
+    } else if (run_count == 3) {
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l,
+                                 input_path2}),
+                process->args_);
+      process->stdout_ = source;
+    }
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto connection1 = test_service->TriggerListen(socket_path);
+  {
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection1);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+
+    extension->set_current_dir(temp_dir);
+    extension->mutable_flags()->set_input(input_path1);
+    extension->mutable_flags()->set_output(output_path1);
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
+    compiler->set_version(compiler_version);
+    compiler->add_plugins()->set_name(plugin_name);
+    extension->mutable_flags()->set_action(action);
+    extension->mutable_flags()->set_language(language);
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
+                                        [this] { return send_count == 2; }));
+    // FIXME: describe, why |send_count == 2| ?
+  }
+
+  auto connection2 = test_service->TriggerListen(socket_path);
+  {
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection2);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(temp_dir);
+
+    extension->mutable_flags()->set_input(input_path2);
+    extension->mutable_flags()->set_output(output_path2);
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
+    compiler->set_version(compiler_version);
+    compiler->add_plugins()->set_name(plugin_name);
+    extension->mutable_flags()->set_action(action);
+    extension->mutable_flags()->set_language(language);
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
+                                        [this] { return send_count == 3; }));
+  }
+
+  emitter.reset();
+
+  perf::proto::Metric simple_cache_hit_metric;
+  simple_cache_hit_metric.set_name(perf::proto::Metric::SIMPLE_CACHE_HIT);
+  base::Singleton<perf::StatService>::Get().Dump(simple_cache_hit_metric);
+  EXPECT_EQ(1u, simple_cache_hit_metric.value());
+
+  perf::proto::Metric remote_compilation_failed_metric;
+  remote_compilation_failed_metric.set_name(
+      perf::proto::Metric::REMOTE_COMPILATION_FAILED);
+  base::Singleton<perf::StatService>::Get().Dump(
+      remote_compilation_failed_metric);
+  EXPECT_EQ(1u, remote_compilation_failed_metric.value());
+
+  perf::proto::Metric local_compilation_time_metric;
+  local_compilation_time_metric.set_name(
+      perf::proto::Metric::LOCAL_COMPILATION_TIME);
+  base::Singleton<perf::StatService>::Get().Dump(local_compilation_time_metric);
+  EXPECT_GE(local_compilation_time_metric.value(),
+            static_cast<ui64>(local_compilation_time.count()));
+
+  Immutable cache_output;
+  ASSERT_TRUE(base::File::Exists(output_path2));
+  ASSERT_TRUE(base::File::Read(output_path2, &cache_output));
+  EXPECT_EQ(object_code, cache_output);
+
+  EXPECT_EQ(3u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(3u, connect_count);
+  EXPECT_EQ(3u, connections_created);
+  EXPECT_EQ(3u, read_count);
+  EXPECT_EQ(3u, send_count)
+      << "There should be only these transmissions:" << std::endl
+      << "  1. Local daemon -> remote daemon." << std::endl
+      << "  2. Local daemon -> 1st client." << std::endl
+      << "  3. Local daemon -> 2nd client.";
+  EXPECT_EQ(1, connection1.use_count())
+      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count())
+      << "Daemon must not store references to the connection";
+
+  // TODO: check that original files are not moved.
+  // TODO: check that removal of original files doesn't fail cache filling.
+}
+
+/*
+ * 1. Trigger compilation on remote
+ * 2. Remote rejects compilation
+ * 3. Run local compilation.
+ */
+TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteRejects) {
+  const base::TemporaryDir temp_dir;
+  const String host = "fake_host";
+  const ui16 port = 12345;
+  const auto expected_code = net::proto::Status::OK;
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const auto object_code = "fake_object_code"_l;
+  const auto source = "fake_source"_l;
+  const auto language = "fake_language"_l;
+  const auto action = "fake_action"_l;
+  const auto input_path1 = "test1.cc"_l;
+  const auto input_path2 = "test2.cc"_l;
+  const auto output_path1 = "test1.o"_l;
+  const auto plugin_name = "fake_plugin"_l;
+  const auto plugin_path = "fake_plugin_path"_l;
+  const auto preprocess_time = std::chrono::milliseconds(10);
+
+  const String output_path2 = String(temp_dir) + "/test2.o";
+  // |output_path2| checks that everything works fine with absolute paths.
+
+  conf.mutable_emitter()->set_only_failed(true);
+  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_direct(false);
+  conf.mutable_cache()->set_clean_period(1);
+
+  auto* remote = conf.mutable_emitter()->add_remotes();
+  remote->set_host(host);
+  remote->set_port(port);
+  remote->set_threads(1);
+
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+  auto* plugin = version->add_plugins();
+  plugin->set_name(plugin_name);
+  plugin->set_path(plugin_path);
+
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    if (connect_count == 1) {
+      // Connection from client to local daemon.
+
+      connection->CallOnSend([&](const net::Connection::Message& message) {
+        EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+        const auto& status =
+            message.GetExtension(net::proto::Status::extension);
+        EXPECT_EQ(expected_code, status.code()) << status.description();
+
+        send_condition.notify_all();
+      });
+    } else if (connect_count == 2) {
+      // Connection from local daemon to remote daemon.
+
+      connection->CallOnSend([&](const net::Connection::Message& message) {
+        EXPECT_TRUE(message.HasExtension(proto::Remote::extension));
+        const auto& command = message.GetExtension(proto::Remote::extension);
+        EXPECT_EQ(source, command.source());
+
+        send_condition.notify_all();
+      });
+      connection->CallOnRead([&](net::Connection::Message* message) {
+        message->MutableExtension(net::proto::Status::extension)
+            ->set_code(net::proto::Status::OVERLOAD);
+      });
+    } else if (connect_count == 3) {
+      // Connection from client to local daemon.
+
+      connection->CallOnSend([&](const net::Connection::Message& message) {
+        EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+        const auto& status =
+            message.GetExtension(net::proto::Status::extension);
+        EXPECT_EQ(expected_code, status.code()) << status.description();
+
+        send_condition.notify_all();
+      });
+    }
+    return true;
+  };
+
+  run_callback = [&](base::TestProcess* process) {
+    if (run_count == 1) {
+      // Used to check preprocess timing statistics.
+      std::this_thread::sleep_for(preprocess_time);
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l,
+                                 input_path1}),
+                process->args_);
+      process->stdout_ = source;
+    } else if (run_count == 2) {
+      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-x"_l,
+                                 language, "-o"_l, output_path1, input_path1}),
+                process->args_);
+      EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + output_path1,
+                                    object_code));
+    } else if (run_count == 3) {
+      std::this_thread::sleep_for(preprocess_time);
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l,
+                                 input_path2}),
+                process->args_);
+      process->stdout_ = source;
+    }
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto connection1 = test_service->TriggerListen(socket_path);
+  {
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection1);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+
+    extension->set_current_dir(temp_dir);
+    extension->mutable_flags()->set_input(input_path1);
+    extension->mutable_flags()->set_output(output_path1);
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
+    compiler->set_version(compiler_version);
+    compiler->add_plugins()->set_name(plugin_name);
+    extension->mutable_flags()->set_action(action);
+    extension->mutable_flags()->set_language(language);
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
+                                        [this] { return send_count == 2; }));
+    // FIXME: describe, why |send_count == 2| ?
+  }
+
+  auto connection2 = test_service->TriggerListen(socket_path);
+  {
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection2);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(temp_dir);
+
+    extension->mutable_flags()->set_input(input_path2);
+    extension->mutable_flags()->set_output(output_path2);
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
+    compiler->set_version(compiler_version);
+    compiler->add_plugins()->set_name(plugin_name);
+    extension->mutable_flags()->set_action(action);
+    extension->mutable_flags()->set_language(language);
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
+                                        [this] { return send_count == 3; }));
+  }
+
+  emitter.reset();
+
+  perf::proto::Metric simple_cache_hit_metric;
+  simple_cache_hit_metric.set_name(perf::proto::Metric::SIMPLE_CACHE_HIT);
+  base::Singleton<perf::StatService>::Get().Dump(simple_cache_hit_metric);
+  EXPECT_EQ(1u, simple_cache_hit_metric.value());
+
+  perf::proto::Metric remote_compilation_failed_metric;
+  remote_compilation_failed_metric.set_name(
+      perf::proto::Metric::REMOTE_COMPILATION_FAILED);
+  base::Singleton<perf::StatService>::Get().Dump(
+      remote_compilation_failed_metric);
+  EXPECT_EQ(0u, remote_compilation_failed_metric.value());
+
+  perf::proto::Metric remote_compilation_rejected_metric;
+  remote_compilation_rejected_metric.set_name(
+      perf::proto::Metric::REMOTE_COMPILATION_REJECTED);
+  base::Singleton<perf::StatService>::Get().Dump(
+      remote_compilation_rejected_metric);
+  EXPECT_EQ(1u, remote_compilation_rejected_metric.value());
+
+  perf::proto::Metric preprocess_time_metric;
+  preprocess_time_metric.set_name(perf::proto::Metric::PREPROCESS_TIME);
+  base::Singleton<perf::StatService>::Get().Dump(preprocess_time_metric);
+  EXPECT_GE(preprocess_time_metric.value(),
+            static_cast<ui64>(2 * preprocess_time.count()));
+
+  Immutable cache_output;
+  ASSERT_TRUE(base::File::Exists(output_path2));
+  ASSERT_TRUE(base::File::Read(output_path2, &cache_output));
+  EXPECT_EQ(object_code, cache_output);
+
+  EXPECT_EQ(3u, run_count);
   EXPECT_EQ(1u, listen_count);
   EXPECT_EQ(3u, connect_count);
   EXPECT_EQ(3u, connections_created);
@@ -2111,6 +2558,11 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
 
   emitter.reset();
 
+  perf::proto::Metric metric;
+  metric.set_name(perf::proto::Metric::DIRECT_CACHE_HIT);
+  base::Singleton<perf::StatService>::Get().Dump(metric);
+  EXPECT_EQ(1u, metric.value());
+
   Immutable cache_output;
   EXPECT_TRUE(base::File::Exists(output2_path));
   EXPECT_TRUE(base::File::Read(output2_path, &cache_output));
@@ -2300,6 +2752,11 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
   }
 
   emitter.reset();
+
+  perf::proto::Metric metric;
+  metric.set_name(perf::proto::Metric::DIRECT_CACHE_HIT);
+  base::Singleton<perf::StatService>::Get().Dump(metric);
+  EXPECT_EQ(1u, metric.value());
 
   Immutable cache_output;
   EXPECT_TRUE(base::File::Exists(output2_path));
@@ -2587,6 +3044,11 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
   }
 
   emitter.reset();
+
+  perf::proto::Metric metric;
+  metric.set_name(perf::proto::Metric::DIRECT_CACHE_HIT);
+  base::Singleton<perf::StatService>::Get().Dump(metric);
+  EXPECT_EQ(1u, metric.value());
 
   Immutable cache_output;
   const auto output2_path = String(temp_dir2) + "/" + String(output_path);

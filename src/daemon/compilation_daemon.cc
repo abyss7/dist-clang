@@ -5,6 +5,9 @@
 #include <base/logging.h>
 #include <base/process_impl.h>
 #include <base/string_utils.h>
+#include <perf/counter.h>
+#include <perf/stat_reporter.h>
+#include <perf/stat_service.h>
 
 #include <base/using_log.h>
 
@@ -243,6 +246,8 @@ bool CompilationDaemon::SearchSimpleCache(
   if (!cache_) {
     return false;
   }
+  perf::Counter<perf::StatReporter> counter(
+      perf::proto::Metric::SIMPLE_CACHE_LOOKUP_TIME);
 
   const Version version(flags.compiler().version());
   const auto command_line = CommandLineForSimpleCache(flags);
@@ -267,6 +272,9 @@ bool CompilationDaemon::SearchDirectCache(
   }
 
   DCHECK(flags.has_input());
+
+  perf::Counter<perf::StatReporter> counter(
+      perf::proto::Metric::DIRECT_CACHE_LOOKUP_TIME);
 
   const Version version(flags.compiler().version());
   const String input = GetFullPath(current_dir, flags.input());
@@ -300,6 +308,8 @@ void CompilationDaemon::UpdateSimpleCache(
   if (!cache_) {
     return;
   }
+  perf::Counter<perf::StatReporter> counter(
+      perf::proto::Metric::SIMPLE_CACHE_UPDATE_TIME);
 
   cache_->Store(source, extra_files, command_line, version, entry);
 }
@@ -322,6 +332,8 @@ void CompilationDaemon::UpdateDirectCache(
                        << flags.input();
     return;
   }
+  perf::Counter<perf::StatReporter> counter(
+      perf::proto::Metric::DIRECT_CACHE_UPDATE_TIME);
 
   const Version version(flags.compiler().version());
   const auto hash = cache_->Hash(source, extra_files,

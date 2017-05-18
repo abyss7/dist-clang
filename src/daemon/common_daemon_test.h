@@ -7,6 +7,7 @@
 #include <net/test_connection.h>
 #include <net/test_end_point_resolver.h>
 #include <net/test_network_service.h>
+#include <perf/stat_service.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest.h>
 
@@ -21,6 +22,7 @@ struct CommonDaemonTest : public ::testing::Test {
   using RunCallback = Fn<void(base::TestProcess*)>;
 
   void SetUp() override {
+    DumpStatisticValues();
     {
       auto factory = net::NetworkService::SetFactory<Service::Factory>();
       factory->CallOnCreate([this](Service* service) {
@@ -71,6 +73,16 @@ struct CommonDaemonTest : public ::testing::Test {
     net::NetworkService::SetFactory<Service::Factory>();
     base::Process::SetFactory<base::TestProcess::Factory>();
     net::EndPointResolver::SetFactory<net::TestEndPointResolver::Factory>();
+  }
+
+  void DumpStatisticValues() {
+    perf::proto::Metric metric;
+    for (auto metric_name = static_cast<int>(perf::proto::Metric::Name_MIN);
+         metric_name != static_cast<int>(perf::proto::Metric::Name_MAX);
+         ++metric_name) {
+      metric.set_name(static_cast<perf::proto::Metric_Name>(metric_name));
+      base::Singleton<perf::StatService>::Get().Dump(metric);
+    }
   }
 
   ServiceCallback service_callback = EmptyLambda<>();

@@ -37,6 +37,8 @@ inline String GetDepsPath(const base::proto::Local* WEAK_PTR message) {
 
 inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
                            cache::string::HandledSource* source) {
+  perf::Counter<perf::StatReporter> preprocess_time_counter(
+      perf::proto::Metric::PREPROCESS_TIME);
   base::proto::Flags pp_flags;
 
   DCHECK(message);
@@ -332,6 +334,8 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
 
     ui32 uid =
         incoming->has_user_id() ? incoming->user_id() : base::Process::SAME_UID;
+    auto counter = std::make_unique<perf::Counter<perf::StatReporter>>(
+        perf::proto::Metric::LOCAL_COMPILATION_TIME);
     base::ProcessPtr process = CreateProcess(
         incoming->flags(), uid, Immutable(incoming->current_dir()));
     if (!process->Run(base::Process::UNLIMITED, &error)) {
@@ -354,6 +358,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
       const auto& source = std::get<SOURCE>(*task);
       const auto& extra_files = std::get<EXTRA_FILES>(*task);
 
+      counter.reset();
       if (!source.str.empty()) {
         cache::FileCache::Entry entry;
         if (base::File::Read(GetOutputPath(incoming), &entry.object) &&
@@ -389,7 +394,11 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
 
   while (!pool.IsShuttingDown()) {
     if (!end_point) {
-      end_point = resolver();
+      {
+        perf::Counter<perf::StatReporter> counter(
+            perf::proto::Metric::REMOTE_RESOLVE_TIME);
+        end_point = resolver();
+      }
       if (!end_point) {
         Sleep();
         continue;
@@ -426,16 +435,22 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
     }
 
     String error;
-    auto connection = Connect(end_point, &error);
-    if (!connection) {
-      LOG(WARNING) << "Failed to connect to " << end_point->Print() << ": "
-                   << error;
-      // Put into |failed_tasks_| to prevent hanging around in case all
-      // remotes are unreachable at once.
-      failed_tasks_->Push(std::move(*task));
-      Sleep();
+    net::ConnectionPtr connection;
+    {
+      perf::Counter<perf::StatReporter> counter(
+          perf::proto::Metric::REMOTE_CONNECT_TIME);
+      connection = Connect(end_point, &error);
+      if (!connection) {
+        counter.ReportOnDestroy(false);
+        LOG(WARNING) << "Failed to connect to " << end_point->Print() << ": "
+                     << error;
+        // Put into |failed_tasks_| to prevent hanging around in case all
+        // remotes are unreachable at once.
+        failed_tasks_->Push(std::move(*task));
+        Sleep();
 
-      continue;
+        continue;
+      }
     }
 
     sleep_period = 1;
@@ -458,6 +473,9 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
 
     perf::Counter<perf::StatReporter, false> counter(
         perf::proto::Metric::REMOTE_TIME_WASTED);
+    auto compilation_time_counter =
+        std::make_unique<perf::Counter<perf::StatReporter, false>>(
+            perf::proto::Metric::REMOTE_COMPILATION_TIME);
     if (!connection->SendSync(std::move(outgoing))) {
       all_tasks_->Push(std::move(*task), shard);
       counter.ReportOnDestroy(true);
@@ -476,6 +494,11 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
     if (reply->HasExtension(net::proto::Status::extension)) {
       const auto& status = reply->GetExtension(net::proto::Status::extension);
       if (status.code() != net::proto::Status::OK) {
+        if (status.code() == net::proto::Status::OVERLOAD) {
+          STAT(REMOTE_COMPILATION_REJECTED);
+        } else {
+          STAT(REMOTE_COMPILATION_FAILED);
+        }
         LOG(WARNING) << "Remote compilation failed with error(s):" << std::endl
                      << status.description();
         failed_tasks_->Push(std::move(*task));
@@ -518,6 +541,8 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
 
           return true;
         };
+        compilation_time_counter->ReportOnDestroy(true);
+        compilation_time_counter.reset();
 
         if (GenerateEntry()) {
           UpdateSimpleCache(incoming->flags(), source, extra_files, entry);
