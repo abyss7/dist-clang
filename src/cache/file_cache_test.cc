@@ -503,7 +503,7 @@ TEST(FileCacheTest, DirectEntry_ChangedPreprocessedHeaderContents) {
   const String deps_path = path + "/test.d";
   const String header1_path = path + "/test1.h";
   const String header2_path = path + "/test2.h";
-  const String preprocessed_header_path = path + "/precompile.h";
+  const String preprocessed_header_path = path + "/precompile.h.pth";
   const auto expected_stderr = "some warning"_l;
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;

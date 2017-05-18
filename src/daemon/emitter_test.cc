@@ -2775,13 +2775,18 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
   const auto path = Immutable(String(temp_dir1));
   const auto input_path = path + "/test.cc"_l;
   const auto header_path = path + "/header.h"_l;
+  const auto preprocessed_header_path = path + "/preprocessed.h.pth"_l;
   const auto sanitize_blacklist_path = path + "/asan-blacklist.txt"_l;
   const auto source_code = "int main() {}"_l;
   const auto header_contents = "#define A"_l;
+  const auto preprocessed_contents = "Any content should work"_l;
   const auto sanitize_blacklist_contents = "fun:main"_l;
+  const auto pth_switch = "-include-pth"_l;
 
   ASSERT_TRUE(base::File::Write(input_path, source_code));
   ASSERT_TRUE(base::File::Write(header_path, header_contents));
+  ASSERT_TRUE(
+      base::File::Write(preprocessed_header_path, preprocessed_contents));
   ASSERT_TRUE(
       base::File::Write(sanitize_blacklist_path, sanitize_blacklist_contents));
 
@@ -2825,7 +2830,8 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-dependency-file"_l, deps_path,
+      EXPECT_EQ((Immutable::Rope{"-E"_l, pth_switch, preprocessed_header_path,
+                                 "-dependency-file"_l, deps_path,
                                  "-x"_l, language, "-o"_l, "-"_l, input_path}),
                 process->args_);
       process->stdout_ = preprocessed_source;
@@ -2833,7 +2839,8 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
                                     deps_contents));
     } else if (run_count == 2) {
       EXPECT_EQ(
-          (Immutable::Rope{action, "-load"_l, plugin_path, "-dependency-file"_l,
+          (Immutable::Rope{action, pth_switch, preprocessed_header_path,
+                           "-load"_l, plugin_path, "-dependency-file"_l,
                            deps_path, "-x"_l, language,
                            Immutable("-fsanitize-blacklist="_l) +
                                Immutable(sanitize_blacklist_path),
@@ -2859,6 +2866,11 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
 
     extension->mutable_flags()->set_input(input_path);
     extension->mutable_flags()->set_output(output_path);
+
+    extension->mutable_flags()->add_included_files(preprocessed_header_path);
+    extension->mutable_flags()->add_non_direct(pth_switch);
+    extension->mutable_flags()->add_non_direct(preprocessed_header_path);
+
     extension->mutable_flags()->set_deps_file(deps_path);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
@@ -2885,10 +2897,13 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
     const auto path = Immutable(String(temp_dir2));
     const auto input_path = path + "/test.cc"_l;
     const auto header_path = path + "/header.h"_l;
+    const auto preprocessed_header_path = path + "/preprocessed.h.pth"_l;
     const auto sanitize_blacklist_path = path + "/asan-blacklist.txt"_l;
 
     ASSERT_TRUE(base::File::Write(input_path, source_code));
     ASSERT_TRUE(base::File::Write(header_path, header_contents));
+    ASSERT_TRUE(
+        base::File::Write(preprocessed_header_path, preprocessed_contents));
     ASSERT_TRUE(base::File::Write(sanitize_blacklist_path,
                                   sanitize_blacklist_contents));
 
@@ -2898,6 +2913,11 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
 
     extension->mutable_flags()->set_input(input_path);
     extension->mutable_flags()->set_output(output_path);
+
+    extension->mutable_flags()->add_included_files(preprocessed_header_path);
+    extension->mutable_flags()->add_non_direct(pth_switch);
+    extension->mutable_flags()->add_non_direct(preprocessed_header_path);
+
     extension->mutable_flags()->set_deps_file(deps_path);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
