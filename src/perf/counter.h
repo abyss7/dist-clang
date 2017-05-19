@@ -19,8 +19,8 @@ class Counter final {
   Counter(Args... args)
       : reporter_(new T(args...)), id_(next_id()) {}
   ~Counter() {
-    if (report_on_destroy_) {
-      reporter_->Report(start_, Clock::now());
+    if (report_on_destroy_ && reporter_) {
+      Report();
     }
   }
 
@@ -28,6 +28,11 @@ class Counter final {
 
   inline ui64 Id() const { return id_; }
   inline void ReportOnDestroy(bool report) { report_on_destroy_ = report; }
+  inline void Report() {
+    DCHECK(reporter_);
+    reporter_->Report(start_, Clock::now());
+    reporter_.reset();
+  }
 
  private:
   static ui64 next_id() {

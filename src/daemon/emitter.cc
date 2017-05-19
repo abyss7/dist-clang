@@ -334,7 +334,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
 
     ui32 uid =
         incoming->has_user_id() ? incoming->user_id() : base::Process::SAME_UID;
-    auto counter = std::make_unique<perf::Counter<perf::StatReporter>>(
+    perf::Counter<perf::StatReporter> counter(
         perf::proto::Metric::LOCAL_COMPILATION_TIME);
     base::ProcessPtr process = CreateProcess(
         incoming->flags(), uid, Immutable(incoming->current_dir()));
@@ -358,7 +358,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
       const auto& source = std::get<SOURCE>(*task);
       const auto& extra_files = std::get<EXTRA_FILES>(*task);
 
-      counter.reset();
+      counter.Report();
       if (!source.str.empty()) {
         cache::FileCache::Entry entry;
         if (base::File::Read(GetOutputPath(incoming), &entry.object) &&
@@ -473,8 +473,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
 
     perf::Counter<perf::StatReporter, false> counter(
         perf::proto::Metric::REMOTE_TIME_WASTED);
-    auto compilation_time_counter =
-        std::make_unique<perf::Counter<perf::StatReporter, false>>(
+    perf::Counter<perf::StatReporter, false> compilation_time_counter(
             perf::proto::Metric::REMOTE_COMPILATION_TIME);
     if (!connection->SendSync(std::move(outgoing))) {
       all_tasks_->Push(std::move(*task), shard);
@@ -541,8 +540,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
 
           return true;
         };
-        compilation_time_counter->ReportOnDestroy(true);
-        compilation_time_counter.reset();
+        compilation_time_counter.Report();
 
         if (GenerateEntry()) {
           UpdateSimpleCache(incoming->flags(), source, extra_files, entry);
