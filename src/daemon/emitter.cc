@@ -11,7 +11,11 @@
 
 #include <base/using_log.h>
 
+using perf::proto::Metric;
 using namespace std::placeholders;
+
+template <bool ReportByDefault = true>
+using Counter = perf::Counter<perf::StatReporter, ReportByDefault>;
 
 namespace dist_clang {
 
@@ -37,8 +41,7 @@ inline String GetDepsPath(const base::proto::Local* WEAK_PTR message) {
 
 inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
                            cache::string::HandledSource* source) {
-  perf::Counter<perf::StatReporter> preprocess_time_counter(
-      perf::proto::Metric::PREPROCESS_TIME);
+  Counter preprocess_time_counter(Metric::PREPROCESS_TIME);
   base::proto::Flags pp_flags;
 
   DCHECK(message);
@@ -334,8 +337,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
 
     ui32 uid =
         incoming->has_user_id() ? incoming->user_id() : base::Process::SAME_UID;
-    perf::Counter<perf::StatReporter> counter(
-        perf::proto::Metric::LOCAL_COMPILATION_TIME);
+    Counter counter(Metric::LOCAL_COMPILATION_TIME);
     base::ProcessPtr process = CreateProcess(
         incoming->flags(), uid, Immutable(incoming->current_dir()));
     if (!process->Run(base::Process::UNLIMITED, &error)) {
@@ -395,8 +397,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
   while (!pool.IsShuttingDown()) {
     if (!end_point) {
       {
-        perf::Counter<perf::StatReporter> counter(
-            perf::proto::Metric::REMOTE_RESOLVE_TIME);
+        Counter counter(Metric::REMOTE_RESOLVE_TIME);
         end_point = resolver();
       }
       if (!end_point) {
@@ -437,8 +438,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
     String error;
     net::ConnectionPtr connection;
     {
-      perf::Counter<perf::StatReporter> counter(
-          perf::proto::Metric::REMOTE_CONNECT_TIME);
+      Counter counter(Metric::REMOTE_CONNECT_TIME);
       connection = Connect(end_point, &error);
       if (!connection) {
         counter.ReportOnDestroy(false);
@@ -471,10 +471,8 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
     flags->clear_non_cached();
     flags->clear_deps_file();
 
-    perf::Counter<perf::StatReporter, false> counter(
-        perf::proto::Metric::REMOTE_TIME_WASTED);
-    perf::Counter<perf::StatReporter, false> compilation_time_counter(
-            perf::proto::Metric::REMOTE_COMPILATION_TIME);
+    Counter<false> counter(Metric::REMOTE_TIME_WASTED);
+    Counter<false> compilation_time_counter(Metric::REMOTE_COMPILATION_TIME);
     if (!connection->SendSync(std::move(outgoing))) {
       all_tasks_->Push(std::move(*task), shard);
       counter.ReportOnDestroy(true);
