@@ -5,9 +5,7 @@
 #include <base/logging.h>
 #include <base/process_impl.h>
 #include <base/string_utils.h>
-#include <perf/counter.h>
 #include <perf/stat_reporter.h>
-#include <perf/stat_service.h>
 
 #include <base/using_log.h>
 
