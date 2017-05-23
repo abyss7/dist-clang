@@ -42,7 +42,7 @@ inline String GetDepsPath(const base::proto::Local* WEAK_PTR message) {
 
 inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
                            cache::string::HandledSource* source) {
-  Counter preprocess_time_counter(Metric::PREPROCESS_TIME);
+  Counter<> preprocess_time_counter(Metric::PREPROCESS_TIME);
   base::proto::Flags pp_flags;
 
   DCHECK(message);
@@ -338,7 +338,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
 
     ui32 uid =
         incoming->has_user_id() ? incoming->user_id() : base::Process::SAME_UID;
-    Counter counter(Metric::LOCAL_COMPILATION_TIME);
+    Counter<> counter(Metric::LOCAL_COMPILATION_TIME);
     base::ProcessPtr process = CreateProcess(
         incoming->flags(), uid, Immutable(incoming->current_dir()));
     if (!process->Run(base::Process::UNLIMITED, &error)) {
@@ -398,7 +398,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
   while (!pool.IsShuttingDown()) {
     if (!end_point) {
       {
-        Counter counter(Metric::REMOTE_RESOLVE_TIME);
+        Counter<> counter(Metric::REMOTE_RESOLVE_TIME);
         end_point = resolver();
       }
       if (!end_point) {
@@ -439,7 +439,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
     String error;
     net::ConnectionPtr connection;
     {
-      Counter counter(Metric::REMOTE_CONNECT_TIME);
+      Counter<> counter(Metric::REMOTE_CONNECT_TIME);
       connection = Connect(end_point, &error);
       if (!connection) {
         counter.ReportOnDestroy(false);
