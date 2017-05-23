@@ -11,13 +11,14 @@
 
 #include <base/using_log.h>
 
-using perf::proto::Metric;
 using namespace std::placeholders;
+
+namespace dist_clang {
+
+using perf::proto::Metric;
 
 template <bool ReportByDefault = true>
 using Counter = perf::Counter<perf::StatReporter, ReportByDefault>;
-
-namespace dist_clang {
 
 namespace {
 
