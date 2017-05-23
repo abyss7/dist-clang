@@ -14,7 +14,10 @@
 namespace dist_clang {
 
 using cache::ExtraFiles;
+using perf::proto::Metric;
 using namespace cache::string;
+
+using Counter = perf::Counter<perf::StatReporter>;
 
 namespace {
 
@@ -246,8 +249,7 @@ bool CompilationDaemon::SearchSimpleCache(
   if (!cache_) {
     return false;
   }
-  perf::Counter<perf::StatReporter> counter(
-      perf::proto::Metric::SIMPLE_CACHE_LOOKUP_TIME);
+  Counter counter(Metric::SIMPLE_CACHE_LOOKUP_TIME);
 
   const Version version(flags.compiler().version());
   const auto command_line = CommandLineForSimpleCache(flags);
@@ -273,8 +275,7 @@ bool CompilationDaemon::SearchDirectCache(
 
   DCHECK(flags.has_input());
 
-  perf::Counter<perf::StatReporter> counter(
-      perf::proto::Metric::DIRECT_CACHE_LOOKUP_TIME);
+  Counter counter(Metric::DIRECT_CACHE_LOOKUP_TIME);
 
   const Version version(flags.compiler().version());
   const String input = GetFullPath(current_dir, flags.input());
@@ -308,8 +309,7 @@ void CompilationDaemon::UpdateSimpleCache(
   if (!cache_) {
     return;
   }
-  perf::Counter<perf::StatReporter> counter(
-      perf::proto::Metric::SIMPLE_CACHE_UPDATE_TIME);
+  Counter counter(Metric::SIMPLE_CACHE_UPDATE_TIME);
 
   cache_->Store(source, extra_files, command_line, version, entry);
 }
@@ -332,8 +332,7 @@ void CompilationDaemon::UpdateDirectCache(
                        << flags.input();
     return;
   }
-  perf::Counter<perf::StatReporter> counter(
-      perf::proto::Metric::DIRECT_CACHE_UPDATE_TIME);
+  Counter counter(Metric::DIRECT_CACHE_UPDATE_TIME);
 
   const Version version(flags.compiler().version());
   const auto hash = cache_->Hash(source, extra_files,
