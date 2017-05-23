@@ -22,7 +22,7 @@ struct CommonDaemonTest : public ::testing::Test {
   using RunCallback = Fn<void(base::TestProcess*)>;
 
   void SetUp() override {
-    DumpStatisticValues();
+    ResetStatistics();
     {
       auto factory = net::NetworkService::SetFactory<Service::Factory>();
       factory->CallOnCreate([this](Service* service) {
@@ -75,7 +75,7 @@ struct CommonDaemonTest : public ::testing::Test {
     net::EndPointResolver::SetFactory<net::TestEndPointResolver::Factory>();
   }
 
-  void DumpStatisticValues() {
+  void ResetStatistics() {
     perf::proto::Metric metric;
     for (auto metric_name = static_cast<int>(perf::proto::Metric::Name_MIN);
          metric_name != static_cast<int>(perf::proto::Metric::Name_MAX);
