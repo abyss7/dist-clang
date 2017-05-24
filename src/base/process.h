@@ -32,6 +32,8 @@ FORWARD_TEST(EmitterTest, ConfigurationWithoutVersions);
 FORWARD_TEST(EmitterTest, LocalSuccessfulCompilation);
 FORWARD_TEST(EmitterTest, StoreSimpleCacheForLocalResult);
 FORWARD_TEST(EmitterTest, StoreSimpleCacheForRemoteResult);
+FORWARD_TEST(EmitterTest, FallbackToLocalCompilationAfterRemoteFail);
+FORWARD_TEST(EmitterTest, FallbackToLocalCompilationAfterRemoteRejects);
 FORWARD_TEST(EmitterTest,
              StoreSimpleCacheForLocalResultWithAndWithoutBlacklist);
 FORWARD_TEST(EmitterTest, StoreDirectCacheForLocalResult);
@@ -106,6 +108,9 @@ class Process
   FRIEND_TEST(daemon::EmitterTest, LocalSuccessfulCompilation);
   FRIEND_TEST(daemon::EmitterTest, StoreSimpleCacheForLocalResult);
   FRIEND_TEST(daemon::EmitterTest, StoreSimpleCacheForRemoteResult);
+  FRIEND_TEST(daemon::EmitterTest, FallbackToLocalCompilationAfterRemoteFail);
+  FRIEND_TEST(daemon::EmitterTest,
+              FallbackToLocalCompilationAfterRemoteRejects);
   FRIEND_TEST(daemon::EmitterTest,
               StoreSimpleCacheForLocalResultWithAndWithoutBlacklist);
   FRIEND_TEST(daemon::EmitterTest, StoreDirectCacheForLocalResult);

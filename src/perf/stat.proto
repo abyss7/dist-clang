@@ -20,6 +20,36 @@ message Metric {
 
     CACHE_SIZE_ADDED   = 9;
     // in bytes.
+
+    REMOTE_COMPILATION_FAILED   = 10;
+    REMOTE_COMPILATION_REJECTED = 11;
+
+    REMOTE_RESOLVE_TIME         = 12;
+    // in milliseconds.
+
+    REMOTE_CONNECT_TIME         = 13;
+    // in milliseconds.
+
+    PREPROCESS_TIME             = 14;
+    // in milliseconds.
+
+    DIRECT_CACHE_LOOKUP_TIME    = 15;
+    // in milliseconds.
+
+    SIMPLE_CACHE_LOOKUP_TIME    = 16;
+    // in milliseconds.
+
+    LOCAL_COMPILATION_TIME      = 17;
+    // in milliseconds.
+
+    REMOTE_COMPILATION_TIME     = 18;
+    // in milliseconds.
+
+    DIRECT_CACHE_UPDATE_TIME    = 19;
+    // in milliseconds.
+
+    SIMPLE_CACHE_UPDATE_TIME    = 20;
+    // in milliseconds.
   }
 
   required Name name    = 1;

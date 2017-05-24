@@ -5,13 +5,17 @@
 #include <base/logging.h>
 #include <base/process_impl.h>
 #include <base/string_utils.h>
+#include <perf/stat_reporter.h>
 
 #include <base/using_log.h>
 
 namespace dist_clang {
 
 using cache::ExtraFiles;
+using perf::proto::Metric;
 using namespace cache::string;
+
+using Counter = perf::Counter<perf::StatReporter>;
 
 namespace {
 
@@ -243,6 +247,7 @@ bool CompilationDaemon::SearchSimpleCache(
   if (!cache_) {
     return false;
   }
+  Counter counter(Metric::SIMPLE_CACHE_LOOKUP_TIME);
 
   const Version version(flags.compiler().version());
   const auto command_line = CommandLineForSimpleCache(flags);
@@ -267,6 +272,8 @@ bool CompilationDaemon::SearchDirectCache(
   }
 
   DCHECK(flags.has_input());
+
+  Counter counter(Metric::DIRECT_CACHE_LOOKUP_TIME);
 
   const Version version(flags.compiler().version());
   const String input = GetFullPath(current_dir, flags.input());
@@ -300,6 +307,7 @@ void CompilationDaemon::UpdateSimpleCache(
   if (!cache_) {
     return;
   }
+  Counter counter(Metric::SIMPLE_CACHE_UPDATE_TIME);
 
   cache_->Store(source, extra_files, command_line, version, entry);
 }
@@ -322,6 +330,7 @@ void CompilationDaemon::UpdateDirectCache(
                        << flags.input();
     return;
   }
+  Counter counter(Metric::DIRECT_CACHE_UPDATE_TIME);
 
   const Version version(flags.compiler().version());
   const auto hash = cache_->Hash(source, extra_files,
