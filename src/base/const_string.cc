@@ -34,11 +34,6 @@ ConstString::ConstString(Literal str)
   DCHECK(str.str_[size_] == '\0');
 }
 
-ConstString::ConstString(char str[])
-    : internals_(
-          new Internal{.string = {str, CharArrayDeleter}, .null_end = true}),
-      size_(strlen(str)) {}
-
 ConstString::ConstString(UniquePtr<char[]>& str)
     : internals_(new Internal{.string = {str.release(), CharArrayDeleter},
                               .null_end = true}),
@@ -470,7 +465,7 @@ ConstString::ConstString(const char* WEAK_PTR str, size_t size, bool null_end)
           new Internal{.string = {str, NoopDeleter}, .null_end = null_end}),
       size_(size) {}
 
-ConstString::InternalPtr ConstString::CollapseRope() {
+ConstString::InternalPtr ConstString::CollapseRope() const {
   auto internals = internals_;
 
   if (internals->rope.empty()) {
@@ -485,6 +480,7 @@ ConstString::InternalPtr ConstString::CollapseRope() {
     char* WEAK_PTR ptr = const_cast<char*>(new_string.get());
     ptr[size_] = '\0';
     for (const auto& string : internals->rope) {
+      string.CollapseRope();
       memcpy(ptr, string.internals_->string.get(), string.size_);
       ptr += string.size_;
     }

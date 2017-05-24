@@ -59,6 +59,15 @@ TEST(ConstStringTest, EmptyString) {
   EXPECT_STREQ("", empty3.c_str());
 }
 
+TEST(ConstStringTest, CollapseRopeTest) {
+  const ConstString immutable1("i1 "_l);
+  const auto concatenated = immutable1 + "l1"_l;
+
+  const ConstString immutable2("i2 "_l);
+  auto resulting = immutable2 + concatenated + " l2"_l;
+  EXPECT_STREQ("i2 i1 l1 l2", resulting.c_str());
+}
+
 // TODO: write a lot of tests.
 
 }  // namespace base
