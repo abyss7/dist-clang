@@ -48,7 +48,6 @@ class ConstString {
   ConstString();                                     // 0-copy
   explicit ConstString(bool assignable);             // 0-copy
   ConstString(Literal str);                          // 0-copy
-  ConstString(char str[]);                           // 0-copy
   ConstString(UniquePtr<char[]>& str);               // 0-copy
   ConstString(char str[], size_t size);              // 0-copy
   ConstString(void* str, size_t size);               // 0-copy
@@ -99,12 +98,12 @@ class ConstString {
 
   ConstString(const char* WEAK_PTR str, size_t size, bool null_end);  // 0-copy
 
-  InternalPtr CollapseRope();
+  InternalPtr CollapseRope() const;
   InternalPtr NullTerminate();
 
   const char& at(const Internal* internal, size_t index) const;
 
-  InternalPtr internals_ = InternalPtr(new Internal);
+  mutable InternalPtr internals_ = InternalPtr(new Internal);
 
   size_t size_ = 0;
   bool assignable_ = false;
