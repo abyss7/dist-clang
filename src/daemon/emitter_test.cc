@@ -1728,7 +1728,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
       });
 
       connection->CallOnRead([&](net::Connection::Message* message) {
-        // Used to check preprocess timing statistics.
+        // Used to check remote compilation timing statistics.
         std::this_thread::sleep_for(remote_compilation_time);
         message->MutableExtension(proto::Result::extension)
             ->set_obj(object_code);
