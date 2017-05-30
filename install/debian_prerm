@@ -1,3 +1,14 @@
 #!/bin/sh
 
 supervisorctl stop clangd
+
+set -e
+PKG=dist-clang
+if [ "$1" = remove ] ; then
+        for f in clangd.conf
+        do
+                [ -L /etc/$f ] && rm /etc/$f
+        done
+fi
+
+exit 0
