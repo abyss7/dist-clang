@@ -16,7 +16,8 @@ env_vars = {'VERSION': version, 'DATE': date,
             'PACKAGE_NAME': package_name + '.deb'}
 
 execfile(os.path.join(top_dir, "build", "common_package.include"))
-MakeInstall(top_dir, product_dir, os.path.join("deb", "debian", "tmp"))
+MakeInstall(top_dir, product_dir, os.path.join("deb", "debian", "tmp"),
+            use_etc_default=True)
 
 # Debian specific install.
 supervisor_dir = os.path.join(
@@ -53,6 +54,12 @@ os.chdir(os.path.join(product_dir, "deb"))
 os.makedirs(os.path.join(product_dir, "deb", "debian", "tmp", "DEBIAN"))
 args = ['dpkg-gencontrol']
 subprocess.Popen(args).wait()
+
+
+# Copy 'DEBIAN/postinst' file
+shutil.copy(os.path.join(top_dir, "install", "debian_postinst"),
+            os.path.join(product_dir, "deb", "debian", "tmp",
+                         "DEBIAN", "postinst"))
 
 # Copy 'DEBIAN/prerm' file
 shutil.copy(os.path.join(top_dir, "install", "debian_prerm"),

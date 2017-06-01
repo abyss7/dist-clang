@@ -1,0 +1,12 @@
+#!/bin/sh
+
+set -e
+PKG=dist-clang
+if [ "$1" = configure ] ; then
+        for f in clangd.conf
+        do
+                [ \! -e /etc/$f -o -L /etc/$f ] && ln -sf /etc/default/$f /etc/$f
+        done
+fi
+
+exit 0

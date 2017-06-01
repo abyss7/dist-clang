@@ -1,6 +1,6 @@
 import platform
 
-def MakeInstall(top_dir, product_dir, package_dir):
+def MakeInstall(top_dir, product_dir, package_dir, use_etc_default=False):
   ext = 'so'
   if platform.system() == 'Darwin':
     ext = 'dylib'
@@ -9,6 +9,8 @@ def MakeInstall(top_dir, product_dir, package_dir):
   bin_dir = os.path.join(product_dir, package_dir, "usr", "bin", "dist-clang")
   lib_dir = os.path.join(product_dir, package_dir, "usr", "lib", "dist-clang")
   etc_dir = os.path.join(product_dir, package_dir, "etc")
+  if use_etc_default:
+    etc_dir = os.path.join(product_dir, package_dir, "etc", "default")
   pylib_dir = os.path.join(product_dir, package_dir, "usr", "lib", "python2.7", "dist_clang")
 
   if platform.system() == 'Darwin':
