@@ -11,6 +11,8 @@
 
 #include <base/using_log.h>
 
+#include STL(random)
+
 using namespace std::placeholders;
 
 namespace dist_clang {
@@ -21,6 +23,17 @@ template <bool ReportByDefault = true>
 using Counter = perf::Counter<perf::StatReporter, ReportByDefault>;
 
 namespace {
+
+// Select a new shard, different from current.
+inline ui32 FindNewShard(std::random_device& random_device,
+                         const ui32 total_shards, const ui32 current_shard) {
+  std::uniform_int_distribution<ui32> distribution(0, total_shards - 2);
+  const ui32 new_shard = distribution(random_device);
+  if (new_shard >= current_shard) {
+    return new_shard + 1;
+  }
+  return new_shard;
+}
 
 inline String GetOutputPath(const base::proto::Local* WEAK_PTR message) {
   DCHECK(message);
@@ -187,12 +200,14 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
       return cache_tasks_->Push(std::make_tuple(connection, std::move(execute),
                                                 HandledSource(),
                                                 cache::ExtraFiles{},
-                                                HandledHash()));
+                                                HandledHash(),
+                                                false));
     } else {
       return all_tasks_->Push(std::make_tuple(connection, std::move(execute),
                                               HandledSource(),
                                               cache::ExtraFiles{},
-                                              HandledHash()));
+                                              HandledHash(),
+                                              false));
     }
   }
 
@@ -391,6 +406,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
 void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
                               const ui32 shard) {
   auto conf = this->conf();
+  std::random_device random_device;
 
   net::EndPointPtr end_point;
   ui32 sleep_period = 1;
@@ -415,7 +431,8 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
       }
     }
 
-    Optional&& task = all_tasks_->Pop(pool, shard);
+    Optional&& task =
+        all_tasks_->Pop(pool, conf->emitter().shard_queue_limit(), shard);
     if (!task) {
       break;
     }
@@ -430,7 +447,10 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
 
     // Check that we have a compiler of a requested version.
     net::proto::Status status;
-    if (!SetupCompiler(incoming->mutable_flags(), &status)) {
+    const bool has_compiler_path =
+        incoming->flags().compiler().has_path() ||
+        SetupCompiler(incoming->mutable_flags(), &status);
+    if (!has_compiler_path) {
       std::get<CONNECTION>(*task)->ReportStatus(status);
       continue;
     }
@@ -438,7 +458,6 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
     // If we're using shards we should have generated source by now.
     DCHECK(!conf->emitter().has_total_shards() || !source.str.empty());
 
-    auto outgoing = std::make_unique<proto::Remote>();
     if (source.str.empty() && !GenerateSource(incoming, &source)) {
       failed_tasks_->Push(std::move(*task));
       continue;
@@ -453,9 +472,18 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
         counter.ReportOnDestroy(false);
         LOG(WARNING) << "Failed to connect to " << end_point->Print() << ": "
                      << error;
-        // Put into |failed_tasks_| to prevent hanging around in case all
-        // remotes are unreachable at once.
-        failed_tasks_->Push(std::move(*task));
+        bool& shard_switched = std::get<CHANGED_SHARD>(*task);
+        if (conf->emitter().has_total_shards() &&
+            conf->emitter().shard_queue_limit() && !shard_switched) {
+          // Let other shard complete task on connection failure. Do it once.
+          shard_switched = true;
+          all_tasks_->Push(std::move(*task), FindNewShard(random_device,
+              conf->emitter().total_shards(), shard));
+        } else {
+          // Put into |failed_tasks_| to prevent hanging around in case all
+          // remotes are unreachable at once.
+          failed_tasks_->Push(std::move(*task));
+        }
         Sleep();
 
         continue;
@@ -464,6 +492,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
 
     sleep_period = 1;
 
+    auto outgoing = std::make_unique<proto::Remote>();
     outgoing->mutable_flags()->CopyFrom(incoming->flags());
     outgoing->set_source(Immutable(source.str).string_copy(false));
     SetExtraFiles(extra_files, outgoing.get());
@@ -578,6 +607,27 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
     // compilation next time.
     failed_tasks_->Push(std::move(*task));
     counter.ReportOnDestroy(true);
+  }
+
+  auto new_conf = this->conf();
+
+  // In case if pool was shut down to apply new configuration check if
+  // new number of shards is smaller than our shard. If so, take out tasks
+  // from our shard and distribute them across other shards.
+  if (!all_tasks_->IsClosed() &&
+      new_conf->emitter().shard_queue_limit() > 0 &&
+      new_conf->emitter().total_shards() <= shard) {
+    bool shard_is_empty = false;
+    do {
+      Optional&& task =
+          all_tasks_->Pop(pool, conf->emitter().shard_queue_limit(), shard);
+      if (task) {
+        all_tasks_->Push(std::move(*task), FindNewShard(random_device,
+            new_conf->emitter().total_shards(), shard));
+      } else {
+        shard_is_empty = true;
+      }
+    } while (!shard_is_empty);
   }
 }
 

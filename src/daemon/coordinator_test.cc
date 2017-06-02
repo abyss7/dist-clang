@@ -16,10 +16,12 @@ TEST_F(CoordinatorTest, ConfigurationRespond) {
   const ui16 expected_port = 12345;
   const ui16 number_of_remotes = 10;
   const ui32 total_shards = 5;
+  const ui32 shard_queue_limit = 10;
 
   conf.mutable_coordinator()->mutable_local()->set_host(expected_host);
   conf.mutable_coordinator()->mutable_local()->set_port(expected_port);
   conf.mutable_coordinator()->set_total_shards(total_shards);
+  conf.mutable_coordinator()->set_shard_queue_limit(shard_queue_limit);
 
   Vector<proto::Host> coordinated_remotes;
   coordinated_remotes.reserve(number_of_remotes);
@@ -58,6 +60,7 @@ TEST_F(CoordinatorTest, ConfigurationRespond) {
         EXPECT_EQ(expected_host.shard(), received_host.shard());
       }
       EXPECT_EQ(total_shards, config.emitter().total_shards());
+      EXPECT_EQ(shard_queue_limit, config.emitter().shard_queue_limit());
     });
     return true;
   };

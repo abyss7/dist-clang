@@ -92,8 +92,8 @@ class QueueAggregator {
         UniqueLock lock(orders_mutex_);
 
         if (order_count_) {
-          auto item = queue->index_.Get(LockedQueue<T>::DEFAULT_SHARD,
-                                        queue->queue_.begin());
+          auto item = queue->index_.GetWithHint(LockedQueue<T>::DEFAULT_SHARD,
+                                                queue->queue_.begin());
           orders_.push_back(std::move(*item));
           queue->queue_.erase(item);
           --queue->size_;

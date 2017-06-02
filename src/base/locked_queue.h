@@ -46,6 +46,8 @@ class LockedQueue {
 
   inline ui32 Size() const THREAD_SAFE { return size_; }
 
+  bool IsClosed() const THREAD_SAFE { return closed_; }
+
   // Returns |false| only when this queue is closed or when the capacity is
   // exceeded.
   bool Push(T obj, ui32 shard = DEFAULT_SHARD) THREAD_SAFE {
@@ -62,6 +64,7 @@ class LockedQueue {
     }
     ++size_;
     pop_condition_.notify_one();
+    index_.NotifyShard(shard);
 
     return true;
   }
@@ -74,7 +77,7 @@ class LockedQueue {
       return Optional();
     }
 
-    auto it = index_.Get(shard, queue_.begin());
+    auto it = index_.GetWithHint(shard, queue_.begin());
     Optional&& obj = std::move(*it);
     queue_.erase(it);
     --size_;
@@ -83,28 +86,57 @@ class LockedQueue {
 
   // Returns disengaged object only when this queue is closed and empty, or pool
   // is shutting down.
-  Optional Pop(const WorkerPool& pool, ui32 shard = DEFAULT_SHARD) THREAD_SAFE {
+  Optional Pop(const WorkerPool& pool, const ui32 shard_queue_limit,
+               const ui32 shard = DEFAULT_SHARD) THREAD_SAFE {
     DCHECK(timeout_ > Seconds::zero());
 
     UniqueLock lock(pop_mutex_);
+    if (shard_queue_limit == 0) {
+      return PopWithHint(pool, lock, shard);
+    } else {
+      return PopStrict(pool, lock,
+                       index_.MaybeOverloadedShard(shard_queue_limit, shard));
+    }
+  }
+
+ private:
+  Optional PopWithHint(const WorkerPool& pool,
+                       UniqueLock& lock,
+                       ui32 shard = DEFAULT_SHARD) THREAD_SAFE {
     do {
       pop_condition_.wait_for(lock, timeout_);
     } while (!closed_ && queue_.empty() && !pool.IsShuttingDown());
     if ((closed_ && queue_.empty()) || pool.IsShuttingDown()) {
       return Optional();
     }
-
-    auto it = index_.Get(shard, queue_.begin());
-    Optional&& obj = std::move(*it);
-    queue_.erase(it);
-    --size_;
-    return std::move(obj);
+    return RemoveTaskFromQueue(index_.GetWithHint(shard, queue_.begin()));
   }
 
- private:
+  Optional PopStrict(const WorkerPool& pool,
+                     UniqueLock& lock,
+                     ui32 shard = DEFAULT_SHARD) THREAD_SAFE {
+    do {
+      index_.WaitForShard(shard, lock, timeout_);
+    } while (!closed_ && index_.ShardIsEmpty(shard) && !pool.IsShuttingDown());
+    if (closed_ || index_.ShardIsEmpty(shard)) {
+      return Optional();
+    }
+    return RemoveTaskFromQueue(index_.GetStrict(shard));
+  }
+
+  Optional RemoveTaskFromQueue(typename Queue::iterator task_iterator) {
+    Optional&& task = std::move(*task_iterator);
+    queue_.erase(task_iterator);
+    --size_;
+    return std::move(task);
+  }
+
   FRIEND_TEST(LockedQueueIndexTest, BasicUsage);
-  FRIEND_TEST(LockedQueueIndexTest, GetFromHead);
-  FRIEND_TEST(LockedQueueIndexTest, ShardIndexGrows);
+  FRIEND_TEST(LockedQueueIndexTest, GetWithHint);
+  FRIEND_TEST(LockedQueueIndexTest, GetStrict);
+  FRIEND_TEST(LockedQueueIndexTest, ShardIndexGrowsOnPut);
+  FRIEND_TEST(LockedQueueIndexTest, ShardIndexGrowsOnOverloadedSearch);
+  FRIEND_TEST(LockedQueueIndexTest, MaybeOverloadedReturnsOverloadedShard);
   friend class QueueAggregator<T>;
 
   class Index;
