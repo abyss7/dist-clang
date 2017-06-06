@@ -7,6 +7,11 @@
 \*===----------------------------------------------------------------------===*/
 
   switch (AttrKind) {
+  case AT_AMDGPUFlatWorkGroupSize: {
+    if (Name == "amdgpu_flat_work_group_size" && SyntaxUsed == 0 && Scope == "")
+        return 0;
+    break;
+  }
   case AT_AMDGPUNumSGPR: {
     if (Name == "amdgpu_num_sgpr" && SyntaxUsed == 0 && Scope == "")
         return 0;
@@ -17,8 +22,18 @@
         return 0;
     break;
   }
+  case AT_AMDGPUWavesPerEU: {
+    if (Name == "amdgpu_waves_per_eu" && SyntaxUsed == 0 && Scope == "")
+        return 0;
+    break;
+  }
   case AT_Interrupt: {
     if (Name == "interrupt" && SyntaxUsed == 0 && Scope == "")
+        return 0;
+    break;
+  }
+  case AT_AVRSignal: {
+    if (Name == "signal" && SyntaxUsed == 0 && Scope == "")
         return 0;
     break;
   }
@@ -82,6 +97,20 @@
         return 3;
     if (Name == "_Alignas" && SyntaxUsed == 4 && Scope == "")
         return 4;
+    break;
+  }
+  case AT_AllocAlign: {
+    if (Name == "alloc_align" && SyntaxUsed == 0 && Scope == "")
+        return 0;
+    if (Name == "alloc_align" && SyntaxUsed == 1 && Scope == "gnu")
+        return 1;
+    break;
+  }
+  case AT_AllocSize: {
+    if (Name == "alloc_size" && SyntaxUsed == 0 && Scope == "")
+        return 0;
+    if (Name == "alloc_size" && SyntaxUsed == 1 && Scope == "gnu")
+        return 1;
     break;
   }
   case AT_AlwaysInline: {
@@ -192,21 +221,29 @@
   case AT_CUDAConstant: {
     if (Name == "constant" && SyntaxUsed == 0 && Scope == "")
         return 0;
+    if (Name == "__constant__" && SyntaxUsed == 2 && Scope == "")
+        return 1;
     break;
   }
   case AT_CUDADevice: {
     if (Name == "device" && SyntaxUsed == 0 && Scope == "")
         return 0;
+    if (Name == "__device__" && SyntaxUsed == 2 && Scope == "")
+        return 1;
     break;
   }
   case AT_CUDAGlobal: {
     if (Name == "global" && SyntaxUsed == 0 && Scope == "")
         return 0;
+    if (Name == "__global__" && SyntaxUsed == 2 && Scope == "")
+        return 1;
     break;
   }
   case AT_CUDAHost: {
     if (Name == "host" && SyntaxUsed == 0 && Scope == "")
         return 0;
+    if (Name == "__host__" && SyntaxUsed == 2 && Scope == "")
+        return 1;
     break;
   }
   case AT_CUDAInvalidTarget: {
@@ -215,11 +252,15 @@
   case AT_CUDALaunchBounds: {
     if (Name == "launch_bounds" && SyntaxUsed == 0 && Scope == "")
         return 0;
+    if (Name == "__launch_bounds__" && SyntaxUsed == 2 && Scope == "")
+        return 1;
     break;
   }
   case AT_CUDAShared: {
     if (Name == "shared" && SyntaxUsed == 0 && Scope == "")
         return 0;
+    if (Name == "__shared__" && SyntaxUsed == 2 && Scope == "")
+        return 1;
     break;
   }
   case AT_CXX11NoReturn: {
@@ -304,6 +345,13 @@
         return 0;
     break;
   }
+  case AT_Convergent: {
+    if (Name == "convergent" && SyntaxUsed == 0 && Scope == "")
+        return 0;
+    if (Name == "convergent" && SyntaxUsed == 1 && Scope == "clang")
+        return 1;
+    break;
+  }
   case AT_DLLExport: {
     if (Name == "dllexport" && SyntaxUsed == 2 && Scope == "")
         return 0;
@@ -340,6 +388,11 @@
         return 1;
     break;
   }
+  case AT_DiagnoseIf: {
+    if (Name == "diagnose_if" && SyntaxUsed == 0 && Scope == "")
+        return 0;
+    break;
+  }
   case AT_DisableTailCalls: {
     if (Name == "disable_tail_calls" && SyntaxUsed == 0 && Scope == "")
         return 0;
@@ -357,6 +410,13 @@
         return 0;
     break;
   }
+  case AT_EnumExtensibility: {
+    if (Name == "enum_extensibility" && SyntaxUsed == 0 && Scope == "")
+        return 0;
+    if (Name == "enum_extensibility" && SyntaxUsed == 1 && Scope == "clang")
+        return 1;
+    break;
+  }
   case AT_ExclusiveTrylockFunction: {
     if (Name == "exclusive_trylock_function" && SyntaxUsed == 0 && Scope == "")
         return 0;
@@ -365,6 +425,13 @@
   case AT_ExtVectorType: {
     if (Name == "ext_vector_type" && SyntaxUsed == 0 && Scope == "")
         return 0;
+    break;
+  }
+  case AT_ExternalSourceSymbol: {
+    if (Name == "external_source_symbol" && SyntaxUsed == 0 && Scope == "")
+        return 0;
+    if (Name == "external_source_symbol" && SyntaxUsed == 1 && Scope == "clang")
+        return 1;
     break;
   }
   case AT_FallThrough: {
@@ -825,6 +892,11 @@
         return 0;
     break;
   }
+  case AT_ObjCSubclassingRestricted: {
+    if (Name == "objc_subclassing_restricted" && SyntaxUsed == 0 && Scope == "")
+        return 0;
+    break;
+  }
   case AT_OpenCLAccess: {
     if (Name == "__read_only" && SyntaxUsed == 4 && Scope == "")
         return 0;
@@ -983,6 +1055,15 @@
         return 1;
     break;
   }
+  case AT_RegCall: {
+    if (Name == "regcall" && SyntaxUsed == 0 && Scope == "")
+        return 0;
+    if (Name == "regcall" && SyntaxUsed == 1 && Scope == "gnu")
+        return 1;
+    if (Name == "__regcall" && SyntaxUsed == 4 && Scope == "")
+        return 2;
+    break;
+  }
   case AT_Regparm: {
     if (Name == "regparm" && SyntaxUsed == 0 && Scope == "")
         return 0;
@@ -1117,6 +1198,11 @@
         return 2;
     if (Name == "_stdcall" && SyntaxUsed == 4 && Scope == "")
         return 3;
+    break;
+  }
+  case AT_Suppress: {
+    if (Name == "suppress" && SyntaxUsed == 1 && Scope == "gsl")
+        return 0;
     break;
   }
   case AT_SwiftCall: {
@@ -1354,6 +1440,13 @@
         return 2;
     if (Name == "xray_never_instrument" && SyntaxUsed == 1 && Scope == "clang")
         return 3;
+    break;
+  }
+  case AT_XRayLogArgs: {
+    if (Name == "xray_log_args" && SyntaxUsed == 0 && Scope == "")
+        return 0;
+    if (Name == "xray_log_args" && SyntaxUsed == 1 && Scope == "clang")
+        return 1;
     break;
   }
   }

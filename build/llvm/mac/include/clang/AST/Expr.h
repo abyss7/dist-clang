@@ -115,6 +115,7 @@ protected:
     ExprBits.InstantiationDependent = ID;
     ExprBits.ValueKind = VK;
     ExprBits.ObjectKind = OK;
+    assert(ExprBits.ObjectKind == OK && "truncated kind");
     ExprBits.ContainsUnexpandedParameterPack = ContainsUnexpandedParameterPack;
     setType(T);
   }
@@ -445,6 +446,11 @@ public:
     return const_cast<Expr*>(this)->getSourceBitField();
   }
 
+  Decl *getReferencedDeclOfCallee();
+  const Decl *getReferencedDeclOfCallee() const {
+    return const_cast<Expr*>(this)->getReferencedDeclOfCallee();
+  }
+
   /// \brief If this expression is an l-value for an Objective C
   /// property, find the underlying property reference expression.
   const ObjCPropertyRefExpr *getObjCProperty() const;
@@ -646,7 +652,8 @@ public:
   /// constant.
   bool EvaluateWithSubstitution(APValue &Value, ASTContext &Ctx,
                                 const FunctionDecl *Callee,
-                                ArrayRef<const Expr*> Args) const;
+                                ArrayRef<const Expr*> Args,
+                                const Expr *This = nullptr) const;
 
   /// \brief If the current Expr is a pointer, this will try to statically
   /// determine the number of bytes available where the pointer is pointing.
@@ -823,12 +830,22 @@ public:
   /// behavior if the object isn't dynamically of the derived type.
   const CXXRecordDecl *getBestDynamicClassType() const;
 
+  /// \brief Get the inner expression that determines the best dynamic class.
+  /// If this is a prvalue, we guarantee that it is of the most-derived type
+  /// for the object itself.
+  const Expr *getBestDynamicClassTypeExpr() const;
+
   /// Walk outwards from an expression we want to bind a reference to and
   /// find the expression whose lifetime needs to be extended. Record
   /// the LHSs of comma expressions and adjustments needed along the path.
   const Expr *skipRValueSubobjectAdjustments(
       SmallVectorImpl<const Expr *> &CommaLHS,
       SmallVectorImpl<SubobjectAdjustment> &Adjustments) const;
+  const Expr *skipRValueSubobjectAdjustments() const {
+    SmallVector<const Expr *, 8> CommaLHSs;
+    SmallVector<SubobjectAdjustment, 8> Adjustments;
+    return skipRValueSubobjectAdjustments(CommaLHSs, Adjustments);
+  }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() >= firstExprConstant &&
@@ -2901,11 +2918,9 @@ public:
 private:
   unsigned Opc : 6;
 
-  // Records the FP_CONTRACT pragma status at the point that this binary
-  // operator was parsed. This bit is only meaningful for operations on
-  // floating point types. For all other types it should default to
-  // false.
-  unsigned FPContractable : 1;
+  // This is only meaningful for operations on floating point types and 0
+  // otherwise.
+  unsigned FPFeatures : 2;
   SourceLocation OpLoc;
 
   enum { LHS, RHS, END_EXPR };
@@ -2914,7 +2929,7 @@ public:
 
   BinaryOperator(Expr *lhs, Expr *rhs, Opcode opc, QualType ResTy,
                  ExprValueKind VK, ExprObjectKind OK,
-                 SourceLocation opLoc, bool fpContractable)
+                 SourceLocation opLoc, FPOptions FPFeatures)
     : Expr(BinaryOperatorClass, ResTy, VK, OK,
            lhs->isTypeDependent() || rhs->isTypeDependent(),
            lhs->isValueDependent() || rhs->isValueDependent(),
@@ -2922,7 +2937,7 @@ public:
             rhs->isInstantiationDependent()),
            (lhs->containsUnexpandedParameterPack() ||
             rhs->containsUnexpandedParameterPack())),
-      Opc(opc), FPContractable(fpContractable), OpLoc(opLoc) {
+      Opc(opc), FPFeatures(FPFeatures.getInt()), OpLoc(opLoc) {
     SubExprs[LHS] = lhs;
     SubExprs[RHS] = rhs;
     assert(!isCompoundAssignmentOp() &&
@@ -3057,16 +3072,20 @@ public:
 
   // Set the FP contractability status of this operator. Only meaningful for
   // operations on floating point types.
-  void setFPContractable(bool FPC) { FPContractable = FPC; }
+  void setFPFeatures(FPOptions F) { FPFeatures = F.getInt(); }
+
+  FPOptions getFPFeatures() const { return FPOptions(FPFeatures); }
 
   // Get the FP contractability status of this operator. Only meaningful for
   // operations on floating point types.
-  bool isFPContractable() const { return FPContractable; }
+  bool isFPContractableWithinStatement() const {
+    return FPOptions(FPFeatures).allowFPContractWithinStatement();
+  }
 
 protected:
   BinaryOperator(Expr *lhs, Expr *rhs, Opcode opc, QualType ResTy,
                  ExprValueKind VK, ExprObjectKind OK,
-                 SourceLocation opLoc, bool fpContractable, bool dead2)
+                 SourceLocation opLoc, FPOptions FPFeatures, bool dead2)
     : Expr(CompoundAssignOperatorClass, ResTy, VK, OK,
            lhs->isTypeDependent() || rhs->isTypeDependent(),
            lhs->isValueDependent() || rhs->isValueDependent(),
@@ -3074,7 +3093,7 @@ protected:
             rhs->isInstantiationDependent()),
            (lhs->containsUnexpandedParameterPack() ||
             rhs->containsUnexpandedParameterPack())),
-      Opc(opc), FPContractable(fpContractable), OpLoc(opLoc) {
+      Opc(opc), FPFeatures(FPFeatures.getInt()), OpLoc(opLoc) {
     SubExprs[LHS] = lhs;
     SubExprs[RHS] = rhs;
   }
@@ -3096,8 +3115,8 @@ public:
   CompoundAssignOperator(Expr *lhs, Expr *rhs, Opcode opc, QualType ResType,
                          ExprValueKind VK, ExprObjectKind OK,
                          QualType CompLHSType, QualType CompResultType,
-                         SourceLocation OpLoc, bool fpContractable)
-    : BinaryOperator(lhs, rhs, opc, ResType, VK, OK, OpLoc, fpContractable,
+                         SourceLocation OpLoc, FPOptions FPFeatures)
+    : BinaryOperator(lhs, rhs, opc, ResType, VK, OK, OpLoc, FPFeatures,
                      true),
       ComputationLHSType(CompLHSType),
       ComputationResultType(CompResultType) {
@@ -3771,14 +3790,23 @@ public:
 
   /// \brief Build an empty initializer list.
   explicit InitListExpr(EmptyShell Empty)
-    : Expr(InitListExprClass, Empty) { }
+    : Expr(InitListExprClass, Empty), AltForm(nullptr, true) { }
 
   unsigned getNumInits() const { return InitExprs.size(); }
 
   /// \brief Retrieve the set of initializers.
   Expr **getInits() { return reinterpret_cast<Expr **>(InitExprs.data()); }
 
+  /// \brief Retrieve the set of initializers.
+  Expr * const *getInits() const {
+    return reinterpret_cast<Expr * const *>(InitExprs.data());
+  }
+
   ArrayRef<Expr *> inits() {
+    return llvm::makeArrayRef(getInits(), getNumInits());
+  }
+
+  ArrayRef<Expr *> inits() const {
     return llvm::makeArrayRef(getInits(), getNumInits());
   }
 
@@ -3869,6 +3897,11 @@ public:
   // Is this an initializer for an array of characters, initialized by a string
   // literal or an @encode?
   bool isStringLiteralInit() const;
+
+  /// Is this a transparent initializer list (that is, an InitListExpr that is
+  /// purely syntactic, and whose semantics are that of the sole contained
+  /// initializer)?
+  bool isTransparent() const;
 
   SourceLocation getLBraceLoc() const { return LBraceLoc; }
   void setLBraceLoc(SourceLocation Loc) { LBraceLoc = Loc; }
@@ -4302,6 +4335,98 @@ public:
   child_range children() {
     return child_range(&BaseAndUpdaterExprs[0], &BaseAndUpdaterExprs[0] + 2);
   }
+};
+
+/// \brief Represents a loop initializing the elements of an array.
+///
+/// The need to initialize the elements of an array occurs in a number of
+/// contexts:
+///
+///  * in the implicit copy/move constructor for a class with an array member
+///  * when a lambda-expression captures an array by value
+///  * when a decomposition declaration decomposes an array
+///
+/// There are two subexpressions: a common expression (the source array)
+/// that is evaluated once up-front, and a per-element initializer that
+/// runs once for each array element.
+///
+/// Within the per-element initializer, the common expression may be referenced
+/// via an OpaqueValueExpr, and the current index may be obtained via an
+/// ArrayInitIndexExpr.
+class ArrayInitLoopExpr : public Expr {
+  Stmt *SubExprs[2];
+
+  explicit ArrayInitLoopExpr(EmptyShell Empty)
+      : Expr(ArrayInitLoopExprClass, Empty), SubExprs{} {}
+
+public:
+  explicit ArrayInitLoopExpr(QualType T, Expr *CommonInit, Expr *ElementInit)
+      : Expr(ArrayInitLoopExprClass, T, VK_RValue, OK_Ordinary, false,
+             CommonInit->isValueDependent() || ElementInit->isValueDependent(),
+             T->isInstantiationDependentType(),
+             CommonInit->containsUnexpandedParameterPack() ||
+                 ElementInit->containsUnexpandedParameterPack()),
+        SubExprs{CommonInit, ElementInit} {}
+
+  /// Get the common subexpression shared by all initializations (the source
+  /// array).
+  OpaqueValueExpr *getCommonExpr() const {
+    return cast<OpaqueValueExpr>(SubExprs[0]);
+  }
+
+  /// Get the initializer to use for each array element.
+  Expr *getSubExpr() const { return cast<Expr>(SubExprs[1]); }
+
+  llvm::APInt getArraySize() const {
+    return cast<ConstantArrayType>(getType()->castAsArrayTypeUnsafe())
+        ->getSize();
+  }
+
+  static bool classof(const Stmt *S) {
+    return S->getStmtClass() == ArrayInitLoopExprClass;
+  }
+
+  SourceLocation getLocStart() const LLVM_READONLY {
+    return getCommonExpr()->getLocStart();
+  }
+  SourceLocation getLocEnd() const LLVM_READONLY {
+    return getCommonExpr()->getLocEnd();
+  }
+
+  child_range children() {
+    return child_range(SubExprs, SubExprs + 2);
+  }
+
+  friend class ASTReader;
+  friend class ASTStmtReader;
+  friend class ASTStmtWriter;
+};
+
+/// \brief Represents the index of the current element of an array being
+/// initialized by an ArrayInitLoopExpr. This can only appear within the
+/// subexpression of an ArrayInitLoopExpr.
+class ArrayInitIndexExpr : public Expr {
+  explicit ArrayInitIndexExpr(EmptyShell Empty)
+      : Expr(ArrayInitIndexExprClass, Empty) {}
+
+public:
+  explicit ArrayInitIndexExpr(QualType T)
+      : Expr(ArrayInitIndexExprClass, T, VK_RValue, OK_Ordinary,
+             false, false, false, false) {}
+
+  static bool classof(const Stmt *S) {
+    return S->getStmtClass() == ArrayInitIndexExprClass;
+  }
+
+  SourceLocation getLocStart() const LLVM_READONLY { return SourceLocation(); }
+  SourceLocation getLocEnd() const LLVM_READONLY { return SourceLocation(); }
+
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
+
+  friend class ASTReader;
+  friend class ASTStmtReader;
 };
 
 /// \brief Represents an implicitly-generated value initialization of

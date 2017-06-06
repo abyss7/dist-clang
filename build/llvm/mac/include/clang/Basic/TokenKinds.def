@@ -502,6 +502,7 @@ KEYWORD(__cdecl                     , KEYALL)
 KEYWORD(__stdcall                   , KEYALL)
 KEYWORD(__fastcall                  , KEYALL)
 KEYWORD(__thiscall                  , KEYALL)
+KEYWORD(__regcall                   , KEYALL)
 KEYWORD(__vectorcall                , KEYALL)
 KEYWORD(__forceinline               , KEYMS)
 KEYWORD(__unaligned                 , KEYMS)
@@ -785,6 +786,8 @@ ANNOTATION(pragma_openmp_end)
 // The lexer produces these so that they only take effect when the parser
 // handles #pragma loop ... directives.
 ANNOTATION(pragma_loop_hint)
+
+ANNOTATION(pragma_fp)
 
 // Annotations for module import translated from #include etc.
 ANNOTATION(module_include)

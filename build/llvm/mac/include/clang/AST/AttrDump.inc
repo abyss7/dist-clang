@@ -7,6 +7,12 @@
 \*===----------------------------------------------------------------------===*/
 
   switch (A->getKind()) {
+  case attr::AMDGPUFlatWorkGroupSize: {
+    const auto *SA = cast<AMDGPUFlatWorkGroupSizeAttr>(A);
+    OS << " " << SA->getMin();
+    OS << " " << SA->getMax();
+    break;
+  }
   case attr::AMDGPUNumSGPR: {
     const auto *SA = cast<AMDGPUNumSGPRAttr>(A);
     OS << " " << SA->getNumSGPR();
@@ -15,6 +21,12 @@
   case attr::AMDGPUNumVGPR: {
     const auto *SA = cast<AMDGPUNumVGPRAttr>(A);
     OS << " " << SA->getNumVGPR();
+    break;
+  }
+  case attr::AMDGPUWavesPerEU: {
+    const auto *SA = cast<AMDGPUWavesPerEUAttr>(A);
+    OS << " " << SA->getMin();
+    OS << " " << SA->getMax();
     break;
   }
   case attr::ARMInterrupt: {
@@ -39,6 +51,12 @@
       OS << " Generic";
       break;
     }
+    break;
+  }
+  case attr::AVRInterrupt: {
+    break;
+  }
+  case attr::AVRSignal: {
     break;
   }
   case attr::AbiTag: {
@@ -86,6 +104,17 @@
       dumpStmt(SA->getAlignmentExpr());
     else
       dumpType(SA->getAlignmentType()->getType());
+    break;
+  }
+  case attr::AllocAlign: {
+    const auto *SA = cast<AllocAlignAttr>(A);
+    OS << " " << SA->getParamIndex();
+    break;
+  }
+  case attr::AllocSize: {
+    const auto *SA = cast<AllocSizeAttr>(A);
+    OS << " " << SA->getElemSizeParam();
+    OS << " " << SA->getNumElemsParam();
     break;
   }
   case attr::AlwaysInline: {
@@ -283,6 +312,9 @@
   case attr::ConsumableSetOnRead: {
     break;
   }
+  case attr::Convergent: {
+    break;
+  }
   case attr::DLLExport: {
     break;
   }
@@ -300,6 +332,23 @@
     OS << " " << SA->getPriority();
     break;
   }
+  case attr::DiagnoseIf: {
+    const auto *SA = cast<DiagnoseIfAttr>(A);
+    OS << " \"" << SA->getMessage() << "\"";
+    switch(SA->getDiagnosticType()) {
+    case DiagnoseIfAttr::DT_Error:
+      OS << " DT_Error";
+      break;
+    case DiagnoseIfAttr::DT_Warning:
+      OS << " DT_Warning";
+      break;
+    }
+    if (SA->getArgDependent()) OS << " ArgDependent";
+    OS << " ";
+    dumpBareDeclRef(SA->getParent());
+    dumpStmt(SA->getCond());
+    break;
+  }
   case attr::DisableTailCalls: {
     break;
   }
@@ -312,11 +361,30 @@
     dumpStmt(SA->getCond());
     break;
   }
+  case attr::EnumExtensibility: {
+    const auto *SA = cast<EnumExtensibilityAttr>(A);
+    switch(SA->getExtensibility()) {
+    case EnumExtensibilityAttr::Closed:
+      OS << " Closed";
+      break;
+    case EnumExtensibilityAttr::Open:
+      OS << " Open";
+      break;
+    }
+    break;
+  }
   case attr::ExclusiveTrylockFunction: {
     const auto *SA = cast<ExclusiveTrylockFunctionAttr>(A);
     dumpStmt(SA->getSuccessValue());
     for (ExclusiveTrylockFunctionAttr::args_iterator I = SA->args_begin(), E = SA->args_end(); I != E; ++I)
       dumpStmt(*I);
+    break;
+  }
+  case attr::ExternalSourceSymbol: {
+    const auto *SA = cast<ExternalSourceSymbolAttr>(A);
+    OS << " \"" << SA->getLanguage() << "\"";
+    OS << " \"" << SA->getDefinedIn() << "\"";
+    if (SA->getGeneratedDeclaration()) OS << " GeneratedDeclaration";
     break;
   }
   case attr::FallThrough: {
@@ -731,6 +799,9 @@
   case attr::ObjCRuntimeVisible: {
     break;
   }
+  case attr::ObjCSubclassingRestricted: {
+    break;
+  }
   case attr::OpenCLAccess: {
     OS << " " << A->getSpelling();
     break;
@@ -813,6 +884,9 @@
     break;
   }
   case attr::Pure: {
+    break;
+  }
+  case attr::RegCall: {
     break;
   }
   case attr::ReleaseCapability: {
@@ -908,6 +982,12 @@
     break;
   }
   case attr::StdCall: {
+    break;
+  }
+  case attr::Suppress: {
+    const auto *SA = cast<SuppressAttr>(A);
+    for (const auto &Val : SA->diagnosticIdentifiers())
+      OS << " " << Val;
     break;
   }
   case attr::SwiftCall: {
@@ -1080,6 +1160,11 @@
   }
   case attr::XRayInstrument: {
     OS << " " << A->getSpelling();
+    break;
+  }
+  case attr::XRayLogArgs: {
+    const auto *SA = cast<XRayLogArgsAttr>(A);
+    OS << " " << SA->getArgumentCount();
     break;
   }
   }

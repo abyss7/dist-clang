@@ -9,6 +9,46 @@
 #ifndef LLVM_CLANG_ATTR_CLASSES_INC
 #define LLVM_CLANG_ATTR_CLASSES_INC
 
+class AMDGPUFlatWorkGroupSizeAttr : public InheritableAttr {
+unsigned min;
+
+unsigned max;
+
+public:
+  static AMDGPUFlatWorkGroupSizeAttr *CreateImplicit(ASTContext &Ctx, unsigned Min, unsigned Max, SourceRange Loc = SourceRange()) {
+    auto *A = new (Ctx) AMDGPUFlatWorkGroupSizeAttr(Loc, Ctx, Min, Max, 0);
+    A->setImplicit(true);
+    return A;
+  }
+
+  AMDGPUFlatWorkGroupSizeAttr(SourceRange R, ASTContext &Ctx
+              , unsigned Min
+              , unsigned Max
+              , unsigned SI
+             )
+    : InheritableAttr(attr::AMDGPUFlatWorkGroupSize, R, SI, false, false)
+              , min(Min)
+              , max(Max)
+  {
+  }
+
+  AMDGPUFlatWorkGroupSizeAttr *clone(ASTContext &C) const;
+  void printPretty(raw_ostream &OS,
+                   const PrintingPolicy &Policy) const;
+  const char *getSpelling() const;
+  unsigned getMin() const {
+    return min;
+  }
+
+  unsigned getMax() const {
+    return max;
+  }
+
+
+
+  static bool classof(const Attr *A) { return A->getKind() == attr::AMDGPUFlatWorkGroupSize; }
+};
+
 class AMDGPUNumSGPRAttr : public InheritableAttr {
 unsigned numSGPR;
 
@@ -71,6 +111,56 @@ public:
 
 
   static bool classof(const Attr *A) { return A->getKind() == attr::AMDGPUNumVGPR; }
+};
+
+class AMDGPUWavesPerEUAttr : public InheritableAttr {
+unsigned min;
+
+unsigned max;
+
+public:
+  static AMDGPUWavesPerEUAttr *CreateImplicit(ASTContext &Ctx, unsigned Min, unsigned Max, SourceRange Loc = SourceRange()) {
+    auto *A = new (Ctx) AMDGPUWavesPerEUAttr(Loc, Ctx, Min, Max, 0);
+    A->setImplicit(true);
+    return A;
+  }
+
+  AMDGPUWavesPerEUAttr(SourceRange R, ASTContext &Ctx
+              , unsigned Min
+              , unsigned Max
+              , unsigned SI
+             )
+    : InheritableAttr(attr::AMDGPUWavesPerEU, R, SI, false, false)
+              , min(Min)
+              , max(Max)
+  {
+  }
+
+  AMDGPUWavesPerEUAttr(SourceRange R, ASTContext &Ctx
+              , unsigned Min
+              , unsigned SI
+             )
+    : InheritableAttr(attr::AMDGPUWavesPerEU, R, SI, false, false)
+              , min(Min)
+              , max()
+  {
+  }
+
+  AMDGPUWavesPerEUAttr *clone(ASTContext &C) const;
+  void printPretty(raw_ostream &OS,
+                   const PrintingPolicy &Policy) const;
+  const char *getSpelling() const;
+  unsigned getMin() const {
+    return min;
+  }
+
+  unsigned getMax() const {
+    return max;
+  }
+
+
+
+  static bool classof(const Attr *A) { return A->getKind() == attr::AMDGPUWavesPerEU; }
 };
 
 class ARMInterruptAttr : public InheritableAttr {
@@ -148,6 +238,54 @@ public:
 
 
   static bool classof(const Attr *A) { return A->getKind() == attr::ARMInterrupt; }
+};
+
+class AVRInterruptAttr : public InheritableAttr {
+public:
+  static AVRInterruptAttr *CreateImplicit(ASTContext &Ctx, SourceRange Loc = SourceRange()) {
+    auto *A = new (Ctx) AVRInterruptAttr(Loc, Ctx, 0);
+    A->setImplicit(true);
+    return A;
+  }
+
+  AVRInterruptAttr(SourceRange R, ASTContext &Ctx
+              , unsigned SI
+             )
+    : InheritableAttr(attr::AVRInterrupt, R, SI, false, false)
+  {
+  }
+
+  AVRInterruptAttr *clone(ASTContext &C) const;
+  void printPretty(raw_ostream &OS,
+                   const PrintingPolicy &Policy) const;
+  const char *getSpelling() const;
+
+
+  static bool classof(const Attr *A) { return A->getKind() == attr::AVRInterrupt; }
+};
+
+class AVRSignalAttr : public InheritableAttr {
+public:
+  static AVRSignalAttr *CreateImplicit(ASTContext &Ctx, SourceRange Loc = SourceRange()) {
+    auto *A = new (Ctx) AVRSignalAttr(Loc, Ctx, 0);
+    A->setImplicit(true);
+    return A;
+  }
+
+  AVRSignalAttr(SourceRange R, ASTContext &Ctx
+              , unsigned SI
+             )
+    : InheritableAttr(attr::AVRSignal, R, SI, false, false)
+  {
+  }
+
+  AVRSignalAttr *clone(ASTContext &C) const;
+  void printPretty(raw_ostream &OS,
+                   const PrintingPolicy &Policy) const;
+  const char *getSpelling() const;
+
+
+  static bool classof(const Attr *A) { return A->getKind() == attr::AVRSignal; }
 };
 
 class AbiTagAttr : public Attr {
@@ -541,6 +679,88 @@ public:
 
 
   static bool classof(const Attr *A) { return A->getKind() == attr::Aligned; }
+};
+
+class AllocAlignAttr : public InheritableAttr {
+int paramIndex;
+
+public:
+  static AllocAlignAttr *CreateImplicit(ASTContext &Ctx, int ParamIndex, SourceRange Loc = SourceRange()) {
+    auto *A = new (Ctx) AllocAlignAttr(Loc, Ctx, ParamIndex, 0);
+    A->setImplicit(true);
+    return A;
+  }
+
+  AllocAlignAttr(SourceRange R, ASTContext &Ctx
+              , int ParamIndex
+              , unsigned SI
+             )
+    : InheritableAttr(attr::AllocAlign, R, SI, false, false)
+              , paramIndex(ParamIndex)
+  {
+  }
+
+  AllocAlignAttr *clone(ASTContext &C) const;
+  void printPretty(raw_ostream &OS,
+                   const PrintingPolicy &Policy) const;
+  const char *getSpelling() const;
+  int getParamIndex() const {
+    return paramIndex;
+  }
+
+
+
+  static bool classof(const Attr *A) { return A->getKind() == attr::AllocAlign; }
+};
+
+class AllocSizeAttr : public InheritableAttr {
+int elemSizeParam;
+
+int numElemsParam;
+
+public:
+  static AllocSizeAttr *CreateImplicit(ASTContext &Ctx, int ElemSizeParam, int NumElemsParam, SourceRange Loc = SourceRange()) {
+    auto *A = new (Ctx) AllocSizeAttr(Loc, Ctx, ElemSizeParam, NumElemsParam, 0);
+    A->setImplicit(true);
+    return A;
+  }
+
+  AllocSizeAttr(SourceRange R, ASTContext &Ctx
+              , int ElemSizeParam
+              , int NumElemsParam
+              , unsigned SI
+             )
+    : InheritableAttr(attr::AllocSize, R, SI, false, false)
+              , elemSizeParam(ElemSizeParam)
+              , numElemsParam(NumElemsParam)
+  {
+  }
+
+  AllocSizeAttr(SourceRange R, ASTContext &Ctx
+              , int ElemSizeParam
+              , unsigned SI
+             )
+    : InheritableAttr(attr::AllocSize, R, SI, false, false)
+              , elemSizeParam(ElemSizeParam)
+              , numElemsParam()
+  {
+  }
+
+  AllocSizeAttr *clone(ASTContext &C) const;
+  void printPretty(raw_ostream &OS,
+                   const PrintingPolicy &Policy) const;
+  const char *getSpelling() const;
+  int getElemSizeParam() const {
+    return elemSizeParam;
+  }
+
+  int getNumElemsParam() const {
+    return numElemsParam;
+  }
+
+
+
+  static bool classof(const Attr *A) { return A->getKind() == attr::AllocSize; }
 };
 
 class AlwaysInlineAttr : public InheritableAttr {
@@ -2015,6 +2235,30 @@ public:
   static bool classof(const Attr *A) { return A->getKind() == attr::ConsumableSetOnRead; }
 };
 
+class ConvergentAttr : public InheritableAttr {
+public:
+  static ConvergentAttr *CreateImplicit(ASTContext &Ctx, SourceRange Loc = SourceRange()) {
+    auto *A = new (Ctx) ConvergentAttr(Loc, Ctx, 0);
+    A->setImplicit(true);
+    return A;
+  }
+
+  ConvergentAttr(SourceRange R, ASTContext &Ctx
+              , unsigned SI
+             )
+    : InheritableAttr(attr::Convergent, R, SI, false, false)
+  {
+  }
+
+  ConvergentAttr *clone(ASTContext &C) const;
+  void printPretty(raw_ostream &OS,
+                   const PrintingPolicy &Policy) const;
+  const char *getSpelling() const;
+
+
+  static bool classof(const Attr *A) { return A->getKind() == attr::Convergent; }
+};
+
 class DLLExportAttr : public InheritableAttr {
 public:
   static DLLExportAttr *CreateImplicit(ASTContext &Ctx, SourceRange Loc = SourceRange()) {
@@ -2178,6 +2422,133 @@ public:
   static bool classof(const Attr *A) { return A->getKind() == attr::Destructor; }
 };
 
+class DiagnoseIfAttr : public InheritableAttr {
+Expr * cond;
+
+unsigned messageLength;
+char *message;
+
+public:
+  enum DiagnosticType {
+    DT_Error,
+    DT_Warning
+  };
+private:
+  DiagnosticType diagnosticType;
+
+bool argDependent;
+
+FunctionDecl * parent;
+
+public:
+  static DiagnoseIfAttr *CreateImplicit(ASTContext &Ctx, Expr * Cond, llvm::StringRef Message, DiagnosticType DiagnosticType, bool ArgDependent, FunctionDecl * Parent, SourceRange Loc = SourceRange()) {
+    auto *A = new (Ctx) DiagnoseIfAttr(Loc, Ctx, Cond, Message, DiagnosticType, ArgDependent, Parent, 0);
+    A->setImplicit(true);
+    return A;
+  }
+
+  static DiagnoseIfAttr *CreateImplicit(ASTContext &Ctx, Expr * Cond, llvm::StringRef Message, DiagnosticType DiagnosticType, SourceRange Loc = SourceRange()) {
+    auto *A = new (Ctx) DiagnoseIfAttr(Loc, Ctx, Cond, Message, DiagnosticType, 0);
+    A->setImplicit(true);
+    return A;
+  }
+
+  DiagnoseIfAttr(SourceRange R, ASTContext &Ctx
+              , Expr * Cond
+              , llvm::StringRef Message
+              , DiagnosticType DiagnosticType
+              , bool ArgDependent
+              , FunctionDecl * Parent
+              , unsigned SI
+             )
+    : InheritableAttr(attr::DiagnoseIf, R, SI, true, true)
+              , cond(Cond)
+              , messageLength(Message.size()),message(new (Ctx, 1) char[messageLength])
+              , diagnosticType(DiagnosticType)
+              , argDependent(ArgDependent)
+              , parent(Parent)
+  {
+      if (!Message.empty())
+        std::memcpy(message, Message.data(), messageLength);
+  }
+
+  DiagnoseIfAttr(SourceRange R, ASTContext &Ctx
+              , Expr * Cond
+              , llvm::StringRef Message
+              , DiagnosticType DiagnosticType
+              , unsigned SI
+             )
+    : InheritableAttr(attr::DiagnoseIf, R, SI, true, true)
+              , cond(Cond)
+              , messageLength(Message.size()),message(new (Ctx, 1) char[messageLength])
+              , diagnosticType(DiagnosticType)
+              , argDependent()
+              , parent()
+  {
+      if (!Message.empty())
+        std::memcpy(message, Message.data(), messageLength);
+  }
+
+  DiagnoseIfAttr *clone(ASTContext &C) const;
+  void printPretty(raw_ostream &OS,
+                   const PrintingPolicy &Policy) const;
+  const char *getSpelling() const;
+  Expr * getCond() const {
+    return cond;
+  }
+
+  llvm::StringRef getMessage() const {
+    return llvm::StringRef(message, messageLength);
+  }
+  unsigned getMessageLength() const {
+    return messageLength;
+  }
+  void setMessage(ASTContext &C, llvm::StringRef S) {
+    messageLength = S.size();
+    this->message = new (C, 1) char [messageLength];
+    if (!S.empty())
+      std::memcpy(this->message, S.data(), messageLength);
+  }
+
+  DiagnosticType getDiagnosticType() const {
+    return diagnosticType;
+  }
+
+  static bool ConvertStrToDiagnosticType(StringRef Val, DiagnosticType &Out) {
+    Optional<DiagnosticType> R = llvm::StringSwitch<Optional<DiagnosticType>>(Val)
+      .Case("error", DiagnoseIfAttr::DT_Error)
+      .Case("warning", DiagnoseIfAttr::DT_Warning)
+      .Default(Optional<DiagnosticType>());
+    if (R) {
+      Out = *R;
+      return true;
+    }
+    return false;
+  }
+
+  static const char *ConvertDiagnosticTypeToStr(DiagnosticType Val) {
+    switch(Val) {
+    case DiagnoseIfAttr::DT_Error: return "error";
+    case DiagnoseIfAttr::DT_Warning: return "warning";
+    }
+    llvm_unreachable("No enumerator with that value");
+  }
+  bool getArgDependent() const {
+    return argDependent;
+  }
+
+  FunctionDecl * getParent() const {
+    return parent;
+  }
+
+
+    bool isError() const { return diagnosticType == DT_Error; }
+    bool isWarning() const { return diagnosticType == DT_Warning; }
+  
+
+  static bool classof(const Attr *A) { return A->getKind() == attr::DiagnoseIf; }
+};
+
 class DisableTailCallsAttr : public InheritableAttr {
 public:
   static DisableTailCallsAttr *CreateImplicit(ASTContext &Ctx, SourceRange Loc = SourceRange()) {
@@ -2278,6 +2649,63 @@ public:
   static bool classof(const Attr *A) { return A->getKind() == attr::EnableIf; }
 };
 
+class EnumExtensibilityAttr : public InheritableAttr {
+public:
+  enum Kind {
+    Closed,
+    Open
+  };
+private:
+  Kind extensibility;
+
+public:
+  static EnumExtensibilityAttr *CreateImplicit(ASTContext &Ctx, Kind Extensibility, SourceRange Loc = SourceRange()) {
+    auto *A = new (Ctx) EnumExtensibilityAttr(Loc, Ctx, Extensibility, 0);
+    A->setImplicit(true);
+    return A;
+  }
+
+  EnumExtensibilityAttr(SourceRange R, ASTContext &Ctx
+              , Kind Extensibility
+              , unsigned SI
+             )
+    : InheritableAttr(attr::EnumExtensibility, R, SI, false, false)
+              , extensibility(Extensibility)
+  {
+  }
+
+  EnumExtensibilityAttr *clone(ASTContext &C) const;
+  void printPretty(raw_ostream &OS,
+                   const PrintingPolicy &Policy) const;
+  const char *getSpelling() const;
+  Kind getExtensibility() const {
+    return extensibility;
+  }
+
+  static bool ConvertStrToKind(StringRef Val, Kind &Out) {
+    Optional<Kind> R = llvm::StringSwitch<Optional<Kind>>(Val)
+      .Case("closed", EnumExtensibilityAttr::Closed)
+      .Case("open", EnumExtensibilityAttr::Open)
+      .Default(Optional<Kind>());
+    if (R) {
+      Out = *R;
+      return true;
+    }
+    return false;
+  }
+
+  static const char *ConvertKindToStr(Kind Val) {
+    switch(Val) {
+    case EnumExtensibilityAttr::Closed: return "closed";
+    case EnumExtensibilityAttr::Open: return "open";
+    }
+    llvm_unreachable("No enumerator with that value");
+  }
+
+
+  static bool classof(const Attr *A) { return A->getKind() == attr::EnumExtensibility; }
+};
+
 class ExclusiveTrylockFunctionAttr : public InheritableAttr {
 Expr * successValue;
 
@@ -2331,6 +2759,88 @@ public:
 
 
   static bool classof(const Attr *A) { return A->getKind() == attr::ExclusiveTrylockFunction; }
+};
+
+class ExternalSourceSymbolAttr : public InheritableAttr {
+unsigned languageLength;
+char *language;
+
+unsigned definedInLength;
+char *definedIn;
+
+bool generatedDeclaration;
+
+public:
+  static ExternalSourceSymbolAttr *CreateImplicit(ASTContext &Ctx, llvm::StringRef Language, llvm::StringRef DefinedIn, bool GeneratedDeclaration, SourceRange Loc = SourceRange()) {
+    auto *A = new (Ctx) ExternalSourceSymbolAttr(Loc, Ctx, Language, DefinedIn, GeneratedDeclaration, 0);
+    A->setImplicit(true);
+    return A;
+  }
+
+  ExternalSourceSymbolAttr(SourceRange R, ASTContext &Ctx
+              , llvm::StringRef Language
+              , llvm::StringRef DefinedIn
+              , bool GeneratedDeclaration
+              , unsigned SI
+             )
+    : InheritableAttr(attr::ExternalSourceSymbol, R, SI, false, false)
+              , languageLength(Language.size()),language(new (Ctx, 1) char[languageLength])
+              , definedInLength(DefinedIn.size()),definedIn(new (Ctx, 1) char[definedInLength])
+              , generatedDeclaration(GeneratedDeclaration)
+  {
+      if (!Language.empty())
+        std::memcpy(language, Language.data(), languageLength);
+      if (!DefinedIn.empty())
+        std::memcpy(definedIn, DefinedIn.data(), definedInLength);
+  }
+
+  ExternalSourceSymbolAttr(SourceRange R, ASTContext &Ctx
+              , unsigned SI
+             )
+    : InheritableAttr(attr::ExternalSourceSymbol, R, SI, false, false)
+              , languageLength(0),language(nullptr)
+              , definedInLength(0),definedIn(nullptr)
+              , generatedDeclaration()
+  {
+  }
+
+  ExternalSourceSymbolAttr *clone(ASTContext &C) const;
+  void printPretty(raw_ostream &OS,
+                   const PrintingPolicy &Policy) const;
+  const char *getSpelling() const;
+  llvm::StringRef getLanguage() const {
+    return llvm::StringRef(language, languageLength);
+  }
+  unsigned getLanguageLength() const {
+    return languageLength;
+  }
+  void setLanguage(ASTContext &C, llvm::StringRef S) {
+    languageLength = S.size();
+    this->language = new (C, 1) char [languageLength];
+    if (!S.empty())
+      std::memcpy(this->language, S.data(), languageLength);
+  }
+
+  llvm::StringRef getDefinedIn() const {
+    return llvm::StringRef(definedIn, definedInLength);
+  }
+  unsigned getDefinedInLength() const {
+    return definedInLength;
+  }
+  void setDefinedIn(ASTContext &C, llvm::StringRef S) {
+    definedInLength = S.size();
+    this->definedIn = new (C, 1) char [definedInLength];
+    if (!S.empty())
+      std::memcpy(this->definedIn, S.data(), definedInLength);
+  }
+
+  bool getGeneratedDeclaration() const {
+    return generatedDeclaration;
+  }
+
+
+
+  static bool classof(const Attr *A) { return A->getKind() == attr::ExternalSourceSymbol; }
 };
 
 class FallThroughAttr : public StmtAttr {
@@ -4150,7 +4660,7 @@ public:
   static bool classof(const Attr *A) { return A->getKind() == attr::NoThrow; }
 };
 
-class NonNullAttr : public InheritableAttr {
+class NonNullAttr : public InheritableParamAttr {
   unsigned args_Size;
   unsigned *args_;
 
@@ -4165,7 +4675,7 @@ public:
               , unsigned *Args, unsigned ArgsSize
               , unsigned SI
              )
-    : InheritableAttr(attr::NonNull, R, SI, false, true)
+    : InheritableParamAttr(attr::NonNull, R, SI, false, true)
               , args_Size(ArgsSize), args_(new (Ctx, 16) unsigned[args_Size])
   {
     std::copy(Args, Args + args_Size, args_);
@@ -4174,7 +4684,7 @@ public:
   NonNullAttr(SourceRange R, ASTContext &Ctx
               , unsigned SI
              )
-    : InheritableAttr(attr::NonNull, R, SI, false, true)
+    : InheritableParamAttr(attr::NonNull, R, SI, false, true)
               , args_Size(0), args_(nullptr)
   {
   }
@@ -5073,6 +5583,30 @@ public:
   static bool classof(const Attr *A) { return A->getKind() == attr::ObjCRuntimeVisible; }
 };
 
+class ObjCSubclassingRestrictedAttr : public InheritableAttr {
+public:
+  static ObjCSubclassingRestrictedAttr *CreateImplicit(ASTContext &Ctx, SourceRange Loc = SourceRange()) {
+    auto *A = new (Ctx) ObjCSubclassingRestrictedAttr(Loc, Ctx, 0);
+    A->setImplicit(true);
+    return A;
+  }
+
+  ObjCSubclassingRestrictedAttr(SourceRange R, ASTContext &Ctx
+              , unsigned SI
+             )
+    : InheritableAttr(attr::ObjCSubclassingRestricted, R, SI, false, false)
+  {
+  }
+
+  ObjCSubclassingRestrictedAttr *clone(ASTContext &C) const;
+  void printPretty(raw_ostream &OS,
+                   const PrintingPolicy &Policy) const;
+  const char *getSpelling() const;
+
+
+  static bool classof(const Attr *A) { return A->getKind() == attr::ObjCSubclassingRestricted; }
+};
+
 class OpenCLAccessAttr : public Attr {
 public:
   enum Spelling {
@@ -5650,6 +6184,30 @@ public:
 
 
   static bool classof(const Attr *A) { return A->getKind() == attr::Pure; }
+};
+
+class RegCallAttr : public InheritableAttr {
+public:
+  static RegCallAttr *CreateImplicit(ASTContext &Ctx, SourceRange Loc = SourceRange()) {
+    auto *A = new (Ctx) RegCallAttr(Loc, Ctx, 0);
+    A->setImplicit(true);
+    return A;
+  }
+
+  RegCallAttr(SourceRange R, ASTContext &Ctx
+              , unsigned SI
+             )
+    : InheritableAttr(attr::RegCall, R, SI, false, false)
+  {
+  }
+
+  RegCallAttr *clone(ASTContext &C) const;
+  void printPretty(raw_ostream &OS,
+                   const PrintingPolicy &Policy) const;
+  const char *getSpelling() const;
+
+
+  static bool classof(const Attr *A) { return A->getKind() == attr::RegCall; }
 };
 
 class ReleaseCapabilityAttr : public InheritableAttr {
@@ -6330,6 +6888,59 @@ public:
 
 
   static bool classof(const Attr *A) { return A->getKind() == attr::StdCall; }
+};
+
+class SuppressAttr : public StmtAttr {
+  unsigned diagnosticIdentifiers_Size;
+  StringRef *diagnosticIdentifiers_;
+
+public:
+  static SuppressAttr *CreateImplicit(ASTContext &Ctx, StringRef *DiagnosticIdentifiers, unsigned DiagnosticIdentifiersSize, SourceRange Loc = SourceRange()) {
+    auto *A = new (Ctx) SuppressAttr(Loc, Ctx, DiagnosticIdentifiers, DiagnosticIdentifiersSize, 0);
+    A->setImplicit(true);
+    return A;
+  }
+
+  SuppressAttr(SourceRange R, ASTContext &Ctx
+              , StringRef *DiagnosticIdentifiers, unsigned DiagnosticIdentifiersSize
+              , unsigned SI
+             )
+    : StmtAttr(attr::Suppress, R, SI, false, false)
+              , diagnosticIdentifiers_Size(DiagnosticIdentifiersSize), diagnosticIdentifiers_(new (Ctx, 16) StringRef[diagnosticIdentifiers_Size])
+  {
+    for (size_t I = 0, E = diagnosticIdentifiers_Size; I != E;
+         ++I) {
+      StringRef Ref = DiagnosticIdentifiers[I];
+      if (!Ref.empty()) {
+        char *Mem = new (Ctx, 1) char[Ref.size()];
+        std::memcpy(Mem, Ref.data(), Ref.size());
+        diagnosticIdentifiers_[I] = StringRef(Mem, Ref.size());
+      }
+    }
+  }
+
+  SuppressAttr(SourceRange R, ASTContext &Ctx
+              , unsigned SI
+             )
+    : StmtAttr(attr::Suppress, R, SI, false, false)
+              , diagnosticIdentifiers_Size(0), diagnosticIdentifiers_(nullptr)
+  {
+  }
+
+  SuppressAttr *clone(ASTContext &C) const;
+  void printPretty(raw_ostream &OS,
+                   const PrintingPolicy &Policy) const;
+  const char *getSpelling() const;
+  typedef StringRef* diagnosticIdentifiers_iterator;
+  diagnosticIdentifiers_iterator diagnosticIdentifiers_begin() const { return diagnosticIdentifiers_; }
+  diagnosticIdentifiers_iterator diagnosticIdentifiers_end() const { return diagnosticIdentifiers_ + diagnosticIdentifiers_Size; }
+  unsigned diagnosticIdentifiers_size() const { return diagnosticIdentifiers_Size; }
+  llvm::iterator_range<diagnosticIdentifiers_iterator> diagnosticIdentifiers() const { return llvm::make_range(diagnosticIdentifiers_begin(), diagnosticIdentifiers_end()); }
+
+
+
+
+  static bool classof(const Attr *A) { return A->getKind() == attr::Suppress; }
 };
 
 class SwiftCallAttr : public InheritableAttr {
@@ -7508,6 +8119,38 @@ public:
 
 
   static bool classof(const Attr *A) { return A->getKind() == attr::XRayInstrument; }
+};
+
+class XRayLogArgsAttr : public InheritableAttr {
+unsigned argumentCount;
+
+public:
+  static XRayLogArgsAttr *CreateImplicit(ASTContext &Ctx, unsigned ArgumentCount, SourceRange Loc = SourceRange()) {
+    auto *A = new (Ctx) XRayLogArgsAttr(Loc, Ctx, ArgumentCount, 0);
+    A->setImplicit(true);
+    return A;
+  }
+
+  XRayLogArgsAttr(SourceRange R, ASTContext &Ctx
+              , unsigned ArgumentCount
+              , unsigned SI
+             )
+    : InheritableAttr(attr::XRayLogArgs, R, SI, false, false)
+              , argumentCount(ArgumentCount)
+  {
+  }
+
+  XRayLogArgsAttr *clone(ASTContext &C) const;
+  void printPretty(raw_ostream &OS,
+                   const PrintingPolicy &Policy) const;
+  const char *getSpelling() const;
+  unsigned getArgumentCount() const {
+    return argumentCount;
+  }
+
+
+
+  static bool classof(const Attr *A) { return A->getKind() == attr::XRayLogArgs; }
 };
 
 #endif // LLVM_CLANG_ATTR_CLASSES_INC

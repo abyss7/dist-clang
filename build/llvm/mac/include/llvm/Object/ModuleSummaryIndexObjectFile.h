@@ -50,11 +50,11 @@ public:
     llvm_unreachable("not implemented");
     return 0;
   }
-  basic_symbol_iterator symbol_begin_impl() const override {
+  basic_symbol_iterator symbol_begin() const override {
     llvm_unreachable("not implemented");
     return basic_symbol_iterator(BasicSymbolRef());
   }
-  basic_symbol_iterator symbol_end_impl() const override {
+  basic_symbol_iterator symbol_end() const override {
     llvm_unreachable("not implemented");
     return basic_symbol_iterator(BasicSymbolRef());
   }
@@ -79,25 +79,21 @@ public:
   static ErrorOr<MemoryBufferRef>
   findBitcodeInMemBuffer(MemoryBufferRef Object);
 
-  /// \brief Looks for summary sections in the given memory buffer,
-  /// returns true if found, else false.
-  static bool hasGlobalValueSummaryInMemBuffer(
-      MemoryBufferRef Object,
-      const DiagnosticHandlerFunction &DiagnosticHandler);
-
   /// \brief Parse module summary index in the given memory buffer.
   /// Return new ModuleSummaryIndexObjectFile instance containing parsed module
   /// summary/index.
-  static ErrorOr<std::unique_ptr<ModuleSummaryIndexObjectFile>>
-  create(MemoryBufferRef Object,
-         const DiagnosticHandlerFunction &DiagnosticHandler);
+  static Expected<std::unique_ptr<ModuleSummaryIndexObjectFile>>
+  create(MemoryBufferRef Object);
 };
 }
 
 /// Parse the module summary index out of an IR file and return the module
-/// summary index object if found, or nullptr if not.
-ErrorOr<std::unique_ptr<ModuleSummaryIndex>> getModuleSummaryIndexForFile(
-    StringRef Path, const DiagnosticHandlerFunction &DiagnosticHandler);
+/// summary index object if found, or nullptr if not. If Identifier is
+/// non-empty, it is used as the module ID (module path) in the resulting
+/// index. This can be used when the index is being read from a file
+/// containing minimized bitcode just for the thin link.
+Expected<std::unique_ptr<ModuleSummaryIndex>>
+getModuleSummaryIndexForFile(StringRef Path, StringRef Identifier = "");
 }
 
 #endif
