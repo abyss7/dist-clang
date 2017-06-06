@@ -97,9 +97,8 @@ bool Command::GenerateFromArgs(int argc, const char* const raw_argv[],
     // TODO: move this code inside |DriverCommand| constructor.
     if ((command.getSource().getKind() != Action::AssembleJobClass &&
          command.getSource().getKind() != Action::BackendJobClass &&
-         command.getSource().getKind() != Action::CompileJobClass &&
-         command.getSource().getKind() != Action::PrecompileJobClass &&
-         command.getSource().getKind() != Action::PreprocessJobClass) ||
+         command.getSource().getKind() != Action::PreprocessJobClass &&
+         command.getSource().getKind() != Action::CompileJobClass) ||
         !std::regex_match(command.getExecutable(),
                           std::regex(".*/?clang(\\+\\+)?"))) {
       commands.emplace_back(new DriverCommand(command, compilation, driver));

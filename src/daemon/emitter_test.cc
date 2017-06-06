@@ -2463,6 +2463,234 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
   //       - deps file is in cache, but not requested.
 }
 
+TEST_F(EmitterTest, StoreDirectCacheForLocalResultAfterCacheMiss) {
+  // Prepare environment.
+  const base::TemporaryDir temp_dir;
+  const auto path = Immutable(String(temp_dir));
+  const auto input1_path = path + "/test1.cc"_l;
+  const auto input2_path = path + "/test2.cc"_l;
+  const auto header1_path = path + "/header1.h"_l;
+  const auto header2_path = path + "/header2.h"_l;
+  const auto source_code = "int main() {}"_l;
+
+  ASSERT_TRUE(base::File::Write(input1_path, source_code));
+  ASSERT_TRUE(base::File::Write(input2_path, source_code));
+  ASSERT_TRUE(base::File::Write(header1_path, "#define A"_l));
+  ASSERT_TRUE(base::File::Write(header2_path, "#define B"_l));
+
+  // Prepare configuration.
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const String plugin_name = "fake_plugin";
+  const auto plugin_path = "fake_plugin_path"_l;
+
+  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_direct(true);
+  conf.mutable_cache()->set_clean_period(1);
+
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+  auto* plugin = version->add_plugins();
+  plugin->set_name(plugin_name);
+  plugin->set_path(plugin_path);
+
+  // Prepare callbacks.
+  const auto expected_code = net::proto::Status::OK;
+  const auto deps1_path = "test1.d"_l;
+  const auto deps2_path = path + "test2.d"_l;
+  const auto language = "fake_language"_l;
+  const auto preprocessed_source = "fake_source"_l;
+  const auto preprocessed_source2 = "fake_source2"_l;
+  const auto action = "fake_action"_l;
+  const auto output1_path = "test1.o"_l;
+  const auto object_code = "fake_object_code"_l;
+  const auto preprocessed_header_path = path + "/preprocessed.h.pth"_l;
+  const Immutable common_deps("test1.o: test1.cc "_l);
+  const auto deps_contents = common_deps + "header1.h header2.h"_l;
+
+  // clang outputs headers included using "-include-pth/pch" as absolute paths.
+  auto preprocessed_deps_contents = common_deps
+      + preprocessed_header_path + " header1.h header2.h"_l;
+  const auto preprocessed_contents = "Any content should work"_l;
+  const auto pth_switch = "-include-pth"_l;
+
+  const auto output2_path = path + "/test2.o"_l;
+  // |output_path2| checks that everything works fine with absolute paths.
+
+  ASSERT_TRUE(
+      base::File::Write(preprocessed_header_path, preprocessed_contents));
+
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_EQ(expected_code, status.code()) << status.description();
+
+      send_condition.notify_all();
+    });
+    return true;
+  };
+
+  run_callback = [&](base::TestProcess* process) {
+    if (run_count == 1) {
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-dependency-file"_l, deps1_path,
+                                 "-x"_l, language, "-o"_l, "-"_l, input1_path}),
+                process->args_);
+      process->stdout_ = preprocessed_source;
+      EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + deps1_path,
+                                    deps_contents));
+    } else if (run_count == 2) {
+      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path,
+                                 "-dependency-file"_l, deps1_path, "-x"_l,
+                                 language, "-o"_l, output1_path, input1_path}),
+                process->args_)
+          << process->PrintArgs();
+      EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + output1_path,
+                                    object_code));
+    } else if (run_count == 3) {
+      // Next compilation with pth header should trigger a cache miss and
+      // a calls to preprocessor and compiler.
+      EXPECT_EQ((Immutable::Rope{"-E"_l, pth_switch, preprocessed_header_path,
+                                 "-dependency-file"_l, deps2_path,
+                                 "-x"_l, language, "-o"_l, "-"_l, input2_path}),
+                process->args_);
+      process->stdout_ = preprocessed_source2;
+      EXPECT_TRUE(base::File::Write(deps2_path, preprocessed_deps_contents));
+    } else if (run_count == 4) {
+      EXPECT_EQ((Immutable::Rope{action, pth_switch, preprocessed_header_path,
+                                 "-load"_l, plugin_path,
+                                 "-dependency-file"_l, deps2_path, "-x"_l,
+                                 language, "-o"_l, output2_path, input2_path}),
+                process->args_)
+          << process->PrintArgs();
+      EXPECT_TRUE(base::File::Write(output2_path, object_code));
+    }
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto connection1 = test_service->TriggerListen(socket_path);
+  {
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection1);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(temp_dir);
+
+    extension->mutable_flags()->set_input(input1_path);
+    extension->mutable_flags()->set_output(output1_path);
+    extension->mutable_flags()->set_deps_file(deps1_path);
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
+    compiler->set_version(compiler_version);
+    compiler->add_plugins()->set_name(plugin_name);
+    extension->mutable_flags()->set_action(action);
+    extension->mutable_flags()->set_language(language);
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
+                                        [this] { return send_count == 1; }));
+  }
+
+  auto connection2 = test_service->TriggerListen(socket_path);
+  {
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection2);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(temp_dir);
+
+    extension->mutable_flags()->set_input(input2_path);
+    extension->mutable_flags()->set_output(output2_path);
+
+    extension->mutable_flags()->add_included_files(preprocessed_header_path);
+    extension->mutable_flags()->add_non_cached(pth_switch);
+    extension->mutable_flags()->add_non_cached(preprocessed_header_path);
+
+    extension->mutable_flags()->set_deps_file(deps2_path);
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
+    compiler->set_version(compiler_version);
+    compiler->add_plugins()->set_name(plugin_name);
+    extension->mutable_flags()->set_action(action);
+    extension->mutable_flags()->set_language(language);
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
+                                        [this] { return send_count == 2; }));
+  }
+
+  auto connection3 = test_service->TriggerListen(socket_path);
+  {
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection3);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(temp_dir);
+
+    extension->mutable_flags()->set_input(input2_path);
+    extension->mutable_flags()->set_output(output2_path);
+
+    extension->mutable_flags()->add_included_files(preprocessed_header_path);
+    extension->mutable_flags()->add_non_cached(pth_switch);
+    extension->mutable_flags()->add_non_cached(preprocessed_header_path);
+
+    extension->mutable_flags()->set_deps_file(deps2_path);
+    auto* compiler = extension->mutable_flags()->mutable_compiler();
+    compiler->set_version(compiler_version);
+    compiler->add_plugins()->set_name(plugin_name);
+    extension->mutable_flags()->set_action(action);
+    extension->mutable_flags()->set_language(language);
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
+                                        [this] { return send_count == 3; }));
+  }
+
+  emitter.reset();
+
+  Immutable cache_output;
+  EXPECT_TRUE(base::File::Exists(output2_path));
+  EXPECT_TRUE(base::File::Read(output2_path, &cache_output));
+  EXPECT_EQ(object_code, cache_output);
+
+  Immutable cache_deps;
+  EXPECT_TRUE(base::File::Exists(deps2_path));
+  EXPECT_TRUE(base::File::Read(deps2_path, &cache_deps));
+  EXPECT_EQ(preprocessed_deps_contents, cache_deps);
+
+  EXPECT_EQ(4u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(3u, connect_count);
+  EXPECT_EQ(3u, connections_created);
+  EXPECT_EQ(3u, read_count);
+  EXPECT_EQ(3u, send_count);
+  EXPECT_EQ(1, connection1.use_count())
+      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count())
+      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection3.use_count())
+      << "Daemon must not store references to the connection";
+}
+
 TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
   // Prepare environment.
   const base::TemporaryDir temp_dir;
@@ -2775,13 +3003,18 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
   const auto path = Immutable(String(temp_dir1));
   const auto input_path = path + "/test.cc"_l;
   const auto header_path = path + "/header.h"_l;
+  const auto preprocessed_header_path = path + "preprocessed.h.pth"_l;
   const auto sanitize_blacklist_path = path + "/asan-blacklist.txt"_l;
   const auto source_code = "int main() {}"_l;
   const auto header_contents = "#define A"_l;
+  const auto preprocessed_contents = "Any content should work"_l;
   const auto sanitize_blacklist_contents = "fun:main"_l;
+  const auto pth_switch = "-include-pth"_l;
 
   ASSERT_TRUE(base::File::Write(input_path, source_code));
   ASSERT_TRUE(base::File::Write(header_path, header_contents));
+  ASSERT_TRUE(base::File::Write(preprocessed_header_path,
+                                preprocessed_contents));
   ASSERT_TRUE(
       base::File::Write(sanitize_blacklist_path, sanitize_blacklist_contents));
 
@@ -2810,7 +3043,10 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
   const auto action = "fake_action"_l;
   const auto output_path = "test.o"_l;
   const auto object_code = "fake_object_code"_l;
-  const auto deps_contents = "test.o: test.cc header.h"_l;
+
+  // clang outputs headers included using "-include-pth/pch" as absolute paths.
+  const Immutable deps_contents = String("test.o: test.cc ")
+      + String(preprocessed_header_path) + " header.h";
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
@@ -2825,7 +3061,8 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-dependency-file"_l, deps_path,
+      EXPECT_EQ((Immutable::Rope{"-E"_l, pth_switch, preprocessed_header_path,
+                                 "-dependency-file"_l, deps_path,
                                  "-x"_l, language, "-o"_l, "-"_l, input_path}),
                 process->args_);
       process->stdout_ = preprocessed_source;
@@ -2833,7 +3070,8 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
                                     deps_contents));
     } else if (run_count == 2) {
       EXPECT_EQ(
-          (Immutable::Rope{action, "-load"_l, plugin_path, "-dependency-file"_l,
+          (Immutable::Rope{action, pth_switch, preprocessed_header_path,
+                           "-load"_l, plugin_path, "-dependency-file"_l,
                            deps_path, "-x"_l, language,
                            Immutable("-fsanitize-blacklist="_l) +
                                Immutable(sanitize_blacklist_path),
@@ -2859,6 +3097,11 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
 
     extension->mutable_flags()->set_input(input_path);
     extension->mutable_flags()->set_output(output_path);
+
+    extension->mutable_flags()->add_included_files(preprocessed_header_path);
+    extension->mutable_flags()->add_non_cached(pth_switch);
+    extension->mutable_flags()->add_non_cached(preprocessed_header_path);
+
     extension->mutable_flags()->set_deps_file(deps_path);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
@@ -2898,6 +3141,11 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
 
     extension->mutable_flags()->set_input(input_path);
     extension->mutable_flags()->set_output(output_path);
+
+    extension->mutable_flags()->add_included_files(preprocessed_header_path);
+    extension->mutable_flags()->add_non_cached(pth_switch);
+    extension->mutable_flags()->add_non_cached(preprocessed_header_path);
+
     extension->mutable_flags()->set_deps_file(deps_path);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);

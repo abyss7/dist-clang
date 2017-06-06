@@ -46,6 +46,9 @@ message Flags {
   optional string sanitize_blacklist = 11;
   // sanitizer blacklist file
 
+  repeated string included_files = 12;
+  // PCH or PTH files, included implicitly through command line arguments.
+
   // Compilation = All
   // Preprocessing = All - output - cc_only
   // Cache = other + language + cc_only

@@ -60,6 +60,9 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
   for (const auto& arg : arg_list_) {
     using namespace clang::driver::options;
 
+    CHECK(!arg->getOption().matches(OPT_emit_pch));
+    CHECK(!arg->getOption().matches(OPT_emit_pth));
+
     // TODO: try to sort out flags by some attribute, i.e. group actions,
     //       compilation-only flags, etc.
 
@@ -68,13 +71,10 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
     } else if (arg->getOption().matches(OPT_add_plugin)) {
       arg->render(arg_list_, other_list);
       flags->mutable_compiler()->add_plugins()->set_name(arg->getValue());
-    } else if (arg->getOption().matches(OPT_emit_obj)) {
-      flags->set_action(arg->getSpelling());
-    } else if (arg->getOption().matches(OPT_E)) {
-      flags->set_action(arg->getSpelling());
-    } else if (arg->getOption().matches(OPT_S)) {
-      flags->set_action(arg->getSpelling());
-    } else if (arg->getOption().matches(OPT_fsyntax_only)) {
+    } else if (arg->getOption().matches(OPT_emit_obj) ||
+               arg->getOption().matches(OPT_E) ||
+               arg->getOption().matches(OPT_S) ||
+               arg->getOption().matches(OPT_fsyntax_only)) {
       flags->set_action(arg->getSpelling());
     } else if (arg->getOption().matches(OPT_dependency_file)) {
       flags->set_deps_file(arg->getValue());
@@ -99,6 +99,10 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
              arg->getOption().matches(OPT_isysroot) ||
              arg->getOption().matches(OPT_D) ||
              arg->getOption().matches(OPT_I)) {
+      arg->render(arg_list_, non_cached_list);
+    } else if (arg->getOption().matches(OPT_include_pch) ||
+               arg->getOption().matches(OPT_include_pth)) {
+      flags->add_included_files(arg->getValue());
       arg->render(arg_list_, non_cached_list);
     } else if (arg->getOption().matches(OPT_coverage_data_file) ||
                arg->getOption().matches(OPT_coverage_notes_file) ||

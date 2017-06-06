@@ -343,8 +343,10 @@ void CompilationDaemon::UpdateDirectCache(
 
   if (ParseDeps(entry.deps, headers) &&
       base::File::Read(input_path, &original_code.str)) {
+    List<String> preprocessed_headers(message->flags().included_files().begin(),
+                                      message->flags().included_files().end());
     cache_->Store(original_code, extra_files, command_line, version, headers,
-                  message->current_dir(), hash);
+                  preprocessed_headers, message->current_dir(), hash);
   } else {
     LOG(CACHE_ERROR) << "Failed to parse deps or read input " << input_path;
   }
