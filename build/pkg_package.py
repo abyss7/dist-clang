@@ -17,6 +17,12 @@ os.makedirs(launchd_dir)
 shutil.copy(os.path.join(top_dir, "install", "launchd_service"),
             os.path.join(launchd_dir, "ru.yandex.clangd.plist"))
 
+# Install conf file for newsyslog on mac
+newsyslog_dir = os.path.join(product_dir, "pkg", "etc", "newsyslog.d")
+os.makedirs(newsyslog_dir)
+shutil.copy(os.path.join(top_dir, "install", "ru.yandex.clangd.conf"),
+            newsyslog_dir)
+
 # Check plist with linter.
 subprocess.call(
     ['plutil', '-lint', os.path.join(launchd_dir, "ru.yandex.clangd.plist")])
