@@ -60,9 +60,6 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
   for (const auto& arg : arg_list_) {
     using namespace clang::driver::options;
 
-    CHECK(!arg->getOption().matches(OPT_emit_pch));
-    CHECK(!arg->getOption().matches(OPT_emit_pth));
-
     // TODO: try to sort out flags by some attribute, i.e. group actions,
     //       compilation-only flags, etc.
 
@@ -103,7 +100,6 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
     } else if (arg->getOption().matches(OPT_include_pch) ||
                arg->getOption().matches(OPT_include_pth)) {
       flags->add_included_files(arg->getValue());
-      arg->render(arg_list_, non_cached_list);
     } else if (arg->getOption().matches(OPT_coverage_data_file) ||
                arg->getOption().matches(OPT_coverage_notes_file) ||
                arg->getOption().matches(OPT_fdebug_compilation_dir) ||
