@@ -55,10 +55,6 @@ inline CommandLine CommandLineForDirectCache(const String& current_dir,
   if (flags.has_language()) {
     command_line += " -x " + flags.language();
   }
-  if (flags.included_files_size()) {
-    command_line += " " + base::JoinString<' '>(flags.included_files().begin(),
-                                                flags.included_files().end());
-  }
   if (flags.non_cached_size()) {
     command_line += " " + base::JoinString<' '>(flags.non_cached().begin(),
                                                 flags.non_cached().end());
