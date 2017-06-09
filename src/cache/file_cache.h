@@ -121,6 +121,8 @@ class FileCache {
             string::CommandLine command_line, string::Version version,
             const String& current_dir, Entry* entry) const;
 
+  bool FindByHash(string::HandledHash hash, Entry* entry) const;
+
   void Store(string::UnhandledSource code, const ExtraFiles& extra_files,
              string::CommandLine command_line, string::Version version,
              const List<String>& headers,
@@ -131,6 +133,8 @@ class FileCache {
   void Store(string::HandledSource code, const ExtraFiles& extra_files,
              string::CommandLine command_line, string::Version version,
              const Entry& entry);
+
+  void DoStore(string::HandledHash hash, Entry entry);
 
  private:
   FRIEND_TEST(FileCacheTest, DoubleLocks);
@@ -186,8 +190,6 @@ class FileCache {
     return SecondPath(hash) + "/" + hash.str.string_copy();
   }
 
-  bool FindByHash(string::HandledHash hash, Entry* entry) const;
-  void DoStore(string::HandledHash hash, Entry entry);
   void DoStore(string::UnhandledHash orig_hash, const List<String>& headers,
                const List<String>& preprocessed_headers,
                const String& current_dir, const string::HandledHash& hash);

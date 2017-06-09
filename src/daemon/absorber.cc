@@ -151,6 +151,31 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
       plugin.clear_path();
     }
 
+    auto received_hash = incoming->has_source_hash() ?
+        Immutable::WrapString(incoming->source_hash()) : Immutable();
+    HandledHash source_hash(received_hash);
+
+    HandledHash computed_hash =
+        GenerateHash(incoming->flags(), HandledSource(source), extra_files);
+
+    const bool received_hash_matches_computed = source_hash == computed_hash;
+
+    cache::FileCache::Entry entry;
+    if (SearchSimpleCache(computed_hash, &entry)) {
+      Universal outgoing(new net::proto::Universal);
+      auto* result = outgoing->MutableExtension(proto::Result::extension);
+      result->set_obj(entry.object);
+      result->set_from_cache(true);
+      result->set_hashes_match(received_hash_matches_computed);
+
+      auto status = outgoing->MutableExtension(net::proto::Status::extension);
+      status->set_code(net::proto::Status::OK);
+      status->set_description(entry.stderr);
+
+      task->first->SendAsync(std::move(outgoing));
+      continue;
+    }
+
     // Optimize compilation for preprocessed code for some languages.
     if (incoming->flags().has_language()) {
       if (incoming->flags().language() == "c") {
@@ -160,21 +185,6 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
       } else if (incoming->flags().language() == "objective-c++") {
         incoming->mutable_flags()->set_language("objective-c++-cpp-output");
       }
-    }
-
-    cache::FileCache::Entry entry;
-    if (SearchSimpleCache(incoming->flags(), HandledSource(source), extra_files,
-                          &entry)) {
-      Universal outgoing(new net::proto::Universal);
-      auto* result = outgoing->MutableExtension(proto::Result::extension);
-      result->set_obj(entry.object);
-
-      auto status = outgoing->MutableExtension(net::proto::Status::extension);
-      status->set_code(net::proto::Status::OK);
-      status->set_description(entry.stderr);
-
-      task->first->SendAsync(std::move(outgoing));
-      continue;
     }
 
     // Check that we have a compiler of a requested version.
@@ -220,8 +230,10 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
       status.set_description(process->stderr());
       LOG(INFO) << "External compilation successful";
 
-      const auto& result = proto::Result::extension;
-      outgoing->MutableExtension(result)->set_obj(process->stdout());
+      auto* result = outgoing->MutableExtension(proto::Result::extension);
+      result->set_obj(process->stdout());
+      result->set_from_cache(false);
+      result->set_hashes_match(received_hash_matches_computed);
     }
 
     outgoing->MutableExtension(net::proto::Status::extension)->CopyFrom(status);
@@ -232,8 +244,7 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
       entry.object = process->stdout();
       entry.stderr = Immutable(status.description());
 
-      UpdateSimpleCache(incoming->flags(), HandledSource(source), extra_files,
-                        entry);
+      UpdateSimpleCache(computed_hash, entry);
     }
 
     task->first->SendAsync(std::move(outgoing));

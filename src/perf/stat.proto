@@ -50,6 +50,10 @@ message Metric {
 
     SIMPLE_CACHE_UPDATE_TIME    = 20;
     // in milliseconds.
+
+    REMOTE_CACHE_HIT            = 21;
+
+    HASH_MISMATCH               = 22;
   }
 
   required Name name    = 1;
