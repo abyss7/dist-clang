@@ -148,9 +148,10 @@ CompilationDaemon::CompilationDaemon(const Configuration& conf)
   }
 }
 
+// static
 HandledHash CompilationDaemon::GenerateHash(
     const base::proto::Flags& flags, const HandledSource& code,
-    const ExtraFiles& extra_files) const {
+    const ExtraFiles& extra_files) {
   const Version version(flags.compiler().version());
   return cache::FileCache::Hash(code, extra_files,
                                 CommandLineForSimpleCache(flags), version);

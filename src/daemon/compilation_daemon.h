@@ -17,12 +17,12 @@ class CompilationDaemon : public BaseDaemon {
   static base::ProcessPtr CreateProcess(const base::proto::Flags& flags,
                                         Immutable cwd_path = Immutable());
 
+  static cache::string::HandledHash GenerateHash(
+      const base::proto::Flags& flags, const cache::string::HandledSource& code,
+      const cache::ExtraFiles& extra_files);
+
  protected:
   explicit CompilationDaemon(const Configuration& conf);
-
-  cache::string::HandledHash GenerateHash(
-      const base::proto::Flags& flags, const cache::string::HandledSource& code,
-      const cache::ExtraFiles& extra_files) const;
 
   bool SetupCompiler(base::proto::Flags* flags,
                      net::proto::Status* status) const;
