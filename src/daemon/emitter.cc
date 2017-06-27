@@ -186,11 +186,13 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
     if (conf->has_cache() && !conf->cache().disabled()) {
       return cache_tasks_->Push(std::make_tuple(connection, std::move(execute),
                                                 HandledSource(),
-                                                cache::ExtraFiles{}));
+                                                cache::ExtraFiles{},
+                                                HandledHash()));
     } else {
       return all_tasks_->Push(std::make_tuple(connection, std::move(execute),
                                               HandledSource(),
-                                              cache::ExtraFiles{}));
+                                              cache::ExtraFiles{},
+                                              HandledHash()));
     }
   }
 
@@ -295,7 +297,9 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       continue;
     }
 
-    if (SearchSimpleCache(incoming->flags(), source, extra_files, &entry) &&
+    auto& handled_hash = std::get<HANDLED_HASH>(*task);
+    handled_hash = GenerateHash(incoming->flags(), source, extra_files);
+    if (SearchSimpleCache(handled_hash, &entry) &&
         RestoreFromCache(source, extra_files)) {
       STAT(SIMPLE_CACHE_HIT);
       continue;
@@ -368,7 +372,11 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
             (!incoming->flags().has_deps_file() ||
              base::File::Read(GetDepsPath(incoming), &entry.deps))) {
           entry.stderr = process->stderr();
-          UpdateSimpleCache(incoming->flags(), source, extra_files, entry);
+          auto& handled_hash = std::get<HANDLED_HASH>(*task);
+          if (handled_hash.str.empty()) {
+            handled_hash = GenerateHash(incoming->flags(), source, extra_files);
+          }
+          UpdateSimpleCache(handled_hash, entry);
           UpdateDirectCache(incoming, source, extra_files, entry);
         }
       }
@@ -459,6 +467,11 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
     outgoing->mutable_flags()->CopyFrom(incoming->flags());
     outgoing->set_source(Immutable(source.str).string_copy(false));
     SetExtraFiles(extra_files, outgoing.get());
+    auto& handled_hash = std::get<HANDLED_HASH>(*task);
+    if (handled_hash.str.empty()) {
+      handled_hash = GenerateHash(incoming->flags(), source, extra_files);
+    }
+    outgoing->set_source_hash(handled_hash.str);
 
     // Filter outgoing flags.
     auto* flags = outgoing->mutable_flags();
@@ -508,6 +521,12 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
     const String output_path = GetOutputPath(incoming);
     if (reply->HasExtension(proto::Result::extension)) {
       auto* result = reply->MutableExtension(proto::Result::extension);
+      if (result->has_from_cache() && result->from_cache()) {
+        STAT(REMOTE_CACHE_HIT);
+      }
+      if (result->has_hashes_match() && !result->hashes_match()) {
+        STAT(HASH_MISMATCH);
+      }
       if (base::File::Write(output_path,
                             Immutable::WrapString(result->obj()))) {
         if (incoming->has_user_id() &&
@@ -542,7 +561,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
         compilation_time_counter.Report();
 
         if (GenerateEntry()) {
-          UpdateSimpleCache(incoming->flags(), source, extra_files, entry);
+          UpdateSimpleCache(handled_hash, entry);
           UpdateDirectCache(incoming, source, extra_files, entry);
         }
 

@@ -68,6 +68,7 @@ TEST_F(AbsorberTest, SuccessfulCompilation) {
   const net::proto::Status::Code expected_code = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
+  const auto source_code = "fake_source"_l;
 
   conf.mutable_absorber()->mutable_local()->set_host(expected_host);
   conf.mutable_absorber()->mutable_local()->set_port(expected_port);
@@ -88,6 +89,8 @@ TEST_F(AbsorberTest, SuccessfulCompilation) {
 
       EXPECT_TRUE(message.HasExtension(proto::Result::extension));
       EXPECT_TRUE(message.GetExtension(proto::Result::extension).has_obj());
+      EXPECT_TRUE(
+          message.GetExtension(proto::Result::extension).hashes_match());
     });
     return true;
   };
@@ -98,7 +101,12 @@ TEST_F(AbsorberTest, SuccessfulCompilation) {
   auto connection = test_service->TriggerListen(expected_host, expected_port);
   {
     auto message(
-        CreateMessage("fake_source"_l, "fake_action"_l, compiler_version));
+        CreateMessage(source_code, "fake_action"_l, compiler_version));
+    auto* extension = message->MutableExtension(proto::Remote::extension);
+    auto handled_hash = CompilationDaemon::GenerateHash(
+        extension->flags(), cache::string::HandledSource(source_code),
+        cache::ExtraFiles());
+    extension->set_source_hash(handled_hash.str);
 
     SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
@@ -143,6 +151,8 @@ TEST_F(AbsorberTest, SuccessfulCompilationWithBlacklist) {
 
       EXPECT_TRUE(message.HasExtension(proto::Result::extension));
       EXPECT_TRUE(message.GetExtension(proto::Result::extension).has_obj());
+      EXPECT_FALSE(
+          message.GetExtension(proto::Result::extension).hashes_match());
     });
     return true;
   };
@@ -154,6 +164,9 @@ TEST_F(AbsorberTest, SuccessfulCompilationWithBlacklist) {
   {
     auto message(CreateMessage("fake_source"_l, "fake_action"_l,
                                compiler_version, "", "sanitize_blacklist"));
+
+    auto* extension = message->MutableExtension(proto::Remote::extension);
+    extension->set_source_hash("difficult_to_match_hash");
 
     SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
@@ -264,6 +277,13 @@ TEST_F(AbsorberTest, StoreLocalCacheWithoutBlacklist) {
       const auto& ext = message.GetExtension(proto::Result::extension);
       EXPECT_TRUE(ext.has_obj());
       EXPECT_EQ(String(object_code), ext.obj());
+
+      EXPECT_TRUE(ext.has_from_cache());
+      if (connect_count == 1) {
+        EXPECT_FALSE(ext.from_cache());
+      } else if (connect_count == 2) {
+        EXPECT_TRUE(ext.from_cache());
+      }
 
       send_condition.notify_all();
     });

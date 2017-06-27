@@ -148,9 +148,10 @@ CompilationDaemon::CompilationDaemon(const Configuration& conf)
   }
 }
 
+// static
 HandledHash CompilationDaemon::GenerateHash(
     const base::proto::Flags& flags, const HandledSource& code,
-    const ExtraFiles& extra_files) const {
+    const ExtraFiles& extra_files) {
   const Version version(flags.compiler().version());
   return cache::FileCache::Hash(code, extra_files,
                                 CommandLineForSimpleCache(flags), version);
@@ -242,22 +243,12 @@ bool CompilationDaemon::ReadExtraFiles(const base::proto::Flags& flags,
 }
 
 bool CompilationDaemon::SearchSimpleCache(
-    const base::proto::Flags& flags, const HandledSource& source,
-    const ExtraFiles& extra_files, cache::FileCache::Entry* entry) const {
+    const HandledHash& hash, cache::FileCache::Entry* entry) const {
   if (!cache_) {
     return false;
   }
   Counter counter(Metric::SIMPLE_CACHE_LOOKUP_TIME);
-
-  const Version version(flags.compiler().version());
-  const auto command_line = CommandLineForSimpleCache(flags);
-
-  if (!cache_->Find(source, extra_files, command_line, version, entry)) {
-    LOG(CACHE_INFO) << "Cache miss: " << flags.input();
-    return false;
-  }
-
-  return true;
+  return cache_->FindByHash(hash, entry);
 }
 
 bool CompilationDaemon::SearchDirectCache(
@@ -299,17 +290,13 @@ bool CompilationDaemon::SearchDirectCache(
 }
 
 void CompilationDaemon::UpdateSimpleCache(
-    const base::proto::Flags& flags, const HandledSource& source,
-    const ExtraFiles& extra_files, const cache::FileCache::Entry& entry) {
-  const Version version(flags.compiler().version());
-  const auto command_line = CommandLineForSimpleCache(flags);
-
+    const cache::string::HandledHash& hash,
+    const cache::FileCache::Entry& entry) {
   if (!cache_) {
     return;
   }
   Counter counter(Metric::SIMPLE_CACHE_UPDATE_TIME);
-
-  cache_->Store(source, extra_files, command_line, version, entry);
+  cache_->DoStore(hash, entry);
 }
 
 void CompilationDaemon::UpdateDirectCache(

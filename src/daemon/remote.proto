@@ -10,6 +10,9 @@ message Remote {
   optional string sanitize_blacklist     = 3;
   // FIXME: replace with map after protobuf upgrade
 
+  optional string source_hash            = 4;
+  // Hash for simple cache of preprocessed source.
+
   extend net.proto.Universal {
     optional Remote extension = 6;
   }
@@ -21,6 +24,13 @@ message Result {
   // Doesn't comply with file cache manifest: it's an |optional| in manifest.
 
   optional bytes deps = 2;
+
+  optional bool from_cache = 3 [ default = false ];
+  // Set to true if obj was restored from cache, false otherwise.
+
+  optional bool hashes_match = 4 [ default = false ];
+  // Set to true if hash sended by emitter doesn't match the one,
+  // calculated on absorber.
 
   extend net.proto.Universal {
     optional Result extension = 4;

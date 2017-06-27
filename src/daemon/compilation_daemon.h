@@ -17,12 +17,12 @@ class CompilationDaemon : public BaseDaemon {
   static base::ProcessPtr CreateProcess(const base::proto::Flags& flags,
                                         Immutable cwd_path = Immutable());
 
+  static cache::string::HandledHash GenerateHash(
+      const base::proto::Flags& flags, const cache::string::HandledSource& code,
+      const cache::ExtraFiles& extra_files);
+
  protected:
   explicit CompilationDaemon(const Configuration& conf);
-
-  cache::string::HandledHash GenerateHash(
-      const base::proto::Flags& flags, const cache::string::HandledSource& code,
-      const cache::ExtraFiles& extra_files) const;
 
   bool SetupCompiler(base::proto::Flags* flags,
                      net::proto::Status* status) const;
@@ -31,18 +31,14 @@ class CompilationDaemon : public BaseDaemon {
                       const String& current_dir,
                       cache::ExtraFiles* extra_files) const;
 
-  bool SearchSimpleCache(const base::proto::Flags& flags,
-                         const cache::string::HandledSource& source,
-                         const cache::ExtraFiles& extra_files,
+  bool SearchSimpleCache(const cache::string::HandledHash& hash,
                          cache::FileCache::Entry* entry) const;
 
   bool SearchDirectCache(const base::proto::Flags& flags,
                          const String& current_dir,
                          cache::FileCache::Entry* entry) const;
 
-  void UpdateSimpleCache(const base::proto::Flags& flags,
-                         const cache::string::HandledSource& source,
-                         const cache::ExtraFiles& extra_files,
+  void UpdateSimpleCache(const cache::string::HandledHash& hash,
                          const cache::FileCache::Entry& entry);
 
   void UpdateDirectCache(const base::proto::Local* message,
