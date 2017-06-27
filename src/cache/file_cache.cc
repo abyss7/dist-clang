@@ -145,12 +145,6 @@ UnhandledHash FileCache::Hash(UnhandledSource code,
           (version.str + "\n"_l + clang::getClangFullVersion()).Hash(4)));
 }
 
-bool FileCache::Find(HandledSource code, const ExtraFiles& extra_files,
-                     CommandLine command_line, Version version,
-                     Entry* entry) const {
-  return FindByHash(Hash(code, extra_files, command_line, version), entry);
-}
-
 bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
                      CommandLine command_line, Version version,
                      const String& current_dir, Entry* entry) const {
@@ -187,29 +181,13 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
 
   DCHECK(database_);
   if (database_->Get(hash_with_headers, &handled_hash)) {
-    return FindByHash(HandledHash(handled_hash), entry);
+    return Find(HandledHash(handled_hash), entry);
   }
 
   return false;
 }
 
-void FileCache::Store(UnhandledSource code, const ExtraFiles& extra_files,
-                      CommandLine command_line, Version version,
-                      const List<String>& headers,
-                      const List<String>& preprocessed_headers,
-                      const String& current_dir,
-                      string::HandledHash hash) {
-  DoStore(Hash(code, extra_files, command_line, version),
-          headers, preprocessed_headers, current_dir, hash);
-}
-
-void FileCache::Store(HandledSource code, const ExtraFiles& extra_files,
-                      CommandLine command_line, Version version,
-                      const Entry& entry) {
-  DoStore(Hash(code, extra_files, command_line, version), entry);
-}
-
-bool FileCache::FindByHash(HandledHash hash, Entry* entry) const {
+bool FileCache::Find(HandledHash hash, Entry* entry) const {
   DCHECK(entry);
 
   const String manifest_path = CommonPath(hash) + ".manifest";
@@ -277,86 +255,16 @@ bool FileCache::FindByHash(HandledHash hash, Entry* entry) const {
   return manifest.v1().has_size() && manifest.v1().size() == size;
 }
 
-bool FileCache::GetEntrySize(string::Hash hash, ui64* size) const {
-  DCHECK(size);
-
-  const String common_path = CommonPath(hash);
-  const String manifest_path = common_path + ".manifest";
-
-  SQLite::Value entry;
-  if (entries_ && entries_->Get(hash.str, &entry)) {
-    *size = std::get<SQLite::SIZE>(entry);
-    return true;
-  }
-
-  proto::Manifest manifest;
-  if (!base::LoadFromFile(manifest_path, &manifest)) {
-    LOG(CACHE_WARNING) << "Can't load manifest for " << hash.str;
-    *size = 0u;
-    return false;
-  }
-
-  *size = manifest.v1().size() + base::File::Size(manifest_path);
-  return false;
+void FileCache::Store(UnhandledSource code, const ExtraFiles& extra_files,
+                      CommandLine command_line, Version version,
+                      const List<String>& headers,
+                      const List<String>& preprocessed_headers,
+                      const String& current_dir, string::HandledHash hash) {
+  DoStore(Hash(code, extra_files, command_line, version), headers,
+          preprocessed_headers, current_dir, hash);
 }
 
-bool FileCache::RemoveEntry(string::Hash hash) {
-  String error;
-  SQLite::Value entry;
-  bool has_entry = entries_->Get(hash.str, &entry);
-  const String common_path = CommonPath(hash);
-  const String manifest_path = common_path + ".manifest";
-  const String object_path = common_path + ".o";
-  const String deps_path = common_path + ".d";
-  const String stderr_path = common_path + ".stderr";
-  bool result = true;
-  auto entry_size = has_entry ? std::get<SQLite::SIZE>(entry) : 0u;
-
-  if (has_entry) {
-    entries_->Delete(hash.str);
-  } else {
-    LOG(CACHE_WARNING) << "Removing unconsidered entry: " << hash.str;
-  }
-
-  if (base::File::Exists(object_path)) {
-    if (!base::File::Delete(object_path, &error)) {
-      entry_size -= base::File::Size(object_path);
-      result = false;
-      LOG(CACHE_WARNING) << "Failed to delete " << object_path << ": " << error;
-    }
-  }
-
-  if (base::File::Exists(deps_path)) {
-    if (!base::File::Delete(deps_path, &error)) {
-      entry_size -= base::File::Size(deps_path);
-      result = false;
-      LOG(CACHE_WARNING) << "Failed to delete " << deps_path << ": " << error;
-    }
-  }
-
-  if (base::File::Exists(stderr_path)) {
-    if (!base::File::Delete(stderr_path, &error)) {
-      entry_size -= base::File::Size(stderr_path);
-      result = false;
-      LOG(CACHE_WARNING) << "Failed to delete " << stderr_path << ": " << error;
-    }
-  }
-
-  if (!base::File::Delete(manifest_path, &error)) {
-    entry_size -= base::File::Size(manifest_path);
-    result = false;
-    LOG(CACHE_WARNING) << "Failed to delete " << manifest_path << ": " << error;
-  }
-
-  if (has_entry) {
-    cache_size_ -= entry_size;
-    STAT(CACHE_SIZE_CLEANED, entry_size);
-  }
-
-  return result;
-}
-
-void FileCache::DoStore(string::HandledHash hash, Entry entry) {
+void FileCache::Store(string::HandledHash hash, Entry entry) {
   auto manifest_path = CommonPath(hash) + ".manifest";
   WriteLock lock(this, manifest_path);
   String error;
@@ -448,6 +356,85 @@ void FileCache::DoStore(string::HandledHash hash, Entry entry) {
   new_entries_->Append({time(nullptr), hash});
 
   LOG(CACHE_VERBOSE) << "File is cached on path " << CommonPath(hash);
+}
+
+bool FileCache::GetEntrySize(string::Hash hash, ui64* size) const {
+  DCHECK(size);
+
+  const String common_path = CommonPath(hash);
+  const String manifest_path = common_path + ".manifest";
+
+  SQLite::Value entry;
+  if (entries_ && entries_->Get(hash.str, &entry)) {
+    *size = std::get<SQLite::SIZE>(entry);
+    return true;
+  }
+
+  proto::Manifest manifest;
+  if (!base::LoadFromFile(manifest_path, &manifest)) {
+    LOG(CACHE_WARNING) << "Can't load manifest for " << hash.str;
+    *size = 0u;
+    return false;
+  }
+
+  *size = manifest.v1().size() + base::File::Size(manifest_path);
+  return false;
+}
+
+bool FileCache::RemoveEntry(string::Hash hash) {
+  String error;
+  SQLite::Value entry;
+  bool has_entry = entries_->Get(hash.str, &entry);
+  const String common_path = CommonPath(hash);
+  const String manifest_path = common_path + ".manifest";
+  const String object_path = common_path + ".o";
+  const String deps_path = common_path + ".d";
+  const String stderr_path = common_path + ".stderr";
+  bool result = true;
+  auto entry_size = has_entry ? std::get<SQLite::SIZE>(entry) : 0u;
+
+  if (has_entry) {
+    entries_->Delete(hash.str);
+  } else {
+    LOG(CACHE_WARNING) << "Removing unconsidered entry: " << hash.str;
+  }
+
+  if (base::File::Exists(object_path)) {
+    if (!base::File::Delete(object_path, &error)) {
+      entry_size -= base::File::Size(object_path);
+      result = false;
+      LOG(CACHE_WARNING) << "Failed to delete " << object_path << ": " << error;
+    }
+  }
+
+  if (base::File::Exists(deps_path)) {
+    if (!base::File::Delete(deps_path, &error)) {
+      entry_size -= base::File::Size(deps_path);
+      result = false;
+      LOG(CACHE_WARNING) << "Failed to delete " << deps_path << ": " << error;
+    }
+  }
+
+  if (base::File::Exists(stderr_path)) {
+    if (!base::File::Delete(stderr_path, &error)) {
+      entry_size -= base::File::Size(stderr_path);
+      result = false;
+      LOG(CACHE_WARNING) << "Failed to delete " << stderr_path << ": " << error;
+    }
+  }
+
+  if (!base::File::Delete(manifest_path, &error)) {
+    entry_size -= base::File::Size(manifest_path);
+    result = false;
+    LOG(CACHE_WARNING) << "Failed to delete " << manifest_path << ": " << error;
+  }
+
+  if (has_entry) {
+    cache_size_ -= entry_size;
+    STAT(CACHE_SIZE_CLEANED, entry_size);
+  }
+
+  return result;
 }
 
 void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,

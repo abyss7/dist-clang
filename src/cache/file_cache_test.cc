@@ -172,10 +172,11 @@ TEST(FileCacheTest, RestoreSingleEntry) {
   const HandledSource code("int main() { return 0; }"_l);
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
+  const auto hash = FileCache::Hash(code, {}, cl, version);
 
   ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
   ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
-  EXPECT_FALSE(cache.Find(code, {}, cl, version, &entry1));
+  EXPECT_FALSE(cache.Find(hash, &entry1));
   EXPECT_TRUE(entry1.object.empty());
   EXPECT_TRUE(entry1.deps.empty());
   EXPECT_TRUE(entry1.stderr.empty());
@@ -184,9 +185,9 @@ TEST(FileCacheTest, RestoreSingleEntry) {
   entry1.deps = expected_deps;
   entry1.stderr = expected_stderr;
 
-  cache.Store(code, {}, cl, version, entry1);
+  cache.Store(hash, entry1);
 
-  ASSERT_TRUE(cache.Find(code, {}, cl, version, &entry2));
+  ASSERT_TRUE(cache.Find(hash, &entry2));
   EXPECT_EQ(expected_object_code, entry2.object);
   EXPECT_EQ(expected_deps, entry2.deps);
   EXPECT_EQ(expected_stderr, entry2.stderr);
@@ -209,11 +210,14 @@ TEST(FileCacheTest, RestoreSingleEntryWithExtraFile) {
   const Immutable another_extra_file("fun:main "_l);
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
+  const auto hash1 = FileCache::Hash(
+      code, ExtraFiles{{SANITIZE_BLACKLIST, extra_file}}, cl, version);
+  const auto hash2 = FileCache::Hash(
+      code, ExtraFiles{{SANITIZE_BLACKLIST, another_extra_file}}, cl, version);
 
   ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
   ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
-  EXPECT_FALSE(cache.Find(code, ExtraFiles{{SANITIZE_BLACKLIST, extra_file}},
-                          cl, version, &entry1));
+  EXPECT_FALSE(cache.Find(hash1, &entry1));
   EXPECT_TRUE(entry1.object.empty());
   EXPECT_TRUE(entry1.deps.empty());
   EXPECT_TRUE(entry1.stderr.empty());
@@ -222,15 +226,11 @@ TEST(FileCacheTest, RestoreSingleEntryWithExtraFile) {
   entry1.deps = expected_deps;
   entry1.stderr = expected_stderr;
 
-  cache.Store(code, ExtraFiles{{SANITIZE_BLACKLIST, extra_file}}, cl, version,
-              entry1);
+  cache.Store(hash1, entry1);
 
-  EXPECT_FALSE(cache.Find(code, {}, cl, version, &entry2));
-  EXPECT_FALSE(cache.Find(code,
-                          ExtraFiles{{SANITIZE_BLACKLIST, another_extra_file}},
-                          cl, version, &entry2));
-  ASSERT_TRUE(cache.Find(code, ExtraFiles{{SANITIZE_BLACKLIST, extra_file}}, cl,
-                         version, &entry2));
+  EXPECT_FALSE(cache.Find(FileCache::Hash(code, {}, cl, version), &entry2));
+  EXPECT_FALSE(cache.Find(hash2, &entry2));
+  ASSERT_TRUE(cache.Find(hash1, &entry2));
   EXPECT_EQ(expected_object_code, entry2.object);
   EXPECT_EQ(expected_deps, entry2.deps);
   EXPECT_EQ(expected_stderr, entry2.stderr);
@@ -251,6 +251,7 @@ TEST(FileCacheTest, RestoreEntryWithMissingFile) {
   const HandledSource code("int main() { return 0; }"_l);
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
+  const auto hash = FileCache::Hash(code, {}, cl, version);
 
   ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
   ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
@@ -260,13 +261,12 @@ TEST(FileCacheTest, RestoreEntryWithMissingFile) {
   entry1.stderr = expected_stderr;
 
   // Store the entry.
-  cache.Store(code, {}, cl, version, entry1);
+  cache.Store(hash, entry1);
 
-  base::File::Delete(cache.CommonPath(FileCache::Hash(code, {}, cl, version)) +
-                     ".d");
+  base::File::Delete(cache.CommonPath(hash) + ".d");
 
   // Restore the entry.
-  ASSERT_FALSE(cache.Find(code, {}, cl, version, &entry2));
+  ASSERT_FALSE(cache.Find(hash, &entry2));
 }
 
 TEST(FileCacheTest, DISABLED_RestoreEntryWithMalfordedManifest) {
@@ -325,7 +325,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
 
   {
     FileCache::Entry entry{obj_content[0], String(), String()};
-    cache.Store(code[0], {}, cl, version, entry);
+    cache.Store(FileCache::Hash(code[0], {}, cl, version), entry);
     EXPECT_EQ(68u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
@@ -333,7 +333,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
 
   {
     FileCache::Entry entry{obj_content[1], String(), String()};
-    cache.Store(code[1], {}, cl, version, entry);
+    cache.Store(FileCache::Hash(code[1], {}, cl, version), entry);
     EXPECT_EQ(137u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
@@ -341,15 +341,15 @@ TEST(FileCacheTest, ExceedCacheSize) {
 
   {
     FileCache::Entry entry{obj_content[2], String(), String()};
-    cache.Store(code[2], {}, cl, version, entry);
+    cache.Store(FileCache::Hash(code[2], {}, cl, version), entry);
     std::this_thread::sleep_for(Seconds(3));
     EXPECT_EQ(70u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
   FileCache::Entry entry;
-  EXPECT_FALSE(cache.Find(code[0], {}, cl, version, &entry));
-  EXPECT_FALSE(cache.Find(code[1], {}, cl, version, &entry));
-  EXPECT_TRUE(cache.Find(code[2], {}, cl, version, &entry));
+  EXPECT_FALSE(cache.Find(FileCache::Hash(code[0], {}, cl, version), &entry));
+  EXPECT_FALSE(cache.Find(FileCache::Hash(code[1], {}, cl, version), &entry));
+  EXPECT_TRUE(cache.Find(FileCache::Hash(code[2], {}, cl, version), &entry));
 }
 
 TEST(FileCacheTest, RestoreDirectEntry) {
@@ -370,6 +370,7 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   const HandledSource code("int main() { return 0; }"_l);
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
+  const auto hash = FileCache::Hash(code, {}, cl, version);
 
   ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
   ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
@@ -381,13 +382,12 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   entry1.stderr = expected_stderr;
 
   // Store the entry.
-  cache.Store(code, {}, cl, version, entry1);
+  cache.Store(hash, entry1);
 
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   const List<String> headers = {header1_path, header2_rel_path};
-  cache.Store(orig_code, {}, cl, version, headers, {}, path,
-              FileCache::Hash(code, {}, cl, version));
+  cache.Store(orig_code, {}, cl, version, headers, {}, path, hash);
 
   // Restore the entry.
   ASSERT_TRUE(cache.Find(orig_code, {}, cl, version, path, &entry2));
@@ -416,6 +416,8 @@ TEST(FileCacheTest, RestoreDirectEntryWithExtraFile) {
   const Immutable another_extra_file("fun:main "_l);
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
+  const auto hash = FileCache::Hash(
+      code, ExtraFiles{{SANITIZE_BLACKLIST, extra_file}}, cl, version);
 
   ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
   ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
@@ -427,17 +429,13 @@ TEST(FileCacheTest, RestoreDirectEntryWithExtraFile) {
   entry1.stderr = expected_stderr;
 
   // Store the entry.
-  cache.Store(code, ExtraFiles{{SANITIZE_BLACKLIST, extra_file}}, cl, version,
-              entry1);
+  cache.Store(hash, entry1);
 
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   const List<String> headers = {header1_path, header2_rel_path};
-  cache.Store(
-      orig_code, ExtraFiles{{SANITIZE_BLACKLIST, extra_file}}, cl, version,
-      headers, {}, path,
-      FileCache::Hash(code, ExtraFiles{{SANITIZE_BLACKLIST, extra_file}}, cl,
-                      version));
+  cache.Store(orig_code, ExtraFiles{{SANITIZE_BLACKLIST, extra_file}}, cl,
+              version, headers, {}, path, hash);
 
   // Restore the entry.
   EXPECT_FALSE(cache.Find(orig_code, {}, cl, version, path, &entry2));
@@ -470,6 +468,7 @@ TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
   const HandledSource code("int main() { return 0; }"_l);
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
+  const auto hash = FileCache::Hash(code, {}, cl, version);
 
   ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
   ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
@@ -481,13 +480,12 @@ TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
   entry.stderr = expected_stderr;
 
   // Store the entry.
-  cache.Store(code, {}, cl, version, entry);
+  cache.Store(hash, entry);
 
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   const List<String> headers = {header1_path, header2_rel_path};
-  cache.Store(orig_code, {}, cl, version, headers, {}, path,
-              FileCache::Hash(code, {}, cl, version));
+  cache.Store(orig_code, {}, cl, version, headers, {}, path, hash);
 
   // Change header contents.
   ASSERT_TRUE(base::File::Write(header2_path, "#define C"_l));
@@ -514,27 +512,28 @@ TEST(FileCacheTest, DirectEntry_ChangedPreprocessedHeaderContents) {
   const HandledSource code("int main() { return 0; }"_l);
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
+  const auto hash = FileCache::Hash(code, {}, cl, version);
 
   ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
   ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
   ASSERT_TRUE(base::File::Write(header1_path, "#define A"_l));
   ASSERT_TRUE(base::File::Write(header2_path, "#define B"_l));
-  ASSERT_TRUE(base::File::Write(preprocessed_header_path,
-                                "Any content should work"_l));
+  ASSERT_TRUE(
+      base::File::Write(preprocessed_header_path, "Any content should work"_l));
 
   entry.object = expected_object_code;
   entry.deps = expected_deps;
   entry.stderr = expected_stderr;
 
   // Store the entry.
-  cache.Store(code, {}, cl, version, entry);
+  cache.Store(hash, entry);
 
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   const List<String> headers = {header1_path, header2_path};
   const List<String> preprocessed_headers = {preprocessed_header_path};
   cache.Store(orig_code, {}, cl, version, headers, preprocessed_headers, path,
-              FileCache::Hash(code, {}, cl, version));
+              hash);
 
   // Change header contents.
   ASSERT_TRUE(base::File::Write(preprocessed_header_path, "Other content"_l));
@@ -561,6 +560,7 @@ TEST(FileCacheTest, DirectEntry_RewriteManifest) {
   const HandledSource code("int main() { return 0; }"_l);
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
+  const auto hash = FileCache::Hash(code, {}, cl, version);
 
   ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
   ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
@@ -572,19 +572,17 @@ TEST(FileCacheTest, DirectEntry_RewriteManifest) {
   entry1.stderr = expected_stderr;
 
   // Store the entry.
-  cache.Store(code, {}, cl, version, entry1);
+  cache.Store(hash, entry1);
 
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   List<String> headers = {header1_path, header2_path};
-  cache.Store(orig_code, {}, cl, version, headers, {}, path,
-              FileCache::Hash(code, {}, cl, version));
+  cache.Store(orig_code, {}, cl, version, headers, {}, path, hash);
 
   headers.pop_back();
 
   // Store the direct entry - again.
-  cache.Store(orig_code, {}, cl, version, headers, {}, path,
-              FileCache::Hash(code, {}, cl, version));
+  cache.Store(orig_code, {}, cl, version, headers, {}, path, hash);
 
   // Restore the entry.
   EXPECT_TRUE(cache.Find(orig_code, {}, cl, version, path, &entry2));
@@ -607,6 +605,7 @@ TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
   const HandledSource code("int main() { return 0; }"_l);
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
+  const auto hash = FileCache::Hash(code, {}, cl, version);
 
   ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
   ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
@@ -618,13 +617,12 @@ TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
   entry.stderr = expected_stderr;
 
   // Store the entry.
-  cache.Store(code, {}, cl, version, entry);
+  cache.Store(hash, entry);
 
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   const List<String> headers = {header1_path, header2_path};
-  cache.Store(orig_code, {}, cl, version, headers, {}, path,
-              FileCache::Hash(code, {}, cl, version));
+  cache.Store(orig_code, {}, cl, version, headers, {}, path, hash);
 
   // Restore the entry.
   const UnhandledSource bad_orig_code(orig_code.str.string_copy() + " ");
@@ -649,6 +647,8 @@ TEST(FileCacheTest, DirectEntry_ChangedExtraFile) {
   const Immutable extra_file("fun:main"_l);
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
+  const auto hash = FileCache::Hash(
+      code, ExtraFiles{{SANITIZE_BLACKLIST, extra_file}}, cl, version);
 
   ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
   ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
@@ -660,17 +660,13 @@ TEST(FileCacheTest, DirectEntry_ChangedExtraFile) {
   entry.stderr = expected_stderr;
 
   // Store the entry.
-  cache.Store(code, ExtraFiles{{SANITIZE_BLACKLIST, extra_file}}, cl, version,
-              entry);
+  cache.Store(hash, entry);
 
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   const List<String> headers = {header1_path, header2_path};
-  cache.Store(
-      orig_code, ExtraFiles{{SANITIZE_BLACKLIST, extra_file}}, cl, version,
-      headers, {}, path,
-      FileCache::Hash(code, ExtraFiles{{SANITIZE_BLACKLIST, extra_file}}, cl,
-                      version));
+  cache.Store(orig_code, ExtraFiles{{SANITIZE_BLACKLIST, extra_file}}, cl,
+              version, headers, {}, path, hash);
 
   // Restore the entry.
   const Immutable new_extra_file("src:main.cc"_l);
@@ -696,10 +692,11 @@ TEST(FileCacheTest, RestoreAndMigrateSnappyEntry) {
     const HandledSource code("int main() { return 0; }"_l);
     const CommandLine cl("-c"_l);
     const Version version("3.5 (revision 100000)"_l);
+    const auto hash = FileCache::Hash(code, {}, cl, version);
 
     ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
     ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
-    EXPECT_FALSE(cache.Find(code, {}, cl, version, &entry1));
+    EXPECT_FALSE(cache.Find(hash, &entry1));
     EXPECT_TRUE(entry1.object.empty());
     EXPECT_TRUE(entry1.deps.empty());
     EXPECT_TRUE(entry1.stderr.empty());
@@ -708,9 +705,9 @@ TEST(FileCacheTest, RestoreAndMigrateSnappyEntry) {
     entry1.deps = expected_deps;
     entry1.stderr = expected_stderr;
 
-    cache.Store(code, {}, cl, version, entry1);
+    cache.Store(hash, entry1);
 
-    ASSERT_TRUE(cache.Find(code, {}, cl, version, &entry2));
+    ASSERT_TRUE(cache.Find(hash, &entry2));
     EXPECT_EQ(expected_object_code, entry2.object);
     EXPECT_EQ(expected_deps, entry2.deps);
     EXPECT_EQ(expected_stderr, entry2.stderr);
@@ -722,7 +719,9 @@ TEST(FileCacheTest, RestoreAndMigrateSnappyEntry) {
     const HandledSource code("int main() { return 0; }"_l);
     const CommandLine cl("-c"_l);
     const Version version("3.5 (revision 100000)"_l);
-    ASSERT_TRUE(cache.Find(code, {}, cl, version, &entry));
+    const auto hash = FileCache::Hash(code, {}, cl, version);
+
+    ASSERT_TRUE(cache.Find(hash, &entry));
     EXPECT_EQ(expected_object_code, entry.object);
     EXPECT_EQ(expected_deps, entry.deps);
     EXPECT_EQ(expected_stderr, entry.stderr);

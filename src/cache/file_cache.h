@@ -113,28 +113,19 @@ class FileCache {
                                     string::CommandLine command_line,
                                     string::Version version);
 
-  bool Find(string::HandledSource code, const ExtraFiles& extra_files,
-            string::CommandLine command_line, string::Version version,
-            Entry* entry) const;
-
   bool Find(string::UnhandledSource code, const ExtraFiles& extra_files,
             string::CommandLine command_line, string::Version version,
             const String& current_dir, Entry* entry) const;
 
-  bool FindByHash(string::HandledHash hash, Entry* entry) const;
+  bool Find(string::HandledHash hash, Entry* entry) const;
 
   void Store(string::UnhandledSource code, const ExtraFiles& extra_files,
              string::CommandLine command_line, string::Version version,
              const List<String>& headers,
              const List<String>& preprocessed_headers,
-             const String& current_dir,
-             string::HandledHash hash);
+             const String& current_dir, string::HandledHash hash);
 
-  void Store(string::HandledSource code, const ExtraFiles& extra_files,
-             string::CommandLine command_line, string::Version version,
-             const Entry& entry);
-
-  void DoStore(string::HandledHash hash, Entry entry);
+  void Store(string::HandledHash hash, Entry entry);
 
  private:
   FRIEND_TEST(FileCacheTest, DoubleLocks);

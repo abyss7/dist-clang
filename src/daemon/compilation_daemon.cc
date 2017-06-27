@@ -149,9 +149,9 @@ CompilationDaemon::CompilationDaemon(const Configuration& conf)
 }
 
 // static
-HandledHash CompilationDaemon::GenerateHash(
-    const base::proto::Flags& flags, const HandledSource& code,
-    const ExtraFiles& extra_files) {
+HandledHash CompilationDaemon::GenerateHash(const base::proto::Flags& flags,
+                                            const HandledSource& code,
+                                            const ExtraFiles& extra_files) {
   const Version version(flags.compiler().version());
   return cache::FileCache::Hash(code, extra_files,
                                 CommandLineForSimpleCache(flags), version);
@@ -248,7 +248,7 @@ bool CompilationDaemon::SearchSimpleCache(
     return false;
   }
   Counter counter(Metric::SIMPLE_CACHE_LOOKUP_TIME);
-  return cache_->FindByHash(hash, entry);
+  return cache_->Find(hash, entry);
 }
 
 bool CompilationDaemon::SearchDirectCache(
@@ -296,7 +296,7 @@ void CompilationDaemon::UpdateSimpleCache(
     return;
   }
   Counter counter(Metric::SIMPLE_CACHE_UPDATE_TIME);
-  cache_->DoStore(hash, entry);
+  cache_->Store(hash, entry);
 }
 
 void CompilationDaemon::UpdateDirectCache(
