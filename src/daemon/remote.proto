@@ -5,13 +5,13 @@ package dist_clang.daemon.proto;
 
 // Sent from emitter to absorber.
 message Remote {
-  optional base.proto.Flags flags        = 1;
-  optional string source                 = 2;
-  optional string sanitize_blacklist     = 3;
+  optional base.proto.Flags flags    = 1;
+  optional string source             = 2;
+  optional string sanitize_blacklist = 3;
   // FIXME: replace with map after protobuf upgrade
 
-  optional string source_hash            = 4;
-  // Hash for simple cache of preprocessed source.
+  optional string handled_hash       = 4;
+  // Hash of preprocessed source for simple cache.
 
   extend net.proto.Universal {
     optional Remote extension = 6;
@@ -28,8 +28,8 @@ message Result {
   optional bool from_cache = 3 [ default = false ];
   // Set to true if obj was restored from cache, false otherwise.
 
-  optional bool hashes_match = 4 [ default = false ];
-  // Set to true if hash sended by emitter doesn't match the one,
+  optional bool hash_match = 4;
+  // Set to true if hash sent by emitter doesn't match the one,
   // calculated on absorber.
 
   extend net.proto.Universal {

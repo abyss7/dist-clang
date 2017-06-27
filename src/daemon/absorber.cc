@@ -151,22 +151,21 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
       plugin.clear_path();
     }
 
-    auto received_hash = incoming->has_source_hash() ?
-        Immutable::WrapString(incoming->source_hash()) : Immutable();
-    HandledHash source_hash(received_hash);
-
-    HandledHash computed_hash =
+    HandledHash local_hash =
         GenerateHash(incoming->flags(), HandledSource(source), extra_files);
 
-    const bool received_hash_matches_computed = source_hash == computed_hash;
+    Universal outgoing(new net::proto::Universal);
 
     cache::FileCache::Entry entry;
-    if (SearchSimpleCache(computed_hash, &entry)) {
-      Universal outgoing(new net::proto::Universal);
+    if (SearchSimpleCache(local_hash, &entry)) {
       auto* result = outgoing->MutableExtension(proto::Result::extension);
+
       result->set_obj(entry.object);
       result->set_from_cache(true);
-      result->set_hashes_match(received_hash_matches_computed);
+      if (incoming->has_handled_hash()) {
+        auto remote_hash = Immutable::WrapString(incoming->handled_hash());
+        result->set_hash_match(HandledHash(remote_hash) == local_hash);
+      }
 
       auto status = outgoing->MutableExtension(net::proto::Status::extension);
       status->set_code(net::proto::Status::OK);
@@ -201,8 +200,6 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
       continue;
     }
 
-    Universal outgoing(new net::proto::Universal);
-
     // Pipe the input file to the compiler and read output file from the
     // compiler's stdout.
     String error;
@@ -233,7 +230,10 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
       auto* result = outgoing->MutableExtension(proto::Result::extension);
       result->set_obj(process->stdout());
       result->set_from_cache(false);
-      result->set_hashes_match(received_hash_matches_computed);
+      if (incoming->has_handled_hash()) {
+        auto remote_hash = Immutable::WrapString(incoming->handled_hash());
+        result->set_hash_match(HandledHash(remote_hash) == local_hash);
+      }
     }
 
     outgoing->MutableExtension(net::proto::Status::extension)->CopyFrom(status);
@@ -244,7 +244,7 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
       entry.object = process->stdout();
       entry.stderr = Immutable(status.description());
 
-      UpdateSimpleCache(computed_hash, entry);
+      UpdateSimpleCache(local_hash, entry);
     }
 
     task->first->SendAsync(std::move(outgoing));

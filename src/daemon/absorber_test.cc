@@ -89,8 +89,7 @@ TEST_F(AbsorberTest, SuccessfulCompilation) {
 
       EXPECT_TRUE(message.HasExtension(proto::Result::extension));
       EXPECT_TRUE(message.GetExtension(proto::Result::extension).has_obj());
-      EXPECT_TRUE(
-          message.GetExtension(proto::Result::extension).hashes_match());
+      EXPECT_TRUE(message.GetExtension(proto::Result::extension).hash_match());
     });
     return true;
   };
@@ -100,13 +99,12 @@ TEST_F(AbsorberTest, SuccessfulCompilation) {
 
   auto connection = test_service->TriggerListen(expected_host, expected_port);
   {
-    auto message(
-        CreateMessage(source_code, "fake_action"_l, compiler_version));
+    auto message(CreateMessage(source_code, "fake_action"_l, compiler_version));
     auto* extension = message->MutableExtension(proto::Remote::extension);
     auto handled_hash = CompilationDaemon::GenerateHash(
         extension->flags(), cache::string::HandledSource(source_code),
         cache::ExtraFiles());
-    extension->set_source_hash(handled_hash.str);
+    extension->set_handled_hash(handled_hash.str);
 
     SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
@@ -151,8 +149,7 @@ TEST_F(AbsorberTest, SuccessfulCompilationWithBlacklist) {
 
       EXPECT_TRUE(message.HasExtension(proto::Result::extension));
       EXPECT_TRUE(message.GetExtension(proto::Result::extension).has_obj());
-      EXPECT_FALSE(
-          message.GetExtension(proto::Result::extension).hashes_match());
+      EXPECT_FALSE(message.GetExtension(proto::Result::extension).hash_match());
     });
     return true;
   };
@@ -166,7 +163,7 @@ TEST_F(AbsorberTest, SuccessfulCompilationWithBlacklist) {
                                compiler_version, "", "sanitize_blacklist"));
 
     auto* extension = message->MutableExtension(proto::Remote::extension);
-    extension->set_source_hash("difficult_to_match_hash");
+    extension->set_handled_hash("difficult_to_match_hash");
 
     SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);

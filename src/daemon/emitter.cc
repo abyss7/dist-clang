@@ -471,7 +471,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
     if (handled_hash.str.empty()) {
       handled_hash = GenerateHash(incoming->flags(), source, extra_files);
     }
-    outgoing->set_source_hash(handled_hash.str);
+    outgoing->set_handled_hash(handled_hash.str);
 
     // Filter outgoing flags.
     auto* flags = outgoing->mutable_flags();
@@ -524,7 +524,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
       if (result->has_from_cache() && result->from_cache()) {
         STAT(REMOTE_CACHE_HIT);
       }
-      if (result->has_hashes_match() && !result->hashes_match()) {
+      if (result->has_hash_match() && !result->hash_match()) {
         STAT(HASH_MISMATCH);
       }
       if (base::File::Write(output_path,
