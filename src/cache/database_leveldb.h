@@ -14,7 +14,7 @@ namespace cache {
 
 class LevelDB : public Database<Immutable> {
  public:
-  LevelDB(const String& path, const String& name);
+  LevelDB(const Path& path, const String& name);
   ~LevelDB();
 
   bool Set(const String& key, const Immutable& value) override THREAD_SAFE;
@@ -30,7 +30,7 @@ class LevelDB : public Database<Immutable> {
 
  private:
   leveldb::DB* db_ = nullptr;
-  const String path_;
+  const Path path_;
 };
 
 }  // namespace cache

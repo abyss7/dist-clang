@@ -96,8 +96,8 @@ class FileCache {
     Immutable stderr;
   };
 
-  FileCache(const String& path, ui64 size, bool snappy, bool store_index);
-  explicit FileCache(const String& path);
+  FileCache(const Path& path, ui64 size, bool snappy, bool store_index);
+  explicit FileCache(const Path& path);
   ~FileCache();
 
   bool Run(ui64 clean_period);
@@ -115,7 +115,7 @@ class FileCache {
 
   bool Find(string::UnhandledSource code, const ExtraFiles& extra_files,
             string::CommandLine command_line, string::Version version,
-            const String& current_dir, Entry* entry) const;
+            const Path& current_dir, Entry* entry) const;
 
   bool Find(string::HandledHash hash, Entry* entry) const;
 
@@ -143,7 +143,7 @@ class FileCache {
 
   class ReadLock {
    public:
-    ReadLock(const FileCache* WEAK_PTR cache, const String& path);
+    ReadLock(const FileCache* WEAK_PTR cache, const Path& path);
     ~ReadLock() { Unlock(); }
 
     inline operator bool() const { return locked_; }
@@ -151,13 +151,13 @@ class FileCache {
 
    private:
     const FileCache* cache_;
-    const String path_;
+    const Path path_;
     bool locked_ = false;
   };
 
   class WriteLock {
    public:
-    WriteLock(const FileCache* WEAK_PTR cache, const String& path);
+    WriteLock(const FileCache* WEAK_PTR cache, const Path& path);
     ~WriteLock() { Unlock(); }
 
     inline operator bool() const { return locked_; }
@@ -165,20 +165,20 @@ class FileCache {
 
    private:
     const FileCache* cache_;
-    const String path_;
+    const Path path_;
     bool locked_ = false;
   };
 
   friend class ReadLock;
   friend class WriteLock;
 
-  inline String SecondPath(string::Hash hash) const {
+  inline Path SecondPath(string::Hash hash) const {
     DCHECK(hash.str.size() >= 2);
-    return path_ + "/" + hash.str[0] + "/" + hash.str[1];
+    return path_ / String(1, hash.str[0]) / String(1, hash.str[1]);
   }
 
-  inline String CommonPath(string::Hash hash) const {
-    return SecondPath(hash) + "/" + hash.str.string_copy();
+  inline Path CommonPath(string::Hash hash) const {
+    return SecondPath(hash) / hash.str.string_copy();
   }
 
   void DoStore(string::UnhandledHash orig_hash, const List<String>& headers,
@@ -204,7 +204,7 @@ class FileCache {
   mutable HashMap<String, ui32> read_locks_;
   mutable HashSet<String> write_locks_;
 
-  const String path_;
+  const Path path_;
   bool snappy_, store_index_;
   UniquePtr<LevelDB> database_;
   UniquePtr<SQLite> entries_;

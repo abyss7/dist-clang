@@ -15,12 +15,12 @@ namespace client {
 
 Configuration::Configuration() {
   // Try to load config file first.
-  String current_dir = base::GetCurrentDir();
+  Path current_dir = base::GetCurrentDir();
   do {
-    String config_path = current_dir + "/.distclang";
+    const Path config_path = current_dir / ".distclang";
     if (base::LoadFromFile(config_path, &config_)) {
-      if (config_.path()[0] != '/') {
-        config_.set_path(current_dir + "/" + config_.path());
+      if (!config_path.is_absolute()) {
+        config_.set_path(current_dir / config_.path());
       }
       LOG(VERBOSE) << "Took compiler path from " << config_path << " : "
                    << config_.path();
@@ -48,8 +48,8 @@ Configuration::Configuration() {
           continue;
         }
 
-        if (plugin->path()[0] != '/') {
-          plugin->set_path(current_dir + "/" + plugin->path());
+        if (!Path(plugin->path()).is_absolute()) {
+          plugin->set_path(current_dir / plugin->path());
         }
 
         LOG(VERBOSE) << "Took plugin from " << config_path << " : "
@@ -59,7 +59,7 @@ Configuration::Configuration() {
       break;
     }
 
-    current_dir = current_dir.substr(0, current_dir.find_last_of("/"));
+    current_dir = current_dir.parent_path();
   } while (!current_dir.empty());
 
   // Environment variables prevail over config file.
@@ -110,9 +110,10 @@ Configuration::Configuration() {
     }
 
     for (const auto& dir : path_dirs) {
-      // TODO: convert |dir + "/clang"| to canonical path.
-      if (base::File::IsExecutable(dir + "/clang") && dir != self_path) {
-        config_.set_path(dir + "/clang");
+      Path clang_path(dir);
+      clang_path /= "clang";
+      if (base::File::IsExecutable(clang_path) && dir != self_path) {
+        config_.set_path(clang_path);
         break;
       }
     }

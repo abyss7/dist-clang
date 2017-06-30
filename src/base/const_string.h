@@ -16,6 +16,7 @@ namespace base {
 
 class Literal {
  public:
+  inline const char* c_str() const { return str_; }
   inline operator const char*() const { return str_; }
   inline size_t size() const { return strlen(str_); }
   inline bool operator==(const Literal& other) const {

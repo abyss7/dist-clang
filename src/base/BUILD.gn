@@ -42,7 +42,7 @@ shared_library("base") {
     "file/pipe_linux.cc",
     "file/pipe_mac.cc",
     "file_utils.h",
-    "file_utils_posix.cc",
+    "file_utils.cc",
     "future.h",
     "locked_list.h",
     "locked_queue.h",

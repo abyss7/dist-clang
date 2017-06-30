@@ -26,7 +26,7 @@ ClangCommand::ClangCommand(llvm::ArrayRef<const char*> args,
       }()),
       opts_(opts) {}
 
-base::ProcessPtr ClangCommand::CreateProcess(Immutable current_dir,
+base::ProcessPtr ClangCommand::CreateProcess(const Path& current_dir,
                                              ui32 user_id) const {
   NOTREACHED();
   return base::ProcessPtr();
@@ -46,7 +46,7 @@ String ClangCommand::RenderAllArgs() const {
 }
 
 bool ClangCommand::FillFlags(base::proto::Flags* flags,
-                             const String& clang_path,
+                             const Path& clang_path,
                              const String& clang_major_version) const {
   if (!flags) {
     return true;
@@ -141,8 +141,7 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
       auto pos = replaced_command.find(self_path);
       if (pos != String::npos) {
         replaced_command.replace(
-            pos, self_path.size(),
-            clang_path.substr(0, clang_path.find_last_of('/')));
+            pos, self_path.size(), clang_path.parent_path());
         non_direct_list.push_back(arg->getSpelling().data());
         non_direct_list.push_back(tmp_list.MakeArgString(replaced_command));
         LOG(VERBOSE) << "Replaced command: " << non_direct_list.back();

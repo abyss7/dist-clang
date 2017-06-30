@@ -12,13 +12,13 @@ class CleanCommand : public Command {
   CleanCommand(const llvm::opt::ArgStringList& temp_files)
       : temp_files_(temp_files) {}
 
-  base::ProcessPtr CreateProcess(Immutable current_dir,
+  base::ProcessPtr CreateProcess(const Path& current_dir,
                                  ui32 user_id) const override;
   String GetExecutable() const override { return rm_path; }
   String RenderAllArgs() const override;
 
  private:
-  static constexpr const char* rm_path = "/bin/rm";
+  static const char* rm_path;
   const llvm::opt::ArgStringList& temp_files_;
 };
 

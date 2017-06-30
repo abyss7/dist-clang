@@ -43,7 +43,7 @@ TEST(FileCacheTest, ExtraFilesGiveDifferentHash) {
 
 TEST(FileCacheTest, LockNonExistentFile) {
   const base::TemporaryDir tmp_dir;
-  const String absent_path = String(tmp_dir) + "/absent_file";
+  const Path absent_path = tmp_dir.GetPath() / "absent_file";
   FileCache cache(tmp_dir);
 
   {
@@ -58,7 +58,7 @@ TEST(FileCacheTest, LockNonExistentFile) {
 
 TEST(FileCacheTest, DoubleLocks) {
   const base::TemporaryDir tmp_dir;
-  const String file_path = String(tmp_dir) + "/file";
+  const Path file_path = tmp_dir.GetPath() / "file";
   FileCache cache(tmp_dir);
 
   ASSERT_TRUE(base::File::Write(file_path, "1"_l));
@@ -95,11 +95,11 @@ TEST(FileCacheTest, RemoveEntry) {
   string::Hash hash1{"12345678901234567890123456789012-12345678-00000001"_l};
   {
     ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash1)));
-    const String common_path = cache.CommonPath(hash1);
-    const String manifest_path = common_path + ".manifest";
-    const String object_path = common_path + ".o";
-    const String deps_path = common_path + ".d";
-    const String stderr_path = common_path + ".stderr";
+    const Path common_path = cache.CommonPath(hash1);
+    const Path manifest_path = base::AppendExtension(common_path, ".manifest");
+    const Path object_path = base::AppendExtension(common_path, ".o");
+    const Path deps_path = base::AppendExtension(common_path, ".d");
+    const Path stderr_path = base::AppendExtension(common_path, ".stderr");
 
     proto::Manifest manifest;
     manifest.set_version(1);
@@ -115,10 +115,10 @@ TEST(FileCacheTest, RemoveEntry) {
   string::Hash hash2{"12345678901234567890123456789012-12345678-00000002"_l};
   {
     ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash2)));
-    const String common_path = cache.CommonPath(hash2);
-    const String manifest_path = common_path + ".manifest";
-    const String object_path = common_path + ".o";
-    const String deps_path = common_path + ".d";
+    const Path common_path = cache.CommonPath(hash2);
+    const Path manifest_path = base::AppendExtension(common_path, ".manifest");
+    const Path object_path = base::AppendExtension(common_path, ".o");
+    const Path deps_path = base::AppendExtension(common_path, ".d");
 
     proto::Manifest manifest;
     manifest.set_version(1);
@@ -133,10 +133,10 @@ TEST(FileCacheTest, RemoveEntry) {
   string::Hash hash3{"12345678901234567890123456789012-12345678-00000003"_l};
   {
     ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash3)));
-    const String common_path = cache.CommonPath(hash3);
-    const String manifest_path = common_path + ".manifest";
-    const String object_path = common_path + ".o";
-    const String deps_path = common_path + ".d";
+    const Path common_path = cache.CommonPath(hash3);
+    const Path manifest_path = base::AppendExtension(common_path, ".manifest");
+    const Path object_path = base::AppendExtension(common_path, ".o");
+    const Path deps_path = base::AppendExtension(common_path, ".d");
 
     ASSERT_TRUE(base::File::Write(manifest_path, "1"_l));
     ASSERT_TRUE(base::File::Write(object_path, "1"_l));
@@ -159,13 +159,12 @@ TEST(FileCacheTest, RemoveEntry) {
 
 TEST(FileCacheTest, RestoreSingleEntry) {
   const base::TemporaryDir tmp_dir;
-  const String path = tmp_dir;
-  const String object_path = path + "/test.o";
-  const String deps_path = path + "/test.d";
+  const Path object_path = tmp_dir.GetPath() / "test.o";
+  const Path deps_path = tmp_dir.GetPath() / "test.d";
   const auto expected_stderr = "some warning"_l;
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
-  FileCache cache(path);
+  FileCache cache(tmp_dir.GetPath());
   ASSERT_TRUE(cache.Run(1));
   FileCache::Entry entry1, entry2;
 
@@ -195,13 +194,12 @@ TEST(FileCacheTest, RestoreSingleEntry) {
 
 TEST(FileCacheTest, RestoreSingleEntryWithExtraFile) {
   const base::TemporaryDir tmp_dir;
-  const String path = tmp_dir;
-  const String object_path = path + "/test.o";
-  const String deps_path = path + "/test.d";
+  const Path object_path = tmp_dir.GetPath() / "test.o";
+  const Path deps_path = tmp_dir.GetPath() / "test.d";
   const auto expected_stderr = "some warning"_l;
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
-  FileCache cache(path);
+  FileCache cache(tmp_dir.GetPath());
   ASSERT_TRUE(cache.Run(1));
   FileCache::Entry entry1, entry2;
 
@@ -238,13 +236,12 @@ TEST(FileCacheTest, RestoreSingleEntryWithExtraFile) {
 
 TEST(FileCacheTest, RestoreEntryWithMissingFile) {
   const base::TemporaryDir tmp_dir;
-  const String path = tmp_dir;
-  const String object_path = path + "/test.o";
-  const String deps_path = path + "/test.d";
+  const Path object_path = tmp_dir.GetPath() / "test.o";
+  const Path deps_path = tmp_dir.GetPath() / "test.d";
   const auto expected_stderr = "some warning"_l;
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
-  FileCache cache(path);
+  FileCache cache(tmp_dir.GetPath());
   ASSERT_TRUE(cache.Run(1));
   FileCache::Entry entry1, entry2;
 
@@ -263,7 +260,7 @@ TEST(FileCacheTest, RestoreEntryWithMissingFile) {
   // Store the entry.
   cache.Store(hash, entry1);
 
-  base::File::Delete(cache.CommonPath(hash) + ".d");
+  base::File::Delete(base::AppendExtension(cache.CommonPath(hash), ".d"));
 
   // Restore the entry.
   ASSERT_FALSE(cache.Find(hash, &entry2));
@@ -307,8 +304,7 @@ TEST(FileCacheTest, DISABLED_BadInitialCacheSize) {
 
 TEST(FileCacheTest, ExceedCacheSize) {
   const base::TemporaryDir tmp_dir;
-  const String path = tmp_dir;
-  const String cache_path = path + "/cache";
+  const Path cache_path = tmp_dir.GetPath() / "cache";
   const Literal obj_content[] = {"22"_l, "333"_l, "4444"_l};
   const HandledSource code[] = {HandledSource("int main() { return 0; }"_l),
                                 HandledSource("int main() { return 1; }"_l),
@@ -354,16 +350,15 @@ TEST(FileCacheTest, ExceedCacheSize) {
 
 TEST(FileCacheTest, RestoreDirectEntry) {
   const base::TemporaryDir tmp_dir;
-  const String path = tmp_dir;
-  const String object_path = path + "/test.o";
-  const String deps_path = path + "/test.d";
-  const String header1_path = path + "/test1.h";
-  const String header2_path = path + "/test2.h";
-  const String header2_rel_path = "test2.h";
+  const Path object_path = tmp_dir.GetPath() / "test.o";
+  const Path deps_path = tmp_dir.GetPath() / "test.d";
+  const Path header1_path = tmp_dir.GetPath() / "test1.h";
+  const Path header2_path = tmp_dir.GetPath() / "test2.h";
+  const Path header2_rel_path = "test2.h";
   const auto expected_stderr = "some warning"_l;
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
-  FileCache cache(path);
+  FileCache cache(tmp_dir.GetPath());
   ASSERT_TRUE(cache.Run(1));
   FileCache::Entry entry1, entry2;
 
@@ -387,10 +382,11 @@ TEST(FileCacheTest, RestoreDirectEntry) {
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   const List<String> headers = {header1_path, header2_rel_path};
-  cache.Store(orig_code, {}, cl, version, headers, {}, path, hash);
+  cache.Store(orig_code, {}, cl, version, headers, {}, tmp_dir.GetPath(), hash);
 
   // Restore the entry.
-  ASSERT_TRUE(cache.Find(orig_code, {}, cl, version, path, &entry2));
+  ASSERT_TRUE(cache.Find(
+      orig_code, {}, cl, version, tmp_dir.GetPath(), &entry2));
   EXPECT_EQ(expected_object_code, entry2.object);
   EXPECT_EQ(expected_deps, entry2.deps);
   EXPECT_EQ(expected_stderr, entry2.stderr);
@@ -398,12 +394,12 @@ TEST(FileCacheTest, RestoreDirectEntry) {
 
 TEST(FileCacheTest, RestoreDirectEntryWithExtraFile) {
   const base::TemporaryDir tmp_dir;
-  const String path = tmp_dir;
-  const String object_path = path + "/test.o";
-  const String deps_path = path + "/test.d";
-  const String header1_path = path + "/test1.h";
-  const String header2_path = path + "/test2.h";
-  const String header2_rel_path = "test2.h";
+  const Path path = tmp_dir.GetPath();
+  const Path object_path = tmp_dir.GetPath() / "test.o";
+  const Path deps_path = tmp_dir.GetPath() / "test.d";
+  const Path header1_path = tmp_dir.GetPath() / "test1.h";
+  const Path header2_path = tmp_dir.GetPath() / "test2.h";
+  const Path header2_rel_path = "test2.h";
   const auto expected_stderr = "some warning"_l;
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
@@ -452,16 +448,15 @@ TEST(FileCacheTest, RestoreDirectEntryWithExtraFile) {
 
 TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
   const base::TemporaryDir tmp_dir;
-  const String path = tmp_dir;
-  const String object_path = path + "/test.o";
-  const String deps_path = path + "/test.d";
-  const String header1_path = path + "/test1.h";
-  const String header2_path = path + "/test2.h";
-  const String header2_rel_path = "test2.h";
+  const Path object_path = tmp_dir.GetPath() / "test.o";
+  const Path deps_path = tmp_dir.GetPath() / "test.d";
+  const Path header1_path = tmp_dir.GetPath() / "test1.h";
+  const Path header2_path = tmp_dir.GetPath() / "test2.h";
+  const Path header2_rel_path = "test2.h";
   const auto expected_stderr = "some warning"_l;
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
-  FileCache cache(path);
+  FileCache cache(tmp_dir.GetPath());
   ASSERT_TRUE(cache.Run(1));
   FileCache::Entry entry;
 
@@ -485,23 +480,24 @@ TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
   // Store the direct entry.
   const UnhandledSource orig_code("int main() {}"_l);
   const List<String> headers = {header1_path, header2_rel_path};
-  cache.Store(orig_code, {}, cl, version, headers, {}, path, hash);
+  cache.Store(orig_code, {}, cl, version, headers, {}, tmp_dir.GetPath(), hash);
 
   // Change header contents.
   ASSERT_TRUE(base::File::Write(header2_path, "#define C"_l));
 
   // Restore the entry.
-  EXPECT_FALSE(cache.Find(orig_code, {}, cl, version, path, &entry));
+  EXPECT_FALSE(cache.Find(
+      orig_code, {}, cl, version, tmp_dir.GetPath(), &entry));
 }
 
 TEST(FileCacheTest, DirectEntry_ChangedPreprocessedHeaderContents) {
   const base::TemporaryDir tmp_dir;
-  const String path = tmp_dir;
-  const String object_path = path + "/test.o";
-  const String deps_path = path + "/test.d";
-  const String header1_path = path + "/test1.h";
-  const String header2_path = path + "/test2.h";
-  const String preprocessed_header_path = path + "/precompile.h.pth";
+  const Path path = tmp_dir.GetPath();
+  const Path object_path = path / "test.o";
+  const Path deps_path = path / "test.d";
+  const Path header1_path = path / "test1.h";
+  const Path header2_path = path / "test2.h";
+  const Path preprocessed_header_path = path / "precompile.h.pth";
   const auto expected_stderr = "some warning"_l;
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
@@ -544,11 +540,11 @@ TEST(FileCacheTest, DirectEntry_ChangedPreprocessedHeaderContents) {
 
 TEST(FileCacheTest, DirectEntry_RewriteManifest) {
   const base::TemporaryDir tmp_dir;
-  const String path = tmp_dir;
-  const String object_path = path + "/test.o";
-  const String deps_path = path + "/test.d";
-  const String header1_path = path + "/test1.h";
-  const String header2_path = path + "/test2.h";
+  const Path path = tmp_dir.GetPath();
+  const Path object_path = path / "test.o";
+  const Path deps_path = path / "test.d";
+  const Path header1_path = path / "test1.h";
+  const Path header2_path = path / "test2.h";
 
   const auto expected_stderr = "some warning"_l;
   const auto expected_object_code = "some object code"_l;
@@ -590,11 +586,11 @@ TEST(FileCacheTest, DirectEntry_RewriteManifest) {
 
 TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
   const base::TemporaryDir tmp_dir;
-  const String path = tmp_dir;
-  const String object_path = path + "/test.o";
-  const String deps_path = path + "/test.d";
-  const String header1_path = path + "/test1.h";
-  const String header2_path = path + "/test2.h";
+  const Path path = tmp_dir.GetPath();
+  const Path object_path = path / "test.o";
+  const Path deps_path = path / "test.d";
+  const Path header1_path = path / "test1.h";
+  const Path header2_path = path / "test2.h";
   const auto expected_stderr = "some warning"_l;
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
@@ -631,11 +627,11 @@ TEST(FileCacheTest, DirectEntry_ChangedOriginalCode) {
 
 TEST(FileCacheTest, DirectEntry_ChangedExtraFile) {
   const base::TemporaryDir tmp_dir;
-  const String path = tmp_dir;
-  const String object_path = path + "/test.o";
-  const String deps_path = path + "/test.d";
-  const String header1_path = path + "/test1.h";
-  const String header2_path = path + "/test2.h";
+  const Path path = tmp_dir.GetPath();
+  const Path object_path = path / "test.o";
+  const Path deps_path = path / "test.d";
+  const Path header1_path = path / "test1.h";
+  const Path header2_path = path / "test2.h";
   const auto expected_stderr = "some warning"_l;
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
@@ -677,9 +673,9 @@ TEST(FileCacheTest, DirectEntry_ChangedExtraFile) {
 
 TEST(FileCacheTest, RestoreAndMigrateSnappyEntry) {
   const base::TemporaryDir tmp_dir;
-  const String path = tmp_dir;
-  const String object_path = path + "/test.o";
-  const String deps_path = path + "/test.d";
+  const Path path = tmp_dir.GetPath();
+  const Path object_path = path / "test.o";
+  const Path deps_path = path / "test.d";
   const auto expected_stderr = "some warning"_l;
   const auto expected_object_code = "some object code"_l;
   const auto expected_deps = "some deps"_l;
@@ -734,7 +730,8 @@ TEST(FileCacheTest, UseIndexFromDisk) {
 
   {
     FileCache cache(tmp_dir, FileCache::UNLIMITED, false, true);
-    const String manifest_path = cache.CommonPath(hash) + ".manifest";
+    const Path manifest_path =
+        base::AppendExtension(cache.CommonPath(hash), ".manifest");
 
     ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash)));
 
@@ -752,7 +749,8 @@ TEST(FileCacheTest, UseIndexFromDisk) {
 
   {
     FileCache cache(tmp_dir, FileCache::UNLIMITED, false, true);
-    const String manifest_path = cache.CommonPath(hash) + ".manifest";
+    const Path manifest_path =
+        base::AppendExtension(cache.CommonPath(hash), ".manifest");
 
     ASSERT_TRUE(base::File::Write(manifest_path, "1"_l));
     EXPECT_TRUE(cache.Run(1));

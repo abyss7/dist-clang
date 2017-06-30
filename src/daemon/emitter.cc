@@ -22,21 +22,23 @@ using Counter = perf::Counter<perf::StatReporter, ReportByDefault>;
 
 namespace {
 
-inline String GetOutputPath(const base::proto::Local* WEAK_PTR message) {
+inline Path GetOutputPath(const base::proto::Local* WEAK_PTR message) {
   DCHECK(message);
-  if (message->flags().output()[0] == '/') {
+  const Path output_path(message->flags().output());
+  if (output_path.is_absolute()) {
     return message->flags().output();
   } else {
-    return message->current_dir() + "/" + message->flags().output();
+    return Path(message->current_dir()) / output_path;
   }
 }
 
 inline String GetDepsPath(const base::proto::Local* WEAK_PTR message) {
   DCHECK(message);
-  if (message->flags().deps_file()[0] == '/') {
+  const Path deps_path(message->flags().deps_file());
+  if (deps_path.is_absolute()) {
     return message->flags().deps_file();
   } else {
-    return message->current_dir() + "/" + message->flags().deps_file();
+    return Path(message->current_dir()) / deps_path;
   }
 }
 
@@ -60,10 +62,10 @@ inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
   base::ProcessPtr process;
   if (message->has_user_id()) {
     process = daemon::CompilationDaemon::CreateProcess(
-        pp_flags, message->user_id(), Immutable(message->current_dir()));
+        pp_flags, message->user_id(), message->current_dir());
   } else {
     process = daemon::CompilationDaemon::CreateProcess(
-        pp_flags, Immutable(message->current_dir()));
+        pp_flags, message->current_dir());
   }
 
   if (!process->Run(10)) {
@@ -231,7 +233,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     auto RestoreFromCache = [&](const HandledSource& source,
                                 const cache::ExtraFiles& extra_files) {
       String error;
-      const String output_path = GetOutputPath(incoming);
+      const Path output_path = GetOutputPath(incoming);
 
       if (!base::File::Write(output_path, entry.object, &error)) {
         LOG(ERROR) << "Failed to write file from cache: " << output_path
@@ -344,7 +346,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
         incoming->has_user_id() ? incoming->user_id() : base::Process::SAME_UID;
     Counter<> counter(Metric::LOCAL_COMPILATION_TIME);
     base::ProcessPtr process = CreateProcess(
-        incoming->flags(), uid, Immutable(incoming->current_dir()));
+        incoming->flags(), uid, incoming->current_dir());
     if (!process->Run(base::Process::UNLIMITED, &error)) {
       status.set_code(net::proto::Status::EXECUTION);
       if (!process->stderr().empty()) {
@@ -518,7 +520,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
       }
     }
 
-    const String output_path = GetOutputPath(incoming);
+    const Path output_path = GetOutputPath(incoming);
     if (reply->HasExtension(proto::Result::extension)) {
       auto* result = reply->MutableExtension(proto::Result::extension);
       if (result->has_from_cache() && result->from_cache()) {

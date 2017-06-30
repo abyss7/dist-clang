@@ -15,24 +15,31 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include STL_EXPERIMENTAL(filesystem)
+#include STL(system_error)
+
 namespace dist_clang {
 namespace base {
 
-inline bool ChangeCurrentDir(Immutable path, String* error) {
-  if (chdir(path.c_str()) == -1) {
-    GetLastError(error);
+inline bool ChangeCurrentDir(const Path& path, String* error) {
+  std::error_code ec;
+  std::experimental::filesystem::current_path(path, ec);
+  if (ec) {
+    if (error) {
+      *error = ec.message();
+    }
     return false;
   }
   return true;
 }
 
-inline Immutable GetCurrentDir(String* error) {
-  UniquePtr<char[]> buf(new char[PATH_MAX]);
-  if (!getcwd(buf.get(), PATH_MAX)) {
-    GetLastError(error);
-    return Immutable();
+inline Path GetCurrentDir(String* error) {
+  std::error_code ec;
+  const auto& current_dir = std::experimental::filesystem::current_path(ec);
+  if (ec && error) {
+    *error = ec.message();
   }
-  return buf;
+  return current_dir;
 }
 
 inline Literal GetEnv(Literal env_name, Literal default_env) {
@@ -51,6 +58,20 @@ inline void GetLastError(String* error) {
     error->assign(strerror(errno));
   }
 }
+
+inline bool SetPermissions(const Path& path, const Perms permissions,
+                           String* error) {
+  std::error_code ec;
+  std::experimental::filesystem::permissions(path.c_str(), permissions, ec);
+  if (ec) {
+    if (error) {
+      *error = ec.message();
+    }
+    return false;
+  }
+  return true;
+}
+
 
 }  // namespace base
 }  // namespace dist_clang

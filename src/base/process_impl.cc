@@ -11,7 +11,7 @@
 namespace dist_clang {
 namespace base {
 
-ProcessImpl::ProcessImpl(const String& exec_path, Immutable cwd_path, ui32 uid)
+ProcessImpl::ProcessImpl(const Path& exec_path, const Path& cwd_path, ui32 uid)
     : Process(exec_path, cwd_path, uid), killed_(false) {}
 
 // This method contains code between |fork()| and |exec()|. Since we're in a
@@ -37,7 +37,7 @@ bool ProcessImpl::RunChild(Pipe& out, Pipe& err, Pipe* in) {
   err[0].Close();
 
   if (!cwd_path_.empty() && !ChangeCurrentDir(cwd_path_)) {
-    std::cerr << "Can't change current directory to " << cwd_path_.c_str()
+    std::cerr << "Can't change current directory to " << cwd_path_
               << std::endl;
     exit(1);
   }
@@ -68,7 +68,7 @@ bool ProcessImpl::RunChild(Pipe& out, Pipe& err, Pipe* in) {
        execve(exec_path_.c_str(), const_cast<char* const*>(argv),
               const_cast<char* const*>(env)) == -1) ||
       execv(exec_path_.c_str(), const_cast<char* const*>(argv)) == -1) {
-    std::cerr << "Failed to execute " << exec_path_.c_str() << ": "
+    std::cerr << "Failed to execute " << exec_path_ << ": "
               << strerror(errno) << std::endl;
     exit(1);
   }

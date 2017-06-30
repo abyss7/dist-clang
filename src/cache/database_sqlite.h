@@ -24,7 +24,7 @@ class SQLite : public Database<size_t /* mtime */, size_t /* size */,
   };
 
   SQLite();
-  SQLite(const String& path, const String& name);
+  SQLite(const Path& path, const String& name);
   ~SQLite() override;
 
   bool Get(const String& key, Value* value) const override;
@@ -42,7 +42,7 @@ class SQLite : public Database<size_t /* mtime */, size_t /* size */,
   bool Migrate() const;
 
   sqlite3* db_ = nullptr;
-  const String path_;
+  const Path path_;
 
   const ui32 kSQLiteVersion = 0;
 };

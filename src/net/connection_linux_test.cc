@@ -63,7 +63,7 @@ class TestServer : public EventLoop {
     if (tmp_dir_.GetPath().empty()) {
       return false;
     }
-    socket_path_ = tmp_dir_.GetPath() + "/socket";
+    socket_path_ = tmp_dir_.GetPath() / "socket";
 
     sockaddr_un address;
     address.sun_family = AF_UNIX;

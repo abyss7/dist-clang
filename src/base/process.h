@@ -20,6 +20,8 @@ FORWARD_TEST(ClientTest, SendPluginPath);
 }  // namespace client
 
 namespace daemon {
+FORWARD_TEST(AbsorberTest, OverloadOnQueueSizeExceed);
+FORWARD_TEST(AbsorberTest, RestoreFromCacheOnOverload);
 FORWARD_TEST(AbsorberTest, StoreLocalCacheWithoutBlacklist);
 FORWARD_TEST(AbsorberTest, StoreLocalCacheWithBlacklist);
 FORWARD_TEST(AbsorberTest, StoreLocalCacheWithAndWithoutBlacklist);
@@ -50,12 +52,12 @@ namespace base {
 class ProcessImpl;
 
 class Process
-    : public Testable<Process, ProcessImpl, const String&, Immutable, ui32> {
+    : public Testable<Process, ProcessImpl, const Path&, const Path&, ui32> {
  public:
   enum : ui16 { UNLIMITED = 0 };
   enum : ui32 { SAME_UID = 0 };
 
-  explicit Process(const String& exec_path, Immutable cwd_path = Immutable(),
+  explicit Process(const Path& exec_path, const Path& cwd_path = Path(),
                    ui32 uid = SAME_UID);
   virtual ~Process() {}
 
@@ -84,7 +86,7 @@ class Process
                    String* error = nullptr) = 0;
 
  protected:
-  Immutable exec_path_, cwd_path_;
+  Path exec_path_, cwd_path_;
   List<Immutable> args_, envs_;
   Immutable stdout_, stderr_;
   const ui32 uid_;
@@ -98,6 +100,8 @@ class Process
   FRIEND_TEST(client::ClientTest, SuccessfulCompilation);
   FRIEND_TEST(client::ClientTest, FailedCompilation);
   FRIEND_TEST(client::ClientTest, SendPluginPath);
+  FRIEND_TEST(daemon::AbsorberTest, OverloadOnQueueSizeExceed);
+  FRIEND_TEST(daemon::AbsorberTest, RestoreFromCacheOnOverload);
   FRIEND_TEST(daemon::AbsorberTest, StoreLocalCacheWithoutBlacklist);
   FRIEND_TEST(daemon::AbsorberTest, StoreLocalCacheWithBlacklist);
   FRIEND_TEST(daemon::AbsorberTest, StoreLocalCacheWithAndWithoutBlacklist);

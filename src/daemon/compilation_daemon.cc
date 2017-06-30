@@ -88,8 +88,8 @@ bool ParseDeps(String deps, List<String>& headers) {
   return true;
 }
 
-inline String GetFullPath(const String& current_dir, const String& path) {
-  return path[0] == '/' ? path : current_dir + "/" + path;
+inline String GetFullPath(const Path& current_dir, const Path& path) {
+  return path.is_absolute() ? path : current_dir / path;
 }
 
 }  // namespace
@@ -220,7 +220,7 @@ bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
 }
 
 bool CompilationDaemon::ReadExtraFiles(const base::proto::Flags& flags,
-                                       const String& current_dir,
+                                       const Path& current_dir,
                                        ExtraFiles* extra_files) const {
   DCHECK(extra_files);
   DCHECK(extra_files->empty());
@@ -230,7 +230,7 @@ bool CompilationDaemon::ReadExtraFiles(const base::proto::Flags& flags,
   }
 
   Immutable sanitize_blacklist_contents;
-  const String sanitize_blacklist =
+  const Path sanitize_blacklist =
       GetFullPath(current_dir, flags.sanitize_blacklist());
   if (!base::File::Read(sanitize_blacklist, &sanitize_blacklist_contents)) {
     LOG(CACHE_ERROR) << "Failed to read sanitize blacklist file"
@@ -252,7 +252,7 @@ bool CompilationDaemon::SearchSimpleCache(
 }
 
 bool CompilationDaemon::SearchDirectCache(
-    const base::proto::Flags& flags, const String& current_dir,
+    const base::proto::Flags& flags, const Path& current_dir,
     cache::FileCache::Entry* entry) const {
   auto conf = this->conf();
 
@@ -267,7 +267,7 @@ bool CompilationDaemon::SearchDirectCache(
   Counter counter(Metric::DIRECT_CACHE_LOOKUP_TIME);
 
   const Version version(flags.compiler().version());
-  const String input = GetFullPath(current_dir, flags.input());
+  const Path input = GetFullPath(current_dir, flags.input());
   const CommandLine command_line(CommandLineForDirectCache(current_dir, flags));
 
   UnhandledSource code;
@@ -363,7 +363,7 @@ bool CompilationDaemon::Check(const Configuration& conf) const {
 
 // static
 base::ProcessPtr CompilationDaemon::CreateProcess(
-    const base::proto::Flags& flags, ui32 user_id, Immutable cwd_path) {
+    const base::proto::Flags& flags, ui32 user_id, const Path& cwd_path) {
   DCHECK(flags.compiler().has_path());
   base::ProcessPtr process =
       base::Process::Create(flags.compiler().path(), cwd_path, user_id);
@@ -404,7 +404,7 @@ base::ProcessPtr CompilationDaemon::CreateProcess(
 
 // static
 base::ProcessPtr CompilationDaemon::CreateProcess(
-    const base::proto::Flags& flags, Immutable cwd_path) {
+    const base::proto::Flags& flags, const Path& cwd_path) {
   return CreateProcess(flags, base::Process::SAME_UID, cwd_path);
 }
 

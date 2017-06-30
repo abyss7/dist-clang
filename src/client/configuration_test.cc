@@ -1,18 +1,22 @@
 #include <client/configuration.hh>
 
+#include <base/c_utils.h>
 #include <base/file_utils.h>
 #include <base/protobuf_utils.h>
 #include <base/temporary_dir.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest.h>
 
+#include STL_EXPERIMENTAL(filesystem)
+
 namespace dist_clang {
 namespace client {
 
 TEST(ClientConfigurationTest, ConfigFileInParentDir) {
   const base::TemporaryDir tmp_dir;
-  const String child_dir = String(tmp_dir) + "/1";
-  const String config_path = String(tmp_dir) + "/.distclang";
+  const Path temp_dir_path = tmp_dir.GetPath();
+  const Path child_dir = temp_dir_path / "1";
+  const Path config_path = temp_dir_path / ".distclang";
 
   ASSERT_TRUE(base::CreateDirectory(child_dir));
 
@@ -32,10 +36,10 @@ TEST(ClientConfigurationTest, ConfigFileInParentDir) {
   ASSERT_TRUE(base::SaveToFile(config_path, config));
 
   auto old_cwd = base::GetCurrentDir();
-  ASSERT_TRUE(base::ChangeCurrentDir(Immutable::WrapString(child_dir)));
+  ASSERT_TRUE(base::ChangeCurrentDir(child_dir));
   Configuration configuration;
   EXPECT_EQ(1, configuration.config().plugins_size());
-  EXPECT_EQ('/', configuration.config().plugins(0).path()[0])
+  EXPECT_TRUE(Path(configuration.config().plugins(0).path()).is_absolute())
       << configuration.config().plugins(0).path();
   base::ChangeCurrentDir(old_cwd);
 }

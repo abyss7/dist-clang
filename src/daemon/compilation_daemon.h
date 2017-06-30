@@ -13,9 +13,9 @@ class CompilationDaemon : public BaseDaemon {
 
   static base::ProcessPtr CreateProcess(const base::proto::Flags& flags,
                                         ui32 user_id,
-                                        Immutable cwd_path = Immutable());
+                                        const Path& cwd_path = Path());
   static base::ProcessPtr CreateProcess(const base::proto::Flags& flags,
-                                        Immutable cwd_path = Immutable());
+                                        const Path& cwd_path = Path());
 
   static cache::string::HandledHash GenerateHash(
       const base::proto::Flags& flags, const cache::string::HandledSource& code,
@@ -28,14 +28,14 @@ class CompilationDaemon : public BaseDaemon {
                      net::proto::Status* status) const;
 
   bool ReadExtraFiles(const base::proto::Flags& flags,
-                      const String& current_dir,
+                      const Path& current_dir,
                       cache::ExtraFiles* extra_files) const;
 
   bool SearchSimpleCache(const cache::string::HandledHash& hash,
                          cache::FileCache::Entry* entry) const;
 
   bool SearchDirectCache(const base::proto::Flags& flags,
-                         const String& current_dir,
+                         const Path& current_dir,
                          cache::FileCache::Entry* entry) const;
 
   void UpdateSimpleCache(const cache::string::HandledHash& hash,

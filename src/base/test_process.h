@@ -16,8 +16,8 @@ class TestProcess : public Process {
    public:
     using OnCreateCallback = Fn<void(TestProcess*)>;
 
-    virtual UniquePtr<Process> Create(const String& exec_path,
-                                      Immutable cwd_path, ui32 uid) override;
+    virtual UniquePtr<Process> Create(const Path& exec_path,
+                                      const Path& cwd_path, ui32 uid) override;
 
     inline void CallOnCreate(OnCreateCallback callback) {
       on_create_ = callback;
@@ -36,7 +36,7 @@ class TestProcess : public Process {
   String PrintArgs() const;  // helper for gtest assertions.
 
  private:
-  TestProcess(const String& exec_path, Immutable cwd_path, ui32 uid);
+  TestProcess(const Path& exec_path, const Path& cwd_path, ui32 uid);
 
   OnRunCallback on_run_ = EmptyLambda<bool>(false);
   Atomic<ui32>* run_attempts_ = nullptr;

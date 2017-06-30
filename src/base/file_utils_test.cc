@@ -1,116 +1,56 @@
 #include <base/file_utils.h>
 
+#include <base/c_utils.h>
 #include <base/const_string.h>
 #include <base/file/file.h>
 #include <base/temporary_dir.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest.h>
+#include STL(fstream)
+#include STL(system_error)
 #include STL(thread)
 
-#include <dirent.h>
-#include <fcntl.h>
+#include STL_EXPERIMENTAL(filesystem)
 
 namespace dist_clang {
 namespace base {
 
 TEST(FileUtilsTest, CalculateDirectorySize) {
   const base::TemporaryDir temp_dir;
-  const String dir1 = String(temp_dir) + "/1";
-  const String dir2 = String(temp_dir) + "/2";
-  const String file1 = String(temp_dir) + "/file1";
-  const String file2 = dir1 + "/file2";
-  const String file3 = dir2 + "/file3";
+  const Path temp_dir_path(temp_dir.GetPath());
+  const Path dir1 = temp_dir_path / "1";
+  const Path dir2 = temp_dir_path / "2";
+  const Path file1 = temp_dir_path / "file1";
+  const Path file2 = dir1 / "file2";
+  const Path file3 = dir2 / "file3";
   const String content1 = "a";
   const String content2 = "ab";
   const String content3 = "abc";
 
-  ASSERT_NE(-1, mkdir(dir1.c_str(), 0777));
-  ASSERT_NE(-1, mkdir(dir2.c_str(), 0777));
-  int fd1 = open(file1.c_str(), O_CREAT | O_WRONLY);
-  int fd2 = open(file2.c_str(), O_CREAT | O_WRONLY);
-  int fd3 = open(file3.c_str(), O_CREAT | O_WRONLY);
-  ASSERT_TRUE(fd1 != -1 && fd2 != -1 && fd3 != -1);
-  ASSERT_EQ(content1.size(),
-            static_cast<size_t>(write(fd1, content1.data(), content1.size())));
-  ASSERT_EQ(content2.size(),
-            static_cast<size_t>(write(fd2, content2.data(), content2.size())));
-  ASSERT_EQ(content3.size(),
-            static_cast<size_t>(write(fd3, content3.data(), content3.size())));
-  close(fd1);
-  close(fd2);
-  close(fd3);
+  std::error_code ec;
+
+  std::experimental::filesystem::create_directory(dir1, ec);
+  ASSERT_FALSE(ec) << ec.message();
+  std::experimental::filesystem::create_directory(dir2, ec);
+  ASSERT_FALSE(ec) << ec.message();
+
+  std::ofstream f1(file1);
+  std::ofstream f2(file2);
+  std::ofstream f3(file3);
+  ASSERT_TRUE(f1.good() && f2.good() && f3.good());
+
+  f1 << content1;
+  f2 << content2;
+  f3 << content3;
+
+  f1.close();
+  f2.close();
+  f3.close();
 
   String error;
   EXPECT_EQ(content1.size() + content2.size() + content3.size(),
             CalculateDirectorySize(temp_dir, &error))
       << error;
-}
-
-TEST(FileUtilsTest, LeastRecentPath) {
-  const base::TemporaryDir temp_dir;
-  const String dir = String(temp_dir) + "/1";
-  const String file1 = String(temp_dir) + "/2";
-  const String file2 = dir + "/3";
-  const String file3 = dir + "/4";
-
-  ASSERT_NE(-1, mkdir(dir.c_str(), 0777));
-
-  std::this_thread::sleep_for(Seconds(1));
-  int fd = open(file1.c_str(), O_CREAT, 0777);
-  ASSERT_NE(-1, fd);
-  close(fd);
-
-  String path;
-  EXPECT_TRUE(GetLeastRecentPath(temp_dir, path));
-  EXPECT_EQ(dir, path) << "dir mtime is " << GetModificationTime(dir).first
-                       << ":" << GetModificationTime(dir).second
-                       << " ; path mtime is " << GetModificationTime(path).first
-                       << ":" << GetModificationTime(path).second;
-
-  std::this_thread::sleep_for(Seconds(1));
-  fd = open(file2.c_str(), O_CREAT, 0777);
-  ASSERT_NE(-1, fd);
-  close(fd);
-
-  EXPECT_TRUE(GetLeastRecentPath(temp_dir, path));
-  EXPECT_EQ(file1, path) << "file1 mtime is "
-                         << GetModificationTime(file1).first << ":"
-                         << GetModificationTime(file1).second
-                         << " ; path mtime is "
-                         << GetModificationTime(path).first << ":"
-                         << GetModificationTime(path).second;
-
-  std::this_thread::sleep_for(Seconds(1));
-  fd = open(file3.c_str(), O_CREAT, 0777);
-  ASSERT_NE(-1, fd);
-  close(fd);
-
-  EXPECT_TRUE(GetLeastRecentPath(dir, path));
-  EXPECT_EQ(file2, path) << "file2 mtime is "
-                         << GetModificationTime(file2).first << ":"
-                         << GetModificationTime(file2).second
-                         << " ; path mtime is "
-                         << GetModificationTime(path).first << ":"
-                         << GetModificationTime(path).second;
-}
-
-TEST(FileUtilsTest, LeastRecentPathWithRegex) {
-  const base::TemporaryDir temp_dir;
-  const String file1 = String(temp_dir) + "/1";
-  const String file2 = String(temp_dir) + "/2";
-
-  int fd = open(file1.c_str(), O_CREAT, 0777);
-  ASSERT_NE(-1, fd);
-  close(fd);
-
-  std::this_thread::sleep_for(Seconds(1));
-  fd = open(file2.c_str(), O_CREAT, 0777);
-  ASSERT_NE(-1, fd);
-  close(fd);
-
-  String path;
-  EXPECT_TRUE(GetLeastRecentPath(temp_dir, path, "2"));
-  EXPECT_EQ(file2, path);
 }
 
 TEST(FileUtilsTest, TempFile) {
@@ -126,15 +66,13 @@ TEST(FileUtilsTest, TempFile) {
 TEST(FileUtilsTest, CreateDirectory) {
   String error;
   const base::TemporaryDir temp_dir;
-  const String temp = String(temp_dir) + "/1/2/3";
+  const Path& temp = temp_dir.GetPath() / "1" / "2" / "3";
 
-  ASSERT_TRUE(CreateDirectory(temp, &error)) << error;
+  ASSERT_TRUE(CreateDirectory(temp.string(), &error)) << error;
 
-  DIR* dir = opendir(temp.c_str());
-  EXPECT_TRUE(dir);
-  if (dir) {
-    closedir(dir);
-  }
+  std::error_code ec;
+  EXPECT_TRUE(std::experimental::filesystem::exists(temp, ec));
+  ASSERT_FALSE(ec) << ec.message();
 }
 
 }  // namespace base

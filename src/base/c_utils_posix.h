@@ -23,7 +23,7 @@ inline Literal SetEnv(Literal env_name, const String& value, String* error) {
   return old_value;
 }
 
-inline String CreateTempFile(String* error) {
+inline Path CreateTempFile(String* error) {
   char buf[] = "/tmp/clangd-XXXXXX.files";
 #if defined(OS_LINUX)
   const int fd = mkostemps(buf, 6, O_CLOEXEC);
@@ -35,13 +35,13 @@ inline String CreateTempFile(String* error) {
 #endif
   if (fd == -1) {
     GetLastError(error);
-    return String();
+    return Path();
   }
   close(fd);
-  return String(buf);
+  return Path(buf);
 }
 
-inline String CreateTempFile(const char suffix[], String* error) {
+inline Path CreateTempFile(const char suffix[], String* error) {
   const char prefix[] = "/tmp/clangd-XXXXXX";
   const size_t prefix_size = sizeof(prefix) - 1;
   UniquePtr<char[]> buf(new char[prefix_size + strlen(suffix) + 1]);
@@ -59,11 +59,10 @@ inline String CreateTempFile(const char suffix[], String* error) {
 #endif
   if (fd == -1) {
     GetLastError(error);
-    return String();
+    return Path();
   }
   close(fd);
-  const auto result = String(buf.get());
-  return result;
+  return Path(buf.get());
 }
 
 inline Literal GetHomeDir(String* error) {
@@ -101,14 +100,6 @@ inline bool GetSelfPath(String& result, String* error) {
 
   result = String(path);
   result = result.substr(0, result.find_last_of('/'));
-  return true;
-}
-
-inline bool SetPermissions(const String& path, int mask, String* error) {
-  if (chmod(path.c_str(), mask) == -1) {
-    GetLastError(error);
-    return false;
-  }
   return true;
 }
 

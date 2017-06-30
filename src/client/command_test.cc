@@ -1,4 +1,5 @@
 #include <base/base.pb.h>
+#include <base/c_utils.h>
 #include <base/file_utils.h>
 #include <client/command.hh>
 
