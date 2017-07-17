@@ -238,7 +238,7 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
 
   conf.mutable_emitter()->set_only_failed(true);
   conf.mutable_emitter()->set_poll_interval(1u);
-  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_path(temp_dir.str());
   conf.mutable_cache()->set_direct(false);
   conf.mutable_cache()->set_clean_period(1);
 
@@ -400,7 +400,7 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
 
     auto message = std::make_unique<net::Connection::Message>();
     auto* extension = message->MutableExtension(base::proto::Local::extension);
-    extension->set_current_dir(temp_dir);
+    extension->set_current_dir(temp_dir.str());
 
     auto* flags = extension->mutable_flags();
     flags->mutable_compiler()->set_version(compiler_version);
@@ -430,7 +430,7 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
 
     auto message = std::make_unique<net::Connection::Message>();
     auto* extension = message->MutableExtension(base::proto::Local::extension);
-    extension->set_current_dir(temp_dir);
+    extension->set_current_dir(temp_dir.str());
 
     auto* flags = extension->mutable_flags();
     flags->mutable_compiler()->set_version(compiler_version);
@@ -1536,10 +1536,10 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
   const auto plugin_name = "fake_plugin"_l;
   const auto plugin_path = "fake_plugin_path"_l;
 
-  const Path output_path2 = temp_dir.GetPath() / "test2.o";
+  const Path output_path2 = Path(temp_dir) / "test2.o";
   // |output_path2| checks that everything works fine with absolute paths.
 
-  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_path(temp_dir.str());
   conf.mutable_cache()->set_direct(false);
   conf.mutable_cache()->set_clean_period(1);
 
@@ -1591,7 +1591,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
-    extension->set_current_dir(temp_dir);
+    extension->set_current_dir(temp_dir.str());
 
     extension->mutable_flags()->set_input(input_path1);
     extension->mutable_flags()->set_output(output_path1);
@@ -1618,7 +1618,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
-    extension->set_current_dir(temp_dir);
+    extension->set_current_dir(temp_dir.str());
 
     extension->mutable_flags()->set_input(input_path2);
     extension->mutable_flags()->set_output(output_path2);
@@ -1683,11 +1683,11 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
   const auto plugin_path = "fake_plugin_path"_l;
   const auto remote_compilation_time = std::chrono::milliseconds(10);
 
-  const Path output_path2 = temp_dir.GetPath() / "test2.o";
+  const Path output_path2 = Path(temp_dir) / "test2.o";
   // |output_path2| checks that everything works fine with absolute paths.
 
   conf.mutable_emitter()->set_only_failed(true);
-  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_path(temp_dir.str());
   conf.mutable_cache()->set_direct(false);
   conf.mutable_cache()->set_clean_period(1);
 
@@ -1772,7 +1772,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
 
-    extension->set_current_dir(temp_dir);
+    extension->set_current_dir(temp_dir.str());
     extension->mutable_flags()->set_input(input_path1);
     extension->mutable_flags()->set_output(output_path1);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
@@ -1799,7 +1799,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
-    extension->set_current_dir(temp_dir);
+    extension->set_current_dir(temp_dir.str());
 
     extension->mutable_flags()->set_input(input_path2);
     extension->mutable_flags()->set_output(output_path2);
@@ -1881,7 +1881,7 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteFail) {
   const auto local_compilation_time = std::chrono::milliseconds(10);
 
   conf.mutable_emitter()->set_only_failed(true);
-  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_path(temp_dir.str());
   conf.mutable_cache()->set_direct(false);
   conf.mutable_cache()->set_clean_period(1);
 
@@ -1955,7 +1955,7 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteFail) {
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
 
-    extension->set_current_dir(temp_dir);
+    extension->set_current_dir(temp_dir.str());
     extension->mutable_flags()->set_input(input_path1);
     extension->mutable_flags()->set_output(output_path1);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
@@ -2027,7 +2027,7 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteRejects) {
   const auto preprocess_time = std::chrono::milliseconds(10);
 
   conf.mutable_emitter()->set_only_failed(true);
-  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_path(temp_dir.str());
   conf.mutable_cache()->set_direct(false);
   conf.mutable_cache()->set_clean_period(1);
 
@@ -2101,7 +2101,7 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteRejects) {
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
 
-    extension->set_current_dir(temp_dir);
+    extension->set_current_dir(temp_dir.str());
     extension->mutable_flags()->set_input(input_path1);
     extension->mutable_flags()->set_output(output_path1);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
@@ -2171,7 +2171,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
   const auto plugin_path = "fake_plugin_path"_l;
   const auto sanitize_blacklist_path = "asan-blacklist.txt"_l;
 
-  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_path(temp_dir.str());
   conf.mutable_cache()->set_direct(false);
   conf.mutable_cache()->set_clean_period(1);
 
@@ -2228,7 +2228,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
-    extension->set_current_dir(temp_dir);
+    extension->set_current_dir(temp_dir.str());
 
     extension->mutable_flags()->set_input(input_path);
     extension->mutable_flags()->set_output(output_path1);
@@ -2255,7 +2255,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
-    extension->set_current_dir(temp_dir);
+    extension->set_current_dir(temp_dir.str());
 
     extension->mutable_flags()->set_input(input_path);
     extension->mutable_flags()->set_output(output_path2);
@@ -2296,7 +2296,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
 TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
   // Prepare environment.
   const base::TemporaryDir temp_dir;
-  const auto path = Immutable(String(temp_dir));
+  const auto path = Immutable(temp_dir.str());
   const auto input1_path = path + "/test1.cc"_l;
   const auto input2_path = path + "/test2.cc"_l;
   const auto header1_path = path + "/header1.h"_l;
@@ -2314,7 +2314,7 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
   const String plugin_name = "fake_plugin";
   const auto plugin_path = "fake_plugin_path"_l;
 
-  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_path(temp_dir.str());
   conf.mutable_cache()->set_direct(true);
   conf.mutable_cache()->set_clean_period(1);
 
@@ -2379,7 +2379,7 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
-    extension->set_current_dir(temp_dir);
+    extension->set_current_dir(temp_dir.str());
 
     extension->mutable_flags()->set_input(input1_path);
     extension->mutable_flags()->set_output(output1_path);
@@ -2407,7 +2407,7 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
-    extension->set_current_dir(temp_dir);
+    extension->set_current_dir(temp_dir.str());
 
     extension->mutable_flags()->set_input(input2_path);
     extension->mutable_flags()->set_output(output2_path);
@@ -2466,7 +2466,7 @@ TEST_F(EmitterTest,
        StoreDirectCacheForLocalResultWithAndWithoutIncludedHeaders) {
   // Prepare environment.
   const base::TemporaryDir temp_dir;
-  const auto path = Immutable(String(temp_dir));
+  const auto path = Immutable(temp_dir.str());
   const auto input_path = path + "/test.cc"_l;
   const auto header1_path = path + "/header1.h"_l;
   const auto header2_path = path + "/header2.h"_l;
@@ -2499,7 +2499,7 @@ TEST_F(EmitterTest,
   const String plugin_name = "fake_plugin";
   const auto plugin_path = "fake_plugin_path"_l;
 
-  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_path(temp_dir.str());
   conf.mutable_cache()->set_direct(true);
   conf.mutable_cache()->set_clean_period(1);
 
@@ -2560,7 +2560,7 @@ TEST_F(EmitterTest,
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
-    extension->set_current_dir(temp_dir);
+    extension->set_current_dir(temp_dir.str());
 
     extension->mutable_flags()->set_input(input_path);
     extension->mutable_flags()->set_output(output_path);
@@ -2588,7 +2588,7 @@ TEST_F(EmitterTest,
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
-    extension->set_current_dir(temp_dir);
+    extension->set_current_dir(temp_dir.str());
 
     extension->mutable_flags()->set_input(input_path);
     extension->mutable_flags()->set_output(output_path);
@@ -2619,7 +2619,7 @@ TEST_F(EmitterTest,
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
-    extension->set_current_dir(temp_dir);
+    extension->set_current_dir(temp_dir.str());
 
     extension->mutable_flags()->set_input(input_path);
     extension->mutable_flags()->set_output(output_path);
@@ -2662,7 +2662,7 @@ TEST_F(EmitterTest,
 TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
   // Prepare environment.
   const base::TemporaryDir temp_dir;
-  const auto path = Immutable(String(temp_dir));
+  const auto path = Immutable(temp_dir.str());
   const auto input1_path = path + "/test1.cc"_l;
   const auto input2_path = path + "/test2.cc"_l;
   const auto header1_path = path + "/header1.h"_l;
@@ -2683,7 +2683,7 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
   const ui16 port = 12345;
 
   conf.mutable_emitter()->set_only_failed(true);
-  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_path(temp_dir.str());
   conf.mutable_cache()->set_direct(true);
   conf.mutable_cache()->set_clean_period(1);
 
@@ -2772,7 +2772,7 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
-    extension->set_current_dir(temp_dir);
+    extension->set_current_dir(temp_dir.str());
 
     extension->mutable_flags()->set_input(input1_path);
     extension->mutable_flags()->set_output(output1_path);
@@ -2800,7 +2800,7 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
-    extension->set_current_dir(temp_dir);
+    extension->set_current_dir(temp_dir.str());
 
     extension->mutable_flags()->set_input(input2_path);
     extension->mutable_flags()->set_output(output2_path);
@@ -2968,7 +2968,7 @@ TEST_F(EmitterTest, ConfigurationUpdateCompiler) {
 TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
   // Prepare environment.
   const base::TemporaryDir temp_dir1, temp_dir2;
-  const auto path = Immutable(String(temp_dir1));
+  const auto path = Immutable(temp_dir1.str());
   const auto input_path = path + "/test.cc"_l;
   const auto header_path = path + "/header.h"_l;
   const auto preprocessed_header_path = path + "header.h.pth"_l;
@@ -2991,7 +2991,7 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
   const String plugin_name = "fake_plugin";
   const auto plugin_path = "fake_plugin_path"_l;
 
-  conf.mutable_cache()->set_path(temp_dir1);
+  conf.mutable_cache()->set_path(temp_dir1.str());
   conf.mutable_cache()->set_direct(true);
   conf.mutable_cache()->set_clean_period(1);
 
@@ -3060,7 +3060,7 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
-    extension->set_current_dir(temp_dir1);
+    extension->set_current_dir(temp_dir1.str());
 
     extension->mutable_flags()->set_input(input_path);
     extension->mutable_flags()->set_output(output_path);
@@ -3090,7 +3090,7 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
     SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection2);
 
-    const auto path = Immutable(String(temp_dir2));
+    const auto path = Immutable(temp_dir2.str());
     const auto input_path = path + "/test.cc"_l;
     const auto header_path = path + "/header.h"_l;
     const auto sanitize_blacklist_path = path + "/asan-blacklist.txt"_l;
@@ -3102,7 +3102,7 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
-    extension->set_current_dir(temp_dir2);
+    extension->set_current_dir(temp_dir2.str());
 
     extension->mutable_flags()->set_input(input_path);
     extension->mutable_flags()->set_output(output_path);
@@ -3135,13 +3135,13 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
   EXPECT_EQ(1u, metric.value());
 
   Immutable cache_output;
-  const auto output2_path = temp_dir2.GetPath() / output_path.c_str();
+  const auto output2_path = Path(temp_dir2) / output_path.c_str();
   EXPECT_TRUE(base::File::Exists(output2_path));
   EXPECT_TRUE(base::File::Read(output2_path, &cache_output));
   EXPECT_EQ(object_code, cache_output);
 
   Immutable cache_deps;
-  const auto deps2_path = temp_dir2.GetPath() / deps_path.c_str();
+  const auto deps2_path = Path(temp_dir2) / deps_path.c_str();
   EXPECT_TRUE(base::File::Exists(deps2_path));
   EXPECT_TRUE(base::File::Read(deps2_path, &cache_deps));
   EXPECT_EQ(deps_contents, cache_deps);
@@ -3166,7 +3166,7 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
 TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
   // Prepare environment.
   const base::TemporaryDir temp_dir;
-  const auto path = Immutable(String(temp_dir));
+  const auto path = Immutable(temp_dir.str());
   const auto relpath = path + "/path1"_l;
   ASSERT_TRUE(base::CreateDirectory(Path(relpath.string_copy())));
 
@@ -3194,7 +3194,7 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
   const String plugin_name = "fake_plugin";
   const auto plugin_path = "fake_plugin_path"_l;
 
-  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_path(temp_dir.str());
   conf.mutable_cache()->set_direct(true);
   conf.mutable_cache()->set_clean_period(1);
 
@@ -3280,7 +3280,7 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
-    extension->set_current_dir(temp_dir);
+    extension->set_current_dir(temp_dir.str());
 
     extension->mutable_flags()->set_input(input_path);
     extension->mutable_flags()->set_output(output_path);
@@ -3308,7 +3308,7 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
-    extension->set_current_dir(temp_dir);
+    extension->set_current_dir(temp_dir.str());
 
     extension->mutable_flags()->set_input(input_path2);
     extension->mutable_flags()->set_output(output_path2);
@@ -3332,25 +3332,25 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
   emitter.reset();
 
   Immutable cache_output;
-  const auto output2_path = temp_dir.GetPath() / output_path.c_str();
+  const auto output2_path = Path(temp_dir) / output_path.c_str();
   EXPECT_TRUE(base::File::Exists(output2_path));
   EXPECT_TRUE(base::File::Read(output2_path, &cache_output));
   EXPECT_EQ(object_code, cache_output);
 
   Immutable cache_deps;
-  const auto deps2_path = temp_dir.GetPath() / deps_path.c_str();
+  const auto deps2_path = Path(temp_dir) / deps_path.c_str();
   EXPECT_TRUE(base::File::Exists(deps2_path));
   EXPECT_TRUE(base::File::Read(deps2_path, &cache_deps));
   EXPECT_EQ(deps_contents, cache_deps);
 
   Immutable cache_output2;
-  const auto output2_path2 = temp_dir.GetPath() / output_path2.c_str();
+  const auto output2_path2 = Path(temp_dir) / output_path2.c_str();
   EXPECT_TRUE(base::File::Exists(output2_path2));
   EXPECT_TRUE(base::File::Read(output2_path2, &cache_output2));
   EXPECT_EQ(object_code2, cache_output2);
 
   Immutable cache_deps2;
-  const auto deps2_path2 = temp_dir.GetPath() / deps_path2.c_str();
+  const auto deps2_path2 = Path(temp_dir) / deps_path2.c_str();
   EXPECT_TRUE(base::File::Exists(deps2_path2));
   EXPECT_TRUE(base::File::Read(deps2_path2, &cache_deps2));
   EXPECT_EQ(deps_contents2, cache_deps2);

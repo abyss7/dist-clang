@@ -92,6 +92,7 @@ bool ChangeOwner(const Path& path, ui32 uid, String* error) {
 }
 
 bool CreateDirectory(const Path& path, String* error) {
+#if defined(OS_WIN)
   std::error_code ec;
   std::experimental::filesystem::create_directories(path, ec);
   if (ec) {
@@ -100,6 +101,22 @@ bool CreateDirectory(const Path& path, String* error) {
     }
     return false;
   }
+#else
+  const String& path_str = path.string();
+  for (size_t i = 1; i < path_str.size(); ++i) {
+    if (path_str[i] == '/' &&
+        mkdir(path_str.substr(0, i).c_str(), 0755) == -1 &&
+        errno != EEXIST) {
+      GetLastError(error);
+      return false;
+    }
+  }
+
+  if (mkdir(path_str.c_str(), 0755) == -1 && errno != EEXIST) {
+    GetLastError(error);
+    return false;
+  }
+#endif
   return true;
 }
 

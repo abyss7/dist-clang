@@ -2202,6 +2202,7 @@ src/base/file/data.cc
 src/base/file/data.h
 src/base/file/epoll_linux.cc
 src/base/file/epoll_linux.h
+src/base/file/file.cc
 src/base/file/file.h
 src/base/file/file_posix.cc
 src/base/file/file_test.cc

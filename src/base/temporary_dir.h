@@ -10,12 +10,11 @@ class TemporaryDir {
   TemporaryDir();
   ~TemporaryDir();
 
-  inline const Path& GetPath() const { return path_; }
   inline const String& GetError() const { return error_; }
+  inline const String str() const { return path_; }
 
   inline operator bool() const { return path_.empty(); }
   inline operator Path() const { return path_; }
-  inline operator String() const { return path_; }
 
  private:
   Path path_;

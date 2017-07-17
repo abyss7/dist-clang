@@ -14,9 +14,8 @@ namespace client {
 
 TEST(ClientConfigurationTest, ConfigFileInParentDir) {
   const base::TemporaryDir tmp_dir;
-  const Path temp_dir_path = tmp_dir.GetPath();
-  const Path child_dir = temp_dir_path / "1";
-  const Path config_path = temp_dir_path / ".distclang";
+  const Path child_dir = Path(tmp_dir) / "1";
+  const Path config_path = Path(tmp_dir) / ".distclang";
 
   ASSERT_TRUE(base::CreateDirectory(child_dir));
 

@@ -194,7 +194,7 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
     }
 
     base::TemporaryDir temp_dir;
-    if (!PrepareExtraFilesForCompiler(extra_files, temp_dir.GetPath(),
+    if (!PrepareExtraFilesForCompiler(extra_files, Path(temp_dir),
                                       incoming->mutable_flags(), &status)) {
       task->first->ReportStatus(status);
       continue;

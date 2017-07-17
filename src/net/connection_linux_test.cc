@@ -60,10 +60,10 @@ int TestMessage::number_ = 1;
 class TestServer : public EventLoop {
  public:
   bool Init() {
-    if (tmp_dir_.GetPath().empty()) {
+    if (Path(tmp_dir_).empty()) {
       return false;
     }
-    socket_path_ = tmp_dir_.GetPath() / "socket";
+    socket_path_ = Path(tmp_dir_) / "socket";
 
     sockaddr_un address;
     address.sun_family = AF_UNIX;

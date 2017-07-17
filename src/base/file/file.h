@@ -47,7 +47,6 @@ class File final : public Data {
   File(const Path& path, ui64 size);  // Open truncated write-only file
   bool Close(String* error = nullptr);
 
-  String path_;
   String error_;
   String move_on_close_;
 };

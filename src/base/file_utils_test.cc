@@ -17,10 +17,9 @@ namespace base {
 
 TEST(FileUtilsTest, CalculateDirectorySize) {
   const base::TemporaryDir temp_dir;
-  const Path temp_dir_path(temp_dir.GetPath());
-  const Path dir1 = temp_dir_path / "1";
-  const Path dir2 = temp_dir_path / "2";
-  const Path file1 = temp_dir_path / "file1";
+  const Path dir1 = Path(temp_dir) / "1";
+  const Path dir2 = Path(temp_dir) / "2";
+  const Path file1 = Path(temp_dir) / "file1";
   const Path file2 = dir1 / "file2";
   const Path file3 = dir2 / "file3";
   const String content1 = "a";
@@ -66,9 +65,9 @@ TEST(FileUtilsTest, TempFile) {
 TEST(FileUtilsTest, CreateDirectory) {
   String error;
   const base::TemporaryDir temp_dir;
-  const Path& temp = temp_dir.GetPath() / "1" / "2" / "3";
+  const Path& temp = Path(temp_dir) / "1" / "2" / "3";
 
-  ASSERT_TRUE(CreateDirectory(temp.string(), &error)) << error;
+  ASSERT_TRUE(CreateDirectory(temp, &error)) << error;
 
   std::error_code ec;
   EXPECT_TRUE(std::experimental::filesystem::exists(temp, ec));

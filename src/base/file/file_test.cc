@@ -15,8 +15,7 @@ namespace base {
 TEST(FileTest, Read) {
   const auto expected_content = "All your base are belong to us"_l;
   const base::TemporaryDir temp_dir;
-  const Path temp_dir_path = temp_dir.GetPath();
-  const Path file_path = temp_dir_path / "file";
+  const Path file_path = Path(temp_dir) / "file";
 
   {
     std::ofstream file(file_path, std::ios_base::out | std::ios_base::trunc);
@@ -43,7 +42,7 @@ TEST(FileTest, Read) {
 TEST(FileTest, Write) {
   const auto expected_content = "All your base are belong to us"_l;
   const base::TemporaryDir temp_dir;
-  const Path file_path = temp_dir.GetPath() / "file";
+  const Path file_path = Path(temp_dir) / "file";
 
   String error;
   EXPECT_TRUE(File::Write(file_path, expected_content, &error)) << error;
@@ -54,14 +53,14 @@ TEST(FileTest, Write) {
   file.read(content, expected_content.size());
 
   EXPECT_EQ(expected_content, String(content, expected_content.size()));
+
   // Can't write to directory.
   EXPECT_FALSE(File::Write(temp_dir, expected_content));
 }
 
 TEST(FileTest, Size) {
   const base::TemporaryDir temp_dir;
-  const Path temp_dir_path = temp_dir.GetPath();
-  const Path file_path = temp_dir_path / "file";
+  const Path file_path = Path(temp_dir) / "file";
   const String content = "1234567890";
 
   {
@@ -83,8 +82,7 @@ TEST(FileTest, Hash) {
   const auto content = "All your base are belong to us"_l;
   const auto expected_hash = "c9e92e37df1e856cbd0abffe104225b8"_l;
   const base::TemporaryDir temp_dir;
-  const Path temp_dir_path = temp_dir.GetPath();
-  const String file_path = temp_dir_path / "file";
+  const String file_path = Path(temp_dir) / "file";
 
   {
     std::ofstream file(file_path, std::ios_base::out | std::ios_base::trunc);
@@ -117,10 +115,9 @@ TEST(FileTest, Copy) {
   const auto expected_content1 = "All your base are belong to us"_l;
   const auto expected_content2 = "Nothing lasts forever"_l;
   const TemporaryDir temp_dir;
-  const Path temp_dir_path = temp_dir.GetPath();
-  const Path file1 = temp_dir_path / "1";
-  const Path file2 = temp_dir_path / "2";
-  const Path file3 = temp_dir_path / "3";
+  const Path file1 = Path(temp_dir) / "1";
+  const Path file2 = Path(temp_dir) / "2";
+  const Path file3 = Path(temp_dir) / "3";
 
   ASSERT_TRUE(File::Write(file1, expected_content1));
   ASSERT_TRUE(File::Copy(file1, file2));

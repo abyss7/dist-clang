@@ -3,10 +3,6 @@
 #include <base/assert.h>
 #include <base/c_utils.h>
 #include <base/file_utils.h>
-#include <base/string_utils.h>
-
-#include STL_EXPERIMENTAL(filesystem)
-#include STL(system_error)
 
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -20,33 +16,10 @@
 
 namespace dist_clang {
 
-namespace {
-
-bool GetStatus(const Path& path,
-               std::experimental::filesystem::file_status* status,
-               String* error) {
-  CHECK(status);
-  std::error_code ec;
-  *status = std::experimental::filesystem::status(path, ec);
-  if (ec) {
-    if (error) {
-      *error = ec.message();
-    }
-    return false;
-  }
-  return true;
-}
-
-Path AddTempEnding(const Path& path) {
-  return base::AppendExtension(path, ".tmp");
-}
-
-}  // anonymous namespace
-
 namespace base {
 
 File::File(const Path& path)
-    : Data(open(path.c_str(), O_RDONLY | O_CLOEXEC)), path_(path) {
+    : Data(open(path.c_str(), O_RDONLY | O_CLOEXEC)) {
   if (!IsValid()) {
     GetLastError(&error_);
     return;
@@ -74,15 +47,6 @@ File::File(const Path& path)
 }
 
 // static
-bool File::IsFile(const Path& path, String* error) {
-  std::experimental::filesystem::file_status status;
-  if (!GetStatus(path, &status, error)) {
-    return false;
-  }
-  return std::experimental::filesystem::is_regular_file(status);
-}
-
-// static
 bool File::IsExecutable(const Path& path, String* error) {
   if (!IsFile(path, error)) {
     return false;
@@ -95,20 +59,16 @@ bool File::IsExecutable(const Path& path, String* error) {
   return true;
 }
 
-// static
-bool File::Exists(const Path& path, String* error) {
-  std::experimental::filesystem::file_status status;
-  if (!GetStatus(path, &status, error)) {
-    return false;
-  }
-  return std::experimental::filesystem::exists(status) &&
-         std::experimental::filesystem::is_regular_file(status);
-}
-
 ui64 File::Size(String* error) const {
   DCHECK(IsValid());
 
-  return File::Size(path_, error);
+  struct stat buffer;
+  if (fstat(native(), &buffer)) {
+    GetLastError(error);
+    return 0;
+  }
+
+  return buffer.st_size;
 }
 
 bool File::Read(Immutable* output, String* error) {
@@ -142,28 +102,6 @@ bool File::Read(Immutable* output, String* error) {
 
   output->assign(Immutable(map, size));
 
-  return true;
-}
-
-bool File::Hash(Immutable* output, const List<Literal>& skip_list,
-                String* error) {
-  DCHECK(IsValid());
-
-  Immutable tmp_output;
-  if (!Read(&tmp_output, error)) {
-    return false;
-  }
-
-  for (const char* skip : skip_list) {
-    if (tmp_output.find(skip) != String::npos) {
-      if (error) {
-        error->assign("Skip-list hit: " + String(skip));
-      }
-      return false;
-    }
-  }
-
-  output->assign(base::Hexify(tmp_output.Hash()));
   return true;
 }
 
@@ -215,56 +153,6 @@ bool File::CopyInto(const Path& dst_path, String* error) {
 }
 
 // static
-ui64 File::Size(const Path& path, String* error) {
-  std::error_code ec;
-  const auto file_size = std::experimental::filesystem::file_size(path, ec);
-  if (ec) {
-    if (error) {
-      *error = ec.message();
-    }
-    return 0;
-  }
-  return static_cast<ui64>(file_size);
-}
-
-// static
-bool File::Read(const Path& path, Immutable* output, String* error) {
-  File file(path);
-
-  if (!file.IsValid()) {
-    file.GetCreationError(error);
-    return false;
-  }
-
-  return file.Read(output, error);
-}
-
-// static
-bool File::Hash(const Path& path, Immutable* output,
-                const List<Literal>& skip_list, String* error) {
-  File file(path);
-
-  if (!file.IsValid()) {
-    file.GetCreationError(error);
-    return false;
-  }
-
-  return file.Hash(output, skip_list, error);
-}
-
-// static
-bool File::Delete(const Path& path, String* error) {
-  std::error_code ec;
-  if (!std::experimental::filesystem::remove(path, ec)) {
-    if (error) {
-      *error = ec.message();
-    }
-    return false;
-  }
-  return true;
-}
-
-// static
 bool File::Write(const Path& path, Immutable input, String* error) {
   File dst(path, input.size());
 
@@ -291,31 +179,6 @@ bool File::Write(const Path& path, Immutable input, String* error) {
   return total_bytes == input.size();
 }
 
-// static
-bool File::Copy(const Path& src_path, const Path& dst_path, String* error) {
-  File src(src_path);
-
-  if (!src.IsValid()) {
-    src.GetCreationError(error);
-    return false;
-  }
-
-  return src.CopyInto(dst_path, error);
-}
-
-// static
-bool File::Move(const Path& src, const Path& dst, String* error) {
-  std::error_code ec;
-  std::experimental::filesystem::rename(src, dst, ec);
-  if (ec) {
-    if (error) {
-      *error = ec.message();
-    }
-    return false;
-  }
-  return true;
-}
-
 File::File(const Path& path, ui64 size)
     : Data([=] {
         // We need write-access even on object files after introduction of the
@@ -323,10 +186,9 @@ File::File(const Path& path, ui64 size)
         // https://sourceware.org/bugzilla/show_bug.cgi?id=971
         const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
         const auto flags = O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC;
-        const Path tmp_path = AddTempEnding(path);
+        const String tmp_path = path.string() + ".tmp";
         return open(tmp_path.c_str(), flags, mode);
       }()),
-      path_(AddTempEnding(path)),
       move_on_close_(path) {
   if (!IsValid()) {
     GetLastError(&error_);
@@ -370,13 +232,12 @@ bool File::Close(String* error) {
     return true;
   }
 
-  const Path tmp_path = AddTempEnding(move_on_close_);
+  const String tmp_path = move_on_close_ + ".tmp";
   if (!Move(tmp_path, move_on_close_, error)) {
     Delete(tmp_path);
     return false;
   }
 
-  path_ = move_on_close_;
   return true;
 }
 
