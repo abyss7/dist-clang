@@ -15,13 +15,24 @@ using namespace std::placeholders;
 namespace dist_clang {
 namespace daemon {
 
+namespace {
+const char kOverloadedErrorText[] = "Tasks queue reached limit";
+}  // anonymous namespace
+
 Absorber::Absorber(const Configuration& conf) : CompilationDaemon(conf) {
   using Worker = base::WorkerPool::SimpleWorker;
   CHECK(conf.has_absorber() && !conf.absorber().local().disabled());
 
   workers_ = std::make_unique<base::WorkerPool>();
+  cache_tasks_ = std::make_unique<Queue>();
   tasks_ = std::make_unique<Queue>(conf.pool_capacity());
 
+  if (conf.has_cache() && !conf.cache().disabled()) {
+    Worker worker = std::bind(&Absorber::DoCheckCache, this, _1);
+    const auto threads_number = conf.cache().has_threads()
+        ? conf.cache().threads() : std::thread::hardware_concurrency();
+    workers_->AddWorker("Cache Worker"_l, worker, threads_number);
+  }
   {
     Worker worker = std::bind(&Absorber::DoExecute, this, _1);
     workers_->AddWorker("Execute Worker"_l, worker,
@@ -31,6 +42,7 @@ Absorber::Absorber(const Configuration& conf) : CompilationDaemon(conf) {
 
 Absorber::~Absorber() {
   tasks_->Close();
+  cache_tasks_->Close();
   workers_.reset();
 }
 
@@ -57,6 +69,8 @@ bool Absorber::Initialize() {
 bool Absorber::HandleNewMessage(net::ConnectionPtr connection,
                                 Universal message,
                                 const net::proto::Status& status) {
+  using namespace cache::string;
+  auto conf = this->conf();
   if (!message->IsInitialized()) {
     LOG(INFO) << message->InitializationErrorString();
     return false;
@@ -71,15 +85,19 @@ bool Absorber::HandleNewMessage(net::ConnectionPtr connection,
     Message execute(message->ReleaseExtension(proto::Remote::extension));
     DCHECK(!execute->flags().compiler().has_path());
     if (execute->has_source()) {
-      if (tasks_->Push(Task{connection, std::move(execute)})) {
-        return true;
+      Task task{connection, std::move(execute), HandledHash()};
+      if (conf->has_cache() && !conf->cache().disabled()) {
+        cache_tasks_->Push(std::move(task));
       } else {
-        net::proto::Status overload;
-        overload.set_code(net::proto::Status::OVERLOAD);
-        overload.set_description("Tasks queue reached limit");
-        connection->ReportStatus(overload);
-        return false;
+        if (!tasks_->Push(std::move(task))) {
+          net::proto::Status overload;
+          overload.set_code(net::proto::Status::OVERLOAD);
+          overload.set_description(kOverloadedErrorText);
+          connection->ReportStatus(overload);
+          return false;
+        }
       }
+      return true;
     }
   }
 
@@ -124,20 +142,20 @@ bool Absorber::PrepareExtraFilesForCompiler(
   return true;
 }
 
-void Absorber::DoExecute(const base::WorkerPool& pool) {
+void Absorber::DoCheckCache(const base::WorkerPool& pool) {
   using namespace cache::string;
 
   while (!pool.IsShuttingDown()) {
-    Optional&& task = tasks_->Pop();
+    Optional&& task = cache_tasks_->Pop();
     if (!task) {
       break;
     }
 
-    if (task->first->IsClosed()) {
+    if (std::get<CONNECTION>(*task)->IsClosed()) {
       continue;
     }
 
-    proto::Remote* incoming = task->second.get();
+    proto::Remote* incoming = std::get<MESSAGE>(*task).get();
     auto source = Immutable::WrapString(incoming->source());
     auto extra_files = GetExtraFiles(incoming);
 
@@ -151,13 +169,14 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
       plugin.clear_path();
     }
 
-    HandledHash local_hash =
+    HandledHash& local_hash = std::get<HANDLED_HASH>(*task);
+    local_hash =
         GenerateHash(incoming->flags(), HandledSource(source), extra_files);
-
-    Universal outgoing(new net::proto::Universal);
 
     cache::FileCache::Entry entry;
     if (SearchSimpleCache(local_hash, &entry)) {
+      Universal outgoing(new net::proto::Universal);
+
       auto* result = outgoing->MutableExtension(proto::Result::extension);
 
       result->set_obj(entry.object);
@@ -171,8 +190,39 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
       status->set_code(net::proto::Status::OK);
       status->set_description(entry.stderr);
 
-      task->first->SendAsync(std::move(outgoing));
+      std::get<CONNECTION>(*task)->SendAsync(std::move(outgoing));
       continue;
+    } else {
+      if (!tasks_->Push(std::move(*task))) {
+        net::proto::Status overload;
+        overload.set_code(net::proto::Status::OVERLOAD);
+        overload.set_description(kOverloadedErrorText);
+        std::get<CONNECTION>(*task)->ReportStatus(overload);
+      }
+    }
+  }
+}
+
+void Absorber::DoExecute(const base::WorkerPool& pool) {
+  using namespace cache::string;
+
+  while (!pool.IsShuttingDown()) {
+    Optional&& task = tasks_->Pop();
+    if (!task) {
+      break;
+    }
+
+    if (std::get<CONNECTION>(*task)->IsClosed()) {
+      continue;
+    }
+
+    proto::Remote* incoming = std::get<Message>(*task).get();
+    auto source = Immutable::WrapString(incoming->source());
+    auto extra_files = GetExtraFiles(incoming);
+    HandledHash& local_hash = std::get<HANDLED_HASH>(*task);
+    if (local_hash.str.empty()) {
+      local_hash =
+          GenerateHash(incoming->flags(), HandledSource(source), extra_files);
     }
 
     // Optimize compilation for preprocessed code for some languages.
@@ -189,16 +239,18 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
     // Check that we have a compiler of a requested version.
     net::proto::Status status;
     if (!SetupCompiler(incoming->mutable_flags(), &status)) {
-      task->first->ReportStatus(status);
+      std::get<CONNECTION>(*task)->ReportStatus(status);
       continue;
     }
 
     base::TemporaryDir temp_dir;
     if (!PrepareExtraFilesForCompiler(extra_files, temp_dir.GetPath(),
                                       incoming->mutable_flags(), &status)) {
-      task->first->ReportStatus(status);
+      std::get<CONNECTION>(*task)->ReportStatus(status);
       continue;
     }
+
+    Universal outgoing(new net::proto::Universal);
 
     // Pipe the input file to the compiler and read output file from the
     // compiler's stdout.
@@ -247,7 +299,7 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
       UpdateSimpleCache(local_hash, entry);
     }
 
-    task->first->SendAsync(std::move(outgoing));
+    std::get<CONNECTION>(*task)->SendAsync(std::move(outgoing));
   }
 }
 
