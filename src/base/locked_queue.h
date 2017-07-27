@@ -25,6 +25,7 @@ class LockedQueue {
   enum {
     UNLIMITED = 0,
     DEFAULT_SHARD = 0,
+    NOT_STRICT_SHARDING = 0,
   };
 
   explicit LockedQueue(ui32 capacity = UNLIMITED)
@@ -86,12 +87,12 @@ class LockedQueue {
 
   // Returns disengaged object only when this queue is closed and empty, or pool
   // is shutting down.
-  Optional Pop(const WorkerPool& pool, const ui32 shard_queue_limit,
+  Optional Pop(const WorkerPool& pool, const ui32 shard_queue_limit = NOT_STRICT_SHARDING,
                const ui32 shard = DEFAULT_SHARD) THREAD_SAFE {
     DCHECK(timeout_ > Seconds::zero());
 
     UniqueLock lock(pop_mutex_);
-    if (shard_queue_limit == 0) {
+    if (shard_queue_limit == NOT_STRICT_SHARDING) {
       return PopWithHint(pool, lock, shard);
     } else {
       return PopStrict(pool, lock,
