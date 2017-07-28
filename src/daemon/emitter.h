@@ -25,7 +25,12 @@ class Emitter : public CompilationDaemon {
     SOURCE = 2,
     EXTRA_FILES = 3,
     HANDLED_HASH = 4,
+
     CHANGED_SHARD = 5,
+    // A boolean flag to indicate if task was redistributed from it's initial
+    // shard to a random one. This may happen in case of remote being down.
+    // Also task shouldn't hop more than once to prevent instant hopping
+    // between shards.
   };
 
   using Message = UniquePtr<base::proto::Local>;

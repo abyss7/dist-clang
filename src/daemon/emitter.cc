@@ -25,8 +25,8 @@ using Counter = perf::Counter<perf::StatReporter, ReportByDefault>;
 namespace {
 
 // Select a new shard, different from current.
-inline ui32 FindNewShard(std::random_device& random_device,
-                         const ui32 total_shards, const ui32 current_shard) {
+inline ui32 FindNewShard(const ui32 total_shards, const ui32 current_shard) {
+  thread_local static std::random_device random_device;
   std::uniform_int_distribution<ui32> distribution(0, total_shards - 2);
   const ui32 new_shard = distribution(random_device);
   if (new_shard >= current_shard) {
@@ -406,7 +406,6 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
 void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
                               const ui32 shard) {
   auto conf = this->conf();
-  std::random_device random_device;
 
   net::EndPointPtr end_point;
   ui32 sleep_period = 1;
@@ -473,12 +472,19 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
         LOG(WARNING) << "Failed to connect to " << end_point->Print() << ": "
                      << error;
         bool& shard_switched = std::get<CHANGED_SHARD>(*task);
+
+        // |shard_queue_limit| indicates enabled strict sharding that prevents
+        // this task from completion in case the remote server has gone. That's
+        // why such tasks should be redistributed between other shards.
+        //
+        // Tasks also shouldn't be redistributed more than one time to prevent
+        // tasks hopping between shards in case of all remotes being down.
         if (conf->emitter().has_total_shards() &&
             conf->emitter().shard_queue_limit() && !shard_switched) {
           // Let other shard complete task on connection failure. Do it once.
           shard_switched = true;
-          all_tasks_->Push(std::move(*task), FindNewShard(random_device,
-              conf->emitter().total_shards(), shard));
+          all_tasks_->Push(std::move(*task),
+                           FindNewShard(conf->emitter().total_shards(), shard));
         } else {
           // Put into |failed_tasks_| to prevent hanging around in case all
           // remotes are unreachable at once.
@@ -622,7 +628,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
       Optional&& task =
           all_tasks_->Pop(pool, conf->emitter().shard_queue_limit(), shard);
       if (task) {
-        all_tasks_->Push(std::move(*task), FindNewShard(random_device,
+        all_tasks_->Push(std::move(*task), FindNewShard(
             new_conf->emitter().total_shards(), shard));
       } else {
         shard_is_empty = true;

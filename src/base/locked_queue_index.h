@@ -39,18 +39,20 @@ class LockedQueue<T>::Index {
   }
 
   bool ShardIsEmpty(const ui32 shard) THREAD_UNSAFE {
-    CHECK(shard < index_.size());
+    DCHECK(shard < index_.size());
     return index_[shard].tasks.empty();
   }
 
+  template <typename Pred>
   void WaitForShard(const ui32 shard, UniqueLock& lock,
-                    const Seconds& timeout) THREAD_UNSAFE {
-    CHECK(shard < index_.size());
-    index_[shard].pop_condition_.wait_for(lock, timeout);
+                    const Seconds& timeout,
+                    const Pred& pred) THREAD_UNSAFE {
+    DCHECK(shard < index_.size());
+    index_[shard].pop_condition_.wait_for(lock, timeout, pred);
   }
 
   void NotifyShard(const ui32 shard) THREAD_UNSAFE {
-    CHECK(shard < index_.size());
+    DCHECK(shard < index_.size());
     index_[shard].pop_condition_.notify_one();
   }
 
@@ -58,29 +60,21 @@ class LockedQueue<T>::Index {
   ui32 MaybeOverloadedShard(const ui32 shard_queue_limit,
                             const ui32 shard) THREAD_UNSAFE {
     EnsureShardExists(shard);
-    if (index_[shard].tasks.size() > shard_queue_limit) {
+    if (index_[shard].tasks.size()) {
       return shard;
     }
 
-    ui32 overloaded_shard = 0u;
-    ui32 overloaded_shard_queue_size = 0u;
-    for (ui32 shard = 0; shard < index_.size(); ++shard) {
-      const ui32 shard_size = index_[shard].tasks.size();
-      if (shard_size > overloaded_shard_queue_size) {
-        overloaded_shard = shard;
-        overloaded_shard_queue_size = shard_size;
+    for (ui32 current = 0; current < index_.size(); ++current) {
+      if (index_[current].tasks.size() > shard_queue_limit) {
+        return current;
       }
-    }
-
-    if (overloaded_shard_queue_size > shard_queue_limit) {
-      return overloaded_shard;
     }
 
     return shard;
   }
 
   QueueIterator GetWithHint(ui32 shard, QueueIterator begin) THREAD_UNSAFE {
-    CHECK(!index_.empty());
+    DCHECK(!index_.empty());
 
     QueueIterator item;
     if (shard < index_.size() && !index_[shard].tasks.empty()) {
@@ -98,7 +92,7 @@ class LockedQueue<T>::Index {
   }
 
   QueueIterator GetStrict(const ui32 shard) THREAD_UNSAFE {
-    CHECK(shard < index_.size() && !index_[shard].tasks.empty());
+    DCHECK(shard < index_.size() && !index_[shard].tasks.empty());
 
     auto& tasks = index_[shard].tasks;
     QueueIterator item = tasks.front();

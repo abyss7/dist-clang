@@ -104,9 +104,9 @@ class LockedQueue {
   Optional PopWithHint(const WorkerPool& pool,
                        UniqueLock& lock,
                        ui32 shard = DEFAULT_SHARD) THREAD_SAFE {
-    do {
-      pop_condition_.wait_for(lock, timeout_);
-    } while (!closed_ && queue_.empty() && !pool.IsShuttingDown());
+    index_.WaitForShard(shard, lock, timeout_, [this, shard, &pool] {
+      return closed_ || !index_.ShardIsEmpty(shard) || pool.IsShuttingDown();
+    });
     if ((closed_ && queue_.empty()) || pool.IsShuttingDown()) {
       return Optional();
     }
@@ -116,10 +116,10 @@ class LockedQueue {
   Optional PopStrict(const WorkerPool& pool,
                      UniqueLock& lock,
                      ui32 shard = DEFAULT_SHARD) THREAD_SAFE {
-    do {
-      index_.WaitForShard(shard, lock, timeout_);
-    } while (!closed_ && index_.ShardIsEmpty(shard) && !pool.IsShuttingDown());
-    if (closed_ || index_.ShardIsEmpty(shard)) {
+    index_.WaitForShard(shard, lock, timeout_, [this, shard, &pool] {
+      return closed_ || !index_.ShardIsEmpty(shard) || pool.IsShuttingDown();
+    });
+    if (closed_ && index_.ShardIsEmpty(shard)) {
       return Optional();
     }
     return RemoveTaskFromQueue(index_.GetStrict(shard));

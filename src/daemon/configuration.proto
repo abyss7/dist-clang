@@ -59,7 +59,7 @@ message Configuration {
 
     optional uint32 shard_queue_limit = 9 [ default = 0 ];
     // Implies strict sharding if specified limit is larger than zero.
-    // All tasks of shard that exceed limit can be destributed between other
+    // All tasks of shard that exceed limit can be redistributed between other
     // shards.
   }
 
