@@ -251,23 +251,19 @@ TEST_F(AbsorberTest, CacheHitsIfOverloaded) {
       EXPECT_TRUE(ext.has_obj());
       EXPECT_TRUE(ext.hash_match());
 
-      if (send_count == 2) {
+      if (send_count == 1) {
+        locked_executing_thread = true;
+        send_condition.notify_one();
+        UniqueLock send_lock(send_mutex);
+        EXPECT_TRUE(send_condition.wait_for(send_lock, Seconds(1),
+                                            [&queue_limit_reached] {
+          return queue_limit_reached.load();
+        }));
+      } else {
         EXPECT_TRUE(ext.from_cache());
+        completed_compilation = true;
         queue_limit_reached = true;
         send_condition.notify_one();
-      } else {
-        if (send_count == 1) {
-          locked_executing_thread = true;
-          send_condition.notify_one();
-          UniqueLock send_lock(send_mutex);
-          EXPECT_TRUE(send_condition.wait_for(send_lock, Seconds(1),
-                                              [&queue_limit_reached] {
-            return queue_limit_reached.load();
-          }));
-        } else if (send_count == 3) {
-          completed_compilation = true;
-          send_condition.notify_one();
-        }
       }
     });
     return true;
