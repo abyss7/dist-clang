@@ -17,7 +17,19 @@ namespace daemon {
 
 namespace {
 const char kOverloadedErrorText[] = "Tasks queue reached limit";
-}  // anonymous namespace
+
+void AdjustFlags(proto::Remote* incoming) {
+  incoming->mutable_flags()->set_output("-");
+  incoming->mutable_flags()->clear_input();
+  incoming->mutable_flags()->clear_deps_file();
+  incoming->mutable_flags()->mutable_compiler()->clear_path();
+  auto& plugins =
+      *incoming->mutable_flags()->mutable_compiler()->mutable_plugins();
+  for (auto& plugin : plugins) {
+    plugin.clear_path();
+  }
+}
+}  // namespace
 
 Absorber::Absorber(const Configuration& conf) : CompilationDaemon(conf) {
   using Worker = base::WorkerPool::SimpleWorker;
@@ -85,17 +97,18 @@ bool Absorber::HandleNewMessage(net::ConnectionPtr connection,
     Message execute(message->ReleaseExtension(proto::Remote::extension));
     DCHECK(!execute->flags().compiler().has_path());
     if (execute->has_source()) {
+      // TODO(matthewtff): check several releases that handled hashes calculated
+      // on emitters and on absorbers match. Then stop calculating hashes on
+      // absorber and re-use hashes received from emitters to save cpu cycles.
       Task task{connection, std::move(execute), HandledHash()};
       if (conf->has_cache() && !conf->cache().disabled()) {
         cache_tasks_->Push(std::move(task));
-      } else {
-        if (!tasks_->Push(std::move(task))) {
-          net::proto::Status overload;
-          overload.set_code(net::proto::Status::OVERLOAD);
-          overload.set_description(kOverloadedErrorText);
-          connection->ReportStatus(overload);
-          return false;
-        }
+      } else if (!tasks_->Push(std::move(task))) {
+        net::proto::Status overload;
+        overload.set_code(net::proto::Status::OVERLOAD);
+        overload.set_description(kOverloadedErrorText);
+        connection->ReportStatus(overload);
+        return false;
       }
       return true;
     }
@@ -151,7 +164,11 @@ void Absorber::DoCheckCache(const base::WorkerPool& pool) {
       break;
     }
 
-    if (std::get<CONNECTION>(*task)->IsClosed()) {
+    // Create a copy of pointer to connection here to be able to send responce
+    // after std::moving from |task| (used to push task to |tasks_|).
+    auto connection = std::get<CONNECTION>(*task);
+
+    if (connection->IsClosed()) {
       continue;
     }
 
@@ -159,15 +176,7 @@ void Absorber::DoCheckCache(const base::WorkerPool& pool) {
     auto source = Immutable::WrapString(incoming->source());
     auto extra_files = GetExtraFiles(incoming);
 
-    incoming->mutable_flags()->set_output("-");
-    incoming->mutable_flags()->clear_input();
-    incoming->mutable_flags()->clear_deps_file();
-    incoming->mutable_flags()->mutable_compiler()->clear_path();
-    auto& plugins =
-        *incoming->mutable_flags()->mutable_compiler()->mutable_plugins();
-    for (auto& plugin : plugins) {
-      plugin.clear_path();
-    }
+    AdjustFlags(incoming);
 
     HandledHash& local_hash = std::get<HANDLED_HASH>(*task);
     local_hash =
@@ -190,15 +199,13 @@ void Absorber::DoCheckCache(const base::WorkerPool& pool) {
       status->set_code(net::proto::Status::OK);
       status->set_description(entry.stderr);
 
-      std::get<CONNECTION>(*task)->SendAsync(std::move(outgoing));
+      connection->SendAsync(std::move(outgoing));
       continue;
-    } else {
-      if (!tasks_->Push(std::move(*task))) {
-        net::proto::Status overload;
-        overload.set_code(net::proto::Status::OVERLOAD);
-        overload.set_description(kOverloadedErrorText);
-        std::get<CONNECTION>(*task)->ReportStatus(overload);
-      }
+    } else if (!tasks_->Push(std::move(*task))) {
+      net::proto::Status overload;
+      overload.set_code(net::proto::Status::OVERLOAD);
+      overload.set_description(kOverloadedErrorText);
+      connection->ReportStatus(overload);
     }
   }
 }
@@ -219,6 +226,7 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
     proto::Remote* incoming = std::get<Message>(*task).get();
     auto source = Immutable::WrapString(incoming->source());
     auto extra_files = GetExtraFiles(incoming);
+    AdjustFlags(incoming);
     HandledHash& local_hash = std::get<HANDLED_HASH>(*task);
     if (local_hash.str.empty()) {
       local_hash =
