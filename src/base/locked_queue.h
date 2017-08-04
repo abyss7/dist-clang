@@ -47,8 +47,9 @@ class LockedQueue {
   inline ui32 Size() const THREAD_SAFE { return size_; }
 
   // Returns |false| only when this queue is closed or when the capacity is
-  // exceeded.
-  bool Push(T obj, ui32 shard = DEFAULT_SHARD) THREAD_SAFE {
+  // exceeded. Pass |obj| by rvalue reference so that it doesn't get "corrupted"
+  // by move-constructor in case we fail to push.
+  bool Push(T&& obj, ui32 shard = DEFAULT_SHARD) THREAD_SAFE {
     if (closed_) {
       return false;
     }
@@ -64,6 +65,13 @@ class LockedQueue {
     pop_condition_.notify_one();
 
     return true;
+  }
+
+  // Use lvalue reference instead of pass-by-value - to remove ambiguity with
+  // rvalue reference.
+  bool Push(const T& obj, ui32 shard = DEFAULT_SHARD) THREAD_SAFE {
+    auto obj_copy = obj;
+    return Push(std::move(obj_copy), shard);
   }
 
   // Returns disengaged object only when this queue is closed and empty.
