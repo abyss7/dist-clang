@@ -164,11 +164,7 @@ void Absorber::DoCheckCache(const base::WorkerPool& pool) {
       break;
     }
 
-    // Create a copy of pointer to connection here to be able to send responce
-    // after std::moving from |task| (used to push task to |tasks_|).
-    auto connection = std::get<CONNECTION>(*task);
-
-    if (connection->IsClosed()) {
+    if (std::get<CONNECTION>(*task)->IsClosed()) {
       continue;
     }
 
@@ -199,13 +195,13 @@ void Absorber::DoCheckCache(const base::WorkerPool& pool) {
       status->set_code(net::proto::Status::OK);
       status->set_description(entry.stderr);
 
-      connection->SendAsync(std::move(outgoing));
+      std::get<CONNECTION>(*task)->SendAsync(std::move(outgoing));
       continue;
     } else if (!tasks_->Push(std::move(*task))) {
       net::proto::Status overload;
       overload.set_code(net::proto::Status::OVERLOAD);
       overload.set_description(kOverloadedErrorText);
-      connection->ReportStatus(overload);
+      std::get<CONNECTION>(*task)->ReportStatus(overload);
     }
   }
 }
