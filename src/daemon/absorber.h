@@ -15,8 +15,14 @@ class Absorber : public CompilationDaemon {
   bool Initialize() override;
 
  private:
+  enum TaskIndex {
+    CONNECTION = 0,
+    MESSAGE = 1,
+    HANDLED_HASH = 2,
+  };
+
   using Message = UniquePtr<proto::Remote>;
-  using Task = Pair<net::ConnectionPtr, Message>;
+  using Task = Tuple<net::ConnectionPtr, Message, cache::string::HandledHash>;
   using Queue = base::LockedQueue<Task>;
   using Optional = Queue::Optional;
 
@@ -30,9 +36,10 @@ class Absorber : public CompilationDaemon {
                                     base::proto::Flags* flags,
                                     net::proto::Status* status);
 
+  void DoCheckCache(const base::WorkerPool& pool);
   void DoExecute(const base::WorkerPool& pool);
 
-  UniquePtr<Queue> tasks_;
+  UniquePtr<Queue> tasks_, cache_tasks_;
   UniquePtr<base::WorkerPool> workers_;
 };
 

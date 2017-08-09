@@ -62,6 +62,442 @@ class AbsorberTest : public CommonDaemonTest {
   UniquePtr<Absorber> absorber;
 };
 
+TEST_F(AbsorberTest, Overloaded) {
+  const String expected_host = "fake_host";
+  const ui16 expected_port = 12345;
+  const net::proto::Status::Code expected_code = net::proto::Status::OK;
+  const net::proto::Status::Code overload_code = net::proto::Status::OVERLOAD;
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const auto source_code = "fake_source"_l;
+
+  conf.set_pool_capacity(1);
+  conf.mutable_absorber()->mutable_local()->set_host(expected_host);
+  conf.mutable_absorber()->mutable_local()->set_port(expected_port);
+  conf.mutable_absorber()->mutable_local()->set_threads(1);
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+
+  Atomic<bool> queue_limit_reached{false};
+  Atomic<bool> locked_executing_thread{false};
+  Atomic<bool> completed_compilation{false};
+
+  listen_callback = [&](const String& host, ui16 port, String*) {
+    EXPECT_EQ(expected_host, host);
+    EXPECT_EQ(expected_port, port);
+    return !::testing::Test::HasNonfatalFailure();
+  };
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
+
+      if (send_count == 2) {
+        // After we blocked Absorber::DoExecute on sending result for first task
+        // and sent two more tasks, one of them should've been put to queue and
+        // the other one should exceed queue limit. The OVERLOAD status with no
+        // result should be returned.
+        // Notice, that at this moment there was no Send for queued task, so
+        // |send_count| equals 2 for first task that we blocked on sending and
+        // for third task with the OVERLOAD status(we're processing right now).
+
+        EXPECT_EQ(overload_code, status.code());
+        EXPECT_FALSE(message.HasExtension(proto::Result::extension));
+        queue_limit_reached = true;
+        send_condition.notify_one();
+      } else {
+        EXPECT_EQ(expected_code, status.code());
+
+        EXPECT_TRUE(message.HasExtension(proto::Result::extension));
+        const auto& ext = message.GetExtension(proto::Result::extension);
+        EXPECT_TRUE(ext.has_obj());
+        EXPECT_TRUE(ext.hash_match());
+
+        if (send_count == 1) {
+          locked_executing_thread = true;
+          send_condition.notify_one();
+          UniqueLock send_lock(send_mutex);
+          EXPECT_TRUE(send_condition.wait_for(send_lock, Seconds(1),
+                                              [&queue_limit_reached] {
+            return queue_limit_reached.load();
+          }));
+        } else if (send_count == 3) {
+          completed_compilation = true;
+          send_condition.notify_one();
+        }
+      }
+    });
+    return true;
+  };
+
+  absorber.reset(new Absorber(conf));
+  ASSERT_TRUE(absorber->Initialize());
+
+  auto connection1 = test_service->TriggerListen(expected_host, expected_port);
+  {
+    auto message(CreateMessage(source_code, "fake_action"_l, compiler_version));
+    auto* extension = message->MutableExtension(proto::Remote::extension);
+    auto handled_hash = CompilationDaemon::GenerateHash(
+        extension->flags(), cache::string::HandledSource(source_code),
+        cache::ExtraFiles());
+    extension->set_handled_hash(handled_hash.str);
+
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection1);
+    EXPECT_TRUE(
+        test_connection->TriggerReadAsync(std::move(message), StatusOK()));
+  }
+
+  {
+    UniqueLock send_lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(send_lock, Seconds(1),
+                                        [&locked_executing_thread] {
+      return locked_executing_thread.load();
+    }));
+  }
+
+  auto connection2 = test_service->TriggerListen(expected_host, expected_port);
+  {
+    auto message(CreateMessage(source_code, "fake_action"_l, compiler_version));
+    auto* extension = message->MutableExtension(proto::Remote::extension);
+    auto handled_hash = CompilationDaemon::GenerateHash(
+        extension->flags(), cache::string::HandledSource(source_code),
+        cache::ExtraFiles());
+    extension->set_handled_hash(handled_hash.str);
+
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection2);
+    EXPECT_TRUE(
+        test_connection->TriggerReadAsync(std::move(message), StatusOK()));
+  }
+
+  auto connection3 = test_service->TriggerListen(expected_host, expected_port);
+  {
+    auto message(CreateMessage(source_code, "fake_action"_l, compiler_version));
+    auto* extension = message->MutableExtension(proto::Remote::extension);
+    auto handled_hash = CompilationDaemon::GenerateHash(
+        extension->flags(), cache::string::HandledSource(source_code),
+        cache::ExtraFiles());
+    extension->set_handled_hash(handled_hash.str);
+
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection3);
+    EXPECT_FALSE(
+        test_connection->TriggerReadAsync(std::move(message), StatusOK()));
+  }
+
+  {
+    UniqueLock computation_lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(computation_lock, Seconds(3),
+                                        [&completed_compilation] {
+      return completed_compilation.load();
+    }));
+  }
+  absorber.reset();
+
+  EXPECT_EQ(2u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(3u, connect_count);
+  EXPECT_EQ(3u, connections_created);
+  EXPECT_EQ(3u, read_count);
+  EXPECT_EQ(3u, send_count);
+  EXPECT_EQ(1, connection1.use_count())
+      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count())
+      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection3.use_count())
+      << "Daemon must not store references to the connection";
+}
+
+TEST_F(AbsorberTest, CacheHitsIfOverloaded) {
+  const base::TemporaryDir temp_dir;
+  const String expected_host = "fake_host";
+  const ui16 expected_port = 12345;
+  const net::proto::Status::Code expected_code = net::proto::Status::OK;
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const auto source_code = "fake_source"_l;
+
+  conf.set_pool_capacity(1);
+  conf.mutable_absorber()->mutable_local()->set_host(expected_host);
+  conf.mutable_absorber()->mutable_local()->set_port(expected_port);
+  conf.mutable_absorber()->mutable_local()->set_threads(1);
+  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_direct(false);
+  conf.mutable_cache()->set_clean_period(1);
+
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+
+  Atomic<bool> queue_limit_reached{false};
+  Atomic<bool> locked_executing_thread{false};
+  Atomic<bool> completed_compilation{false};
+
+  listen_callback = [&](const String& host, ui16 port, String*) {
+    EXPECT_EQ(expected_host, host);
+    EXPECT_EQ(expected_port, port);
+    return !::testing::Test::HasNonfatalFailure();
+  };
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_EQ(expected_code, status.code());
+      EXPECT_TRUE(message.HasExtension(proto::Result::extension));
+
+      const auto& ext = message.GetExtension(proto::Result::extension);
+      EXPECT_TRUE(ext.has_obj());
+      EXPECT_TRUE(ext.hash_match());
+
+      if (send_count == 1) {
+        locked_executing_thread = true;
+        send_condition.notify_one();
+        UniqueLock send_lock(send_mutex);
+        EXPECT_TRUE(send_condition.wait_for(send_lock, Seconds(1),
+                                            [&queue_limit_reached] {
+          return queue_limit_reached.load();
+        }));
+      } else {
+        EXPECT_TRUE(ext.from_cache());
+        completed_compilation = true;
+        queue_limit_reached = true;
+        send_condition.notify_one();
+      }
+    });
+    return true;
+  };
+
+  absorber.reset(new Absorber(conf));
+  ASSERT_TRUE(absorber->Initialize());
+
+  auto connection1 = test_service->TriggerListen(expected_host, expected_port);
+  {
+    auto message(CreateMessage(source_code, "fake_action"_l, compiler_version));
+    auto* extension = message->MutableExtension(proto::Remote::extension);
+    auto handled_hash = CompilationDaemon::GenerateHash(
+        extension->flags(), cache::string::HandledSource(source_code),
+        cache::ExtraFiles());
+    extension->set_handled_hash(handled_hash.str);
+
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection1);
+    EXPECT_TRUE(
+        test_connection->TriggerReadAsync(std::move(message), StatusOK()));
+  }
+
+  {
+    UniqueLock send_lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(send_lock, Seconds(1),
+                                        [&locked_executing_thread] {
+      return locked_executing_thread.load();
+    }));
+  }
+
+  auto connection2 = test_service->TriggerListen(expected_host, expected_port);
+  {
+    auto message(CreateMessage(source_code, "fake_action"_l, compiler_version));
+    auto* extension = message->MutableExtension(proto::Remote::extension);
+    auto handled_hash = CompilationDaemon::GenerateHash(
+        extension->flags(), cache::string::HandledSource(source_code),
+        cache::ExtraFiles());
+    extension->set_handled_hash(handled_hash.str);
+
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection2);
+    EXPECT_TRUE(
+        test_connection->TriggerReadAsync(std::move(message), StatusOK()));
+  }
+
+  auto connection3 = test_service->TriggerListen(expected_host, expected_port);
+  {
+    auto message(CreateMessage(source_code, "fake_action"_l, compiler_version));
+    auto* extension = message->MutableExtension(proto::Remote::extension);
+    auto handled_hash = CompilationDaemon::GenerateHash(
+        extension->flags(), cache::string::HandledSource(source_code),
+        cache::ExtraFiles());
+    extension->set_handled_hash(handled_hash.str);
+
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection3);
+    EXPECT_TRUE(
+        test_connection->TriggerReadAsync(std::move(message), StatusOK()));
+  }
+
+  {
+    UniqueLock computation_lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(computation_lock, Seconds(3),
+                                        [&completed_compilation] {
+      return completed_compilation.load();
+    }));
+  }
+
+  absorber.reset();
+
+  EXPECT_EQ(1u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(3u, connect_count);
+  EXPECT_EQ(3u, connections_created);
+  EXPECT_EQ(3u, read_count);
+  EXPECT_EQ(3u, send_count);
+  EXPECT_EQ(1, connection1.use_count())
+      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count())
+      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection3.use_count())
+      << "Daemon must not store references to the connection";
+}
+
+TEST_F(AbsorberTest, OverloadedOnCacheMiss) {
+  const base::TemporaryDir temp_dir;
+  const String expected_host = "fake_host";
+  const ui16 expected_port = 12345;
+  const net::proto::Status::Code expected_code = net::proto::Status::OK;
+  const net::proto::Status::Code overload_code = net::proto::Status::OVERLOAD;
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const auto source_code = "fake_source"_l;
+  const auto different_code = "fake_source2"_l;
+
+  conf.set_pool_capacity(1);
+  conf.mutable_absorber()->mutable_local()->set_host(expected_host);
+  conf.mutable_absorber()->mutable_local()->set_port(expected_port);
+  conf.mutable_absorber()->mutable_local()->set_threads(1);
+  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_direct(false);
+  conf.mutable_cache()->set_clean_period(1);
+  conf.mutable_cache()->set_threads(1);
+
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+
+  Atomic<bool> queue_limit_reached{false};
+  Atomic<bool> locked_executing_thread{false};
+  Atomic<bool> completed_compilation{false};
+
+  listen_callback = [&](const String& host, ui16 port, String*) {
+    EXPECT_EQ(expected_host, host);
+    EXPECT_EQ(expected_port, port);
+    return !::testing::Test::HasNonfatalFailure();
+  };
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
+      if (send_count == 2) {
+        EXPECT_EQ(overload_code, status.code());
+        EXPECT_FALSE(message.HasExtension(proto::Result::extension));
+        queue_limit_reached = true;
+        send_condition.notify_one();
+      } else {
+        EXPECT_EQ(expected_code, status.code());
+        EXPECT_TRUE(message.HasExtension(proto::Result::extension));
+
+        const auto& ext = message.GetExtension(proto::Result::extension);
+        EXPECT_TRUE(ext.has_obj());
+        EXPECT_TRUE(ext.hash_match());
+
+        if (send_count == 1) {
+          locked_executing_thread = true;
+          send_condition.notify_one();
+          UniqueLock send_lock(send_mutex);
+          EXPECT_TRUE(send_condition.wait_for(send_lock, Seconds(1),
+                                              [&queue_limit_reached] {
+            return queue_limit_reached.load();
+          }));
+        } else if (send_count == 3) {
+          completed_compilation = true;
+          send_condition.notify_one();
+        }
+      }
+    });
+    return true;
+  };
+
+  absorber.reset(new Absorber(conf));
+  ASSERT_TRUE(absorber->Initialize());
+
+  auto connection1 = test_service->TriggerListen(expected_host, expected_port);
+  {
+    auto message(CreateMessage(source_code, "fake_action"_l, compiler_version));
+    auto* extension = message->MutableExtension(proto::Remote::extension);
+    auto handled_hash = CompilationDaemon::GenerateHash(
+        extension->flags(), cache::string::HandledSource(source_code),
+        cache::ExtraFiles());
+    extension->set_handled_hash(handled_hash.str);
+
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection1);
+    EXPECT_TRUE(
+        test_connection->TriggerReadAsync(std::move(message), StatusOK()));
+  }
+
+  {
+    UniqueLock send_lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(send_lock, Seconds(1),
+                                        [&locked_executing_thread] {
+      return locked_executing_thread.load();
+    }));
+  }
+
+  auto connection2 = test_service->TriggerListen(expected_host, expected_port);
+  {
+    auto message(
+        CreateMessage(different_code, "fake_action"_l, compiler_version));
+    auto* extension = message->MutableExtension(proto::Remote::extension);
+    auto handled_hash = CompilationDaemon::GenerateHash(
+        extension->flags(), cache::string::HandledSource(different_code),
+        cache::ExtraFiles());
+    extension->set_handled_hash(handled_hash.str);
+
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection2);
+    EXPECT_TRUE(
+        test_connection->TriggerReadAsync(std::move(message), StatusOK()));
+  }
+
+  auto connection3 = test_service->TriggerListen(expected_host, expected_port);
+  {
+    auto message(
+        CreateMessage(different_code, "fake_action"_l, compiler_version));
+    auto* extension = message->MutableExtension(proto::Remote::extension);
+    auto handled_hash = CompilationDaemon::GenerateHash(
+        extension->flags(), cache::string::HandledSource(source_code),
+        cache::ExtraFiles());
+    extension->set_handled_hash(handled_hash.str);
+
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection3);
+    EXPECT_TRUE(
+        test_connection->TriggerReadAsync(std::move(message), StatusOK()));
+  }
+
+  {
+    UniqueLock computation_lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(computation_lock, Seconds(3),
+                                        [&completed_compilation] {
+      return completed_compilation.load();
+    }));
+  }
+
+  absorber.reset();
+
+  EXPECT_EQ(2u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(3u, connect_count);
+  EXPECT_EQ(3u, connections_created);
+  EXPECT_EQ(3u, read_count);
+  EXPECT_EQ(3u, send_count);
+  EXPECT_EQ(1, connection1.use_count())
+      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count())
+      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection3.use_count())
+      << "Daemon must not store references to the connection";
+}
+
 TEST_F(AbsorberTest, SuccessfulCompilation) {
   const String expected_host = "fake_host";
   const ui16 expected_port = 12345;
@@ -337,6 +773,104 @@ TEST_F(AbsorberTest, StoreLocalCacheWithoutBlacklist) {
       << "Daemon must not store references to the connection";
 
   // TODO: check with deps file.
+}
+
+TEST_F(AbsorberTest, DoNotStoreLocalCacheWhenDisabled) {
+  const base::TemporaryDir temp_dir;
+  const String expected_host = "fake_host";
+  const ui16 expected_port = 12345;
+  const net::proto::Status::Code expected_code = net::proto::Status::OK;
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const auto object_code = "fake_object_code"_l;
+  const String source = "fake_source";
+  const auto language = "c++"_l, converted_language = "c++-cpp-output"_l;
+  const auto action = "fake_action"_l;
+
+  conf.mutable_absorber()->mutable_local()->set_host(expected_host);
+  conf.mutable_absorber()->mutable_local()->set_port(expected_port);
+  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_direct(false);
+  conf.mutable_cache()->set_clean_period(1);
+  conf.mutable_cache()->set_disabled(true);
+
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+
+  listen_callback = [&](const String& host, ui16 port, String*) {
+    EXPECT_EQ(expected_host, host);
+    EXPECT_EQ(expected_port, port);
+    return !::testing::Test::HasNonfatalFailure();
+  };
+
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_EQ(expected_code, status.code()) << status.description();
+
+      EXPECT_TRUE(message.HasExtension(proto::Result::extension));
+      const auto& ext = message.GetExtension(proto::Result::extension);
+      EXPECT_TRUE(ext.has_obj());
+      EXPECT_EQ(String(object_code), ext.obj());
+
+      EXPECT_TRUE(ext.has_from_cache());
+      EXPECT_FALSE(ext.from_cache());
+
+      send_condition.notify_all();
+    });
+    return true;
+  };
+
+  run_callback = [&](base::TestProcess* process) {
+    EXPECT_EQ(
+        (Immutable::Rope{action, "-x"_l, converted_language, "-o"_l, "-"_l}),
+        process->args_);
+    process->stdout_ = object_code;
+  };
+
+  absorber.reset(new Absorber(conf));
+  ASSERT_TRUE(absorber->Initialize());
+
+  auto connection1 = test_service->TriggerListen(expected_host, expected_port);
+  {
+    auto message(CreateMessage(source, action, compiler_version, language));
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection1);
+    EXPECT_TRUE(
+        test_connection->TriggerReadAsync(std::move(message), StatusOK()));
+
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
+                                        [this] { return send_count == 1; }));
+  }
+
+  auto connection2 = test_service->TriggerListen(expected_host, expected_port);
+  {
+    auto message(CreateMessage(source, action, compiler_version, language));
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection2);
+    EXPECT_TRUE(
+        test_connection->TriggerReadAsync(std::move(message), StatusOK()));
+
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
+                                        [this] { return send_count == 2; }));
+  }
+
+  absorber.reset();
+
+  EXPECT_EQ(2u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(2u, connect_count);
+  EXPECT_EQ(2u, connections_created);
+  EXPECT_EQ(2u, read_count);
+  EXPECT_EQ(2u, send_count);
+  EXPECT_EQ(1, connection1.use_count())
+      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count())
+      << "Daemon must not store references to the connection";
 }
 
 TEST_F(AbsorberTest, StoreLocalCacheWithBlacklist) {
