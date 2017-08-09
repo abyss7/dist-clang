@@ -4,8 +4,11 @@
 #include <base/worker_pool.h>
 #include <daemon/compilation_daemon.h>
 
+#include <third_party/gtest/exported/include/gtest/gtest_prod.h>
+
 namespace dist_clang {
 namespace daemon {
+FORWARD_TEST(EmitterTest, TasksGetReshardedOnConfigurationUpdate);
 
 class Emitter : public CompilationDaemon {
  public:
@@ -19,6 +22,8 @@ class Emitter : public CompilationDaemon {
   bool Reload(const Configuration& conf) override;
 
  private:
+  FRIEND_TEST(daemon::EmitterTest, TasksGetReshardedOnConfigurationUpdate);
+
   enum TaskIndex {
     CONNECTION = 0,
     MESSAGE = 1,
@@ -40,6 +45,9 @@ class Emitter : public CompilationDaemon {
   using QueueAggregator = base::QueueAggregator<Task>;
   using Optional = Queue::Optional;
   using ResolveFn = Fn<net::EndPointPtr()>;
+
+  static ui32 CalculateShard(const cache::string::HandledHash& handled_hash,
+                             const ui32 total_shards);
 
   bool HandleNewMessage(net::ConnectionPtr connection, Universal message,
                         const net::proto::Status& status) override;
@@ -63,6 +71,8 @@ class Emitter : public CompilationDaemon {
   bool handle_all_tasks_ = true;
   // Indicates if we force shutdown of the remote workers pool: we shouldn't if
   // there is no coordinators, or if we stopped to poll coordinators.
+
+  Atomic<ui32> current_shard_number_ = {0u};
 
   static const ui32 max_total_shards;
 };

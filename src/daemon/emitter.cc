@@ -180,6 +180,13 @@ bool Emitter::Initialize() {
   return CompilationDaemon::Initialize();
 }
 
+// static
+ui32 Emitter::CalculateShard(const cache::string::HandledHash& handled_hash,
+                             const ui32 total_shards) {
+  return (*reinterpret_cast<const ui32*>(handled_hash.str.Hash(4).c_str()))
+         % total_shards;
+}
+
 bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
                                const net::proto::Status& status) {
   using namespace cache::string;
@@ -326,9 +333,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     ui32 shard = Queue::DEFAULT_SHARD;
     if (conf->emitter().has_total_shards()) {
       DCHECK(conf->emitter().total_shards() > 0);
-      auto hash = GenerateHash(incoming->flags(), source, extra_files);
-      shard = (*reinterpret_cast<const ui32*>(hash.str.Hash(4).c_str())) %
-               conf->emitter().total_shards();
+      shard = CalculateShard(handled_hash, conf->emitter().total_shards());
     }
     all_tasks_->Push(std::move(*task), shard);
   }
@@ -623,7 +628,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
   // redistribute them across new number of shards.
   if (!all_tasks_->IsClosed() &&
       new_conf->emitter().shard_queue_limit() != Queue::NOT_STRICT_SHARDING &&
-      new_conf->emitter().total_shards() <= shard &&
+      current_shard_number_ <= shard &&
       conf->emitter().shard_queue_limit() != Queue::NOT_STRICT_SHARDING) {
     bool shard_is_empty = false;
     do {
@@ -632,10 +637,8 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
       if (task) {
         // Once we popped a valid task - put it to appropriate shard according
         // to new number of shards.
-        auto& handled_hash = std::get<HANDLED_HASH>(*task);
-        const ui32 new_shard =
-            (*reinterpret_cast<const ui32*>(handled_hash.str.Hash(4).c_str()))
-            % conf->emitter().total_shards();
+        const ui32 new_shard = CalculateShard(std::get<HANDLED_HASH>(*task),
+                                              current_shard_number_);
         all_tasks_->Push(std::move(*task), new_shard);
       } else {
         shard_is_empty = true;
@@ -786,6 +789,12 @@ bool Emitter::Check(const Configuration& conf) const {
 
 bool Emitter::Reload(const proto::Configuration& conf) {
   using Worker = base::WorkerPool::SimpleWorker;
+
+  if (conf.emitter().total_shards()) {
+    current_shard_number_ = conf.emitter().total_shards();
+  } else {
+    current_shard_number_ = 1u;
+  }
 
   // Create new pool before swapping, so we won't postpone new tasks.
   auto new_pool = std::make_unique<base::WorkerPool>(!handle_all_tasks_);
