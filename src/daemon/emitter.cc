@@ -11,6 +11,7 @@
 
 #include <base/using_log.h>
 
+#include STL(limits)
 #include STL(random)
 
 using namespace std::placeholders;
@@ -618,18 +619,24 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
   auto new_conf = this->conf();
 
   // In case if pool was shut down to apply new configuration check if
-  // new number of shards is smaller than our shard. If so, take out tasks
-  // from our shard and distribute them across other shards.
+  // new number of shards has changed. If so, take out tasks from our shard and
+  // redistribute them across new number of shards.
   if (!all_tasks_->IsClosed() &&
-      new_conf->emitter().shard_queue_limit() > 0 &&
-      new_conf->emitter().total_shards() <= shard) {
+      new_conf->emitter().shard_queue_limit() != Queue::NOT_STRICT_SHARDING &&
+      new_conf->emitter().total_shards() <= shard &&
+      conf->emitter().shard_queue_limit() != Queue::NOT_STRICT_SHARDING) {
     bool shard_is_empty = false;
     do {
       Optional&& task =
-          all_tasks_->Pop(pool, conf->emitter().shard_queue_limit(), shard);
+          all_tasks_->Pop(pool, std::numeric_limits<ui32>::max(), shard);
       if (task) {
-        all_tasks_->Push(std::move(*task), FindNewShard(
-            new_conf->emitter().total_shards(), shard));
+        // Once we popped a valid task - put it to appropriate shard according
+        // to new number of shards.
+        auto& handled_hash = std::get<HANDLED_HASH>(*task);
+        const ui32 new_shard =
+            (*reinterpret_cast<const ui32*>(handled_hash.str.Hash(4).c_str()))
+            % conf->emitter().total_shards();
+        all_tasks_->Push(std::move(*task), new_shard);
       } else {
         shard_is_empty = true;
       }

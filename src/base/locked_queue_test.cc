@@ -132,6 +132,7 @@ TEST(LockedQueueTest, BasicMultiThreadedUsage) {
 
   workers.reset();
   ASSERT_EQ(tasks_to_leave, queue.Size());
+  queue.Close();
 }
 
 TEST(LockedQueueTest, ShardsNumberGrow) {
@@ -163,6 +164,7 @@ TEST(LockedQueueTest, ShardsNumberGrow) {
 
   workers.reset();
   ASSERT_EQ(tasks_to_leave, queue.Size());
+  queue.Close();
 }
 
 TEST(LockedQueueTest, StrictSharding) {
@@ -189,6 +191,7 @@ TEST(LockedQueueTest, StrictSharding) {
 
   workers.reset();
   ASSERT_EQ(0u, queue.Size());
+  queue.Close();
 }
 
 TEST(LockedQueueIndexTest, BasicUsage) {

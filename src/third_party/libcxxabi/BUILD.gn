@@ -17,11 +17,15 @@ config("flags") {
     "__STDC_CONSTANT_MACROS",
     "__STDC_FORMAT_MACROS",
     "__STDC_LIMIT_MACROS",
-
-    # TODO(matthewtff): Remove this define once libcxxabi updated to have own
-    # implementation of __cxa_thread_atexit_impl
-    "HAVE___CXA_THREAD_ATEXIT_IMPL",
   ]
+
+  if (host_os == "linux") {
+    defines += [
+      # TODO(matthewtff): Remove this define once libcxxabi updated to have own
+      # implementation of __cxa_thread_atexit_impl
+      "HAVE___CXA_THREAD_ATEXIT_IMPL",
+    ]
+  }
 
   cflags = [
     "-fdata-sections",

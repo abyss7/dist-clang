@@ -82,7 +82,7 @@ class QueueAggregator {
       }
 
       UniqueLock lock(queue->pop_mutex_);
-      queue->pop_condition_.wait(
+      queue->aggregator_condition_.wait(
           lock, [queue] { return queue->closed_ || !queue->queue_.empty(); });
       if (queue->closed_ && queue->queue_.empty()) {
         break;

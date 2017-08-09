@@ -284,12 +284,15 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
                 end_point->Print());
 
       connection->CallOnSend([this](const net::Connection::Message&) {
+
         send_condition.notify_all();
         // Run the task #1 on old remote before sending anything to coordinator.
 
         UniqueLock lock(send_mutex);
+        // Wait until emitter sends task to old remote:
+        //  * 1st seconds - wait for queue to pop in old remote
         EXPECT_TRUE(send_condition.wait_for(
-            lock, Seconds(1), [this] { return send_count == 3; }));
+            lock, Seconds(2), [this] { return send_count == 3; }));
         // Send #1: emitter → coordinator.
         // Send #2: emitter → coordinator (current one).
         // Send #3: emitter → remote.
@@ -325,14 +328,10 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
                 end_point->Print());
       EXPECT_EQ(old_total_shards, emitter->conf()->emitter().total_shards());
 
-      connection->CallOnSend([this](const net::Connection::Message&) {
-        send_condition.notify_all();
-        // Continue sending message to coordinator.
-      });
-
       connection->CallOnRead([&](net::Connection::Message* message) {
         message->MutableExtension(proto::Result::extension)
             ->set_obj(object_code);
+        send_condition.notify_all();
       });
     } else if (connect_count == 5) {
       // Connection from emitter to coordinator.
@@ -348,11 +347,9 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
       // Connection from local client to emitter. Task #2.
 
       EXPECT_EQ(EndPointString(socket_path, 0), end_point->Print());
-    } else if (connect_count == 7) {
+    } else if (connect_count >= 7 && EndPointString(new_remote_host, new_remote_port) == end_point->Print()) {
       // Connection from emitter to remote absorber. Task #2.
 
-      EXPECT_EQ(EndPointString(new_remote_host, new_remote_port),
-                end_point->Print());
       DCHECK(emitter);
       EXPECT_EQ(new_total_shards, emitter->conf()->emitter().total_shards());
 
@@ -444,10 +441,11 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
 
     // Wait for a connection to remote absorber.
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(1),
-                                        [this] { return send_count == 6; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(2),
+                                        [this] { return send_count >= 6; } ));
     // Send #6: emitter → remote.
-    // Send #7: emitter → local.
+    // Send #7 or 8: emitter → local.
+    // Send #7 or 8: emitter → coordinator. (May miss)
   }
 
   emitter.reset();
@@ -456,6 +454,7 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
   EXPECT_EQ(1u, listen_count);
   EXPECT_EQ(connections_created, connect_count);
   EXPECT_LE(7u, connections_created);
+  EXPECT_GE(8u, connections_created);
   EXPECT_EQ(connections_created, read_count);
   EXPECT_EQ(connections_created, send_count);
   EXPECT_EQ(1, connection1.use_count())

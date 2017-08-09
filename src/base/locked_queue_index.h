@@ -18,6 +18,9 @@ class LockedQueue<T>::Index {
     std::condition_variable pop_condition_;
   };
 
+  // Initialize index for LockedQueue<T>::DEFAULT_SHARD.
+  Index(): index_(1u) {}
+
   ~Index() {
     // Make sure we don't leak iterators.
     DCHECK(reverse_index_.size() == Size());
@@ -43,12 +46,18 @@ class LockedQueue<T>::Index {
     return index_[shard].tasks.empty();
   }
 
-  template <typename Pred>
-  void WaitForShard(const ui32 shard, UniqueLock& lock,
-                    const Seconds& timeout,
-                    const Pred& pred) THREAD_UNSAFE {
+  void WaitShardFor(const ui32 shard, UniqueLock& lock,
+                    const Seconds& timeout) THREAD_UNSAFE {
+    EnsureShardExists(shard);
     DCHECK(shard < index_.size());
-    index_[shard].pop_condition_.wait_for(lock, timeout, pred);
+    index_[shard].pop_condition_.wait_for(lock, timeout);
+  }
+
+  template <typename Pred>
+  void WaitShard(const ui32 shard, UniqueLock& lock,
+                 const Pred& pred) THREAD_UNSAFE {
+    DCHECK(shard == LockedQueue<T>::DEFAULT_SHARD);
+    index_[shard].pop_condition_.wait(lock, pred);
   }
 
   void NotifyShard(const ui32 shard) THREAD_UNSAFE {
@@ -56,9 +65,16 @@ class LockedQueue<T>::Index {
     index_[shard].pop_condition_.notify_one();
   }
 
+  void NotifyAllShards() THREAD_UNSAFE {
+    for (Shard& shard : index_) {
+      shard.pop_condition_.notify_all();
+    }
+  }
+
   // Returns either |shard| or shard with queue larger than |shard_queue_limit|.
   ui32 MaybeOverloadedShard(const ui32 shard_queue_limit,
                             const ui32 shard) THREAD_UNSAFE {
+    DCHECK(shard_queue_limit != LockedQueue<T>::NOT_STRICT_SHARDING);
     EnsureShardExists(shard);
     if (index_[shard].tasks.size()) {
       return shard;
