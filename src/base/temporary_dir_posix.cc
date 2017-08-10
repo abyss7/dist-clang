@@ -37,7 +37,7 @@ TemporaryDir::TemporaryDir() {
     GetLastError(&error_);
     return;
   }
-  path_ = buf;
+  path_ = Path(buf);
 }
 
 TemporaryDir::~TemporaryDir() {

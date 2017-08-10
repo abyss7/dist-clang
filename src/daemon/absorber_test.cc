@@ -686,7 +686,7 @@ TEST_F(AbsorberTest, StoreLocalCacheWithoutBlacklist) {
 
   conf.mutable_absorber()->mutable_local()->set_host(expected_host);
   conf.mutable_absorber()->mutable_local()->set_port(expected_port);
-  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_path(temp_dir.str());
   conf.mutable_cache()->set_direct(false);
   conf.mutable_cache()->set_clean_period(1);
 
@@ -888,7 +888,7 @@ TEST_F(AbsorberTest, StoreLocalCacheWithBlacklist) {
 
   conf.mutable_absorber()->mutable_local()->set_host(expected_host);
   conf.mutable_absorber()->mutable_local()->set_port(expected_port);
-  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_path(temp_dir.str());
   conf.mutable_cache()->set_direct(false);
   conf.mutable_cache()->set_clean_period(1);
 
@@ -997,7 +997,7 @@ TEST_F(AbsorberTest, StoreLocalCacheWithAndWithoutBlacklist) {
 
   conf.mutable_absorber()->mutable_local()->set_host(expected_host);
   conf.mutable_absorber()->mutable_local()->set_port(expected_port);
-  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_path(temp_dir.str());
   conf.mutable_cache()->set_direct(false);
   conf.mutable_cache()->set_clean_period(1);
 

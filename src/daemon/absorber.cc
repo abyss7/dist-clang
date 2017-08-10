@@ -132,14 +132,14 @@ cache::ExtraFiles Absorber::GetExtraFiles(const proto::Remote* message) {
 }
 
 bool Absorber::PrepareExtraFilesForCompiler(
-    const cache::ExtraFiles& extra_files, const String& temp_dir_path,
+    const cache::ExtraFiles& extra_files, const Path& temp_dir_path,
     base::proto::Flags* flags, net::proto::Status* status) {
   DCHECK(flags);
   DCHECK(status);
 
   auto sanitize_blacklist = extra_files.find(cache::SANITIZE_BLACKLIST);
   if (sanitize_blacklist != extra_files.end()) {
-    String sanitize_blacklist_file = temp_dir_path + "/sanitize_blacklist";
+    String sanitize_blacklist_file = temp_dir_path / "sanitize_blacklist";
     if (!base::File::Write(sanitize_blacklist_file,
                            sanitize_blacklist->second)) {
       LOG(WARNING) << "Failed to write sanitize blacklist file "
@@ -248,7 +248,7 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
     }
 
     base::TemporaryDir temp_dir;
-    if (!PrepareExtraFilesForCompiler(extra_files, temp_dir.GetPath(),
+    if (!PrepareExtraFilesForCompiler(extra_files, Path(temp_dir),
                                       incoming->mutable_flags(), &status)) {
       std::get<CONNECTION>(*task)->ReportStatus(status);
       continue;

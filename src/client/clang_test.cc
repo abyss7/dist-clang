@@ -1,4 +1,5 @@
 #include <base/base.pb.h>
+#include <base/c_utils.h>
 #include <base/file_utils.h>
 #include <base/process_impl.h>
 #include <base/test_process.h>
@@ -78,7 +79,7 @@ class ClientTest : public ::testing::Test {
 
 namespace {
 
-Literal clang_path = "fake_clang++"_l;
+const Path clang_path = "fake_clang++";
 Literal version = "fake_version"_l;
 
 }  // namespace
@@ -101,7 +102,7 @@ TEST_F(ClientTest, EmptyClangPath) {
   const char* argv[] = {"clang++", "-c", "/tmp/test_file.cc", nullptr};
   const int argc = 3;
 
-  EXPECT_TRUE(client::DoMain(argc, argv, Immutable(), Immutable(), Immutable(),
+  EXPECT_TRUE(client::DoMain(argc, argv, Immutable(), Path(), Immutable(),
                              0, 0, 0, 0, HashMap<String, String>(), false));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
@@ -179,7 +180,7 @@ TEST_F(ClientTest, CannotReadMessage) {
 
       const auto& extension =
           message.GetExtension(base::proto::Local::extension);
-      EXPECT_EQ(base::GetCurrentDir(), Immutable(extension.current_dir()));
+      EXPECT_EQ(base::GetCurrentDir(), extension.current_dir());
       ASSERT_TRUE(extension.has_flags());
 
       const auto& cc_flags = extension.flags();

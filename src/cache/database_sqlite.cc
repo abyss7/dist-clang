@@ -2,6 +2,7 @@
 
 #include <base/assert.h>
 #include <base/const_string.h>
+#include <base/file_utils.h>
 #include <base/logging.h>
 #include <base/string_utils.h>
 #include <cache/sqlite3.h>
@@ -61,8 +62,8 @@ SQLite::SQLite() : path_(":memory:") {
   LOG(DB_INFO) << "SQLite database is created in-memory";
 }
 
-SQLite::SQLite(const String& path, const String& name)
-    : path_(path + "/" + name + ".sqlite") {
+SQLite::SQLite(const Path& path, const String& name)
+    : path_(base::AppendExtension(path / name, ".sqlite")) {
   auto result = sqlite3_open(path_.c_str(), &db_);
   CHECK(result == SQLITE_OK) << "Failed to open " << path_ << ": "
                              << sqlite3_errstr(result);

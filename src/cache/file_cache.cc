@@ -1,5 +1,6 @@
 #include <cache/file_cache.h>
 
+#include <base/c_utils.h>
 #include <base/file/file.h>
 #include <base/logging.h>
 #include <base/protobuf_utils.h>
@@ -11,8 +12,10 @@
 
 #include <clang/Basic/Version.h>
 
+#if defined(OS_LINUX) || defined(OS_MACOSX)
 #include <sys/types.h>
 #include <utime.h>
+#endif
 
 #include <base/using_log.h>
 
@@ -20,10 +23,13 @@ namespace dist_clang {
 
 namespace {
 
-String ReplaceTildeInPath(const String& path) {
-  if (path[0] == '~' && path[1] == '/') {
-    return String(base::GetHomeDir()) + path.substr(1);
+Path ReplaceTildeInPath(const Path& path) {
+#if defined(OS_LINUX) || defined(OS_MACOSX)
+  const String& path_string = path.string();
+  if (path_string[0] == '~' && path_string[1] == '/') {
+    return Path(base::GetHomeDir().c_str()) / path_string.substr(1);
   }
+#endif
   return path;
 }
 
@@ -45,14 +51,14 @@ String HashCombine(const Immutable& source, const cache::ExtraFiles& files) {
 
 namespace cache {
 
-FileCache::FileCache(const String& path, ui64 size, bool snappy,
+FileCache::FileCache(const Path& path, ui64 size, bool snappy,
                      bool store_index)
     : path_(ReplaceTildeInPath(path)),
       snappy_(snappy),
       store_index_(store_index),
       max_size_(size) {}
 
-FileCache::FileCache(const String& path)
+FileCache::FileCache(const Path& path)
     : FileCache(path, UNLIMITED, false, false) {}
 
 FileCache::~FileCache() {
@@ -78,7 +84,7 @@ bool FileCache::Run(ui64 clean_period) {
   CHECK(clean_period > 0);
 
   entries_->BeginTransaction();
-  base::WalkDirectory(path_, [this](const String& file_path, ui64 mtime, ui64) {
+  base::WalkDirectory(path_, [this](const Path& file_path, ui64 mtime, ui64) {
     std::regex regex("([a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8})\\.manifest$");
     std::cmatch match;
     if (!std::regex_search(file_path.c_str(), match, regex) ||
@@ -147,11 +153,12 @@ UnhandledHash FileCache::Hash(UnhandledSource code,
 
 bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
                      CommandLine command_line, Version version,
-                     const String& current_dir, Entry* entry) const {
+                     const Path& current_dir, Entry* entry) const {
   DCHECK(entry);
 
   auto unhandled_hash = Hash(code, extra_files, command_line, version);
-  const String manifest_path = CommonPath(unhandled_hash) + ".manifest";
+  const Path manifest_path =
+      base::AppendExtension(CommonPath(unhandled_hash), ".manifest");
   const ReadLock lock(this, manifest_path);
 
   if (!lock) {
@@ -169,9 +176,10 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
   Immutable::Rope hash_rope = {unhandled_hash};
   for (const auto& header : manifest.direct().headers()) {
     Immutable header_hash;
-    const String header_path =
-        header[0] == '/' ? header : current_dir + "/" + header;
-    if (!base::File::Hash(header_path, &header_hash)) {
+    const Path header_path(header);
+    const Path header_absolute_path =
+        header_path.is_absolute() ? header_path : current_dir / header;
+    if (!base::File::Hash(header_absolute_path, &header_hash)) {
       return false;
     }
     hash_rope.push_back(header_hash);
@@ -190,7 +198,8 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
 bool FileCache::Find(HandledHash hash, Entry* entry) const {
   DCHECK(entry);
 
-  const String manifest_path = CommonPath(hash) + ".manifest";
+  const Path manifest_path =
+      base::AppendExtension(CommonPath(hash), ".manifest");
   const ReadLock lock(this, manifest_path);
 
   if (!lock) {
@@ -208,7 +217,7 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
   ui64 size = 0;
 
   if (manifest.v1().err()) {
-    const String stderr_path = CommonPath(hash) + ".stderr";
+    const Path stderr_path = base::AppendExtension(CommonPath(hash), ".stderr");
     if (!base::File::Read(stderr_path, &entry->stderr)) {
       return false;
     }
@@ -216,7 +225,7 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
   }
 
   if (manifest.v1().obj()) {
-    const String object_path = CommonPath(hash) + ".o";
+    const Path object_path = base::AppendExtension(CommonPath(hash), ".o");
 
     if (manifest.v1().snappy()) {
       String error;
@@ -245,7 +254,7 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
   }
 
   if (manifest.v1().dep()) {
-    const String deps_path = CommonPath(hash) + ".d";
+    const Path deps_path = base::AppendExtension(CommonPath(hash), ".d");
     if (!base::File::Read(deps_path, &entry->deps)) {
       return false;
     }
@@ -265,7 +274,7 @@ void FileCache::Store(UnhandledSource code, const ExtraFiles& extra_files,
 }
 
 void FileCache::Store(string::HandledHash hash, Entry entry) {
-  auto manifest_path = CommonPath(hash) + ".manifest";
+  auto manifest_path = base::AppendExtension(CommonPath(hash), ".manifest");
   WriteLock lock(this, manifest_path);
   String error;
 
@@ -283,7 +292,7 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
 
   manifest.mutable_v1()->set_err(!entry.stderr.empty());
   if (!entry.stderr.empty()) {
-    const String stderr_path = CommonPath(hash) + ".stderr";
+    const Path stderr_path = base::AppendExtension(CommonPath(hash), ".stderr");
 
     if (!base::File::Write(stderr_path, entry.stderr, &error)) {
       RemoveEntry(hash);
@@ -297,7 +306,7 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
 
   manifest.mutable_v1()->set_obj(!entry.object.empty());
   if (!entry.object.empty()) {
-    const String object_path = CommonPath(hash) + ".o";
+    const Path object_path = base::AppendExtension(CommonPath(hash), ".o");
 
     if (!snappy_) {
       object_size = entry.object.size();
@@ -332,7 +341,7 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
 
   manifest.mutable_v1()->set_dep(!entry.deps.empty());
   if (!entry.deps.empty()) {
-    const String deps_path = CommonPath(hash) + ".d";
+    const Path deps_path = base::AppendExtension(CommonPath(hash), ".d");
 
     if (!base::File::Write(deps_path, entry.deps, &error)) {
       RemoveEntry(hash);
@@ -361,8 +370,8 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
 bool FileCache::GetEntrySize(string::Hash hash, ui64* size) const {
   DCHECK(size);
 
-  const String common_path = CommonPath(hash);
-  const String manifest_path = common_path + ".manifest";
+  const Path common_path = CommonPath(hash);
+  const Path manifest_path = base::AppendExtension(common_path, ".manifest");
 
   SQLite::Value entry;
   if (entries_ && entries_->Get(hash.str, &entry)) {
@@ -385,11 +394,11 @@ bool FileCache::RemoveEntry(string::Hash hash) {
   String error;
   SQLite::Value entry;
   bool has_entry = entries_->Get(hash.str, &entry);
-  const String common_path = CommonPath(hash);
-  const String manifest_path = common_path + ".manifest";
-  const String object_path = common_path + ".o";
-  const String deps_path = common_path + ".d";
-  const String stderr_path = common_path + ".stderr";
+  const Path common_path = CommonPath(hash);
+  const Path manifest_path = base::AppendExtension(common_path, ".manifest");
+  const Path object_path = base::AppendExtension(common_path, ".o");
+  const Path deps_path = base::AppendExtension(common_path, ".d");
+  const Path stderr_path = base::AppendExtension(common_path, ".stderr");
   bool result = true;
   auto entry_size = has_entry ? std::get<SQLite::SIZE>(entry) : 0u;
 
@@ -445,7 +454,8 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
   // headers, while checking the direct cache. Such approach has a little
   // drawback, because the changes in the dependent headers will make a
   // false-positive direct cache hit, followed by true cache miss.
-  const String manifest_path = CommonPath(orig_hash) + ".manifest";
+  const Path manifest_path =
+      base::AppendExtension(CommonPath(orig_hash), ".manifest");
   WriteLock lock(this, manifest_path);
 
   if (!lock) {
@@ -468,9 +478,11 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
     for (const String& header : headers) {
       String error;
       Immutable header_hash;
-      const String header_path =
-          header[0] == '/' ? header : current_dir + "/" + header;
-      if (!base::File::Hash(header_path, &header_hash, skip_list, &error)) {
+      const Path header_path(header);
+      const Path header_absolute_path =
+          header_path.is_absolute() ? header_path : current_dir / header_path;
+      if (!base::File::Hash(header_absolute_path, &header_hash,
+                            skip_list, &error)) {
         LOG(CACHE_ERROR) << "Failed to hash " << header_path << ": " << error;
         return;
       }
@@ -535,7 +547,7 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
     SQLite::Value entry;
     CHECK(entries_->First(&hash.str, &entry));
 
-    auto manifest_path = CommonPath(hash) + ".manifest";
+    auto manifest_path = base::AppendExtension(CommonPath(hash), ".manifest");
     WriteLock lock(this, manifest_path);
     if (lock) {
       LOG(CACHE_VERBOSE) << "Cache overuse is " << (cache_size_ - max_size_)
@@ -546,7 +558,7 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
   entries_->EndTransaction();
 }
 
-FileCache::ReadLock::ReadLock(const FileCache* file_cache, const String& path)
+FileCache::ReadLock::ReadLock(const FileCache* file_cache, const Path& path)
     : cache_(file_cache), path_(path) {
   if (!base::File::Exists(path)) {
     return;
@@ -583,7 +595,7 @@ void FileCache::ReadLock::Unlock() {
   }
 }
 
-FileCache::WriteLock::WriteLock(const FileCache* file_cache, const String& path)
+FileCache::WriteLock::WriteLock(const FileCache* file_cache, const Path& path)
     : cache_(file_cache), path_(path) {
   std::lock_guard<std::mutex> lock(cache_->locks_mutex_);
 

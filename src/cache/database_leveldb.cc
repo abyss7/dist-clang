@@ -10,8 +10,8 @@
 namespace dist_clang {
 namespace cache {
 
-LevelDB::LevelDB(const String& path, const String& name)
-    : path_(path + "/leveldb_" + name) {
+LevelDB::LevelDB(const Path& path, const String& name)
+    : path_(base::AppendExtension(path / "leveldb_", name.c_str())) {
   using namespace leveldb;
 
   Options options;

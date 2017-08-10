@@ -2,7 +2,7 @@
 
 #include <base/assert.h>
 #include <base/c_utils.h>
-#include <base/string_utils.h>
+#include <base/file_utils.h>
 
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -15,16 +15,18 @@
 #endif
 
 namespace dist_clang {
+
 namespace base {
 
-File::File(const String& path) : Data(open(path.c_str(), O_RDONLY)) {
+File::File(const Path& path)
+    : Data(open(path.c_str(), O_RDONLY | O_CLOEXEC)) {
   if (!IsValid()) {
     GetLastError(&error_);
     return;
   }
 
   if (!IsFile(path)) {
-    error_ = path + " is a directory";
+    error_ = path.string() + " is a directory";
     Handle::Close();
     return;
   }
@@ -45,18 +47,7 @@ File::File(const String& path) : Data(open(path.c_str(), O_RDONLY)) {
 }
 
 // static
-bool File::IsFile(const String& path, String* error) {
-  struct stat buffer;
-  if (stat(path.c_str(), &buffer)) {
-    GetLastError(error);
-    return false;
-  }
-
-  return (buffer.st_mode & S_IFDIR) == 0;
-}
-
-// static
-bool File::IsExecutable(const String& path, String* error) {
+bool File::IsExecutable(const Path& path, String* error) {
   if (!IsFile(path, error)) {
     return false;
   }
@@ -65,20 +56,6 @@ bool File::IsExecutable(const String& path, String* error) {
     GetLastError(error);
     return false;
   }
-  return true;
-}
-
-// static
-bool File::Exists(const String& path, String* error) {
-  if (access(path.c_str(), F_OK)) {
-    GetLastError(error);
-    return false;
-  }
-
-  if (!IsFile(path, error)) {
-    return false;
-  }
-
   return true;
 }
 
@@ -128,29 +105,7 @@ bool File::Read(Immutable* output, String* error) {
   return true;
 }
 
-bool File::Hash(Immutable* output, const List<Literal>& skip_list,
-                String* error) {
-  DCHECK(IsValid());
-
-  Immutable tmp_output;
-  if (!Read(&tmp_output, error)) {
-    return false;
-  }
-
-  for (const char* skip : skip_list) {
-    if (tmp_output.find(skip) != String::npos) {
-      if (error) {
-        error->assign("Skip-list hit: " + String(skip));
-      }
-      return false;
-    }
-  }
-
-  output->assign(base::Hexify(tmp_output.Hash()));
-  return true;
-}
-
-bool File::CopyInto(const String& dst_path, String* error) {
+bool File::CopyInto(const Path& dst_path, String* error) {
   DCHECK(IsValid());
 
   // Force unlinking of |dst|, since it may be hard-linked with other places.
@@ -198,54 +153,7 @@ bool File::CopyInto(const String& dst_path, String* error) {
 }
 
 // static
-ui64 File::Size(const String& path, String* error) {
-  File file(path);
-
-  if (!file.IsValid()) {
-    file.GetCreationError(error);
-    return 0;
-  }
-
-  return file.Size(error);
-}
-
-// static
-bool File::Read(const String& path, Immutable* output, String* error) {
-  File file(path);
-
-  if (!file.IsValid()) {
-    file.GetCreationError(error);
-    return false;
-  }
-
-  return file.Read(output, error);
-}
-
-// static
-bool File::Hash(const String& path, Immutable* output,
-                const List<Literal>& skip_list, String* error) {
-  File file(path);
-
-  if (!file.IsValid()) {
-    file.GetCreationError(error);
-    return false;
-  }
-
-  return file.Hash(output, skip_list, error);
-}
-
-// static
-bool File::Delete(const String& path, String* error) {
-  if (unlink(path.c_str()) == -1) {
-    GetLastError(error);
-    return false;
-  }
-
-  return true;
-}
-
-// static
-bool File::Write(const String& path, Immutable input, String* error) {
+bool File::Write(const Path& path, Immutable input, String* error) {
   File dst(path, input.size());
 
   if (!dst.IsValid()) {
@@ -271,62 +179,14 @@ bool File::Write(const String& path, Immutable input, String* error) {
   return total_bytes == input.size();
 }
 
-// static
-bool File::Copy(const String& src_path, const String& dst_path, String* error) {
-  File src(src_path);
-
-  if (!src.IsValid()) {
-    src.GetCreationError(error);
-    return false;
-  }
-
-  return src.CopyInto(dst_path, error);
-}
-
-// static
-bool File::Link(const String& src, const String& dst, String* error) {
-  auto Link = [&src, &dst]() -> int {
-#if defined(OS_LINUX)
-    // Linux doesn't guarantee that |link()| do dereferences symlinks, thus
-    // we use |linkat()| which does for sure.
-    return linkat(AT_FDCWD, src.c_str(), AT_FDCWD, dst.c_str(),
-                  AT_SYMLINK_FOLLOW);
-#elif defined(OS_MACOSX)
-    return link(src.c_str(), dst.c_str());
-#else
-#pragma message "This platform doesn't support hardlinks!"
-    errno = EACCES;
-    return -1;
-#endif
-  };
-
-  // Try to create hard-link at first.
-  if (Link() == 0 ||
-      (errno == EEXIST && unlink(dst.c_str()) == 0 && Link() == 0)) {
-    return true;
-  }
-
-  return File::Copy(src, dst, error);
-}
-
-// static
-bool File::Move(const String& src, const String& dst, String* error) {
-  if (rename(src.c_str(), dst.c_str()) == -1) {
-    GetLastError(error);
-    return false;
-  }
-
-  return true;
-}
-
-File::File(const String& path, ui64 size)
+File::File(const Path& path, ui64 size)
     : Data([=] {
         // We need write-access even on object files after introduction of the
         // "split-dwarf" option, see
         // https://sourceware.org/bugzilla/show_bug.cgi?id=971
         const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
         const auto flags = O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC;
-        const String tmp_path = path + ".tmp";
+        const String tmp_path = path.string() + ".tmp";
         return open(tmp_path.c_str(), flags, mode);
       }()),
       move_on_close_(path) {

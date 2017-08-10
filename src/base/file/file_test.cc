@@ -5,7 +5,9 @@
 
 #include <third_party/gtest/exported/include/gtest/gtest.h>
 
-#include <fcntl.h>
+#include STL(fstream)
+#include STL_EXPERIMENTAL(filesystem)
+#include STL(system_error)
 
 namespace dist_clang {
 namespace base {
@@ -13,13 +15,13 @@ namespace base {
 TEST(FileTest, Read) {
   const auto expected_content = "All your base are belong to us"_l;
   const base::TemporaryDir temp_dir;
-  const String file_path = String(temp_dir) + "/file";
+  const Path file_path = Path(temp_dir) / "file";
 
-  int fd = open(file_path.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0777);
-  ASSERT_NE(-1, fd);
-  int size = write(fd, expected_content, expected_content.size());
-  ASSERT_EQ(expected_content.size(), static_cast<size_t>(size));
-  close(fd);
+  {
+    std::ofstream file(file_path, std::ios_base::out | std::ios_base::trunc);
+    ASSERT_TRUE(file.good());
+    file << expected_content;
+  }
 
   Immutable content(true);
   // |content| is assignable since we use it many times during test.
@@ -40,17 +42,15 @@ TEST(FileTest, Read) {
 TEST(FileTest, Write) {
   const auto expected_content = "All your base are belong to us"_l;
   const base::TemporaryDir temp_dir;
-  const String file_path = String(temp_dir) + "/file";
+  const Path file_path = Path(temp_dir) / "file";
 
   String error;
   EXPECT_TRUE(File::Write(file_path, expected_content, &error)) << error;
 
   char content[expected_content.size()];
-  int fd = open(file_path.c_str(), O_RDONLY);
-  ASSERT_NE(-1, fd);
-  int size = read(fd, content, expected_content.size());
-  ASSERT_EQ(expected_content.size(), static_cast<size_t>(size));
-  close(fd);
+  std::ifstream file(file_path);
+  ASSERT_TRUE(file.good());
+  file.read(content, expected_content.size());
 
   EXPECT_EQ(expected_content, String(content, expected_content.size()));
 
@@ -60,15 +60,14 @@ TEST(FileTest, Write) {
 
 TEST(FileTest, Size) {
   const base::TemporaryDir temp_dir;
-  const String file_path = String(temp_dir) + "/file";
+  const Path file_path = Path(temp_dir) / "file";
   const String content = "1234567890";
 
-  int fd = open(file_path.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0777);
-  ASSERT_NE(-1, fd);
-  int size = write(fd, content.data(), content.size());
-  ASSERT_EQ(content.size(), static_cast<size_t>(size));
-  close(fd);
-
+  {
+    std::ofstream file(file_path, std::ios_base::out | std::ios_base::trunc);
+    ASSERT_TRUE(file.good());
+    file << content;
+  }
   EXPECT_EQ(content.size(), File::Size(file_path));
 
   File file(file_path);
@@ -83,13 +82,13 @@ TEST(FileTest, Hash) {
   const auto content = "All your base are belong to us"_l;
   const auto expected_hash = "c9e92e37df1e856cbd0abffe104225b8"_l;
   const base::TemporaryDir temp_dir;
-  const String file_path = String(temp_dir) + "/file";
+  const String file_path = Path(temp_dir) / "file";
 
-  int fd = open(file_path.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0777);
-  ASSERT_NE(-1, fd);
-  int size = write(fd, content, content.size());
-  ASSERT_EQ(content.size(), static_cast<size_t>(size));
-  close(fd);
+  {
+    std::ofstream file(file_path, std::ios_base::out | std::ios_base::trunc);
+    ASSERT_TRUE(file.good());
+    file << content;
+  }
 
   Immutable hash(true);
   // |hash| is assignable since we use it many times during test.
@@ -116,81 +115,51 @@ TEST(FileTest, Copy) {
   const auto expected_content1 = "All your base are belong to us"_l;
   const auto expected_content2 = "Nothing lasts forever"_l;
   const TemporaryDir temp_dir;
-  const String file1 = String(temp_dir) + "/1";
-  const String file2 = String(temp_dir) + "/2";
-  const String file3 = String(temp_dir) + "/3";
+  const Path file1 = Path(temp_dir) / "1";
+  const Path file2 = Path(temp_dir) / "2";
+  const Path file3 = Path(temp_dir) / "3";
 
   ASSERT_TRUE(File::Write(file1, expected_content1));
   ASSERT_TRUE(File::Copy(file1, file2));
 
-  struct stat st;
-  const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+  const auto permissions = Perms::owner_read | Perms::owner_write |
+                           Perms::group_read | Perms::others_read;
+
+  std::error_code ec;
 
   Immutable content(true);
   // |content| is assignable since we use it many times during test.
 
-  ASSERT_EQ(0, stat(file1.c_str(), &st));
-  EXPECT_EQ(1u, st.st_nlink);
-  EXPECT_EQ(mode, st.st_mode & mode);
+  EXPECT_EQ(1u, std::experimental::filesystem::hard_link_count(file1, ec));
+  ASSERT_FALSE(ec);
 
+  const auto& file1_status = std::experimental::filesystem::status(file1, ec);
+  ASSERT_FALSE(ec);
+  EXPECT_EQ(permissions, file1_status.permissions() & permissions);
+
+
+  EXPECT_EQ(1u, std::experimental::filesystem::hard_link_count(file2, ec));
+  ASSERT_FALSE(ec);
+
+  auto file2_status = std::experimental::filesystem::status(file2, ec);
+  ASSERT_FALSE(ec);
+  EXPECT_EQ(permissions, file2_status.permissions() & permissions);
   String error;
-  ASSERT_EQ(0, stat(file2.c_str(), &st));
-  EXPECT_EQ(1u, st.st_nlink);
-  EXPECT_EQ(mode, st.st_mode & mode);
   ASSERT_TRUE(File::Read(file2, &content, &error)) << error;
   EXPECT_EQ(expected_content1, content);
 
   ASSERT_TRUE(File::Write(file3, expected_content2));
   ASSERT_TRUE(File::Copy(file3, file2));
 
-  ASSERT_EQ(0, stat(file2.c_str(), &st));
-  EXPECT_EQ(1u, st.st_nlink);
-  EXPECT_EQ(mode, st.st_mode & mode);
-  ASSERT_TRUE(File::Read(file2, &content));
+  EXPECT_EQ(1u, std::experimental::filesystem::hard_link_count(file2, ec));
+  ASSERT_FALSE(ec);
+
+  file2_status = std::experimental::filesystem::status(file2, ec);
+  ASSERT_FALSE(ec);
+  EXPECT_EQ(permissions, file2_status.permissions() & permissions);
+
+  ASSERT_TRUE(File::Read(file2, &content, &error)) << error;
   EXPECT_EQ(expected_content2, content);
-}
-
-TEST(FileTest, Link) {
-  const auto expected_content = "All your base are belong to us"_l;
-  const TemporaryDir temp_dir;
-  const String file1 = String(temp_dir) + "/1";
-  const String file2 = String(temp_dir) + "/2";
-  const String file3 = String(temp_dir) + "/3";
-
-  ASSERT_TRUE(File::Write(file1, expected_content));
-  ASSERT_TRUE(File::Link(file1, file2));
-
-  struct stat st;
-  const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-
-  ASSERT_EQ(0, stat(file1.c_str(), &st));
-  EXPECT_EQ(2u, st.st_nlink);
-  EXPECT_EQ(mode, st.st_mode & mode);
-
-  auto inode = st.st_ino;
-  ASSERT_EQ(0, stat(file2.c_str(), &st));
-  EXPECT_EQ(2u, st.st_nlink);
-  EXPECT_EQ(mode, st.st_mode & mode);
-  EXPECT_EQ(inode, st.st_ino);
-
-  ASSERT_TRUE(File::Write(file3, expected_content));
-  ASSERT_TRUE(File::Link(file3, file2));
-
-  ASSERT_EQ(0, stat(file1.c_str(), &st));
-  EXPECT_EQ(1u, st.st_nlink);
-  EXPECT_EQ(mode, st.st_mode & mode);
-
-  inode = st.st_ino;
-  ASSERT_EQ(0, stat(file2.c_str(), &st));
-  EXPECT_EQ(2u, st.st_nlink);
-  EXPECT_EQ(mode, st.st_mode & mode);
-  EXPECT_NE(inode, st.st_ino);
-
-  inode = st.st_ino;
-  ASSERT_EQ(0, stat(file3.c_str(), &st));
-  EXPECT_EQ(2u, st.st_nlink);
-  EXPECT_EQ(mode, st.st_mode & mode);
-  EXPECT_EQ(inode, st.st_ino);
 }
 
 }  // namespace base

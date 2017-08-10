@@ -49,7 +49,7 @@ bool NetworkServiceImpl::Listen(const String& path, ListenCallback callback,
   if (!fd.Bind(peer, error)) {
     return false;
   }
-  base::SetPermissions(path, 0777);
+  base::SetPermissions(path, Perms::all);
 
   Passive passive(std::move(fd));
   if (!passive.IsValid()) {

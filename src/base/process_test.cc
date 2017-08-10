@@ -30,25 +30,25 @@ class ProcessTest : public ::testing::Test {
 
 TEST_F(ProcessTest, CheckExitCode) {
   const int exit_code = 1;
-  ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+  ProcessPtr process = Process::Create(sh, Path(), Process::SAME_UID);
   process->AppendArg("-c"_l)
       .AppendArg(Immutable("exit " + std::to_string(exit_code)));
   ASSERT_FALSE(process->Run(1));
 }
 
 TEST_F(ProcessTest, ChangeCurrentDir) {
-  const auto dir = "/usr"_l;
+  const String dir = "/usr";
   ASSERT_NE(dir, GetCurrentDir()) << "Don't run this test from " << dir;
   ProcessPtr process = Process::Create(sh, dir, Process::SAME_UID);
   process->AppendArg("-c"_l).AppendArg("pwd"_l);
   ASSERT_TRUE(process->Run(1));
-  EXPECT_EQ(Immutable(dir) + "\n"_l, process->stdout());
+  EXPECT_EQ(dir + "\n", process->stdout().string_copy());
   EXPECT_TRUE(process->stderr().empty());
 }
 
 TEST_F(ProcessTest, ReadStderr) {
   const String test_data(10, 'a');
-  ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+  ProcessPtr process = Process::Create(sh, Path(), Process::SAME_UID);
   process->AppendArg("-c"_l)
       .AppendArg(Immutable("echo " + test_data + " 1>&2"));
   ASSERT_TRUE(process->Run(1));
@@ -58,7 +58,7 @@ TEST_F(ProcessTest, ReadStderr) {
 
 TEST_F(ProcessTest, ReadSmallOutput) {
   const String test_data(10, 'a');
-  ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+  ProcessPtr process = Process::Create(sh, Path(), Process::SAME_UID);
   process->AppendArg("-c"_l).AppendArg(Immutable("echo " + test_data));
   ASSERT_TRUE(process->Run(1));
   EXPECT_EQ(Immutable(test_data) + "\n"_l, process->stdout());
@@ -67,7 +67,7 @@ TEST_F(ProcessTest, ReadSmallOutput) {
 
 TEST_F(ProcessTest, ReadLargeOutput) {
   const String test_data(67000, 'a');
-  ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+  ProcessPtr process = Process::Create(sh, Path(), Process::SAME_UID);
   process->AppendArg("-c"_l).AppendArg(Immutable("echo " + test_data));
   ASSERT_TRUE(process->Run(1));
   EXPECT_EQ(Immutable(test_data) + "\n"_l, process->stdout());
@@ -76,7 +76,7 @@ TEST_F(ProcessTest, ReadLargeOutput) {
 
 TEST_F(ProcessTest, EchoSmallInput) {
   const String test_data(10, 'a');
-  ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+  ProcessPtr process = Process::Create(sh, Path(), Process::SAME_UID);
   process->AppendArg("-c"_l).AppendArg("cat"_l);
   ASSERT_TRUE(process->Run(1, Immutable(test_data)));
   EXPECT_EQ(Immutable(test_data), process->stdout());
@@ -85,7 +85,7 @@ TEST_F(ProcessTest, EchoSmallInput) {
 
 TEST_F(ProcessTest, EchoLargeInput) {
   const String test_data(67000, 'a');
-  ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+  ProcessPtr process = Process::Create(sh, Path(), Process::SAME_UID);
   process->AppendArg("-c"_l).AppendArg("cat"_l);
   ASSERT_TRUE(process->Run(1, Immutable(test_data)));
   EXPECT_EQ(Immutable(test_data), process->stdout());
@@ -93,13 +93,13 @@ TEST_F(ProcessTest, EchoLargeInput) {
 }
 
 TEST_F(ProcessTest, ReadTimeout) {
-  ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+  ProcessPtr process = Process::Create(sh, Path(), Process::SAME_UID);
   process->AppendArg("-c"_l).AppendArg("sleep 2"_l);
   ASSERT_FALSE(process->Run(1));
 }
 
 TEST_F(ProcessTest, TooManyArgs) {
-  ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+  ProcessPtr process = Process::Create(sh, Path(), Process::SAME_UID);
   for (auto i = 0u; i < ProcessImpl::MAX_ARGS + 2; ++i) {
     process->AppendArg("yes"_l);
   }
@@ -108,7 +108,7 @@ TEST_F(ProcessTest, TooManyArgs) {
 
 TEST_F(ProcessTest, RunWithEnvironment) {
   const auto expected_value = "some_value"_l;
-  ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+  ProcessPtr process = Process::Create(sh, Path(), Process::SAME_UID);
   process->AddEnv("ENV", expected_value)
       .AppendArg("-c"_l)
       .AppendArg("echo -n $ENV"_l);

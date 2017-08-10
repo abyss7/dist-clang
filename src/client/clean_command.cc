@@ -5,7 +5,9 @@
 namespace dist_clang {
 namespace client {
 
-base::ProcessPtr CleanCommand::CreateProcess(Immutable current_dir,
+const char* CleanCommand::rm_path = "/bin/rm";
+
+base::ProcessPtr CleanCommand::CreateProcess(const Path& current_dir,
                                              ui32 user_id) const {
   auto process = base::Process::Create(rm_path, current_dir, user_id);
   for (const auto& it : temp_files_) {

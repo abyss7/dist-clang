@@ -2202,6 +2202,7 @@ src/base/file/data.cc
 src/base/file/data.h
 src/base/file/epoll_linux.cc
 src/base/file/epoll_linux.h
+src/base/file/file.cc
 src/base/file/file.h
 src/base/file/file_posix.cc
 src/base/file/file_test.cc
@@ -2215,7 +2216,7 @@ src/base/file/pipe.h
 src/base/file/pipe_linux.cc
 src/base/file/pipe_mac.cc
 src/base/file_utils.h
-src/base/file_utils_posix.cc
+src/base/file_utils.cc
 src/base/file_utils_test.cc
 src/base/future.h
 src/base/future_test.cc
@@ -2283,7 +2284,10 @@ src/client/clean_command.hh
 src/client/command.cc
 src/client/command.hh
 src/client/command_test.cc
+src/client/configuration.cc
+src/client/configuration.hh
 src/client/configuration.proto
+src/client/configuration_test.cc
 src/client/driver_command.cc
 src/client/driver_command.hh
 src/daemon/absorber.cc
@@ -8735,6 +8739,7 @@ src/third_party/snappy/exported/snappy_unittest.cc
 src/third_party/snappy/linux/snappy-stubs-public.h
 src/third_party/snappy/mac/snappy-stubs-public.h
 src/third_party/snappy/win/snappy-stubs-public.h
+tools/clang/main.cc
 tools/args_parser/BUILD.gn
 tools/args_parser/main.cc
 tools/get_report.py
