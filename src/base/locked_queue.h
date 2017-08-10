@@ -79,9 +79,8 @@ class LockedQueue {
   // Returns disengaged object only when this queue is closed and empty.
   Optional Pop() THREAD_SAFE {
     UniqueLock lock(pop_mutex_);
-    index_.WaitDefaultShard(lock, [this] {
-      return closed_ || !queue_.empty();
-    });
+    index_.WaitDefaultShard(lock,
+                            [this] { return closed_ || !queue_.empty(); });
     if (closed_ && queue_.empty()) {
       return Optional();
     }
@@ -106,8 +105,7 @@ class LockedQueue {
   }
 
  private:
-  Optional PopWithHint(const WorkerPool& pool,
-                       UniqueLock& lock,
+  Optional PopWithHint(const WorkerPool& pool, UniqueLock& lock,
                        const ui32 shard) THREAD_UNSAFE {
     // One can't wait for condition using predicate and timed wait here as once
     // the waiting timed out, the |pool.IsShuttingDown()| should be checked and
@@ -121,8 +119,7 @@ class LockedQueue {
     return RemoveTaskFromQueue(index_.GetWithHint(shard, queue_.begin()));
   }
 
-  Optional PopStrict(const WorkerPool& pool,
-                     UniqueLock& lock,
+  Optional PopStrict(const WorkerPool& pool, UniqueLock& lock,
                      const ui32 shard_queue_limit,
                      const ui32 shard) THREAD_UNSAFE {
     DCHECK(shard_queue_limit != NOT_STRICT_SHARDING);
@@ -135,26 +132,25 @@ class LockedQueue {
       return RemoveTaskFromQueue(index_.GetStrict(maybe_overloaded_shard));
     }
 
-    auto shard_is_closed = [&]{
+    auto shard_is_closed = [&] {
       return closed_ || shard_queue_limit == GET_SHARD_DOWN;
     };
 
     // See comment about while loop in |PopWithHint|.
-    while (!shard_is_closed()
-           && index_.ShardIsEmpty(shard)
-           && !pool.IsShuttingDown()) {
+    while (!shard_is_closed() && index_.ShardIsEmpty(shard) &&
+           !pool.IsShuttingDown()) {
       index_.WaitShardFor(shard, lock, timeout_);
     }
 
-    if ((shard_is_closed() && index_.ShardIsEmpty(shard))
-        || pool.IsShuttingDown()) {
+    if ((shard_is_closed() && index_.ShardIsEmpty(shard)) ||
+        pool.IsShuttingDown()) {
       return Optional();
     }
     return RemoveTaskFromQueue(index_.GetStrict(shard));
   }
 
-  Optional RemoveTaskFromQueue(
-        typename Queue::iterator task_iterator) THREAD_UNSAFE {
+  Optional RemoveTaskFromQueue(typename Queue::iterator task_iterator)
+      THREAD_UNSAFE {
     Optional&& task = std::move(*task_iterator);
     queue_.erase(task_iterator);
     --size_;

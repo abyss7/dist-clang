@@ -19,7 +19,7 @@ class LockedQueue<T>::Index {
   };
 
   // Initialize index for LockedQueue<T>::DEFAULT_SHARD.
-  Index(): index_(1u) {}
+  Index() : index_(1u) {}
 
   ~Index() {
     // Make sure we don't leak iterators.
@@ -37,8 +37,7 @@ class LockedQueue<T>::Index {
   void Put(QueueIterator it, const ui32 shard) {
     EnsureShardExists(shard);
     reverse_index_[&*it] = std::make_pair(
-        index_[shard].tasks.insert(index_[shard].tasks.end(), it),
-        shard);
+        index_[shard].tasks.insert(index_[shard].tasks.end(), it), shard);
   }
 
   bool ShardIsEmpty(const ui32 shard) THREAD_UNSAFE {

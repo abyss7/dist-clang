@@ -150,8 +150,8 @@ TEST(LockedQueueTest, NotStrictSharding) {
       const int tasks_per_shard =
           number_of_tasks_to_process / initial_number_of_shards;
       for (int task = 0; task < tasks_per_shard; ++task) {
-        EXPECT_TRUE(!!queue.Pop(
-            pool, LockedQueue<int>::NOT_STRICT_SHARDING, shard));
+        EXPECT_TRUE(
+            !!queue.Pop(pool, LockedQueue<int>::NOT_STRICT_SHARDING, shard));
       }
     };
     workers->AddWorker("Test worker"_l, worker);
@@ -206,9 +206,8 @@ TEST(LockedQueueTest, StrictSharding) {
   }
 
   UniqueLock lock(get_tasks);
-  EXPECT_TRUE(get_tasks_done.wait_for(lock, Seconds(1), [&]{
-    return tasks_done == number_of_tasks;
-  }));
+  EXPECT_TRUE(get_tasks_done.wait_for(
+      lock, Seconds(1), [&] { return tasks_done == number_of_tasks; }));
 
   workers.reset();
   ASSERT_EQ(0u, queue.Size());

@@ -182,8 +182,8 @@ bool Emitter::Initialize() {
 // static
 ui32 Emitter::CalculateShard(const cache::string::HandledHash& handled_hash,
                              const ui32 total_shards) {
-  return (*reinterpret_cast<const ui32*>(handled_hash.str.Hash(4).c_str()))
-         % total_shards;
+  return (*reinterpret_cast<const ui32*>(handled_hash.str.Hash(4).c_str())) %
+         total_shards;
 }
 
 bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
@@ -204,17 +204,13 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
   if (message->HasExtension(base::proto::Local::extension)) {
     Message execute(message->ReleaseExtension(base::proto::Local::extension));
     if (conf->has_cache() && !conf->cache().disabled()) {
-      return cache_tasks_->Push(std::make_tuple(connection, std::move(execute),
-                                                HandledSource(),
-                                                cache::ExtraFiles{},
-                                                HandledHash(),
-                                                false));
+      return cache_tasks_->Push(
+          std::make_tuple(connection, std::move(execute), HandledSource(),
+                          cache::ExtraFiles{}, HandledHash(), false));
     } else {
-      return all_tasks_->Push(std::make_tuple(connection, std::move(execute),
-                                              HandledSource(),
-                                              cache::ExtraFiles{},
-                                              HandledHash(),
-                                              false));
+      return all_tasks_->Push(
+          std::make_tuple(connection, std::move(execute), HandledSource(),
+                          cache::ExtraFiles{}, HandledHash(), false));
     }
   }
 
@@ -766,16 +762,16 @@ bool Emitter::Reload(const proto::Configuration& conf) {
   // In case if new configurations honors strict sharding and has lower number
   // of total shards, make sure tasks from abadonned tasks get redistributed
   // across new shards.
-  if (conf.emitter().shard_queue_limit() != Queue::NOT_STRICT_SHARDING
-      && conf.emitter().has_total_shards()
-      && old_conf->emitter().has_total_shards()
-      && conf.emitter().total_shards() < old_conf->emitter().total_shards()) {
+  if (conf.emitter().shard_queue_limit() != Queue::NOT_STRICT_SHARDING &&
+      conf.emitter().has_total_shards() &&
+      old_conf->emitter().has_total_shards() &&
+      conf.emitter().total_shards() < old_conf->emitter().total_shards()) {
     for (ui32 shard = conf.emitter().total_shards();
          shard != old_conf->emitter().total_shards(); ++shard) {
       bool shard_is_empty = false;
       do {
-        Optional&& task = all_tasks_->Pop(
-            *remote_workers_, Queue::GET_SHARD_DOWN, shard);
+        Optional&& task =
+            all_tasks_->Pop(*remote_workers_, Queue::GET_SHARD_DOWN, shard);
         if (task) {
           // Once we popped a valid task - put it to appropriate shard according
           // to new number of shards.

@@ -290,7 +290,7 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
 
         UniqueLock lock(send_mutex);
         // Wait until emitter sends task to old remote:
-        //  * 1st seconds - wait for queue to pop in old remote
+        //  * 1st second - wait for queue to pop in old remote
         EXPECT_TRUE(send_condition.wait_for(
             lock, Seconds(2), [this] { return send_count == 3; }));
         // Send #1: emitter → coordinator.
@@ -347,7 +347,9 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
       // Connection from local client to emitter. Task #2.
 
       EXPECT_EQ(EndPointString(socket_path, 0), end_point->Print());
-    } else if (connect_count >= 7 && EndPointString(new_remote_host, new_remote_port) == end_point->Print()) {
+    } else if (connect_count >= 7 &&
+               EndPointString(new_remote_host, new_remote_port) ==
+                   end_point->Print()) {
       // Connection from emitter to remote absorber. Task #2.
 
       DCHECK(emitter);
@@ -442,7 +444,7 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
     // Wait for a connection to remote absorber.
     UniqueLock lock(send_mutex);
     EXPECT_TRUE(send_condition.wait_for(lock, Seconds(2),
-                                        [this] { return send_count >= 6; } ));
+                                        [this] { return send_count >= 6; }));
     // Send #6: emitter → remote.
     // Send #7 or 8: emitter → local.
     // Send #7 or 8: emitter → coordinator. (May miss)
@@ -561,7 +563,7 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
       // Connection from emitter to remote absorber. Task #1.
 
       connection->CallOnSend([&, end_point](
-                             const net::Connection::Message& message) {
+                                 const net::Connection::Message& message) {
         EXPECT_TRUE(message.HasExtension(proto::Remote::extension));
         const auto& outgoing = message.GetExtension(proto::Remote::extension);
         auto handled_hash = Immutable::WrapString(outgoing.handled_hash());
@@ -595,7 +597,7 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
       DCHECK(emitter);
 
       connection->CallOnSend([&, end_point](
-                             const net::Connection::Message& message) {
+                                 const net::Connection::Message& message) {
         EXPECT_TRUE(message.HasExtension(proto::Remote::extension));
         const auto& outgoing = message.GetExtension(proto::Remote::extension);
         auto handled_hash = Immutable::WrapString(outgoing.handled_hash());
@@ -625,8 +627,8 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
                 process->args_);
       // Block until emitter sends result for second task.
       UniqueLock lock(send_mutex);
-      EXPECT_TRUE(send_condition.wait_for(
-          lock, Seconds(2), [this] { return send_count == 5; }));
+      EXPECT_TRUE(send_condition.wait_for(lock, Seconds(2),
+                                          [this] { return send_count == 5; }));
       // Send #3: emitter → coordinator.
       // Send #4: emitter → remote (task #2).
       // Send #5: emitter → local (task #2).
@@ -681,7 +683,7 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
     // configuration.
     UniqueLock lock(send_mutex);
     EXPECT_TRUE(send_condition.wait_for(lock, Seconds(3),
-                                        [this] { return send_count == 6; } ));
+                                        [this] { return send_count == 6; }));
     // Send #3: emitter → coordinator.
     // Send #4: emitter → remote (task #2).
     // Send #5: emitter → local (task #2).
@@ -816,9 +818,8 @@ TEST_F(EmitterTest, TasksGetReshardedOnFailedRemote) {
   }
 
   UniqueLock lock(send_mutex);
-  EXPECT_TRUE(send_condition.wait_for(lock, Seconds(1), [this]{
-    return send_count == 1u;
-  }));
+  EXPECT_TRUE(send_condition.wait_for(lock, Seconds(1),
+                                      [this] { return send_count == 1u; }));
   emitter.reset();
 
   EXPECT_EQ(2u, run_count);
@@ -3404,13 +3405,14 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
       EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + deps_path,
                                     deps_contents));
     } else if (run_count == 2) {
-      EXPECT_EQ((Immutable::Rope{
-                    action, "-include-pth"_l, preprocessed_header_path,
-                    "-load"_l, plugin_path, "-dependency-file"_l, deps_path,
-                    "-x"_l, language, Immutable("-fsanitize-blacklist="_l) +
-                                          Immutable(sanitize_blacklist_path),
-                    "-o"_l, output_path, input_path}),
-                process->args_)
+      EXPECT_EQ(
+          (Immutable::Rope{action, "-include-pth"_l, preprocessed_header_path,
+                           "-load"_l, plugin_path, "-dependency-file"_l,
+                           deps_path, "-x"_l, language,
+                           Immutable("-fsanitize-blacklist="_l) +
+                               Immutable(sanitize_blacklist_path),
+                           "-o"_l, output_path, input_path}),
+          process->args_)
           << process->PrintArgs();
       EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + output_path,
                                     object_code));
