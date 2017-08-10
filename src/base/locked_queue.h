@@ -129,6 +129,9 @@ class LockedQueue {
     const ui32 maybe_overloaded_shard =
         index_.MaybeOverloadedShard(shard_queue_limit, shard);
     if (shard != maybe_overloaded_shard) {
+      if (pool.IsShuttingDown()) {
+        return Optional();
+      }
       return RemoveTaskFromQueue(index_.GetStrict(maybe_overloaded_shard));
     }
 

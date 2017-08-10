@@ -228,7 +228,7 @@ TEST(LockedQueueTest, OverloadedShardSelectedOnQueueLimit) {
   static_assert(number_of_shards > shard_with_tasks,
                 "Selected shard should be lower than overall number of shards");
 
-  UniquePtr<WorkerPool> workers(new WorkerPool);
+  UniquePtr<WorkerPool> workers(new WorkerPool(true));
 
   for (ui32 task = 0u; task < number_of_tasks; ++task) {
     EXPECT_TRUE(queue.Push(task, shard_with_tasks));
@@ -238,6 +238,17 @@ TEST(LockedQueueTest, OverloadedShardSelectedOnQueueLimit) {
     for (size_t task = 0u; task < available_tasks; ++task) {
       EXPECT_TRUE(!!queue.Pop(pool, shard_queue_limit, shard_without_tasks));
     }
+    // Wait for pool to start shutting down.
+    while (!pool.IsShuttingDown()) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
+    // Popping from shard should not work on shutting down pool.
+    EXPECT_FALSE(!!queue.Pop(pool, shard_queue_limit, shard_with_tasks));
+
+    // Popping from overloaded shard also should not work on shutting down pool.
+    EXPECT_FALSE(!!queue.Pop(
+        pool, shard_queue_limit - 1u, shard_without_tasks));
   };
   workers->AddWorker("Test worker"_l, worker);
 

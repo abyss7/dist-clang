@@ -206,11 +206,10 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
     base::ProcessPtr process = CreateProcess(incoming->flags());
     if (!process->Run(conf()->absorber().run_timeout(), source, &error)) {
       status.set_code(net::proto::Status::EXECUTION);
-      if (!process->stdout().empty() || !process->stderr().empty()) {
+      if (!process->stderr().empty()) {
         status.set_description(process->stderr());
         LOG(WARNING) << "Compilation failed with error:" << std::endl
-                     << process->stderr() << std::endl
-                     << process->stdout();
+                     << process->stderr();
       } else if (!error.empty()) {
         status.set_description(error);
         LOG(WARNING) << "Compilation failed with error: " << error;
