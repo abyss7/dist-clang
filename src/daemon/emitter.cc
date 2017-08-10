@@ -447,7 +447,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
 
     // Check that we have a compiler of a requested version.
     net::proto::Status status;
-    if (SetupCompiler(incoming->mutable_flags(), &status)) {
+    if (!SetupCompiler(incoming->mutable_flags(), &status)) {
       std::get<CONNECTION>(*task)->ReportStatus(status);
       continue;
     }
