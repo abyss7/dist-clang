@@ -11,7 +11,6 @@
 
 #include <base/using_log.h>
 
-#include STL(limits)
 #include STL(random)
 
 using namespace std::placeholders;
@@ -452,10 +451,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
 
     // Check that we have a compiler of a requested version.
     net::proto::Status status;
-    const bool has_compiler_path =
-        incoming->flags().compiler().has_path() ||
-        SetupCompiler(incoming->mutable_flags(), &status);
-    if (!has_compiler_path) {
+    if (SetupCompiler(incoming->mutable_flags(), &status)) {
       std::get<CONNECTION>(*task)->ReportStatus(status);
       continue;
     }
@@ -620,31 +616,6 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
     failed_tasks_->Push(std::move(*task));
     counter.ReportOnDestroy(true);
   }
-
-  auto new_conf = this->conf();
-
-  // In case if pool was shut down to apply new configuration check if
-  // new number of shards has changed. If so, take out tasks from our shard and
-  // redistribute them across new number of shards.
-  if (!all_tasks_->IsClosed() &&
-      new_conf->emitter().shard_queue_limit() != Queue::NOT_STRICT_SHARDING &&
-      current_shard_number_ <= shard &&
-      conf->emitter().shard_queue_limit() != Queue::NOT_STRICT_SHARDING) {
-    bool shard_is_empty = false;
-    do {
-      Optional&& task =
-          all_tasks_->Pop(pool, std::numeric_limits<ui32>::max(), shard);
-      if (task) {
-        // Once we popped a valid task - put it to appropriate shard according
-        // to new number of shards.
-        const ui32 new_shard = CalculateShard(std::get<HANDLED_HASH>(*task),
-                                              current_shard_number_);
-        all_tasks_->Push(std::move(*task), new_shard);
-      } else {
-        shard_is_empty = true;
-      }
-    } while (!shard_is_empty);
-  }
 }
 
 void Emitter::DoPoll(const base::WorkerPool& pool,
@@ -790,10 +761,32 @@ bool Emitter::Check(const Configuration& conf) const {
 bool Emitter::Reload(const proto::Configuration& conf) {
   using Worker = base::WorkerPool::SimpleWorker;
 
-  if (conf.emitter().total_shards()) {
-    current_shard_number_ = conf.emitter().total_shards();
-  } else {
-    current_shard_number_ = 1u;
+  auto old_conf = this->conf();
+
+  // In case if new configurations honors strict sharding and has lower number
+  // of total shards, make sure tasks from abadonned tasks get redistributed
+  // across new shards.
+  if (conf.emitter().shard_queue_limit() != Queue::NOT_STRICT_SHARDING
+      && conf.emitter().has_total_shards()
+      && old_conf->emitter().has_total_shards()
+      && conf.emitter().total_shards() < old_conf->emitter().total_shards()) {
+    for (ui32 shard = conf.emitter().total_shards();
+         shard != old_conf->emitter().total_shards(); ++shard) {
+      bool shard_is_empty = false;
+      do {
+        Optional&& task = all_tasks_->Pop(
+            *remote_workers_, Queue::GET_SHARD_DOWN, shard);
+        if (task) {
+          // Once we popped a valid task - put it to appropriate shard according
+          // to new number of shards.
+          const ui32 new_shard = CalculateShard(std::get<HANDLED_HASH>(*task),
+                                                conf.emitter().total_shards());
+          all_tasks_->Push(std::move(*task), new_shard);
+        } else {
+          shard_is_empty = true;
+        }
+      } while (!shard_is_empty);
+    }
   }
 
   // Create new pool before swapping, so we won't postpone new tasks.

@@ -7,6 +7,7 @@
 #include <third_party/gtest/exported/include/gtest/gtest_prod.h>
 
 #include STL(condition_variable)
+#include STL(limits)
 #include STL_EXPERIMENTAL(optional)
 
 namespace dist_clang {
@@ -22,10 +23,11 @@ class LockedQueue {
   using Optional = std::experimental::optional<T>;
   using Queue = List<T>;
 
-  enum {
-    UNLIMITED = 0,
-    DEFAULT_SHARD = 0,
-    NOT_STRICT_SHARDING = 0,
+  enum : ui32 {
+    UNLIMITED = 0u,
+    DEFAULT_SHARD = 0u,
+    NOT_STRICT_SHARDING = 0u,
+    GET_SHARD_DOWN = std::numeric_limits<ui32>::max(),
   };
 
   explicit LockedQueue(ui32 capacity = UNLIMITED)
@@ -77,7 +79,7 @@ class LockedQueue {
   // Returns disengaged object only when this queue is closed and empty.
   Optional Pop() THREAD_SAFE {
     UniqueLock lock(pop_mutex_);
-    index_.WaitShard(DEFAULT_SHARD, lock, [this] {
+    index_.WaitDefaultShard(lock, [this] {
       return closed_ || !queue_.empty();
     });
     if (closed_ && queue_.empty()) {
@@ -106,7 +108,7 @@ class LockedQueue {
  private:
   Optional PopWithHint(const WorkerPool& pool,
                        UniqueLock& lock,
-                       const ui32 shard) THREAD_SAFE {
+                       const ui32 shard) THREAD_UNSAFE {
     // One can't wait for condition using predicate and timed wait here as once
     // the waiting timed out, the |pool.IsShuttingDown()| should be checked and
     // wait again if pool doesn't shutting down.
@@ -122,7 +124,8 @@ class LockedQueue {
   Optional PopStrict(const WorkerPool& pool,
                      UniqueLock& lock,
                      const ui32 shard_queue_limit,
-                     const ui32 shard) THREAD_SAFE {
+                     const ui32 shard) THREAD_UNSAFE {
+    DCHECK(shard_queue_limit != NOT_STRICT_SHARDING);
     // Check if there's a shard with number of tasks that exceed queue limit
     // AND current shard has no tasks to do. If so, steal a task from overloaded
     // shard.
@@ -132,22 +135,26 @@ class LockedQueue {
       return RemoveTaskFromQueue(index_.GetStrict(maybe_overloaded_shard));
     }
 
+    auto shard_is_closed = [&]{
+      return closed_ || shard_queue_limit == GET_SHARD_DOWN;
+    };
 
-    // See comment about while look in |PopWithHint|.
-    while (!closed_ && index_.ShardIsEmpty(shard) && !pool.IsShuttingDown()) {
+    // See comment about while loop in |PopWithHint|.
+    while (!shard_is_closed()
+           && index_.ShardIsEmpty(shard)
+           && !pool.IsShuttingDown()) {
       index_.WaitShardFor(shard, lock, timeout_);
     }
 
-    // Do not return task only in case of empty shard. If pool is shutting down,
-    // we still may want to pop tasks from shards to redistribute them between
-    // new number of shards.
-    if (index_.ShardIsEmpty(shard)) {
+    if ((shard_is_closed() && index_.ShardIsEmpty(shard))
+        || pool.IsShuttingDown()) {
       return Optional();
     }
     return RemoveTaskFromQueue(index_.GetStrict(shard));
   }
 
-  Optional RemoveTaskFromQueue(typename Queue::iterator task_iterator) {
+  Optional RemoveTaskFromQueue(
+        typename Queue::iterator task_iterator) THREAD_UNSAFE {
     Optional&& task = std::move(*task_iterator);
     queue_.erase(task_iterator);
     --size_;
@@ -155,7 +162,7 @@ class LockedQueue {
   }
 
   FRIEND_TEST(LockedQueueIndexTest, BasicUsage);
-  FRIEND_TEST(LockedQueueIndexTest, GetWithHint);
+  FRIEND_TEST(LockedQueueIndexTest, GetWithHintFromHead);
   FRIEND_TEST(LockedQueueIndexTest, GetStrict);
   FRIEND_TEST(LockedQueueIndexTest, ShardIndexGrowsOnPut);
   FRIEND_TEST(LockedQueueIndexTest, ShardIndexGrowsOnOverloadedSearch);

@@ -72,8 +72,6 @@ class Emitter : public CompilationDaemon {
   // Indicates if we force shutdown of the remote workers pool: we shouldn't if
   // there is no coordinators, or if we stopped to poll coordinators.
 
-  Atomic<ui32> current_shard_number_ = {0u};
-
   static const ui32 max_total_shards;
 };
 

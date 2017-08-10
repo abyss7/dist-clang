@@ -54,13 +54,11 @@ class LockedQueue<T>::Index {
   }
 
   template <typename Pred>
-  void WaitShard(const ui32 shard, UniqueLock& lock,
-                 const Pred& pred) THREAD_UNSAFE {
-    DCHECK(shard == LockedQueue<T>::DEFAULT_SHARD);
-    index_[shard].pop_condition_.wait(lock, pred);
+  void WaitDefaultShard(UniqueLock& lock, const Pred& pred) THREAD_UNSAFE {
+    index_[LockedQueue<T>::DEFAULT_SHARD].pop_condition_.wait(lock, pred);
   }
 
-  void NotifyShard(const ui32 shard) THREAD_UNSAFE {
+  void NotifyShard(const ui32 shard) THREAD_SAFE {
     DCHECK(shard < index_.size());
     index_[shard].pop_condition_.notify_one();
   }
@@ -120,7 +118,7 @@ class LockedQueue<T>::Index {
 
  private:
   FRIEND_TEST(LockedQueueIndexTest, BasicUsage);
-  FRIEND_TEST(LockedQueueIndexTest, GetWithHint);
+  FRIEND_TEST(LockedQueueIndexTest, GetWithHintFromHead);
   FRIEND_TEST(LockedQueueIndexTest, GetStrict);
   FRIEND_TEST(LockedQueueIndexTest, ShardIndexGrowsOnPut);
   FRIEND_TEST(LockedQueueIndexTest, ShardIndexGrowsOnOverloadedSearch);

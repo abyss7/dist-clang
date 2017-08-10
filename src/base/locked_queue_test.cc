@@ -135,7 +135,7 @@ TEST(LockedQueueTest, BasicMultiThreadedUsage) {
   queue.Close();
 }
 
-TEST(LockedQueueTest, ShardsNumberGrow) {
+TEST(LockedQueueTest, NotStrictSharding) {
   using Worker = WorkerPool::SimpleWorker;
 
   LockedQueue<int> queue(Seconds(1));
@@ -150,7 +150,8 @@ TEST(LockedQueueTest, ShardsNumberGrow) {
       const int tasks_per_shard =
           number_of_tasks_to_process / initial_number_of_shards;
       for (int task = 0; task < tasks_per_shard; ++task) {
-        EXPECT_TRUE(!!queue.Pop(pool, 0, shard));
+        EXPECT_TRUE(!!queue.Pop(
+            pool, LockedQueue<int>::NOT_STRICT_SHARDING, shard));
       }
     };
     workers->AddWorker("Test worker"_l, worker);
@@ -170,27 +171,79 @@ TEST(LockedQueueTest, ShardsNumberGrow) {
 TEST(LockedQueueTest, StrictSharding) {
   using Worker = WorkerPool::SimpleWorker;
 
-  LockedQueue<int> queue(Seconds(1));
-  const int number_of_tasks_to_process = 12;
+  LockedQueue<ui32> queue(Seconds(1));
+  const ui32 number_of_tasks = 500u;
+  constexpr const size_t number_of_shards = 4u;
+  constexpr const size_t shard_with_tasks = 2u;
 
-  const size_t number_of_shards = 4;
-  UniquePtr<WorkerPool> workers(new WorkerPool);
+  static_assert(number_of_shards > shard_with_tasks,
+                "Selected shard should be lower than overall number of shards");
+
+  for (ui32 task = 0u; task < number_of_tasks; ++task) {
+    EXPECT_TRUE(queue.Push(task, shard_with_tasks));
+  }
+
+  Atomic<ui32> tasks_done = {0u};
+  Mutex get_tasks;
+  std::condition_variable get_tasks_done;
+
+  UniquePtr<WorkerPool> workers(new WorkerPool(true));
   for (size_t shard = 0; shard < number_of_shards; ++shard) {
-    Worker worker = [shard, &queue](const WorkerPool& pool) {
-      const int tasks_per_shard = number_of_tasks_to_process / number_of_shards;
-      for (int task = 0; task < tasks_per_shard; ++task) {
-        EXPECT_TRUE(!!queue.Pop(pool, tasks_per_shard, shard));
+    Worker worker = [&, shard](const WorkerPool& pool) {
+      if (shard == shard_with_tasks) {
+        for (ui32 task = 0u; task < number_of_tasks; ++task) {
+          EXPECT_TRUE(!!queue.Pop(pool, number_of_tasks, shard));
+          ++tasks_done;
+        }
+        get_tasks_done.notify_one();
       }
+      while (!pool.IsShuttingDown()) {
+        EXPECT_FALSE(!!queue.Pop(pool, number_of_tasks, shard));
+      }
+      EXPECT_FALSE(!!queue.Pop(pool, number_of_tasks, shard));
     };
     workers->AddWorker("Test worker"_l, worker);
   }
 
-  for (int task = 0; task < number_of_tasks_to_process; ++task) {
-    EXPECT_TRUE(queue.Push(task, task % number_of_shards));
-  }
+  UniqueLock lock(get_tasks);
+  EXPECT_TRUE(get_tasks_done.wait_for(lock, Seconds(1), [&]{
+    return tasks_done == number_of_tasks;
+  }));
 
   workers.reset();
   ASSERT_EQ(0u, queue.Size());
+  queue.Close();
+}
+
+TEST(LockedQueueTest, OverloadedShardSelectedOnQueueLimit) {
+  using Worker = WorkerPool::SimpleWorker;
+
+  LockedQueue<ui32> queue(Seconds(1));
+  const ui32 number_of_tasks = 6u;
+  const ui32 shard_queue_limit = 5u;
+  const ui32 available_tasks = number_of_tasks - shard_queue_limit;
+  constexpr const size_t number_of_shards = 2u;
+  constexpr const size_t shard_without_tasks = 0u;
+  constexpr const size_t shard_with_tasks = 1u;
+
+  static_assert(number_of_shards > shard_with_tasks,
+                "Selected shard should be lower than overall number of shards");
+
+  UniquePtr<WorkerPool> workers(new WorkerPool);
+
+  for (ui32 task = 0u; task < number_of_tasks; ++task) {
+    EXPECT_TRUE(queue.Push(task, shard_with_tasks));
+  }
+
+  Worker worker = [&](const WorkerPool& pool) {
+    for (size_t task = 0u; task < available_tasks; ++task) {
+      EXPECT_TRUE(!!queue.Pop(pool, shard_queue_limit, shard_without_tasks));
+    }
+  };
+  workers->AddWorker("Test worker"_l, worker);
+
+  workers.reset();
+  ASSERT_EQ(shard_queue_limit, queue.Size());
   queue.Close();
 }
 
@@ -216,7 +269,7 @@ TEST(LockedQueueIndexTest, BasicUsage) {
   EXPECT_EQ(0u, index.reverse_index_.count(&*inserted_item));
 }
 
-TEST(LockedQueueIndexTest, GetWithHint) {
+TEST(LockedQueueIndexTest, GetWithHintFromHead) {
   List<int> list;
   LockedQueue<int>::Index index;
 
@@ -256,6 +309,7 @@ TEST(LockedQueueIndexTest, GetStrict) {
   EXPECT_EQ(1u, index.reverse_index_.count(&*inserted_item));
 
   EXPECT_EQ(inserted_item, index.GetStrict(shard));
+  ASSERT_ANY_THROW(index.GetStrict(shard - 1u));
 }
 
 TEST(LockedQueueIndexTest, ShardIndexGrowsOnPut) {
@@ -333,6 +387,15 @@ TEST(LockedQueueIndexTest, MaybeOverloadedReturnsOverloadedShard) {
 
   EXPECT_EQ(shard2 + 1, index.index_.size());
   EXPECT_EQ(0u, index.index_[shard2].tasks.size());
+
+  inserted_item = list.insert(list.end(), max_queue_size * 3u);
+  index.Put(inserted_item, shard2);
+
+  EXPECT_EQ(shard2, index.MaybeOverloadedShard(max_queue_size, shard2));
+  // But if there's at least one task in hinted shard, |MaybeOverloadedShard|
+  // should favor the hint.
+
+  EXPECT_EQ(1u, index.index_[shard2].tasks.size());
 }
 
 }  // namespace base
