@@ -478,8 +478,8 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
   const String remote_host_name = "remote_host";
   const String coordinator_host = "coordinator_host";
   const ui16 coordinator_port = 4u;
-  const ui32 old_total_shards = 200u;
-  const ui32 new_total_shards = 4u;
+  const ui32 old_total_shards = 6u;
+  const ui32 new_total_shards = 2u;
   const ui32 shard_queue_limit = 3u;
 
   conf.mutable_emitter()->set_only_failed(true);

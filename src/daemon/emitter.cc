@@ -760,7 +760,7 @@ bool Emitter::Reload(const proto::Configuration& conf) {
   auto old_conf = this->conf();
 
   // In case if new configurations honors strict sharding and has lower number
-  // of total shards, make sure tasks from abadonned tasks get redistributed
+  // of total shards, make sure tasks from abandoned tasks get redistributed
   // across new shards.
   if (conf.emitter().shard_queue_limit() != Queue::NOT_STRICT_SHARDING &&
       conf.emitter().has_total_shards() &&

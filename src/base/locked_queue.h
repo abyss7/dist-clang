@@ -50,7 +50,7 @@ class LockedQueue {
 
   inline ui32 Size() const THREAD_SAFE { return size_; }
 
-  bool IsClosed() const THREAD_SAFE { return closed_; }
+  inline bool IsClosed() const THREAD_SAFE { return closed_; }
 
   // Returns |false| only when this queue is closed or when the capacity is
   // exceeded.
@@ -107,7 +107,7 @@ class LockedQueue {
  private:
   Optional PopWithHint(const WorkerPool& pool, UniqueLock& lock,
                        const ui32 shard) THREAD_UNSAFE {
-    // One can't wait for condition using predicate and timed wait here as once
+    // One can't wait for condition using predicate and timed wait here at once
     // the waiting timed out, the |pool.IsShuttingDown()| should be checked and
     // wait again if pool doesn't shutting down.
     while (!closed_ && queue_.empty() && !pool.IsShuttingDown()) {
@@ -133,6 +133,11 @@ class LockedQueue {
     }
 
     auto shard_is_closed = [&] {
+      // We should use a special value to distinguish cases when all tasks from
+      // certain shard are expected to be popped without waiting for new tasks.
+      // It is used, for example, on configuration update with new number of
+      // shards lower than was before. In that case tasks from remaining shards
+      // get popped and redistributed across other shards.
       return closed_ || shard_queue_limit == GET_SHARD_DOWN;
     };
 
