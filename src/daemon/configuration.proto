@@ -42,20 +42,25 @@ message Configuration {
   }
 
   message Emitter {
-    required string socket_path   = 1;
-    repeated Host remotes         = 2;
-    optional uint32 threads       = 3 [ default = 2 ];
-    optional bool only_failed     = 4 [ default = false ];
+    required string socket_path     = 1;
+    repeated Host remotes           = 2;
+    optional uint32 threads         = 3 [ default = 2 ];
+    optional bool only_failed       = 4 [ default = false ];
 
-    optional uint32 poll_interval = 5 [ default = 300 ];
+    optional uint32 poll_interval   = 5 [ default = 300 ];
     // Interval in seconds for polling coordinator.
 
-    repeated Host coordinators    = 6;
-    optional uint32 total_shards  = 7;
+    repeated Host coordinators      = 6;
+    optional uint32 total_shards    = 7;
     // Number of total shards can't be less than 2.
 
-    optional uint32 pop_timeout   = 8 [ default = 1 ];
+    optional uint32 pop_timeout     = 8 [ default = 1 ];
     // in seconds - can't be zero.
+
+    optional uint32 shard_queue_limit = 9 [ default = 0 ];
+    // Implies strict sharding if specified limit is larger than zero.
+    // All tasks of shard that exceed limit can be redistributed between other
+    // shards.
   }
 
   message Absorber {
@@ -75,6 +80,8 @@ message Configuration {
     optional uint32 total_shards = 2;
     repeated Host remotes        = 3;
     // Hosts to be propogated to clients and used as remotes.
+
+    optional uint32 shard_queue_limit = 4 [ default = 0 ];
   }
 
   // FIXME: use new protobuf feature "anyof" for emitter and absorber.

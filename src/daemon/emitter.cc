@@ -11,6 +11,8 @@
 
 #include <base/using_log.h>
 
+#include STL(random)
+
 using namespace std::placeholders;
 
 namespace dist_clang {
@@ -21,6 +23,17 @@ template <bool ReportByDefault = true>
 using Counter = perf::Counter<perf::StatReporter, ReportByDefault>;
 
 namespace {
+
+// Select a new shard, different from current.
+inline ui32 FindNewShard(const ui32 total_shards, const ui32 current_shard) {
+  thread_local static std::random_device random_device;
+  std::uniform_int_distribution<ui32> distribution(0, total_shards - 2);
+  const ui32 new_shard = distribution(random_device);
+  if (new_shard >= current_shard) {
+    return new_shard + 1;
+  }
+  return new_shard;
+}
 
 inline String GetOutputPath(const base::proto::Local* WEAK_PTR message) {
   DCHECK(message);
@@ -166,6 +179,13 @@ bool Emitter::Initialize() {
   return CompilationDaemon::Initialize();
 }
 
+// static
+ui32 Emitter::CalculateShard(const cache::string::HandledHash& handled_hash,
+                             const ui32 total_shards) {
+  return (*reinterpret_cast<const ui32*>(handled_hash.str.Hash(4).c_str())) %
+         total_shards;
+}
+
 bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
                                const net::proto::Status& status) {
   using namespace cache::string;
@@ -184,15 +204,13 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
   if (message->HasExtension(base::proto::Local::extension)) {
     Message execute(message->ReleaseExtension(base::proto::Local::extension));
     if (conf->has_cache() && !conf->cache().disabled()) {
-      return cache_tasks_->Push(std::make_tuple(connection, std::move(execute),
-                                                HandledSource(),
-                                                cache::ExtraFiles{},
-                                                HandledHash()));
+      return cache_tasks_->Push(
+          std::make_tuple(connection, std::move(execute), HandledSource(),
+                          cache::ExtraFiles{}, HandledHash(), false));
     } else {
-      return all_tasks_->Push(std::make_tuple(connection, std::move(execute),
-                                              HandledSource(),
-                                              cache::ExtraFiles{},
-                                              HandledHash()));
+      return all_tasks_->Push(
+          std::make_tuple(connection, std::move(execute), HandledSource(),
+                          cache::ExtraFiles{}, HandledHash(), false));
     }
   }
 
@@ -310,9 +328,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     ui32 shard = Queue::DEFAULT_SHARD;
     if (conf->emitter().has_total_shards()) {
       DCHECK(conf->emitter().total_shards() > 0);
-      auto hash = GenerateHash(incoming->flags(), source, extra_files);
-      shard = (*reinterpret_cast<const ui32*>(hash.str.Hash(4).c_str())) %
-               conf->emitter().total_shards();
+      shard = CalculateShard(handled_hash, conf->emitter().total_shards());
     }
     all_tasks_->Push(std::move(*task), shard);
   }
@@ -415,7 +431,8 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
       }
     }
 
-    Optional&& task = all_tasks_->Pop(pool, shard);
+    Optional&& task =
+        all_tasks_->Pop(pool, conf->emitter().shard_queue_limit(), shard);
     if (!task) {
       break;
     }
@@ -438,7 +455,6 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
     // If we're using shards we should have generated source by now.
     DCHECK(!conf->emitter().has_total_shards() || !source.str.empty());
 
-    auto outgoing = std::make_unique<proto::Remote>();
     if (source.str.empty() && !GenerateSource(incoming, &source)) {
       failed_tasks_->Push(std::move(*task));
       continue;
@@ -453,9 +469,25 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
         counter.ReportOnDestroy(false);
         LOG(WARNING) << "Failed to connect to " << end_point->Print() << ": "
                      << error;
-        // Put into |failed_tasks_| to prevent hanging around in case all
-        // remotes are unreachable at once.
-        failed_tasks_->Push(std::move(*task));
+        bool& shard_switched = std::get<CHANGED_SHARD>(*task);
+
+        // |shard_queue_limit| indicates enabled strict sharding that prevents
+        // this task from completion in case the remote server has gone. That's
+        // why such tasks should be redistributed between other shards.
+        //
+        // Tasks also shouldn't be redistributed more than one time to prevent
+        // tasks hopping between shards in case of all remotes being down.
+        if (conf->emitter().has_total_shards() &&
+            conf->emitter().shard_queue_limit() && !shard_switched) {
+          // Let other shard complete task on connection failure. Do it once.
+          shard_switched = true;
+          all_tasks_->Push(std::move(*task),
+                           FindNewShard(conf->emitter().total_shards(), shard));
+        } else {
+          // Put into |failed_tasks_| to prevent hanging around in case all
+          // remotes are unreachable at once.
+          failed_tasks_->Push(std::move(*task));
+        }
         Sleep();
 
         continue;
@@ -464,6 +496,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
 
     sleep_period = 1;
 
+    auto outgoing = std::make_unique<proto::Remote>();
     outgoing->mutable_flags()->CopyFrom(incoming->flags());
     outgoing->set_source(Immutable(source.str).string_copy(false));
     SetExtraFiles(extra_files, outgoing.get());
@@ -723,6 +756,34 @@ bool Emitter::Check(const Configuration& conf) const {
 
 bool Emitter::Reload(const proto::Configuration& conf) {
   using Worker = base::WorkerPool::SimpleWorker;
+
+  auto old_conf = this->conf();
+
+  // In case if new configurations honors strict sharding and has lower number
+  // of total shards, make sure tasks from abandoned tasks get redistributed
+  // across new shards.
+  if (conf.emitter().shard_queue_limit() != Queue::NOT_STRICT_SHARDING &&
+      conf.emitter().has_total_shards() &&
+      old_conf->emitter().has_total_shards() &&
+      conf.emitter().total_shards() < old_conf->emitter().total_shards()) {
+    for (ui32 shard = conf.emitter().total_shards();
+         shard != old_conf->emitter().total_shards(); ++shard) {
+      bool shard_is_empty = false;
+      do {
+        Optional&& task = all_tasks_->Pop(
+            *remote_workers_, std::numeric_limits<ui32>::max(), shard, true);
+        if (task) {
+          // Once we popped a valid task - put it to appropriate shard according
+          // to new number of shards.
+          const ui32 new_shard = CalculateShard(std::get<HANDLED_HASH>(*task),
+                                                conf.emitter().total_shards());
+          all_tasks_->Push(std::move(*task), new_shard);
+        } else {
+          shard_is_empty = true;
+        }
+      } while (!shard_is_empty);
+    }
+  }
 
   // Create new pool before swapping, so we won't postpone new tasks.
   auto new_pool = std::make_unique<base::WorkerPool>(!handle_all_tasks_);

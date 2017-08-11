@@ -4,8 +4,11 @@
 #include <base/worker_pool.h>
 #include <daemon/compilation_daemon.h>
 
+#include <third_party/gtest/exported/include/gtest/gtest_prod.h>
+
 namespace dist_clang {
 namespace daemon {
+FORWARD_TEST(EmitterTest, TasksGetReshardedOnConfigurationUpdate);
 
 class Emitter : public CompilationDaemon {
  public:
@@ -19,21 +22,32 @@ class Emitter : public CompilationDaemon {
   bool Reload(const Configuration& conf) override;
 
  private:
+  FRIEND_TEST(daemon::EmitterTest, TasksGetReshardedOnConfigurationUpdate);
+
   enum TaskIndex {
     CONNECTION = 0,
     MESSAGE = 1,
     SOURCE = 2,
     EXTRA_FILES = 3,
     HANDLED_HASH = 4,
+
+    CHANGED_SHARD = 5,
+    // A boolean flag to indicate if task was redistributed from it's initial
+    // shard to a random one. This may happen in case of remote being down.
+    // Also task shouldn't hop more than once to prevent instant hopping
+    // between shards.
   };
 
   using Message = UniquePtr<base::proto::Local>;
   using Task = Tuple<net::ConnectionPtr, Message, cache::string::HandledSource,
-                     cache::ExtraFiles, cache::string::HandledHash>;
-  using Queue = base::LockedQueue<Task>;
+                     cache::ExtraFiles, cache::string::HandledHash, bool>;
+  using Queue = base::LockedQueue<Task, true>;
   using QueueAggregator = base::QueueAggregator<Task>;
   using Optional = Queue::Optional;
   using ResolveFn = Fn<net::EndPointPtr()>;
+
+  static ui32 CalculateShard(const cache::string::HandledHash& handled_hash,
+                             const ui32 total_shards);
 
   bool HandleNewMessage(net::ConnectionPtr connection, Universal message,
                         const net::proto::Status& status) override;

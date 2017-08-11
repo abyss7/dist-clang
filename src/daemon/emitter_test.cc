@@ -284,12 +284,15 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
                 end_point->Print());
 
       connection->CallOnSend([this](const net::Connection::Message&) {
+
         send_condition.notify_all();
         // Run the task #1 on old remote before sending anything to coordinator.
 
         UniqueLock lock(send_mutex);
+        // Wait until emitter sends task to old remote:
+        //  * 1st second - wait for queue to pop in old remote
         EXPECT_TRUE(send_condition.wait_for(
-            lock, Seconds(1), [this] { return send_count == 3; }));
+            lock, Seconds(2), [this] { return send_count == 3; }));
         // Send #1: emitter → coordinator.
         // Send #2: emitter → coordinator (current one).
         // Send #3: emitter → remote.
@@ -325,14 +328,10 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
                 end_point->Print());
       EXPECT_EQ(old_total_shards, emitter->conf()->emitter().total_shards());
 
-      connection->CallOnSend([this](const net::Connection::Message&) {
-        send_condition.notify_all();
-        // Continue sending message to coordinator.
-      });
-
       connection->CallOnRead([&](net::Connection::Message* message) {
         message->MutableExtension(proto::Result::extension)
             ->set_obj(object_code);
+        send_condition.notify_all();
       });
     } else if (connect_count == 5) {
       // Connection from emitter to coordinator.
@@ -348,11 +347,11 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
       // Connection from local client to emitter. Task #2.
 
       EXPECT_EQ(EndPointString(socket_path, 0), end_point->Print());
-    } else if (connect_count == 7) {
+    } else if (connect_count >= 7 &&
+               EndPointString(new_remote_host, new_remote_port) ==
+                   end_point->Print()) {
       // Connection from emitter to remote absorber. Task #2.
 
-      EXPECT_EQ(EndPointString(new_remote_host, new_remote_port),
-                end_point->Print());
       DCHECK(emitter);
       EXPECT_EQ(new_total_shards, emitter->conf()->emitter().total_shards());
 
@@ -444,10 +443,11 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
 
     // Wait for a connection to remote absorber.
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(1),
-                                        [this] { return send_count == 6; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(2),
+                                        [this] { return send_count >= 6; }));
     // Send #6: emitter → remote.
-    // Send #7: emitter → local.
+    // Send #7 or 8: emitter → local.
+    // Send #7 or 8: emitter → coordinator. (May miss)
   }
 
   emitter.reset();
@@ -456,11 +456,381 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
   EXPECT_EQ(1u, listen_count);
   EXPECT_EQ(connections_created, connect_count);
   EXPECT_LE(7u, connections_created);
+  EXPECT_GE(8u, connections_created);
   EXPECT_EQ(connections_created, read_count);
   EXPECT_EQ(connections_created, send_count);
   EXPECT_EQ(1, connection1.use_count())
       << "Daemon must not store references to the connection";
   EXPECT_EQ(1, connection2.use_count())
+      << "Daemon must not store references to the connection";
+}
+
+TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
+  const base::TemporaryDir temp_dir;
+  const auto expected_code = net::proto::Status::OK;
+  const auto action = "fake_action"_l;
+  const auto handled_source = "fake_source1"_l;
+  const auto obj_code = "local_compilation_obj_code"_l;
+  const String object_code = "fake_object_code";
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const String output_path = "test.o";
+  const String remote_host_name = "remote_host";
+  const String coordinator_host = "coordinator_host";
+  const ui16 coordinator_port = 4u;
+  const ui32 old_total_shards = 6u;
+  const ui32 new_total_shards = 2u;
+  const ui32 shard_queue_limit = 3u;
+
+  conf.mutable_emitter()->set_only_failed(true);
+  conf.mutable_emitter()->set_poll_interval(1u);
+  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_direct(false);
+  conf.mutable_cache()->set_clean_period(1);
+
+  auto* coordinator = conf.mutable_emitter()->add_coordinators();
+  coordinator->set_host(coordinator_host);
+  coordinator->set_port(coordinator_port);
+
+  for (ui32 remote = 0; remote < old_total_shards; ++remote) {
+    auto* remote_host = conf.mutable_emitter()->add_remotes();
+    remote_host->set_host(remote_host_name);
+    remote_host->set_port(remote);
+    remote_host->set_shard(remote);
+    remote_host->set_threads(1);
+  }
+
+  conf.mutable_emitter()->set_total_shards(old_total_shards);
+  conf.mutable_emitter()->set_shard_queue_limit(shard_queue_limit);
+
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+
+  connect_callback = [&](net::TestConnection* connection,
+                         net::EndPointPtr end_point) {
+    // All connection callbacks are on emitter side.
+
+    if (connect_count == 1) {
+      // Connection from emitter to coordinator.
+
+      EXPECT_EQ(EndPointString(coordinator_host, coordinator_port),
+                end_point->Print());
+
+      connection->CallOnSend([this](const net::Connection::Message&) {
+        UniqueLock lock(send_mutex);
+        EXPECT_TRUE(send_condition.wait_for(
+            lock, Seconds(1), [this] { return send_count == 2; }));
+        // Send #1: emitter → coordinator (current one).
+        // Send #2: emitter → remote.
+      });
+
+      connection->CallOnRead([&](net::Connection::Message* message) {
+        auto* emitter =
+            message->MutableExtension(proto::Configuration::extension)
+                ->mutable_emitter();
+        for (ui32 remote = 0; remote < new_total_shards; ++remote) {
+          auto* remote_host = emitter->add_remotes();
+          remote_host->set_host(remote_host_name);
+          remote_host->set_port(remote);
+          remote_host->set_shard(remote);
+          remote_host->set_threads(1);
+        }
+
+        emitter->set_total_shards(new_total_shards);
+        emitter->set_shard_queue_limit(shard_queue_limit);
+      });
+    } else if (connect_count == 2 || connect_count == 3) {
+      // Connection from local client to emitter. Tasks #1 & #2.
+
+      EXPECT_EQ(EndPointString(socket_path, 0), end_point->Print());
+
+      connection->CallOnSend([&](const net::Connection::Message& message) {
+        EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+        const auto& status =
+            message.GetExtension(net::proto::Status::extension);
+        EXPECT_EQ(expected_code, status.code()) << status.description();
+
+        // If connect_count == 3:
+        //   Emitter sent result for second task. Resume |DoLocalExecute| for
+        //   first one.
+        // If connect_count == 2:
+        //   Emitter sent result for fist task, so reset emitter now and finish
+        //   the test.
+        send_condition.notify_all();
+      });
+    } else if (connect_count == 4) {
+      // Connection from emitter to remote absorber. Task #1.
+
+      connection->CallOnSend([&, end_point](
+                                 const net::Connection::Message& message) {
+        EXPECT_TRUE(message.HasExtension(proto::Remote::extension));
+        const auto& outgoing = message.GetExtension(proto::Remote::extension);
+        auto handled_hash = Immutable::WrapString(outgoing.handled_hash());
+
+        const ui32 expected_shard = Emitter::CalculateShard(
+            cache::string::HandledHash(handled_hash), old_total_shards);
+
+        EXPECT_EQ(EndPointString(remote_host_name, expected_shard),
+                  end_point->Print());
+
+        ASSERT_LT(new_total_shards, expected_shard)
+            << "Ensure that shard is greater than new total shards we're "
+               "sending in new configuration, to make sure the second task "
+               "will be redistributed.";
+
+        send_condition.notify_all();
+      });
+
+      connection->CallOnRead([&](net::Connection::Message* message) {
+        // Do not send any code to prevent task result appearing in cache to
+        // make sure next task with same handled source code goes to remote.
+
+        // Make sure coordinator thread starts new pool, stops
+        // current and redistributes tasks.
+        // Cant wait here as coordinator should join this thread.
+        std::this_thread::sleep_for(Seconds(1));
+      });
+    } else if (connect_count == 5) {
+      // Connection from emitter to remote absorber. Task #2.
+
+      DCHECK(emitter);
+
+      connection->CallOnSend([&, end_point](
+                                 const net::Connection::Message& message) {
+        EXPECT_TRUE(message.HasExtension(proto::Remote::extension));
+        const auto& outgoing = message.GetExtension(proto::Remote::extension);
+        auto handled_hash = Immutable::WrapString(outgoing.handled_hash());
+
+        const ui32 expected_shard = Emitter::CalculateShard(
+            cache::string::HandledHash(handled_hash), new_total_shards);
+
+        EXPECT_EQ(EndPointString(remote_host_name, expected_shard),
+                  end_point->Print());
+      });
+
+      connection->CallOnRead([&](net::Connection::Message* message) {
+        message->MutableExtension(proto::Result::extension)
+            ->set_obj(object_code);
+      });
+    }
+
+    return true;
+  };
+
+  run_callback = [&](base::TestProcess* process) {
+    if (run_count == 1 || run_count == 2) {
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-o"_l, "-"_l}), process->args_);
+      process->stdout_ = handled_source;
+    } else if (run_count == 3) {
+      EXPECT_EQ((Immutable::Rope{"fake_action"_l, "-o"_l, "test.o"_l}),
+                process->args_);
+      // Block until emitter sends result for second task.
+      UniqueLock lock(send_mutex);
+      EXPECT_TRUE(send_condition.wait_for(lock, Seconds(2),
+                                          [this] { return send_count == 5; }));
+      // Send #3: emitter → coordinator.
+      // Send #4: emitter → remote (task #2).
+      // Send #5: emitter → local (task #2).
+      process->stdout_ = obj_code;
+    }
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto connection1 = test_service->TriggerListen(socket_path);
+  {
+    auto test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection1);
+
+    auto message = std::make_unique<net::Connection::Message>();
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(temp_dir);
+
+    auto* flags = extension->mutable_flags();
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action(action);
+    flags->set_output(output_path);
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+  }
+
+  auto connection2 = test_service->TriggerListen(socket_path);
+  {
+    auto test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection2);
+
+    auto message = std::make_unique<net::Connection::Message>();
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(temp_dir);
+
+    auto* flags = extension->mutable_flags();
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action(action);
+    flags->set_output(output_path);
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    // 1st second: Polling for configuration.
+    // 2nd second: Verifying shard for first task.
+    // 3rd second: Sleeping to apply new configuration.
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(4),
+                                        [this] { return send_count >= 6; }));
+    // Send #3: emitter → coordinator.
+    // Send #4: emitter → remote (task #2).
+    // Send #5: emitter → local (task #2).
+    // Send #6: emitter → local (task #1, from |DoLocalExecute|).
+    // Send #7: emitter → coordinator (may absent).
+  }
+
+  emitter.reset();
+
+  EXPECT_EQ(3u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(connections_created, connect_count);
+  EXPECT_LE(6u, connections_created);
+  EXPECT_GE(7u, connections_created);
+  EXPECT_EQ(connections_created, read_count);
+  EXPECT_EQ(connections_created, send_count);
+  EXPECT_EQ(1, connection1.use_count())
+      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count())
+      << "Daemon must not store references to the connection";
+}
+
+// Check that while strict sharding if remote fails, it's tasks get
+// redistributed between other shards.
+TEST_F(EmitterTest, TasksGetReshardedOnFailedRemote) {
+  const base::TemporaryDir temp_dir;
+  const auto expected_code = net::proto::Status::OK;
+  const auto action = "fake_action"_l;
+  const auto handled_source = "fake_source"_l;
+  const auto object_code = "fake_object_code"_l;
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const String output_path = "test.o";
+  const String remote_host_name = "remote_host";
+  const ui32 total_shards = 100u;
+  const ui32 shard_queue_limit = 3u;
+
+  conf.mutable_emitter()->set_only_failed(true);
+  conf.mutable_cache()->set_path(temp_dir);
+  conf.mutable_cache()->set_direct(false);
+  conf.mutable_cache()->set_clean_period(1);
+
+  for (ui32 remote = 0; remote < total_shards; ++remote) {
+    auto* remote_host = conf.mutable_emitter()->add_remotes();
+    remote_host->set_host(remote_host_name);
+    remote_host->set_port(remote);
+    remote_host->set_shard(remote);
+    remote_host->set_threads(1);
+  }
+
+  conf.mutable_emitter()->set_total_shards(total_shards);
+  conf.mutable_emitter()->set_shard_queue_limit(shard_queue_limit);
+
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+
+  // Initial shard for task. We obtain this value from first connection from
+  // emitter to absorber and abort that connection. Than wait for second
+  // connection from emitter to another(!) remote and check that remote is from
+  // another shard.
+  Atomic<ui32> initial_shard = {77};
+
+  connect_callback = [&](net::TestConnection* connection,
+                         net::EndPointPtr end_point) {
+    // All connection callbacks are on emitter side.
+    if (connect_count == 1) {
+      // Connection from local client to emitter. Tasks #1.
+
+      EXPECT_EQ(EndPointString(socket_path, 0), end_point->Print());
+
+      connection->CallOnSend([&](const net::Connection::Message& message) {
+        EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+        const auto& status =
+            message.GetExtension(net::proto::Status::extension);
+        EXPECT_EQ(expected_code, status.code()) << status.description();
+
+        // Emitter sent result for task, so reset emitter now and finish test.
+        send_condition.notify_one();
+      });
+    } else if (connect_count == 2) {
+      // Connection from emitter to remote absorber. Task #1.
+
+      EXPECT_EQ(EndPointString(remote_host_name, initial_shard),
+                end_point->Print());
+
+      // Abort connection to make emitter choose another shard for task.
+      return false;
+    } else if (connect_count == 3) {
+      // Connection from emitter to remote absorber. Task #2.
+
+      EXPECT_NE(EndPointString(remote_host_name, initial_shard),
+                end_point->Print());
+
+      // Verified that task was redistributed to another shard.
+      // Now let's abort connection once again to make sure task donesn't get
+      // redistributed and local execution used as fallback.
+      return false;
+    }
+
+    return true;
+  };
+
+  run_callback = [&](base::TestProcess* process) {
+    if (run_count == 1) {
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-o"_l, "-"_l}), process->args_);
+      process->stdout_ = handled_source;
+    } else if (run_count == 2) {
+      process->stdout_ = object_code;
+    }
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto connection = test_service->TriggerListen(socket_path);
+  {
+    auto test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+
+    auto message = std::make_unique<net::Connection::Message>();
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(temp_dir);
+
+    auto* flags = extension->mutable_flags();
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action(action);
+    flags->set_output(output_path);
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+  }
+
+  UniqueLock lock(send_mutex);
+  EXPECT_TRUE(send_condition.wait_for(lock, Seconds(1),
+                                      [this] { return send_count == 1u; }));
+  emitter.reset();
+
+  EXPECT_EQ(2u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(connections_created, connect_count);
+  EXPECT_EQ(3u, connections_created);
+  EXPECT_EQ(1u, read_count);
+  EXPECT_EQ(1u, send_count);
+  EXPECT_EQ(1, connection.use_count())
       << "Daemon must not store references to the connection";
 }
 
@@ -3037,13 +3407,14 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
       EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + deps_path,
                                     deps_contents));
     } else if (run_count == 2) {
-      EXPECT_EQ((Immutable::Rope{
-                    action, "-include-pth"_l, preprocessed_header_path,
-                    "-load"_l, plugin_path, "-dependency-file"_l, deps_path,
-                    "-x"_l, language, Immutable("-fsanitize-blacklist="_l) +
-                                          Immutable(sanitize_blacklist_path),
-                    "-o"_l, output_path, input_path}),
-                process->args_)
+      EXPECT_EQ(
+          (Immutable::Rope{action, "-include-pth"_l, preprocessed_header_path,
+                           "-load"_l, plugin_path, "-dependency-file"_l,
+                           deps_path, "-x"_l, language,
+                           Immutable("-fsanitize-blacklist="_l) +
+                               Immutable(sanitize_blacklist_path),
+                           "-o"_l, output_path, input_path}),
+          process->args_)
           << process->PrintArgs();
       EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + output_path,
                                     object_code));

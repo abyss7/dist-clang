@@ -56,6 +56,9 @@ bool Coordinator::HandleNewMessage(net::ConnectionPtr connection,
     if (conf()->coordinator().has_total_shards()) {
       emitter->set_total_shards(conf()->coordinator().total_shards());
     }
+    if (conf()->coordinator().has_shard_queue_limit()) {
+      emitter->set_shard_queue_limit(conf()->coordinator().shard_queue_limit());
+    }
 
     connection->SendAsync(std::move(configuration));
     return true;

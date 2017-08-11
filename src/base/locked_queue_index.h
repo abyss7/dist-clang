@@ -2,14 +2,24 @@
 
 #include <base/locked_queue.h>
 
+#include STL(condition_variable)
+#include STL(deque)
+
 namespace dist_clang {
 namespace base {
 
-template <class T>
-class LockedQueue<T>::Index {
+template <class T, bool sharded>
+class LockedQueue<T, sharded>::Index {
  public:
   using QueueIterator = typename LockedQueue<T>::Queue::iterator;
-  using Shard = List<QueueIterator>;
+  using TasksList = List<QueueIterator>;
+  struct Shard {
+    TasksList tasks;
+    std::condition_variable pop_condition_;
+  };
+
+  // Initialize index for LockedQueue<T>::DEFAULT_SHARD.
+  Index() : index_(1u) {}
 
   ~Index() {
     // Make sure we don't leak iterators.
@@ -19,46 +29,112 @@ class LockedQueue<T>::Index {
   ui64 Size() const THREAD_UNSAFE {
     ui64 index_size = 0u;
     for (const auto& shard : index_) {
-      index_size += shard.size();
+      index_size += shard.tasks.size();
     }
     return index_size;
   }
 
-  void Put(QueueIterator it, ui32 shard) {
-    // TODO(ilezhankin): describe rationale for this place.
-    if (shard >= index_.size()) {
-      index_.resize(shard + 1);
-    }
-    reverse_index_[&*it] =
-        std::make_pair(index_[shard].insert(index_[shard].end(), it), shard);
+  void Put(QueueIterator it, const ui32 shard) {
+    EnsureShardExists(shard);
+    reverse_index_[&*it] = std::make_pair(
+        index_[shard].tasks.insert(index_[shard].tasks.end(), it), shard);
   }
 
-  QueueIterator Get(ui32 shard, QueueIterator begin) THREAD_UNSAFE {
+  bool ShardIsEmpty(const ui32 shard) THREAD_UNSAFE {
+    DCHECK(shard < index_.size());
+    return index_[shard].tasks.empty();
+  }
+
+  void WaitShardFor(const ui32 shard, UniqueLock& lock,
+                    const Seconds& timeout) THREAD_UNSAFE {
+    EnsureShardExists(shard);
+    DCHECK(shard < index_.size());
+    index_[shard].pop_condition_.wait_for(lock, timeout);
+  }
+
+  template <typename Pred>
+  void WaitDefaultShard(UniqueLock& lock, const Pred& pred) THREAD_UNSAFE {
+    index_[LockedQueue<T>::DEFAULT_SHARD].pop_condition_.wait(lock, pred);
+  }
+
+  void NotifyShard(const ui32 shard) THREAD_UNSAFE {
+    DCHECK(shard < index_.size());
+    index_[shard].pop_condition_.notify_one();
+  }
+
+  void NotifyAllShards() THREAD_UNSAFE {
+    for (Shard& shard : index_) {
+      shard.pop_condition_.notify_all();
+    }
+  }
+
+  // Returns either |shard| or shard with queue larger than |shard_queue_limit|.
+  ui32 MaybeOverloadedShard(const ui32 shard_queue_limit,
+                            const ui32 shard) THREAD_UNSAFE {
+    DCHECK(shard_queue_limit != LockedQueue<T>::NOT_STRICT_SHARDING);
+    EnsureShardExists(shard);
+    if (!index_[shard].tasks.empty()) {
+      return shard;
+    }
+
+    for (ui32 current = 0; current < index_.size(); ++current) {
+      if (index_[current].tasks.size() > shard_queue_limit) {
+        return current;
+      }
+    }
+
+    return shard;
+  }
+
+  QueueIterator GetWithHint(ui32 shard, QueueIterator begin) THREAD_UNSAFE {
     DCHECK(!index_.empty());
 
     QueueIterator item;
-    if (shard < index_.size() && !index_[shard].empty()) {
-      item = index_[shard].front();
-      index_[shard].pop_front();
+    if (shard < index_.size() && !index_[shard].tasks.empty()) {
+      item = index_[shard].tasks.front();
+      index_[shard].tasks.pop_front();
       reverse_index_.erase(&*item);
     } else {
       item = begin;
       shard = reverse_index_[&*begin].second;
-      index_[shard].erase(reverse_index_[&*begin].first);
+      index_[shard].tasks.erase(reverse_index_[&*begin].first);
       reverse_index_.erase(&*begin);
     }
 
     return item;
   }
 
+  QueueIterator GetStrict(const ui32 shard) THREAD_UNSAFE {
+    DCHECK(shard < index_.size() && !index_[shard].tasks.empty());
+
+    auto& tasks = index_[shard].tasks;
+    QueueIterator item = tasks.front();
+    tasks.pop_front();
+    reverse_index_.erase(&*item);
+
+    return item;
+  }
+
  private:
   FRIEND_TEST(LockedQueueIndexTest, BasicUsage);
-  FRIEND_TEST(LockedQueueIndexTest, GetFromHead);
-  FRIEND_TEST(LockedQueueIndexTest, ShardIndexGrows);
-  Vector<Shard> index_;
+  FRIEND_TEST(LockedQueueIndexTest, GetWithHintFromHead);
+  FRIEND_TEST(LockedQueueIndexTest, GetStrict);
+  FRIEND_TEST(LockedQueueIndexTest, ShardIndexGrowsOnPut);
+  FRIEND_TEST(LockedQueueIndexTest, ShardIndexGrowsOnOverloadedSearch);
+  FRIEND_TEST(LockedQueueIndexTest, MaybeOverloadedReturnsOverloadedShard);
+
+  void EnsureShardExists(const ui32 shard) {
+    // TODO(ilezhankin): describe rationale for this place.
+    if (shard >= index_.size()) {
+      index_.resize(shard + 1);
+    }
+  }
+
+  // Use deque as condition variables are not movable.
+  std::deque<Shard> index_;
 
   // FIXME: use anything more shiny for hashing than |T*|.
-  HashMap<const T*, Pair<typename Shard::const_iterator, ui32 /* shard */>>
+  HashMap<const T*, Pair<typename TasksList::const_iterator, ui32 /* shard */>>
       reverse_index_;
   // This index is used to remove items from |index_| in O(1) when
   // those are picked from the top of the |queue_|.

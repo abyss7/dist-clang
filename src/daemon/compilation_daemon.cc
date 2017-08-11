@@ -159,6 +159,11 @@ HandledHash CompilationDaemon::GenerateHash(const base::proto::Flags& flags,
 
 bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
                                       net::proto::Status* status) const {
+  // No flags - filled flags.
+  if (!flags || flags->compiler().has_path()) {
+    return true;
+  }
+
   auto conf = this->conf();
   auto getCompilerPath = [&conf](String version, String* path) {
     for (const auto& conf_version : conf->versions()) {
@@ -170,21 +175,14 @@ bool CompilationDaemon::SetupCompiler(base::proto::Flags* flags,
     return false;
   };
 
-  // No flags - filled flags.
-  if (!flags) {
-    return true;
-  }
-
-  if (!flags->compiler().has_path()) {
-    if (!getCompilerPath(flags->compiler().version(),
-                         flags->mutable_compiler()->mutable_path())) {
-      if (status) {
-        status->set_code(net::proto::Status::NO_VERSION);
-        status->set_description("Compiler not found: " +
-                                flags->compiler().version());
-      }
-      return false;
+  if (!getCompilerPath(flags->compiler().version(),
+                       flags->mutable_compiler()->mutable_path())) {
+    if (status) {
+      status->set_code(net::proto::Status::NO_VERSION);
+      status->set_description("Compiler not found: " +
+                              flags->compiler().version());
     }
+    return false;
   }
 
   auto getPluginsByCompilerVersion = [&conf](String version,

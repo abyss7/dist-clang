@@ -27,6 +27,8 @@ FORWARD_TEST(AbsorberTest, StoreLocalCacheWithAndWithoutBlacklist);
 FORWARD_TEST(CollectorTest, SimpleReport);
 FORWARD_TEST(CompilationDaemonTest, CreateProcessFromFlags);
 FORWARD_TEST(EmitterTest, ConfigurationUpdateFromCoordinator);
+FORWARD_TEST(EmitterTest, TasksGetReshardedOnConfigurationUpdate);
+FORWARD_TEST(EmitterTest, TasksGetReshardedOnFailedRemote);
 FORWARD_TEST(EmitterTest, LocalMessageWithPluginPath);
 FORWARD_TEST(EmitterTest, LocalMessageWithSanitizeBlacklist);
 FORWARD_TEST(EmitterTest, ConfigurationWithoutVersions);
@@ -106,6 +108,8 @@ class Process
   FRIEND_TEST(daemon::CollectorTest, SimpleReport);
   FRIEND_TEST(daemon::CompilationDaemonTest, CreateProcessFromFlags);
   FRIEND_TEST(daemon::EmitterTest, ConfigurationUpdateFromCoordinator);
+  FRIEND_TEST(daemon::EmitterTest, TasksGetReshardedOnConfigurationUpdate);
+  FRIEND_TEST(daemon::EmitterTest, TasksGetReshardedOnFailedRemote);
   FRIEND_TEST(daemon::EmitterTest, LocalMessageWithPluginPath);
   FRIEND_TEST(daemon::EmitterTest, LocalMessageWithSanitizeBlacklist);
   FRIEND_TEST(daemon::EmitterTest, ConfigurationWithoutVersions);
