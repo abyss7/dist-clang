@@ -210,6 +210,10 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
         status.set_description(process->stderr());
         LOG(WARNING) << "Compilation failed with error:" << std::endl
                      << process->stderr();
+      } else if (!process->stdout().empty()) {
+        status.set_description(process->stdout());
+        LOG(WARNING) << "Compilation failed with error:" << std::endl
+                     << process->stdout();
       } else if (!error.empty()) {
         status.set_description(error);
         LOG(WARNING) << "Compilation failed with error: " << error;

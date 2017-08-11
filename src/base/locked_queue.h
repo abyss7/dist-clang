@@ -17,7 +17,7 @@ template <class T>
 class QueueAggregator;
 
 // If the queue is shardless then by default it uses only zero shard.
-template <class T>
+template <class T, bool sharded = false>
 class LockedQueue {
  public:
   using Optional = std::experimental::optional<T>;
@@ -27,7 +27,6 @@ class LockedQueue {
     UNLIMITED = 0u,
     DEFAULT_SHARD = 0u,
     NOT_STRICT_SHARDING = 0u,
-    GET_SHARD_DOWN = std::numeric_limits<ui32>::max(),
   };
 
   explicit LockedQueue(ui32 capacity = UNLIMITED)
@@ -77,6 +76,12 @@ class LockedQueue {
   }
 
   // Returns disengaged object only when this queue is closed and empty.
+  // TODO: This method is deprecated. It is used by |ThreadPool| and
+  // |QueueAggregator|. While |ThreadPool| is a subject to be removed itself
+  // |QueueAggregator| should be changed to use |PopString| or other internal
+  // members of Queue. Also method is used by caching workers. That's just wrong
+  // and should be reimplemented to use |Pop| version with pool to honor pool
+  // shutting down policy.
   Optional Pop() THREAD_SAFE {
     UniqueLock lock(pop_mutex_);
     index_.WaitDefaultShard(lock,
@@ -93,14 +98,17 @@ class LockedQueue {
   // is shutting down.
   Optional Pop(const WorkerPool& pool,
                const ui32 shard_queue_limit = NOT_STRICT_SHARDING,
-               const ui32 shard = DEFAULT_SHARD) THREAD_SAFE {
+               const ui32 shard = DEFAULT_SHARD,
+               const bool no_wait = false) THREAD_SAFE {
+    static_assert(sharded == true,
+                  "This method makes no sence for non-sharded queue");
     DCHECK(timeout_ > Seconds::zero());
 
     UniqueLock lock(pop_mutex_);
     if (shard_queue_limit == NOT_STRICT_SHARDING) {
       return PopWithHint(pool, lock, shard);
     } else {
-      return PopStrict(pool, lock, shard_queue_limit, shard);
+      return PopStrict(pool, lock, shard_queue_limit, shard, no_wait);
     }
   }
 
@@ -121,7 +129,8 @@ class LockedQueue {
 
   Optional PopStrict(const WorkerPool& pool, UniqueLock& lock,
                      const ui32 shard_queue_limit,
-                     const ui32 shard) THREAD_UNSAFE {
+                     const ui32 shard,
+                     const bool no_wait) THREAD_UNSAFE {
     DCHECK(shard_queue_limit != NOT_STRICT_SHARDING);
     // Check if there's a shard with number of tasks that exceed queue limit
     // AND current shard has no tasks to do. If so, steal a task from overloaded
@@ -135,23 +144,19 @@ class LockedQueue {
       return RemoveTaskFromQueue(index_.GetStrict(maybe_overloaded_shard));
     }
 
-    auto shard_is_closed = [&] {
-      // We should use a special value to distinguish cases when all tasks from
-      // certain shard are expected to be popped without waiting for new tasks.
-      // It is used, for example, on configuration update with new number of
-      // shards lower than was before. In that case tasks from remaining shards
-      // get popped and redistributed across other shards.
-      return closed_ || shard_queue_limit == GET_SHARD_DOWN;
-    };
+    if (no_wait) {
+      if (pool.IsShuttingDown() || index_.ShardIsEmpty(shard)) {
+        return Optional();
+      }
+      return RemoveTaskFromQueue(index_.GetStrict(shard));
+    }
 
     // See comment about while loop in |PopWithHint|.
-    while (!shard_is_closed() && index_.ShardIsEmpty(shard) &&
-           !pool.IsShuttingDown()) {
+    while (!closed_ && index_.ShardIsEmpty(shard) && !pool.IsShuttingDown()) {
       index_.WaitShardFor(shard, lock, timeout_);
     }
 
-    if ((shard_is_closed() && index_.ShardIsEmpty(shard)) ||
-        pool.IsShuttingDown()) {
+    if ((closed_ && index_.ShardIsEmpty(shard)) || pool.IsShuttingDown()) {
       return Optional();
     }
     return RemoveTaskFromQueue(index_.GetStrict(shard));

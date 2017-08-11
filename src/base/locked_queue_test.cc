@@ -116,7 +116,7 @@ TEST(LockedQueueTest, UniquePtrFriendliness) {
 TEST(LockedQueueTest, BasicMultiThreadedUsage) {
   using Worker = WorkerPool::SimpleWorker;
 
-  LockedQueue<int> queue(Seconds(1));
+  LockedQueue<int, true> queue(Seconds(1));
   const int number_of_tasks_to_process = 20;
   const size_t tasks_to_leave = 5;
   const int total_number_of_tasks = number_of_tasks_to_process + tasks_to_leave;
@@ -138,7 +138,7 @@ TEST(LockedQueueTest, BasicMultiThreadedUsage) {
 TEST(LockedQueueTest, NotStrictSharding) {
   using Worker = WorkerPool::SimpleWorker;
 
-  LockedQueue<int> queue(Seconds(1));
+  LockedQueue<int, true> queue(Seconds(1));
   const int number_of_tasks_to_process = 20;
   const size_t tasks_to_leave = 5;
   const int total_number_of_tasks = number_of_tasks_to_process + tasks_to_leave;
@@ -171,7 +171,7 @@ TEST(LockedQueueTest, NotStrictSharding) {
 TEST(LockedQueueTest, StrictSharding) {
   using Worker = WorkerPool::SimpleWorker;
 
-  LockedQueue<ui32> queue(Seconds(1));
+  LockedQueue<ui32, true> queue(Seconds(1));
   const ui32 number_of_tasks = 500u;
   constexpr const size_t number_of_shards = 4u;
   constexpr const size_t shard_with_tasks = 2u;
@@ -217,7 +217,7 @@ TEST(LockedQueueTest, StrictSharding) {
 TEST(LockedQueueTest, OverloadedShardSelectedOnQueueLimit) {
   using Worker = WorkerPool::SimpleWorker;
 
-  LockedQueue<ui32> queue(Seconds(1));
+  LockedQueue<ui32, true> queue(Seconds(1));
   const ui32 number_of_tasks = 6u;
   const ui32 shard_queue_limit = 5u;
   const ui32 available_tasks = number_of_tasks - shard_queue_limit;
@@ -234,13 +234,19 @@ TEST(LockedQueueTest, OverloadedShardSelectedOnQueueLimit) {
     EXPECT_TRUE(queue.Push(task, shard_with_tasks));
   }
 
+  Atomic<ui32> tasks_done = {0u};
+  Mutex get_tasks;
+  std::condition_variable get_tasks_done;
+
   Worker worker = [&](const WorkerPool& pool) {
     for (size_t task = 0u; task < available_tasks; ++task) {
       EXPECT_TRUE(!!queue.Pop(pool, shard_queue_limit, shard_without_tasks));
+      ++tasks_done;
     }
+    get_tasks_done.notify_one();
     // Wait for pool to start shutting down.
     while (!pool.IsShuttingDown()) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      std::this_thread::sleep_for(Seconds(1));
     }
 
     // Popping from shard should not work on shutting down pool.
@@ -251,6 +257,10 @@ TEST(LockedQueueTest, OverloadedShardSelectedOnQueueLimit) {
         pool, shard_queue_limit - 1u, shard_without_tasks));
   };
   workers->AddWorker("Test worker"_l, worker);
+
+  UniqueLock lock(get_tasks);
+  EXPECT_TRUE(get_tasks_done.wait_for(
+      lock, Seconds(1), [&] { return tasks_done == available_tasks; }));
 
   workers.reset();
   ASSERT_EQ(shard_queue_limit, queue.Size());

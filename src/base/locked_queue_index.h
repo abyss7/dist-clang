@@ -8,8 +8,8 @@
 namespace dist_clang {
 namespace base {
 
-template <class T>
-class LockedQueue<T>::Index {
+template <class T, bool sharded>
+class LockedQueue<T, sharded>::Index {
  public:
   using QueueIterator = typename LockedQueue<T>::Queue::iterator;
   using TasksList = List<QueueIterator>;
@@ -57,7 +57,7 @@ class LockedQueue<T>::Index {
     index_[LockedQueue<T>::DEFAULT_SHARD].pop_condition_.wait(lock, pred);
   }
 
-  void NotifyShard(const ui32 shard) THREAD_SAFE {
+  void NotifyShard(const ui32 shard) THREAD_UNSAFE {
     DCHECK(shard < index_.size());
     index_[shard].pop_condition_.notify_one();
   }
@@ -73,7 +73,7 @@ class LockedQueue<T>::Index {
                             const ui32 shard) THREAD_UNSAFE {
     DCHECK(shard_queue_limit != LockedQueue<T>::NOT_STRICT_SHARDING);
     EnsureShardExists(shard);
-    if (index_[shard].tasks.size()) {
+    if (!index_[shard].tasks.empty()) {
       return shard;
     }
 

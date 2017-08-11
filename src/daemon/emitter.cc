@@ -770,8 +770,8 @@ bool Emitter::Reload(const proto::Configuration& conf) {
          shard != old_conf->emitter().total_shards(); ++shard) {
       bool shard_is_empty = false;
       do {
-        Optional&& task =
-            all_tasks_->Pop(*remote_workers_, Queue::GET_SHARD_DOWN, shard);
+        Optional&& task = all_tasks_->Pop(
+            *remote_workers_, std::numeric_limits<ui32>::max(), shard, true);
         if (task) {
           // Once we popped a valid task - put it to appropriate shard according
           // to new number of shards.

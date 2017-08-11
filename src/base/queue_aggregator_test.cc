@@ -16,7 +16,7 @@ TEST(QueueAggregatorTest, UniquePtrFriendliness) {
   };
 
   QueueAggregator<UniquePtr<Observer>> aggregator;
-  LockedQueue<UniquePtr<Observer>> queue;
+  LockedQueue<UniquePtr<Observer>, true> queue;
   aggregator.Aggregate(&queue);
 
   {
@@ -53,7 +53,7 @@ TEST(QueueAggregatorTest, UniquePtrFriendliness) {
 
 TEST(QueueAggregatorTest, SharedPtrFriendliness) {
   QueueAggregator<SharedPtr<int>> aggregator;
-  LockedQueue<SharedPtr<int>> queue;
+  LockedQueue<SharedPtr<int>, true> queue;
   SharedPtr<int> ptr(new int);
   aggregator.Aggregate(&queue);
 

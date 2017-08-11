@@ -13,7 +13,7 @@ namespace base {
 template <class T>
 class QueueAggregator {
  public:
-  using Optional = typename LockedQueue<T>::Optional;
+  using Optional = typename LockedQueue<T, true>::Optional;
 
   ~QueueAggregator() noexcept(false) { DCHECK(closed_); }
 
@@ -40,7 +40,7 @@ class QueueAggregator {
     threads_.clear();
   }
 
-  void Aggregate(LockedQueue<T>* WEAK_PTR queue) THREAD_UNSAFE {
+  void Aggregate(LockedQueue<T, true>* WEAK_PTR queue) THREAD_UNSAFE {
     queues_.push_back(queue);
     threads_.emplace_back("Queue Aggregator"_l, &QueueAggregator<T>::DoPop,
                           this, queue);
@@ -74,7 +74,7 @@ class QueueAggregator {
   }
 
  private:
-  void DoPop(LockedQueue<T>* WEAK_PTR queue) {
+  void DoPop(LockedQueue<T, true>* WEAK_PTR queue) {
     while (!closed_) {
       {
         UniqueLock lock(orders_mutex_);
@@ -92,8 +92,9 @@ class QueueAggregator {
         UniqueLock lock(orders_mutex_);
 
         if (order_count_) {
-          auto item = queue->index_.GetWithHint(LockedQueue<T>::DEFAULT_SHARD,
-                                                queue->queue_.begin());
+          auto item = queue->index_.GetWithHint(
+              LockedQueue<T, true>::DEFAULT_SHARD,
+              queue->queue_.begin());
           orders_.push_back(std::move(*item));
           queue->queue_.erase(item);
           --queue->size_;
@@ -106,7 +107,7 @@ class QueueAggregator {
   }
 
   List<Thread> threads_;
-  List<LockedQueue<T> * WEAK_PTR> queues_;
+  List<LockedQueue<T, true> * WEAK_PTR> queues_;
 
   std::mutex orders_mutex_;
   Atomic<bool> closed_ = {false};

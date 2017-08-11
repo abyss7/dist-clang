@@ -41,7 +41,7 @@ class Emitter : public CompilationDaemon {
   using Message = UniquePtr<base::proto::Local>;
   using Task = Tuple<net::ConnectionPtr, Message, cache::string::HandledSource,
                      cache::ExtraFiles, cache::string::HandledHash, bool>;
-  using Queue = base::LockedQueue<Task>;
+  using Queue = base::LockedQueue<Task, true>;
   using QueueAggregator = base::QueueAggregator<Task>;
   using Optional = Queue::Optional;
   using ResolveFn = Fn<net::EndPointPtr()>;

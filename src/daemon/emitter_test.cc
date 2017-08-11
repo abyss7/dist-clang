@@ -574,10 +574,10 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
         EXPECT_EQ(EndPointString(remote_host_name, expected_shard),
                   end_point->Print());
 
-        // Ensure that shard is greater than new total shards we're sending in
-        // new configuration, to make sure the second task will be
-        // redistributed.
-        EXPECT_LT(new_total_shards, expected_shard);
+        ASSERT_LT(new_total_shards, expected_shard)
+            << "Ensure that shard is greater than new total shards we're "
+               "sending in new configuration, to make sure the second task "
+               "will be redistributed.";
 
         send_condition.notify_all();
       });
@@ -589,7 +589,7 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
         // Make sure coordinator thread starts new pool, stops
         // current and redistributes tasks.
         // Cant wait here as coordinator should join this thread.
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(Seconds(1));
       });
     } else if (connect_count == 5) {
       // Connection from emitter to remote absorber. Task #2.
@@ -679,15 +679,16 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     // 1st second: Polling for configuration.
-    // 2nd second: Verifying shard for first task and sleeping to apply new
-    // configuration.
+    // 2nd second: Verifying shard for first task.
+    // 3rd second: Sleeping to apply new configuration.
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(3),
-                                        [this] { return send_count == 6; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(4),
+                                        [this] { return send_count >= 6; }));
     // Send #3: emitter → coordinator.
     // Send #4: emitter → remote (task #2).
     // Send #5: emitter → local (task #2).
     // Send #6: emitter → local (task #1, from |DoLocalExecute|).
+    // Send #7: emitter → coordinator (may absent).
   }
 
   emitter.reset();
@@ -695,7 +696,8 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
   EXPECT_EQ(3u, run_count);
   EXPECT_EQ(1u, listen_count);
   EXPECT_EQ(connections_created, connect_count);
-  EXPECT_EQ(6u, connections_created);
+  EXPECT_LE(6u, connections_created);
+  EXPECT_GE(7u, connections_created);
   EXPECT_EQ(connections_created, read_count);
   EXPECT_EQ(connections_created, send_count);
   EXPECT_EQ(1, connection1.use_count())
