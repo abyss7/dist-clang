@@ -559,6 +559,76 @@ TEST_F(AbsorberTest, SuccessfulCompilation) {
       << "Daemon must not store references to the connection";
 }
 
+TEST_F(AbsorberTest, SuccessfulCompilationWithRewriteIncludes) {
+  const String expected_host = "fake_host";
+  const ui16 expected_port = 12345;
+  const net::proto::Status::Code expected_code = net::proto::Status::OK;
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const auto action = "fake_action"_l;
+  const auto source_code = "fake_source"_l;
+  const auto object_code = "fake_pbject"_l;
+
+  conf.mutable_absorber()->mutable_local()->set_host(expected_host);
+  conf.mutable_absorber()->mutable_local()->set_port(expected_port);
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+
+  listen_callback = [&](const String& host, ui16 port, String*) {
+    EXPECT_EQ(expected_host, host);
+    EXPECT_EQ(expected_port, port);
+    return true;
+  };
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_EQ(expected_code, status.code());
+
+      EXPECT_TRUE(message.HasExtension(proto::Result::extension));
+      EXPECT_TRUE(message.GetExtension(proto::Result::extension).has_obj());
+      EXPECT_TRUE(message.GetExtension(proto::Result::extension).hash_match());
+    });
+    return true;
+  };
+
+  run_callback = [&](base::TestProcess* process) {
+    // Check that there is no -x argument in compiler invocation.
+    EXPECT_EQ((Immutable::Rope{action, "-o"_l, "-"_l}), process->args_);
+    process->stdout_ = object_code;
+  };
+
+  absorber.reset(new Absorber(conf));
+  ASSERT_TRUE(absorber->Initialize());
+
+  auto connection = test_service->TriggerListen(expected_host, expected_port);
+  {
+    auto message(CreateMessage(source_code, action, compiler_version));
+    auto* extension = message->MutableExtension(proto::Remote::extension);
+    extension->mutable_flags()->set_rewrite_includes(true);
+    auto handled_hash = CompilationDaemon::GenerateHash(
+        extension->flags(), cache::string::HandledSource(source_code),
+        cache::ExtraFiles());
+    extension->set_handled_hash(handled_hash.str);
+
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+    EXPECT_TRUE(
+        test_connection->TriggerReadAsync(std::move(message), StatusOK()));
+    absorber.reset();
+  }
+
+  EXPECT_EQ(1u, run_count);
+  EXPECT_EQ(1u, listen_count);
+  EXPECT_EQ(1u, connect_count);
+  EXPECT_EQ(1u, connections_created);
+  EXPECT_EQ(1u, read_count);
+  EXPECT_EQ(1u, send_count);
+  EXPECT_EQ(1, connection.use_count())
+      << "Daemon must not store references to the connection";
+}
+
 TEST_F(AbsorberTest, SuccessfulCompilationWithBlacklist) {
   const String expected_host = "fake_host";
   const ui16 expected_port = 12345;

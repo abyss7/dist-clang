@@ -20,7 +20,8 @@ namespace client {
 bool DoMain(int argc, const char* const argv[], Immutable socket_path,
             Immutable clang_path, Immutable version, ui32 connect_timeout_secs,
             ui32 read_timeout_secs, ui32 send_timeout_secs, ui32 read_min_bytes,
-            const HashMap<String, String>& plugins, bool disabled) {
+            const HashMap<String, String>& plugins, bool disabled,
+            const bool rewrite_includes) {
   if (clang_path.empty() || disabled) {
     return true;
   }
@@ -113,7 +114,8 @@ bool DoMain(int argc, const char* const argv[], Immutable socket_path,
       }
       continue;
     } else {
-      if (!command->FillFlags(flags, clang_path, major_version)) {
+      if (!command->FillFlags(flags, clang_path, major_version,
+                              rewrite_includes)) {
         LOG(WARNING) << "Failed to fill flags for subcommand";
         return true;
       }

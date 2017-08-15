@@ -8737,4 +8737,5 @@ src/third_party/snappy/mac/snappy-stubs-public.h
 src/third_party/snappy/win/snappy-stubs-public.h
 tools/args_parser/BUILD.gn
 tools/args_parser/main.cc
+tools/clang/main.cc
 tools/get_report.py

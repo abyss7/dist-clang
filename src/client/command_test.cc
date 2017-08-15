@@ -146,7 +146,7 @@ TEST(CommandTest, ParseCC1Args) {
 
   base::proto::Flags flags;
   ASSERT_TRUE(command->CanFillFlags());
-  ASSERT_TRUE(command->FillFlags(&flags, "/some/clang/path", "1.0.0"));
+  ASSERT_TRUE(command->FillFlags(&flags, "/some/clang/path", "1.0.0", false));
 
   if (HasNonfatalFailure()) {
     FAIL() << command->RenderAllArgs();
@@ -171,8 +171,9 @@ TEST(CommandTest, FillFlags) {
       "clang++",           "-Xclang", "-load",       "-Xclang",
       "/tmp/plugin/path",  "-Xclang", "-add-plugin", "-Xclang",
       plugin_name.c_str(), "-c",      input.c_str(), "-o",
-      output.c_str(),      nullptr};
-  const int argc = 13;
+      output.c_str(),      "-DMACRO", "-Xclang",     "frewrite-includes",
+      nullptr};
+  const int argc = 16;
 
   Command::List commands;
   ASSERT_TRUE(Command::GenerateFromArgs(argc, argv, commands));
@@ -181,7 +182,7 @@ TEST(CommandTest, FillFlags) {
   auto& command = commands.front();
   base::proto::Flags flags;
   ASSERT_TRUE(command->CanFillFlags());
-  ASSERT_TRUE(command->FillFlags(&flags, "/some/clang/path", "1.0.0"));
+  ASSERT_TRUE(command->FillFlags(&flags, "/some/clang/path", "1.0.0", false));
 
   EXPECT_EQ(input, flags.input());
   EXPECT_EQ(output, flags.output());
@@ -190,7 +191,73 @@ TEST(CommandTest, FillFlags) {
   EXPECT_EQ("-cc1", *flags.other().begin());
   EXPECT_EQ(1, flags.compiler().plugins_size());
   EXPECT_EQ(plugin_name, flags.compiler().plugins(0).name());
+
+  // Check that macroses go to non-cached list.
+  EXPECT_NE(flags.non_cached().end(),
+            std::find(flags.non_cached().begin(), flags.non_cached().end(),
+                      "MACRO"));
+
+  // Make sure frewrite-includes removed if not used explicitly.
+  EXPECT_EQ(flags.other().end(),
+            std::find(flags.other().begin(), flags.other().end(),
+                      "frewrite-includes"));
+
+  // Also ensure macroses don't go to other list.
+  EXPECT_EQ(flags.other().end(),
+            std::find(flags.other().begin(), flags.other().end(),
+                      "MACRO"));
+
+  EXPECT_FALSE(flags.rewrite_includes());
+
   // TODO: add more expectations on flags, especially about version replacement.
+
+
+  if (HasNonfatalFailure()) {
+    FAIL() << command->RenderAllArgs();
+  }
+}
+
+TEST(CommandTest, FillFlagsAppendsRewriteIncludes) {
+  const String input = "/test_file.cc";
+  const String output = "/tmp/output.o";
+  const char* argv[] = {
+      "clang++",           "-c",      input.c_str(), "-o",
+      output.c_str(),      "-DMACRO", nullptr};
+  const int argc = 6;
+
+  Command::List commands;
+  ASSERT_TRUE(Command::GenerateFromArgs(argc, argv, commands));
+  ASSERT_EQ(1u, commands.size());
+
+  auto& command = commands.front();
+  base::proto::Flags flags;
+  ASSERT_TRUE(command->CanFillFlags());
+  ASSERT_TRUE(command->FillFlags(&flags, "/some/clang/path", "1.0.0", true));
+
+  EXPECT_EQ(input, flags.input());
+  EXPECT_EQ(output, flags.output());
+  EXPECT_EQ("-emit-obj", flags.action());
+  EXPECT_EQ("c++", flags.language());
+  EXPECT_EQ("-cc1", *flags.other().begin());
+
+  // Check that macroses do not go to non-cached list.
+  EXPECT_EQ(flags.non_cached().end(),
+            std::find(flags.non_cached().begin(), flags.non_cached().end(),
+                      "MACRO"));
+
+  // Make sure frewrite-includes is added to other flags so it get passed to
+  // preprocessor.
+  EXPECT_NE(flags.other().end(),
+            std::find(flags.other().begin(), flags.other().end(),
+                      "frewrite-includes"));
+
+  // Also ensure macroses go to other list.
+  EXPECT_NE(flags.other().end(),
+            std::find(flags.other().begin(), flags.other().end(),
+                      "MACRO"));
+
+  // Check that flag indicating rewrite-includes was set.
+  EXPECT_TRUE(flags.rewrite_includes());
 
   if (HasNonfatalFailure()) {
     FAIL() << command->RenderAllArgs();

@@ -44,6 +44,9 @@ inline CommandLine CommandLineForSimpleCache(const base::proto::Flags& flags) {
     command_line += " " + base::JoinString<' '>(flags.cc_only().begin(),
                                                 flags.cc_only().end());
   }
+  if (flags.has_rewrite_includes()) {
+    command_line += " frewrite-includes"_l;
+  }
 
   return CommandLine(command_line);
 }

@@ -6,7 +6,9 @@ package dist_clang.daemon.proto;
 // Sent from emitter to absorber.
 message Remote {
   optional base.proto.Flags flags    = 1;
-  optional string source             = 2;
+  optional bytes source              = 2;
+  // Preprocessed code still may contain strings with non-unicode symbols.
+
   optional string sanitize_blacklist = 3;
   // FIXME: replace with map after protobuf upgrade
 

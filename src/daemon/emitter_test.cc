@@ -2287,6 +2287,8 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteFail) {
         const auto& command = message.GetExtension(proto::Remote::extension);
         EXPECT_EQ(source, command.source());
 
+        EXPECT_TRUE(command.flags().rewrite_includes());
+
         send_condition.notify_all();
       });
       connection->CallOnRead([&](net::Connection::Message* message) {
@@ -2328,6 +2330,7 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteFail) {
     extension->set_current_dir(temp_dir);
     extension->mutable_flags()->set_input(input_path1);
     extension->mutable_flags()->set_output(output_path1);
+    extension->mutable_flags()->set_rewrite_includes(true);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
     compiler->add_plugins()->set_name(plugin_name);

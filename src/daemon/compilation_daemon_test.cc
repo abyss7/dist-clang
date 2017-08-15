@@ -62,5 +62,31 @@ TEST(CompilationDaemonTest, CreateProcessFromFlags) {
   }
 }
 
+TEST(CompilationDaemonTest, RewriteIncludesAffectsHandledHash) {
+  base::proto::Flags flags;
+  flags.mutable_compiler()->set_path("/usr/bin/clang");
+  flags.mutable_compiler()->add_plugins()->set_path("/usr/lib/libplugin.so");
+  flags.add_cc_only()->assign("-mrelax-all");
+  flags.add_non_cached()->assign("-I.");
+  flags.set_action("-emit-obj");
+  flags.set_input("test.cc");
+  flags.set_output("test.o");
+  flags.set_language("c++");
+  flags.set_deps_file("some_deps_file");
+  flags.set_sanitize_blacklist("asan-blacklist.txt");
+
+  const cache::string::HandledSource handled_source("fake_source"_l);
+  const cache::ExtraFiles extra_files{};
+
+  const auto base_hash =
+      CompilationDaemon::GenerateHash(flags, handled_source, extra_files);
+
+  flags.set_rewrite_includes(true);
+  const auto rewrite_includes_hash =
+      CompilationDaemon::GenerateHash(flags, handled_source, extra_files);
+
+  EXPECT_NE(base_hash.str, rewrite_includes_hash.str);
+}
+
 }  // namespace daemon
 }  // namespace dist_clang
