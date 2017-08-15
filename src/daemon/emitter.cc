@@ -757,6 +757,30 @@ bool Emitter::Check(const Configuration& conf) const {
 bool Emitter::Reload(const proto::Configuration& conf) {
   using Worker = base::WorkerPool::SimpleWorker;
 
+  // Create new pool before swapping, so we won't postpone new tasks.
+  auto new_pool = std::make_unique<base::WorkerPool>(!handle_all_tasks_);
+  for (const auto& remote : conf.emitter().remotes()) {
+    if (remote.disabled()) {
+      continue;
+    }
+
+    auto resolver = [
+      this, host = remote.host(), port = static_cast<ui16>(remote.port()),
+      ipv6 = remote.ipv6()
+    ]() {
+      auto optional = resolver_->Resolve(host, port, ipv6);
+      DCHECK(optional);
+      optional->Wait();
+      return optional->GetValue();
+    };
+
+    ui32 shard = remote.has_shard() ? remote.shard() : Queue::DEFAULT_SHARD;
+    Worker worker =
+        std::bind(&Emitter::DoRemoteExecute, this, _1, resolver, shard);
+    new_pool->AddWorker("Remote Execute Worker"_l, worker, remote.threads());
+  }
+  std::swap(new_pool, remote_workers_);
+
   auto old_conf = this->conf();
 
   // In case if new configurations honors strict sharding and has lower number
@@ -784,30 +808,6 @@ bool Emitter::Reload(const proto::Configuration& conf) {
       } while (!shard_is_empty);
     }
   }
-
-  // Create new pool before swapping, so we won't postpone new tasks.
-  auto new_pool = std::make_unique<base::WorkerPool>(!handle_all_tasks_);
-  for (const auto& remote : conf.emitter().remotes()) {
-    if (remote.disabled()) {
-      continue;
-    }
-
-    auto resolver = [
-      this, host = remote.host(), port = static_cast<ui16>(remote.port()),
-      ipv6 = remote.ipv6()
-    ]() {
-      auto optional = resolver_->Resolve(host, port, ipv6);
-      DCHECK(optional);
-      optional->Wait();
-      return optional->GetValue();
-    };
-
-    ui32 shard = remote.has_shard() ? remote.shard() : Queue::DEFAULT_SHARD;
-    Worker worker =
-        std::bind(&Emitter::DoRemoteExecute, this, _1, resolver, shard);
-    new_pool->AddWorker("Remote Execute Worker"_l, worker, remote.threads());
-  }
-  std::swap(new_pool, remote_workers_);
 
   return CompilationDaemon::Reload(conf);
 }
