@@ -50,7 +50,7 @@ message Flags {
   // PCH or PTH files, included implicitly through command line arguments.
 
   optional bool rewrite_includes = 13;
-  // Indicates if preprocessing should/was made using frewrite-includes flag.
+  // Indicates if preprocessing should/was made using 'frewrite-includes' flag.
 
   // Compilation = All
   // Preprocessing = All - output - cc_only

@@ -35,7 +35,7 @@ class Command {
   virtual bool FillFlags(base::proto::Flags* flags,
                          const String& clang_path,
                          const String& clang_major_version,
-                         const bool rewrite_includes) const {
+                         bool rewrite_includes) const {
     NOTREACHED();
     return false;
   }

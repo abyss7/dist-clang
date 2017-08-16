@@ -10,13 +10,18 @@
 
 #include <base/using_log.h>
 
-namespace dist_clang {
-namespace client {
+namespace {
 
 // Flags to be ignored that are known to somehow break compilation.
-static const std::array<clang::driver::options::ID, 1> kIngoredFlags = {
-  {clang::driver::options::OPT_frewrite_includes},
-};
+const std::array<clang::driver::options::ID, 2> kIngoredFlags = {{
+  clang::driver::options::OPT_frewrite_includes,
+  clang::driver::options::OPT_rewrite_macros,
+}};
+
+}  // namespace
+
+namespace dist_clang {
+namespace client {
 
 ClangCommand::ClangCommand(llvm::ArrayRef<const char*> args,
                            SharedPtr<llvm::opt::OptTable> opts)
@@ -53,7 +58,7 @@ String ClangCommand::RenderAllArgs() const {
 bool ClangCommand::FillFlags(base::proto::Flags* flags,
                              const String& clang_path,
                              const String& clang_major_version,
-                             const bool rewrite_includes) const {
+                             bool rewrite_includes) const {
   using namespace clang::driver::options;
   if (!flags) {
     return true;
