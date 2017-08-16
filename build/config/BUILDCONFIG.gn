@@ -9,6 +9,9 @@ declare_args() {
   # Build for testing.
   config_for_tests = false
 
+  # Portable build
+  portable_build = false
+
   # Build version.
   version = exec_script("//build/version.py", [], "string")
 
