@@ -264,6 +264,64 @@ TEST(CommandTest, FillFlagsAppendsRewriteIncludes) {
   }
 }
 
+class ScopedCurrentDir {
+ public:
+  explicit ScopedCurrentDir(const Path& path)
+      : initial_dir_(base::GetCurrentDir()) {
+    base::ChangeCurrentDir(path);
+  }
+  ~ScopedCurrentDir() {
+    base::ChangeCurrentDir(initial_dir_);
+  }
+ private:
+  const Path initial_dir_;
+};
+
+TEST(CommandTest, RelativeResourceDir) {
+  String self_path = base::GetCurrentDir();
+  ASSERT_TRUE(base::GetSelfPath(self_path));
+  const String input = "/test_file.cc";
+  const String output = "/tmp/output.o";
+  const String clang_path = self_path + "/path/to/llvm-build/bin/clang";
+  const String resource_dir = self_path + "/../lib/1.0.0";
+  const char* argv[] = {"clang++",
+                        "-Xclang",
+                        "-resource-dir",
+                        "-Xclang",
+                        resource_dir.c_str(),
+                        "-c",
+                        input.c_str(),
+                        "-o",
+                        output.c_str(),
+                        nullptr};
+  const int argc = 9;
+
+  ScopedCurrentDir tests_binary_dir(std::move(self_path));
+
+  Command::List commands;
+  ASSERT_TRUE(Command::GenerateFromArgs(argc, argv, commands));
+  ASSERT_EQ(1u, commands.size());
+
+  auto& command = commands.front();
+  base::proto::Flags flags;
+  ASSERT_TRUE(command->CanFillFlags());
+  ASSERT_TRUE(command->FillFlags(&flags, clang_path, "1.0.0", false));
+
+  EXPECT_EQ(input, flags.input());
+  EXPECT_EQ(output, flags.output());
+  EXPECT_EQ("-emit-obj", flags.action());
+  EXPECT_EQ("c++", flags.language());
+  EXPECT_EQ("-cc1", *flags.other().begin());
+
+  EXPECT_NE(flags.non_direct().end(),
+            std::find(flags.non_direct().begin(), flags.non_direct().end(),
+                      "./path/to/llvm-build/bin/../lib/1.0.0"));
+
+  if (HasNonfatalFailure()) {
+    FAIL() << command->RenderAllArgs();
+  }
+}
+
 TEST(CommandTest, AppendCleanTempFilesCommand) {
   const String temp_input = base::CreateTempFile(".cc");
   const char* argv[] = {"clang++", temp_input.c_str(), nullptr};

@@ -95,5 +95,36 @@ Pair<time_t> GetModificationTime(const String& path, String* error) {
   return {time_spec.tv_sec, time_spec.tv_nsec};
 }
 
+String GetRelativePath(const String& current_dir, const String& path) {
+  // Remove dot directories from inputs to make behavior more consistent.
+  std::regex dot_pattern("\\/./");
+  List<String> current_dir_parts, path_parts;
+  base::SplitString<'/'>(
+      std::regex_replace(current_dir, dot_pattern, "/"), current_dir_parts);
+  base::SplitString<'/'>(
+      std::regex_replace(path, dot_pattern, "/"), path_parts);
+
+  auto current_dir_part = current_dir_parts.begin();
+  auto path_part = path_parts.begin();
+  while (current_dir_part != current_dir_parts.end() &&
+         path_part != path_parts.end() &&
+         *current_dir_part == *path_part) {
+    ++current_dir_part;
+    ++path_part;
+  }
+
+  String result(".");
+  while (current_dir_part != current_dir_parts.end()) {
+    result += "/..";
+    ++current_dir_part;
+  }
+
+  while (path_part != path_parts.end()) {
+    result += "/" + *path_part;
+    ++path_part;
+  }
+  return result;
+}
+
 }  // namespace base
 }  // namespace dist_clang

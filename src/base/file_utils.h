@@ -1,6 +1,7 @@
 #pragma once
 
 #include <base/c_utils.h>
+#include <base/string_utils.h>
 
 #include <stdio.h>
 
@@ -65,6 +66,8 @@ inline Path GetCurrentDir(String* error = nullptr) {
   }
   return current_dir;
 }
+
+String GetRelativePath(const String& current_dir, const String& path);
 
 }  // namespace base
 }  // namespace dist_clang
