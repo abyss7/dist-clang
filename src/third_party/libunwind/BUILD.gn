@@ -141,7 +141,6 @@ source_set("unwind") {
 
   libs = [
     "c",
-    "lzma",
   ]
 
   # TODO: use Debug/Release configs.
