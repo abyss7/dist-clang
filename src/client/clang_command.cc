@@ -13,7 +13,7 @@
 namespace {
 
 // Flags to be ignored that are known to somehow break compilation.
-const std::array<clang::driver::options::ID, 2> kIngoredFlags = {{
+const std::array<clang::driver::options::ID, 2> kIgnoredFlags = {{
   clang::driver::options::OPT_frewrite_includes,
   clang::driver::options::OPT_rewrite_macros,
 }};
@@ -171,8 +171,10 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
 
     // By default all other flags are cacheable.
     else {
-      const bool ignored = std::any_of(kIngoredFlags.begin(),
-                                       kIngoredFlags.end(),
+      // FIXME: Potentionaly this is an O(n*m) problem, that should be solved in
+      // a more efficient way.
+      const bool ignored = std::any_of(kIgnoredFlags.begin(),
+                                       kIgnoredFlags.end(),
                                        [&](const auto& ignored_flag) {
         return arg->getOption().matches(ignored_flag);
       });
