@@ -186,7 +186,9 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
 
   if (rewrite_includes) {
     const auto& option = opts_->getOption(OPT_frewrite_includes);
-    other_list.push_back(tmp_list.MakeArgString(option.getRenderName()));
+    String option_name = tmp_list.MakeArgString(option.getRenderName());
+    option_name.insert(0, 1, '-');
+    other_list.push_back(option_name.c_str());
   }
   flags->set_rewrite_includes(rewrite_includes);
 

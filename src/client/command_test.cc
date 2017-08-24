@@ -171,7 +171,7 @@ TEST(CommandTest, FillFlags) {
       "clang++",           "-Xclang", "-load",       "-Xclang",
       "/tmp/plugin/path",  "-Xclang", "-add-plugin", "-Xclang",
       plugin_name.c_str(), "-c",      input.c_str(), "-o",
-      output.c_str(),      "-DMACRO", "-Xclang",     "frewrite-includes",
+      output.c_str(),      "-DMACRO", "-Xclang",     "-frewrite-includes",
       nullptr};
   const int argc = 16;
 
@@ -197,10 +197,10 @@ TEST(CommandTest, FillFlags) {
             std::find(flags.non_cached().begin(), flags.non_cached().end(),
                       "MACRO"));
 
-  // Make sure frewrite-includes removed if not used explicitly.
+  // Make sure -frewrite-includes removed if not used explicitly.
   EXPECT_EQ(flags.other().end(),
             std::find(flags.other().begin(), flags.other().end(),
-                      "frewrite-includes"));
+                      "-frewrite-includes"));
 
   // Also ensure macroses don't go to other list.
   EXPECT_EQ(flags.other().end(),
@@ -245,11 +245,11 @@ TEST(CommandTest, FillFlagsAppendsRewriteIncludes) {
             std::find(flags.non_cached().begin(), flags.non_cached().end(),
                       "MACRO"));
 
-  // Make sure frewrite-includes is added to other flags so it get passed to
+  // Make sure -frewrite-includes is added to other flags so it get passed to
   // preprocessor.
   EXPECT_NE(flags.other().end(),
             std::find(flags.other().begin(), flags.other().end(),
-                      "frewrite-includes"));
+                      "-frewrite-includes"));
 
   // Also ensure macroses go to other list.
   EXPECT_NE(flags.other().end(),
