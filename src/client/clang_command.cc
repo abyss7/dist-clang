@@ -184,9 +184,12 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
     }
   }
 
+  // Leave |option_name| out of 'if' scope to make sure pointer copied to
+  // |other_list| is alive.
+  String option_name;
   if (rewrite_includes) {
     const auto& option = opts_->getOption(OPT_frewrite_includes);
-    String option_name = tmp_list.MakeArgString(option.getRenderName());
+    option_name = tmp_list.MakeArgString(option.getRenderName());
     option_name.insert(0, 1, '-');
     other_list.push_back(option_name.c_str());
   }
