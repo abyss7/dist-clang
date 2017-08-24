@@ -229,14 +229,21 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
           GenerateHash(incoming->flags(), HandledSource(source), extra_files);
     }
 
-    // Optimize compilation for preprocessed code for some languages.
-    if (incoming->flags().has_language()) {
-      if (incoming->flags().language() == "c") {
-        incoming->mutable_flags()->set_language("cpp-output");
-      } else if (incoming->flags().language() == "c++") {
-        incoming->mutable_flags()->set_language("c++-cpp-output");
-      } else if (incoming->flags().language() == "objective-c++") {
-        incoming->mutable_flags()->set_language("objective-c++-cpp-output");
+    const bool preprocessed_with_rewrite_includes =
+        incoming->flags().has_rewrite_includes() &&
+        incoming->flags().rewrite_includes();
+
+    if (!preprocessed_with_rewrite_includes) {
+      // Optimize compilation for preprocessed code for some languages, but only
+      // if it was fully preprocessed (without frewrite-includes flag enabled).
+      if (incoming->flags().has_language()) {
+        if (incoming->flags().language() == "c") {
+          incoming->mutable_flags()->set_language("cpp-output");
+        } else if (incoming->flags().language() == "c++") {
+          incoming->mutable_flags()->set_language("c++-cpp-output");
+        } else if (incoming->flags().language() == "objective-c++") {
+          incoming->mutable_flags()->set_language("objective-c++-cpp-output");
+        }
       }
     }
 

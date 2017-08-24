@@ -19,7 +19,8 @@ class ClangCommand : public Command {
   String RenderAllArgs() const override;
   bool CanFillFlags() const override { return true; }
   bool FillFlags(base::proto::Flags* flags, const String& clang_path,
-                 const String& clang_major_version) const override;
+                 const String& clang_major_version,
+                 bool rewrite_includes) const override;
 
  private:
   const llvm::opt::InputArgList arg_list_;

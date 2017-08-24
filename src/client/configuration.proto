@@ -34,4 +34,9 @@ message Configuration {
   repeated Plugin plugins         = 7;
   optional bool disabled          = 8 [ default = false ];
   optional base.proto.Verbosity verbosity = 9;
+
+  optional bool rewrite_includes  = 10 [ default = false ];
+  // Use -frewrite-includes flag while preprocessing source code to make macros
+  // uses remain in code to prevent possible failures on remote hosts due to
+  // different treating of expanded source code by clang.
 }

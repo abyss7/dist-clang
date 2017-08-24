@@ -10,6 +10,16 @@
 
 #include <base/using_log.h>
 
+namespace {
+
+// Flags to be ignored that are known to somehow break compilation.
+const std::array<clang::driver::options::ID, 2> kIgnoredFlags = {{
+  clang::driver::options::OPT_frewrite_includes,
+  clang::driver::options::OPT_rewrite_macros,
+}};
+
+}  // namespace
+
 namespace dist_clang {
 namespace client {
 
@@ -47,7 +57,9 @@ String ClangCommand::RenderAllArgs() const {
 
 bool ClangCommand::FillFlags(base::proto::Flags* flags,
                              const String& clang_path,
-                             const String& clang_major_version) const {
+                             const String& clang_major_version,
+                             bool rewrite_includes) const {
+  using namespace clang::driver::options;
   if (!flags) {
     return true;
   }
@@ -58,7 +70,6 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
   llvm::opt::DerivedArgList tmp_list(arg_list_);
 
   for (const auto& arg : arg_list_) {
-    using namespace clang::driver::options;
 
     // TODO: try to sort out flags by some attribute, i.e. group actions,
     //       compilation-only flags, etc.
@@ -94,9 +105,14 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
     else if (arg->getOption().matches(OPT_include) ||
              arg->getOption().matches(OPT_internal_externc_isystem) ||
              arg->getOption().matches(OPT_isysroot) ||
-             arg->getOption().matches(OPT_D) ||
              arg->getOption().matches(OPT_I)) {
       arg->render(arg_list_, non_cached_list);
+    } else if (arg->getOption().matches(OPT_D)) {
+      if (rewrite_includes) {
+        arg->render(arg_list_, other_list);
+      } else {
+        arg->render(arg_list_, non_cached_list);
+      }
     } else if (arg->getOption().matches(OPT_include_pch) ||
                arg->getOption().matches(OPT_include_pth)) {
       flags->add_included_files(arg->getValue());
@@ -155,9 +171,29 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
 
     // By default all other flags are cacheable.
     else {
-      arg->render(arg_list_, other_list);
+      // FIXME: Potentially this is an O(n*m) problem, that should be solved in
+      //        a more efficient way.
+      const bool ignored = std::any_of(kIgnoredFlags.begin(),
+                                       kIgnoredFlags.end(),
+                                       [&](const auto& ignored_flag) {
+        return arg->getOption().matches(ignored_flag);
+      });
+      if (!ignored) {
+        arg->render(arg_list_, other_list);
+      }
     }
   }
+
+  // Leave |option_name| out of 'if' scope to make sure pointer copied to
+  // |other_list| is alive.
+  String option_name;
+  if (rewrite_includes) {
+    const auto& option = opts_->getOption(OPT_frewrite_includes);
+    option_name = tmp_list.MakeArgString(option.getRenderName());
+    option_name.insert(0, 1, '-');
+    other_list.push_back(option_name.c_str());
+  }
+  flags->set_rewrite_includes(rewrite_includes);
 
   for (const auto& value : non_direct_list) {
     flags->add_non_direct(value);

@@ -38,7 +38,7 @@ int main(int argc, const char* argv[]) {
     log << command->RenderAllArgs() << std::endl;
 
     base::proto::Flags flags;
-    if (command->FillFlags(&flags, config.path(), major_version)) {
+    if (command->FillFlags(&flags, config.path(), major_version, false)) {
       log << static_cast<const google::protobuf::Message&>(flags);
     }
 

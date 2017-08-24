@@ -71,7 +71,7 @@ int main(int argc, char* argv[]) {
                      Immutable::WrapString(config.version()),
                      config.connect_timeout(), config.read_timeout(),
                      config.send_timeout(), config.read_minimum(),
-                     plugins, config.disabled())) {
+                     plugins, config.disabled(), config.rewrite_includes())) {
     return ExecuteLocally(argv, config.path());
   }
 
