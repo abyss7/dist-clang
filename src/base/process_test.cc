@@ -1,6 +1,6 @@
 #include <base/process_impl.h>
 
-#include <base/c_utils.h>
+#include <base/file_utils.h>
 #include <base/string_utils.h>
 
 #include <third_party/gtest/exported/include/gtest/gtest.h>
@@ -31,13 +31,13 @@ class ProcessTest : public ::testing::Test {
 TEST_F(ProcessTest, CheckExitCode) {
   const int exit_code = 1;
   ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
-  process->AppendArg("-c"_l)
-      .AppendArg(Immutable("exit " + std::to_string(exit_code)));
+  process->AppendArg("-c"_l).AppendArg(
+      Immutable("exit " + std::to_string(exit_code)));
   ASSERT_FALSE(process->Run(1));
 }
 
 TEST_F(ProcessTest, ChangeCurrentDir) {
-  const auto dir = "/usr"_l;
+  const auto dir = Path("/usr");
   ASSERT_NE(dir, GetCurrentDir()) << "Don't run this test from " << dir;
   ProcessPtr process = Process::Create(sh, dir, Process::SAME_UID);
   process->AppendArg("-c"_l).AppendArg("pwd"_l);
@@ -49,8 +49,8 @@ TEST_F(ProcessTest, ChangeCurrentDir) {
 TEST_F(ProcessTest, ReadStderr) {
   const String test_data(10, 'a');
   ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
-  process->AppendArg("-c"_l)
-      .AppendArg(Immutable("echo " + test_data + " 1>&2"));
+  process->AppendArg("-c"_l).AppendArg(
+      Immutable("echo " + test_data + " 1>&2"));
   ASSERT_TRUE(process->Run(1));
   EXPECT_EQ(Immutable(test_data) + "\n"_l, process->stderr());
   EXPECT_TRUE(process->stdout().empty());

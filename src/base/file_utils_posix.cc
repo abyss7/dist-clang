@@ -19,20 +19,20 @@ namespace dist_clang {
 namespace base {
 
 void WalkDirectory(
-    const String& path,
-    Fn<void(const String& file_path, ui64 mtime, ui64 size)> visitor,
+    const Path& path,
+    Fn<void(const Path& file_path, ui64 mtime, ui64 size)> visitor,
     String* error) {
-  List<String> paths;
+  List<Path> paths;
   paths.push_back(path);
 
   while (!paths.empty()) {
-    const String& path = paths.front();
+    const Path& path = paths.front();
     if (DIR* dir = opendir(path.c_str())) {
       struct dirent* entry = nullptr;
 
       while ((entry = readdir(dir))) {
         const String entry_name = entry->d_name;
-        const String new_path = path + "/" + entry_name;
+        const Path new_path = path / entry_name;
 
         if (entry_name != "." && entry_name != "..") {
           struct stat buffer;
@@ -67,12 +67,11 @@ void WalkDirectory(
   }
 }
 
-ui64 CalculateDirectorySize(const String& path, String* error) {
+ui64 CalculateDirectorySize(const Path& path, String* error) {
   ui64 result = 0u;
 
-  WalkDirectory(path, [&result](const String&, ui64, ui64 size) {
-    result += size;
-  }, error);
+  WalkDirectory(
+      path, [&result](const Path&, ui64, ui64 size) { result += size; }, error);
 
   return result;
 }
@@ -96,7 +95,7 @@ Pair<time_t> GetModificationTime(const String& path, String* error) {
   return {time_spec.tv_sec, time_spec.tv_nsec};
 }
 
-bool GetLeastRecentPath(const String& path, String& result, const char* regex,
+bool GetLeastRecentPath(const Path& path, Path& result, const char* regex,
                         String* error) {
   DIR* dir = opendir(path.c_str());
   if (dir == nullptr) {
@@ -121,7 +120,7 @@ bool GetLeastRecentPath(const String& path, String& result, const char* regex,
       continue;
     }
 
-    const String new_path = path + "/" + entry_name;
+    const auto new_path = path / entry_name;
     auto current_mtime = GetModificationTime(new_path);
     if (mtime == null_time ||
         (current_mtime != null_time && current_mtime < mtime)) {
@@ -134,7 +133,7 @@ bool GetLeastRecentPath(const String& path, String& result, const char* regex,
   return mtime != null_time;
 }
 
-bool GetLeastRecentPath(const String& path, String& result, String* error) {
+bool GetLeastRecentPath(const Path& path, Path& result, String* error) {
   return GetLeastRecentPath(path, result, ".*", error);
 }
 
@@ -156,4 +155,4 @@ bool CreateDirectory(const String& path, String* error) {
 }
 
 }  // namespace base
-}  // namespace dist
+}  // namespace dist_clang

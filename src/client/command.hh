@@ -22,7 +22,7 @@ class Command {
 
   virtual ~Command() {}
 
-  virtual base::ProcessPtr CreateProcess(Immutable current_dir,
+  virtual base::ProcessPtr CreateProcess(const Path& current_dir,
                                          ui32 user_id) const = 0;
   virtual String GetExecutable() const = 0;
   virtual String RenderAllArgs() const = 0;  // For testing.
@@ -32,8 +32,7 @@ class Command {
     return false;
   }
 
-  virtual bool FillFlags(base::proto::Flags* flags,
-                         const String& clang_path,
+  virtual bool FillFlags(base::proto::Flags* flags, const String& clang_path,
                          const String& clang_major_version,
                          bool rewrite_includes) const {
     NOTREACHED();

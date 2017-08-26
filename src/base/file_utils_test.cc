@@ -14,12 +14,12 @@ namespace dist_clang {
 namespace base {
 
 TEST(FileUtilsTest, CalculateDirectorySize) {
-  const base::TemporaryDir temp_dir;
-  const String dir1 = String(temp_dir) + "/1";
-  const String dir2 = String(temp_dir) + "/2";
-  const String file1 = String(temp_dir) + "/file1";
-  const String file2 = dir1 + "/file2";
-  const String file3 = dir2 + "/file3";
+  const TemporaryDir temp_dir;
+  const auto dir1 = temp_dir.path() / "1";
+  const auto dir2 = temp_dir.path() / "2";
+  const auto file1 = temp_dir.path() / "file1";
+  const auto file2 = dir1 / "file2";
+  const auto file3 = dir2 / "file3";
   const String content1 = "a";
   const String content2 = "ab";
   const String content3 = "abc";
@@ -47,11 +47,11 @@ TEST(FileUtilsTest, CalculateDirectorySize) {
 }
 
 TEST(FileUtilsTest, LeastRecentPath) {
-  const base::TemporaryDir temp_dir;
-  const String dir = String(temp_dir) + "/1";
-  const String file1 = String(temp_dir) + "/2";
-  const String file2 = dir + "/3";
-  const String file3 = dir + "/4";
+  const TemporaryDir temp_dir;
+  const auto dir = temp_dir.path() / "1";
+  const auto file1 = temp_dir.path() / "2";
+  const auto file2 = dir / "3";
+  const auto file3 = dir / "4";
 
   ASSERT_NE(-1, mkdir(dir.c_str(), 0777));
 
@@ -60,7 +60,7 @@ TEST(FileUtilsTest, LeastRecentPath) {
   ASSERT_NE(-1, fd);
   close(fd);
 
-  String path;
+  Path path;
   EXPECT_TRUE(GetLeastRecentPath(temp_dir, path));
   EXPECT_EQ(dir, path) << "dir mtime is " << GetModificationTime(dir).first
                        << ":" << GetModificationTime(dir).second
@@ -95,9 +95,9 @@ TEST(FileUtilsTest, LeastRecentPath) {
 }
 
 TEST(FileUtilsTest, LeastRecentPathWithRegex) {
-  const base::TemporaryDir temp_dir;
-  const String file1 = String(temp_dir) + "/1";
-  const String file2 = String(temp_dir) + "/2";
+  const TemporaryDir temp_dir;
+  const auto file1 = temp_dir.path() / "1";
+  const auto file2 = temp_dir.path() / "2";
 
   int fd = open(file1.c_str(), O_CREAT, 0777);
   ASSERT_NE(-1, fd);
@@ -108,7 +108,7 @@ TEST(FileUtilsTest, LeastRecentPathWithRegex) {
   ASSERT_NE(-1, fd);
   close(fd);
 
-  String path;
+  Path path;
   EXPECT_TRUE(GetLeastRecentPath(temp_dir, path, "2"));
   EXPECT_EQ(file2, path);
 }
@@ -117,16 +117,16 @@ TEST(FileUtilsTest, TempFile) {
   String error;
   const String temp_file = CreateTempFile(&error);
 
-  ASSERT_FALSE(temp_file.empty()) << "Failed to create temporary file: "
-                                  << error;
+  ASSERT_FALSE(temp_file.empty())
+      << "Failed to create temporary file: " << error;
   ASSERT_TRUE(File::Exists(temp_file));
   ASSERT_TRUE(File::Delete(temp_file));
 }
 
 TEST(FileUtilsTest, CreateDirectory) {
   String error;
-  const base::TemporaryDir temp_dir;
-  const String temp = String(temp_dir) + "/1/2/3";
+  const TemporaryDir temp_dir;
+  const auto temp = temp_dir.path() / "1" / "2" / "3";
 
   ASSERT_TRUE(CreateDirectory(temp, &error)) << error;
 

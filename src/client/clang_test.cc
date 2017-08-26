@@ -103,7 +103,8 @@ TEST_F(ClientTest, EmptyClangPath) {
   const int argc = 3;
 
   EXPECT_TRUE(client::DoMain(argc, argv, Immutable(), Immutable(), Immutable(),
-                             0, 0, 0, 0, HashMap<String, String>(), false, false));
+                             0, 0, 0, 0, HashMap<String, String>(), false,
+                             false));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -116,7 +117,8 @@ TEST_F(ClientTest, Disabled) {
   const int argc = 3;
 
   EXPECT_TRUE(client::DoMain(argc, argv, "socket_path"_l, clang_path, version,
-                             0, 0, 0, 0, HashMap<String, String>(), true, false));
+                             0, 0, 0, 0, HashMap<String, String>(), true,
+                             false));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -139,7 +141,8 @@ TEST_F(ClientTest, NoInputFile) {
   const int argc = 3;
 
   EXPECT_TRUE(client::DoMain(argc, argv, "socket_path"_l, clang_path, version,
-                             0, 0, 0, 0, HashMap<String, String>(), false, false));
+                             0, 0, 0, 0, HashMap<String, String>(), false,
+                             false));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);
@@ -180,7 +183,7 @@ TEST_F(ClientTest, CannotReadMessage) {
 
       const auto& extension =
           message.GetExtension(base::proto::Local::extension);
-      EXPECT_EQ(base::GetCurrentDir(), Immutable(extension.current_dir()));
+      EXPECT_EQ(base::GetCurrentDir(), extension.current_dir());
       ASSERT_TRUE(extension.has_flags());
 
       const auto& cc_flags = extension.flags();
@@ -291,7 +294,8 @@ TEST_F(ClientTest, SuccessfulCompilation) {
   };
 
   EXPECT_FALSE(client::DoMain(argc, argv, Immutable(), clang_path, version, 0,
-                              0, 0, 0, HashMap<String, String>(), false, false));
+                              0, 0, 0, HashMap<String, String>(), false,
+                              false));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(1u, send_count);
   EXPECT_EQ(1u, read_count);

@@ -3,9 +3,8 @@
 namespace dist_clang {
 namespace base {
 
-Process::Process(const String& exec_path, Immutable cwd_path, ui32 uid)
-    : exec_path_(exec_path), cwd_path_(cwd_path), uid_(uid) {
-}
+Process::Process(const String& exec_path, const Path& cwd_path, ui32 uid)
+    : cwd_path_(cwd_path), exec_path_(exec_path), uid_(uid) {}
 
 Process& Process::AppendArg(Immutable arg) {
   args_.push_back(arg);

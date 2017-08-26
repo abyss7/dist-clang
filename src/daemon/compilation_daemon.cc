@@ -361,7 +361,7 @@ bool CompilationDaemon::Check(const Configuration& conf) const {
 
 // static
 base::ProcessPtr CompilationDaemon::CreateProcess(
-    const base::proto::Flags& flags, ui32 user_id, Immutable cwd_path) {
+    const base::proto::Flags& flags, ui32 user_id, const Path& cwd_path) {
   DCHECK(flags.compiler().has_path());
   base::ProcessPtr process =
       base::Process::Create(flags.compiler().path(), cwd_path, user_id);
@@ -402,7 +402,7 @@ base::ProcessPtr CompilationDaemon::CreateProcess(
 
 // static
 base::ProcessPtr CompilationDaemon::CreateProcess(
-    const base::proto::Flags& flags, Immutable cwd_path) {
+    const base::proto::Flags& flags, const Path& cwd_path) {
   return CreateProcess(flags, base::Process::SAME_UID, cwd_path);
 }
 

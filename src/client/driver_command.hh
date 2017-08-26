@@ -25,7 +25,7 @@ class DriverCommand : public Command {
         driver_(driver),
         clang_(new ClangCommand(driver_command.getArguments(), opts)) {}
 
-  base::ProcessPtr CreateProcess(Immutable current_dir,
+  base::ProcessPtr CreateProcess(const Path& current_dir,
                                  ui32 user_id) const override;
   String GetExecutable() const override;
   String RenderAllArgs() const override;

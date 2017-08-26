@@ -96,8 +96,8 @@ class FileCache {
     Immutable stderr;
   };
 
-  FileCache(const String& path, ui64 size, bool snappy, bool store_index);
-  explicit FileCache(const String& path);
+  FileCache(const Path& path, ui64 size, bool snappy, bool store_index);
+  explicit FileCache(const Path& path);
   ~FileCache();
 
   bool Run(ui64 clean_period);
@@ -115,15 +115,15 @@ class FileCache {
 
   bool Find(string::UnhandledSource code, const ExtraFiles& extra_files,
             string::CommandLine command_line, string::Version version,
-            const String& current_dir, Entry* entry) const;
+            const Path& current_dir, Entry* entry) const;
 
   bool Find(string::HandledHash hash, Entry* entry) const;
 
   void Store(string::UnhandledSource code, const ExtraFiles& extra_files,
              string::CommandLine command_line, string::Version version,
              const List<String>& headers,
-             const List<String>& preprocessed_headers,
-             const String& current_dir, string::HandledHash hash);
+             const List<String>& preprocessed_headers, const Path& current_dir,
+             string::HandledHash hash);
 
   void Store(string::HandledHash hash, Entry entry);
 
@@ -172,18 +172,18 @@ class FileCache {
   friend class ReadLock;
   friend class WriteLock;
 
-  inline String SecondPath(string::Hash hash) const {
+  inline Path SecondPath(string::Hash hash) const {
     DCHECK(hash.str.size() >= 2);
-    return path_ + "/" + hash.str[0] + "/" + hash.str[1];
+    return path_ / String(1, hash.str[0]) / String(1, hash.str[1]);
   }
 
-  inline String CommonPath(string::Hash hash) const {
-    return SecondPath(hash) + "/" + hash.str.string_copy();
+  inline Path CommonPath(string::Hash hash) const {
+    return SecondPath(hash) / hash.str.string_copy();
   }
 
   void DoStore(string::UnhandledHash orig_hash, const List<String>& headers,
                const List<String>& preprocessed_headers,
-               const String& current_dir, const string::HandledHash& hash);
+               const Path& current_dir, const string::HandledHash& hash);
 
   using TimeHashPair = Pair<ui64 /* mtime */, string::Hash>;
   using EntryList = base::LockedList<TimeHashPair>;
@@ -204,7 +204,7 @@ class FileCache {
   mutable HashMap<String, ui32> read_locks_;
   mutable HashSet<String> write_locks_;
 
-  const String path_;
+  const Path path_;
   bool snappy_, store_index_;
   UniquePtr<LevelDB> database_;
   UniquePtr<SQLite> entries_;

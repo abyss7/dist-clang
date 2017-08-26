@@ -17,6 +17,7 @@ namespace base {
 class Literal {
  public:
   inline operator const char*() const { return str_; }
+  inline operator Path() const { return str_; }
   inline size_t size() const { return strlen(str_); }
   inline bool operator==(const Literal& other) const {
     return strcmp(str_, other.str_) == 0;
@@ -34,7 +35,6 @@ class Literal {
   friend Literal dist_clang::operator"" _l(const char*, size_t);
   friend class ConstString;
   friend Literal GetEnv(Literal, Literal);
-  friend Literal GetHomeDir(String*);
 
   Literal(const char* str) : str_(str) {}
 
@@ -61,6 +61,7 @@ class ConstString {
 
   ConstString(ConstString& str, size_t size);        // 0-copy
   explicit ConstString(const String& str);           // 1-copy
+  ConstString(const Path& path);                     // 1-copy - for tests
   static ConstString WrapString(const String& str);  // 0-copy
 
   inline operator String() { return string_copy(); }        // 1-copy

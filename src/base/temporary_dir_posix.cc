@@ -3,46 +3,24 @@
 #include <base/assert.h>
 #include <base/c_utils.h>
 
-#include <ftw.h>
-
 namespace dist_clang {
-
-namespace {
-
-int Remove(const char* path, const struct stat* sb, int type, struct FTW*) {
-  switch (type) {
-    case FTW_F:
-    case FTW_SL:
-    case FTW_SLN:
-      unlink(path);
-      break;
-
-    case FTW_D:
-    case FTW_DP:
-    case FTW_DNR:
-      rmdir(path);
-      break;
-  }
-
-  return 0;
-}
-
-}  // namespace
-
 namespace base {
 
-TemporaryDir::TemporaryDir() {
-  char buf[] = "/tmp/clangd-XXXXXX";
-  if (!mkdtemp(buf)) {
-    GetLastError(&error_);
-    return;
-  }
-  path_ = buf;
-}
+TemporaryDir::TemporaryDir()
+    : path_([this] {
+        // FIXME: use |fs::temp_directory_path()|
+        char buf[] = "/tmp/clangd-XXXXXX";
+        if (!mkdtemp(buf)) {
+          GetLastError(&error_);
+          return Path();
+        }
+        return Path(buf);
+      }()) {}
 
 TemporaryDir::~TemporaryDir() {
-  nftw(path_.c_str(), Remove, 4, FTW_DEPTH | FTW_MOUNT | FTW_PHYS);
-  DCHECK_O_EVAL(!rmdir(path_.c_str()) || errno == ENOENT);
+  std::error_code ec;
+  std::experimental::filesystem::remove_all(path_, ec);
+  DCHECK(!ec);
 }
 
 }  // namespace base

@@ -17,8 +17,8 @@ class ProcessImpl : public Process {
  private:
   friend class DefaultFactory;
 
-  explicit ProcessImpl(const String& exec_path,
-                       Immutable cwd_path = Immutable(), ui32 uid = SAME_UID);
+  explicit ProcessImpl(const String& exec_path, const Path& cwd_path = Path(),
+                       ui32 uid = SAME_UID);
 
   bool RunChild(Pipe& out, Pipe& err, Pipe* in);
   bool WaitPid(int pid, ui64 sec_timeout, String* error = nullptr);

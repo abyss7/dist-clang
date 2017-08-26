@@ -73,10 +73,10 @@ inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
   base::ProcessPtr process;
   if (message->has_user_id()) {
     process = daemon::CompilationDaemon::CreateProcess(
-        pp_flags, message->user_id(), Immutable(message->current_dir()));
+        pp_flags, message->user_id(), Path(message->current_dir()));
   } else {
     process = daemon::CompilationDaemon::CreateProcess(
-        pp_flags, Immutable(message->current_dir()));
+        pp_flags, Path(message->current_dir()));
   }
 
   if (!process->Run(10)) {
@@ -359,8 +359,8 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
     ui32 uid =
         incoming->has_user_id() ? incoming->user_id() : base::Process::SAME_UID;
     Counter<> counter(Metric::LOCAL_COMPILATION_TIME);
-    base::ProcessPtr process = CreateProcess(
-        incoming->flags(), uid, Immutable(incoming->current_dir()));
+    base::ProcessPtr process =
+        CreateProcess(incoming->flags(), uid, Path(incoming->current_dir()));
     if (!process->Run(base::Process::UNLIMITED, &error)) {
       status.set_code(net::proto::Status::EXECUTION);
       if (!process->stderr().empty()) {

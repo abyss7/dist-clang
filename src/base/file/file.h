@@ -7,7 +7,7 @@ namespace base {
 
 class File final : public Data {
  public:
-  explicit File(const String& path);  // Open read-only file
+  explicit File(const Path& path);  // Open read-only file
 
   using Handle::Close;
 
@@ -31,8 +31,7 @@ class File final : public Data {
   static ui64 Size(const String& path, String* error = nullptr);
   static bool Read(const String& path, Immutable* output,
                    String* error = nullptr);
-  static bool Write(const String& path, Immutable input,
-                    String* error = nullptr);
+  static bool Write(const Path& path, Immutable input, String* error = nullptr);
   static bool Hash(const String& path, Immutable* output,
                    const List<Literal>& skip_list = List<Literal>(),
                    String* error = nullptr);

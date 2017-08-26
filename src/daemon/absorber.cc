@@ -42,7 +42,8 @@ Absorber::Absorber(const Configuration& conf) : CompilationDaemon(conf) {
   if (conf.has_cache() && !conf.cache().disabled()) {
     Worker worker = std::bind(&Absorber::DoCheckCache, this, _1);
     const auto threads_number = conf.cache().has_threads()
-        ? conf.cache().threads() : std::thread::hardware_concurrency();
+                                    ? conf.cache().threads()
+                                    : std::thread::hardware_concurrency();
     workers_->AddWorker("Cache Worker"_l, worker, threads_number);
   }
   {
@@ -132,21 +133,21 @@ cache::ExtraFiles Absorber::GetExtraFiles(const proto::Remote* message) {
 }
 
 bool Absorber::PrepareExtraFilesForCompiler(
-    const cache::ExtraFiles& extra_files, const String& temp_dir_path,
+    const cache::ExtraFiles& extra_files, const Path& temp_dir,
     base::proto::Flags* flags, net::proto::Status* status) {
   DCHECK(flags);
   DCHECK(status);
 
   auto sanitize_blacklist = extra_files.find(cache::SANITIZE_BLACKLIST);
   if (sanitize_blacklist != extra_files.end()) {
-    String sanitize_blacklist_file = temp_dir_path + "/sanitize_blacklist";
+    const auto sanitize_blacklist_file = temp_dir / "sanitize_blacklist";
     if (!base::File::Write(sanitize_blacklist_file,
                            sanitize_blacklist->second)) {
       LOG(WARNING) << "Failed to write sanitize blacklist file "
                    << sanitize_blacklist_file;
       status->set_code(net::proto::Status::EXECUTION);
       status->set_description("Failed to write sanitize blacklist file " +
-                              sanitize_blacklist_file);
+                              sanitize_blacklist_file.string());
       return false;
     }
     flags->set_sanitize_blacklist(sanitize_blacklist_file);
@@ -255,7 +256,7 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
     }
 
     base::TemporaryDir temp_dir;
-    if (!PrepareExtraFilesForCompiler(extra_files, temp_dir.GetPath(),
+    if (!PrepareExtraFilesForCompiler(extra_files, temp_dir,
                                       incoming->mutable_flags(), &status)) {
       std::get<CONNECTION>(*task)->ReportStatus(status);
       continue;

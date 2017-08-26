@@ -66,13 +66,13 @@ inline String CreateTempFile(const char suffix[], String* error) {
   return result;
 }
 
-inline Literal GetHomeDir(String* error) {
+inline Path GetHomeDir(String* error) {
   auto* pw = getpwuid(getuid());
   if (!pw) {
     GetLastError(error);
-    return Literal::empty;
+    return Path();
   }
-  return Literal(pw->pw_dir);
+  return Path(pw->pw_dir);
 }
 
 inline bool GetSelfPath(String& result, String* error) {

@@ -54,12 +54,12 @@ namespace base {
 class ProcessImpl;
 
 class Process
-    : public Testable<Process, ProcessImpl, const String&, Immutable, ui32> {
+    : public Testable<Process, ProcessImpl, const String&, const Path&, ui32> {
  public:
   enum : ui16 { UNLIMITED = 0 };
   enum : ui32 { SAME_UID = 0 };
 
-  explicit Process(const String& exec_path, Immutable cwd_path = Immutable(),
+  explicit Process(const String& exec_path, const Path& cwd_path = Path(),
                    ui32 uid = SAME_UID);
   virtual ~Process() {}
 
@@ -88,7 +88,8 @@ class Process
                    String* error = nullptr) = 0;
 
  protected:
-  Immutable exec_path_, cwd_path_;
+  const Path cwd_path_;
+  Immutable exec_path_;
   List<Immutable> args_, envs_;
   Immutable stdout_, stderr_;
   const ui32 uid_;

@@ -1654,7 +1654,7 @@ TEST_F(EmitterTest, LocalMessageWithSanitizeBlacklist) {
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(compiler_path, process->exec_path_);
     EXPECT_EQ((Immutable::Rope{action, Immutable("-fsanitize-blacklist="_l) +
-                                           Immutable(sanitize_blacklist_path)}),
+                                           sanitize_blacklist_path}),
               process->args_);
     EXPECT_EQ(user_id, process->uid_);
   };
@@ -1906,7 +1906,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
   const auto plugin_name = "fake_plugin"_l;
   const auto plugin_path = "fake_plugin_path"_l;
 
-  const String output_path2 = String(temp_dir) + "/test2.o";
+  const auto output_path2 = temp_dir.path() / "test2.o";
   // |output_path2| checks that everything works fine with absolute paths.
 
   conf.mutable_cache()->set_path(temp_dir);
@@ -1941,8 +1941,8 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
       EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-x"_l,
                                  language, "-o"_l, output_path1, input_path1}),
                 process->args_);
-      EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + output_path1,
-                                    object_code));
+      EXPECT_TRUE(
+          base::File::Write(process->cwd_path_ / output_path1, object_code));
     } else if (run_count == 3) {
       EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l,
                                  input_path2}),
@@ -2053,7 +2053,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
   const auto plugin_path = "fake_plugin_path"_l;
   const auto remote_compilation_time = std::chrono::milliseconds(10);
 
-  const String output_path2 = String(temp_dir) + "/test2.o";
+  const auto output_path2 = temp_dir.path() / "test2.o";
   // |output_path2| checks that everything works fine with absolute paths.
 
   conf.mutable_emitter()->set_only_failed(true);
@@ -2311,8 +2311,8 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteFail) {
       EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-x"_l,
                                  language, "-o"_l, output_path1, input_path1}),
                 process->args_);
-      EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + output_path1,
-                                    object_code));
+      EXPECT_TRUE(
+          base::File::Write(process->cwd_path_ / output_path1, object_code));
     }
   };
 
@@ -2458,8 +2458,8 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteRejects) {
       EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-x"_l,
                                  language, "-o"_l, output_path1, input_path1}),
                 process->args_);
-      EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + output_path1,
-                                    object_code));
+      EXPECT_TRUE(
+          base::File::Write(process->cwd_path_ / output_path1, object_code));
     }
   };
 
@@ -2583,10 +2583,10 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
       process->stdout_ = source;
     } else if (run_count == 4) {
       EXPECT_EQ(
-          (Immutable::Rope{action, "-load"_l, plugin_path, "-x"_l, language,
-                           Immutable("-fsanitize-blacklist="_l) +
-                               Immutable(sanitize_blacklist_path),
-                           "-o"_l, output_path2, input_path}),
+          (Immutable::Rope{
+              action, "-load"_l, plugin_path, "-x"_l, language,
+              Immutable("-fsanitize-blacklist="_l) + sanitize_blacklist_path,
+              "-o"_l, output_path2, input_path}),
           process->args_);
     }
   };
@@ -2669,11 +2669,10 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
 TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
   // Prepare environment.
   const base::TemporaryDir temp_dir;
-  const auto path = Immutable(String(temp_dir));
-  const auto input1_path = path + "/test1.cc"_l;
-  const auto input2_path = path + "/test2.cc"_l;
-  const auto header1_path = path + "/header1.h"_l;
-  const auto header2_path = path + "/header2.h"_l;
+  const auto input1_path = temp_dir.path() / "test1.cc";
+  const auto input2_path = temp_dir.path() / "test2.cc";
+  const auto header1_path = temp_dir.path() / "header1.h";
+  const auto header2_path = temp_dir.path() / "header2.h";
   const auto source_code = "int main() {}"_l;
 
   ASSERT_TRUE(base::File::Write(input1_path, source_code));
@@ -2701,7 +2700,7 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
   // Prepare callbacks.
   const auto expected_code = net::proto::Status::OK;
   const auto deps1_path = "test1.d"_l;
-  const auto deps2_path = path + "test2.d"_l;
+  const auto deps2_path = temp_dir.path() / "test2.d";
   const auto language = "fake_language"_l;
   const auto preprocessed_source = "fake_source"_l;
   const auto action = "fake_action"_l;
@@ -2709,7 +2708,7 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
   const auto object_code = "fake_object_code"_l;
   const auto deps_contents = "test1.o: test1.cc header1.h header2.h"_l;
 
-  const auto output2_path = path + "/test2.o"_l;
+  const auto output2_path = temp_dir.path() / "test2.o";
   // |output_path2| checks that everything works fine with absolute paths.
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
@@ -2729,16 +2728,16 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
                                  "-x"_l, language, "-o"_l, "-"_l, input1_path}),
                 process->args_);
       process->stdout_ = preprocessed_source;
-      EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + deps1_path,
-                                    deps_contents));
+      EXPECT_TRUE(
+          base::File::Write(process->cwd_path_ / deps1_path, deps_contents));
     } else if (run_count == 2) {
       EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path,
                                  "-dependency-file"_l, deps1_path, "-x"_l,
                                  language, "-o"_l, output1_path, input1_path}),
                 process->args_)
           << process->PrintArgs();
-      EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + output1_path,
-                                    object_code));
+      EXPECT_TRUE(
+          base::File::Write(process->cwd_path_ / output1_path, object_code));
     }
   };
 
@@ -2839,10 +2838,9 @@ TEST_F(EmitterTest,
        StoreDirectCacheForLocalResultWithAndWithoutIncludedHeaders) {
   // Prepare environment.
   const base::TemporaryDir temp_dir;
-  const auto path = Immutable(String(temp_dir));
-  const auto input_path = path + "/test.cc"_l;
-  const auto header1_path = path + "/header1.h"_l;
-  const auto header2_path = path + "/header2.h"_l;
+  const auto input_path = temp_dir.path() / "test.cc";
+  const auto header1_path = temp_dir.path() / "header1.h";
+  const auto header2_path = temp_dir.path() / "header2.h";
   const auto source_code = "int main() {}"_l;
   const auto expected_code = net::proto::Status::OK;
   const auto deps_path = "test.d"_l;
@@ -2851,7 +2849,7 @@ TEST_F(EmitterTest,
   const auto action = "fake_action"_l;
   const auto output_path = "test.o"_l;
   const auto object_code = "fake_object_code"_l;
-  const auto preprocessed_header_path = path + "/header1.h.pth"_l;
+  const auto preprocessed_header_path = temp_dir.path() / "header1.h.pth";
   const auto deps_contents = "test.o: test.cc header1.h header2.h"_l;
 
   // Clang outputs headers included using "-include-pth/pch" as absolute paths.
@@ -2901,16 +2899,16 @@ TEST_F(EmitterTest,
                                  "-x"_l, language, "-o"_l, "-"_l, input_path}),
                 process->args_);
       process->stdout_ = preprocessed_source;
-      EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + deps_path,
-                                    deps_contents));
+      EXPECT_TRUE(
+          base::File::Write(process->cwd_path_ / deps_path, deps_contents));
     } else if (run_count == 2) {
       EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path,
                                  "-dependency-file"_l, deps_path, "-x"_l,
                                  language, "-o"_l, output_path, input_path}),
                 process->args_)
           << process->PrintArgs();
-      EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + output_path,
-                                    object_code));
+      EXPECT_TRUE(
+          base::File::Write(process->cwd_path_ / output_path, object_code));
     } else if (run_count == 3) {
       EXPECT_EQ(
           (Immutable::Rope{"-E"_l, "-include-pth"_l, preprocessed_header_path,
@@ -2918,7 +2916,7 @@ TEST_F(EmitterTest,
                            "-o"_l, "-"_l, input_path}),
           process->args_);
       process->stdout_ = preprocessed_source;
-      EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + deps_path,
+      EXPECT_TRUE(base::File::Write(process->cwd_path_ / deps_path,
                                     preprocessed_deps_contents));
     }
   };
@@ -3035,11 +3033,10 @@ TEST_F(EmitterTest,
 TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
   // Prepare environment.
   const base::TemporaryDir temp_dir;
-  const auto path = Immutable(String(temp_dir));
-  const auto input1_path = path + "/test1.cc"_l;
-  const auto input2_path = path + "/test2.cc"_l;
-  const auto header1_path = path + "/header1.h"_l;
-  const auto header2_path = path + "/header2.h"_l;
+  const auto input1_path = temp_dir.path() / "test1.cc";
+  const auto input2_path = temp_dir.path() / "test2.cc";
+  const auto header1_path = temp_dir.path() / "header1.h";
+  const auto header2_path = temp_dir.path() / "header2.h";
   const auto source_code = "int main() {}"_l;
 
   ASSERT_TRUE(base::File::Write(input1_path, source_code));
@@ -3081,7 +3078,7 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
   const auto output1_path = "test1.o"_l;
   const auto object_code = "fake_object_code"_l;
 
-  const auto output2_path = path + "/test2.o"_l;
+  const auto output2_path = temp_dir.path() / "test2.o";
   // |output_path2| checks that everything works fine with absolute paths.
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
@@ -3131,7 +3128,7 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
                                language, "-o"_l, "-"_l, input1_path}),
               process->args_);
     process->stdout_ = preprocessed_source;
-    EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + deps1_path,
+    EXPECT_TRUE(base::File::Write(process->cwd_path_ / deps1_path,
                                   "test1.o: test1.cc header1.h header2.h"_l));
   };
 
@@ -3341,11 +3338,10 @@ TEST_F(EmitterTest, ConfigurationUpdateCompiler) {
 TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
   // Prepare environment.
   const base::TemporaryDir temp_dir1, temp_dir2;
-  const auto path = Immutable(String(temp_dir1));
-  const auto input_path = path + "/test.cc"_l;
-  const auto header_path = path + "/header.h"_l;
-  const auto preprocessed_header_path = path + "header.h.pth"_l;
-  const auto sanitize_blacklist_path = path + "/asan-blacklist.txt"_l;
+  const auto input_path = temp_dir1.path() / "test.cc";
+  const auto header_path = temp_dir1.path() / "header.h";
+  const auto preprocessed_header_path = temp_dir1.path() / "header.h.pth";
+  const auto sanitize_blacklist_path = temp_dir1.path() / "asan-blacklist.txt";
   const auto source_code = "int main() {}"_l;
   const auto header_contents = "#define A"_l;
   const auto preprocessed_contents = "Any content should work"_l;
@@ -3407,20 +3403,19 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
                            "-o"_l, "-"_l, input_path}),
           process->args_);
       process->stdout_ = preprocessed_source;
-      EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + deps_path,
-                                    deps_contents));
+      EXPECT_TRUE(
+          base::File::Write(process->cwd_path_ / deps_path, deps_contents));
     } else if (run_count == 2) {
       EXPECT_EQ(
-          (Immutable::Rope{action, "-include-pth"_l, preprocessed_header_path,
-                           "-load"_l, plugin_path, "-dependency-file"_l,
-                           deps_path, "-x"_l, language,
-                           Immutable("-fsanitize-blacklist="_l) +
-                               Immutable(sanitize_blacklist_path),
-                           "-o"_l, output_path, input_path}),
+          (Immutable::Rope{
+              action, "-include-pth"_l, preprocessed_header_path, "-load"_l,
+              plugin_path, "-dependency-file"_l, deps_path, "-x"_l, language,
+              Immutable("-fsanitize-blacklist="_l) + sanitize_blacklist_path,
+              "-o"_l, output_path, input_path}),
           process->args_)
           << process->PrintArgs();
-      EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + output_path,
-                                    object_code));
+      EXPECT_TRUE(
+          base::File::Write(process->cwd_path_ / output_path, object_code));
     }
   };
 
@@ -3464,10 +3459,10 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
     SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection2);
 
-    const auto path = Immutable(String(temp_dir2));
-    const auto input_path = path + "/test.cc"_l;
-    const auto header_path = path + "/header.h"_l;
-    const auto sanitize_blacklist_path = path + "/asan-blacklist.txt"_l;
+    const auto input_path = temp_dir2.path() / "test.cc";
+    const auto header_path = temp_dir2.path() / "header.h";
+    const auto sanitize_blacklist_path =
+        temp_dir2.path() / "asan-blacklist.txt";
 
     ASSERT_TRUE(base::File::Write(input_path, source_code));
     ASSERT_TRUE(base::File::Write(header_path, header_contents));
@@ -3509,13 +3504,13 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
   EXPECT_EQ(1u, metric.value());
 
   Immutable cache_output;
-  const auto output2_path = String(temp_dir2) + "/" + String(output_path);
+  const auto output2_path = temp_dir2.path() / output_path;
   EXPECT_TRUE(base::File::Exists(output2_path));
   EXPECT_TRUE(base::File::Read(output2_path, &cache_output));
   EXPECT_EQ(object_code, cache_output);
 
   Immutable cache_deps;
-  const auto deps2_path = String(temp_dir2) + "/" + String(deps_path);
+  const auto deps2_path = temp_dir2.path() / deps_path;
   EXPECT_TRUE(base::File::Exists(deps2_path));
   EXPECT_TRUE(base::File::Read(deps2_path, &cache_deps));
   EXPECT_EQ(deps_contents, cache_deps);
@@ -3540,21 +3535,20 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
 TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
   // Prepare environment.
   const base::TemporaryDir temp_dir;
-  const auto path = Immutable(String(temp_dir));
-  const auto relpath = path + "/path1"_l;
+  const auto relpath = temp_dir.path() / "path1";
   ASSERT_TRUE(base::CreateDirectory(relpath));
 
-  const auto input_path = relpath + "/test.cc"_l;
-  const auto header_path = relpath + "/header.h"_l;
+  const auto input_path = relpath / "test.cc";
+  const auto header_path = relpath / "header.h";
   const auto source_code = "int main() {}"_l;
   const auto header_contents = "#define A"_l;
   const auto header_contents2 = "#define B"_l;
 
-  const auto relpath2 = path + "/path2"_l;
+  const auto relpath2 = temp_dir.path() / "path2";
   ASSERT_TRUE(base::CreateDirectory(relpath2));
 
-  const auto input_path2 = relpath2 + "/test.cc"_l;
-  const auto header_path2 = relpath2 + "/header.h"_l;
+  const auto input_path2 = relpath2 / "test.cc";
+  const auto header_path2 = relpath2 / "header.h";
 
   ASSERT_TRUE(base::File::Write(input_path, source_code));
   ASSERT_TRUE(base::File::Write(header_path, header_contents));
@@ -3616,31 +3610,31 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
                                  "-x"_l, language, "-o"_l, "-"_l, input_path}),
                 process->args_);
       process->stdout_ = preprocessed_source;
-      EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + deps_path,
-                                    deps_contents));
+      EXPECT_TRUE(
+          base::File::Write(process->cwd_path_ / deps_path, deps_contents));
     } else if (run_count == 2) {
       EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path,
                                  "-dependency-file"_l, deps_path, "-x"_l,
                                  language, "-o"_l, output_path, input_path}),
                 process->args_)
           << process->PrintArgs();
-      EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + output_path,
-                                    object_code));
+      EXPECT_TRUE(
+          base::File::Write(process->cwd_path_ / output_path, object_code));
     } else if (run_count == 3) {
       EXPECT_EQ((Immutable::Rope{"-E"_l, "-dependency-file"_l, deps_path2,
                                  "-x"_l, language, "-o"_l, "-"_l, input_path2}),
                 process->args_);
       process->stdout_ = preprocessed_source2;
-      EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + deps_path2,
-                                    deps_contents2));
+      EXPECT_TRUE(
+          base::File::Write(process->cwd_path_ / deps_path2, deps_contents2));
     } else if (run_count == 4) {
       EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path,
                                  "-dependency-file"_l, deps_path2, "-x"_l,
                                  language, "-o"_l, output_path2, input_path2}),
                 process->args_)
           << process->PrintArgs();
-      EXPECT_TRUE(base::File::Write(process->cwd_path_ + "/"_l + output_path2,
-                                    object_code2));
+      EXPECT_TRUE(
+          base::File::Write(process->cwd_path_ / output_path2, object_code2));
     }
   };
 
@@ -3706,25 +3700,25 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
   emitter.reset();
 
   Immutable cache_output;
-  const auto output2_path = String(temp_dir) + "/" + String(output_path);
+  const auto output2_path = temp_dir.path() / output_path;
   EXPECT_TRUE(base::File::Exists(output2_path));
   EXPECT_TRUE(base::File::Read(output2_path, &cache_output));
   EXPECT_EQ(object_code, cache_output);
 
   Immutable cache_deps;
-  const auto deps2_path = String(temp_dir) + "/" + String(deps_path);
+  const auto deps2_path = temp_dir.path() / deps_path;
   EXPECT_TRUE(base::File::Exists(deps2_path));
   EXPECT_TRUE(base::File::Read(deps2_path, &cache_deps));
   EXPECT_EQ(deps_contents, cache_deps);
 
   Immutable cache_output2;
-  const auto output2_path2 = String(temp_dir) + "/" + String(output_path2);
+  const auto output2_path2 = temp_dir.path() / output_path2;
   EXPECT_TRUE(base::File::Exists(output2_path2));
   EXPECT_TRUE(base::File::Read(output2_path2, &cache_output2));
   EXPECT_EQ(object_code2, cache_output2);
 
   Immutable cache_deps2;
-  const auto deps2_path2 = String(temp_dir) + "/" + String(deps_path2);
+  const auto deps2_path2 = temp_dir.path() / deps_path2;
   EXPECT_TRUE(base::File::Exists(deps2_path2));
   EXPECT_TRUE(base::File::Read(deps2_path2, &cache_deps2));
   EXPECT_EQ(deps_contents2, cache_deps2);

@@ -32,7 +32,7 @@ class Absorber : public CompilationDaemon {
   cache::ExtraFiles GetExtraFiles(const proto::Remote* message);
 
   bool PrepareExtraFilesForCompiler(const cache::ExtraFiles& extra_files,
-                                    const String& temp_dir_path,
+                                    const Path& temp_dir,
                                     base::proto::Flags* flags,
                                     net::proto::Status* status);
 

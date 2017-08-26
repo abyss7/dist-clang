@@ -1,9 +1,9 @@
 #include <client/configuration.hh>
 
 #include <base/aliases.h>
-#include <base/c_utils.h>
 #include <base/constants.h>
 #include <base/file/file.h>
+#include <base/file_utils.h>
 #include <base/logging.h>
 #include <base/protobuf_utils.h>
 #include <base/string_utils.h>
@@ -15,12 +15,12 @@ namespace client {
 
 Configuration::Configuration() {
   // Try to load config file first.
-  String current_dir = base::GetCurrentDir();
+  auto current_dir = base::GetCurrentDir();
   do {
-    String config_path = current_dir + "/.distclang";
+    const auto config_path = current_dir / ".distclang";
     if (base::LoadFromFile(config_path, &config_)) {
-      if (config_.path()[0] != '/') {
-        config_.set_path(current_dir + "/" + config_.path());
+      if (!Path(config_.path()).is_absolute()) {
+        config_.set_path(current_dir / config_.path());
       }
       LOG(VERBOSE) << "Took compiler path from " << config_path << " : "
                    << config_.path();
@@ -48,8 +48,8 @@ Configuration::Configuration() {
           continue;
         }
 
-        if (plugin->path()[0] != '/') {
-          plugin->set_path(current_dir + "/" + plugin->path());
+        if (!Path(plugin->path()).is_absolute()) {
+          plugin->set_path(current_dir / plugin->path());
         }
 
         LOG(VERBOSE) << "Took plugin from " << config_path << " : "
@@ -59,7 +59,7 @@ Configuration::Configuration() {
       break;
     }
 
-    current_dir = current_dir.substr(0, current_dir.find_last_of("/"));
+    current_dir = current_dir.parent_path();
   } while (!current_dir.empty());
 
   // Environment variables prevail over config file.

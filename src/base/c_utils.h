@@ -18,23 +18,6 @@
 namespace dist_clang {
 namespace base {
 
-inline bool ChangeCurrentDir(Immutable path, String* error) {
-  if (chdir(path.c_str()) == -1) {
-    GetLastError(error);
-    return false;
-  }
-  return true;
-}
-
-inline Immutable GetCurrentDir(String* error) {
-  UniquePtr<char[]> buf(new char[PATH_MAX]);
-  if (!getcwd(buf.get(), PATH_MAX)) {
-    GetLastError(error);
-    return Immutable();
-  }
-  return buf;
-}
-
 inline Literal GetEnv(Literal env_name, Literal default_env) {
   Literal env_value = getenv(env_name);
   if (!env_value) {

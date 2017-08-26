@@ -17,14 +17,14 @@
 namespace dist_clang {
 namespace base {
 
-File::File(const String& path) : Data(open(path.c_str(), O_RDONLY)) {
+File::File(const Path& path) : Data(open(path.c_str(), O_RDONLY)) {
   if (!IsValid()) {
     GetLastError(&error_);
     return;
   }
 
   if (!IsFile(path)) {
-    error_ = path + " is a directory";
+    error_ = path.string() + " is a directory";
     Handle::Close();
     return;
   }
@@ -245,7 +245,7 @@ bool File::Delete(const String& path, String* error) {
 }
 
 // static
-bool File::Write(const String& path, Immutable input, String* error) {
+bool File::Write(const Path& path, Immutable input, String* error) {
   File dst(path, input.size());
 
   if (!dst.IsValid()) {

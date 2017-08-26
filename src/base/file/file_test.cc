@@ -12,8 +12,8 @@ namespace base {
 
 TEST(FileTest, Read) {
   const auto expected_content = "All your base are belong to us"_l;
-  const base::TemporaryDir temp_dir;
-  const String file_path = String(temp_dir) + "/file";
+  const TemporaryDir temp_dir;
+  const auto file_path = temp_dir.path() / "file";
 
   int fd = open(file_path.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0777);
   ASSERT_NE(-1, fd);
@@ -39,8 +39,8 @@ TEST(FileTest, Read) {
 
 TEST(FileTest, Write) {
   const auto expected_content = "All your base are belong to us"_l;
-  const base::TemporaryDir temp_dir;
-  const String file_path = String(temp_dir) + "/file";
+  const TemporaryDir temp_dir;
+  const auto file_path = temp_dir.path() / "file";
 
   String error;
   EXPECT_TRUE(File::Write(file_path, expected_content, &error)) << error;
@@ -59,8 +59,8 @@ TEST(FileTest, Write) {
 }
 
 TEST(FileTest, Size) {
-  const base::TemporaryDir temp_dir;
-  const String file_path = String(temp_dir) + "/file";
+  const TemporaryDir temp_dir;
+  const auto file_path = temp_dir.path() / "file";
   const String content = "1234567890";
 
   int fd = open(file_path.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0777);
@@ -82,8 +82,8 @@ TEST(FileTest, Size) {
 TEST(FileTest, Hash) {
   const auto content = "All your base are belong to us"_l;
   const auto expected_hash = "c9e92e37df1e856cbd0abffe104225b8"_l;
-  const base::TemporaryDir temp_dir;
-  const String file_path = String(temp_dir) + "/file";
+  const TemporaryDir temp_dir;
+  const auto file_path = temp_dir.path() / "file";
 
   int fd = open(file_path.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0777);
   ASSERT_NE(-1, fd);
@@ -116,9 +116,9 @@ TEST(FileTest, Copy) {
   const auto expected_content1 = "All your base are belong to us"_l;
   const auto expected_content2 = "Nothing lasts forever"_l;
   const TemporaryDir temp_dir;
-  const String file1 = String(temp_dir) + "/1";
-  const String file2 = String(temp_dir) + "/2";
-  const String file3 = String(temp_dir) + "/3";
+  const auto file1 = temp_dir.path() / "1";
+  const auto file2 = temp_dir.path() / "2";
+  const auto file3 = temp_dir.path() / "3";
 
   ASSERT_TRUE(File::Write(file1, expected_content1));
   ASSERT_TRUE(File::Copy(file1, file2));
@@ -153,9 +153,9 @@ TEST(FileTest, Copy) {
 TEST(FileTest, Link) {
   const auto expected_content = "All your base are belong to us"_l;
   const TemporaryDir temp_dir;
-  const String file1 = String(temp_dir) + "/1";
-  const String file2 = String(temp_dir) + "/2";
-  const String file3 = String(temp_dir) + "/3";
+  const auto file1 = temp_dir.path() / "1";
+  const auto file2 = temp_dir.path() / "2";
+  const auto file3 = temp_dir.path() / "3";
 
   ASSERT_TRUE(File::Write(file1, expected_content));
   ASSERT_TRUE(File::Link(file1, file2));

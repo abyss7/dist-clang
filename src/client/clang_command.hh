@@ -13,7 +13,7 @@ class ClangCommand : public Command {
   ClangCommand(llvm::ArrayRef<const char*> args,
                SharedPtr<llvm::opt::OptTable> opts);
 
-  base::ProcessPtr CreateProcess(Immutable current_dir,
+  base::ProcessPtr CreateProcess(const Path& current_dir,
                                  ui32 user_id) const override;
   String GetExecutable() const override;
   String RenderAllArgs() const override;

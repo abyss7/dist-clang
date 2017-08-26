@@ -10,9 +10,9 @@ namespace dist_clang {
 namespace client {
 
 TEST(ClientConfigurationTest, ConfigFileInParentDir) {
-  const base::TemporaryDir tmp_dir;
-  const String child_dir = String(tmp_dir) + "/1";
-  const String config_path = String(tmp_dir) + "/.distclang";
+  const base::TemporaryDir temp_dir;
+  const auto child_dir = temp_dir.path() / "1";
+  const auto config_path = temp_dir.path() / ".distclang";
 
   ASSERT_TRUE(base::CreateDirectory(child_dir));
 
@@ -31,8 +31,8 @@ TEST(ClientConfigurationTest, ConfigFileInParentDir) {
 
   ASSERT_TRUE(base::SaveToFile(config_path, config));
 
-  auto old_cwd = base::GetCurrentDir();
-  ASSERT_TRUE(base::ChangeCurrentDir(Immutable::WrapString(child_dir)));
+  const auto old_cwd = base::GetCurrentDir();
+  ASSERT_TRUE(base::ChangeCurrentDir(child_dir));
   Configuration configuration;
   EXPECT_EQ(1, configuration.config().plugins_size());
   EXPECT_EQ('/', configuration.config().plugins(0).path()[0])

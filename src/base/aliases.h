@@ -18,6 +18,8 @@
 #include STL(unordered_set)
 #include STL(vector)
 
+#include STL_EXPERIMENTAL(filesystem)
+
 namespace dist_clang {
 
 namespace base {
@@ -66,6 +68,8 @@ using Mutex = std::mutex;
 
 template <class U, class V = U>
 using Pair = std::pair<U, V>;
+
+using Path = std::experimental::filesystem::path;
 
 using Seconds = std::chrono::seconds;
 

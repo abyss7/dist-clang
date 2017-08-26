@@ -1,8 +1,8 @@
 #include <base/process_impl.h>
 
 #include <base/assert.h>
-#include <base/c_utils.h>
 #include <base/file/pipe.h>
+#include <base/file_utils.h>
 
 #include <signal.h>
 #include <sys/wait.h>
@@ -11,7 +11,8 @@
 namespace dist_clang {
 namespace base {
 
-ProcessImpl::ProcessImpl(const String& exec_path, Immutable cwd_path, ui32 uid)
+ProcessImpl::ProcessImpl(const String& exec_path, const Path& cwd_path,
+                         ui32 uid)
     : Process(exec_path, cwd_path, uid), killed_(false) {}
 
 // This method contains code between |fork()| and |exec()|. Since we're in a

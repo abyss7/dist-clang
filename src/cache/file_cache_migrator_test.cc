@@ -11,15 +11,17 @@ namespace dist_clang {
 namespace cache {
 
 TEST(FileCacheMigratorTest, Version_0_to_1_Simple) {
-  const base::TemporaryDir tmp_dir;
+  const base::TemporaryDir temp_dir;
   string::Hash hash{"12345678901234567890123456789012-12345678-00000001"_l};
-  FileCache cache(tmp_dir);
-  const String common_path = cache.CommonPath(hash);
-  const String manifest_path = common_path + ".manifest";
+  FileCache cache(temp_dir);
+  const String common_prefix = cache.CommonPath(hash);
+  const auto manifest_path = Path(common_prefix + ".manifest");
+  const auto object_path = Path(common_prefix + ".o");
+  const auto deps_path = Path(common_prefix + ".d");
 
   ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash)));
-  ASSERT_TRUE(base::File::Write(common_path + ".o", "12345"_l));
-  ASSERT_TRUE(base::File::Write(common_path + ".d", "12345"_l));
+  ASSERT_TRUE(base::File::Write(object_path, "12345"_l));
+  ASSERT_TRUE(base::File::Write(deps_path, "12345"_l));
 
   proto::Manifest manifest;
 
@@ -45,10 +47,10 @@ TEST(FileCacheMigratorTest, Version_0_to_1_Simple) {
 }
 
 TEST(FileCacheMigratorTest, Version_0_to_1_Direct) {
-  const base::TemporaryDir tmp_dir;
+  const base::TemporaryDir temp_dir;
   string::Hash hash{"12345678901234567890123456789012-12345678-00000001"_l};
-  FileCache cache(tmp_dir);
-  const String manifest_path = cache.CommonPath(hash) + ".manifest";
+  FileCache cache(temp_dir);
+  const auto manifest_path = cache.CommonPath(hash).concat(".manifest");
 
   proto::Manifest manifest;
   manifest.add_headers()->assign("test.h");
@@ -73,14 +75,15 @@ TEST(FileCacheMigratorTest, Version_0_to_1_Direct) {
 }
 
 TEST(FileCacheMigratorTest, Version_1_to_2_Simple) {
-  const base::TemporaryDir tmp_dir;
+  const base::TemporaryDir temp_dir;
   string::Hash hash{"12345678901234567890123456789012-12345678-00000001"_l};
-  FileCache cache(tmp_dir);
-  const String common_path = cache.CommonPath(hash);
-  const String manifest_path = common_path + ".manifest";
+  FileCache cache(temp_dir);
+  const String common_prefix = cache.CommonPath(hash);
+  const auto manifest_path = Path(common_prefix + ".manifest");
+  const auto object_path = Path(common_prefix + ".o");
 
   ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash)));
-  ASSERT_TRUE(base::File::Write(common_path + ".o", "12345"_l));
+  ASSERT_TRUE(base::File::Write(object_path, "12345"_l));
 
   proto::Manifest manifest;
   manifest.set_version(1);
@@ -101,10 +104,10 @@ TEST(FileCacheMigratorTest, Version_1_to_2_Simple) {
 }
 
 TEST(FileCacheMigratorTest, Version_1_to_2_Direct) {
-  const base::TemporaryDir tmp_dir;
+  const base::TemporaryDir temp_dir;
   string::Hash hash{"12345678901234567890123456789012-12345678-00000001"_l};
-  FileCache cache(tmp_dir);
-  const String manifest_path = cache.CommonPath(hash) + ".manifest";
+  FileCache cache(temp_dir);
+  const auto manifest_path = cache.CommonPath(hash).concat(".manifest");
 
   proto::Manifest manifest;
   manifest.set_version(1);

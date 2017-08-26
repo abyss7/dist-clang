@@ -6,7 +6,7 @@
 namespace dist_clang {
 namespace client {
 
-base::ProcessPtr DriverCommand::CreateProcess(Immutable current_dir,
+base::ProcessPtr DriverCommand::CreateProcess(const Path& current_dir,
                                               ui32 user_id) const {
   CHECK(!clang_);
   auto process =

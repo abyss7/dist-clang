@@ -20,9 +20,10 @@ namespace dist_clang {
 
 namespace {
 
-String ReplaceTildeInPath(const String& path) {
-  if (path[0] == '~' && path[1] == '/') {
-    return String(base::GetHomeDir()) + path.substr(1);
+Path ReplaceTildeInPath(const String& path) {
+  // FIXME: try to handle |Path| instead of |String|
+  if (path[0] == '~' && path[1] == Path::preferred_separator) {
+    return base::GetHomeDir() / path.substr(2);
   }
   return path;
 }
@@ -45,14 +46,13 @@ String HashCombine(const Immutable& source, const cache::ExtraFiles& files) {
 
 namespace cache {
 
-FileCache::FileCache(const String& path, ui64 size, bool snappy,
-                     bool store_index)
+FileCache::FileCache(const Path& path, ui64 size, bool snappy, bool store_index)
     : path_(ReplaceTildeInPath(path)),
       snappy_(snappy),
       store_index_(store_index),
       max_size_(size) {}
 
-FileCache::FileCache(const String& path)
+FileCache::FileCache(const Path& path)
     : FileCache(path, UNLIMITED, false, false) {}
 
 FileCache::~FileCache() {
@@ -147,11 +147,11 @@ UnhandledHash FileCache::Hash(UnhandledSource code,
 
 bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
                      CommandLine command_line, Version version,
-                     const String& current_dir, Entry* entry) const {
+                     const Path& current_dir, Entry* entry) const {
   DCHECK(entry);
 
   auto unhandled_hash = Hash(code, extra_files, command_line, version);
-  const String manifest_path = CommonPath(unhandled_hash) + ".manifest";
+  const auto manifest_path = CommonPath(unhandled_hash).concat(".manifest");
   const ReadLock lock(this, manifest_path);
 
   if (!lock) {
@@ -169,8 +169,8 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
   Immutable::Rope hash_rope = {unhandled_hash};
   for (const auto& header : manifest.direct().headers()) {
     Immutable header_hash;
-    const String header_path =
-        header[0] == '/' ? header : current_dir + "/" + header;
+    const Path header_path =
+        Path(header).is_absolute() ? Path(header) : current_dir / header;
     if (!base::File::Hash(header_path, &header_hash)) {
       return false;
     }
@@ -190,7 +190,7 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
 bool FileCache::Find(HandledHash hash, Entry* entry) const {
   DCHECK(entry);
 
-  const String manifest_path = CommonPath(hash) + ".manifest";
+  const auto manifest_path = CommonPath(hash).concat(".manifest");
   const ReadLock lock(this, manifest_path);
 
   if (!lock) {
@@ -208,7 +208,7 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
   ui64 size = 0;
 
   if (manifest.v1().err()) {
-    const String stderr_path = CommonPath(hash) + ".stderr";
+    const auto stderr_path = CommonPath(hash).concat(".stderr");
     if (!base::File::Read(stderr_path, &entry->stderr)) {
       return false;
     }
@@ -216,7 +216,7 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
   }
 
   if (manifest.v1().obj()) {
-    const String object_path = CommonPath(hash) + ".o";
+    const auto object_path = CommonPath(hash).concat(".o");
 
     if (manifest.v1().snappy()) {
       String error;
@@ -245,7 +245,7 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
   }
 
   if (manifest.v1().dep()) {
-    const String deps_path = CommonPath(hash) + ".d";
+    const auto deps_path = CommonPath(hash).concat(".d");
     if (!base::File::Read(deps_path, &entry->deps)) {
       return false;
     }
@@ -259,13 +259,13 @@ void FileCache::Store(UnhandledSource code, const ExtraFiles& extra_files,
                       CommandLine command_line, Version version,
                       const List<String>& headers,
                       const List<String>& preprocessed_headers,
-                      const String& current_dir, string::HandledHash hash) {
+                      const Path& current_dir, string::HandledHash hash) {
   DoStore(Hash(code, extra_files, command_line, version), headers,
           preprocessed_headers, current_dir, hash);
 }
 
 void FileCache::Store(string::HandledHash hash, Entry entry) {
-  auto manifest_path = CommonPath(hash) + ".manifest";
+  const auto manifest_path = CommonPath(hash).concat(".manifest");
   WriteLock lock(this, manifest_path);
   String error;
 
@@ -283,7 +283,7 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
 
   manifest.mutable_v1()->set_err(!entry.stderr.empty());
   if (!entry.stderr.empty()) {
-    const String stderr_path = CommonPath(hash) + ".stderr";
+    const auto stderr_path = CommonPath(hash).concat(".stderr");
 
     if (!base::File::Write(stderr_path, entry.stderr, &error)) {
       RemoveEntry(hash);
@@ -297,7 +297,7 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
 
   manifest.mutable_v1()->set_obj(!entry.object.empty());
   if (!entry.object.empty()) {
-    const String object_path = CommonPath(hash) + ".o";
+    const auto object_path = CommonPath(hash).concat(".o");
 
     if (!snappy_) {
       object_size = entry.object.size();
@@ -332,7 +332,7 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
 
   manifest.mutable_v1()->set_dep(!entry.deps.empty());
   if (!entry.deps.empty()) {
-    const String deps_path = CommonPath(hash) + ".d";
+    const auto deps_path = CommonPath(hash).concat(".d");
 
     if (!base::File::Write(deps_path, entry.deps, &error)) {
       RemoveEntry(hash);
@@ -439,13 +439,13 @@ bool FileCache::RemoveEntry(string::Hash hash) {
 
 void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
                         const List<String>& preprocessed_headers,
-                        const String& current_dir, const HandledHash& hash) {
+                        const Path& current_dir, const HandledHash& hash) {
   // We have to store manifest on the path based only on the hash of unhandled
   // source code. Otherwise, we won't be able to get list of the dependent
   // headers, while checking the direct cache. Such approach has a little
   // drawback, because the changes in the dependent headers will make a
   // false-positive direct cache hit, followed by true cache miss.
-  const String manifest_path = CommonPath(orig_hash) + ".manifest";
+  const auto manifest_path = CommonPath(orig_hash).concat(".manifest");
   WriteLock lock(this, manifest_path);
 
   if (!lock) {
@@ -465,11 +465,11 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
 
   auto hash_headers = [&](const List<String>& headers,
                           const List<Literal>& skip_list) {
-    for (const String& header : headers) {
+    for (const auto& header : headers) {
       String error;
       Immutable header_hash;
-      const String header_path =
-          header[0] == '/' ? header : current_dir + "/" + header;
+      const Path header_path =
+          Path(header).is_absolute() ? Path(header) : current_dir / header;
       if (!base::File::Hash(header_path, &header_hash, skip_list, &error)) {
         LOG(CACHE_ERROR) << "Failed to hash " << header_path << ": " << error;
         return;
@@ -535,7 +535,7 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
     SQLite::Value entry;
     CHECK(entries_->First(&hash.str, &entry));
 
-    auto manifest_path = CommonPath(hash) + ".manifest";
+    const auto manifest_path = CommonPath(hash).concat(".manifest");
     WriteLock lock(this, manifest_path);
     if (lock) {
       LOG(CACHE_VERBOSE) << "Cache overuse is " << (cache_size_ - max_size_)

@@ -13,9 +13,9 @@ class CompilationDaemon : public BaseDaemon {
 
   static base::ProcessPtr CreateProcess(const base::proto::Flags& flags,
                                         ui32 user_id,
-                                        Immutable cwd_path = Immutable());
+                                        const Path& cwd_path = Path());
   static base::ProcessPtr CreateProcess(const base::proto::Flags& flags,
-                                        Immutable cwd_path = Immutable());
+                                        const Path& cwd_path = Path());
 
   static cache::string::HandledHash GenerateHash(
       const base::proto::Flags& flags, const cache::string::HandledSource& code,

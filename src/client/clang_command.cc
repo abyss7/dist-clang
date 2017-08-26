@@ -14,8 +14,8 @@ namespace {
 
 // Flags to be ignored that are known to somehow break compilation.
 const std::array<clang::driver::options::ID, 2> kIgnoredFlags = {{
-  clang::driver::options::OPT_frewrite_includes,
-  clang::driver::options::OPT_rewrite_macros,
+    clang::driver::options::OPT_frewrite_includes,
+    clang::driver::options::OPT_rewrite_macros,
 }};
 
 }  // namespace
@@ -36,7 +36,7 @@ ClangCommand::ClangCommand(llvm::ArrayRef<const char*> args,
       }()),
       opts_(opts) {}
 
-base::ProcessPtr ClangCommand::CreateProcess(Immutable current_dir,
+base::ProcessPtr ClangCommand::CreateProcess(const Path& current_dir,
                                              ui32 user_id) const {
   NOTREACHED();
   return base::ProcessPtr();
@@ -70,7 +70,6 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
   llvm::opt::DerivedArgList tmp_list(arg_list_);
 
   for (const auto& arg : arg_list_) {
-
     // TODO: try to sort out flags by some attribute, i.e. group actions,
     //       compilation-only flags, etc.
 
@@ -173,11 +172,11 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
     else {
       // FIXME: Potentially this is an O(n*m) problem, that should be solved in
       //        a more efficient way.
-      const bool ignored = std::any_of(kIgnoredFlags.begin(),
-                                       kIgnoredFlags.end(),
-                                       [&](const auto& ignored_flag) {
-        return arg->getOption().matches(ignored_flag);
-      });
+      const bool ignored =
+          std::any_of(kIgnoredFlags.begin(), kIgnoredFlags.end(),
+                      [&](const auto& ignored_flag) {
+                        return arg->getOption().matches(ignored_flag);
+                      });
       if (!ignored) {
         arg->render(arg_list_, other_list);
       }
