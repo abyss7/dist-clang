@@ -17,7 +17,7 @@ class ProcessImpl : public Process {
  private:
   friend class DefaultFactory;
 
-  explicit ProcessImpl(const String& exec_path, const Path& cwd_path = Path(),
+  explicit ProcessImpl(const Path& exec_path, const Path& cwd_path = Path(),
                        ui32 uid = SAME_UID);
 
   bool RunChild(Pipe& out, Pipe& err, Pipe* in);

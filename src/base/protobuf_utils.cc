@@ -20,7 +20,7 @@ Log& Log::operator<<(const google::protobuf::Message& info) {
   return *this;
 }
 
-bool LoadFromFile(const String& path, google::protobuf::Message* message,
+bool LoadFromFile(const Path& path, google::protobuf::Message* message,
                   String* error) {
   Immutable contents;
   if (!File::Read(path, &contents, error) ||
@@ -36,7 +36,7 @@ bool LoadFromFile(const String& path, google::protobuf::Message* message,
   return true;
 }
 
-bool SaveToFile(const String& path, const google::protobuf::Message& message,
+bool SaveToFile(const Path& path, const google::protobuf::Message& message,
                 String* error) {
   String output;
   if (!google::protobuf::TextFormat::PrintToString(message, &output) ||

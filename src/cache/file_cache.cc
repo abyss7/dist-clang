@@ -2,6 +2,7 @@
 
 #include <base/file/file.h>
 #include <base/logging.h>
+#include <base/path_utils.h>
 #include <base/protobuf_utils.h>
 #include <base/string_utils.h>
 #include <perf/stat_service.h>
@@ -151,7 +152,8 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
   DCHECK(entry);
 
   auto unhandled_hash = Hash(code, extra_files, command_line, version);
-  const auto manifest_path = CommonPath(unhandled_hash).concat(".manifest");
+  const auto manifest_path =
+      AppendExtension(CommonPath(unhandled_hash), "manifest"_l);
   const ReadLock lock(this, manifest_path);
 
   if (!lock) {
@@ -190,7 +192,7 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
 bool FileCache::Find(HandledHash hash, Entry* entry) const {
   DCHECK(entry);
 
-  const auto manifest_path = CommonPath(hash).concat(".manifest");
+  const auto manifest_path = AppendExtension(CommonPath(hash), "manifest"_l);
   const ReadLock lock(this, manifest_path);
 
   if (!lock) {
@@ -208,7 +210,7 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
   ui64 size = 0;
 
   if (manifest.v1().err()) {
-    const auto stderr_path = CommonPath(hash).concat(".stderr");
+    const auto stderr_path = AppendExtension(CommonPath(hash), "stderr"_l);
     if (!base::File::Read(stderr_path, &entry->stderr)) {
       return false;
     }
@@ -216,7 +218,7 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
   }
 
   if (manifest.v1().obj()) {
-    const auto object_path = CommonPath(hash).concat(".o");
+    const auto object_path = AppendExtension(CommonPath(hash), "o"_l);
 
     if (manifest.v1().snappy()) {
       String error;
@@ -245,7 +247,7 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
   }
 
   if (manifest.v1().dep()) {
-    const auto deps_path = CommonPath(hash).concat(".d");
+    const auto deps_path = AppendExtension(CommonPath(hash), "d"_l);
     if (!base::File::Read(deps_path, &entry->deps)) {
       return false;
     }
@@ -265,7 +267,7 @@ void FileCache::Store(UnhandledSource code, const ExtraFiles& extra_files,
 }
 
 void FileCache::Store(string::HandledHash hash, Entry entry) {
-  const auto manifest_path = CommonPath(hash).concat(".manifest");
+  const auto manifest_path = AppendExtension(CommonPath(hash), "manifest"_l);
   WriteLock lock(this, manifest_path);
   String error;
 
@@ -283,7 +285,7 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
 
   manifest.mutable_v1()->set_err(!entry.stderr.empty());
   if (!entry.stderr.empty()) {
-    const auto stderr_path = CommonPath(hash).concat(".stderr");
+    const auto stderr_path = AppendExtension(CommonPath(hash), "stderr"_l);
 
     if (!base::File::Write(stderr_path, entry.stderr, &error)) {
       RemoveEntry(hash);
@@ -297,7 +299,7 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
 
   manifest.mutable_v1()->set_obj(!entry.object.empty());
   if (!entry.object.empty()) {
-    const auto object_path = CommonPath(hash).concat(".o");
+    const auto object_path = AppendExtension(CommonPath(hash), "o"_l);
 
     if (!snappy_) {
       object_size = entry.object.size();
@@ -332,7 +334,7 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
 
   manifest.mutable_v1()->set_dep(!entry.deps.empty());
   if (!entry.deps.empty()) {
-    const auto deps_path = CommonPath(hash).concat(".d");
+    const auto deps_path = AppendExtension(CommonPath(hash), "d"_l);
 
     if (!base::File::Write(deps_path, entry.deps, &error)) {
       RemoveEntry(hash);
@@ -445,7 +447,8 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
   // headers, while checking the direct cache. Such approach has a little
   // drawback, because the changes in the dependent headers will make a
   // false-positive direct cache hit, followed by true cache miss.
-  const auto manifest_path = CommonPath(orig_hash).concat(".manifest");
+  const auto manifest_path =
+      AppendExtension(CommonPath(orig_hash), "manifest"_l);
   WriteLock lock(this, manifest_path);
 
   if (!lock) {
@@ -535,7 +538,7 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
     SQLite::Value entry;
     CHECK(entries_->First(&hash.str, &entry));
 
-    const auto manifest_path = CommonPath(hash).concat(".manifest");
+    const auto manifest_path = AppendExtension(CommonPath(hash), "manifest"_l);
     WriteLock lock(this, manifest_path);
     if (lock) {
       LOG(CACHE_VERBOSE) << "Cache overuse is " << (cache_size_ - max_size_)

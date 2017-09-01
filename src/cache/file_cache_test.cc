@@ -2,6 +2,7 @@
 
 #include <base/file/file.h>
 #include <base/future.h>
+#include <base/path_utils.h>
 #include <base/protobuf_utils.h>
 #include <base/temporary_dir.h>
 
@@ -261,7 +262,7 @@ TEST(FileCacheTest, RestoreEntryWithMissingFile) {
   // Store the entry.
   cache.Store(hash, entry1);
 
-  base::File::Delete(cache.CommonPath(hash).concat(".d"));
+  base::File::Delete(AppendExtension(cache.CommonPath(hash), "d"_l));
 
   // Restore the entry.
   ASSERT_FALSE(cache.Find(hash, &entry2));
@@ -723,7 +724,8 @@ TEST(FileCacheTest, UseIndexFromDisk) {
 
   {
     FileCache cache(temp_dir, FileCache::UNLIMITED, false, true);
-    const auto manifest_path = cache.CommonPath(hash).concat(".manifest");
+    const auto manifest_path =
+        AppendExtension(cache.CommonPath(hash), "manifest"_l);
 
     ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash)));
 
@@ -741,7 +743,8 @@ TEST(FileCacheTest, UseIndexFromDisk) {
 
   {
     FileCache cache(temp_dir, FileCache::UNLIMITED, false, true);
-    const auto manifest_path = cache.CommonPath(hash).concat(".manifest");
+    const auto manifest_path =
+        AppendExtension(cache.CommonPath(hash), "manifest"_l);
 
     ASSERT_TRUE(base::File::Write(manifest_path, "1"_l));
     EXPECT_TRUE(cache.Run(1));

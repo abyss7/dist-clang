@@ -2,6 +2,7 @@
 
 #include <base/assert.h>
 #include <base/c_utils.h>
+#include <base/path_utils.h>
 #include <base/string_utils.h>
 
 #include <fcntl.h>
@@ -45,7 +46,7 @@ File::File(const Path& path) : Data(open(path.c_str(), O_RDONLY)) {
 }
 
 // static
-bool File::IsFile(const String& path, String* error) {
+bool File::IsFile(const Path& path, String* error) {
   struct stat buffer;
   if (stat(path.c_str(), &buffer)) {
     GetLastError(error);
@@ -56,7 +57,7 @@ bool File::IsFile(const String& path, String* error) {
 }
 
 // static
-bool File::IsExecutable(const String& path, String* error) {
+bool File::IsExecutable(const Path& path, String* error) {
   if (!IsFile(path, error)) {
     return false;
   }
@@ -69,7 +70,7 @@ bool File::IsExecutable(const String& path, String* error) {
 }
 
 // static
-bool File::Exists(const String& path, String* error) {
+bool File::Exists(const Path& path, String* error) {
   if (access(path.c_str(), F_OK)) {
     GetLastError(error);
     return false;
@@ -150,7 +151,7 @@ bool File::Hash(Immutable* output, const List<Literal>& skip_list,
   return true;
 }
 
-bool File::CopyInto(const String& dst_path, String* error) {
+bool File::CopyInto(const Path& dst_path, String* error) {
   DCHECK(IsValid());
 
   // Force unlinking of |dst|, since it may be hard-linked with other places.
@@ -198,7 +199,7 @@ bool File::CopyInto(const String& dst_path, String* error) {
 }
 
 // static
-ui64 File::Size(const String& path, String* error) {
+ui64 File::Size(const Path& path, String* error) {
   File file(path);
 
   if (!file.IsValid()) {
@@ -210,7 +211,7 @@ ui64 File::Size(const String& path, String* error) {
 }
 
 // static
-bool File::Read(const String& path, Immutable* output, String* error) {
+bool File::Read(const Path& path, Immutable* output, String* error) {
   File file(path);
 
   if (!file.IsValid()) {
@@ -222,7 +223,7 @@ bool File::Read(const String& path, Immutable* output, String* error) {
 }
 
 // static
-bool File::Hash(const String& path, Immutable* output,
+bool File::Hash(const Path& path, Immutable* output,
                 const List<Literal>& skip_list, String* error) {
   File file(path);
 
@@ -235,7 +236,7 @@ bool File::Hash(const String& path, Immutable* output,
 }
 
 // static
-bool File::Delete(const String& path, String* error) {
+bool File::Delete(const Path& path, String* error) {
   if (unlink(path.c_str()) == -1) {
     GetLastError(error);
     return false;
@@ -272,7 +273,7 @@ bool File::Write(const Path& path, Immutable input, String* error) {
 }
 
 // static
-bool File::Copy(const String& src_path, const String& dst_path, String* error) {
+bool File::Copy(const Path& src_path, const Path& dst_path, String* error) {
   File src(src_path);
 
   if (!src.IsValid()) {
@@ -284,7 +285,7 @@ bool File::Copy(const String& src_path, const String& dst_path, String* error) {
 }
 
 // static
-bool File::Link(const String& src, const String& dst, String* error) {
+bool File::Link(const Path& src, const Path& dst, String* error) {
   auto Link = [&src, &dst]() -> int {
 #if defined(OS_LINUX)
     // Linux doesn't guarantee that |link()| do dereferences symlinks, thus
@@ -310,7 +311,7 @@ bool File::Link(const String& src, const String& dst, String* error) {
 }
 
 // static
-bool File::Move(const String& src, const String& dst, String* error) {
+bool File::Move(const Path& src, const Path& dst, String* error) {
   if (rename(src.c_str(), dst.c_str()) == -1) {
     GetLastError(error);
     return false;
@@ -319,14 +320,14 @@ bool File::Move(const String& src, const String& dst, String* error) {
   return true;
 }
 
-File::File(const String& path, ui64 size)
+File::File(const Path& path, ui64 size)
     : Data([=] {
         // We need write-access even on object files after introduction of the
         // "split-dwarf" option, see
         // https://sourceware.org/bugzilla/show_bug.cgi?id=971
         const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
         const auto flags = O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC;
-        const String tmp_path = path + ".tmp";
+        const Path tmp_path = AppendExtension(path, "tmp"_l);
         return open(tmp_path.c_str(), flags, mode);
       }()),
       move_on_close_(path) {
@@ -372,7 +373,7 @@ bool File::Close(String* error) {
     return true;
   }
 
-  const String tmp_path = move_on_close_ + ".tmp";
+  const Path tmp_path = AppendExtension(move_on_close_, "tmp"_l);
   if (!Move(tmp_path, move_on_close_, error)) {
     Delete(tmp_path);
     return false;

@@ -95,48 +95,6 @@ Pair<time_t> GetModificationTime(const String& path, String* error) {
   return {time_spec.tv_sec, time_spec.tv_nsec};
 }
 
-bool GetLeastRecentPath(const Path& path, Path& result, const char* regex,
-                        String* error) {
-  DIR* dir = opendir(path.c_str());
-  if (dir == nullptr) {
-    GetLastError(error);
-    return false;
-  }
-
-  const Pair<time_t> null_time = {0, 0};
-  Pair<time_t> mtime = null_time;
-  while (true) {
-    const struct dirent* entry = readdir(dir);
-    if (!entry) {
-      break;
-    }
-
-    if (!std::regex_match(entry->d_name, std::regex(regex))) {
-      continue;
-    }
-
-    const String entry_name = entry->d_name;
-    if (entry_name == "." || entry_name == "..") {
-      continue;
-    }
-
-    const auto new_path = path / entry_name;
-    auto current_mtime = GetModificationTime(new_path);
-    if (mtime == null_time ||
-        (current_mtime != null_time && current_mtime < mtime)) {
-      mtime = current_mtime;
-      result = new_path;
-    }
-  }
-  closedir(dir);
-
-  return mtime != null_time;
-}
-
-bool GetLeastRecentPath(const Path& path, Path& result, String* error) {
-  return GetLeastRecentPath(path, result, ".*", error);
-}
-
 bool CreateDirectory(const String& path, String* error) {
   for (size_t i = 1; i < path.size(); ++i) {
     if (path[i] == '/' && mkdir(path.substr(0, i).c_str(), 0755) == -1 &&

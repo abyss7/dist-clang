@@ -102,9 +102,8 @@ TEST_F(ClientTest, EmptyClangPath) {
   const char* argv[] = {"clang++", "-c", "/tmp/test_file.cc", nullptr};
   const int argc = 3;
 
-  EXPECT_TRUE(client::DoMain(argc, argv, Immutable(), Immutable(), Immutable(),
-                             0, 0, 0, 0, HashMap<String, String>(), false,
-                             false));
+  EXPECT_TRUE(client::DoMain(argc, argv, Immutable(), Path(), Immutable(), 0, 0,
+                             0, 0, HashMap<String, String>(), false, false));
   EXPECT_TRUE(weak_ptr.expired());
   EXPECT_EQ(0u, send_count);
   EXPECT_EQ(0u, read_count);

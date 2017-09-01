@@ -46,7 +46,7 @@ TEST(CompilationDaemonTest, CreateProcessFromFlags) {
     for (const auto& arg : process->args_) {
       EXPECT_EQ(*(it++), arg);
     }
-    EXPECT_EQ("/usr/bin/clang"_l, process->exec_path_);
+    EXPECT_EQ(Path("/usr/bin/clang"), process->exec_path_);
     EXPECT_EQ(expected_user_id, process->uid_);
   }
 
@@ -57,7 +57,7 @@ TEST(CompilationDaemonTest, CreateProcessFromFlags) {
     for (const auto& arg : process->args_) {
       EXPECT_EQ(*(it++), arg);
     }
-    EXPECT_EQ("/usr/bin/clang"_l, process->exec_path_);
+    EXPECT_EQ(Path("/usr/bin/clang"), process->exec_path_);
     EXPECT_EQ(base::Process::SAME_UID, process->uid_);
   }
 }

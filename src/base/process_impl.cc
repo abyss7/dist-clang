@@ -11,8 +11,7 @@
 namespace dist_clang {
 namespace base {
 
-ProcessImpl::ProcessImpl(const String& exec_path, const Path& cwd_path,
-                         ui32 uid)
+ProcessImpl::ProcessImpl(const Path& exec_path, const Path& cwd_path, ui32 uid)
     : Process(exec_path, cwd_path, uid), killed_(false) {}
 
 // This method contains code between |fork()| and |exec()|. Since we're in a

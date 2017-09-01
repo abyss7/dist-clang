@@ -50,10 +50,23 @@ class EmitterTest : public CommonDaemonTest {
       EXPECT_EQ(0u, port);
       return !::testing::Test::HasNonfatalFailure();
     };
+
+    connect_callback = [this](net::TestConnection* connection,
+                              net::EndPointPtr) {
+      connection->CallOnSend([this](const net::Connection::Message& message) {
+        using net::proto::Status;
+        EXPECT_TRUE(message.HasExtension(Status::extension));
+        const auto& status = message.GetExtension(Status::extension);
+        EXPECT_EQ(expected_code, status.code());
+        return !::testing::Test::HasNonfatalFailure();
+      });
+      return true;
+    };
   }
 
   UniquePtr<Emitter> emitter;
   const String socket_path;
+  net::proto::Status::Code expected_code = net::proto::Status::OK;
 };
 
 /*
@@ -79,7 +92,8 @@ TEST_F(EmitterTest, IdleConnection) {
  * If we receive a bad message from client, then say it back to him.
  */
 TEST_F(EmitterTest, BadLocalMessage) {
-  const auto expected_code = net::proto::Status::BAD_MESSAGE;
+  expected_code = net::proto::Status::BAD_MESSAGE;
+
   const String expected_description = "Test description";
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
@@ -151,7 +165,8 @@ TEST_F(EmitterTest, LocalMessageWithoutCommand) {
  * This test checks |DoLocalExecute()|.
  */
 TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
-  const auto expected_code = net::proto::Status::NO_VERSION;
+  expected_code = net::proto::Status::NO_VERSION;
+
   const String compiler_version = "fake_compiler_version";
   const String bad_version = "another_compiler_version";
   const String compiler_path = "fake_compiler_path";
@@ -165,15 +180,6 @@ TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
   auto* plugin = version->add_plugins();
   plugin->set_name(plugin_name);
   plugin->set_path(plugin_path);
-
-  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
-    connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
-      EXPECT_EQ(expected_code, status.code());
-    });
-    return true;
-  };
 
   emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
@@ -193,8 +199,9 @@ TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
     status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
-    emitter.reset();
   }
+
+  emitter.reset();
 
   EXPECT_EQ(0u, run_count);
   EXPECT_EQ(1u, listen_count);
@@ -217,7 +224,6 @@ String EndPointString(const String& host, const ui16 port = 0) {
 
 TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
   const base::TemporaryDir temp_dir;
-  const auto expected_code = net::proto::Status::OK;
   const auto action = "fake_action"_l;
   const auto handled_source1 = "fake_source1"_l;
   const auto handled_source2 = "fake_source2"_l;
@@ -467,7 +473,6 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
 
 TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
   const base::TemporaryDir temp_dir;
-  const auto expected_code = net::proto::Status::OK;
   const auto action = "fake_action"_l;
   const auto handled_source = "fake_source1"_l;
   const auto obj_code = "local_compilation_obj_code"_l;
@@ -710,7 +715,6 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
 // redistributed between other shards.
 TEST_F(EmitterTest, TasksGetReshardedOnFailedRemote) {
   const base::TemporaryDir temp_dir;
-  const auto expected_code = net::proto::Status::OK;
   const auto action = "fake_action"_l;
   const auto handled_source = "fake_source"_l;
   const auto object_code = "fake_object_code"_l;
@@ -1387,7 +1391,8 @@ TEST_F(EmitterTest, CoordinatorSuccessfulUpdate) {
  * This test checks |DoRemoteExecute()|.
  */
 TEST_F(EmitterTest, RemoteMessageWithBadCompiler) {
-  const auto expected_code = net::proto::Status::NO_VERSION;
+  expected_code = net::proto::Status::NO_VERSION;
+
   const String compiler_version = "fake_compiler_version";
   const String bad_version = "another_compiler_version";
   const String compiler_path = "fake_compiler_path";
@@ -1412,15 +1417,6 @@ TEST_F(EmitterTest, RemoteMessageWithBadCompiler) {
   plugin->set_name(plugin_name);
   plugin->set_path(plugin_path);
 
-  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
-    connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
-      EXPECT_EQ(expected_code, status.code());
-    });
-    return true;
-  };
-
   emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
@@ -1439,8 +1435,9 @@ TEST_F(EmitterTest, RemoteMessageWithBadCompiler) {
     status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
-    emitter.reset();
   }
+
+  emitter.reset();
 
   EXPECT_EQ(0u, run_count);
   EXPECT_EQ(1u, listen_count);
@@ -1453,7 +1450,8 @@ TEST_F(EmitterTest, RemoteMessageWithBadCompiler) {
 }
 
 TEST_F(EmitterTest, LocalMessageWithBadPlugin) {
-  const auto expected_code = net::proto::Status::NO_VERSION;
+  expected_code = net::proto::Status::NO_VERSION;
+
   const String compiler_version = "1.0";
   const String compiler_path = "fake_compiler_path";
   const String current_dir = "fake_current_dir";
@@ -1462,15 +1460,6 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin) {
   auto* version = conf.add_versions();
   version->set_version(compiler_version);
   version->set_path(compiler_path);
-
-  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
-    connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
-      EXPECT_EQ(expected_code, status.code());
-    });
-    return true;
-  };
 
   emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
@@ -1492,8 +1481,9 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin) {
     status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
-    emitter.reset();
   }
+
+  emitter.reset();
 
   EXPECT_EQ(0u, run_count);
   EXPECT_EQ(1u, listen_count);
@@ -1506,7 +1496,8 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin) {
 }
 
 TEST_F(EmitterTest, LocalMessageWithBadPlugin2) {
-  const auto expected_code = net::proto::Status::NO_VERSION;
+  expected_code = net::proto::Status::NO_VERSION;
+
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
   const String plugin_name = "test_plugin";
@@ -1521,15 +1512,6 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin2) {
   plugin->set_name(plugin_name);
   plugin->set_path(plugin_path);
 
-  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
-    connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
-      EXPECT_EQ(expected_code, status.code());
-    });
-    return true;
-  };
-
   emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
@@ -1550,8 +1532,9 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin2) {
     status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
-    emitter.reset();
   }
+
+  emitter.reset();
 
   EXPECT_EQ(0u, run_count);
   EXPECT_EQ(1u, listen_count);
@@ -1564,7 +1547,6 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin2) {
 }
 
 TEST_F(EmitterTest, LocalMessageWithPluginPath) {
-  const auto expected_code = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const auto compiler_path = "fake_compiler_path"_l;
   const String current_dir = "fake_current_dir";
@@ -1577,16 +1559,8 @@ TEST_F(EmitterTest, LocalMessageWithPluginPath) {
   version->set_version(compiler_version);
   version->set_path(compiler_path);
 
-  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
-    connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
-      EXPECT_EQ(expected_code, status.code());
-    });
-    return true;
-  };
   run_callback = [&](base::TestProcess* process) {
-    EXPECT_EQ(compiler_path, process->exec_path_);
+    EXPECT_EQ(Path(compiler_path), process->exec_path_);
     EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path}),
               process->args_);
     EXPECT_EQ(user_id, process->uid_);
@@ -1615,8 +1589,9 @@ TEST_F(EmitterTest, LocalMessageWithPluginPath) {
     status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
-    emitter.reset();
   }
+
+  emitter.reset();
 
   EXPECT_EQ(1u, run_count);
   EXPECT_EQ(1u, listen_count);
@@ -1631,7 +1606,6 @@ TEST_F(EmitterTest, LocalMessageWithPluginPath) {
 }
 
 TEST_F(EmitterTest, LocalMessageWithSanitizeBlacklist) {
-  const auto expected_code = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const auto compiler_path = "fake_compiler_path"_l;
   const String current_dir = "fake_current_dir";
@@ -1643,16 +1617,8 @@ TEST_F(EmitterTest, LocalMessageWithSanitizeBlacklist) {
   version->set_version(compiler_version);
   version->set_path(compiler_path);
 
-  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
-    connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
-      EXPECT_EQ(expected_code, status.code());
-    });
-    return true;
-  };
   run_callback = [&](base::TestProcess* process) {
-    EXPECT_EQ(compiler_path, process->exec_path_);
+    EXPECT_EQ(Path(compiler_path), process->exec_path_);
     EXPECT_EQ((Immutable::Rope{action, Immutable("-fsanitize-blacklist="_l) +
                                            sanitize_blacklist_path}),
               process->args_);
@@ -1680,8 +1646,9 @@ TEST_F(EmitterTest, LocalMessageWithSanitizeBlacklist) {
     status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
-    emitter.reset();
   }
+
+  emitter.reset();
 
   EXPECT_EQ(1u, run_count);
   EXPECT_EQ(1u, listen_count);
@@ -1696,7 +1663,6 @@ TEST_F(EmitterTest, LocalMessageWithSanitizeBlacklist) {
 }
 
 TEST_F(EmitterTest, ConfigurationWithoutVersions) {
-  const auto expected_code = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const auto compiler_path = "fake_compiler_path"_l;
   const String current_dir = "fake_current_dir";
@@ -1705,16 +1671,8 @@ TEST_F(EmitterTest, ConfigurationWithoutVersions) {
   const auto action = "fake_action"_l;
   const ui32 user_id = 1234;
 
-  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
-    connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
-      EXPECT_EQ(expected_code, status.code());
-    });
-    return true;
-  };
   run_callback = [&](base::TestProcess* process) {
-    EXPECT_EQ(compiler_path, process->exec_path_);
+    EXPECT_EQ(Path(compiler_path), process->exec_path_);
     EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path}),
               process->args_);
     EXPECT_EQ(user_id, process->uid_);
@@ -1744,8 +1702,9 @@ TEST_F(EmitterTest, ConfigurationWithoutVersions) {
     status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
-    emitter.reset();
   }
+
+  emitter.reset();
 
   EXPECT_EQ(1u, run_count);
   EXPECT_EQ(1u, listen_count);
@@ -1760,7 +1719,6 @@ TEST_F(EmitterTest, ConfigurationWithoutVersions) {
 }
 
 TEST_F(EmitterTest, LocalSuccessfulCompilation) {
-  const auto expected_code = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const auto compiler_path = "fake_compiler_path"_l;
   const String current_dir = "fake_current_dir";
@@ -1776,16 +1734,8 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
   plugin->set_name(plugin_name);
   plugin->set_path(plugin_path);
 
-  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
-    connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
-      EXPECT_EQ(expected_code, status.code());
-    });
-    return true;
-  };
   run_callback = [&](base::TestProcess* process) {
-    EXPECT_EQ(compiler_path, process->exec_path_);
+    EXPECT_EQ(Path(compiler_path), process->exec_path_);
     EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path}),
               process->args_);
     EXPECT_EQ(user_id, process->uid_);
@@ -1812,8 +1762,9 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
     status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
-    emitter.reset();
   }
+
+  emitter.reset();
 
   EXPECT_EQ(1u, run_count);
   EXPECT_EQ(1u, listen_count);
@@ -1835,7 +1786,8 @@ TEST_F(EmitterTest, DISABLED_RemoteSuccessfulCompilation) {
 }
 
 TEST_F(EmitterTest, LocalFailedCompilation) {
-  const auto expected_code = net::proto::Status::EXECUTION;
+  expected_code = net::proto::Status::EXECUTION;
+
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
   const String current_dir = "fake_current_dir";
@@ -1844,14 +1796,6 @@ TEST_F(EmitterTest, LocalFailedCompilation) {
   version->set_version(compiler_version);
   version->set_path(compiler_path);
 
-  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
-    connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
-      EXPECT_EQ(expected_code, status.code());
-    });
-    return true;
-  };
   do_run = false;
 
   emitter = std::make_unique<Emitter>(conf);
@@ -1873,8 +1817,9 @@ TEST_F(EmitterTest, LocalFailedCompilation) {
     status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
-    emitter.reset();
   }
+
+  emitter.reset();
 
   EXPECT_EQ(1u, run_count);
   EXPECT_EQ(1u, listen_count);
@@ -1893,7 +1838,6 @@ TEST_F(EmitterTest, LocalFailedCompilation) {
  */
 TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
   const base::TemporaryDir temp_dir;
-  const auto expected_code = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
   const auto object_code = "fake_object_code"_l;
@@ -2039,7 +1983,6 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
   const base::TemporaryDir temp_dir;
   const String host = "fake_host";
   const ui16 port = 12345;
-  const auto expected_code = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
   const auto object_code = "fake_object_code"_l;
@@ -2237,7 +2180,6 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteFail) {
   const base::TemporaryDir temp_dir;
   const String host = "fake_host";
   const ui16 port = 12345;
-  const auto expected_code = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
   const auto object_code = "fake_object_code"_l;
@@ -2386,7 +2328,6 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteRejects) {
   const base::TemporaryDir temp_dir;
   const String host = "fake_host";
   const ui16 port = 12345;
-  const auto expected_code = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
   const auto object_code = "fake_object_code"_l;
@@ -2531,7 +2472,6 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteRejects) {
 
 TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
   const base::TemporaryDir temp_dir;
-  const auto expected_code = net::proto::Status::OK;
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
   const auto source = "fake_source"_l;
@@ -2698,7 +2638,6 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
   plugin->set_path(plugin_path);
 
   // Prepare callbacks.
-  const auto expected_code = net::proto::Status::OK;
   const auto deps1_path = "test1.d"_l;
   const auto deps2_path = temp_dir.path() / "test2.d";
   const auto language = "fake_language"_l;
@@ -2842,7 +2781,6 @@ TEST_F(EmitterTest,
   const auto header1_path = temp_dir.path() / "header1.h";
   const auto header2_path = temp_dir.path() / "header2.h";
   const auto source_code = "int main() {}"_l;
-  const auto expected_code = net::proto::Status::OK;
   const auto deps_path = "test.d"_l;
   const auto language = "fake_language"_l;
   const auto preprocessed_source = "fake_source"_l;
@@ -3070,7 +3008,6 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
   plugin->set_path(plugin_path);
 
   // Prepare callbacks.
-  const auto expected_code = net::proto::Status::OK;
   const auto deps1_path = "test1.d"_l;
   const auto language = "fake_language"_l;
   const auto preprocessed_source = "fake_source"_l;
@@ -3300,7 +3237,7 @@ TEST_F(EmitterTest, ConfigurationUpdateCompiler) {
     return true;
   };
   run_callback = [&](base::TestProcess* process) {
-    EXPECT_EQ(compiler_path, process->exec_path_);
+    EXPECT_EQ(Path(compiler_path), process->exec_path_);
     EXPECT_EQ((Immutable::Rope{action}), process->args_)
         << process->PrintArgs();
   };
@@ -3320,8 +3257,9 @@ TEST_F(EmitterTest, ConfigurationUpdateCompiler) {
     status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
-    emitter.reset();
   }
+
+  emitter.reset();
 
   EXPECT_EQ(1u, run_count);
   EXPECT_EQ(1u, listen_count);
@@ -3372,7 +3310,6 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
   plugin->set_path(plugin_path);
 
   // Prepare callbacks.
-  const auto expected_code = net::proto::Status::OK;
   const auto deps_path = "test.d"_l;
   const auto language = "fake_language"_l;
   const auto preprocessed_source = "fake_source"_l;
@@ -3574,8 +3511,6 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
   plugin->set_path(plugin_path);
 
   // Prepare callbacks.
-  const auto expected_code = net::proto::Status::OK;
-
   const auto deps_path = "path1/test.d"_l;
   const auto deps_path2 = "path2/test.d"_l;
 
