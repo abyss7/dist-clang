@@ -62,6 +62,7 @@ TEST(FileUtilsTest, CreateDirectory) {
   const auto temp = temp_dir.path() / "1" / "2" / "3";
 
   ASSERT_TRUE(CreateDirectory(temp, &error)) << error;
+  ASSERT_TRUE(CreateDirectory(temp, &error)) << error;
 
   DIR* dir = opendir(temp.c_str());
   EXPECT_TRUE(dir);

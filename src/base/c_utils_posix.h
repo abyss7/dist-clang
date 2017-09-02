@@ -104,6 +104,7 @@ inline bool GetSelfPath(String& result, String* error) {
   return true;
 }
 
+// TODO: refactor on |std::filesystem|.
 inline bool SetPermissions(const String& path, int mask, String* error) {
   if (chmod(path.c_str(), mask) == -1) {
     GetLastError(error);

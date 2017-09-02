@@ -95,22 +95,5 @@ Pair<time_t> GetModificationTime(const String& path, String* error) {
   return {time_spec.tv_sec, time_spec.tv_nsec};
 }
 
-bool CreateDirectory(const String& path, String* error) {
-  for (size_t i = 1; i < path.size(); ++i) {
-    if (path[i] == '/' && mkdir(path.substr(0, i).c_str(), 0755) == -1 &&
-        errno != EEXIST) {
-      GetLastError(error);
-      return false;
-    }
-  }
-
-  if (mkdir(path.c_str(), 0755) == -1 && errno != EEXIST) {
-    GetLastError(error);
-    return false;
-  }
-
-  return true;
-}
-
 }  // namespace base
 }  // namespace dist_clang
