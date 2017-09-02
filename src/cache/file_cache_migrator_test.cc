@@ -1,4 +1,4 @@
-#include <base/const_string.h>
+#include <base/constants.h>
 #include <base/file/file.h>
 #include <base/path_utils.h>
 #include <base/protobuf_utils.h>
@@ -16,9 +16,9 @@ TEST(FileCacheMigratorTest, Version_0_to_1_Simple) {
   string::Hash hash{"12345678901234567890123456789012-12345678-00000001"_l};
   FileCache cache(temp_dir);
   const auto common_prefix = cache.CommonPath(hash);
-  const auto manifest_path = AppendExtension(common_prefix, "manifest"_l);
-  const auto object_path = AppendExtension(common_prefix, "o"_l);
-  const auto deps_path = AppendExtension(common_prefix, "d"_l);
+  const auto manifest_path = AppendExtension(common_prefix, base::kExtManifest);
+  const auto object_path = AppendExtension(common_prefix, base::kExtObject);
+  const auto deps_path = AppendExtension(common_prefix, base::kExtDeps);
 
   ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash)));
   ASSERT_TRUE(base::File::Write(object_path, "12345"_l));
@@ -52,7 +52,7 @@ TEST(FileCacheMigratorTest, Version_0_to_1_Direct) {
   string::Hash hash{"12345678901234567890123456789012-12345678-00000001"_l};
   FileCache cache(temp_dir);
   const auto manifest_path =
-      AppendExtension(cache.CommonPath(hash), "manifest"_l);
+      AppendExtension(cache.CommonPath(hash), base::kExtManifest);
 
   proto::Manifest manifest;
   manifest.add_headers()->assign("test.h");
@@ -81,8 +81,8 @@ TEST(FileCacheMigratorTest, Version_1_to_2_Simple) {
   string::Hash hash{"12345678901234567890123456789012-12345678-00000001"_l};
   FileCache cache(temp_dir);
   const auto common_prefix = cache.CommonPath(hash);
-  const auto manifest_path = AppendExtension(common_prefix, "manifest"_l);
-  const auto object_path = AppendExtension(common_prefix, "o"_l);
+  const auto manifest_path = AppendExtension(common_prefix, base::kExtManifest);
+  const auto object_path = AppendExtension(common_prefix, base::kExtObject);
 
   ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash)));
   ASSERT_TRUE(base::File::Write(object_path, "12345"_l));
@@ -110,7 +110,7 @@ TEST(FileCacheMigratorTest, Version_1_to_2_Direct) {
   string::Hash hash{"12345678901234567890123456789012-12345678-00000001"_l};
   FileCache cache(temp_dir);
   const auto manifest_path =
-      AppendExtension(cache.CommonPath(hash), "manifest"_l);
+      AppendExtension(cache.CommonPath(hash), base::kExtManifest);
 
   proto::Manifest manifest;
   manifest.set_version(1);

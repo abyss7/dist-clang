@@ -10,6 +10,10 @@ Literal kEnvDisabled = "DC_DISABLED"_l;
 Literal kEnvLogLevels = "DC_LOG_LEVELS"_l;
 Literal kEnvLogErrorMark = "DC_LOG_ERROR_MARK"_l;
 Literal kEnvSocketPath = "DC_SOCKET_PATH"_l;
+Literal kExtDeps = "d"_l;
+Literal kExtManifest = "manifest"_l;
+Literal kExtObject = "o"_l;
+Literal kExtStderr = "stderr"_l;
 
 }  // namespace base
 }  // namespace dist_clang

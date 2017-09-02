@@ -18,7 +18,7 @@ class CleanCommand : public Command {
   String RenderAllArgs() const override;
 
  private:
-  static constexpr const char* rm_path = "/bin/rm";
+  const Path rm_path = "/bin/rm";
   const llvm::opt::ArgStringList& temp_files_;
 };
 

@@ -11,9 +11,6 @@ class TemporaryDir {
   ~TemporaryDir();
 
   inline const Path& path() const { return path_; }
-  // inline const String& GetError() const { return error_; }
-  //
-  // inline operator bool() const { return !path_.empty(); }
   inline operator String() const { return path_; }
   inline operator Path() const { return path_; }
 

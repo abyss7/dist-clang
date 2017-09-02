@@ -1,5 +1,6 @@
 #include <cache/file_cache.h>
 
+#include <base/constants.h>
 #include <base/file/file.h>
 #include <base/future.h>
 #include <base/path_utils.h>
@@ -96,11 +97,12 @@ TEST(FileCacheTest, RemoveEntry) {
   string::Hash hash1{"12345678901234567890123456789012-12345678-00000001"_l};
   {
     ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash1)));
-    const String common_prefix = cache.CommonPath(hash1);
-    const auto manifest_path = Path(common_prefix + ".manifest");
-    const auto object_path = Path(common_prefix + ".o");
-    const auto deps_path = Path(common_prefix + ".d");
-    const auto stderr_path = Path(common_prefix + ".stderr");
+    const auto common_prefix = cache.CommonPath(hash1);
+    const auto manifest_path =
+        AppendExtension(common_prefix, base::kExtManifest);
+    const auto object_path = AppendExtension(common_prefix, base::kExtObject);
+    const auto deps_path = AppendExtension(common_prefix, base::kExtDeps);
+    const auto stderr_path = AppendExtension(common_prefix, base::kExtStderr);
 
     proto::Manifest manifest;
     manifest.set_version(1);
@@ -116,10 +118,11 @@ TEST(FileCacheTest, RemoveEntry) {
   string::Hash hash2{"12345678901234567890123456789012-12345678-00000002"_l};
   {
     ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash2)));
-    const String common_prefix = cache.CommonPath(hash2);
-    const auto manifest_path = Path(common_prefix + ".manifest");
-    const auto object_path = Path(common_prefix + ".o");
-    const auto deps_path = Path(common_prefix + ".d");
+    const auto common_prefix = cache.CommonPath(hash2);
+    const auto manifest_path =
+        AppendExtension(common_prefix, base::kExtManifest);
+    const auto object_path = AppendExtension(common_prefix, base::kExtObject);
+    const auto deps_path = AppendExtension(common_prefix, base::kExtDeps);
 
     proto::Manifest manifest;
     manifest.set_version(1);
@@ -134,10 +137,11 @@ TEST(FileCacheTest, RemoveEntry) {
   string::Hash hash3{"12345678901234567890123456789012-12345678-00000003"_l};
   {
     ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash3)));
-    const String common_prefix = cache.CommonPath(hash3);
-    const auto manifest_path = Path(common_prefix + ".manifest");
-    const auto object_path = Path(common_prefix + ".o");
-    const auto deps_path = Path(common_prefix + ".d");
+    const auto common_prefix = cache.CommonPath(hash3);
+    const auto manifest_path =
+        AppendExtension(common_prefix, base::kExtManifest);
+    const auto object_path = AppendExtension(common_prefix, base::kExtObject);
+    const auto deps_path = AppendExtension(common_prefix, base::kExtDeps);
 
     ASSERT_TRUE(base::File::Write(manifest_path, "1"_l));
     ASSERT_TRUE(base::File::Write(object_path, "1"_l));
@@ -725,7 +729,7 @@ TEST(FileCacheTest, UseIndexFromDisk) {
   {
     FileCache cache(temp_dir, FileCache::UNLIMITED, false, true);
     const auto manifest_path =
-        AppendExtension(cache.CommonPath(hash), "manifest"_l);
+        AppendExtension(cache.CommonPath(hash), base::kExtManifest);
 
     ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash)));
 
@@ -744,7 +748,7 @@ TEST(FileCacheTest, UseIndexFromDisk) {
   {
     FileCache cache(temp_dir, FileCache::UNLIMITED, false, true);
     const auto manifest_path =
-        AppendExtension(cache.CommonPath(hash), "manifest"_l);
+        AppendExtension(cache.CommonPath(hash), base::kExtManifest);
 
     ASSERT_TRUE(base::File::Write(manifest_path, "1"_l));
     EXPECT_TRUE(cache.Run(1));
