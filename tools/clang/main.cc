@@ -66,8 +66,7 @@ int main(int argc, char* argv[]) {
   //         get destructed before the invokation of |exec|. Do not use global
   //         objects!
   // FIXME: move |configuration| et al. inside |DoMain()| after mocking |GetEnv|
-  if (client::DoMain(argc, argv, socket_path,
-                     Immutable::WrapString(config.path()),
+  if (client::DoMain(argc, argv, socket_path, config.path(),
                      Immutable::WrapString(config.version()),
                      config.connect_timeout(), config.read_timeout(),
                      config.send_timeout(), config.read_minimum(),
