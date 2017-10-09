@@ -16,3 +16,8 @@ config("base") {
     # "error",
   ]
 }
+
+config("compatibility") {
+  cflags = ["-mmacosx-version-min=10.10"]
+  ldflags = ["-mmacosx-version-min=10.10"]
+}

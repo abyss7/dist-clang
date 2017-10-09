@@ -406,6 +406,8 @@ shared_library("c++") {
   ]
   if (host_os == "win") {
     configs += [ "//build/config:no_exceptions" ]
+  } else if (host_os == "mac") {
+    configs += ["//build/config/mac:compatibility"]
   }
   public_configs = [ ":includes" ]
 
