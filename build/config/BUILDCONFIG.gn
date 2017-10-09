@@ -47,6 +47,12 @@ default_configs = [
   "//build/config:tsan",
 ]
 
+if (host_os == "mac") {
+  default_configs += [
+    "//build/config/mac:compatibility",
+  ]
+}
+
 if (config_for_tests) {
   if (!use_tsan) {
     use_asan = true
