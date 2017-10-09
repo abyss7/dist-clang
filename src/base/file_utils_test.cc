@@ -71,5 +71,19 @@ TEST(FileUtilsTest, CreateDirectory) {
   }
 }
 
+TEST(FileUtilsTest, GetRelativeDirectory) {
+  const String cur_dir = "/path/to/current/dir";
+  EXPECT_EQ("./out/bin/../lib/1.0.0",
+            base::GetRelativePath(
+                cur_dir, "/path/to/current/dir/./out/bin/../lib/1.0.0"));
+  EXPECT_EQ("./and/more",
+            base::GetRelativePath(cur_dir, "/path/to/current/dir/and/more"));
+  EXPECT_EQ("./../../other/dir",
+            base::GetRelativePath(cur_dir, "/path/to/other/dir"));
+  EXPECT_EQ("./../../../../absolute/path/to/other/dir",
+            base::GetRelativePath(cur_dir, "/absolute/path/to/other/dir"));
+  EXPECT_EQ("./.", base::GetRelativePath("/", "."));
+}
+
 }  // namespace base
 }  // namespace dist_clang

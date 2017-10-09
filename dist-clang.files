@@ -2283,6 +2283,8 @@ src/client/clean_command.hh
 src/client/command.cc
 src/client/command.hh
 src/client/command_test.cc
+src/client/configuration.cc
+src/client/configuration.hh
 src/client/configuration.proto
 src/client/driver_command.cc
 src/client/driver_command.hh
