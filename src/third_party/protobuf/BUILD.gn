@@ -17,6 +17,7 @@ config("includes") {
 config("warnings") {
   cflags = [
     "-Woverloaded-virtual",
+    "-Wno-enum-compare-switch",
     "-Wno-sign-compare",
     "-Wno-unused-function",
     "-Wno-unused-local-typedef",
