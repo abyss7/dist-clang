@@ -1,7 +1,7 @@
 #pragma once
 
-#include <base/aliases.h>
 #include <base/const_string.h>
+#include <base/types.h>
 
 #include <base/c_utils_forward.h>
 #if defined(OS_WIN)

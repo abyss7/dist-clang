@@ -1,6 +1,6 @@
 #pragma once
 
-#include <base/aliases.h>
+#include <base/types.h>
 #include <net/connection_forward.h>
 
 #include <netinet/in.h>

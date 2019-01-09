@@ -8,7 +8,6 @@
 
 #include STL(condition_variable)
 #include STL(limits)
-#include STL_EXPERIMENTAL(optional)
 
 namespace dist_clang {
 namespace base {
@@ -20,7 +19,7 @@ class QueueAggregator;
 template <class T, bool sharded = false>
 class LockedQueue {
  public:
-  using Optional = std::experimental::optional<T>;
+  using Optional = Optional<T>;
   using Queue = List<T>;
 
   enum : ui32 {

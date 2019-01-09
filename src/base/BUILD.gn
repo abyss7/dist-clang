@@ -15,7 +15,6 @@ source_set("assert") {
 
 shared_library("base") {
   sources = [
-    "aliases.h",
     "attributes.h",
     "c_utils.h",
     "c_utils_forward.h",
@@ -67,12 +66,12 @@ shared_library("base") {
     "thread_fixed.h",
     "thread_pool.cc",
     "thread_pool.h",
+    "types.h",
     "worker_pool.cc",
     "worker_pool.h",
   ]
 
   public = [
-    "aliases.h",
     "attributes.h",
     "c_utils.h",
     "const_string.h",
@@ -101,6 +100,7 @@ shared_library("base") {
     "thread.h",
     "thread_fixed.h",
     "thread_pool.h",
+    "types.h",
     "worker_pool.h",
   ]
 

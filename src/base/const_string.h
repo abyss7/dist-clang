@@ -1,8 +1,8 @@
 #pragma once
 
-#include <base/aliases.h>
 #include <base/attributes.h>
 #include <base/logging.h>
+#include <base/types.h>
 
 namespace dist_clang {
 

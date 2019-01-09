@@ -1,9 +1,7 @@
 #pragma once
 
-#include <base/aliases.h>
 #include <base/attributes.h>
-
-#include STL(experimental/optional)
+#include <base/types.h>
 
 namespace dist_clang {
 namespace base {
@@ -11,7 +9,7 @@ namespace base {
 template <class T>
 class LockedList {
  public:
-  using Optional = std::experimental::optional<T>;
+  using Optional = Optional<T>;
 
   ~LockedList() {
     while (Pop()) {

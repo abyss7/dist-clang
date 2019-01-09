@@ -1,6 +1,6 @@
 #include <client/configuration.hh>
 
-#include <base/aliases.h>
+#include <base/types.h>
 #include <base/constants.h>
 #include <base/file/file.h>
 #include <base/file_utils.h>

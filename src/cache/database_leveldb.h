@@ -1,8 +1,8 @@
 #pragma once
 
-#include <base/aliases.h>
 #include <base/attributes.h>
 #include <base/file_utils.h>
+#include <base/types.h>
 #include <cache/database.h>
 
 namespace leveldb {

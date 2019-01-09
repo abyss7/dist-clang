@@ -1,6 +1,6 @@
 #pragma once
 
-#include <base/aliases.h>
+#include <base/types.h>
 #include <cache/database.h>
 
 #undef VERSION  // FIXME: is it necessery?

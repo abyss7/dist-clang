@@ -6,19 +6,19 @@
 #include STL(atomic)
 #include STL(chrono)
 #include STL(cstdint)
+#include STL(filesystem)
 #include STL(functional)
 #include STL(list)
 #include STL(map)
 #include STL(memory)
 #include STL(mutex)
+#include STL(optional)
 #include STL(regex)
 #include STL(string)
 #include STL(tuple)
 #include STL(unordered_map)
 #include STL(unordered_set)
 #include STL(vector)
-
-#include STL_EXPERIMENTAL(filesystem)
 
 namespace dist_clang {
 
@@ -66,10 +66,13 @@ using MultiMap = std::multimap<U, V>;
 
 using Mutex = std::mutex;
 
+template <class T>
+using Optional = std::optional<T>;
+
 template <class U, class V = U>
 using Pair = std::pair<U, V>;
 
-using Path = std::experimental::filesystem::path;
+using Path = std::filesystem::path;
 
 using Seconds = std::chrono::seconds;
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <base/aliases.h>
 #include <base/logging.h>
+#include <base/types.h>
 
 #include STL(iostream)
 #include STL(sstream)

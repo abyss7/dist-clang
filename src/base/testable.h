@@ -1,6 +1,6 @@
 #pragma once
 
-#include <base/aliases.h>
+#include <base/types.h>
 #include <base/attributes.h>
 
 namespace dist_clang {

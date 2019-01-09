@@ -4,7 +4,6 @@
 #include <base/thread.h>
 
 #include STL(condition_variable)
-#include STL(experimental/optional)
 
 namespace dist_clang {
 namespace base {
@@ -55,7 +54,7 @@ class Promise {
  public:
   // We need an |Optional| to be able to declare empty futures - at least in
   // tests.
-  using Optional = std::experimental::optional<Future<T>>;
+  using Optional = Optional<Future<T>>;
 
   // The |default_value| is set on object's destruction, if no other value was
   // ever set.
