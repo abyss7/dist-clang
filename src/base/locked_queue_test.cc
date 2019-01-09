@@ -54,9 +54,8 @@ TEST(LockedQueueTest, CloseQueue) {
   queue.Close();
   ASSERT_FALSE(queue.Push(1));
   ASSERT_TRUE(!!(actual = queue.Pop()));
-  actual = 10;
+  EXPECT_EQ(1, *actual);
   ASSERT_FALSE(!!(actual = queue.Pop()));
-  EXPECT_EQ(10, *actual);
   EXPECT_EQ(0u, queue.Size());
 }
 

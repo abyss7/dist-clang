@@ -64,7 +64,7 @@ TEST(StringUtilsTest, StringTo) {
 
   EXPECT_EQ(123456u, StringTo<ui32>(to_uint));
   EXPECT_EQ(-123456, StringTo<i32>(to_int));
-  EXPECT_EQ(0u, StringTo<ui32>(to_int));
+  EXPECT_EQ(4294843840, StringTo<ui32>(to_int));
   EXPECT_EQ(0u, StringTo<ui32>(bad_to_int));
 }
 
