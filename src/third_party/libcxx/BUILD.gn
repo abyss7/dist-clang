@@ -21,7 +21,11 @@ config("flags") {
     cflags += [ "-fno-ms-compatibility" ]
   }
 
-  defines = [ "LIBCXX_BUILDING_LIBCXXABI", "_LIBCPP_BUILDING_LIBRARY" ]
+  defines = [
+    "LIBCXX_BUILDING_LIBCXXABI",
+    "_LIBCPP_BUILDING_LIBRARY",
+    "_LIBCPP_ENABLE_CXX17_REMOVED_UNEXPECTED_FUNCTIONS",
+  ]
   if (host_os == "win") {
     defines += [ "_HAS_CHAR16_T_LANGUAGE_SUPPORT" ]
   }

@@ -19,14 +19,6 @@ config("flags") {
     "__STDC_LIMIT_MACROS",
   ]
 
-  if (host_os == "linux") {
-    defines += [
-      # TODO(matthewtff): Remove this define once libcxxabi updated to have own
-      # implementation of __cxa_thread_atexit_impl
-      "HAVE___CXA_THREAD_ATEXIT_IMPL",
-    ]
-  }
-
   cflags = [
     "-fdata-sections",
     "-ffunction-sections",
@@ -61,7 +53,7 @@ config("flags") {
     "-Wwrite-strings",
     "-Wno-error",
   ]
-  
+
   if (host_os == "mac") {
     ldflags = exec_script("//build/macosx_sdk_libs.py", [], "list lines")
     ldflags += [
@@ -90,16 +82,17 @@ shared_library("c++abi") {
     "exported/src/cxa_exception_storage.cpp",
     "exported/src/cxa_guard.cpp",
     "exported/src/cxa_handlers.cpp",
-    "exported/src/cxa_new_delete.cpp",
     "exported/src/cxa_personality.cpp",
     "exported/src/cxa_thread_atexit.cpp",
     "exported/src/cxa_unexpected.cpp",
     "exported/src/cxa_vector.cpp",
     "exported/src/cxa_virtual.cpp",
-    "exported/src/exception.cpp",
+    "exported/src/fallback_malloc.cpp",
     "exported/src/private_typeinfo.cpp",
-    "exported/src/stdexcept.cpp",
-    "exported/src/typeinfo.cpp",
+    "exported/src/stdlib_exception.cpp",
+    "exported/src/stdlib_new_delete.cpp",
+    "exported/src/stdlib_stdexcept.cpp",
+    "exported/src/stdlib_typeinfo.cpp",
   ]
 
   public = [

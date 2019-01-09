@@ -143,6 +143,7 @@ source_set("tcmalloc_internal") {
     "exported/src/base/low_level_alloc.cc",
     "exported/src/central_freelist.cc",
     "exported/src/common.cc",
+    "exported/src/emergency_malloc_for_stacktrace.cc",
     "exported/src/heap-profile-table.cc",
     "exported/src/heap-profiler.cc",
     "exported/src/internal_logging.cc",

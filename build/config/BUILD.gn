@@ -11,7 +11,7 @@ config("base") {
     "-Werror",
   ]
 
-  cflags_cc = [ "-std=c++14" ]
+  cflags_cc = [ "-std=c++17" ]
 
   include_dirs = [
     "//src",
@@ -23,9 +23,11 @@ config("default_library") {
   cflags = [ "-fPIC" ]
 
   cflags_cc = [
-    "-std=c++14",
+    "-std=c++17",
     "-nostdinc++",
   ]
+
+  defines = [ "_LIBCPP_ENABLE_CXX17_REMOVED_UNEXPECTED_FUNCTIONS" ]
 
   include_dirs = [ "//src/third_party/libcxx/exported/include" ]
 

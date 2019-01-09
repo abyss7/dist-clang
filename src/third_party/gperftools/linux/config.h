@@ -6,6 +6,15 @@
 #define GPERFTOOLS_CONFIG_H_
 
 
+/* Build new/delete operators for overaligned types */
+#define ENABLE_ALIGNED_NEW_DELETE 1
+
+/* Build runtime detection for sized delete */
+/* #undef ENABLE_DYNAMIC_SIZED_DELETE */
+
+/* Build sized deletion operators */
+/* #undef ENABLE_SIZED_DELETE */
+
 /* Define to 1 if compiler supports __builtin_expect */
 #define HAVE_BUILTIN_EXPECT 1
 
@@ -24,7 +33,7 @@
 
 /* Define to 1 if you have the declaration of `cfree', and to 0 if you don't.
    */
-#define HAVE_DECL_CFREE 1
+#define HAVE_DECL_CFREE 0
 
 /* Define to 1 if you have the declaration of `memalign', and to 0 if you
    don't. */
@@ -93,11 +102,11 @@
 /* Define to 1 if you have the <linux/ptrace.h> header file. */
 #define HAVE_LINUX_PTRACE_H 1
 
+/* Define if this is Linux that has SIGEV_THREAD_ID */
+#define HAVE_LINUX_SIGEV_THREAD_ID 1
+
 /* Define to 1 if you have the <malloc.h> header file. */
 #define HAVE_MALLOC_H 1
-
-/* Define to 1 if you have the <malloc/malloc.h> header file. */
-/* #undef HAVE_MALLOC_MALLOC_H */
 
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
@@ -148,9 +157,6 @@
 /* Define to 1 if you have the <sys/cdefs.h> header file. */
 #define HAVE_SYS_CDEFS_H 1
 
-/* Define to 1 if you have the <sys/malloc.h> header file. */
-/* #undef HAVE_SYS_MALLOC_H */
-
 /* Define to 1 if you have the <sys/param.h> header file. */
 #define HAVE_SYS_PARAM_H 1
 
@@ -172,7 +178,7 @@
 /* Define to 1 if you have the <sys/types.h> header file. */
 #define HAVE_SYS_TYPES_H 1
 
-/* <sys/ucontext.h> is broken on redhat 7 */
+/* Define to 1 if you have the <sys/ucontext.h> header file. */
 #define HAVE_SYS_UCONTEXT_H 1
 
 /* Define to 1 if you have the <sys/wait.h> header file. */
@@ -187,6 +193,9 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
 
+/* Whether <unwind.h> contains _Unwind_Backtrace */
+#define HAVE_UNWIND_BACKTRACE 1
+
 /* Define to 1 if you have the <unwind.h> header file. */
 #define HAVE_UNWIND_H 1
 
@@ -195,6 +204,9 @@
 
 /* define if your compiler has __attribute__ */
 #define HAVE___ATTRIBUTE__ 1
+
+/* define if your compiler supports alignment of functions */
+#define HAVE___ATTRIBUTE__ALIGNED_FN 1
 
 /* Define to 1 if compiler supports __environ */
 #define HAVE___ENVIRON 1
@@ -208,27 +220,20 @@
 /* Define to 1 if int32_t is equivalent to intptr_t */
 /* #undef INT32_EQUALS_INTPTR */
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #define LT_OBJDIR ".libs/"
-
-/* Define to 'volatile' if __malloc_hook is declared volatile */
-#define MALLOC_HOOK_MAYBE_VOLATILE volatile
-
-/* Define to 1 if your C compiler doesn't accept -c and -o together. */
-/* #undef NO_MINUS_C_MINUS_O */
 
 /* Name of package */
 #define PACKAGE "gperftools"
 
 /* Define to the address where bug reports for this package should be sent. */
-#define PACKAGE_BUGREPORT "google-perftools@googlegroups.com"
+#define PACKAGE_BUGREPORT "gperftools@googlegroups.com"
 
 /* Define to the full name of this package. */
 #define PACKAGE_NAME "gperftools"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "gperftools 2.2.1"
+#define PACKAGE_STRING "gperftools 2.7"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "gperftools"
@@ -237,7 +242,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "2.2.1"
+#define PACKAGE_VERSION "2.7"
 
 /* How to access the PC from a struct ucontext */
 #define PC_FROM_UCONTEXT uc_mcontext.gregs[REG_RIP]
@@ -269,13 +274,22 @@
 /* #undef PTHREAD_CREATE_JOINABLE */
 
 /* Define to 1 if you have the ANSI C header files. */
-#define STDC_HEADERS 1
+/* #undef STDC_HEADERS */
 
 /* the namespace where STL code like vector<> is defined */
 #define STL_NAMESPACE std
 
+/* Define 32K of internal pages size for tcmalloc */
+/* #undef TCMALLOC_32K_PAGES */
+
+/* Define 64K of internal pages size for tcmalloc */
+/* #undef TCMALLOC_64K_PAGES */
+
+/* Define 8 bytes of allocation alignment for tcmalloc */
+/* #undef TCMALLOC_ALIGN_8BYTES */
+
 /* Version number of package */
-#define VERSION "2.2.1"
+#define VERSION "2.7"
 
 /* C99 says: define this to get the PRI... macros from stdint.h */
 #ifndef __STDC_FORMAT_MACROS
