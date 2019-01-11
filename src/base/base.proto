@@ -13,43 +13,49 @@ message Compiler {
   repeated Plugin plugins = 3;
 }
 
+message Argument {
+  optional uint32 index  = 1;
+  repeated string values = 2;
+}
+
+// TODO: migrate all arguments to |Argument| message type.
 message Flags {
-  required Compiler compiler   = 1;
+  required Compiler compiler         = 1;
   // original compiler executable.
 
-  optional string output       = 2;
+  optional string output             = 2;
   // "-o" flag and it's param.
 
-  optional string input        = 3;
+  optional string input              = 3;
   // relative path in the last argument.
 
-  repeated string other        = 4;
+  repeated Argument other            = 4;
   // all unsorted flags.
 
-  optional string deps_file    = 5;
+  optional string deps_file          = 5;
 
-  optional string language     = 6;
+  optional string language           = 6;
   // absorbs "-x" flag and stores it's param.
 
-  repeated string non_cached   = 7;
+  repeated Argument non_cached       = 7;
   // flags, that shouldn't be cached.
 
-  repeated string cc_only      = 8;
+  repeated Argument cc_only          = 8;
   // flags for compilation only.
 
-  required string action       = 9;
+  required string action             = 9;
   // "-emit-obj", "-E", etc.
 
-  repeated string non_direct   = 10;
+  repeated Argument non_direct       = 10;
   // flags, that shouldn't be neither direct cached, nor cached.
 
   optional string sanitize_blacklist = 11;
   // sanitizer blacklist file
 
-  repeated string included_files = 12;
-  // PCH or PTH files, included implicitly through command line arguments.
+  repeated string included_files     = 12;
+  // PCH or PTH files, included explicitly through command line arguments.
 
-  optional bool rewrite_includes = 13;
+  optional bool rewrite_includes     = 13;
   // Indicates if preprocessing should/was made using 'frewrite-includes' flag.
 
   // Compilation = All

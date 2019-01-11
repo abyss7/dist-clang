@@ -10,8 +10,8 @@ namespace daemon {
 TEST(CompilationDaemonTest, CreateProcessFromFlags) {
   const List<Literal> expected_args = {
       "-cc1"_l,
-      "-emit-obj"_l,
       "-I."_l,
+      "-emit-obj"_l,
       "-load"_l,
       "/usr/lib/libplugin.so"_l,
       "-dependency-file"_l,
@@ -28,9 +28,9 @@ TEST(CompilationDaemonTest, CreateProcessFromFlags) {
   base::proto::Flags flags;
   flags.mutable_compiler()->set_path("/usr/bin/clang");
   flags.mutable_compiler()->add_plugins()->set_path("/usr/lib/libplugin.so");
-  flags.add_cc_only()->assign("-mrelax-all");
-  flags.add_non_cached()->assign("-I.");
-  flags.add_other()->assign("-cc1");
+  flags.add_cc_only()->add_values("-mrelax-all");
+  flags.add_non_cached()->add_values("-I.");
+  flags.add_other()->add_values("-cc1");
   flags.set_action("-emit-obj");
   flags.set_input("test.cc");
   flags.set_output("test.o");

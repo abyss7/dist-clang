@@ -1,6 +1,7 @@
 *.autosave
 *.pyc
-/out
+/out/
 /*.creator.user*
 /.project
 *.swp
+/.ccls-cache/

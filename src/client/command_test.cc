@@ -155,7 +155,7 @@ TEST(CommandTest, ParseCC1Args) {
   // Unknown arguments should go to |other| flags.
   bool found = false;
   for (const auto& flag : flags.other()) {
-    if (flag == "-really_unknown_arg") {
+    if (flag.values_size() && flag.values(0) == "-really_unknown_arg") {
       found = true;
       break;
     }
@@ -188,24 +188,30 @@ TEST(CommandTest, FillFlags) {
   EXPECT_EQ(output, flags.output());
   EXPECT_EQ("-emit-obj", flags.action());
   EXPECT_EQ("c++", flags.language());
-  EXPECT_EQ("-cc1", *flags.other().begin());
+  EXPECT_EQ("-cc1", flags.other().begin()->values(0));
   EXPECT_EQ(1, flags.compiler().plugins_size());
   EXPECT_EQ(plugin_name, flags.compiler().plugins(0).name());
 
-  // Check that macroses go to non-cached list.
+  auto find_value = [](const base::proto::Argument& arg, const char* value) {
+    return std::find(arg.values().begin(), arg.values().end(), value) !=
+           arg.values().end();
+  };
+  using namespace std::placeholders;
+
+  // Check that macros go to non-cached list.
   EXPECT_NE(flags.non_cached().end(),
-            std::find(flags.non_cached().begin(), flags.non_cached().end(),
-                      "MACRO"));
+            std::find_if(flags.non_cached().begin(), flags.non_cached().end(),
+                         std::bind(find_value, _1, "MACRO")));
 
   // Make sure -frewrite-includes removed if not used explicitly.
   EXPECT_EQ(flags.other().end(),
-            std::find(flags.other().begin(), flags.other().end(),
-                      "-frewrite-includes"));
+            std::find_if(flags.other().begin(), flags.other().end(),
+                         std::bind(find_value, _1, "-frewrite-includes")));
 
-  // Also ensure macroses don't go to other list.
+  // Also ensure macros don't go to other list.
   EXPECT_EQ(flags.other().end(),
-            std::find(flags.other().begin(), flags.other().end(),
-                      "MACRO"));
+            std::find_if(flags.other().begin(), flags.other().end(),
+                         std::bind(find_value, _1, "MACRO")));
 
   EXPECT_FALSE(flags.rewrite_includes());
 
@@ -238,23 +244,29 @@ TEST(CommandTest, FillFlagsAppendsRewriteIncludes) {
   EXPECT_EQ(output, flags.output());
   EXPECT_EQ("-emit-obj", flags.action());
   EXPECT_EQ("c++", flags.language());
-  EXPECT_EQ("-cc1", *flags.other().begin());
+  EXPECT_EQ("-cc1", flags.other().begin()->values(0));
+
+  auto find_value = [](const base::proto::Argument& arg, const char* value) {
+    return std::find(arg.values().begin(), arg.values().end(), value) !=
+           arg.values().end();
+  };
+  using namespace std::placeholders;
 
   // Check that macroses do not go to non-cached list.
   EXPECT_EQ(flags.non_cached().end(),
-            std::find(flags.non_cached().begin(), flags.non_cached().end(),
-                      "MACRO"));
+            std::find_if(flags.non_cached().begin(), flags.non_cached().end(),
+                         std::bind(find_value, _1, "MACRO")));
 
   // Make sure -frewrite-includes is added to other flags so it get passed to
   // preprocessor.
   EXPECT_NE(flags.other().end(),
-            std::find(flags.other().begin(), flags.other().end(),
-                      "-frewrite-includes"));
+            std::find_if(flags.other().begin(), flags.other().end(),
+                         std::bind(find_value, _1, "-frewrite-includes")));
 
   // Also ensure macroses go to other list.
   EXPECT_NE(flags.other().end(),
-            std::find(flags.other().begin(), flags.other().end(),
-                      "MACRO"));
+            std::find_if(flags.other().begin(), flags.other().end(),
+                         std::bind(find_value, _1, "MACRO")));
 
   // Check that flag indicating rewrite-includes was set.
   EXPECT_TRUE(flags.rewrite_includes());

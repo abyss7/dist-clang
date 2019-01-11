@@ -66,17 +66,23 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
 
   flags->Clear();
 
-  llvm::opt::ArgStringList non_direct_list, non_cached_list, other_list;
+  using ArgStringList = llvm::opt::ArgStringList;
+  dist_clang::List<Pair<ui32, ArgStringList>> non_direct_list, non_cached_list,
+      other_list;
   llvm::opt::DerivedArgList tmp_list(arg_list_);
 
+  ui32 index = 0;
   for (const auto& arg : arg_list_) {
+    ++index;
+
     // TODO: try to sort out flags by some attribute, i.e. group actions,
     //       compilation-only flags, etc.
 
     if (arg->getOption().getKind() == llvm::opt::Option::InputClass) {
       flags->set_input(arg->getValue());
     } else if (arg->getOption().matches(OPT_add_plugin)) {
-      arg->render(arg_list_, other_list);
+      arg->render(arg_list_,
+                  other_list.emplace_back(index, ArgStringList()).second);
       flags->mutable_compiler()->add_plugins()->set_name(arg->getValue());
     } else if (arg->getOption().matches(OPT_emit_obj) ||
                arg->getOption().matches(OPT_E) ||
@@ -88,7 +94,9 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
     } else if (arg->getOption().matches(OPT_load)) {
       // FIXME: maybe claim this type of args right after generation?
     } else if (arg->getOption().matches(OPT_mrelax_all)) {
-      flags->add_cc_only(arg->getSpelling());
+      auto* new_arg = flags->add_cc_only();
+      new_arg->set_index(index);
+      new_arg->add_values(arg->getSpelling());
     } else if (arg->getOption().matches(OPT_o)) {
       flags->set_output(arg->getValue());
     } else if (arg->getOption().matches(OPT_x)) {
@@ -105,12 +113,16 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
              arg->getOption().matches(OPT_internal_externc_isystem) ||
              arg->getOption().matches(OPT_isysroot) ||
              arg->getOption().matches(OPT_I)) {
-      arg->render(arg_list_, non_cached_list);
+      arg->render(arg_list_,
+                  non_cached_list.emplace_back(index, ArgStringList()).second);
     } else if (arg->getOption().matches(OPT_D)) {
       if (rewrite_includes) {
-        arg->render(arg_list_, other_list);
+        arg->render(arg_list_,
+                    other_list.emplace_back(index, ArgStringList()).second);
       } else {
-        arg->render(arg_list_, non_cached_list);
+        arg->render(
+            arg_list_,
+            non_cached_list.emplace_back(index, ArgStringList()).second);
       }
     } else if (arg->getOption().matches(OPT_include_pch) ||
                arg->getOption().matches(OPT_include_pth)) {
@@ -119,7 +131,8 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
       // FIXME: don't render arguments here - render them somewhere in
       //        |CompilationDaemon|, but for now we don't pass the argument
       //        type.
-      arg->render(arg_list_, non_cached_list);
+      arg->render(arg_list_,
+                  non_cached_list.emplace_back(index, ArgStringList()).second);
     } else if (arg->getOption().matches(OPT_coverage_data_file) ||
                arg->getOption().matches(OPT_coverage_notes_file) ||
                arg->getOption().matches(OPT_fdebug_compilation_dir) ||
@@ -128,7 +141,8 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
                arg->getOption().matches(OPT_MF) ||
                arg->getOption().matches(OPT_MMD) ||
                arg->getOption().matches(OPT_MT)) {
-      arg->render(arg_list_, non_direct_list);
+      arg->render(arg_list_,
+                  non_direct_list.emplace_back(index, ArgStringList()).second);
     } else if (arg->getOption().matches(OPT_internal_isystem) ||
                arg->getOption().matches(OPT_resource_dir)) {
       // Relative -internal-isystem and -resource_dir are based on current
@@ -158,13 +172,17 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
         replaced_command.replace(
             pos, self_path.size(),
             clang_path.substr(0, clang_path.find_last_of('/')));
-        non_direct_list.push_back(arg->getSpelling().data());
-        non_direct_list.push_back(tmp_list.MakeArgString(replaced_command));
-        LOG(VERBOSE) << "Replaced command: " << non_direct_list.back();
+        auto& new_arg_list =
+            non_direct_list.emplace_back(index, ArgStringList()).second;
+        new_arg_list.push_back(arg->getSpelling().data());
+        new_arg_list.push_back(tmp_list.MakeArgString(replaced_command));
+        LOG(VERBOSE) << "Replaced command: " << new_arg_list.back();
       } else {
-        non_cached_list.push_back(arg->getSpelling().data());
-        non_cached_list.push_back(tmp_list.MakeArgString(replaced_command));
-        LOG(VERBOSE) << "Replaced command: " << non_cached_list.back();
+        auto& new_arg_list =
+            non_cached_list.emplace_back(index, ArgStringList()).second;
+        new_arg_list.push_back(arg->getSpelling().data());
+        new_arg_list.push_back(tmp_list.MakeArgString(replaced_command));
+        LOG(VERBOSE) << "Replaced command: " << new_arg_list.back();
       }
     }
 
@@ -178,11 +196,13 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
                         return arg->getOption().matches(ignored_flag);
                       });
       if (!ignored) {
-        arg->render(arg_list_, other_list);
+        arg->render(arg_list_,
+                    other_list.emplace_back(index, ArgStringList()).second);
       }
     }
   }
 
+  // FIXME: this code smells - refactor it.
   // Leave |option_name| out of 'if' scope to make sure pointer copied to
   // |other_list| is alive.
   String option_name;
@@ -190,18 +210,33 @@ bool ClangCommand::FillFlags(base::proto::Flags* flags,
     const auto& option = opts_->getOption(OPT_frewrite_includes);
     option_name = tmp_list.MakeArgString(option.getRenderName());
     option_name.insert(0, 1, '-');
-    other_list.push_back(option_name.c_str());
+    auto& new_arg_list = other_list.emplace_back(index, ArgStringList()).second;
+    new_arg_list.push_back(option_name.c_str());
   }
   flags->set_rewrite_includes(rewrite_includes);
 
-  for (const auto& value : non_direct_list) {
-    flags->add_non_direct(value);
+  for (const auto& arg_list : non_direct_list) {
+    auto* new_arg = flags->add_non_direct();
+    new_arg->set_index(arg_list.first);
+    for (const auto& arg : arg_list.second) {
+      new_arg->add_values(arg);
+    }
   }
-  for (const auto& value : non_cached_list) {
-    flags->add_non_cached(value);
+
+  for (const auto& arg_list : non_cached_list) {
+    auto* new_arg = flags->add_non_cached();
+    new_arg->set_index(arg_list.first);
+    for (const auto& arg : arg_list.second) {
+      new_arg->add_values(arg);
+    }
   }
-  for (const auto& value : other_list) {
-    flags->add_other(value);
+
+  for (const auto& arg_list : other_list) {
+    auto* new_arg = flags->add_other();
+    new_arg->set_index(arg_list.first);
+    for (const auto& arg : arg_list.second) {
+      new_arg->add_values(arg);
+    }
   }
 
   return true;

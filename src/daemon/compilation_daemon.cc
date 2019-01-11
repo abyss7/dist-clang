@@ -34,15 +34,31 @@ inline String GetRelativePath(const String& current_dir, const String& input) {
              : input;
 }
 
+template <class... Args>
+inline auto CreateArgumentList(const Args&... args) {
+  MultiMap<ui32, String> map;
+  List<String> list;
+
+  for (const auto& arg_list : {args...}) {
+    for (const auto& arg : arg_list) {
+      for (const auto& value : arg.values()) {
+        map.emplace(arg.index(), value);
+      }
+    }
+  }
+
+  for (const auto& arg : map) {
+    list.push_back(arg.second);
+  }
+
+  return list;
+}
+
 inline CommandLine CommandLineForSimpleCache(const base::proto::Flags& flags) {
-  String command_line =
-      base::JoinString<' '>(flags.other().begin(), flags.other().end());
+  auto arg_list = CreateArgumentList(flags.other(), flags.cc_only());
+  auto command_line = base::JoinString<' '>(arg_list.begin(), arg_list.end());
   if (flags.has_language()) {
     command_line += " -x " + flags.language();
-  }
-  if (flags.cc_only_size()) {
-    command_line += " " + base::JoinString<' '>(flags.cc_only().begin(),
-                                                flags.cc_only().end());
   }
 
   return CommandLine(command_line);
@@ -50,21 +66,16 @@ inline CommandLine CommandLineForSimpleCache(const base::proto::Flags& flags) {
 
 inline CommandLine CommandLineForDirectCache(const String& current_dir,
                                              const base::proto::Flags& flags) {
-  String command_line =
-      base::JoinString<' '>(flags.other().begin(), flags.other().end());
+  auto args_list =
+      CreateArgumentList(flags.other(), flags.cc_only(), flags.non_cached());
+  auto command_line = base::JoinString<' '>(args_list.begin(), args_list.end());
   if (flags.has_language()) {
     command_line += " -x " + flags.language();
   }
-  if (flags.non_cached_size()) {
-    command_line += " " + base::JoinString<' '>(flags.non_cached().begin(),
-                                                flags.non_cached().end());
-  }
-  if (flags.cc_only_size()) {
-    command_line += " " + base::JoinString<' '>(flags.cc_only().begin(),
-                                                flags.cc_only().end());
-  }
 
   // Compiler implicitly appends file's directory as an include path - so do we.
+  // FIXME: make sure we did it in a proper order - relative to other include
+  //        paths.
   String input_path = flags.input().substr(0, flags.input().find_last_of('/'));
   command_line += " -I" + GetRelativePath(current_dir, input_path);
 
@@ -365,15 +376,12 @@ base::ProcessPtr CompilationDaemon::CreateProcess(
   DCHECK(flags.compiler().has_path());
   base::ProcessPtr process =
       base::Process::Create(flags.compiler().path(), cwd_path, user_id);
+  auto arg_list =
+      CreateArgumentList(flags.other(), flags.non_cached(), flags.non_direct());
 
-  // |flags.other()| always must go first, since it contains the "-cc1" flag.
-  process->AppendArg(flags.other().begin(), flags.other().end());
+  // Indexed flags always go first, since they contain the "-cc1" flag.
+  process->AppendArg(arg_list.begin(), arg_list.end());
   process->AppendArg(Immutable(flags.action()));
-
-  // FIXME: looks like the --internal-isystem flags order is important.
-  //        We should preserve an original order.
-  process->AppendArg(flags.non_direct().begin(), flags.non_direct().end());
-  process->AppendArg(flags.non_cached().begin(), flags.non_cached().end());
 
   // TODO: render args using libclang
   for (const auto& plugin : flags.compiler().plugins()) {
