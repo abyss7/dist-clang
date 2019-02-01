@@ -1,17 +1,16 @@
 #include <client/configuration.hh>
 
-#include <base/types.h>
 #include <base/constants.h>
 #include <base/file/file.h>
 #include <base/file_utils.h>
 #include <base/logging.h>
 #include <base/protobuf_utils.h>
 #include <base/string_utils.h>
+#include <base/types.h>
 
 #include <base/using_log.h>
 
-namespace dist_clang {
-namespace client {
+namespace dist_clang::client {
 
 Configuration::Configuration() {
   // Try to load config file first.
@@ -22,12 +21,10 @@ Configuration::Configuration() {
       if (!Path(config_.path()).is_absolute()) {
         config_.set_path(current_dir / config_.path());
       }
-      LOG(VERBOSE) << "Took compiler path from " << config_path << " : "
-                   << config_.path();
+      LOG(VERBOSE) << "Took compiler path from " << config_path << " : " << config_.path();
 
       if (config_.has_version()) {
-        LOG(VERBOSE) << "Took version from " << config_path << " : "
-                     << config_.version();
+        LOG(VERBOSE) << "Took version from " << config_path << " : " << config_.version();
       }
 
       for (int i = 0; i < config_.plugins_size(); ++i) {
@@ -42,8 +39,7 @@ Configuration::Configuration() {
         auto os = client::proto::Plugin::UNKNOWN;
 #endif
         if (plugin->os() != os) {
-          config_.mutable_plugins()->SwapElements(i--,
-                                                  config_.plugins_size() - 1);
+          config_.mutable_plugins()->SwapElements(i--, config_.plugins_size() - 1);
           config_.mutable_plugins()->RemoveLast();
           continue;
         }
@@ -52,15 +48,14 @@ Configuration::Configuration() {
           plugin->set_path(current_dir / plugin->path());
         }
 
-        LOG(VERBOSE) << "Took plugin from " << config_path << " : "
-                     << plugin->name() << ", " << plugin->path();
+        LOG(VERBOSE) << "Took plugin from " << config_path << " : " << plugin->name() << ", " << plugin->path();
       }
 
       break;
     }
 
     current_dir = current_dir.parent_path();
-  } while (!current_dir.empty());
+  } while (current_dir != current_dir.root_path());
 
   // Environment variables prevail over config file.
   Immutable log_levels = base::GetEnv(base::kEnvLogLevels);
@@ -80,8 +75,7 @@ Configuration::Configuration() {
 
   Immutable error_mark = base::GetEnv(base::kEnvLogErrorMark);
   if (!error_mark.empty()) {
-    config_.mutable_verbosity()->set_error_mark(
-        base::StringTo<ui32>(error_mark));
+    config_.mutable_verbosity()->set_error_mark(base::StringTo<ui32>(error_mark));
   }
 
   Immutable version = base::GetEnv(base::kEnvClangVersion);
@@ -122,5 +116,4 @@ Configuration::Configuration() {
   CHECK(config_.send_timeout());
 }
 
-}  // namespace client
-}  // namespace dist_clang
+}  // namespace dist_clang::client
