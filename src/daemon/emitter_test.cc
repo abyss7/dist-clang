@@ -51,8 +51,7 @@ class EmitterTest : public CommonDaemonTest {
       return !::testing::Test::HasNonfatalFailure();
     };
 
-    connect_callback = [this](net::TestConnection* connection,
-                              net::EndPointPtr) {
+    connect_callback = [this](net::TestConnection* connection, net::EndPointPtr) {
       connection->CallOnSend([this](const net::Connection::Message& message) {
         using net::proto::Status;
         EXPECT_TRUE(message.HasExtension(Status::extension));
@@ -84,8 +83,7 @@ TEST_F(EmitterTest, IdleConnection) {
   EXPECT_EQ(1u, connections_created);
   EXPECT_EQ(1u, read_count) << "Daemon must try to read a sole message";
   EXPECT_EQ(0u, send_count);
-  EXPECT_TRUE(connection.expired())
-      << "Daemon must not store references to the connection";
+  EXPECT_TRUE(connection.expired()) << "Daemon must not store references to the connection";
 }
 
 /*
@@ -111,8 +109,7 @@ TEST_F(EmitterTest, BadLocalMessage) {
 
   auto connection = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection);
 
     auto message = std::make_unique<net::Connection::Message>();
     net::proto::Status status;
@@ -128,8 +125,7 @@ TEST_F(EmitterTest, BadLocalMessage) {
   EXPECT_EQ(1u, connections_created);
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, send_count);
-  EXPECT_EQ(1, connection.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection.use_count()) << "Daemon must not store references to the connection";
 }
 
 TEST_F(EmitterTest, LocalMessageWithoutCommand) {
@@ -138,16 +134,13 @@ TEST_F(EmitterTest, LocalMessageWithoutCommand) {
 
   auto connection = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     net::proto::Status status;
     status.set_code(net::proto::Status::OK);
 
-    EXPECT_THROW_STD(
-        test_connection->TriggerReadAsync(std::move(message), status),
-        "Assertion failed: false");
+    EXPECT_THROW_STD(test_connection->TriggerReadAsync(std::move(message), status), "Assertion failed: false");
   }
 
   EXPECT_EQ(0u, run_count);
@@ -156,8 +149,7 @@ TEST_F(EmitterTest, LocalMessageWithoutCommand) {
   EXPECT_EQ(1u, connections_created);
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(0u, send_count);
-  EXPECT_EQ(1, connection.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection.use_count()) << "Daemon must not store references to the connection";
 }
 
 /*
@@ -186,8 +178,7 @@ TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
 
   auto connection = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -209,8 +200,7 @@ TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
   EXPECT_EQ(1u, connections_created);
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, send_count);
-  EXPECT_EQ(1, connection.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection.use_count()) << "Daemon must not store references to the connection";
 }
 
 namespace {
@@ -261,20 +251,16 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
   version->set_version(compiler_version);
   version->set_path(compiler_path);
 
-  connect_callback = [&](net::TestConnection* connection,
-                         net::EndPointPtr end_point) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr end_point) {
     // All connection callbacks are on emitter side.
 
     if (connect_count == 1) {
       // Connection from emitter to coordinator.
 
-      EXPECT_EQ(EndPointString(coordinator_host, coordinator_port),
-                end_point->Print());
+      EXPECT_EQ(EndPointString(coordinator_host, coordinator_port), end_point->Print());
 
       connection->CallOnRead([&](net::Connection::Message* message) {
-        auto* emitter =
-            message->MutableExtension(proto::Configuration::extension)
-                ->mutable_emitter();
+        auto* emitter = message->MutableExtension(proto::Configuration::extension)->mutable_emitter();
         auto* remote = emitter->add_remotes();
         remote->set_host(old_remote_host);
         remote->set_port(old_remote_port);
@@ -286,28 +272,23 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
     } else if (connect_count == 2) {
       // Connection from emitter to coordinator.
 
-      EXPECT_EQ(EndPointString(coordinator_host, coordinator_port),
-                end_point->Print());
+      EXPECT_EQ(EndPointString(coordinator_host, coordinator_port), end_point->Print());
 
       connection->CallOnSend([this](const net::Connection::Message&) {
-
         send_condition.notify_all();
         // Run the task #1 on old remote before sending anything to coordinator.
 
         UniqueLock lock(send_mutex);
         // Wait until emitter sends task to old remote:
         //  * 1st second - wait for queue to pop in old remote
-        EXPECT_TRUE(send_condition.wait_for(
-            lock, Seconds(2), [this] { return send_count == 3; }));
+        EXPECT_TRUE(send_condition.wait_for(lock, Seconds(2), [this] { return send_count == 3; }));
         // Send #1: emitter → coordinator.
         // Send #2: emitter → coordinator (current one).
         // Send #3: emitter → remote.
       });
 
       connection->CallOnRead([&](net::Connection::Message* message) {
-        auto* emitter =
-            message->MutableExtension(proto::Configuration::extension)
-                ->mutable_emitter();
+        auto* emitter = message->MutableExtension(proto::Configuration::extension)->mutable_emitter();
         auto* remote = emitter->add_remotes();
         remote->set_host(new_remote_host);
         remote->set_port(new_remote_port);
@@ -323,27 +304,23 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
         EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-        const auto& status =
-            message.GetExtension(net::proto::Status::extension);
+        const auto& status = message.GetExtension(net::proto::Status::extension);
         EXPECT_EQ(expected_code, status.code()) << status.description();
       });
     } else if (connect_count == 4) {
       // Connection from emitter to remote absorber. Task #1.
 
-      EXPECT_EQ(EndPointString(old_remote_host, old_remote_port),
-                end_point->Print());
+      EXPECT_EQ(EndPointString(old_remote_host, old_remote_port), end_point->Print());
       EXPECT_EQ(old_total_shards, emitter->conf()->emitter().total_shards());
 
       connection->CallOnRead([&](net::Connection::Message* message) {
-        message->MutableExtension(proto::Result::extension)
-            ->set_obj(object_code);
+        message->MutableExtension(proto::Result::extension)->set_obj(object_code);
         send_condition.notify_all();
       });
     } else if (connect_count == 5) {
       // Connection from emitter to coordinator.
 
-      EXPECT_EQ(EndPointString(coordinator_host, coordinator_port),
-                end_point->Print());
+      EXPECT_EQ(EndPointString(coordinator_host, coordinator_port), end_point->Print());
 
       connection->CallOnSend([this](const net::Connection::Message&) {
         send_condition.notify_all();
@@ -353,9 +330,7 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
       // Connection from local client to emitter. Task #2.
 
       EXPECT_EQ(EndPointString(socket_path, 0), end_point->Print());
-    } else if (connect_count >= 7 &&
-               EndPointString(new_remote_host, new_remote_port) ==
-                   end_point->Print()) {
+    } else if (connect_count >= 7 && EndPointString(new_remote_host, new_remote_port) == end_point->Print()) {
       // Connection from emitter to remote absorber. Task #2.
 
       DCHECK(emitter);
@@ -367,8 +342,7 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
       });
 
       connection->CallOnRead([&](net::Connection::Message* message) {
-        message->MutableExtension(proto::Result::extension)
-            ->set_obj(object_code);
+        message->MutableExtension(proto::Result::extension)->set_obj(object_code);
       });
     }
 
@@ -392,16 +366,14 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
     //  * 1st second - wait for queue to pop in default remote.
     //  * 2nd second - wait for coordinator to poll.
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(3),
-                                        [this] { return send_count == 2; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(3), [this] { return send_count == 2; }));
     // Send #1: emitter → coordinator.
     // Send #2: emitter → coordinator (not complete at this moment).
   }
 
   auto connection1 = test_service->TriggerListen(socket_path);
   {
-    auto test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection1);
+    auto test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     auto message = std::make_unique<net::Connection::Message>();
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -421,8 +393,7 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
     //  * 1st second - wait for queue to pop in old remote.
     //  * 2nd second - wait for coordinator to poll.
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(3),
-                                        [this] { return send_count == 5; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(3), [this] { return send_count == 5; }));
     // Send #3: emitter → remote.
     // Send #4: emitter → local.
     // Send #5: emitter → coordinator (not complete at this moment).
@@ -430,8 +401,7 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
 
   auto connection2 = test_service->TriggerListen(socket_path);
   {
-    auto test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection2);
+    auto test_connection = std::static_pointer_cast<net::TestConnection>(connection2);
 
     auto message = std::make_unique<net::Connection::Message>();
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -449,8 +419,7 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
 
     // Wait for a connection to remote absorber.
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(2),
-                                        [this] { return send_count >= 6; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(2), [this] { return send_count >= 6; }));
     // Send #6: emitter → remote.
     // Send #7 or 8: emitter → local.
     // Send #7 or 8: emitter → coordinator. (May miss)
@@ -465,10 +434,8 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
   EXPECT_GE(8u, connections_created);
   EXPECT_EQ(connections_created, read_count);
   EXPECT_EQ(connections_created, send_count);
-  EXPECT_EQ(1, connection1.use_count())
-      << "Daemon must not store references to the connection";
-  EXPECT_EQ(1, connection2.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection1.use_count()) << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count()) << "Daemon must not store references to the connection";
 }
 
 TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
@@ -512,28 +479,23 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
   version->set_version(compiler_version);
   version->set_path(compiler_path);
 
-  connect_callback = [&](net::TestConnection* connection,
-                         net::EndPointPtr end_point) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr end_point) {
     // All connection callbacks are on emitter side.
 
     if (connect_count == 1) {
       // Connection from emitter to coordinator.
 
-      EXPECT_EQ(EndPointString(coordinator_host, coordinator_port),
-                end_point->Print());
+      EXPECT_EQ(EndPointString(coordinator_host, coordinator_port), end_point->Print());
 
       connection->CallOnSend([this](const net::Connection::Message&) {
         UniqueLock lock(send_mutex);
-        EXPECT_TRUE(send_condition.wait_for(
-            lock, Seconds(1), [this] { return send_count == 2; }));
+        EXPECT_TRUE(send_condition.wait_for(lock, Seconds(1), [this] { return send_count == 2; }));
         // Send #1: emitter → coordinator (current one).
         // Send #2: emitter → remote.
       });
 
       connection->CallOnRead([&](net::Connection::Message* message) {
-        auto* emitter =
-            message->MutableExtension(proto::Configuration::extension)
-                ->mutable_emitter();
+        auto* emitter = message->MutableExtension(proto::Configuration::extension)->mutable_emitter();
         for (ui32 remote = 0; remote < new_total_shards; ++remote) {
           auto* remote_host = emitter->add_remotes();
           remote_host->set_host(remote_host_name);
@@ -552,8 +514,7 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
         EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-        const auto& status =
-            message.GetExtension(net::proto::Status::extension);
+        const auto& status = message.GetExtension(net::proto::Status::extension);
         EXPECT_EQ(expected_code, status.code()) << status.description();
 
         // If connect_count == 3:
@@ -567,22 +528,18 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
     } else if (connect_count == 4) {
       // Connection from emitter to remote absorber. Task #1.
 
-      connection->CallOnSend([&, end_point](
-                                 const net::Connection::Message& message) {
+      connection->CallOnSend([&, end_point](const net::Connection::Message& message) {
         EXPECT_TRUE(message.HasExtension(proto::Remote::extension));
         const auto& outgoing = message.GetExtension(proto::Remote::extension);
         auto handled_hash = Immutable::WrapString(outgoing.handled_hash());
 
-        const ui32 expected_shard = Emitter::CalculateShard(
-            cache::string::HandledHash(handled_hash), old_total_shards);
+        const ui32 expected_shard = Emitter::CalculateShard(cache::string::HandledHash(handled_hash), old_total_shards);
 
-        EXPECT_EQ(EndPointString(remote_host_name, expected_shard),
-                  end_point->Print());
+        EXPECT_EQ(EndPointString(remote_host_name, expected_shard), end_point->Print());
 
-        ASSERT_LT(new_total_shards, expected_shard)
-            << "Ensure that shard is greater than new total shards we're "
-               "sending in new configuration, to make sure the second task "
-               "will be redistributed.";
+        ASSERT_LT(new_total_shards, expected_shard) << "Ensure that shard is greater than new total shards we're "
+                                                       "sending in new configuration, to make sure the second task "
+                                                       "will be redistributed.";
 
         send_condition.notify_all();
       });
@@ -601,22 +558,18 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
 
       DCHECK(emitter);
 
-      connection->CallOnSend([&, end_point](
-                                 const net::Connection::Message& message) {
+      connection->CallOnSend([&, end_point](const net::Connection::Message& message) {
         EXPECT_TRUE(message.HasExtension(proto::Remote::extension));
         const auto& outgoing = message.GetExtension(proto::Remote::extension);
         auto handled_hash = Immutable::WrapString(outgoing.handled_hash());
 
-        const ui32 expected_shard = Emitter::CalculateShard(
-            cache::string::HandledHash(handled_hash), new_total_shards);
+        const ui32 expected_shard = Emitter::CalculateShard(cache::string::HandledHash(handled_hash), new_total_shards);
 
-        EXPECT_EQ(EndPointString(remote_host_name, expected_shard),
-                  end_point->Print());
+        EXPECT_EQ(EndPointString(remote_host_name, expected_shard), end_point->Print());
       });
 
       connection->CallOnRead([&](net::Connection::Message* message) {
-        message->MutableExtension(proto::Result::extension)
-            ->set_obj(object_code);
+        message->MutableExtension(proto::Result::extension)->set_obj(object_code);
       });
     }
 
@@ -628,12 +581,10 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
       EXPECT_EQ((Immutable::Rope{"-E"_l, "-o"_l, "-"_l}), process->args_);
       process->stdout_ = handled_source;
     } else if (run_count == 3) {
-      EXPECT_EQ((Immutable::Rope{"fake_action"_l, "-o"_l, "test.o"_l}),
-                process->args_);
+      EXPECT_EQ((Immutable::Rope{"fake_action"_l, "-o"_l, "test.o"_l}), process->args_);
       // Block until emitter sends result for second task.
       UniqueLock lock(send_mutex);
-      EXPECT_TRUE(send_condition.wait_for(lock, Seconds(2),
-                                          [this] { return send_count == 5; }));
+      EXPECT_TRUE(send_condition.wait_for(lock, Seconds(2), [this] { return send_count == 5; }));
       // Send #3: emitter → coordinator.
       // Send #4: emitter → remote (task #2).
       // Send #5: emitter → local (task #2).
@@ -646,8 +597,7 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
 
   auto connection1 = test_service->TriggerListen(socket_path);
   {
-    auto test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection1);
+    auto test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     auto message = std::make_unique<net::Connection::Message>();
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -666,8 +616,7 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
 
   auto connection2 = test_service->TriggerListen(socket_path);
   {
-    auto test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection2);
+    auto test_connection = std::static_pointer_cast<net::TestConnection>(connection2);
 
     auto message = std::make_unique<net::Connection::Message>();
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -687,8 +636,7 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
     // 2nd second: Verifying shard for first task.
     // 3rd second: Sleeping to apply new configuration.
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(4),
-                                        [this] { return send_count >= 6; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(4), [this] { return send_count >= 6; }));
     // Send #3: emitter → coordinator.
     // Send #4: emitter → remote (task #2).
     // Send #5: emitter → local (task #2).
@@ -705,10 +653,8 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
   EXPECT_GE(7u, connections_created);
   EXPECT_EQ(connections_created, read_count);
   EXPECT_EQ(connections_created, send_count);
-  EXPECT_EQ(1, connection1.use_count())
-      << "Daemon must not store references to the connection";
-  EXPECT_EQ(1, connection2.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection1.use_count()) << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count()) << "Daemon must not store references to the connection";
 }
 
 // Check that while strict sharding if remote fails, it's tasks get
@@ -751,8 +697,7 @@ TEST_F(EmitterTest, TasksGetReshardedOnFailedRemote) {
   // another shard.
   Atomic<ui32> initial_shard = {77};
 
-  connect_callback = [&](net::TestConnection* connection,
-                         net::EndPointPtr end_point) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr end_point) {
     // All connection callbacks are on emitter side.
     if (connect_count == 1) {
       // Connection from local client to emitter. Tasks #1.
@@ -761,8 +706,7 @@ TEST_F(EmitterTest, TasksGetReshardedOnFailedRemote) {
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
         EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-        const auto& status =
-            message.GetExtension(net::proto::Status::extension);
+        const auto& status = message.GetExtension(net::proto::Status::extension);
         EXPECT_EQ(expected_code, status.code()) << status.description();
 
         // Emitter sent result for task, so reset emitter now and finish test.
@@ -771,16 +715,14 @@ TEST_F(EmitterTest, TasksGetReshardedOnFailedRemote) {
     } else if (connect_count == 2) {
       // Connection from emitter to remote absorber. Task #1.
 
-      EXPECT_EQ(EndPointString(remote_host_name, initial_shard),
-                end_point->Print());
+      EXPECT_EQ(EndPointString(remote_host_name, initial_shard), end_point->Print());
 
       // Abort connection to make emitter choose another shard for task.
       return false;
     } else if (connect_count == 3) {
       // Connection from emitter to remote absorber. Task #2.
 
-      EXPECT_NE(EndPointString(remote_host_name, initial_shard),
-                end_point->Print());
+      EXPECT_NE(EndPointString(remote_host_name, initial_shard), end_point->Print());
 
       // Verified that task was redistributed to another shard.
       // Now let's abort connection once again to make sure task donesn't get
@@ -805,8 +747,7 @@ TEST_F(EmitterTest, TasksGetReshardedOnFailedRemote) {
 
   auto connection = test_service->TriggerListen(socket_path);
   {
-    auto test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection);
+    auto test_connection = std::static_pointer_cast<net::TestConnection>(connection);
 
     auto message = std::make_unique<net::Connection::Message>();
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -824,8 +765,7 @@ TEST_F(EmitterTest, TasksGetReshardedOnFailedRemote) {
   }
 
   UniqueLock lock(send_mutex);
-  EXPECT_TRUE(send_condition.wait_for(lock, Seconds(1),
-                                      [this] { return send_count == 1u; }));
+  EXPECT_TRUE(send_condition.wait_for(lock, Seconds(1), [this] { return send_count == 1u; }));
   emitter.reset();
 
   EXPECT_EQ(2u, run_count);
@@ -834,8 +774,7 @@ TEST_F(EmitterTest, TasksGetReshardedOnFailedRemote) {
   EXPECT_EQ(3u, connections_created);
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, send_count);
-  EXPECT_EQ(1, connection.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection.use_count()) << "Daemon must not store references to the connection";
 }
 
 /*
@@ -860,16 +799,13 @@ TEST_F(EmitterTest, NoGoodCoordinator) {
   coordinator->set_host(bad_coordinator_host2);
   coordinator->set_port(bad_coordinator_port2);
 
-  connect_callback = [&](net::TestConnection* connection,
-                         net::EndPointPtr end_point) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr end_point) {
     if (connections_created == 1) {
-      EXPECT_EQ(end_point->Print(),
-                EndPointString(bad_coordinator_host1, bad_coordinator_port1));
+      EXPECT_EQ(end_point->Print(), EndPointString(bad_coordinator_host1, bad_coordinator_port1));
       return false;
     }
     if (connections_created == 2) {
-      EXPECT_EQ(end_point->Print(),
-                EndPointString(bad_coordinator_host2, bad_coordinator_port2));
+      EXPECT_EQ(end_point->Print(), EndPointString(bad_coordinator_host2, bad_coordinator_port2));
       return false;
     }
     if (connections_created > 2) {
@@ -885,8 +821,7 @@ TEST_F(EmitterTest, NoGoodCoordinator) {
   ASSERT_TRUE(emitter->Initialize());
 
   UniqueLock lock(send_mutex);
-  EXPECT_TRUE(send_condition.wait_for(
-      lock, Seconds(2), [this] { return connections_created > 2; }));
+  EXPECT_TRUE(send_condition.wait_for(lock, Seconds(2), [this] { return connections_created > 2; }));
 
   emitter.reset();
 
@@ -925,19 +860,15 @@ TEST_F(EmitterTest, CoordinatorNoConnection) {
   coordinator->set_host(good_coordinator_host);
   coordinator->set_port(good_coordinator_port);
 
-  connect_callback = [&](net::TestConnection* connection,
-                         net::EndPointPtr end_point) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr end_point) {
     if (connections_created == 1) {
-      EXPECT_EQ(end_point->Print(),
-                EndPointString(bad_coordinator_host, bad_coordinator_port));
+      EXPECT_EQ(end_point->Print(), EndPointString(bad_coordinator_host, bad_coordinator_port));
       return false;
     }
     if (connections_created >= 2) {
-      EXPECT_EQ(end_point->Print(),
-                EndPointString(good_coordinator_host, good_coordinator_port));
-      connection->CallOnRead([&](net::Connection::Message* message) {
-        message->MutableExtension(proto::Configuration::extension);
-      });
+      EXPECT_EQ(end_point->Print(), EndPointString(good_coordinator_host, good_coordinator_port));
+      connection->CallOnRead(
+          [&](net::Connection::Message* message) { message->MutableExtension(proto::Configuration::extension); });
       if (connections_created > 2) {
         send_condition.notify_all();
       }
@@ -952,8 +883,7 @@ TEST_F(EmitterTest, CoordinatorNoConnection) {
   ASSERT_TRUE(emitter->Initialize());
 
   UniqueLock lock(send_mutex);
-  EXPECT_TRUE(send_condition.wait_for(
-      lock, Seconds(2), [this] { return connections_created > 2; }));
+  EXPECT_TRUE(send_condition.wait_for(lock, Seconds(2), [this] { return connections_created > 2; }));
 
   emitter.reset();
 
@@ -994,20 +924,16 @@ TEST_F(EmitterTest, CoordinatorSendFailed) {
   coordinator->set_host(good_coordinator_host);
   coordinator->set_port(good_coordinator_port);
 
-  connect_callback = [&](net::TestConnection* connection,
-                         net::EndPointPtr end_point) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr end_point) {
     if (connections_created == 1) {
       connection->AbortOnSend();
-      EXPECT_EQ(end_point->Print(),
-                EndPointString(bad_coordinator_host, bad_coordinator_port));
+      EXPECT_EQ(end_point->Print(), EndPointString(bad_coordinator_host, bad_coordinator_port));
       return true;
     }
     if (connections_created >= 2) {
-      EXPECT_EQ(end_point->Print(),
-                EndPointString(good_coordinator_host, good_coordinator_port));
-      connection->CallOnRead([&](net::Connection::Message* message) {
-        message->MutableExtension(proto::Configuration::extension);
-      });
+      EXPECT_EQ(end_point->Print(), EndPointString(good_coordinator_host, good_coordinator_port));
+      connection->CallOnRead(
+          [&](net::Connection::Message* message) { message->MutableExtension(proto::Configuration::extension); });
       if (connections_created > 2) {
         send_condition.notify_all();
       }
@@ -1022,8 +948,7 @@ TEST_F(EmitterTest, CoordinatorSendFailed) {
   ASSERT_TRUE(emitter->Initialize());
 
   UniqueLock lock(send_mutex);
-  EXPECT_TRUE(send_condition.wait_for(
-      lock, Seconds(3), [this] { return connections_created > 2; }));
+  EXPECT_TRUE(send_condition.wait_for(lock, Seconds(3), [this] { return connections_created > 2; }));
 
   emitter.reset();
 
@@ -1064,20 +989,16 @@ TEST_F(EmitterTest, CoordinatorReadFailed) {
   coordinator->set_host(good_coordinator_host);
   coordinator->set_port(good_coordinator_port);
 
-  connect_callback = [&](net::TestConnection* connection,
-                         net::EndPointPtr end_point) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr end_point) {
     if (connections_created == 1) {
       connection->AbortOnRead();
-      EXPECT_EQ(end_point->Print(),
-                EndPointString(bad_coordinator_host, bad_coordinator_port));
+      EXPECT_EQ(end_point->Print(), EndPointString(bad_coordinator_host, bad_coordinator_port));
       return true;
     }
     if (connections_created >= 2) {
-      EXPECT_EQ(end_point->Print(),
-                EndPointString(good_coordinator_host, good_coordinator_port));
-      connection->CallOnRead([&](net::Connection::Message* message) {
-        message->MutableExtension(proto::Configuration::extension);
-      });
+      EXPECT_EQ(end_point->Print(), EndPointString(good_coordinator_host, good_coordinator_port));
+      connection->CallOnRead(
+          [&](net::Connection::Message* message) { message->MutableExtension(proto::Configuration::extension); });
       if (connections_created > 2) {
         send_condition.notify_all();
       }
@@ -1092,8 +1013,7 @@ TEST_F(EmitterTest, CoordinatorReadFailed) {
   ASSERT_TRUE(emitter->Initialize());
 
   UniqueLock lock(send_mutex);
-  EXPECT_TRUE(send_condition.wait_for(
-      lock, Seconds(3), [this] { return connections_created > 2; }));
+  EXPECT_TRUE(send_condition.wait_for(lock, Seconds(3), [this] { return connections_created > 2; }));
 
   emitter.reset();
 
@@ -1127,20 +1047,16 @@ TEST_F(EmitterTest, CoordinatorNoConfiguration) {
   coordinator->set_host(good_coordinator_host);
   coordinator->set_port(good_coordinator_port);
 
-  connect_callback = [&](net::TestConnection* connection,
-                         net::EndPointPtr end_point) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr end_point) {
     if (connections_created == 1) {
-      EXPECT_EQ(end_point->Print(),
-                EndPointString(bad_coordinator_host, bad_coordinator_port));
+      EXPECT_EQ(end_point->Print(), EndPointString(bad_coordinator_host, bad_coordinator_port));
       connection->CallOnRead([&](net::Connection::Message* message) {});
       return true;
     }
     if (connections_created >= 2) {
-      EXPECT_EQ(end_point->Print(),
-                EndPointString(good_coordinator_host, good_coordinator_port));
-      connection->CallOnRead([&](net::Connection::Message* message) {
-        message->MutableExtension(proto::Configuration::extension);
-      });
+      EXPECT_EQ(end_point->Print(), EndPointString(good_coordinator_host, good_coordinator_port));
+      connection->CallOnRead(
+          [&](net::Connection::Message* message) { message->MutableExtension(proto::Configuration::extension); });
       if (connections_created > 2) {
         send_condition.notify_all();
       }
@@ -1155,8 +1071,7 @@ TEST_F(EmitterTest, CoordinatorNoConfiguration) {
   ASSERT_TRUE(emitter->Initialize());
 
   UniqueLock lock(send_mutex);
-  EXPECT_TRUE(send_condition.wait_for(
-      lock, Seconds(3), [this] { return connections_created > 2; }));
+  EXPECT_TRUE(send_condition.wait_for(lock, Seconds(3), [this] { return connections_created > 2; }));
 
   emitter.reset();
 
@@ -1197,23 +1112,17 @@ TEST_F(EmitterTest, CoordinatorNoRemotes) {
   coordinator->set_host(good_coordinator_host);
   coordinator->set_port(good_coordinator_port);
 
-  connect_callback = [&](net::TestConnection* connection,
-                         net::EndPointPtr end_point) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr end_point) {
     if (connections_created == 1) {
-      EXPECT_EQ(end_point->Print(),
-                EndPointString(bad_coordinator_host, bad_coordinator_port));
-      connection->CallOnRead([&](net::Connection::Message* message) {
-        message->MutableExtension(proto::Configuration::extension);
-      });
+      EXPECT_EQ(end_point->Print(), EndPointString(bad_coordinator_host, bad_coordinator_port));
+      connection->CallOnRead(
+          [&](net::Connection::Message* message) { message->MutableExtension(proto::Configuration::extension); });
       return true;
     }
     if (connections_created >= 2) {
-      EXPECT_EQ(end_point->Print(),
-                EndPointString(good_coordinator_host, good_coordinator_port));
+      EXPECT_EQ(end_point->Print(), EndPointString(good_coordinator_host, good_coordinator_port));
       connection->CallOnRead([&](net::Connection::Message* message) {
-        auto remote = message->MutableExtension(proto::Configuration::extension)
-                          ->mutable_emitter()
-                          ->add_remotes();
+        auto remote = message->MutableExtension(proto::Configuration::extension)->mutable_emitter()->add_remotes();
         remote->set_host(remote_host);
         remote->set_port(remote_port);
       });
@@ -1231,8 +1140,7 @@ TEST_F(EmitterTest, CoordinatorNoRemotes) {
   ASSERT_TRUE(emitter->Initialize());
 
   UniqueLock lock(send_mutex);
-  EXPECT_TRUE(send_condition.wait_for(
-      lock, Seconds(5), [this] { return connections_created > 2; }));
+  EXPECT_TRUE(send_condition.wait_for(lock, Seconds(5), [this] { return connections_created > 2; }));
 
   emitter.reset();
 
@@ -1273,15 +1181,11 @@ TEST_F(EmitterTest, CoordinatorNoEnabledRemotes) {
   coordinator->set_host(good_coordinator_host);
   coordinator->set_port(good_coordinator_port);
 
-  connect_callback = [&](net::TestConnection* connection,
-                         net::EndPointPtr end_point) {
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr end_point) {
     if (connections_created == 1) {
-      EXPECT_EQ(end_point->Print(),
-                EndPointString(bad_coordinator_host, bad_coordinator_port));
+      EXPECT_EQ(end_point->Print(), EndPointString(bad_coordinator_host, bad_coordinator_port));
       connection->CallOnRead([&](net::Connection::Message* message) {
-        auto remote = message->MutableExtension(proto::Configuration::extension)
-                          ->mutable_emitter()
-                          ->add_remotes();
+        auto remote = message->MutableExtension(proto::Configuration::extension)->mutable_emitter()->add_remotes();
         remote->set_host(remote_host);
         remote->set_port(remote_port);
         remote->set_disabled(true);
@@ -1289,12 +1193,9 @@ TEST_F(EmitterTest, CoordinatorNoEnabledRemotes) {
       return true;
     }
     if (connections_created >= 2) {
-      EXPECT_EQ(end_point->Print(),
-                EndPointString(good_coordinator_host, good_coordinator_port));
+      EXPECT_EQ(end_point->Print(), EndPointString(good_coordinator_host, good_coordinator_port));
       connection->CallOnRead([&](net::Connection::Message* message) {
-        auto remote = message->MutableExtension(proto::Configuration::extension)
-                          ->mutable_emitter()
-                          ->add_remotes();
+        auto remote = message->MutableExtension(proto::Configuration::extension)->mutable_emitter()->add_remotes();
         remote->set_host(remote_host);
         remote->set_port(remote_port);
       });
@@ -1312,8 +1213,7 @@ TEST_F(EmitterTest, CoordinatorNoEnabledRemotes) {
   ASSERT_TRUE(emitter->Initialize());
 
   UniqueLock lock(send_mutex);
-  EXPECT_TRUE(send_condition.wait_for(
-      lock, Seconds(5), [this] { return connections_created > 2; }));
+  EXPECT_TRUE(send_condition.wait_for(lock, Seconds(5), [this] { return connections_created > 2; }));
 
   emitter.reset();
 
@@ -1350,14 +1250,10 @@ TEST_F(EmitterTest, CoordinatorSuccessfulUpdate) {
   coordinator->set_host(bad_coordinator_host);
   coordinator->set_port(bad_coordinator_port);
 
-  connect_callback = [&](net::TestConnection* connection,
-                         net::EndPointPtr end_point) {
-    EXPECT_EQ(end_point->Print(),
-              EndPointString(good_coordinator_host, good_coordinator_port));
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr end_point) {
+    EXPECT_EQ(end_point->Print(), EndPointString(good_coordinator_host, good_coordinator_port));
     connection->CallOnRead([&](net::Connection::Message* message) {
-      auto remote = message->MutableExtension(proto::Configuration::extension)
-                        ->mutable_emitter()
-                        ->add_remotes();
+      auto remote = message->MutableExtension(proto::Configuration::extension)->mutable_emitter()->add_remotes();
       remote->set_host(remote_host);
       remote->set_port(remote_port);
     });
@@ -1373,8 +1269,7 @@ TEST_F(EmitterTest, CoordinatorSuccessfulUpdate) {
   ASSERT_TRUE(emitter->Initialize());
 
   UniqueLock lock(send_mutex);
-  EXPECT_TRUE(send_condition.wait_for(
-      lock, Seconds(4), [this] { return connections_created > 1; }));
+  EXPECT_TRUE(send_condition.wait_for(lock, Seconds(4), [this] { return connections_created > 1; }));
 
   emitter.reset();
 
@@ -1422,8 +1317,7 @@ TEST_F(EmitterTest, RemoteMessageWithBadCompiler) {
 
   auto connection = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -1445,8 +1339,7 @@ TEST_F(EmitterTest, RemoteMessageWithBadCompiler) {
   EXPECT_EQ(1u, connections_created);
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, send_count);
-  EXPECT_EQ(1, connection.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection.use_count()) << "Daemon must not store references to the connection";
 }
 
 TEST_F(EmitterTest, LocalMessageWithBadPlugin) {
@@ -1466,8 +1359,7 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin) {
 
   auto connection = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -1491,8 +1383,7 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin) {
   EXPECT_EQ(1u, connections_created);
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, send_count);
-  EXPECT_EQ(1, connection.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection.use_count()) << "Daemon must not store references to the connection";
 }
 
 TEST_F(EmitterTest, LocalMessageWithBadPlugin2) {
@@ -1517,8 +1408,7 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin2) {
 
   auto connection = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -1542,8 +1432,7 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin2) {
   EXPECT_EQ(1u, connections_created);
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, send_count);
-  EXPECT_EQ(1, connection.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection.use_count()) << "Daemon must not store references to the connection";
 }
 
 TEST_F(EmitterTest, LocalMessageWithPluginPath) {
@@ -1561,8 +1450,7 @@ TEST_F(EmitterTest, LocalMessageWithPluginPath) {
 
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(Path(compiler_path), process->exec_path_);
-    EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path}),
-              process->args_);
+    EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path}), process->args_);
     EXPECT_EQ(user_id, process->uid_);
   };
 
@@ -1571,8 +1459,7 @@ TEST_F(EmitterTest, LocalMessageWithPluginPath) {
 
   auto connection = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -1599,8 +1486,7 @@ TEST_F(EmitterTest, LocalMessageWithPluginPath) {
   EXPECT_EQ(1u, connections_created);
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, send_count);
-  EXPECT_EQ(1, connection.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection.use_count()) << "Daemon must not store references to the connection";
 
   // TODO: check absolute output path.
 }
@@ -1619,8 +1505,7 @@ TEST_F(EmitterTest, LocalMessageWithSanitizeBlacklist) {
 
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(Path(compiler_path), process->exec_path_);
-    EXPECT_EQ((Immutable::Rope{action, Immutable("-fsanitize-blacklist="_l) +
-                                           sanitize_blacklist_path}),
+    EXPECT_EQ((Immutable::Rope{action, Immutable("-fsanitize-blacklist="_l) + sanitize_blacklist_path}),
               process->args_);
     EXPECT_EQ(user_id, process->uid_);
   };
@@ -1630,8 +1515,7 @@ TEST_F(EmitterTest, LocalMessageWithSanitizeBlacklist) {
 
   auto connection = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -1656,8 +1540,7 @@ TEST_F(EmitterTest, LocalMessageWithSanitizeBlacklist) {
   EXPECT_EQ(1u, connections_created);
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, send_count);
-  EXPECT_EQ(1, connection.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection.use_count()) << "Daemon must not store references to the connection";
 
   // TODO: check absolute output path.
 }
@@ -1673,8 +1556,7 @@ TEST_F(EmitterTest, ConfigurationWithoutVersions) {
 
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(Path(compiler_path), process->exec_path_);
-    EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path}),
-              process->args_);
+    EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path}), process->args_);
     EXPECT_EQ(user_id, process->uid_);
   };
 
@@ -1683,8 +1565,7 @@ TEST_F(EmitterTest, ConfigurationWithoutVersions) {
 
   auto connection = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -1712,8 +1593,7 @@ TEST_F(EmitterTest, ConfigurationWithoutVersions) {
   EXPECT_EQ(1u, connections_created);
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, send_count);
-  EXPECT_EQ(1, connection.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection.use_count()) << "Daemon must not store references to the connection";
 
   // TODO: check absolute output path.
 }
@@ -1736,8 +1616,7 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
 
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(Path(compiler_path), process->exec_path_);
-    EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path}),
-              process->args_);
+    EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path}), process->args_);
     EXPECT_EQ(user_id, process->uid_);
   };
 
@@ -1746,8 +1625,7 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
 
   auto connection = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -1772,8 +1650,7 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
   EXPECT_EQ(1u, connections_created);
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, send_count);
-  EXPECT_EQ(1, connection.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection.use_count()) << "Daemon must not store references to the connection";
 
   // TODO: check absolute output path.
 }
@@ -1803,8 +1680,7 @@ TEST_F(EmitterTest, LocalFailedCompilation) {
 
   auto connection = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -1827,8 +1703,7 @@ TEST_F(EmitterTest, LocalFailedCompilation) {
   EXPECT_EQ(1u, connections_created);
   EXPECT_EQ(1u, read_count);
   EXPECT_EQ(1u, send_count);
-  EXPECT_EQ(1, connection.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection.use_count()) << "Daemon must not store references to the connection";
 }
 
 /*
@@ -1877,20 +1752,14 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l,
-                                 input_path1}),
-                process->args_);
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path1}), process->args_);
       process->stdout_ = source;
     } else if (run_count == 2) {
-      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-x"_l,
-                                 language, "-o"_l, output_path1, input_path1}),
+      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-x"_l, language, "-o"_l, output_path1, input_path1}),
                 process->args_);
-      EXPECT_TRUE(
-          base::File::Write(process->cwd_path_ / output_path1, object_code));
+      EXPECT_TRUE(base::File::Write(process->cwd_path_ / output_path1, object_code));
     } else if (run_count == 3) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l,
-                                 input_path2}),
-                process->args_);
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path2}), process->args_);
       process->stdout_ = source;
     }
   };
@@ -1900,8 +1769,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
 
   auto connection1 = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection1);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -1921,14 +1789,12 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
-                                        [this] { return send_count == 1; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1), [this] { return send_count == 1; }));
   }
 
   auto connection2 = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection2);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection2);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -1948,8 +1814,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
-                                        [this] { return send_count == 2; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1), [this] { return send_count == 2; }));
   }
 
   emitter.reset();
@@ -1970,10 +1835,8 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
   EXPECT_EQ(2u, connections_created);
   EXPECT_EQ(2u, read_count);
   EXPECT_EQ(2u, send_count);
-  EXPECT_EQ(1, connection1.use_count())
-      << "Daemon must not store references to the connection";
-  EXPECT_EQ(1, connection2.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection1.use_count()) << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count()) << "Daemon must not store references to the connection";
 
   // TODO: check that original files are not moved.
   // TODO: check that removal of original files doesn't fail cache filling.
@@ -2022,8 +1885,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
         EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-        const auto& status =
-            message.GetExtension(net::proto::Status::extension);
+        const auto& status = message.GetExtension(net::proto::Status::extension);
         EXPECT_EQ(expected_code, status.code()) << status.description();
 
         send_condition.notify_all();
@@ -2042,16 +1904,14 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
       connection->CallOnRead([&](net::Connection::Message* message) {
         // Used to check remote compilation timing statistics.
         std::this_thread::sleep_for(remote_compilation_time);
-        message->MutableExtension(proto::Result::extension)
-            ->set_obj(object_code);
+        message->MutableExtension(proto::Result::extension)->set_obj(object_code);
       });
     } else if (connect_count == 3) {
       // Connection from client to local daemon.
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
         EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-        const auto& status =
-            message.GetExtension(net::proto::Status::extension);
+        const auto& status = message.GetExtension(net::proto::Status::extension);
         EXPECT_EQ(expected_code, status.code()) << status.description();
 
         send_condition.notify_all();
@@ -2062,14 +1922,10 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l,
-                                 input_path1}),
-                process->args_);
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path1}), process->args_);
       process->stdout_ = source;
     } else if (run_count == 2) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l,
-                                 input_path2}),
-                process->args_);
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path2}), process->args_);
       process->stdout_ = source;
     }
   };
@@ -2079,8 +1935,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
 
   auto connection1 = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection1);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -2100,15 +1955,13 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
-                                        [this] { return send_count == 2; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1), [this] { return send_count == 2; }));
     // FIXME: describe, why |send_count == 2| ?
   }
 
   auto connection2 = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection2);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection2);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -2128,8 +1981,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
-                                        [this] { return send_count == 3; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1), [this] { return send_count == 3; }));
   }
 
   emitter.reset();
@@ -2140,12 +1992,9 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
   EXPECT_EQ(1u, metric.value());
 
   perf::proto::Metric remote_compilation_time_metric;
-  remote_compilation_time_metric.set_name(
-      perf::proto::Metric::REMOTE_COMPILATION_TIME);
-  base::Singleton<perf::StatService>::Get().Dump(
-      remote_compilation_time_metric);
-  EXPECT_GE(remote_compilation_time_metric.value(),
-            static_cast<ui64>(remote_compilation_time.count()));
+  remote_compilation_time_metric.set_name(perf::proto::Metric::REMOTE_COMPILATION_TIME);
+  base::Singleton<perf::StatService>::Get().Dump(remote_compilation_time_metric);
+  EXPECT_GE(remote_compilation_time_metric.value(), static_cast<ui64>(remote_compilation_time.count()));
 
   Immutable cache_output;
   ASSERT_TRUE(base::File::Exists(output_path2));
@@ -2157,15 +2006,12 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
   EXPECT_EQ(3u, connect_count);
   EXPECT_EQ(3u, connections_created);
   EXPECT_EQ(3u, read_count);
-  EXPECT_EQ(3u, send_count)
-      << "There should be only these transmissions:" << std::endl
-      << "  1. Local daemon -> remote daemon." << std::endl
-      << "  2. Local daemon -> 1st client." << std::endl
-      << "  3. Local daemon -> 2nd client.";
-  EXPECT_EQ(1, connection1.use_count())
-      << "Daemon must not store references to the connection";
-  EXPECT_EQ(1, connection2.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(3u, send_count) << "There should be only these transmissions:" << std::endl
+                            << "  1. Local daemon -> remote daemon." << std::endl
+                            << "  2. Local daemon -> 1st client." << std::endl
+                            << "  3. Local daemon -> 2nd client.";
+  EXPECT_EQ(1, connection1.use_count()) << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count()) << "Daemon must not store references to the connection";
 
   // TODO: check that original files are not moved.
   // TODO: check that removal of original files doesn't fail cache filling.
@@ -2215,8 +2061,7 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteFail) {
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
         EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-        const auto& status =
-            message.GetExtension(net::proto::Status::extension);
+        const auto& status = message.GetExtension(net::proto::Status::extension);
         EXPECT_EQ(expected_code, status.code()) << status.description();
 
         send_condition.notify_all();
@@ -2234,8 +2079,7 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteFail) {
         send_condition.notify_all();
       });
       connection->CallOnRead([&](net::Connection::Message* message) {
-        message->MutableExtension(net::proto::Status::extension)
-            ->set_code(net::proto::Status::EXECUTION);
+        message->MutableExtension(net::proto::Status::extension)->set_code(net::proto::Status::EXECUTION);
       });
     }
     return true;
@@ -2243,18 +2087,14 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteFail) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l,
-                                 input_path1}),
-                process->args_);
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path1}), process->args_);
       process->stdout_ = source;
     } else if (run_count == 2) {
       // Used to check local compilation timing statistics.
       std::this_thread::sleep_for(local_compilation_time);
-      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-x"_l,
-                                 language, "-o"_l, output_path1, input_path1}),
+      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-x"_l, language, "-o"_l, output_path1, input_path1}),
                 process->args_);
-      EXPECT_TRUE(
-          base::File::Write(process->cwd_path_ / output_path1, object_code));
+      EXPECT_TRUE(base::File::Write(process->cwd_path_ / output_path1, object_code));
     }
   };
 
@@ -2263,8 +2103,7 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteFail) {
 
   auto connection1 = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection1);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -2285,38 +2124,31 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteFail) {
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
-                                        [this] { return send_count == 2; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1), [this] { return send_count == 2; }));
     // FIXME: describe, why |send_count == 2| ?
   }
 
   emitter.reset();
 
   perf::proto::Metric remote_compilation_failed_metric;
-  remote_compilation_failed_metric.set_name(
-      perf::proto::Metric::REMOTE_COMPILATION_FAILED);
-  base::Singleton<perf::StatService>::Get().Dump(
-      remote_compilation_failed_metric);
+  remote_compilation_failed_metric.set_name(perf::proto::Metric::REMOTE_COMPILATION_FAILED);
+  base::Singleton<perf::StatService>::Get().Dump(remote_compilation_failed_metric);
   EXPECT_EQ(1u, remote_compilation_failed_metric.value());
 
   perf::proto::Metric local_compilation_time_metric;
-  local_compilation_time_metric.set_name(
-      perf::proto::Metric::LOCAL_COMPILATION_TIME);
+  local_compilation_time_metric.set_name(perf::proto::Metric::LOCAL_COMPILATION_TIME);
   base::Singleton<perf::StatService>::Get().Dump(local_compilation_time_metric);
-  EXPECT_GE(local_compilation_time_metric.value(),
-            static_cast<ui64>(local_compilation_time.count()));
+  EXPECT_GE(local_compilation_time_metric.value(), static_cast<ui64>(local_compilation_time.count()));
 
   EXPECT_EQ(2u, run_count);
   EXPECT_EQ(1u, listen_count);
   EXPECT_EQ(2u, connect_count);
   EXPECT_EQ(2u, connections_created);
   EXPECT_EQ(2u, read_count);
-  EXPECT_EQ(2u, send_count)
-      << "There should be only two transmissions:" << std::endl
-      << "  1. From client -> local daemon." << std::endl
-      << "  2. Local daemon -> remote daemon." << std::endl;
-  EXPECT_EQ(1, connection1.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(2u, send_count) << "There should be only two transmissions:" << std::endl
+                            << "  1. From client -> local daemon." << std::endl
+                            << "  2. Local daemon -> remote daemon." << std::endl;
+  EXPECT_EQ(1, connection1.use_count()) << "Daemon must not store references to the connection";
 }
 
 /*
@@ -2363,8 +2195,7 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteRejects) {
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
         EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-        const auto& status =
-            message.GetExtension(net::proto::Status::extension);
+        const auto& status = message.GetExtension(net::proto::Status::extension);
         EXPECT_EQ(expected_code, status.code()) << status.description();
 
         send_condition.notify_all();
@@ -2380,8 +2211,7 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteRejects) {
         send_condition.notify_all();
       });
       connection->CallOnRead([&](net::Connection::Message* message) {
-        message->MutableExtension(net::proto::Status::extension)
-            ->set_code(net::proto::Status::OVERLOAD);
+        message->MutableExtension(net::proto::Status::extension)->set_code(net::proto::Status::OVERLOAD);
       });
     }
     return true;
@@ -2391,16 +2221,12 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteRejects) {
     if (run_count == 1) {
       // Used to check preprocess timing statistics.
       std::this_thread::sleep_for(preprocess_time);
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l,
-                                 input_path1}),
-                process->args_);
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path1}), process->args_);
       process->stdout_ = source;
     } else if (run_count == 2) {
-      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-x"_l,
-                                 language, "-o"_l, output_path1, input_path1}),
+      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-x"_l, language, "-o"_l, output_path1, input_path1}),
                 process->args_);
-      EXPECT_TRUE(
-          base::File::Write(process->cwd_path_ / output_path1, object_code));
+      EXPECT_TRUE(base::File::Write(process->cwd_path_ / output_path1, object_code));
     }
   };
 
@@ -2409,8 +2235,7 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteRejects) {
 
   auto connection1 = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection1);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -2430,44 +2255,36 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteRejects) {
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
-                                        [this] { return send_count == 2; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1), [this] { return send_count == 2; }));
     // FIXME: describe, why |send_count == 2| ?
   }
 
   emitter.reset();
 
   perf::proto::Metric remote_compilation_failed_metric;
-  remote_compilation_failed_metric.set_name(
-      perf::proto::Metric::REMOTE_COMPILATION_FAILED);
-  base::Singleton<perf::StatService>::Get().Dump(
-      remote_compilation_failed_metric);
+  remote_compilation_failed_metric.set_name(perf::proto::Metric::REMOTE_COMPILATION_FAILED);
+  base::Singleton<perf::StatService>::Get().Dump(remote_compilation_failed_metric);
   EXPECT_EQ(0u, remote_compilation_failed_metric.value());
 
   perf::proto::Metric remote_compilation_rejected_metric;
-  remote_compilation_rejected_metric.set_name(
-      perf::proto::Metric::REMOTE_COMPILATION_REJECTED);
-  base::Singleton<perf::StatService>::Get().Dump(
-      remote_compilation_rejected_metric);
+  remote_compilation_rejected_metric.set_name(perf::proto::Metric::REMOTE_COMPILATION_REJECTED);
+  base::Singleton<perf::StatService>::Get().Dump(remote_compilation_rejected_metric);
   EXPECT_EQ(1u, remote_compilation_rejected_metric.value());
 
   perf::proto::Metric preprocess_time_metric;
   preprocess_time_metric.set_name(perf::proto::Metric::PREPROCESS_TIME);
   base::Singleton<perf::StatService>::Get().Dump(preprocess_time_metric);
-  EXPECT_GE(preprocess_time_metric.value(),
-            static_cast<ui64>(preprocess_time.count()));
+  EXPECT_GE(preprocess_time_metric.value(), static_cast<ui64>(preprocess_time.count()));
 
   EXPECT_EQ(2u, run_count);
   EXPECT_EQ(1u, listen_count);
   EXPECT_EQ(2u, connect_count);
   EXPECT_EQ(2u, connections_created);
   EXPECT_EQ(2u, read_count);
-  EXPECT_EQ(2u, send_count)
-      << "There should be only these transmissions:" << std::endl
-      << "  1. Local daemon -> remote daemon." << std::endl
-      << "  2. Local daemon -> client." << std::endl;
-  EXPECT_EQ(1, connection1.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(2u, send_count) << "There should be only these transmissions:" << std::endl
+                            << "  1. Local daemon -> remote daemon." << std::endl
+                            << "  2. Local daemon -> client." << std::endl;
+  EXPECT_EQ(1, connection1.use_count()) << "Daemon must not store references to the connection";
 }
 
 TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
@@ -2508,26 +2325,19 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l,
-                                 input_path}),
-                process->args_);
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path}), process->args_);
       process->stdout_ = source;
     } else if (run_count == 2) {
-      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-x"_l,
-                                 language, "-o"_l, output_path1, input_path}),
+      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-x"_l, language, "-o"_l, output_path1, input_path}),
                 process->args_);
     } else if (run_count == 3) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l,
-                                 input_path}),
-                process->args_);
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path}), process->args_);
       process->stdout_ = source;
     } else if (run_count == 4) {
-      EXPECT_EQ(
-          (Immutable::Rope{
-              action, "-load"_l, plugin_path, "-x"_l, language,
-              Immutable("-fsanitize-blacklist="_l) + sanitize_blacklist_path,
-              "-o"_l, output_path2, input_path}),
-          process->args_);
+      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-x"_l, language,
+                                 Immutable("-fsanitize-blacklist="_l) + sanitize_blacklist_path, "-o"_l, output_path2,
+                                 input_path}),
+                process->args_);
     }
   };
 
@@ -2536,8 +2346,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
 
   auto connection1 = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection1);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -2557,14 +2366,12 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
-                                        [this] { return send_count == 1; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1), [this] { return send_count == 1; }));
   }
 
   auto connection2 = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection2);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection2);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -2585,8 +2392,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
-                                        [this] { return send_count == 2; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1), [this] { return send_count == 2; }));
   }
 
   emitter.reset();
@@ -2597,10 +2403,8 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
   EXPECT_EQ(2u, connections_created);
   EXPECT_EQ(2u, read_count);
   EXPECT_EQ(2u, send_count);
-  EXPECT_EQ(1, connection1.use_count())
-      << "Daemon must not store references to the connection";
-  EXPECT_EQ(1, connection2.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection1.use_count()) << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count()) << "Daemon must not store references to the connection";
 
   // TODO: check that original files are not moved.
   // TODO: check that removal of original files doesn't fail cache filling.
@@ -2663,20 +2467,17 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-dependency-file"_l, deps1_path,
-                                 "-x"_l, language, "-o"_l, "-"_l, input1_path}),
-                process->args_);
+      EXPECT_EQ(
+          (Immutable::Rope{"-E"_l, "-dependency-file"_l, deps1_path, "-x"_l, language, "-o"_l, "-"_l, input1_path}),
+          process->args_);
       process->stdout_ = preprocessed_source;
-      EXPECT_TRUE(
-          base::File::Write(process->cwd_path_ / deps1_path, deps_contents));
+      EXPECT_TRUE(base::File::Write(process->cwd_path_ / deps1_path, deps_contents));
     } else if (run_count == 2) {
-      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path,
-                                 "-dependency-file"_l, deps1_path, "-x"_l,
-                                 language, "-o"_l, output1_path, input1_path}),
+      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-dependency-file"_l, deps1_path, "-x"_l, language,
+                                 "-o"_l, output1_path, input1_path}),
                 process->args_)
           << process->PrintArgs();
-      EXPECT_TRUE(
-          base::File::Write(process->cwd_path_ / output1_path, object_code));
+      EXPECT_TRUE(base::File::Write(process->cwd_path_ / output1_path, object_code));
     }
   };
 
@@ -2685,8 +2486,7 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
 
   auto connection1 = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection1);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -2707,14 +2507,12 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
-                                        [this] { return send_count == 1; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1), [this] { return send_count == 1; }));
   }
 
   auto connection2 = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection2);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection2);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -2735,8 +2533,7 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
-                                        [this] { return send_count == 2; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1), [this] { return send_count == 2; }));
   }
 
   emitter.reset();
@@ -2762,10 +2559,8 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
   EXPECT_EQ(2u, connections_created);
   EXPECT_EQ(2u, read_count);
   EXPECT_EQ(2u, send_count);
-  EXPECT_EQ(1, connection1.use_count())
-      << "Daemon must not store references to the connection";
-  EXPECT_EQ(1, connection2.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection1.use_count()) << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count()) << "Daemon must not store references to the connection";
 
   // TODO: check that original files are not moved.
   // TODO: check that removal of original files doesn't fail cache filling.
@@ -2773,8 +2568,7 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
   //       - deps file is in cache, but not requested.
 }
 
-TEST_F(EmitterTest,
-       StoreDirectCacheForLocalResultWithAndWithoutIncludedHeaders) {
+TEST_F(EmitterTest, StoreDirectCacheForLocalResultWithAndWithoutIncludedHeaders) {
   // Prepare environment.
   const base::TemporaryDir temp_dir;
   const auto input_path = temp_dir.path() / "test.cc";
@@ -2791,12 +2585,10 @@ TEST_F(EmitterTest,
   const auto deps_contents = "test.o: test.cc header1.h header2.h"_l;
 
   // Clang outputs headers included using "-include-pth/pch" as absolute paths.
-  const auto preprocessed_deps_contents =
-      Immutable("test.o: test.cc header1.h header2.h "_l) + header1_path;
+  const auto preprocessed_deps_contents = Immutable("test.o: test.cc header1.h header2.h "_l) + header1_path;
   const auto preprocessed_contents = "Any content should work"_l;
 
-  ASSERT_TRUE(
-      base::File::Write(preprocessed_header_path, preprocessed_contents));
+  ASSERT_TRUE(base::File::Write(preprocessed_header_path, preprocessed_contents));
 
   ASSERT_TRUE(base::File::Write(input_path, source_code));
   ASSERT_TRUE(base::File::Write(header1_path, "#define A"_l));
@@ -2833,29 +2625,23 @@ TEST_F(EmitterTest,
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-dependency-file"_l, deps_path,
-                                 "-x"_l, language, "-o"_l, "-"_l, input_path}),
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-dependency-file"_l, deps_path, "-x"_l, language, "-o"_l, "-"_l, input_path}),
                 process->args_);
       process->stdout_ = preprocessed_source;
-      EXPECT_TRUE(
-          base::File::Write(process->cwd_path_ / deps_path, deps_contents));
+      EXPECT_TRUE(base::File::Write(process->cwd_path_ / deps_path, deps_contents));
     } else if (run_count == 2) {
-      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path,
-                                 "-dependency-file"_l, deps_path, "-x"_l,
-                                 language, "-o"_l, output_path, input_path}),
+      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-dependency-file"_l, deps_path, "-x"_l, language,
+                                 "-o"_l, output_path, input_path}),
                 process->args_)
           << process->PrintArgs();
-      EXPECT_TRUE(
-          base::File::Write(process->cwd_path_ / output_path, object_code));
+      EXPECT_TRUE(base::File::Write(process->cwd_path_ / output_path, object_code));
     } else if (run_count == 3) {
-      EXPECT_EQ(
-          (Immutable::Rope{"-E"_l, "-include-pth"_l, preprocessed_header_path,
-                           "-dependency-file"_l, deps_path, "-x"_l, language,
-                           "-o"_l, "-"_l, input_path}),
-          process->args_);
+      EXPECT_EQ((Immutable::Rope{"-include-pth"_l, preprocessed_header_path, "-E"_l, "-dependency-file"_l, deps_path,
+                                 "-x"_l, language, "-o"_l, "-"_l, input_path}),
+                process->args_)
+          << process->PrintArgs();
       process->stdout_ = preprocessed_source;
-      EXPECT_TRUE(base::File::Write(process->cwd_path_ / deps_path,
-                                    preprocessed_deps_contents));
+      EXPECT_TRUE(base::File::Write(process->cwd_path_ / deps_path, preprocessed_deps_contents));
     }
   };
 
@@ -2864,8 +2650,7 @@ TEST_F(EmitterTest,
 
   auto connection1 = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection1);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -2886,14 +2671,12 @@ TEST_F(EmitterTest,
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
-                                        [this] { return send_count == 1; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1), [this] { return send_count == 1; }));
   }
 
   auto connection2 = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection2);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection2);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -2902,8 +2685,11 @@ TEST_F(EmitterTest,
     extension->mutable_flags()->set_input(input_path);
     extension->mutable_flags()->set_output(output_path);
     extension->mutable_flags()->add_included_files(preprocessed_header_path);
-    extension->mutable_flags()->add_non_cached("-include-pth");
-    extension->mutable_flags()->add_non_cached(preprocessed_header_path);
+
+    auto* new_arg = extension->mutable_flags()->add_non_cached();
+    new_arg->add_values("-include-pth");
+    new_arg->add_values(preprocessed_header_path);
+
     extension->mutable_flags()->set_deps_file(deps_path);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
@@ -2917,14 +2703,12 @@ TEST_F(EmitterTest,
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
-                                        [this] { return send_count == 2; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1), [this] { return send_count == 2; }));
   }
 
   auto connection3 = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection3);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection3);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -2933,8 +2717,11 @@ TEST_F(EmitterTest,
     extension->mutable_flags()->set_input(input_path);
     extension->mutable_flags()->set_output(output_path);
     extension->mutable_flags()->add_included_files(preprocessed_header_path);
-    extension->mutable_flags()->add_non_cached("-include-pth");
-    extension->mutable_flags()->add_non_cached(preprocessed_header_path);
+
+    auto* new_arg = extension->mutable_flags()->add_non_cached();
+    new_arg->add_values("-include-pth");
+    new_arg->add_values(preprocessed_header_path);
+
     extension->mutable_flags()->set_deps_file(deps_path);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
@@ -2948,8 +2735,7 @@ TEST_F(EmitterTest,
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
-                                        [this] { return send_count == 3; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1), [this] { return send_count == 3; }));
   }
 
   emitter.reset();
@@ -2960,12 +2746,9 @@ TEST_F(EmitterTest,
   EXPECT_EQ(3u, connections_created);
   EXPECT_EQ(3u, read_count);
   EXPECT_EQ(3u, send_count);
-  EXPECT_EQ(1, connection1.use_count())
-      << "Daemon must not store references to the connection";
-  EXPECT_EQ(1, connection2.use_count())
-      << "Daemon must not store references to the connection";
-  EXPECT_EQ(1, connection3.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection1.use_count()) << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count()) << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection3.use_count()) << "Daemon must not store references to the connection";
 }
 
 TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
@@ -3024,8 +2807,7 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
         EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-        const auto& status =
-            message.GetExtension(net::proto::Status::extension);
+        const auto& status = message.GetExtension(net::proto::Status::extension);
         EXPECT_EQ(expected_code, status.code()) << status.description();
 
         send_condition.notify_all();
@@ -3042,16 +2824,14 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
       });
 
       connection->CallOnRead([&](net::Connection::Message* message) {
-        message->MutableExtension(proto::Result::extension)
-            ->set_obj(object_code);
+        message->MutableExtension(proto::Result::extension)->set_obj(object_code);
       });
     } else if (connect_count == 3) {
       // Connection from client to local daemon.
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
         EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-        const auto& status =
-            message.GetExtension(net::proto::Status::extension);
+        const auto& status = message.GetExtension(net::proto::Status::extension);
         EXPECT_EQ(expected_code, status.code()) << status.description();
 
         send_condition.notify_all();
@@ -3061,12 +2841,10 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
   };
 
   run_callback = [&](base::TestProcess* process) {
-    EXPECT_EQ((Immutable::Rope{"-E"_l, "-dependency-file"_l, deps1_path, "-x"_l,
-                               language, "-o"_l, "-"_l, input1_path}),
+    EXPECT_EQ((Immutable::Rope{"-E"_l, "-dependency-file"_l, deps1_path, "-x"_l, language, "-o"_l, "-"_l, input1_path}),
               process->args_);
     process->stdout_ = preprocessed_source;
-    EXPECT_TRUE(base::File::Write(process->cwd_path_ / deps1_path,
-                                  "test1.o: test1.cc header1.h header2.h"_l));
+    EXPECT_TRUE(base::File::Write(process->cwd_path_ / deps1_path, "test1.o: test1.cc header1.h header2.h"_l));
   };
 
   emitter = std::make_unique<Emitter>(conf);
@@ -3074,8 +2852,7 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
 
   auto connection1 = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection1);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -3096,14 +2873,12 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
-                                        [this] { return send_count == 2; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1), [this] { return send_count == 2; }));
   }
 
   auto connection2 = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection2);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection2);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -3123,8 +2898,7 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
-                                        [this] { return send_count == 3; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1), [this] { return send_count == 3; }));
   }
 
   emitter.reset();
@@ -3145,10 +2919,8 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
   EXPECT_EQ(3u, connections_created);
   EXPECT_EQ(3u, read_count);
   EXPECT_EQ(3u, send_count);
-  EXPECT_EQ(1, connection1.use_count())
-      << "Daemon must not store references to the connection";
-  EXPECT_EQ(1, connection2.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection1.use_count()) << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count()) << "Daemon must not store references to the connection";
 
   // TODO: check that original files are not moved.
   // TODO: check that removal of original files doesn't fail cache filling.
@@ -3205,8 +2977,7 @@ TEST_F(EmitterTest, ConfigurationUpdateCompiler) {
 
   auto connection1 = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection1);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -3238,14 +3009,12 @@ TEST_F(EmitterTest, ConfigurationUpdateCompiler) {
   };
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(Path(compiler_path), process->exec_path_);
-    EXPECT_EQ((Immutable::Rope{action}), process->args_)
-        << process->PrintArgs();
+    EXPECT_EQ((Immutable::Rope{action}), process->args_) << process->PrintArgs();
   };
 
   auto connection2 = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection2);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection2);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -3267,10 +3036,8 @@ TEST_F(EmitterTest, ConfigurationUpdateCompiler) {
   EXPECT_EQ(2u, connections_created);
   EXPECT_EQ(2u, read_count);
   EXPECT_EQ(2u, send_count);
-  EXPECT_EQ(1, connection1.use_count())
-      << "Daemon must not store references to the connection";
-  EXPECT_EQ(1, connection2.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection1.use_count()) << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count()) << "Daemon must not store references to the connection";
 }
 
 TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
@@ -3287,10 +3054,8 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
 
   ASSERT_TRUE(base::File::Write(input_path, source_code));
   ASSERT_TRUE(base::File::Write(header_path, header_contents));
-  ASSERT_TRUE(
-      base::File::Write(preprocessed_header_path, preprocessed_contents));
-  ASSERT_TRUE(
-      base::File::Write(sanitize_blacklist_path, sanitize_blacklist_contents));
+  ASSERT_TRUE(base::File::Write(preprocessed_header_path, preprocessed_contents));
+  ASSERT_TRUE(base::File::Write(sanitize_blacklist_path, sanitize_blacklist_contents));
 
   // Prepare configuration.
   const String compiler_version = "fake_compiler_version";
@@ -3318,8 +3083,7 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
   const auto object_code = "fake_object_code"_l;
 
   // Clang outputs headers included using "-include-pth/pch" as absolute paths.
-  const auto deps_contents =
-      Immutable("test.o: test.cc header.h"_l) + header_path;
+  const auto deps_contents = Immutable("test.o: test.cc header.h"_l) + header_path;
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
@@ -3334,25 +3098,20 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ(
-          (Immutable::Rope{"-E"_l, "-include-pth"_l, preprocessed_header_path,
-                           "-dependency-file"_l, deps_path, "-x"_l, language,
-                           "-o"_l, "-"_l, input_path}),
-          process->args_);
-      process->stdout_ = preprocessed_source;
-      EXPECT_TRUE(
-          base::File::Write(process->cwd_path_ / deps_path, deps_contents));
-    } else if (run_count == 2) {
-      EXPECT_EQ(
-          (Immutable::Rope{
-              action, "-include-pth"_l, preprocessed_header_path, "-load"_l,
-              plugin_path, "-dependency-file"_l, deps_path, "-x"_l, language,
-              Immutable("-fsanitize-blacklist="_l) + sanitize_blacklist_path,
-              "-o"_l, output_path, input_path}),
-          process->args_)
+      EXPECT_EQ((Immutable::Rope{"-include-pth"_l, preprocessed_header_path, "-E"_l, "-dependency-file"_l, deps_path,
+                                 "-x"_l, language, "-o"_l, "-"_l, input_path}),
+                process->args_)
           << process->PrintArgs();
-      EXPECT_TRUE(
-          base::File::Write(process->cwd_path_ / output_path, object_code));
+      process->stdout_ = preprocessed_source;
+      EXPECT_TRUE(base::File::Write(process->cwd_path_ / deps_path, deps_contents));
+    } else if (run_count == 2) {
+      EXPECT_EQ((Immutable::Rope{"-include-pth"_l, preprocessed_header_path, action, "-load"_l, plugin_path,
+                                 "-dependency-file"_l, deps_path, "-x"_l, language,
+                                 Immutable("-fsanitize-blacklist="_l) + sanitize_blacklist_path, "-o"_l, output_path,
+                                 input_path}),
+                process->args_)
+          << process->PrintArgs();
+      EXPECT_TRUE(base::File::Write(process->cwd_path_ / output_path, object_code));
     }
   };
 
@@ -3361,8 +3120,7 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
 
   auto connection1 = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection1);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -3371,8 +3129,11 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
     extension->mutable_flags()->set_input(input_path);
     extension->mutable_flags()->set_output(output_path);
     extension->mutable_flags()->add_included_files(preprocessed_header_path);
-    extension->mutable_flags()->add_non_cached("-include-pth");
-    extension->mutable_flags()->add_non_cached(preprocessed_header_path);
+
+    auto* new_arg = extension->mutable_flags()->add_non_cached();
+    new_arg->add_values("-include-pth");
+    new_arg->add_values(preprocessed_header_path);
+
     extension->mutable_flags()->set_deps_file(deps_path);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
@@ -3387,24 +3148,20 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
-                                        [this] { return send_count == 1; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1), [this] { return send_count == 1; }));
   }
 
   auto connection2 = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection2);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection2);
 
     const auto input_path = temp_dir2.path() / "test.cc";
     const auto header_path = temp_dir2.path() / "header.h";
-    const auto sanitize_blacklist_path =
-        temp_dir2.path() / "asan-blacklist.txt";
+    const auto sanitize_blacklist_path = temp_dir2.path() / "asan-blacklist.txt";
 
     ASSERT_TRUE(base::File::Write(input_path, source_code));
     ASSERT_TRUE(base::File::Write(header_path, header_contents));
-    ASSERT_TRUE(base::File::Write(sanitize_blacklist_path,
-                                  sanitize_blacklist_contents));
+    ASSERT_TRUE(base::File::Write(sanitize_blacklist_path, sanitize_blacklist_contents));
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -3413,8 +3170,11 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
     extension->mutable_flags()->set_input(input_path);
     extension->mutable_flags()->set_output(output_path);
     extension->mutable_flags()->add_included_files(preprocessed_header_path);
-    extension->mutable_flags()->add_non_cached("-include-pth");
-    extension->mutable_flags()->add_non_cached(preprocessed_header_path);
+
+    auto* new_arg = extension->mutable_flags()->add_non_cached();
+    new_arg->add_values("-include-pth");
+    new_arg->add_values(preprocessed_header_path);
+
     extension->mutable_flags()->set_deps_file(deps_path);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
@@ -3429,8 +3189,7 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
-                                        [this] { return send_count == 2; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1), [this] { return send_count == 2; }));
   }
 
   emitter.reset();
@@ -3458,10 +3217,8 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
   EXPECT_EQ(2u, connections_created);
   EXPECT_EQ(2u, read_count);
   EXPECT_EQ(2u, send_count);
-  EXPECT_EQ(1, connection1.use_count())
-      << "Daemon must not store references to the connection";
-  EXPECT_EQ(1, connection2.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection1.use_count()) << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count()) << "Daemon must not store references to the connection";
 
   // TODO: check that original files are not moved.
   // TODO: check that removal of original files doesn't fail cache filling.
@@ -3541,35 +3298,28 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-dependency-file"_l, deps_path,
-                                 "-x"_l, language, "-o"_l, "-"_l, input_path}),
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-dependency-file"_l, deps_path, "-x"_l, language, "-o"_l, "-"_l, input_path}),
                 process->args_);
       process->stdout_ = preprocessed_source;
-      EXPECT_TRUE(
-          base::File::Write(process->cwd_path_ / deps_path, deps_contents));
+      EXPECT_TRUE(base::File::Write(process->cwd_path_ / deps_path, deps_contents));
     } else if (run_count == 2) {
-      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path,
-                                 "-dependency-file"_l, deps_path, "-x"_l,
-                                 language, "-o"_l, output_path, input_path}),
+      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-dependency-file"_l, deps_path, "-x"_l, language,
+                                 "-o"_l, output_path, input_path}),
                 process->args_)
           << process->PrintArgs();
-      EXPECT_TRUE(
-          base::File::Write(process->cwd_path_ / output_path, object_code));
+      EXPECT_TRUE(base::File::Write(process->cwd_path_ / output_path, object_code));
     } else if (run_count == 3) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-dependency-file"_l, deps_path2,
-                                 "-x"_l, language, "-o"_l, "-"_l, input_path2}),
-                process->args_);
+      EXPECT_EQ(
+          (Immutable::Rope{"-E"_l, "-dependency-file"_l, deps_path2, "-x"_l, language, "-o"_l, "-"_l, input_path2}),
+          process->args_);
       process->stdout_ = preprocessed_source2;
-      EXPECT_TRUE(
-          base::File::Write(process->cwd_path_ / deps_path2, deps_contents2));
+      EXPECT_TRUE(base::File::Write(process->cwd_path_ / deps_path2, deps_contents2));
     } else if (run_count == 4) {
-      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path,
-                                 "-dependency-file"_l, deps_path2, "-x"_l,
-                                 language, "-o"_l, output_path2, input_path2}),
+      EXPECT_EQ((Immutable::Rope{action, "-load"_l, plugin_path, "-dependency-file"_l, deps_path2, "-x"_l, language,
+                                 "-o"_l, output_path2, input_path2}),
                 process->args_)
           << process->PrintArgs();
-      EXPECT_TRUE(
-          base::File::Write(process->cwd_path_ / output_path2, object_code2));
+      EXPECT_TRUE(base::File::Write(process->cwd_path_ / output_path2, object_code2));
     }
   };
 
@@ -3578,8 +3328,7 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
 
   auto connection1 = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection1);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -3600,14 +3349,12 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
-                                        [this] { return send_count == 1; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1), [this] { return send_count == 1; }));
   }
 
   auto connection2 = test_service->TriggerListen(socket_path);
   {
-    SharedPtr<net::TestConnection> test_connection =
-        std::static_pointer_cast<net::TestConnection>(connection2);
+    SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection2);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->MutableExtension(base::proto::Local::extension);
@@ -3628,8 +3375,7 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1),
-                                        [this] { return send_count == 2; }));
+    EXPECT_TRUE(send_condition.wait_for(lock, std::chrono::seconds(1), [this] { return send_count == 2; }));
   }
 
   emitter.reset();
@@ -3664,10 +3410,8 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
   EXPECT_EQ(2u, connections_created);
   EXPECT_EQ(2u, read_count);
   EXPECT_EQ(2u, send_count);
-  EXPECT_EQ(1, connection1.use_count())
-      << "Daemon must not store references to the connection";
-  EXPECT_EQ(1, connection2.use_count())
-      << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection1.use_count()) << "Daemon must not store references to the connection";
+  EXPECT_EQ(1, connection2.use_count()) << "Daemon must not store references to the connection";
 
   // TODO: check that original files are not moved.
   // TODO: check that removal of original files doesn't fail cache filling.

@@ -192,13 +192,23 @@ TEST_F(ClientTest, CannotReadMessage) {
       EXPECT_EQ("c++", cc_flags.language());
       EXPECT_EQ("-emit-obj", cc_flags.action());
 
+      auto find_value = [](const base::proto::Argument& arg,
+                           const char* value) {
+        return std::find(arg.values().begin(), arg.values().end(), value) !=
+               arg.values().end();
+      };
+      using namespace std::placeholders;
+
       {
         const auto& other = cc_flags.other();
         auto begin = other.begin();
         auto end = other.end();
-        EXPECT_NE(end, std::find(begin, end, "-cc1"));
-        EXPECT_NE(end, std::find(begin, end, "-triple"));
-        EXPECT_NE(end, std::find(begin, end, "-target-cpu"));
+        EXPECT_NE(end,
+                  std::find_if(begin, end, std::bind(find_value, _1, "-cc1")));
+        EXPECT_NE(end, std::find_if(begin, end,
+                                    std::bind(find_value, _1, "-triple")));
+        EXPECT_NE(end, std::find_if(begin, end,
+                                    std::bind(find_value, _1, "-target-cpu")));
       }
 
       {
@@ -206,18 +216,28 @@ TEST_F(ClientTest, CannotReadMessage) {
         auto begin = non_cached.begin();
         auto end = non_cached.end();
 #if defined(OS_LINUX)
-        EXPECT_NE(end, std::find(begin, end, "-internal-externc-isystem"));
-        EXPECT_NE(end, std::find(begin, end, "-internal-isystem"));
+        EXPECT_NE(end, std::find_if(begin, end,
+                                    std::bind(find_value, _1,
+                                              "-internal-externc-isystem")));
+        EXPECT_NE(end,
+                  std::find_if(begin, end,
+                               std::bind(find_value, _1, "-internal-isystem")));
 #endif  // defined(OS_LINUX)
-        EXPECT_NE(end, std::find(begin, end, "-resource-dir"));
+        EXPECT_NE(end,
+                  std::find_if(begin, end,
+                               std::bind(find_value, _1, "-resource-dir")));
       }
 
       {
         const auto& non_direct = cc_flags.non_direct();
         auto begin = non_direct.begin();
         auto end = non_direct.end();
-        EXPECT_NE(end, std::find(begin, end, "-main-file-name"));
-        EXPECT_NE(end, std::find(begin, end, "-coverage-notes-file"));
+        EXPECT_NE(end,
+                  std::find_if(begin, end,
+                               std::bind(find_value, _1, "-main-file-name")));
+        EXPECT_NE(end, std::find_if(
+                           begin, end,
+                           std::bind(find_value, _1, "-coverage-notes-file")));
       }
     });
   };

@@ -1,11 +1,15 @@
 executable("args_parser") {
   sources = [
     "main.cc",
+
+    "//src/base/test_process.cc",
+    "//src/base/test_process.h",
   ]
 
   deps += [
     "//src/base",
     "//src/client:command",
     "//src/client:configuration",
+    "//src/daemon:daemon",
   ]
 }

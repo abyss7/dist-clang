@@ -1,6 +1,9 @@
 BasedOnStyle: google
+Language: Cpp
+
 AllowShortBlocksOnASingleLine: false
 AllowShortFunctionsOnASingleLine: Inline
 AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
+ColumnLimit: 120
 DerivePointerAlignment: false

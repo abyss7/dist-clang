@@ -15,7 +15,10 @@ executable("clangd") {
 
 # Separate source set for unit-tests.
 source_set("daemon") {
-  visibility += [ "//src/test:unit_tests" ]
+  visibility += [
+    "//src/test:unit_tests",
+    "//tools/args_parser:*",
+  ]
 
   sources = [
     "absorber.cc",
