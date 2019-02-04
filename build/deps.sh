@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 
-export PS4="☢"
-
-set -ex
+set -e
 
 if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
     curl -JLO https://chrome-infra-packages.appspot.com/dl/gn/gn/linux-amd64/+/T09VSJ7uJnfkIHG3v7o0oYjo0nWLwvFnR05-I9iRU-EC

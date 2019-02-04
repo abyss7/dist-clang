@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
 
-export PS4="☢"
-
-set -ex
+set -e
 
 root_dir="$(cd "$(dirname $0)/.." && pwd -P)"
 
-# gn is extracted into build dir
+# gn and ninja are extracted into build dir
 export PATH="$PATH:$TRAVIS_BUILD_DIR"
 
 "$root_dir/build/configure"
