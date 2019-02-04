@@ -1,4 +1,6 @@
-os: [linux, osx]
+os:
+  - linux
+  - osx
 
 dist: xenial
 osx_image: xcode10.1
@@ -17,4 +19,5 @@ addons:
       - ninja
     update: true
 
+install: ./build/deps.sh
 script: ./build/travis.sh
