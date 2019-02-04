@@ -74,6 +74,9 @@ source_set("spinlock") {
   if (use_tcmalloc) {
     deps -= [ "//src/third_party/gperftools:tcmalloc" ]
   }
+  deps += [
+    ":logging",
+  ]
 }
 
 source_set("sysinfo") {
@@ -91,12 +94,19 @@ source_set("sysinfo") {
   if (use_tcmalloc) {
     deps -= [ "//src/third_party/gperftools:tcmalloc" ]
   }
+  deps += [
+    ":logging",
+  ]
 }
 
 source_set("logging") {
   sources = [
     "exported/src/base/dynamic_annotations.c",
     "exported/src/base/logging.cc",
+  ]
+
+  public = [
+    "exported/src/base/logging.h",
   ]
 
   include_dirs = [ "exported/src" ]
@@ -173,7 +183,10 @@ source_set("tcmalloc_internal") {
   if (use_tcmalloc) {
     deps -= [ "//src/third_party/gperftools:tcmalloc" ]
   }
-  deps += [ ":stacktrace" ]
+  deps += [
+    ":logging",
+    ":stacktrace",
+  ]
 }
 
 source_set("profiler") {
@@ -193,7 +206,10 @@ source_set("profiler") {
   if (use_tcmalloc) {
     deps -= [ "//src/third_party/gperftools:tcmalloc" ]
   }
-  deps += [ ":stacktrace" ]
+  deps += [
+    ":logging",
+    ":stacktrace",
+  ]
 }
 
 shared_library("tcmalloc") {
@@ -233,6 +249,7 @@ shared_library("tcmalloc") {
     deps -= [ "//src/third_party/gperftools:tcmalloc" ]
   }
   deps += [
+    ":logging",
     ":profiler",
     ":tcmalloc_internal",
   ]

@@ -422,4 +422,8 @@ shared_library("c++") {
 
   deps = []
   deps += [ "//src/third_party/libcxxabi:c++abi" ]
+
+  allow_circular_includes_from = [
+    "//src/third_party/libcxxabi:c++abi",
+  ]
 }

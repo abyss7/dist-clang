@@ -16,6 +16,36 @@ config("flags") {
   ]
 }
 
+# Need a separate target for tests
+source_set("private_headers") {
+  public = [
+    "exported/db/db_impl.h",
+    "exported/db/dbformat.h",
+    "exported/db/filename.h",
+    "exported/db/log_format.h",
+    "exported/db/log_reader.h",
+    "exported/db/log_writer.h",
+    "exported/db/memtable.h",
+    "exported/db/skiplist.h",
+    "exported/db/version_edit.h",
+    "exported/db/version_set.h",
+    "exported/db/write_batch_internal.h",
+    "exported/helpers/memenv/memenv.h",
+    "exported/port/port.h",
+    "exported/table/block.h",
+    "exported/table/block_builder.h",
+    "exported/table/filter_block.h",
+    "exported/table/format.h",
+    "exported/util/arena.h",
+    "exported/util/coding.h",
+    "exported/util/crc32c.h",
+    "exported/util/hash.h",
+    "exported/util/logging.h",
+    "exported/util/mutexlock.h",
+    "exported/util/random.h",
+  ]
+}
+
 static_library("leveldb") {
   visibility += [ "//src/cache:file_cache" ]
 
@@ -23,33 +53,21 @@ static_library("leveldb") {
     "exported/db/builder.cc",
     "exported/db/builder.h",
     "exported/db/db_impl.cc",
-    "exported/db/db_impl.h",
     "exported/db/db_iter.cc",
     "exported/db/db_iter.h",
     "exported/db/dbformat.cc",
-    "exported/db/dbformat.h",
     "exported/db/filename.cc",
-    "exported/db/filename.h",
-    "exported/db/log_format.h",
     "exported/db/log_reader.cc",
-    "exported/db/log_reader.h",
     "exported/db/log_writer.cc",
-    "exported/db/log_writer.h",
     "exported/db/memtable.cc",
-    "exported/db/memtable.h",
     "exported/db/repair.cc",
-    "exported/db/skiplist.h",
     "exported/db/snapshot.h",
     "exported/db/table_cache.cc",
     "exported/db/table_cache.h",
     "exported/db/version_edit.cc",
-    "exported/db/version_edit.h",
     "exported/db/version_set.cc",
-    "exported/db/version_set.h",
     "exported/db/write_batch.cc",
-    "exported/db/write_batch_internal.h",
     "exported/helpers/memenv/memenv.cc",
-    "exported/helpers/memenv/memenv.h",
     "exported/include/leveldb/cache.h",
     "exported/include/leveldb/comparator.h",
     "exported/include/leveldb/db.h",
@@ -62,18 +80,13 @@ static_library("leveldb") {
     "exported/include/leveldb/table.h",
     "exported/include/leveldb/table_builder.h",
     "exported/include/leveldb/write_batch.h",
-    "exported/port/port.h",
     "exported/port/port_example.h",
     "exported/port/port_posix.cc",
     "exported/port/port_posix.h",
     "exported/table/block.cc",
-    "exported/table/block.h",
     "exported/table/block_builder.cc",
-    "exported/table/block_builder.h",
     "exported/table/filter_block.cc",
-    "exported/table/filter_block.h",
     "exported/table/format.cc",
-    "exported/table/format.h",
     "exported/table/iterator.cc",
     "exported/table/iterator_wrapper.h",
     "exported/table/merger.cc",
@@ -83,26 +96,19 @@ static_library("leveldb") {
     "exported/table/two_level_iterator.cc",
     "exported/table/two_level_iterator.h",
     "exported/util/arena.cc",
-    "exported/util/arena.h",
     "exported/util/bloom.cc",
     "exported/util/cache.cc",
     "exported/util/coding.cc",
-    "exported/util/coding.h",
     "exported/util/comparator.cc",
     "exported/util/crc32c.cc",
-    "exported/util/crc32c.h",
     "exported/util/env.cc",
     "exported/util/env_posix.cc",
     "exported/util/filter_policy.cc",
     "exported/util/hash.cc",
-    "exported/util/hash.h",
     "exported/util/histogram.cc",
     "exported/util/histogram.h",
     "exported/util/logging.cc",
-    "exported/util/logging.h",
-    "exported/util/mutexlock.h",
     "exported/util/options.cc",
-    "exported/util/random.h",
     "exported/util/status.cc",
   ]
 
@@ -127,7 +133,10 @@ static_library("leveldb") {
 
   public_configs = [ ":includes" ]
 
-  deps += [ "//src/third_party/snappy:snappy" ]
+  deps += [
+    ":private_headers",
+    "//src/third_party/snappy:snappy",
+  ]
 }
 
 source_set("leveldb_test_utils") {
@@ -145,6 +154,11 @@ source_set("leveldb_test_utils") {
   configs += [
     ":flags",
     ":includes",
+  ]
+
+  deps += [
+    ":leveldb",
+    ":private_headers",
   ]
 }
 
@@ -167,6 +181,7 @@ template("leveldb_test") {
     deps += [
       ":leveldb",
       ":leveldb_test_utils",
+      ":private_headers",
       "//src/third_party/snappy:snappy",
     ]
   }
