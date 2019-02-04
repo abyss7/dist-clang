@@ -2,9 +2,6 @@ os:
   - linux
   - osx
 
-dist: xenial
-osx_image: xcode10.1
-
 language: cpp
 compiler: clang
 
@@ -12,12 +9,7 @@ addons:
   apt:
     packages:
       - liblzma-dev
-      - ninja-build
       - zlib1g-dev
-  homebrew:
-    packages:
-      - ninja
-    update: true
 
 install: ./build/deps.sh
 script: ./build/travis.sh
