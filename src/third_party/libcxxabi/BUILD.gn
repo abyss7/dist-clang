@@ -55,8 +55,8 @@ config("flags") {
   ]
 
   if (host_os == "mac") {
-    ldflags = exec_script("//build/macosx_sdk_libs.py", [], "list lines")
-    ldflags += [
+    # ldflags = exec_script("//build/macosx_sdk_libs.py", [], "list lines")
+    ldflags = [
       "-compatibility_version",
       "1.0.0",
       "-current_version",
