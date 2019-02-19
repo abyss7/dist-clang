@@ -4,5 +4,4 @@ Maintainer: Ivan Lezhankin <ilezhankin@yandex-team.ru>
 Package: dist-clang
 Architecture: amd64
 Description: Distributed clang-based compilation system.
-Homepage: https://code.google.com/p/dist-clang/
-Depends: supervisor
+Homepage: https://github.com/abyss7/dist-clang

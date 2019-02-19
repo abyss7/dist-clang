@@ -1,0 +1,13 @@
+description "Clang distributed compilation daemon"
+
+start on started network-services
+stop on stopping network-services
+
+kill timeout 60
+
+respawn
+respawn limit 10 5
+
+console log
+
+exec /usr/bin/dist-clang/clangd --config /etc/clangd.conf

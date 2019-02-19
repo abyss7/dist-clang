@@ -292,7 +292,7 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
     } else {
       status.set_code(net::proto::Status::OK);
       status.set_description(process->stderr());
-      LOG(INFO) << "External compilation successful";
+      LOG(INFO) << "External compilation successful (" << local_hash.str << ")";
 
       auto* result = outgoing->MutableExtension(proto::Result::extension);
       result->set_obj(process->stdout());

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-supervisorctl stop clangd
+stop clangd
 
 set -e
 PKG=dist-clang

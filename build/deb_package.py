@@ -20,11 +20,10 @@ MakeInstall(top_dir, product_dir, os.path.join("deb", "debian", "tmp"),
             use_etc_default=True)
 
 # Debian specific install.
-supervisor_dir = os.path.join(
-    product_dir, "deb", "debian", "tmp", "etc", "supervisor", "conf.d")
-os.makedirs(supervisor_dir)
-shutil.copy(os.path.join(top_dir, "install", "supervisord_service"),
-            os.path.join(supervisor_dir, "clangd.conf"))
+init_dir = os.path.join(product_dir, "deb", "debian", "tmp", "etc", "init")
+os.makedirs(init_dir)
+shutil.copy(os.path.join(top_dir, "install", "upstart_service"),
+            os.path.join(init_dir, "clangd.conf"))
 
 # Create 'control' file
 deb_control = os.path.join(product_dir, "deb", "debian", "control")
@@ -54,7 +53,6 @@ os.chdir(os.path.join(product_dir, "deb"))
 os.makedirs(os.path.join(product_dir, "deb", "debian", "tmp", "DEBIAN"))
 args = ['dpkg-gencontrol']
 subprocess.Popen(args).wait()
-
 
 # Copy 'DEBIAN/postinst' file
 shutil.copy(os.path.join(top_dir, "install", "debian_postinst"),
