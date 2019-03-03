@@ -1,14 +1,18 @@
-os: [linux, osx]
+os:
+  - linux
+  - osx
+
+language: cpp
+compiler: clang
+
+git:
+  depth: 1
 
 addons:
   apt:
     packages:
       - liblzma-dev
-      - ninja-build
       - zlib1g-dev
 
-before_install:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update       ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install ninja; fi
-
+install: ./build/deps.sh
 script: ./build/travis.sh
