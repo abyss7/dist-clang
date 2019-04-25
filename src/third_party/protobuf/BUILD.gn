@@ -2,35 +2,23 @@ config("includes") {
   cflags = [
     "-Wno-bitfield-width",
     "-Wno-deprecated-declarations",  # MacOS X 10.12
+    "-Wno-nested-anon-types",
+    "-Wno-unused-parameter",
   ]
 
-  include_dirs = [ "exported/src" ]
-
-  # For config.h
-  if (host_os == "win") {
-    include_dirs += [ "exported/vsprojects" ]
-  } else {
-    include_dirs += [ host_os ]
-  }
+  include_dirs = [
+    "exported/src",
+    host_os,
+  ]
 }
 
-config("warnings") {
+config("no_warnings") {
   cflags = [
-    "-Woverloaded-virtual",
     "-Wno-enum-compare-switch",
     "-Wno-sign-compare",
     "-Wno-unused-function",
     "-Wno-unused-local-typedef",
-    "-Wwrite-strings",
   ]
-
-  if (host_os == "win") {
-    cflags += [
-      "-Wno-unknown-pragmas",
-      "-Wno-unused-const-variable",
-      "-Wno-deprecated-declarations",
-    ]
-  }
 }
 
 protobuf_lite_sources = [
@@ -80,7 +68,7 @@ shared_library("protobuf_lite") {
   if (!config_for_tests) {
     configs -= [ "//build/config:no_rtti" ]
   }
-  configs += [ ":warnings" ]
+  configs += [ ":no_warnings" ]
 
   public_configs = [ ":includes" ]
 }
@@ -146,7 +134,7 @@ shared_library("protobuf") {
   if (!config_for_tests) {
     configs -= [ "//build/config:no_rtti" ]
   }
-  configs += [ ":warnings" ]
+  configs += [ ":no_warnings" ]
 
   public_configs = [ ":includes" ]
 }
@@ -233,7 +221,7 @@ executable("protoc") {
   if (!config_for_tests) {
     configs -= [ "//build/config:no_rtti" ]
   }
-  configs += [ ":warnings" ]
+  configs += [ ":no_warnings" ]
 
   deps += [ ":protobuf" ]
 }

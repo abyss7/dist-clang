@@ -2,6 +2,10 @@ config("includes") {
   include_dirs = [ "exported/include" ]
 }
 
+config("flags") {
+  cflags_cc = [ "-Wno-unused-const-variable" ]
+}
+
 static_library("gtest") {
   visibility += [ "//src/test/*" ]
 
@@ -38,13 +42,10 @@ static_library("gtest") {
     "exported/include/gtest/gtest_pred_impl.h",
   ]
 
-  cflags_cc = [ "-Wno-unused-const-variable" ]
-
   include_dirs = [ "exported" ]
 
+  configs += [ ":flags" ]
   public_configs = [ ":includes" ]
 
   deps += [ "//src/base:logging" ]
-
-  # public_deps = [ "//src/third_party/libcxxabi:c++abi" ]
 }

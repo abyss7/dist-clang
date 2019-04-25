@@ -1,5 +1,17 @@
 import("//build/template/protobuf.gni")
 
+source_set("sqlite") {
+  visibility = []
+  visibility = [ ":*" ]
+
+  sources = [
+    "sqlite3.c",
+    "sqlite3.h",
+  ]
+
+  cflags = [ "-Wno-incompatible-pointer-types-discards-qualifiers" ]
+}
+
 shared_library("file_cache") {
   visibility = []
   visibility = [
@@ -18,13 +30,9 @@ shared_library("file_cache") {
     "file_cache.cc",
     "file_cache.h",
     "file_cache_migrator.cc",
-    "sqlite3.c",
-    "sqlite3.h",
   ]
 
-  public = [
-    "file_cache.h",
-  ]
+  public = [ "file_cache.h" ]
 
   configs += [ "//build/config:libclang_includes" ]
 
@@ -34,6 +42,7 @@ shared_library("file_cache") {
   }
 
   deps += [
+    ":sqlite",
     "//src/base:base",
     "//src/base:logging",
     "//src/perf:stat_service",
@@ -41,9 +50,7 @@ shared_library("file_cache") {
     "//src/third_party/snappy:snappy",
   ]
 
-  public_deps = [
-    ":manifest_proto",  # for file_cache_migrator_test.cc
-  ]
+  public_deps = [ ":manifest_proto" ] # for file_cache_migrator_test.cc
 }
 
 protobuf("manifest_proto") {

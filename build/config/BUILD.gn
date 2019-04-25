@@ -4,11 +4,15 @@ config("base") {
     "-pipe",
     "-pthread",
     "-Wall",
+    "-Wextra",
+    "-Woverloaded-virtual",
     "-Wsign-compare",
+    "-Wwrite-strings",
     "-Wno-unknown-warning-option",
     "-Wno-error=assume",
     "-Wno-error=unused-command-line-argument",
     "-Werror",
+    "-pedantic",
   ]
 
   cflags_cc = [ "-std=c++17" ]

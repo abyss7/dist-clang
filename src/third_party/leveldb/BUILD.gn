@@ -3,16 +3,20 @@ config("includes") {
 }
 
 config("flags") {
+  cflags = [ "-fno-builtin-memcmp" ]
+
   defines = [
     "LEVELDB_ATOMIC_PRESENT",
     "LEVELDB_PLATFORM_POSIX",
     "SNAPPY",
   ]
+}
 
+config("no_warnings") {
   cflags = [
-    "-fno-builtin-memcmp",
     "-Wno-deprecated-declarations",  # MacOS X 10.12
     "-Wno-sign-compare",
+    "-Wno-unused-parameter",
   ]
 }
 
@@ -129,8 +133,10 @@ static_library("leveldb") {
 
   include_dirs = [ "exported" ]
 
-  configs += [ ":flags" ]
-
+  configs += [
+    ":flags",
+    ":no_warnings",
+  ]
   public_configs = [ ":includes" ]
 
   deps += [
@@ -154,6 +160,7 @@ source_set("leveldb_test_utils") {
   configs += [
     ":flags",
     ":includes",
+    ":no_warnings",
   ]
 
   deps += [
@@ -176,6 +183,7 @@ template("leveldb_test") {
     configs += [
       ":flags",
       ":includes",
+      ":no_warnings",
     ]
 
     deps += [

@@ -112,9 +112,7 @@ shared_library("c++abi") {
 
   deps = []
   if (host_os == "linux") {
-    deps = [
-      "//src/third_party/libunwind:unwind",
-    ]
+    deps = [ "//src/third_party/libunwind:unwind" ]
   } else if (host_os == "mac") {
     configs += ["//build/config/mac:compatibility"]
   }

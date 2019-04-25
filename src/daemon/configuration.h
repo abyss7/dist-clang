@@ -14,7 +14,7 @@ class Configuration {
   ~Configuration();
 
   inline const proto::Configuration& config() const { return config_; }
-  inline const bool daemonize() const { return daemonize_; }
+  inline bool daemonize() const { return daemonize_; }
 
  private:
   proto::Configuration config_;

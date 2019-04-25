@@ -104,6 +104,8 @@ shared_library("base") {
     "worker_pool.h",
   ]
 
+  cflags = [ "-Wno-c99-extensions" ] # FIXME: fix the code
+
   public_deps = [
     ":assert",
     ":base_proto",

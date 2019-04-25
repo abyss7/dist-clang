@@ -15,7 +15,11 @@ config("includes") {
   include_dirs = [ host_os ]
 }
 
-config("warnings") {
+config("flags") {
+  include_dirs = [ "exported/src" ]
+}
+
+config("no_warnings") {
   cflags = [ "-Wno-sign-compare" ]
 }
 
@@ -30,9 +34,9 @@ static_library("gflags") {
     "exported/src/util.h",
   ]
 
-  include_dirs = [ "exported/src" ]
-
-  configs += [ ":warnings" ]
-
+  configs += [
+    ":flags",
+    ":no_warnings",
+  ]
   public_configs = [ ":includes" ]
 }

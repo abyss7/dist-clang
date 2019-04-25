@@ -1,5 +1,9 @@
+# Used configure args:
+#  none
+
 config("flags") {
   cflags = [
+    "-faligned-new",
     "-fno-builtin-calloc",
     "-fno-builtin-cfree",
     "-fno-builtin-free",
@@ -9,12 +13,13 @@ config("flags") {
     "-fno-builtin-posix_memalign",
     "-fno-builtin-pvalloc",
     "-fno-builtin-valloc",
+    "-fsized-deallocation",
   ]
 
-  # TODO: fix this issue with clang-3.7 in upstream.
-  cflags += [ "-Wno-shift-negative-value" ]
+  defines = [
+    "HAVE_CONFIG_H",
+  ]
 
-  defines = [ "HAVE_CONFIG_H" ]
   if (host_os == "linux") {
     defines += [ "NO_FRAME_POINTER" ]
 
@@ -23,6 +28,7 @@ config("flags") {
       defines += [ "NO_HEAP_CHECK" ]
     }
   }
+
   if (host_os == "mac") {
     defines += [
       "NO_HEAP_CHECK",
@@ -34,6 +40,7 @@ config("flags") {
   include_dirs = [ host_os ]
 
   ldflags = [
+    "-faligned-new",
     "-fno-builtin-calloc",
     "-fno-builtin-cfree",
     "-fno-builtin-free",
@@ -43,17 +50,23 @@ config("flags") {
     "-fno-builtin-posix_memalign",
     "-fno-builtin-pvalloc",
     "-fno-builtin-valloc",
+    "-fsized-deallocation",
   ]
 }
 
 config("no_warnings") {
   cflags = [
     "-Wno-deprecated-declarations",
+    "-Wno-gnu-zero-variadic-macro-arguments",
+    "-Wno-missing-field-initializers",
     "-Wno-sign-compare",
     "-Wno-unused-const-variable",
     "-Wno-unused-function",
+    "-Wno-unused-parameter",
     "-Wno-unused-private-field",
     "-Wno-unused-variable",
+    "-Wno-variadic-macros",
+    "-Wno-vla-extension",
   ]
 }
 

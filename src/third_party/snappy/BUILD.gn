@@ -9,6 +9,7 @@ config("no_warnings") {
   cflags = [
     "-Wno-sign-compare",
     "-Wno-unused-function",
+    "-Wno-unused-parameter",
   ]
 }
 
@@ -28,11 +29,8 @@ shared_library("snappy") {
     "exported/snappy.h",
   ]
 
-  public = [
-    "exported/snappy.h",
-  ]
+  public = [ "exported/snappy.h" ]
 
   configs += [ ":no_warnings" ]
-
   public_configs = [ ":includes" ]
 }

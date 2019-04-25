@@ -3,9 +3,12 @@
 #include <base/singleton.h>
 #include <perf/stat.pb.h>
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
 #define STAT(metric_name, ...)                   \
   base::Singleton<perf::StatService>::Get().Add( \
       perf::proto::Metric::metric_name, ##__VA_ARGS__)
+#pragma clang diagnostic pop
 
 namespace dist_clang {
 namespace perf {

@@ -1,9 +1,36 @@
+# TODO: replace with LLVM libunwind
+
 assert(host_os == "linux", "libunwind is supported on Linux only")
 
 config("includes") {
   include_dirs = [
     "exported/include",
     host_os,
+  ]
+}
+
+config("flags") {
+  cflags = [
+    "-g",
+    "-O2",
+    "-fexceptions",
+    "-fPIC",
+    "-Wall",
+    "-Wsign-compare",
+    "-Wno-absolute-value",
+    "-Wno-header-guard",
+  ]
+
+  defines = [
+    "_GNU_SOURCE",
+    "HAVE_CONFIG_H",
+  ]
+
+  include_dirs = [
+    "exported/src",
+    "exported/include",
+    host_os,
+    "exported/include/tdep-x86_64",
   ]
 }
 
@@ -112,39 +139,14 @@ source_set("unwind") {
     "exported/src/x86_64/setcontext.S",
   ]
 
-  public = [
-    "linux/libunwind.h",
-  ]
+  public = [ "linux/libunwind.h" ]
 
-  cflags = [
-    "-g",
-    "-O2",
-    "-fexceptions",
-    "-fPIC",
-    "-Wall",
-    "-Wsign-compare",
-    "-Wno-absolute-value",
-    "-Wno-header-guard",
-  ]
-
-  defines = [
-    "_GNU_SOURCE",
-    "HAVE_CONFIG_H",
-  ]
-
-  include_dirs = [
-    "exported/src",
-    "exported/include",
-    host_os,
-    "exported/include/tdep-x86_64",
-  ]
-
-  libs = [
-    "c",
-  ]
+  libs = [ "c" ]
 
   # TODO: use Debug/Release configs.
   configs = []
+  configs = [ ":flags" ]
+
   deps = []
 
   public_configs = [ ":includes" ]
