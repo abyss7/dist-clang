@@ -79,7 +79,7 @@ inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
         pp_flags, Path(message->current_dir()));
   }
 
-  if (!process->Run(10)) {
+  if (!process->Run(base::Process::UNLIMITED)) {
     return false;
   }
 
