@@ -2,6 +2,8 @@
 
 #include <base/logging.h>
 
+#include <poll.h>
+
 #include <base/using_log.h>
 
 namespace dist_clang {
@@ -17,6 +19,21 @@ template <>
 bool Connection::SendSync(ScopedMessage message, Status* status) {
   message_ = std::move(message);
   return SendSyncImpl(status);
+}
+
+bool Connection::IsPeerGone() const {
+  if (IsClosed()) {
+    return true;
+  }
+
+  const int fd = NativeHandle();
+  if (fd == -1) {
+    return false;
+  }
+
+  struct pollfd poll_fd = {fd, POLLRDHUP, 0};
+  return poll(&poll_fd, 1, 0) == 1 &&
+         (poll_fd.revents & (POLLRDHUP | POLLHUP | POLLERR));
 }
 
 // static

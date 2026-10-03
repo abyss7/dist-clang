@@ -4,6 +4,7 @@
 #include <base/file_utils.h>
 #include <base/logging.h>
 #include <base/process.h>
+#include <base/temporary_dir.h>
 #include <daemon/driver_args.h>
 #include <daemon/outputs.h>
 #include <net/connection.h>
@@ -139,8 +140,14 @@ inline bool IsRemotable(const base::proto::Flags& flags) {
   return !flags.has_dwo_file() && !flags.key_files_size();
 }
 
+// Preprocesses the source. The dependency file is generated along with
+// preprocessing - for the case of the remote compilation - but never into the
+// build directory: a preprocessing, which isn't needed anymore, mustn't
+// overwrite the real one.
 inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
-                           cache::string::HandledSource* source) {
+                           const net::ConnectionPtr& connection,
+                           cache::string::HandledSource* source,
+                           Immutable* deps) {
   Counter<> preprocess_time_counter(Metric::PREPROCESS_TIME);
   base::proto::Flags pp_flags;
 
@@ -151,14 +158,30 @@ inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
   pp_flags.set_output("-");
   pp_flags.set_action("-E");
 
-  // The dependency file is generated along with preprocessing - for the case
-  // of the remote compilation. The default target depends on the output, so
-  // set it explicitly.
-  if (pp_flags.has_deps_target() && !HasExplicitDepsTarget(pp_flags)) {
-    auto* target = pp_flags.add_non_direct();
-    target->set_index(0);
-    target->add_values("-MT");
-    target->add_values(pp_flags.deps_target());
+  std::optional<base::TemporaryDir> deps_dir;
+  if (pp_flags.has_deps_file()) {
+    deps_dir.emplace();
+    // Replace the path of the dependency file.
+    auto* args = pp_flags.mutable_non_direct();
+    for (int i = 0; i < args->size();) {
+      if (args->Get(i).values_size() && args->Get(i).values(0).starts_with("-MF")) {
+        args->DeleteSubrange(i, 1);
+      } else {
+        ++i;
+      }
+    }
+    auto* deps_file = pp_flags.add_non_direct();
+    deps_file->set_index(0);
+    deps_file->add_values("-MF");
+    deps_file->add_values((deps_dir->path() / "deps.d").string());
+
+    // The default target depends on the output, so set it explicitly.
+    if (pp_flags.has_deps_target() && !HasExplicitDepsTarget(pp_flags)) {
+      auto* target = pp_flags.add_non_direct();
+      target->set_index(0);
+      target->add_values("-MT");
+      target->add_values(pp_flags.deps_target());
+    }
   }
 
   // Clang plugins can't affect source code.
@@ -175,6 +198,7 @@ inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
     process = daemon::CompilationDaemon::CreateProcess(
         pp_flags, Path(message->current_dir()));
   }
+  process->CancelOnDisconnect(connection->NativeHandle());
 
   if (!process->Run(base::Process::UNLIMITED)) {
     return false;
@@ -182,6 +206,9 @@ inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
 
   if (source) {
     source->str.assign(process->stdout());
+  }
+  if (deps && deps_dir) {
+    base::File::Read(deps_dir->path() / "deps.d", deps);
   }
 
   return true;
@@ -308,7 +335,8 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
     }
 
     auto task = std::make_tuple(connection, std::move(execute), HandledSource(),
-                                cache::ExtraFiles{}, HandledHash(), false);
+                                cache::ExtraFiles{}, HandledHash(), false,
+                                Immutable());
     if (conf->has_cache() && !conf->cache().disabled()) {
       return cache_tasks_->Push(std::move(task));
     } else if (!IsRemotable(std::get<MESSAGE>(task)->flags())) {
@@ -426,7 +454,8 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       break;
     }
 
-    if (std::get<CONNECTION>(*task)->IsClosed()) {
+    if (std::get<CONNECTION>(*task)->IsPeerGone()) {
+      STAT(TASK_CANCELED);
       continue;
     }
 
@@ -438,6 +467,12 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       String error;
       const String output_path = GetOutputPath(incoming);
       const auto& flags = incoming->flags();
+
+      // Nobody waits for the outputs - don't write them.
+      if (std::get<CONNECTION>(*task)->IsPeerGone()) {
+        STAT(TASK_CANCELED);
+        return true;
+      }
 
       // The dependency file isn't a part of the key - the entry may be
       // created by a compilation without it.
@@ -456,16 +491,28 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
         if (!SetupCompiler(incoming->mutable_flags(), &setup_status)) {
           return false;
         }
-        // Keep the flags of the diagnostics format and of the dependency file:
-        // the latter is restored from the cache anyway.
+        // Keep the flags of the diagnostics format, but not of the dependency
+        // file: nothing is written into the build directory, until the
+        // outputs are restored.
         auto check_flags = flags;
         check_flags.set_action("-fsyntax-only");
         check_flags.clear_output();
         check_flags.clear_ignored();
+        auto* args = check_flags.mutable_non_direct();
+        for (int i = 0; i < args->size();) {
+          if (args->Get(i).values_size() &&
+              args->Get(i).values(0).starts_with("-M")) {
+            args->DeleteSubrange(i, 1);
+          } else {
+            ++i;
+          }
+        }
         const ui32 uid = incoming->has_user_id() ? incoming->user_id()
                                                  : base::Process::SAME_UID;
         auto process =
             CreateProcess(check_flags, uid, Path(incoming->current_dir()));
+        process->CancelOnDisconnect(
+            std::get<CONNECTION>(*task)->NativeHandle());
         STAT(WARNINGS_RECHECKED);
         if (!process->Run(base::Process::UNLIMITED, &error)) {
           // The same errors, as the compilation would report - e.g. with
@@ -565,7 +612,12 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     }
 
     auto& source = std::get<SOURCE>(*task);
-    if (!GenerateSource(incoming, &source)) {
+    if (!GenerateSource(incoming, std::get<CONNECTION>(*task), &source,
+                        &std::get<PREPROCESSED_DEPS>(*task))) {
+      if (std::get<CONNECTION>(*task)->IsPeerGone()) {
+        STAT(TASK_CANCELED);
+        continue;
+      }
       failed_tasks_->Push(std::move(*task));
       continue;
     }
@@ -610,7 +662,8 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
       break;
     }
 
-    if (std::get<CONNECTION>(*task)->IsClosed()) {
+    if (std::get<CONNECTION>(*task)->IsPeerGone()) {
+      STAT(TASK_CANCELED);
       continue;
     }
 
@@ -654,7 +707,16 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
     Counter<> counter(Metric::LOCAL_COMPILATION_TIME);
     base::ProcessPtr process =
         CreateProcess(incoming->flags(), uid, Path(incoming->current_dir()));
+    // If the client is gone, the compiler is killed before it writes the
+    // outputs - they may be produced by another compilation already.
+    process->CancelOnDisconnect(std::get<CONNECTION>(*task)->NativeHandle());
     if (!process->Run(base::Process::UNLIMITED, &error)) {
+      if (process->canceled()) {
+        LOG(INFO) << "Compilation is canceled: " << incoming->flags().input();
+        STAT(TASK_CANCELED);
+        counter.ReportOnDestroy(false);
+        continue;
+      }
       status.set_code(net::proto::Status::EXECUTION);
       if (!process->stderr().empty()) {
         status.set_description(process->stderr());
@@ -748,7 +810,8 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
       break;
     }
 
-    if (std::get<CONNECTION>(*task)->IsClosed()) {
+    if (std::get<CONNECTION>(*task)->IsPeerGone()) {
+      STAT(TASK_CANCELED);
       continue;
     }
 
@@ -766,7 +829,13 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
     // If we're using shards we should have generated source by now.
     DCHECK(!conf->emitter().has_total_shards() || !source.str.empty());
 
-    if (source.str.empty() && !GenerateSource(incoming, &source)) {
+    if (source.str.empty() &&
+        !GenerateSource(incoming, std::get<CONNECTION>(*task), &source,
+                        &std::get<PREPROCESSED_DEPS>(*task))) {
+      if (std::get<CONNECTION>(*task)->IsPeerGone()) {
+        STAT(TASK_CANCELED);
+        continue;
+      }
       failed_tasks_->Push(std::move(*task));
       continue;
     }
@@ -875,6 +944,25 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
       if (result->has_hash_match() && !result->hash_match()) {
         STAT(HASH_MISMATCH);
       }
+      // The client is gone - don't write anything into the build directory:
+      // another compilation of the same output may be running already.
+      if (std::get<CONNECTION>(*task)->IsPeerGone()) {
+        STAT(TASK_CANCELED);
+        continue;
+      }
+
+      // The dependency file - from the remote end, or from preprocessing.
+      const Immutable deps =
+          result->has_deps() ? Immutable(String(result->deps()))
+                             : std::get<PREPROCESSED_DEPS>(*task);
+      if (incoming->flags().has_deps_file() &&
+          !base::File::Write(GetDepsPath(incoming), deps, &error)) {
+        LOG(WARNING) << "Failed to write dependency file "
+                     << GetDepsPath(incoming) << ": " << error;
+        failed_tasks_->Push(std::move(*task));
+        continue;
+      }
+
       if (base::File::Write(output_path,
                             Immutable::WrapString(result->obj()))) {
         if (incoming->has_user_id() &&
@@ -893,13 +981,9 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
           String error;
 
           entry.object = result->release_obj();
-          Immutable deps;
-          if (result->has_deps()) {
-            deps = result->release_deps();
-          } else if (incoming->flags().has_deps_file() &&
-                     !base::File::Read(GetDepsPath(incoming), &deps, &error)) {
-            LOG(CACHE_WARNING) << "Can't read deps file "
-                               << GetDepsPath(incoming) << " : " << error;
+          if (incoming->flags().has_deps_file() && deps.empty()) {
+            LOG(CACHE_WARNING) << "No dependency file for "
+                               << incoming->flags().input();
             return false;
           }
           entry.deps = NormalizeDeps(deps, incoming->flags().deps_target());

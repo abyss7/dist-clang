@@ -5,6 +5,11 @@
 
 #include <test/throw_std.h>
 
+#include <sys/socket.h>
+#include <unistd.h>
+
+#include STL(thread)
+
 namespace dist_clang {
 
 namespace {
@@ -104,6 +109,47 @@ TEST_F(ProcessTest, TooManyArgs) {
     process->AppendArg("yes"_l);
   }
   ASSERT_THROW_STD(process->Run(1), "Assertion failed: .* < MAX_ARGS");
+}
+
+TEST_F(ProcessTest, CancelOnDisconnect) {
+  int sockets[2];
+  ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, sockets));
+
+  // The child of the shell is killed too.
+  ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+  process->AppendArg("-c"_l).AppendArg("sleep 30; echo done"_l);
+  process->CancelOnDisconnect(sockets[0]);
+
+  std::thread disconnect([&] {
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    close(sockets[1]);
+  });
+
+  const auto start = std::chrono::steady_clock::now();
+  String error;
+  EXPECT_FALSE(process->Run(Process::UNLIMITED, &error));
+  disconnect.join();
+
+  EXPECT_TRUE(process->canceled());
+  EXPECT_LT(std::chrono::steady_clock::now() - start, std::chrono::seconds(10));
+  EXPECT_TRUE(process->stdout().empty());
+  close(sockets[0]);
+}
+
+TEST_F(ProcessTest, NotCanceledWhileConnected) {
+  int sockets[2];
+  ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, sockets));
+
+  ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+  process->AppendArg("-c"_l).AppendArg("echo done"_l);
+  process->CancelOnDisconnect(sockets[0]);
+
+  EXPECT_TRUE(process->Run(Process::UNLIMITED));
+  EXPECT_FALSE(process->canceled());
+  EXPECT_EQ("done\n"_l, process->stdout());
+
+  close(sockets[0]);
+  close(sockets[1]);
 }
 
 TEST_F(ProcessTest, RunWithEnvironment) {

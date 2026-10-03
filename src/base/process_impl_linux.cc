@@ -13,6 +13,16 @@
 namespace dist_clang {
 namespace base {
 
+namespace {
+
+// The duplicate of the socket to watch for the disconnection.
+class WatchedSocket : public Handle {
+ public:
+  explicit WatchedSocket(int fd) : Handle(fd >= 0 ? dup(fd) : -1) {}
+};
+
+}  // namespace
+
 bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
   CHECK(args_.size() + 1 < MAX_ARGS);
 
@@ -50,9 +60,16 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
       return false;
     }
 
+    WatchedSocket cancel_socket(cancel_fd_);
+    if (cancel_socket.IsValid() &&
+        !epoll.Add(cancel_socket, EPOLLRDHUP, error)) {
+      ::kill(child_pid, SIGTERM);
+      return false;
+    }
+
     size_t stdout_size = 0, stderr_size = 0;
     Immutable::Rope stdout, stderr;
-    std::array<struct epoll_event, 2> events;
+    std::array<struct epoll_event, 3> events;
 
     int epoll_timeout = sec_timeout == UNLIMITED ? -1 : sec_timeout * 1000;
     int exhausted_fds = 0;
@@ -78,6 +95,17 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
       }
 
       for (int i = 0; i < event_count; ++i) {
+        if (events[i].data.ptr == &cancel_socket) {
+          // The peer is gone - kill the whole process group at once.
+          ::kill(-child_pid, SIGKILL);
+          ::kill(child_pid, SIGKILL);
+          canceled_ = killed_ = true;
+          if (error) {
+            error->assign("Canceled: the peer has disconnected");
+          }
+          break;
+        }
+
         auto* fd = reinterpret_cast<Data*>(events[i].data.ptr);
 
         if (events[i].events & EPOLLIN) {

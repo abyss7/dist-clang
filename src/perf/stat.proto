@@ -66,6 +66,9 @@ message Metric {
 
     CACHE_ENTRIES               = 28;
 
+    TASK_CANCELED               = 33;
+    // Tasks abandoned, since the client has disconnected.
+
     WARNINGS_RECHECKED          = 32;
     // Cache hits with other warnings, checked with "-fsyntax-only".
 

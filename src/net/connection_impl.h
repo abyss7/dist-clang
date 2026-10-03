@@ -25,6 +25,9 @@ class ConnectionImpl : public Connection {
   ~ConnectionImpl();
 
   inline bool IsClosed() const override { return is_closed_; }
+  inline int NativeHandle() const override {
+    return is_closed_ ? -1 : fd_.native();
+  }
 
   bool ReadAsync(ReadCallback callback) override;
   bool ReadSync(Message* message, Status* status = nullptr) override;

@@ -37,11 +37,16 @@ class Emitter : public CompilationDaemon {
     // shard to a random one. This may happen in case of remote being down.
     // Also task shouldn't hop more than once to prevent instant hopping
     // between shards.
+
+    PREPROCESSED_DEPS = 6,
+    // The dependency file, generated along with preprocessing - for the
+    // remote compilation.
   };
 
   using Message = UniquePtr<base::proto::Local>;
   using Task = Tuple<net::ConnectionPtr, Message, cache::string::HandledSource,
-                     cache::ExtraFiles, cache::string::HandledHash, bool>;
+                     cache::ExtraFiles, cache::string::HandledHash, bool,
+                     Immutable>;
   using Queue = base::LockedQueue<Task, true>;
   using QueueAggregator = base::QueueAggregator<Task>;
   using Optional = Queue::Optional;

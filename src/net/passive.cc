@@ -26,7 +26,11 @@ Passive::Passive(Socket&& fd, ui32 backlog)
 }
 
 Socket Passive::Accept() {
+#if defined(OS_LINUX)
+  auto fd = accept4(native(), nullptr, nullptr, SOCK_CLOEXEC);
+#else
   auto fd = accept(native(), nullptr, nullptr);
+#endif  // defined(OS_LINUX)
 
   if (fd == -1) {
 #if defined(OS_LINUX)

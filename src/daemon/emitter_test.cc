@@ -11,6 +11,34 @@
 namespace dist_clang {
 namespace daemon {
 
+// Preprocessing writes the dependency file into a temporary directory.
+Immutable::Rope WithoutDepsFile(const base::Process* process) {
+  Immutable::Rope args;
+  bool skip_next = false;
+  for (const auto& arg : process->args()) {
+    if (skip_next) {
+      skip_next = false;
+    } else if (arg == "-MF"_l) {
+      skip_next = true;
+    } else {
+      args.push_back(arg);
+    }
+  }
+  return args;
+}
+
+void WriteDepsFile(const base::Process* process, Immutable content) {
+  bool next = false;
+  for (const auto& arg : process->args()) {
+    if (next) {
+      EXPECT_TRUE(base::File::Write(arg.string_copy(), content));
+      return;
+    }
+    next = arg == "-MF"_l;
+  }
+}
+
+
 TEST(EmitterConfigurationTest, NoEmitterSection) {
   ASSERT_ANY_THROW((Emitter((proto::Configuration()))));
 }
@@ -351,7 +379,7 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
   };
 
   run_callback = [&](base::TestProcess* process) {
-    EXPECT_EQ((Immutable::Rope{"-E"_l, "-o"_l, "-"_l}), process->args_);
+    EXPECT_EQ((Immutable::Rope{"-E"_l, "-o"_l, "-"_l}), WithoutDepsFile(process));
     if (run_count == 1) {
       process->stdout_ = handled_source1;
     } else if (run_count == 2) {
@@ -579,10 +607,10 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1 || run_count == 2) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-o"_l, "-"_l}), process->args_);
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-o"_l, "-"_l}), WithoutDepsFile(process));
       process->stdout_ = handled_source;
     } else if (run_count == 3) {
-      EXPECT_EQ((Immutable::Rope{"fake_action"_l, "-o"_l, "test.o"_l}), process->args_);
+      EXPECT_EQ((Immutable::Rope{"fake_action"_l, "-o"_l, "test.o"_l}), WithoutDepsFile(process));
       // Block until emitter sends result for second task.
       UniqueLock lock(send_mutex);
       EXPECT_TRUE(send_condition.wait_for(lock, Seconds(2), [this] { return send_count >= 5; }));
@@ -736,7 +764,7 @@ TEST_F(EmitterTest, TasksGetReshardedOnFailedRemote) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-o"_l, "-"_l}), process->args_);
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-o"_l, "-"_l}), WithoutDepsFile(process));
       process->stdout_ = handled_source;
     } else if (run_count == 2) {
       process->stdout_ = object_code;
@@ -1753,14 +1781,14 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path1}), process->args_);
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path1}), WithoutDepsFile(process));
       process->stdout_ = source;
     } else if (run_count == 2) {
       EXPECT_EQ((Immutable::Rope{action, "-Xclang"_l, "-load"_l, "-Xclang"_l, plugin_path, "-x"_l, language, "-o"_l, output_path1, input_path1}),
-                process->args_);
+                WithoutDepsFile(process));
       EXPECT_TRUE(base::File::Write(process->cwd_path_ / output_path1, object_code));
     } else if (run_count == 3) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path2}), process->args_);
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path2}), WithoutDepsFile(process));
       process->stdout_ = source;
     }
   };
@@ -1923,10 +1951,10 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path1}), process->args_);
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path1}), WithoutDepsFile(process));
       process->stdout_ = source;
     } else if (run_count == 2) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path2}), process->args_);
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path2}), WithoutDepsFile(process));
       process->stdout_ = source;
     }
   };
@@ -2088,7 +2116,7 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteFail) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path1}), process->args_);
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path1}), WithoutDepsFile(process));
       process->stdout_ = source;
     } else if (run_count == 2) {
       // Used to check local compilation timing statistics.
@@ -2222,11 +2250,11 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteRejects) {
     if (run_count == 1) {
       // Used to check preprocess timing statistics.
       std::this_thread::sleep_for(preprocess_time);
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path1}), process->args_);
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path1}), WithoutDepsFile(process));
       process->stdout_ = source;
     } else if (run_count == 2) {
       EXPECT_EQ((Immutable::Rope{action, "-Xclang"_l, "-load"_l, "-Xclang"_l, plugin_path, "-x"_l, language, "-o"_l, output_path1, input_path1}),
-                process->args_);
+                WithoutDepsFile(process));
       EXPECT_TRUE(base::File::Write(process->cwd_path_ / output_path1, object_code));
     }
   };
@@ -2326,13 +2354,13 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path}), process->args_);
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path}), WithoutDepsFile(process));
       process->stdout_ = source;
     } else if (run_count == 2) {
       EXPECT_EQ((Immutable::Rope{action, "-Xclang"_l, "-load"_l, "-Xclang"_l, plugin_path, "-x"_l, language, "-o"_l, output_path1, input_path}),
-                process->args_);
+                WithoutDepsFile(process));
     } else if (run_count == 3) {
-      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path}), process->args_);
+      EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path}), WithoutDepsFile(process));
       process->stdout_ = source;
     } else if (run_count == 4) {
       EXPECT_EQ((Immutable::Rope{action, "-Xclang"_l, "-load"_l, "-Xclang"_l, plugin_path, "-x"_l, language,
@@ -2690,9 +2718,10 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
     if (run_count == 1) {
       EXPECT_EQ(
           (Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input1_path}),
-          process->args_);
+          WithoutDepsFile(process));
       process->stdout_ = preprocessed_source;
       EXPECT_TRUE(base::File::Write(process->cwd_path_ / deps1_path, deps_contents));
+      WriteDepsFile(process, deps_contents);
     } else if (run_count == 2) {
       EXPECT_EQ((Immutable::Rope{action, "-Xclang"_l, "-load"_l, "-Xclang"_l, plugin_path, "-x"_l, language,
                                  "-o"_l, output1_path, input1_path}),
@@ -2847,9 +2876,10 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResultWithAndWithoutIncludedHeaders)
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
       EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path}),
-                process->args_);
+                WithoutDepsFile(process));
       process->stdout_ = preprocessed_source;
       EXPECT_TRUE(base::File::Write(process->cwd_path_ / deps_path, deps_contents));
+      WriteDepsFile(process, deps_contents);
     } else if (run_count == 2) {
       EXPECT_EQ((Immutable::Rope{action, "-Xclang"_l, "-load"_l, "-Xclang"_l, plugin_path, "-x"_l, language,
                                  "-o"_l, output_path, input_path}),
@@ -2858,10 +2888,11 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResultWithAndWithoutIncludedHeaders)
       EXPECT_TRUE(base::File::Write(process->cwd_path_ / output_path, object_code));
     } else if (run_count == 3) {
       EXPECT_EQ((Immutable::Rope{"-include-pth"_l, preprocessed_header_path, "-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path}),
-                process->args_)
+                WithoutDepsFile(process))
           << process->PrintArgs();
       process->stdout_ = preprocessed_source;
       EXPECT_TRUE(base::File::Write(process->cwd_path_ / deps_path, preprocessed_deps_contents));
+      WriteDepsFile(process, preprocessed_deps_contents);
     }
   };
 
@@ -3062,9 +3093,10 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
 
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input1_path}),
-              process->args_);
+              WithoutDepsFile(process));
     process->stdout_ = preprocessed_source;
     EXPECT_TRUE(base::File::Write(process->cwd_path_ / deps1_path, "test1.o: test1.cc header1.h header2.h"_l));
+    WriteDepsFile(process, "test1.o: test1.cc header1.h header2.h"_l);
   };
 
   emitter = std::make_unique<Emitter>(conf);
@@ -3319,10 +3351,11 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
       EXPECT_EQ((Immutable::Rope{"-include-pth"_l, preprocessed_header_path, "-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path}),
-                process->args_)
+                WithoutDepsFile(process))
           << process->PrintArgs();
       process->stdout_ = preprocessed_source;
       EXPECT_TRUE(base::File::Write(process->cwd_path_ / deps_path, deps_contents));
+      WriteDepsFile(process, deps_contents);
     } else if (run_count == 2) {
       EXPECT_EQ((Immutable::Rope{"-include-pth"_l, preprocessed_header_path, action, "-Xclang"_l, "-load"_l, "-Xclang"_l, plugin_path,
                                  "-x"_l, language,
@@ -3518,9 +3551,10 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
       EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path}),
-                process->args_);
+                WithoutDepsFile(process));
       process->stdout_ = preprocessed_source;
       EXPECT_TRUE(base::File::Write(process->cwd_path_ / deps_path, deps_contents));
+      WriteDepsFile(process, deps_contents);
     } else if (run_count == 2) {
       EXPECT_EQ((Immutable::Rope{action, "-Xclang"_l, "-load"_l, "-Xclang"_l, plugin_path, "-x"_l, language,
                                  "-o"_l, output_path, input_path}),
@@ -3530,9 +3564,10 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
     } else if (run_count == 3) {
       EXPECT_EQ(
           (Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path2}),
-          process->args_);
+          WithoutDepsFile(process));
       process->stdout_ = preprocessed_source2;
       EXPECT_TRUE(base::File::Write(process->cwd_path_ / deps_path2, deps_contents2));
+      WriteDepsFile(process, deps_contents2);
     } else if (run_count == 4) {
       EXPECT_EQ((Immutable::Rope{action, "-Xclang"_l, "-load"_l, "-Xclang"_l, plugin_path, "-x"_l, language,
                                  "-o"_l, output_path2, input_path2}),

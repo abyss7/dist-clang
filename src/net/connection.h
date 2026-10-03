@@ -18,6 +18,13 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   virtual bool IsClosed() const = 0;
 
+  // The native socket - to watch for the disconnection of the peer; -1 if
+  // there is no socket.
+  virtual int NativeHandle() const { return -1; }
+
+  // Checks, if the peer has disconnected, without reading anything.
+  bool IsPeerGone() const;
+
   virtual bool ReadAsync(ReadCallback callback) = 0;
   virtual bool ReadSync(Message* message, Status* status = nullptr) = 0;
 

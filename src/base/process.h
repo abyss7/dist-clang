@@ -75,6 +75,13 @@ class Process
   Process& AppendArg(Immutable arg);
   Process& AddEnv(const char* name, const char* value);
 
+  // Kills the process, if the peer of the socket |fd| disconnects - e.g. the
+  // client, that waits for the process, is gone. Then |Run()| fails, and
+  // |canceled()| is |true|. The socket isn't read.
+  inline void CancelOnDisconnect(int fd) { cancel_fd_ = fd; }
+  inline const List<Immutable>& args() const { return args_; }
+  inline bool canceled() const { return canceled_; }
+
 #if defined(OS_WIN)
 // FIXME: cursed Windows STL defines these as macros.
 #undef stdout
@@ -94,6 +101,8 @@ class Process
   List<Immutable> args_, envs_;
   Immutable stdout_, stderr_;
   const ui32 uid_;
+  int cancel_fd_ = -1;
+  bool canceled_ = false;
 
  private:
   FRIEND_TEST(client::ClientTest, NoInputFile);

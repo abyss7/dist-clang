@@ -8,6 +8,10 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#if defined(OS_LINUX)
+#include <sys/prctl.h>
+#endif  // defined(OS_LINUX)
+
 namespace dist_clang {
 namespace base {
 
@@ -46,6 +50,20 @@ bool ProcessImpl::RunChild(Pipe& out, Pipe& err, Pipe* in) {
     std::cerr << "Can't set user ID to " + std::to_string(uid_) << std::endl;
     exit(1);
   }
+
+  // The own process group - to kill the whole tree of the compiler.
+  setpgid(0, 0);
+
+#if defined(OS_LINUX)
+  // Don't let the compiler outlive the daemon: otherwise it may write the
+  // outputs after the client has given up, and has started another
+  // compilation of the same file.
+  const pid_t parent = getppid();
+  prctl(PR_SET_PDEATHSIG, SIGKILL);
+  if (getppid() != parent) {
+    _exit(1);
+  }
+#endif  // defined(OS_LINUX)
 
   const char* argv[MAX_ARGS];
   argv[0] = exec_path_.c_str();
