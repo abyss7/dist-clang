@@ -2552,6 +2552,104 @@ TEST_F(EmitterTest, SkipPreprocessingOfEditedSource) {
   emitter.reset();
 }
 
+TEST_F(EmitterTest, DontHitDirectCacheForSameContentsOfAnotherSource) {
+  const base::TemporaryDir temp_dir;
+  const auto input_path = temp_dir.path() / "test.cc";
+  const auto input_path2 = temp_dir.path() / "test2.cc";
+  const auto output_path = temp_dir.path() / "test.o";
+  const auto deps_path = temp_dir.path() / "test.d";
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const auto action = "fake_action"_l;
+
+  // The same contents - but "__FILE__" and the debug info differ.
+  ASSERT_TRUE(base::File::Write(input_path, "int main() { return 1; }"_l));
+  ASSERT_TRUE(base::File::Write(input_path2, "int main() { return 1; }"_l));
+
+  conf.mutable_cache()->set_path(temp_dir.path() / "cache");
+  conf.mutable_cache()->set_direct(true);
+  conf.mutable_cache()->set_clean_period(1);
+
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_EQ(expected_code, status.code()) << status.description();
+
+      send_condition.notify_all();
+    });
+    return true;
+  };
+
+  List<String> runs;
+  ui32 preprocessed_count = 0;
+  String current_input;
+  run_callback = [&](base::TestProcess* process) {
+    const bool preprocessing =
+        std::find(process->args_.begin(), process->args_.end(), "-E"_l) !=
+        process->args_.end();
+    runs.push_back(preprocessing ? "-E" : process->args_.front().string_copy());
+    const auto deps = Immutable("test.o: "_l) + Immutable(current_input);
+    if (preprocessing) {
+      process->stdout_ = Immutable(String("preprocessed ") +
+                                   std::to_string(++preprocessed_count));
+      EXPECT_TRUE(base::File::Write(deps_path, deps));
+    } else {
+      EXPECT_TRUE(base::File::Write(output_path, "object"_l));
+      EXPECT_TRUE(base::File::Write(deps_path, deps));
+    }
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto Compile = [&](const String& input, ui32 expected_send_count) {
+    current_input = input;
+    auto connection = test_service->TriggerListen(socket_path);
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(temp_dir);
+    auto* flags = extension->mutable_flags();
+    flags->set_input(input);
+    flags->set_output(output_path);
+    flags->set_deps_file(deps_path);
+    flags->set_deps_target("test.o");
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action(action);
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(1), [&] {
+      return send_count == expected_send_count;
+    }));
+  };
+
+  Compile(input_path, 1);
+  EXPECT_EQ((List<String>{"-E", "fake_action"}), runs);
+
+  // The same source is found.
+  runs.clear();
+  Compile(input_path, 2);
+  EXPECT_TRUE(runs.empty());
+
+  // Another source with the same contents is compiled.
+  runs.clear();
+  Compile(input_path2, 3);
+  EXPECT_EQ((List<String>{"-E", "fake_action"}), runs);
+
+  emitter.reset();
+}
+
 TEST_F(EmitterTest, RecheckWarnings) {
   const base::TemporaryDir temp_dir;
   const auto input_path = temp_dir.path() / "test.cc";
@@ -2760,13 +2858,13 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
   // Prepare environment.
   const base::TemporaryDir temp_dir;
   const auto input1_path = temp_dir.path() / "test1.cc";
-  const auto input2_path = temp_dir.path() / "test2.cc";
+  // The same source is compiled again - into another place.
+  const auto input2_path = input1_path;
   const auto header1_path = temp_dir.path() / "header1.h";
   const auto header2_path = temp_dir.path() / "header2.h";
   const auto source_code = "int main() {}"_l;
 
   ASSERT_TRUE(base::File::Write(input1_path, source_code));
-  ASSERT_TRUE(base::File::Write(input2_path, source_code));
   ASSERT_TRUE(base::File::Write(header1_path, "#define A"_l));
   ASSERT_TRUE(base::File::Write(header2_path, "#define B"_l));
 
@@ -3103,13 +3201,13 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
   // Prepare environment.
   const base::TemporaryDir temp_dir;
   const auto input1_path = temp_dir.path() / "test1.cc";
-  const auto input2_path = temp_dir.path() / "test2.cc";
+  // The same source is compiled again - into another place.
+  const auto input2_path = input1_path;
   const auto header1_path = temp_dir.path() / "header1.h";
   const auto header2_path = temp_dir.path() / "header2.h";
   const auto source_code = "int main() {}"_l;
 
   ASSERT_TRUE(base::File::Write(input1_path, source_code));
-  ASSERT_TRUE(base::File::Write(input2_path, source_code));
   ASSERT_TRUE(base::File::Write(header1_path, "#define A"_l));
   ASSERT_TRUE(base::File::Write(header2_path, "#define B"_l));
 

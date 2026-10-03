@@ -142,6 +142,10 @@ inline CommandLine CommandLineForDirectCache(const String& current_dir,
   //        paths.
   String input_path = flags.input().substr(0, flags.input().find_last_of('/'));
   command_line += " -I" + GetRelativePath(current_dir, input_path);
+
+  // The name of the source gets into the result - through "__FILE__" and the
+  // debug info: the sources with the same contents aren't interchangeable.
+  command_line += " " + GetRelativePath(current_dir, flags.input());
   command_line += KeyExtra(flags);
 
   return CommandLine(
