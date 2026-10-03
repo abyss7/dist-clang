@@ -1,3 +1,6 @@
+// The macro is undefined by the headers of the index.
+static const char kDaemonVersion[] = VERSION;
+
 #include <cache/file_cache.h>
 
 #include <base/constants.h>
@@ -14,10 +17,12 @@
 #include STL(map)
 #include STL(regex)
 #include STL(set)
+#include STL(thread)
 
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/types.h>
+#include <unistd.h>
 #include <utime.h>
 
 #include <base/using_log.h>
@@ -139,11 +144,130 @@ FileCache::~FileCache() {
   new_entries_.reset();
 }
 
+namespace {
+
+const char kFormatFile[] = "format";
+const char kRemovedSuffix[] = ".removed-";
+
+// The path without the trailing separator - to put another one beside it.
+Path WithoutTrailingSeparator(const Path& path) {
+  Path result = path.lexically_normal();
+  return result.has_filename() ? result : result.parent_path();
+}
+
+// Removes the caches of the older generations, that are moved aside, in
+// background: they may be large.
+void RemoveOldCaches(const Path& cache_path) {
+  const Path path = WithoutTrailingSeparator(cache_path);
+  std::error_code ec;
+  List<Path> old_caches;
+  const String prefix = path.filename().string() + kRemovedSuffix;
+  for (const auto& entry :
+       std::filesystem::directory_iterator(path.parent_path(), ec)) {
+    if (entry.path().filename().string().starts_with(prefix)) {
+      old_caches.push_back(entry.path());
+    }
+  }
+  if (old_caches.empty()) {
+    return;
+  }
+  std::thread([old_caches] {
+    for (const auto& old_cache : old_caches) {
+      std::error_code ec;
+      std::filesystem::remove_all(old_cache, ec);
+      LOG(CACHE_INFO) << "Removed the old cache " << old_cache;
+    }
+  }).detach();
+}
+
+}  // namespace
+
+bool FileCache::CheckFormat() {
+  const Path format_path = path_ / kFormatFile;
+  proto::Format format;
+  std::error_code ec;
+  const bool empty = std::filesystem::is_empty(path_, ec);
+
+  if (base::File::Exists(format_path)) {
+    if (!base::LoadFromFile(format_path, &format)) {
+      // Can't tell anything - start anew.
+      format.set_generation(0);
+    }
+  } else if (!empty) {
+    // The cache before the generations.
+    format.set_generation(1);
+    format.set_revision(0);
+  } else {
+    format.set_generation(kGeneration);
+    format.set_revision(0);
+  }
+
+  if (format.generation() > kGeneration) {
+    LOG(CACHE_ERROR) << "The cache " << path_ << " has the generation "
+                     << format.generation() << " - written by "
+                     << format.written_by()
+                     << ", this daemon supports only the generation "
+                     << kGeneration << ": the cache isn't used";
+    base::Singleton<perf::StatService>::Get().Set(
+        perf::proto::Metric::CACHE_INCOMPATIBLE, 1);
+    return false;
+  }
+
+  if (format.generation() < kGeneration) {
+    LOG(CACHE_WARNING) << "The cache " << path_ << " has the old generation "
+                       << format.generation() << " - it's removed";
+    // Move the whole cache aside at once, and remove it in background.
+    const Path removed_path = WithoutTrailingSeparator(path_).string() +
+                              kRemovedSuffix + std::to_string(time(nullptr)) +
+                              "-" + std::to_string(getpid());
+    String error;
+    if (!base::File::Move(WithoutTrailingSeparator(path_), removed_path,
+                          &error)) {
+      LOG(CACHE_WARNING) << "Failed to move the old cache aside: " << error;
+      for (const auto& entry : std::filesystem::directory_iterator(path_, ec)) {
+        std::filesystem::remove_all(entry.path(), ec);
+      }
+    }
+    if (!base::CreateDirectory(path_, &error)) {
+      LOG(CACHE_ERROR) << "Failed to create directory " << path_ << " : "
+                       << error;
+      return false;
+    }
+    format.Clear();
+    format.set_generation(kGeneration);
+    format.set_revision(0);
+  }
+
+  // The newer revisions of the same generation stay: their daemons may still
+  // be used.
+  if (format.revision() < kRevision) {
+    format.set_revision(kRevision);
+    format.set_written_by(kDaemonVersion);
+    String error;
+    if (!base::SaveToFile(format_path, format, &error)) {
+      LOG(CACHE_ERROR) << "Failed to save the format of the cache: " << error;
+      return false;
+    }
+  }
+
+  return true;
+}
+
+ui64 FileCache::MetadataSize() const {
+  return database_->SizeOnDisk() + tag_index_->SizeOnDisk() +
+         base::File::Size(path_ / kFormatFile);
+}
+
 bool FileCache::Run(ui64 clean_period) {
   String error;
   if (!base::CreateDirectory(path_, &error)) {
     LOG(CACHE_ERROR) << "Failed to create directory " << path_ << " : "
                      << error;
+    return false;
+  }
+
+  RemoveOldCaches(path_);
+  if (!CheckFormat()) {
     return false;
   }
 

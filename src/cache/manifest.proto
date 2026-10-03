@@ -8,6 +8,20 @@ enum Compression {
   ZSTD   = 2;
 }
 
+// The format of the whole cache - in the file "format" in its root.
+message Format {
+  required uint32 generation = 1;
+  // Changes with the incompatible changes of the layout: the cache of an
+  // older generation is removed, the cache of a newer one isn't used.
+
+  optional uint32 revision   = 2;
+  // Changes with the compatible changes: the older daemons of the same
+  // generation still use the cache.
+
+  optional string written_by = 3;
+  // The version of the daemon, that has written the format - for diagnostics.
+}
+
 message Direct {
   repeated string headers = 1;
   // OBSOLETE: the only list of headers - read for compatibility.

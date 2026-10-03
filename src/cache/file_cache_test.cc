@@ -176,8 +176,7 @@ TEST(FileCacheTest, RemoveEntry) {
   // If we can't even read manifest, then the entry should be removed when we
   // try to migrate it.
 
-  auto db_size =
-      cache.database_->SizeOnDisk() + cache.tag_index_->SizeOnDisk();
+  auto db_size = cache.MetadataSize();
   EXPECT_EQ(cache.cache_size_,
             base::CalculateDirectorySize(temp_dir) - db_size);
   EXPECT_FALSE(cache.entries_->Exists(hash1.str));
@@ -749,6 +748,81 @@ TEST(FileCacheTest, ForgetTag) {
   EXPECT_FALSE(Exists(hash4));
 }
 
+TEST(FileCacheTest, Format) {
+  const base::TemporaryDir temp_dir;
+  const Path cache_path = temp_dir.path() / "cache";
+  const Path format_path = cache_path / "format";
+  const auto hash = TestHash("-c");
+
+  auto ReadFormat = [&] {
+    proto::Format format;
+    EXPECT_TRUE(base::LoadFromFile(format_path, &format));
+    return format;
+  };
+  auto WriteFormat = [&](ui32 generation, ui32 revision) {
+    proto::Format format;
+    format.set_generation(generation);
+    format.set_revision(revision);
+    ASSERT_TRUE(base::SaveToFile(format_path, format));
+  };
+  auto Found = [&] {
+    FileCache cache(cache_path, FileCache::UNLIMITED, proto::ZSTD, true);
+    if (!cache.Run(3600)) {
+      return false;
+    }
+    FileCache::Entry entry;
+    return cache.Find(hash, &entry);
+  };
+
+  // A new cache gets the current format.
+  {
+    FileCache cache(cache_path, FileCache::UNLIMITED, proto::ZSTD, true);
+    ASSERT_TRUE(cache.Run(3600));
+    cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l});
+  }
+  EXPECT_EQ(FileCache::kGeneration, ReadFormat().generation());
+  EXPECT_EQ(FileCache::kRevision, ReadFormat().revision());
+  EXPECT_FALSE(ReadFormat().written_by().empty());
+
+  // The cache before the generations is the first generation.
+  ASSERT_TRUE(base::File::Delete(format_path));
+  EXPECT_TRUE(Found());
+  EXPECT_EQ(FileCache::kGeneration, ReadFormat().generation());
+
+  // The newer revision of the same generation is used - and stays.
+  WriteFormat(FileCache::kGeneration, FileCache::kRevision + 1);
+  EXPECT_TRUE(Found());
+  EXPECT_EQ(FileCache::kRevision + 1, ReadFormat().revision());
+
+  // The newer generation isn't used - and isn't touched.
+  WriteFormat(FileCache::kGeneration + 1, 0);
+  EXPECT_FALSE(Found());
+  EXPECT_EQ(FileCache::kGeneration + 1, ReadFormat().generation());
+  WriteFormat(FileCache::kGeneration, FileCache::kRevision);
+  EXPECT_TRUE(Found());
+
+  // The older generation is removed.
+  WriteFormat(FileCache::kGeneration - 1, 0);
+  EXPECT_FALSE(Found());
+  EXPECT_EQ(FileCache::kGeneration, ReadFormat().generation());
+  // In background - the cache aside of the new one.
+  bool removed = false;
+  for (int i = 0; i < 300 && !removed; ++i) {
+    {
+      // The next start removes the leftovers too.
+      FileCache cache(cache_path, FileCache::UNLIMITED, proto::ZSTD, true);
+      ASSERT_TRUE(cache.Run(3600));
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    removed = true;
+    for (const auto& entry :
+         std::filesystem::directory_iterator(temp_dir.path())) {
+      removed &= entry.path() == cache_path;
+    }
+  }
+  EXPECT_TRUE(removed);
+}
+
 TEST(FileCacheTest, LinkOutputsWithContents) {
   const base::TemporaryDir temp_dir;
   FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, proto::NONE,
@@ -971,8 +1045,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
     FileCache probe(probe_dir.path() / "cache", FileCache::UNLIMITED,
                     proto::NONE, false);
     ASSERT_TRUE(probe.Run(1));
-    const auto probe_db_size =
-        probe.database_->SizeOnDisk() + probe.tag_index_->SizeOnDisk();
+    const auto probe_db_size = probe.MetadataSize();
     ui64 total_size = 0;
     for (int i = 0; i < 3; ++i) {
       probe.Store(FileCache::Hash(code[i], {}, cl, version),
@@ -989,8 +1062,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
   FileCache cache(cache_path, entry_size[0] + entry_size[1], proto::NONE, false);
 
   ASSERT_TRUE(cache.Run(1));
-  auto db_size =
-      cache.database_->SizeOnDisk() + cache.tag_index_->SizeOnDisk();
+  auto db_size = cache.MetadataSize();
 
   {
     FileCache::Entry entry{obj_content[0], String(), String()};
@@ -1041,8 +1113,7 @@ TEST(FileCacheTest, EvictNeverHitEntriesFirst) {
     FileCache probe(probe_dir.path() / "cache", FileCache::UNLIMITED,
                     proto::NONE, false);
     ASSERT_TRUE(probe.Run(1));
-    const auto probe_db_size =
-        probe.database_->SizeOnDisk() + probe.tag_index_->SizeOnDisk();
+    const auto probe_db_size = probe.MetadataSize();
     for (int i = 0; i < 3; ++i) {
       probe.Store(Hash(i), FileCache::Entry{obj_content[i], String(), String()});
     }

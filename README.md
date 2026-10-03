@@ -86,6 +86,10 @@ The object and split DWARF files are stored by the hashes of their contents: the
 
 The size limit of the cache applies only to the files, that aren't linked with build directories: the cache doesn't take any additional space for the outputs of the current builds. Such entries are never removed. Other entries are removed, when the cache exceeds the limit, or when the disk has less than `min_free_percent` (5% by default) of free space: the entries, that were never taken from the cache - e.g. the results of one-off edits - go first, then the least recently used ones.
 
+## Format of the cache
+
+The file `format` in the root of the cache keeps its generation and revision. The generation changes with the incompatible changes of the layout: a new daemon removes the cache of an older generation at the start - it's moved aside at once, and removed in background - and an old daemon doesn't use the cache of a newer generation: it compiles without the cache, and `dist-clang --stats` shows `CACHE_INCOMPATIBLE 1`. The revision changes with the compatible changes: the older daemons of the same generation still use the cache. The cache without the file is of the first generation.
+
 ## Several checkouts of the same sources
 
 The cache key includes the paths from the flags and from the preprocessed source. To share the cache between several checkouts of the same sources - e.g. git worktrees - list them in `source_roots` of the cache configuration: the root of the compiled source is replaced with a placeholder in the key, both as an absolute path and as a path relative to the build directory. It works only for relocatable compilations, that remap the paths of the sources in the results: with `-fmacro-prefix-map` (or `-ffile-prefix-map`) for `__FILE__`, and, if the debug info is on, with `-fdebug-prefix-map` and `-fdebug-compilation-dir` too.

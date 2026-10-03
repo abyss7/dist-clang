@@ -71,6 +71,10 @@ message Metric {
     // Preprocessings at the same time with the compilations, and the ones,
     // that found the result in the simple cache before the compilation ended.
 
+    CACHE_INCOMPATIBLE          = 40;
+    // 1, if the cache isn't used: it's written by a newer daemon, that has
+    // changed the format incompatibly.
+
     CACHE_BLOB_REUSED           = 37;
     // Outputs, that are stored once for several entries.
 

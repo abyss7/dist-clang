@@ -23,6 +23,7 @@ FORWARD_TEST(FileCacheTest, EvictNeverHitEntriesFirst);
 FORWARD_TEST(FileCacheTest, ExceedCacheSize_Sync);
 FORWARD_TEST(FileCacheTest, LockNonExistentFile);
 FORWARD_TEST(FileCacheTest, RemoveEntry);
+FORWARD_TEST(FileCacheTest, Format);
 FORWARD_TEST(FileCacheTest, TagStats);
 FORWARD_TEST(FileCacheTest, ForgetTag);
 FORWARD_TEST(FileCacheTest, DeduplicateOutputs);
@@ -104,6 +105,16 @@ class FileCache {
   enum : ui64 {
     UNLIMITED = 0,
   };
+
+  // The format of the cache on disk - see |proto::Format|. Bump the generation
+  // for the changes, that the older daemons can't work with, or that may give
+  // wrong results with them: the layout of the files, the semantics of the
+  // manifests and of the databases. Bump the revision for the compatible
+  // changes, e.g. new optional fields, that the older daemons ignore.
+  //
+  // Generation 1, revision 1: the cache before the generations - the older
+  // formats of the manifests are migrated or read as is.
+  enum : ui32 { kGeneration = 1, kRevision = 1 };
 
   // Maximal number of the header sets per one source in the direct cache.
   enum : size_t { kMaxDirectVariants = 8 };
@@ -251,6 +262,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, EvictNeverHitEntriesFirst);
   FRIEND_TEST(FileCacheTest, LockNonExistentFile);
   FRIEND_TEST(FileCacheTest, RemoveEntry);
+  FRIEND_TEST(FileCacheTest, Format);
   FRIEND_TEST(FileCacheTest, TagStats);
   FRIEND_TEST(FileCacheTest, ForgetTag);
   FRIEND_TEST(FileCacheTest, DeduplicateOutputs);
@@ -344,6 +356,13 @@ class FileCache {
   void ApplyTags(string::Hash hash, const Vector<String>& tags);
   void ComputeTagStats(List<TagStats>* stats, List<TagOverlap>* overlaps);
   ForgetResult DoForgetTag(const String& tag, bool dry_run);
+
+  // Checks the format of the cache on disk, and resets the cache of an older
+  // generation. Returns |false| if the cache can't be used.
+  bool CheckFormat();
+
+  // The size of the files, that aren't the entries: the databases, etc.
+  ui64 MetadataSize() const;
 
   bool GetEntrySize(string::Hash hash, ui64* size) const;
   // Sets |0u| if the entry is broken.

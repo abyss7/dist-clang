@@ -34,6 +34,8 @@ static_library("file_cache") {
 
   public = [ "file_cache.h" ]
 
+  configs += [ "//build/config:version" ]
+
   deps = [
     ":sqlite",
     "//src/base:base",
