@@ -194,6 +194,32 @@ TEST(FileTest, Clone) {
   EXPECT_FALSE(File::Clone(temp_dir.path() / "missing", dst, true));
 }
 
+TEST(FileTest, CloneOverTheSameFile) {
+  const TemporaryDir temp_dir;
+  const auto src = temp_dir.path() / "src";
+  const auto dst = temp_dir.path() / "dst";
+
+  ASSERT_TRUE(File::Write(src, "content"_l));
+  File::CloneMode mode;
+  ASSERT_TRUE(File::Clone(src, dst, true, &mode));
+  if (mode != File::CloneMode::HARDLINK) {
+    return;
+  }
+
+  // The rename of a hard link over another one of the same file does nothing
+  // - the temporary link mustn't stay.
+  ASSERT_TRUE(File::Clone(src, dst, true, &mode));
+  struct stat st;
+  ASSERT_EQ(0, stat(src.c_str(), &st));
+  EXPECT_EQ(2u, st.st_nlink);
+  ui32 files = 0;
+  for ([[maybe_unused]] const auto& entry :
+       std::filesystem::directory_iterator(temp_dir.path())) {
+    ++files;
+  }
+  EXPECT_EQ(2u, files);
+}
+
 TEST(FileTest, Link) {
   const auto expected_content = "All your base are belong to us"_l;
   const TemporaryDir temp_dir;

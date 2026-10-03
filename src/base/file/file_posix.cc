@@ -323,8 +323,11 @@ bool File::Clone(const Path& src, const Path& dst, bool allow_hardlink,
                         "-" + std::to_string(counter++) + ".tmp";
 
   auto Finish = [&](CloneMode clone_mode) {
-    if (!Move(tmp_path, dst, error)) {
-      unlink(tmp_path.c_str());
+    const bool moved = Move(tmp_path, dst, error);
+    // The rename does nothing, if |dst| is a hard link of the same file
+    // already - and the temporary file stays.
+    unlink(tmp_path.c_str());
+    if (!moved) {
       return false;
     }
     if (mode) {
