@@ -3028,7 +3028,11 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
   Compile(2);
   EXPECT_EQ("object 2", Output());
   EXPECT_EQ(2u, compilations);
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  for (int i = 0; i < 300 && Stat(perf::proto::Metric::SIMPLE_CACHE_MISS) < 1;
+       ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  std::this_thread::sleep_for(std::chrono::milliseconds(300));
 
   // The changed header gives the same preprocessed source: it's found before
   // the compilation ends. The edited sources aren't preprocessed at all.
@@ -3049,7 +3053,12 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
   object = "object 4";
   Compile(4);
   EXPECT_EQ("object 4", Output());
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  // The preprocessing may end after the reply - and store the result then.
+  for (int i = 0; i < 300 && Stat(perf::proto::Metric::SIMPLE_CACHE_MISS) < 2;
+       ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  std::this_thread::sleep_for(std::chrono::milliseconds(300));
 
   ASSERT_TRUE(base::File::Write(header_path, "#define A 4 "_l));
   wait_for_cancel = true;
