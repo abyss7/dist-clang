@@ -7,6 +7,8 @@
 #include <base/string_utils.h>
 #include <perf/stat_reporter.h>
 
+#include STL(random)
+
 #include <base/using_log.h>
 
 namespace dist_clang {
@@ -199,6 +201,18 @@ Immutable CompilationDaemon::RestoreDeps(Immutable deps,
 }
 
 // static
+HandledHash CompilationDaemon::GenerateUniqueHash(
+    const base::proto::Flags& flags) {
+  thread_local std::random_device random_device;
+  thread_local std::mt19937_64 generator(random_device());
+  const String unique = "unique:" + std::to_string(generator()) + "-" +
+                        std::to_string(generator());
+  return cache::FileCache::Hash(HandledSource(Immutable(unique)), {},
+                                CommandLineForSimpleCache(flags),
+                                Version(flags.compiler().version()));
+}
+
+// static
 HandledHash CompilationDaemon::GenerateHash(const base::proto::Flags& flags,
                                             const HandledSource& code,
                                             const ExtraFiles& extra_files) {
@@ -315,7 +329,7 @@ bool CompilationDaemon::SearchSimpleCache(
 
 bool CompilationDaemon::SearchDirectCache(
     const base::proto::Flags& flags, const String& current_dir,
-    cache::FileCache::Entry* entry) const {
+    cache::FileCache::Entry* entry, bool* source_edited) const {
   auto conf = this->conf();
 
   DCHECK(conf->has_emitter() && !conf->has_absorber());
@@ -342,9 +356,24 @@ bool CompilationDaemon::SearchDirectCache(
     return false;
   }
 
-  if (!cache_->Find(code, extra_files, command_line, version, current_dir,
-                    entry)) {
-    LOG(CACHE_INFO) << "Direct cache miss: " << flags.input();
+  const bool found = cache_->Find(code, extra_files, command_line, version,
+                                 current_dir, entry);
+
+  // The same source with the same flags - regardless of the headers.
+  const String source_key =
+      base::Hexify((Immutable(input) + "\n"_l + command_line.str + "\n"_l +
+                    version.str)
+                       .Hash());
+  const bool edited = cache_->ReplaceLastSource(
+      source_key,
+      cache::FileCache::Hash(code, extra_files, command_line, version));
+
+  if (!found) {
+    LOG(CACHE_INFO) << "Direct cache miss: " << flags.input()
+                    << (edited ? " - the source is edited" : "");
+    if (source_edited) {
+      *source_edited = edited;
+    }
     return false;
   }
 
@@ -362,7 +391,7 @@ void CompilationDaemon::UpdateSimpleCache(
 }
 
 void CompilationDaemon::UpdateDirectCache(
-    const base::proto::Local* message, const HandledSource& source,
+    const base::proto::Local* message, const HandledHash& hash,
     const ExtraFiles& extra_files, const cache::FileCache::Entry& entry) {
   auto conf = this->conf();
   DCHECK(conf->has_emitter() && !conf->has_absorber());
@@ -382,8 +411,6 @@ void CompilationDaemon::UpdateDirectCache(
   Counter counter(Metric::DIRECT_CACHE_UPDATE_TIME);
 
   const Version version(flags.compiler().version());
-  const auto hash = cache_->Hash(source, extra_files,
-                                 CommandLineForSimpleCache(flags), version);
   const auto command_line =
       CommandLineForDirectCache(message->current_dir(), flags);
   const String input_path = GetFullPath(message->current_dir(), flags.input());

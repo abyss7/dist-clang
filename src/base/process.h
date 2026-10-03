@@ -47,6 +47,7 @@ FORWARD_TEST(EmitterTest, StoreDirectCacheForRemoteResult);
 FORWARD_TEST(EmitterTest, ConfigurationUpdateCompiler);
 FORWARD_TEST(EmitterTest, HitDirectCacheFromTwoLocations);
 FORWARD_TEST(EmitterTest, DontHitDirectCacheFromTwoRelativeSources);
+FORWARD_TEST(EmitterTest, SkipPreprocessingOfEditedSource);
 }  // namespace daemon
 
 namespace base {
@@ -130,6 +131,7 @@ class Process
   FRIEND_TEST(daemon::EmitterTest, ConfigurationUpdateCompiler);
   FRIEND_TEST(daemon::EmitterTest, HitDirectCacheFromTwoLocations);
   FRIEND_TEST(daemon::EmitterTest, DontHitDirectCacheFromTwoRelativeSources);
+  FRIEND_TEST(daemon::EmitterTest, SkipPreprocessingOfEditedSource);
 };
 
 }  // namespace base

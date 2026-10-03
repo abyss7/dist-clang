@@ -390,6 +390,19 @@ void FileCache::Store(UnhandledSource code, const ExtraFiles& extra_files,
           preprocessed_headers, current_dir, hash);
 }
 
+bool FileCache::ReplaceLastSource(const String& key, UnhandledHash hash) {
+  DCHECK(database_);
+  const String db_key = "source:" + key;
+  Immutable previous;
+  const bool edited =
+      database_->Get(db_key, &previous) && !(previous == hash.str);
+  if (!edited && !previous.empty()) {
+    return false;
+  }
+  database_->Set(db_key, hash.str);
+  return edited;
+}
+
 void FileCache::Store(string::HandledHash hash, Entry entry) {
   const auto manifest_path =
       AppendExtension(CommonPath(hash), base::kExtManifest);

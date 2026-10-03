@@ -463,7 +463,8 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       }
 
       if (!source.str.empty()) {
-        UpdateDirectCache(incoming, source, extra_files, entry);
+        UpdateDirectCache(incoming, std::get<HANDLED_HASH>(*task), extra_files,
+                          entry);
       }
 
       net::proto::Status status;
@@ -475,7 +476,9 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       return true;
     };
 
-    if (SearchDirectCache(incoming->flags(), incoming->current_dir(), &entry) &&
+    bool source_edited = false;
+    if (SearchDirectCache(incoming->flags(), incoming->current_dir(), &entry,
+                          &source_edited) &&
         RestoreFromCache(HandledSource(), cache::ExtraFiles{})) {
       STAT(DIRECT_CACHE_HIT);
       continue;
@@ -488,6 +491,20 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     if (!SetupCompiler(incoming->mutable_flags(), &status)) {
       std::get<CONNECTION>(*task)->ReportStatus(status);
       continue;
+    }
+
+    // The edited source is unlikely to be found by its preprocessed version -
+    // don't waste time on preprocessing, compile locally and store the result
+    // only for the direct cache.
+    if (source_edited && incoming->flags().has_deps_file()) {
+      auto& extra_files = std::get<EXTRA_FILES>(*task);
+      if (ReadExtraFiles(incoming->flags(), incoming->current_dir(),
+                         &extra_files)) {
+        std::get<HANDLED_HASH>(*task) = GenerateUniqueHash(incoming->flags());
+        STAT(PREPROCESSING_SKIPPED);
+        failed_tasks_->Push(std::move(*task));
+        continue;
+      }
     }
 
     auto& source = std::get<SOURCE>(*task);
@@ -608,7 +625,9 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
       const auto& extra_files = std::get<EXTRA_FILES>(*task);
 
       counter.Report();
-      if (!source.str.empty()) {
+      // The task without the preprocessed source still has the handled hash,
+      // if the preprocessing was skipped.
+      if (!source.str.empty() || !std::get<HANDLED_HASH>(*task).str.empty()) {
         cache::FileCache::Entry entry;
         const auto& flags = incoming->flags();
         Immutable deps;
@@ -627,7 +646,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
             handled_hash = GenerateHash(incoming->flags(), source, extra_files);
           }
           UpdateSimpleCache(handled_hash, entry);
-          UpdateDirectCache(incoming, source, extra_files, entry);
+          UpdateDirectCache(incoming, handled_hash, extra_files, entry);
         }
       }
 
@@ -834,7 +853,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
 
         if (GenerateEntry()) {
           UpdateSimpleCache(handled_hash, entry);
-          UpdateDirectCache(incoming, source, extra_files, entry);
+          UpdateDirectCache(incoming, handled_hash, extra_files, entry);
         }
 
         std::get<CONNECTION>(*task)->ReportStatus(status);

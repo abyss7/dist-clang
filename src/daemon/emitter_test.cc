@@ -2411,6 +2411,113 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
   // TODO: check that removal of original files doesn't fail cache filling.
 }
 
+TEST_F(EmitterTest, SkipPreprocessingOfEditedSource) {
+  const base::TemporaryDir temp_dir;
+  const auto input_path = temp_dir.path() / "test.cc";
+  const auto header_path = temp_dir.path() / "header.h";
+  const auto output_path = temp_dir.path() / "test.o";
+  const auto deps_path = temp_dir.path() / "test.d";
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const auto action = "fake_action"_l;
+
+  ASSERT_TRUE(base::File::Write(input_path, "int main() { return 1; }"_l));
+  ASSERT_TRUE(base::File::Write(header_path, "#define A"_l));
+
+  conf.mutable_cache()->set_path(temp_dir.path() / "cache");
+  conf.mutable_cache()->set_direct(true);
+  conf.mutable_cache()->set_clean_period(1);
+
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_EQ(expected_code, status.code()) << status.description();
+
+      send_condition.notify_all();
+    });
+    return true;
+  };
+
+  List<String> runs;
+  ui32 preprocessed_count = 0;
+  run_callback = [&](base::TestProcess* process) {
+    const bool preprocessing =
+        std::find(process->args_.begin(), process->args_.end(), "-E"_l) !=
+        process->args_.end();
+    runs.push_back(preprocessing ? "-E" : process->args_.front().string_copy());
+    const auto deps = Immutable("test.o: "_l) + Immutable(input_path) + " "_l +
+                      Immutable(header_path);
+    if (preprocessing) {
+      // Every preprocessing gives a new source - no simple cache hits.
+      process->stdout_ = Immutable(String("preprocessed ") +
+                                   std::to_string(++preprocessed_count));
+      EXPECT_TRUE(base::File::Write(deps_path, deps));
+    } else {
+      EXPECT_TRUE(base::File::Write(output_path, "object"_l));
+      EXPECT_TRUE(base::File::Write(deps_path, deps));
+    }
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto Compile = [&](ui32 expected_send_count) {
+    auto connection = test_service->TriggerListen(socket_path);
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(temp_dir);
+    auto* flags = extension->mutable_flags();
+    flags->set_input(input_path);
+    flags->set_output(output_path);
+    flags->set_deps_file(deps_path);
+    flags->set_deps_target("test.o");
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action(action);
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(1), [&] {
+      return send_count == expected_send_count;
+    }));
+  };
+
+  // The first compilation of the source - preprocess and compile.
+  Compile(1);
+  EXPECT_EQ((List<String>{"-E", "fake_action"}), runs);
+
+  // The edited source - compile only.
+  ASSERT_TRUE(base::File::Write(input_path, "int main() { return 2; }"_l));
+  runs.clear();
+  Compile(2);
+  EXPECT_EQ((List<String>{"fake_action"}), runs);
+
+  // The result is found by the direct cache.
+  ASSERT_TRUE(base::File::Delete(output_path));
+  runs.clear();
+  Compile(3);
+  EXPECT_TRUE(runs.empty());
+  EXPECT_TRUE(base::File::Exists(output_path));
+
+  // Only the headers changed - preprocess again.
+  ASSERT_TRUE(base::File::Write(header_path, "#define B"_l));
+  runs.clear();
+  Compile(4);
+  EXPECT_EQ((List<String>{"-E", "fake_action"}), runs);
+
+  emitter.reset();
+}
+
 TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
   // Prepare environment.
   const base::TemporaryDir temp_dir;

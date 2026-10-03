@@ -66,6 +66,9 @@ message Metric {
 
     CACHE_ENTRIES               = 28;
 
+    PREPROCESSING_SKIPPED       = 31;
+    // Edited sources, compiled without preprocessing.
+
     CACHE_OUTPUT_UNCHANGED      = 29;
     LOCAL_OUTPUT_UNCHANGED      = 30;
     // Outputs, that are the same after the cache hit or the compilation, and

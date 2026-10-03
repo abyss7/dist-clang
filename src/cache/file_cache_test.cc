@@ -750,6 +750,24 @@ TEST(FileCacheTest, DirectEntry_LimitedHeaderSets) {
   EXPECT_FALSE(cache.Find(orig_code, {}, cl, version, temp_dir, &entry));
 }
 
+TEST(FileCacheTest, ReplaceLastSource) {
+  const base::TemporaryDir temp_dir;
+  FileCache cache(temp_dir);
+  ASSERT_TRUE(cache.Run(1));
+
+  const CommandLine cl("-c"_l);
+  const Version version("1"_l);
+  const auto hash1 = FileCache::Hash(UnhandledSource("1"_l), {}, cl, version);
+  const auto hash2 = FileCache::Hash(UnhandledSource("2"_l), {}, cl, version);
+
+  EXPECT_FALSE(cache.ReplaceLastSource("a.cc", hash1));
+  EXPECT_FALSE(cache.ReplaceLastSource("a.cc", hash1));
+  EXPECT_FALSE(cache.ReplaceLastSource("b.cc", hash2));
+  EXPECT_TRUE(cache.ReplaceLastSource("a.cc", hash2));
+  EXPECT_FALSE(cache.ReplaceLastSource("a.cc", hash2));
+  EXPECT_TRUE(cache.ReplaceLastSource("a.cc", hash1));
+}
+
 TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
   const base::TemporaryDir temp_dir;
   const auto object_path = temp_dir.path() / "test.o";

@@ -22,6 +22,11 @@ class CompilationDaemon : public BaseDaemon {
       const base::proto::Flags& flags, const cache::string::HandledSource& code,
       const cache::ExtraFiles& extra_files);
 
+  // Generates a hash for an entry, that can't be found by the preprocessed
+  // source - only through the direct cache.
+  static cache::string::HandledHash GenerateUniqueHash(
+      const base::proto::Flags& flags);
+
   // The target of the dependency rule depends on the output path, which isn't
   // a part of the cache key - so it's replaced with a placeholder in the cache.
   static Immutable NormalizeDeps(Immutable deps, const String& target);
@@ -40,15 +45,18 @@ class CompilationDaemon : public BaseDaemon {
   bool SearchSimpleCache(const cache::string::HandledHash& hash,
                          cache::FileCache::Entry* entry) const;
 
+  // On a miss sets |source_edited|, if another version of the same source
+  // was compiled with the same flags before.
   bool SearchDirectCache(const base::proto::Flags& flags,
                          const String& current_dir,
-                         cache::FileCache::Entry* entry) const;
+                         cache::FileCache::Entry* entry,
+                         bool* source_edited = nullptr) const;
 
   void UpdateSimpleCache(const cache::string::HandledHash& hash,
                          const cache::FileCache::Entry& entry);
 
   void UpdateDirectCache(const base::proto::Local* message,
-                         const cache::string::HandledSource& source,
+                         const cache::string::HandledHash& hash,
                          const cache::ExtraFiles& extra_files,
                          const cache::FileCache::Entry& entry);
 

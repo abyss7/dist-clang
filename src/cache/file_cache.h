@@ -152,6 +152,11 @@ class FileCache {
 
   void Store(string::HandledHash hash, Entry entry);
 
+  // Remembers the last version of the source, compiled with the same flags,
+  // under |key|. Returns |true| if the previous version is different - i.e.
+  // the source is edited.
+  bool ReplaceLastSource(const String& key, string::UnhandledHash hash);
+
  private:
   FRIEND_TEST(FileCacheTest, DoubleLocks);
   FRIEND_TEST(FileCacheTest, ExceedCacheSize);
