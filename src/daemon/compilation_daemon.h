@@ -30,6 +30,15 @@ class CompilationDaemon : public BaseDaemon {
   static String NormalizeLineMarkers(const String& source,
                                      const base::proto::Flags& flags);
 
+  // The current time of file modifications - in nanoseconds.
+  static i64 FileSystemTime();
+
+  // Checks, that the source, the included files from |deps| and other inputs
+  // weren't modified since |time|. Otherwise the result of the compilation
+  // may not match the inputs, that are read now - and mustn't be cached.
+  static bool InputsUnchangedSince(const base::proto::Local* message,
+                                   Immutable deps, i64 time);
+
   // Hash of the warning flags - to know, if the cached diagnostics are valid.
   static String WarningsHash(const base::proto::Flags& flags);
 

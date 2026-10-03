@@ -218,6 +218,29 @@ inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
 
 namespace daemon {
 
+OutputLocks::Lock::Lock(OutputLocks* locks, const String& path)
+    : locks_(locks), path_(path) {
+  {
+    std::lock_guard<Mutex> guard(locks_->mutex_);
+    auto& lock = locks_->locks_[path_];
+    if (!lock.first) {
+      lock.first = std::make_shared<Mutex>();
+    }
+    ++lock.second;
+    mutex_ = lock.first;
+  }
+  mutex_->lock();
+}
+
+OutputLocks::Lock::~Lock() {
+  mutex_->unlock();
+  std::lock_guard<Mutex> guard(locks_->mutex_);
+  auto it = locks_->locks_.find(path_);
+  if (--it->second.second == 0) {
+    locks_->locks_.erase(it);
+  }
+}
+
 const ui32 Emitter::max_total_shards = 1024u;
 
 Emitter::Emitter(const proto::Configuration& conf) : CompilationDaemon(conf) {
@@ -336,7 +359,7 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
 
     auto task = std::make_tuple(connection, std::move(execute), HandledSource(),
                                 cache::ExtraFiles{}, HandledHash(), false,
-                                Immutable());
+                                Immutable(), FileSystemTime());
     if (conf->has_cache() && !conf->cache().disabled()) {
       return cache_tasks_->Push(std::move(task));
     } else if (!IsRemotable(std::get<MESSAGE>(task)->flags())) {
@@ -468,6 +491,10 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       const String output_path = GetOutputPath(incoming);
       const auto& flags = incoming->flags();
 
+      // Only one task works with the output at a time. Then a stale task can
+      // only touch it before the task of the waiting client.
+      OutputLocks::Lock output_lock(&output_locks_, output_path);
+
       // Nobody waits for the outputs - don't write them.
       if (std::get<CONNECTION>(*task)->IsPeerGone()) {
         STAT(TASK_CANCELED);
@@ -563,7 +590,9 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
         }
       }
 
-      if (!source.str.empty()) {
+      if (!source.str.empty() &&
+          InputsUnchangedSince(incoming, entry.deps,
+                               std::get<START_TIME>(*task))) {
         UpdateDirectCache(incoming, std::get<HANDLED_HASH>(*task), extra_files,
                           entry);
       }
@@ -681,6 +710,14 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
     ui32 uid =
         incoming->has_user_id() ? incoming->user_id() : base::Process::SAME_UID;
 
+    // Only one task works with the output at a time - until the result is
+    // stored into the cache: it's linked from the output.
+    OutputLocks::Lock output_lock(&output_locks_, GetOutputPath(incoming));
+    if (std::get<CONNECTION>(*task)->IsPeerGone()) {
+      STAT(TASK_CANCELED);
+      continue;
+    }
+
     // Remove the old outputs: they may be hard-linked with other places, and
     // the compiler shouldn't write into them. Also the split DWARF file may be
     // not generated at all - don't take a stale one into the cache. If the
@@ -765,8 +802,13 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
           if (handled_hash.str.empty()) {
             handled_hash = GenerateHash(incoming->flags(), source, extra_files);
           }
-          UpdateSimpleCache(handled_hash, entry);
-          UpdateDirectCache(incoming, handled_hash, extra_files, entry);
+          if (InputsUnchangedSince(incoming, deps,
+                                   std::get<START_TIME>(*task))) {
+            UpdateSimpleCache(handled_hash, entry);
+            UpdateDirectCache(incoming, handled_hash, extra_files, entry);
+          } else {
+            STAT(CACHE_STORE_SKIPPED);
+          }
         }
       }
 
@@ -946,6 +988,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
       }
       // The client is gone - don't write anything into the build directory:
       // another compilation of the same output may be running already.
+      OutputLocks::Lock output_lock(&output_locks_, output_path);
       if (std::get<CONNECTION>(*task)->IsPeerGone()) {
         STAT(TASK_CANCELED);
         continue;
@@ -994,7 +1037,8 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
         };
         compilation_time_counter.Report();
 
-        if (GenerateEntry()) {
+        if (GenerateEntry() &&
+            InputsUnchangedSince(incoming, deps, std::get<START_TIME>(*task))) {
           UpdateSimpleCache(handled_hash, entry);
           UpdateDirectCache(incoming, handled_hash, extra_files, entry);
         }

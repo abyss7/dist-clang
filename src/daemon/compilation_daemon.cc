@@ -9,6 +9,9 @@
 
 #include STL(random)
 
+#include <sys/stat.h>
+#include <time.h>
+
 #include <base/using_log.h>
 
 namespace dist_clang {
@@ -248,6 +251,50 @@ Immutable CompilationDaemon::RestoreDeps(Immutable deps,
     return deps;
   }
   return Immutable(target + content.substr(strlen(kDepsTargetPlaceholder)));
+}
+
+// static
+i64 CompilationDaemon::FileSystemTime() {
+  // The file systems take the time of modifications from the coarse clock.
+  struct timespec now;
+  clock_gettime(CLOCK_REALTIME_COARSE, &now);
+  return i64(now.tv_sec) * 1'000'000'000 + now.tv_nsec;
+}
+
+// static
+bool CompilationDaemon::InputsUnchangedSince(const base::proto::Local* message,
+                                             Immutable deps, i64 time) {
+  const auto& flags = message->flags();
+  List<String> inputs;
+  if (!deps.empty() && !ParseDeps(deps.string_copy(), inputs)) {
+    return false;
+  }
+  inputs.push_back(flags.input());
+  for (const auto& file : flags.key_files()) {
+    inputs.push_back(file);
+  }
+
+  for (const auto& input : inputs) {
+    if (input.empty()) {
+      continue;
+    }
+    struct stat st;
+    const String path = GetFullPath(message->current_dir(), input);
+    if (stat(path.c_str(), &st) == -1) {
+      LOG(CACHE_INFO) << "Input is gone during the compilation: " << path;
+      return false;
+    }
+    const i64 mtime = i64(st.st_mtim.tv_sec) * 1'000'000'000 + st.st_mtim.tv_nsec;
+    const i64 ctime = i64(st.st_ctim.tv_sec) * 1'000'000'000 + st.st_ctim.tv_nsec;
+    // The modifications within the same tick of the coarse clock, before the
+    // start, have the same time - they are fine.
+    if (mtime > time || ctime > time) {
+      LOG(CACHE_INFO) << "Input is modified during the compilation: " << path;
+      return false;
+    }
+  }
+
+  return true;
 }
 
 // static

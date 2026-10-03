@@ -1,8 +1,12 @@
 #include <daemon/compilation_daemon.h>
 
+#include <base/file/file.h>
 #include <base/process.h>
+#include <base/temporary_dir.h>
 
 #include <gtest/gtest.h>
+
+#include STL(thread)
 
 namespace dist_clang {
 namespace daemon {
@@ -140,6 +144,33 @@ TEST(CompilationDaemonTest, HashDoesntDependOnSourceRoot) {
       "# 1 \"../../root2/a.cc\"\nint main() { return 1; }\n"_l);
   EXPECT_NE(CompilationDaemon::GenerateHash(flags1, source1, {}),
             CompilationDaemon::GenerateHash(flags2, source3, {}));
+}
+
+TEST(CompilationDaemonTest, InputsUnchangedSince) {
+  const base::TemporaryDir temp_dir;
+  ASSERT_TRUE(base::File::Write(temp_dir.path() / "a.cc", "int a;"_l));
+  ASSERT_TRUE(base::File::Write(temp_dir.path() / "a.h", "int b;"_l));
+
+  base::proto::Local message;
+  message.set_current_dir(temp_dir.path());
+  message.mutable_flags()->set_input("a.cc");
+  const auto deps = "a.o: a.cc a.h"_l;
+
+  // The coarse clock ticks at least every few milliseconds.
+  std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  const auto start = CompilationDaemon::FileSystemTime();
+  std::this_thread::sleep_for(std::chrono::milliseconds(20));
+
+  EXPECT_TRUE(CompilationDaemon::InputsUnchangedSince(&message, deps, start));
+
+  ASSERT_TRUE(base::File::Write(temp_dir.path() / "a.h", "int c;"_l));
+  EXPECT_FALSE(CompilationDaemon::InputsUnchangedSince(&message, deps, start));
+  EXPECT_TRUE(CompilationDaemon::InputsUnchangedSince(
+      &message, deps, CompilationDaemon::FileSystemTime()));
+
+  ASSERT_TRUE(base::File::Delete(temp_dir.path() / "a.cc"));
+  EXPECT_FALSE(CompilationDaemon::InputsUnchangedSince(
+      &message, deps, CompilationDaemon::FileSystemTime()));
 }
 
 }  // namespace daemon

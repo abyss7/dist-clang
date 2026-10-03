@@ -66,6 +66,10 @@ message Metric {
 
     CACHE_ENTRIES               = 28;
 
+    CACHE_STORE_SKIPPED         = 34;
+    // Results, that aren't cached: their inputs are modified during the
+    // compilation.
+
     TASK_CANCELED               = 33;
     // Tasks abandoned, since the client has disconnected.
 

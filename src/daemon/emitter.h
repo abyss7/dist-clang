@@ -11,6 +11,28 @@ namespace dist_clang {
 namespace daemon {
 FORWARD_TEST(EmitterTest, TasksGetReshardedOnConfigurationUpdate);
 
+// Serializes the work of tasks with the same output: e.g. a stale task of an
+// interrupted build and a new task of the next build.
+class OutputLocks {
+ public:
+  class Lock {
+   public:
+    Lock(OutputLocks* locks, const String& path);
+    ~Lock();
+
+   private:
+    OutputLocks* locks_;
+    const String path_;
+    SharedPtr<Mutex> mutex_;
+  };
+
+ private:
+  friend class Lock;
+
+  Mutex mutex_;
+  HashMap<String, Pair<SharedPtr<Mutex>, ui32 /* users */>> locks_;
+};
+
 class Emitter : public CompilationDaemon {
  public:
   explicit Emitter(const Configuration& conf);
@@ -41,12 +63,16 @@ class Emitter : public CompilationDaemon {
     PREPROCESSED_DEPS = 6,
     // The dependency file, generated along with preprocessing - for the
     // remote compilation.
+
+    START_TIME = 7,
+    // The file system time before the task started to read the inputs: the
+    // inputs, modified after it, may not match the result.
   };
 
   using Message = UniquePtr<base::proto::Local>;
   using Task = Tuple<net::ConnectionPtr, Message, cache::string::HandledSource,
                      cache::ExtraFiles, cache::string::HandledHash, bool,
-                     Immutable>;
+                     Immutable, i64>;
   using Queue = base::LockedQueue<Task, true>;
   using QueueAggregator = base::QueueAggregator<Task>;
   using Optional = Queue::Optional;
@@ -79,6 +105,7 @@ class Emitter : public CompilationDaemon {
   UniquePtr<base::WorkerPool> remote_workers_;
 
   CompilerIdentity compiler_identity_;
+  OutputLocks output_locks_;
 
   bool handle_all_tasks_ = true;
   // Indicates if we force shutdown of the remote workers pool: we shouldn't if
