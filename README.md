@@ -58,7 +58,7 @@ The daemon classifies the flags of the compiler driver: the flags, that affect o
 
 The results include the object file, the split DWARF file (`-gsplit-dwarf`), the dependency file and the compiler's diagnostics.
 
-The object and split DWARF files are stored uncompressed, and are put into and out of the cache without copying: as copy-on-write clones on filesystems that support them (btrfs, XFS), or as hard links otherwise. The hard-linked files are read-only, and their contents are checked on every cache hit - a file modified in place through another link is not taken from the cache. Set `link_outputs: false` in the cache configuration to store compressed copies instead.
+The object and split DWARF files are stored uncompressed, and are put into and out of the cache without copying: as copy-on-write clones on filesystems that support them (btrfs, XFS), or as hard links otherwise. The contents of the linked files are checked on every cache hit - a file modified in place through another link is not taken from the cache. Set `link_outputs: false` in the cache configuration to store compressed copies instead.
 
 The size limit of the cache applies only to the files, that aren't linked with build directories: the cache doesn't take any additional space for the outputs of the current builds. Such entries are never removed. Other entries are removed, when the cache exceeds the limit, or when the disk has less than `min_free_percent` (5% by default) of free space: the entries, that were never taken from the cache - e.g. the results of one-off edits - go first, then the least recently used ones.
 

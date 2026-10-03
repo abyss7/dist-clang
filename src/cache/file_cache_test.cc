@@ -309,17 +309,17 @@ TEST(FileCacheTest, LinkOutputs) {
   EXPECT_EQ("object"_l, object);
   EXPECT_EQ("dwo"_l, dwo);
 
-  // The cache files are read-only.
+  // The cache files stay writable: compilers refuse to replace read-only
+  // outputs.
   struct stat st;
   ASSERT_EQ(0, stat(entry.object_path.c_str(), &st));
-  EXPECT_EQ(0u, st.st_mode & (S_IWUSR | S_IWGRP | S_IWOTH));
+  EXPECT_NE(0u, st.st_mode & S_IWUSR);
 
   // A shared file, modified in place, is detected - even after the link is
   // removed.
   base::File::CloneMode mode;
   ASSERT_TRUE(base::File::Clone(entry.object_path, restored_path, true, &mode));
   if (mode == base::File::CloneMode::HARDLINK) {
-    ASSERT_EQ(0, chmod(restored_path.c_str(), S_IRUSR | S_IWUSR));
     FILE* file = fopen(restored_path.c_str(), "r+");
     ASSERT_TRUE(file);
     fputs("OBJECT", file);

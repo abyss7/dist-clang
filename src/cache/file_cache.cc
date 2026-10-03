@@ -375,10 +375,10 @@ bool FileCache::StoreOutput(const Path& cache_path, Immutable content,
     *size += to_write.size();
   }
 
-  // Make writing to a hard-linked file fail loudly - instead of corrupting the
-  // cache silently.
-  return base::SetPermissions(cache_path.string(), S_IRUSR | S_IRGRP | S_IROTH,
-                              error);
+  // The files aren't made read-only, though they may be hard-linked with
+  // build directories: the compilers refuse to replace read-only outputs.
+  // Modifications in place are detected by checking the hashes instead.
+  return true;
 }
 
 void FileCache::Store(UnhandledSource code, const ExtraFiles& extra_files,
