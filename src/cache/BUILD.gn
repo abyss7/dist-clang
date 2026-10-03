@@ -28,6 +28,8 @@ static_library("file_cache") {
     "file_hash_cache.h",
     "sqlite_utils.cc",
     "sqlite_utils.h",
+    "tag_index.cc",
+    "tag_index.h",
   ]
 
   public = [ "file_cache.h" ]

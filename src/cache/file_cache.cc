@@ -11,7 +11,9 @@
 #include <cache/compression.h>
 #include <perf/stat_service.h>
 
+#include STL(map)
 #include STL(regex)
+#include STL(set)
 
 #include <sys/stat.h>
 #include <sys/statvfs.h>
@@ -146,6 +148,7 @@ bool FileCache::Run(ui64 clean_period) {
   }
 
   database_.reset(new SQLiteKV(path_, "direct"));
+  tag_index_.reset(new TagIndex(path_, "tags"));
   if (store_index_) {
     entries_.reset(new SQLite(path_, "index"));
   } else {
@@ -506,6 +509,206 @@ void FileCache::Store(UnhandledSource code, const ExtraFiles& extra_files,
           start_time);
 }
 
+void FileCache::AddTags(string::HandledHash hash, const Vector<String>& tags) {
+  if (tags.empty()) {
+    return;
+  }
+  new_entries_->Append({ui64(time(nullptr)), hash, true, tags});
+}
+
+void FileCache::ApplyTags(string::Hash hash, const Vector<String>& tags) {
+  // The entry may be removed already.
+  SQLite::Value value;
+  if (!entries_->Get(hash.str, &value)) {
+    return;
+  }
+
+  std::lock_guard<Mutex> lock(blob_refs_mutex_);
+  const String key = hash.str.string_copy();
+  auto& entry_tags = entry_tags_[key];
+  bool changed = false;
+  for (const auto& tag : tags) {
+    auto it = std::lower_bound(entry_tags.begin(), entry_tags.end(), tag);
+    if (it == entry_tags.end() || *it != tag) {
+      entry_tags.insert(it, tag);
+      changed = true;
+    }
+  }
+  if (changed) {
+    tag_index_->Set(key, entry_tags);
+  }
+}
+
+bool FileCache::GetTagStats(
+    Fn<void(const List<TagStats>&, const List<TagOverlap>&)> callback) {
+  return bool(cleaner_.Push([this, callback] {
+    List<TagStats> stats;
+    List<TagOverlap> overlaps;
+    ComputeTagStats(&stats, &overlaps);
+    callback(stats, overlaps);
+  }));
+}
+
+bool FileCache::ForgetTag(const String& tag, bool dry_run,
+                          Fn<void(const ForgetResult&)> callback) {
+  return bool(cleaner_.Push([this, tag, dry_run, callback] {
+    entries_->BeginTransaction();
+    tag_index_->BeginTransaction();
+    const auto result = DoForgetTag(tag, dry_run);
+    tag_index_->EndTransaction();
+    entries_->EndTransaction();
+    callback(result);
+  }));
+}
+
+void FileCache::ComputeTagStats(List<TagStats>* stats,
+                                List<TagOverlap>* overlaps) {
+  const Vector<String> kNoTags = {String()};
+  std::lock_guard<Mutex> lock(blob_refs_mutex_);
+
+  // The tags of every blob, and the sizes of the blobs.
+  HashMap<String, std::set<String>> blob_tags;
+  HashMap<String, ui64> blob_sizes;
+  std::map<String, TagStats> tag_stats;
+  std::map<Pair<String, String>, ui64> overlap_sizes;
+
+  for (const auto& [hash, value] : entries_->GetInEvictionOrder()) {
+    auto tags_it = entry_tags_.find(hash);
+    const auto& tags =
+        tags_it == entry_tags_.end() || tags_it->second.empty()
+            ? kNoTags
+            : tags_it->second;
+    const ui64 size = std::get<SQLite::SIZE>(value);
+    for (const auto& tag : tags) {
+      auto& stat = tag_stats[tag];
+      stat.tag = tag;
+      ++stat.entries;
+      stat.size += size;
+      if (tags.size() == 1) {
+        ++stat.exclusive_entries;
+        stat.exclusive_size += size;
+      }
+    }
+    for (auto first = tags.begin(); first != tags.end(); ++first) {
+      for (auto second = std::next(first); second != tags.end(); ++second) {
+        overlap_sizes[{*first, *second}] += size;
+      }
+    }
+
+    auto blobs_it = entry_blobs_.find(hash);
+    if (blobs_it != entry_blobs_.end()) {
+      for (const auto& blob : blobs_it->second) {
+        blob_tags[blob].insert(tags.begin(), tags.end());
+        if (!blob_sizes.contains(blob)) {
+          blob_sizes[blob] = blobs_.Size(blob);
+        }
+      }
+    }
+  }
+
+  // Every blob counts once for every tag.
+  for (const auto& [blob, tags] : blob_tags) {
+    const ui64 size = blob_sizes[blob];
+    for (const auto& tag : tags) {
+      tag_stats[tag].size += size;
+      if (tags.size() == 1) {
+        tag_stats[tag].exclusive_size += size;
+      }
+    }
+    for (auto first = tags.begin(); first != tags.end(); ++first) {
+      for (auto second = std::next(first); second != tags.end(); ++second) {
+        overlap_sizes[{*first, *second}] += size;
+      }
+    }
+  }
+
+  for (auto& [tag, stat] : tag_stats) {
+    stats->push_back(std::move(stat));
+  }
+  for (const auto& [tags, size] : overlap_sizes) {
+    overlaps->push_back({tags.first, tags.second, size});
+  }
+}
+
+FileCache::ForgetResult FileCache::DoForgetTag(const String& tag,
+                                               bool dry_run) {
+  ForgetResult result;
+
+  // The entries to remove, and how many references of the blobs they have.
+  List<String> removed;
+  HashMap<String, ui32> removed_refs;
+  {
+    std::lock_guard<Mutex> lock(blob_refs_mutex_);
+    for (auto& [entry, tags] : entry_tags_) {
+      if (!std::binary_search(tags.begin(), tags.end(), tag)) {
+        continue;
+      }
+      if (tags.size() > 1) {
+        ++result.shared_entries;
+        continue;
+      }
+      removed.push_back(entry);
+    }
+  }
+
+  for (auto it = removed.begin(); it != removed.end();) {
+    const string::Hash hash{Immutable(*it)};
+    // The outputs of the current builds are likely to be used again.
+    if (GetSharedSize(hash) || HasSharedBlobs(hash)) {
+      ++result.linked_entries;
+      it = removed.erase(it);
+      continue;
+    }
+    SQLite::Value value;
+    if (entries_->Get(*it, &value)) {
+      result.freed_size += std::get<SQLite::SIZE>(value);
+    }
+    std::lock_guard<Mutex> lock(blob_refs_mutex_);
+    auto blobs_it = entry_blobs_.find(*it);
+    if (blobs_it != entry_blobs_.end()) {
+      for (const auto& blob : blobs_it->second) {
+        ++removed_refs[blob];
+      }
+    }
+    ++it;
+  }
+
+  {
+    // The blobs are freed, only if no other entry uses them.
+    std::lock_guard<Mutex> lock(blob_refs_mutex_);
+    for (const auto& [blob, refs] : removed_refs) {
+      if (blobs_.Refs(blob) == refs) {
+        result.freed_size += blobs_.Size(blob);
+      }
+    }
+  }
+  result.removed_entries = removed.size();
+
+  if (dry_run) {
+    return result;
+  }
+
+  for (const auto& entry : removed) {
+    const string::Hash hash{Immutable(entry)};
+    WriteLock lock(this, AppendExtension(CommonPath(hash), base::kExtManifest));
+    if (lock) {
+      RemoveEntry(hash);
+    }
+  }
+
+  // The other entries keep their other tags.
+  std::lock_guard<Mutex> lock(blob_refs_mutex_);
+  for (auto& [entry, tags] : entry_tags_) {
+    auto it = std::lower_bound(tags.begin(), tags.end(), tag);
+    if (it != tags.end() && *it == tag && tags.size() > 1) {
+      tags.erase(it);
+      tag_index_->Set(entry, tags);
+    }
+  }
+
+  return result;
+}
+
 bool FileCache::MarkSeen(const String& key) {
   DCHECK(database_);
   const String db_key = "seen:" + key;
@@ -692,6 +895,12 @@ bool FileCache::RemoveEntry(string::Hash hash) {
     LOG(CACHE_WARNING) << "Removing unconsidered entry: " << hash.str;
   }
   RemoveBlobRefs(hash);
+  {
+    std::lock_guard<Mutex> lock(blob_refs_mutex_);
+    if (entry_tags_.erase(hash.str.string_copy())) {
+      tag_index_->Delete(hash.str.string_copy());
+    }
+  }
 
   if (base::File::Exists(object_path)) {
     if (!base::File::Delete(object_path, &error)) {
@@ -890,8 +1099,13 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
 
 void FileCache::Clean(UniquePtr<EntryList> list) {
   entries_->BeginTransaction();
+  tag_index_->BeginTransaction();
   while (auto access = list->Pop()) {
     const auto& hash = access->hash;
+    if (!access->tags.empty()) {
+      ApplyTags(hash, access->tags);
+      continue;
+    }
     SQLite::Value entry;
     if (entries_->Get(hash.str, &entry) && access->hit) {
       // Update the access time and the hits of an existing entry.
@@ -929,6 +1143,7 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
 
   Evict();
   CompressColdEntries();
+  tag_index_->EndTransaction();
   entries_->EndTransaction();
 }
 
@@ -992,6 +1207,22 @@ void FileCache::RemoveBlobRefs(string::Hash hash) {
 void FileCache::CountBlobRefs(ui64 start_time) {
   for (const auto& [hash, entry] : entries_->GetInEvictionOrder()) {
     AddBlobRefs(string::Hash(Immutable(hash)), std::get<SQLite::MTIME>(entry));
+  }
+
+  // The tags of the removed entries may stay after a crash.
+  {
+    auto all_tags = tag_index_->GetAll();
+    tag_index_->BeginTransaction();
+    std::lock_guard<Mutex> lock(blob_refs_mutex_);
+    for (auto& [entry, tags] : all_tags) {
+      SQLite::Value value;
+      if (entries_->Get(entry, &value)) {
+        entry_tags_[entry] = std::move(tags);
+      } else {
+        tag_index_->Delete(entry);
+      }
+    }
+    tag_index_->EndTransaction();
   }
 
   // E.g. the blobs of the entries, that weren't stored because of a crash.

@@ -14,6 +14,7 @@
 
 #include <sys/stat.h>
 #include STL(regex)
+#include STL(future)
 #include STL(thread)
 
 namespace dist_clang {
@@ -175,7 +176,8 @@ TEST(FileCacheTest, RemoveEntry) {
   // If we can't even read manifest, then the entry should be removed when we
   // try to migrate it.
 
-  auto db_size = cache.database_->SizeOnDisk();
+  auto db_size =
+      cache.database_->SizeOnDisk() + cache.tag_index_->SizeOnDisk();
   EXPECT_EQ(cache.cache_size_,
             base::CalculateDirectorySize(temp_dir) - db_size);
   EXPECT_FALSE(cache.entries_->Exists(hash1.str));
@@ -544,6 +546,192 @@ TEST(FileCacheTest, RemoveUnreferencedBlobs) {
   EXPECT_EQ("object"_l, entry.object);
 }
 
+namespace {
+
+HandledHash TestHash(const char* flags) {
+  return FileCache::Hash(HandledSource("int main() {}"_l), {},
+                         CommandLine(Immutable(String(flags))),
+                         Version("1"_l));
+}
+
+}  // namespace
+
+TEST(FileCacheTest, TagStats) {
+  const base::TemporaryDir temp_dir;
+  // Makes the cleaner process the stored entries and the tags.
+  auto FlushToIndex = [](FileCache& cache, const List<HandledHash>& hashes) {
+    cache.new_entries_.reset(new FileCache::EntryList,
+                             cache.new_entries_deleter_);
+    for (const auto& hash : hashes) {
+      SQLite::Value value;
+      for (int i = 0; i < 300 && !cache.entries_->Get(hash.str, &value);
+           ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      }
+    }
+    std::promise<void> done;
+    cache.cleaner_.Push([&done] { done.set_value(); });
+    done.get_future().wait();
+  };
+
+  auto cache_ptr = std::make_unique<FileCache>(
+      temp_dir, FileCache::UNLIMITED, proto::ZSTD, true);
+  auto& cache = *cache_ptr;
+  ASSERT_TRUE(cache.Run(3600));
+
+  // The second and the third entries have the same object.
+  const auto hash1 = TestHash("-c"), hash2 = TestHash("-c -O1"),
+             hash3 = TestHash("-c -O2"), hash4 = TestHash("-c -O3");
+  cache.Store(hash1, FileCache::Entry{"object 1"_l, "deps"_l});
+  cache.Store(hash2, FileCache::Entry{"object 2"_l, "deps"_l});
+  cache.Store(hash3, FileCache::Entry{"object 2"_l, "deps"_l});
+  cache.Store(hash4, FileCache::Entry{"object 4"_l, "deps"_l});
+  cache.AddTags(hash1, {"a"});
+  cache.AddTags(hash2, {"a"});
+  cache.AddTags(hash2, {"b"});
+  cache.AddTags(hash3, {"b"});
+  FlushToIndex(cache, {hash1, hash2, hash3, hash4});
+
+  auto EntrySize = [&](const HandledHash& hash) {
+    SQLite::Value value;
+    EXPECT_TRUE(cache.entries_->Get(hash.str, &value));
+    return std::get<SQLite::SIZE>(value);
+  };
+  auto BlobSize = [&](const char* content) {
+    return cache.blobs_.Size(base::Hexify(Immutable(String(content)).Hash()));
+  };
+
+  List<FileCache::TagStats> stats;
+  List<FileCache::TagOverlap> overlaps;
+  cache.ComputeTagStats(&stats, &overlaps);
+  ASSERT_EQ(3u, stats.size());
+
+  auto it = stats.begin();
+  EXPECT_EQ("", it->tag);
+  EXPECT_EQ(1u, it->entries);
+  EXPECT_EQ(EntrySize(hash4) + BlobSize("object 4"), it->size);
+  EXPECT_EQ(it->size, it->exclusive_size);
+
+  ++it;
+  EXPECT_EQ("a", it->tag);
+  EXPECT_EQ(2u, it->entries);
+  EXPECT_EQ(1u, it->exclusive_entries);
+  EXPECT_EQ(EntrySize(hash1) + EntrySize(hash2) + BlobSize("object 1") +
+                BlobSize("object 2"),
+            it->size);
+  EXPECT_EQ(EntrySize(hash1) + BlobSize("object 1"), it->exclusive_size);
+
+  ++it;
+  EXPECT_EQ("b", it->tag);
+  EXPECT_EQ(2u, it->entries);
+  EXPECT_EQ(1u, it->exclusive_entries);
+  // The object is counted once.
+  EXPECT_EQ(EntrySize(hash2) + EntrySize(hash3) + BlobSize("object 2"),
+            it->size);
+  EXPECT_EQ(EntrySize(hash3), it->exclusive_size);
+
+  ASSERT_EQ(1u, overlaps.size());
+  EXPECT_EQ("a", overlaps.front().first);
+  EXPECT_EQ("b", overlaps.front().second);
+  EXPECT_EQ(EntrySize(hash2) + BlobSize("object 2"), overlaps.front().size);
+
+  // The tags survive the restart.
+  cache_ptr.reset();
+  FileCache new_cache(temp_dir, FileCache::UNLIMITED, proto::ZSTD, true);
+  ASSERT_TRUE(new_cache.Run(3600));
+  FlushToIndex(new_cache, {});
+  List<FileCache::TagStats> new_stats;
+  List<FileCache::TagOverlap> new_overlaps;
+  new_cache.ComputeTagStats(&new_stats, &new_overlaps);
+  EXPECT_EQ(3u, new_stats.size());
+  EXPECT_EQ(1u, new_overlaps.size());
+}
+
+TEST(FileCacheTest, ForgetTag) {
+  const base::TemporaryDir temp_dir;
+  // Makes the cleaner process the stored entries and the tags.
+  auto FlushToIndex = [](FileCache& cache, const List<HandledHash>& hashes) {
+    cache.new_entries_.reset(new FileCache::EntryList,
+                             cache.new_entries_deleter_);
+    for (const auto& hash : hashes) {
+      SQLite::Value value;
+      for (int i = 0; i < 300 && !cache.entries_->Get(hash.str, &value);
+           ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      }
+    }
+    std::promise<void> done;
+    cache.cleaner_.Push([&done] { done.set_value(); });
+    done.get_future().wait();
+  };
+
+  const auto object_path = temp_dir.path() / "test.o";
+  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, proto::ZSTD,
+                  true, true);
+  ASSERT_TRUE(cache.Run(3600));
+
+  const auto hash1 = TestHash("-c"), hash2 = TestHash("-c -O1"),
+             hash3 = TestHash("-c -O2"), hash4 = TestHash("-c -O3");
+  cache.Store(hash1, FileCache::Entry{"object 1"_l, "deps"_l});
+  cache.Store(hash2, FileCache::Entry{"object 2"_l, "deps"_l});
+  cache.Store(hash3, FileCache::Entry{"object 2"_l, "deps"_l});
+  // The output of the current build.
+  ASSERT_TRUE(base::File::Write(object_path, "object 4"_l));
+  FileCache::Entry linked;
+  linked.object_path = object_path;
+  linked.deps = "deps"_l;
+  cache.Store(hash4, linked);
+  cache.AddTags(hash1, {"a"});
+  cache.AddTags(hash2, {"a", "b"});
+  cache.AddTags(hash3, {"b"});
+  cache.AddTags(hash4, {"a"});
+  FlushToIndex(cache, {hash1, hash2, hash3, hash4});
+
+  auto EntrySize = [&](const HandledHash& hash) {
+    SQLite::Value value;
+    EXPECT_TRUE(cache.entries_->Get(hash.str, &value));
+    return std::get<SQLite::SIZE>(value);
+  };
+  auto BlobPath = [&](const char* content) {
+    return cache.blobs_.RawPath(base::Hexify(Immutable(String(content)).Hash()));
+  };
+  auto Exists = [&](const HandledHash& hash) {
+    SQLite::Value value;
+    return cache.entries_->Get(hash.str, &value);
+  };
+
+  // Nothing is removed on the dry run.
+  const ui64 size1 = EntrySize(hash1) + base::File::Size(BlobPath("object 1"));
+  auto result = cache.DoForgetTag("a", true);
+  EXPECT_EQ(1u, result.removed_entries);
+  EXPECT_EQ(size1, result.freed_size);
+  EXPECT_EQ(1u, result.shared_entries);
+  EXPECT_EQ(1u, result.linked_entries);
+  EXPECT_TRUE(Exists(hash1));
+
+  result = cache.DoForgetTag("a", false);
+  EXPECT_EQ(1u, result.removed_entries);
+  EXPECT_FALSE(Exists(hash1));
+  EXPECT_FALSE(base::File::Exists(BlobPath("object 1")));
+  EXPECT_TRUE(Exists(hash2));
+  EXPECT_TRUE(Exists(hash4));
+  EXPECT_EQ(Vector<String>{"b"}, cache.entry_tags_[hash2.str.string_copy()]);
+
+  // The shared object is freed with the last entry.
+  const ui64 size23 = EntrySize(hash2) + EntrySize(hash3) +
+                      base::File::Size(BlobPath("object 2"));
+  result = cache.DoForgetTag("b", false);
+  EXPECT_EQ(2u, result.removed_entries);
+  EXPECT_EQ(size23, result.freed_size);
+  EXPECT_FALSE(base::File::Exists(BlobPath("object 2")));
+
+  // Not linked anymore.
+  ASSERT_TRUE(base::File::Delete(object_path));
+  result = cache.DoForgetTag("a", false);
+  EXPECT_EQ(1u, result.removed_entries);
+  EXPECT_FALSE(Exists(hash4));
+}
+
 TEST(FileCacheTest, LinkOutputsWithContents) {
   const base::TemporaryDir temp_dir;
   FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, proto::NONE,
@@ -766,7 +954,8 @@ TEST(FileCacheTest, ExceedCacheSize) {
     FileCache probe(probe_dir.path() / "cache", FileCache::UNLIMITED,
                     proto::NONE, false);
     ASSERT_TRUE(probe.Run(1));
-    const auto probe_db_size = probe.database_->SizeOnDisk();
+    const auto probe_db_size =
+        probe.database_->SizeOnDisk() + probe.tag_index_->SizeOnDisk();
     ui64 total_size = 0;
     for (int i = 0; i < 3; ++i) {
       probe.Store(FileCache::Hash(code[i], {}, cl, version),
@@ -783,7 +972,8 @@ TEST(FileCacheTest, ExceedCacheSize) {
   FileCache cache(cache_path, entry_size[0] + entry_size[1], proto::NONE, false);
 
   ASSERT_TRUE(cache.Run(1));
-  auto db_size = cache.database_->SizeOnDisk();
+  auto db_size =
+      cache.database_->SizeOnDisk() + cache.tag_index_->SizeOnDisk();
 
   {
     FileCache::Entry entry{obj_content[0], String(), String()};
@@ -834,7 +1024,8 @@ TEST(FileCacheTest, EvictNeverHitEntriesFirst) {
     FileCache probe(probe_dir.path() / "cache", FileCache::UNLIMITED,
                     proto::NONE, false);
     ASSERT_TRUE(probe.Run(1));
-    const auto probe_db_size = probe.database_->SizeOnDisk();
+    const auto probe_db_size =
+        probe.database_->SizeOnDisk() + probe.tag_index_->SizeOnDisk();
     for (int i = 0; i < 3; ++i) {
       probe.Store(Hash(i), FileCache::Entry{obj_content[i], String(), String()});
     }

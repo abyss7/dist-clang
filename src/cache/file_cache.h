@@ -8,6 +8,7 @@
 #include <cache/database_sqlite.h>
 #include <cache/file_hash_cache.h>
 #include <cache/manifest.pb.h>
+#include <cache/tag_index.h>
 
 #include <base/test_forward.h>
 
@@ -22,6 +23,8 @@ FORWARD_TEST(FileCacheTest, EvictNeverHitEntriesFirst);
 FORWARD_TEST(FileCacheTest, ExceedCacheSize_Sync);
 FORWARD_TEST(FileCacheTest, LockNonExistentFile);
 FORWARD_TEST(FileCacheTest, RemoveEntry);
+FORWARD_TEST(FileCacheTest, TagStats);
+FORWARD_TEST(FileCacheTest, ForgetTag);
 FORWARD_TEST(FileCacheTest, DeduplicateOutputs);
 FORWARD_TEST(FileCacheTest, RemoveUnreferencedBlobs);
 FORWARD_TEST(FileCacheTest, CompressColdEntries);
@@ -195,6 +198,38 @@ class FileCache {
   static List<Path> ShadowingPaths(const Path& header,
                                    const List<Path>& search_dirs);
 
+  // Tags the entry, e.g. with the branch of the sources, that used it. The
+  // tags are kept by the cleaner, until the entry is removed.
+  void AddTags(string::HandledHash hash, const Vector<String>& tags);
+
+  struct TagStats {
+    String tag;  // Empty for the entries without tags.
+    ui64 entries = 0, size = 0;
+    // Only for this tag.
+    ui64 exclusive_entries = 0, exclusive_size = 0;
+  };
+  struct TagOverlap {
+    String first, second;
+    ui64 size = 0;  // Of the entries and the outputs, used by both tags.
+  };
+  struct ForgetResult {
+    ui64 removed_entries = 0, freed_size = 0;
+    // Kept: used by other tags, or linked with build directories.
+    ui64 shared_entries = 0, linked_entries = 0;
+  };
+
+  // Calls back from the cleaner with the statistics of all tags. The sizes
+  // count every output once.
+  bool GetTagStats(
+      Fn<void(const List<TagStats>&, const List<TagOverlap>&)> callback);
+
+  // Removes the entries, which only have the |tag|, from the cache - except
+  // the ones, that are linked with build directories. Removes the |tag| from
+  // other entries. With |dry_run| only counts them. Calls back from the
+  // cleaner.
+  bool ForgetTag(const String& tag, bool dry_run,
+                 Fn<void(const ForgetResult&)> callback);
+
   // Remembers the |key|. Returns |true| if it's new.
   bool MarkSeen(const String& key);
 
@@ -211,6 +246,8 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, EvictNeverHitEntriesFirst);
   FRIEND_TEST(FileCacheTest, LockNonExistentFile);
   FRIEND_TEST(FileCacheTest, RemoveEntry);
+  FRIEND_TEST(FileCacheTest, TagStats);
+  FRIEND_TEST(FileCacheTest, ForgetTag);
   FRIEND_TEST(FileCacheTest, DeduplicateOutputs);
   FRIEND_TEST(FileCacheTest, RemoveUnreferencedBlobs);
   FRIEND_TEST(FileCacheTest, CompressColdEntries);
@@ -282,6 +319,7 @@ class FileCache {
     ui64 time;
     string::Hash hash;
     bool hit;  // |false| if the entry is just stored.
+    Vector<String> tags = {};  // Only adds the tags, if not empty.
   };
   using EntryList = base::LockedList<Access>;
   using EntryListDeleter = Fn<void(EntryList* list)>;
@@ -296,6 +334,11 @@ class FileCache {
   void RemoveBlobRefs(string::Hash hash);
   // Counts the references of all entries - after the start.
   void CountBlobRefs(ui64 start_time);
+
+  // The work with the tags - in the cleaner.
+  void ApplyTags(string::Hash hash, const Vector<String>& tags);
+  void ComputeTagStats(List<TagStats>* stats, List<TagOverlap>* overlaps);
+  ForgetResult DoForgetTag(const String& tag, bool dry_run);
 
   bool GetEntrySize(string::Hash hash, ui64* size) const;
   // Sets |0u| if the entry is broken.
@@ -335,6 +378,9 @@ class FileCache {
   // The blobs of the entries. Used by the cleaner - and by the failed stores.
   Mutex blob_refs_mutex_;
   HashMap<String, Vector<String>> entry_blobs_;
+  // The tags of the entries - sorted. Used by the cleaner too.
+  UniquePtr<TagIndex> tag_index_;
+  HashMap<String, Vector<String>> entry_tags_;
 
   ui64 max_size_, cache_size_ = {0u};
   ui32 min_free_percent_ = 0;
