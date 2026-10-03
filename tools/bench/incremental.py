@@ -36,7 +36,7 @@ def run_ninja(build_dir, target, env):
                           text=True)
     elapsed = time.monotonic() - start
     if proc.returncode != 0:
-        sys.stderr.write(proc.stdout[-5000:])
+        sys.stderr.write(proc.stdout[-20000:])
         raise RuntimeError("ninja failed")
     steps = re.findall(r"^\[\d+/(\d+)\]", proc.stdout, re.M)
     compiles = len(re.findall(r"^\[\d+/\d+\] (?:CXX|CC) ", proc.stdout, re.M))
@@ -115,10 +115,14 @@ def main():
                 env["DC_DISABLED"] = "1"
 
             restore = apply_scenario(kind, files)
-            before = read_stats(args.dist_clang)
-            elapsed, _, compiles = run_ninja(args.build_dir, args.target, env)
-            after = read_stats(args.dist_clang)
-            restore()
+            try:
+                before = read_stats(args.dist_clang)
+                elapsed, _, compiles = run_ninja(args.build_dir, args.target,
+                                                 env)
+                after = read_stats(args.dist_clang)
+            finally:
+                # Never leave the source tree modified.
+                restore()
 
             def delta(name):
                 return after.get(name, 0) - before.get(name, 0)
