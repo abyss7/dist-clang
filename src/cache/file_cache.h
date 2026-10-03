@@ -3,6 +3,7 @@
 #include <base/const_string.h>
 #include <base/locked_list.h>
 #include <base/thread_pool.h>
+#include <cache/blob_store.h>
 #include <cache/database_kv.h>
 #include <cache/database_sqlite.h>
 #include <cache/file_hash_cache.h>
@@ -21,6 +22,8 @@ FORWARD_TEST(FileCacheTest, EvictNeverHitEntriesFirst);
 FORWARD_TEST(FileCacheTest, ExceedCacheSize_Sync);
 FORWARD_TEST(FileCacheTest, LockNonExistentFile);
 FORWARD_TEST(FileCacheTest, RemoveEntry);
+FORWARD_TEST(FileCacheTest, DeduplicateOutputs);
+FORWARD_TEST(FileCacheTest, RemoveUnreferencedBlobs);
 FORWARD_TEST(FileCacheTest, CompressColdEntries);
 FORWARD_TEST(FileCacheTest, RoundTripCompressedEntry);
 FORWARD_TEST(FileCacheTest, RemoveEntryInBackground);
@@ -205,6 +208,8 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, EvictNeverHitEntriesFirst);
   FRIEND_TEST(FileCacheTest, LockNonExistentFile);
   FRIEND_TEST(FileCacheTest, RemoveEntry);
+  FRIEND_TEST(FileCacheTest, DeduplicateOutputs);
+  FRIEND_TEST(FileCacheTest, RemoveUnreferencedBlobs);
   FRIEND_TEST(FileCacheTest, CompressColdEntries);
   FRIEND_TEST(FileCacheTest, RoundTripCompressedEntry);
   FRIEND_TEST(FileCacheTest, RemoveEntryInBackground);
@@ -283,8 +288,11 @@ class FileCache {
   bool FindOutput(const Path& cache_path, proto::Compression compression,
                   const String& expected_hash, Immutable* content, Path* path,
                   ui64* size) const;
-  bool StoreOutput(const Path& cache_path, Immutable content, const Path& path,
-                   String* hash, ui64* size, String* error);
+  // Counts the references of the entry to the blobs - in the cleaner.
+  void AddBlobRefs(string::Hash hash, ui64 access_time);
+  void RemoveBlobRefs(string::Hash hash);
+  // Counts the references of all entries - after the start.
+  void CountBlobRefs(ui64 start_time);
 
   bool GetEntrySize(string::Hash hash, ui64* size) const;
   // Sets |0u| if the entry is broken.
@@ -299,23 +307,31 @@ class FileCache {
   void Evict();
 
   // Size of the outputs of the entry, that are hard-linked with other places.
+  // Only for the old format - without blobs.
   ui64 GetSharedSize(string::Hash hash) const;
+  // If any blob of the entry is hard-linked with other places.
+  bool HasSharedBlobs(string::Hash hash);
+  // Size of the blobs, that are used only by the entry.
+  ui64 GetOwnBlobsSize(string::Hash hash);
 
   // Compresses the unused outputs - see |SetCompressAfter()|. Returns the
-  // number of compressed entries.
+  // number of compressed blobs.
   ui32 CompressColdEntries();
-  bool CompressEntry(string::Hash hash);
 
   mutable std::mutex locks_mutex_;
   mutable HashMap<String, ui32> read_locks_;
   mutable HashSet<String> write_locks_;
 
   const Path path_;
-  proto::Compression compression_, cold_compression_;
   bool store_index_, link_outputs_;
   UniquePtr<SQLiteKV> database_;
   mutable FileHashCache file_hashes_;
   UniquePtr<SQLite> entries_;
+
+  BlobStore blobs_;
+  // The blobs of the entries. Used by the cleaner - and by the failed stores.
+  Mutex blob_refs_mutex_;
+  HashMap<String, Vector<String>> entry_blobs_;
 
   ui64 max_size_, cache_size_ = {0u};
   ui32 min_free_percent_ = 0;

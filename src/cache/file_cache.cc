@@ -8,10 +8,9 @@
 #include <base/path_utils.h>
 #include <base/protobuf_utils.h>
 #include <base/string_utils.h>
+#include <cache/compression.h>
 #include <perf/stat_service.h>
 
-#include <snappy.h>
-#include <zstd.h>
 #include STL(regex)
 
 #include <sys/stat.h>
@@ -88,52 +87,6 @@ Path FromManifestPath(const String& header, const Path& current_dir,
   return Path(header).is_absolute() ? Path(header) : current_dir / header;
 }
 
-// Compresses |data| for the cache.
-bool Pack(proto::Compression compression, Immutable data,
-          String* packed) {
-  switch (compression) {
-    case proto::NONE:
-      packed->assign(data.data(), data.size());
-      return true;
-    case proto::SNAPPY:
-      return snappy::Compress(data.data(), data.size(), packed);
-    case proto::ZSTD: {
-      packed->resize(ZSTD_compressBound(data.size()));
-      // The fast level: the compression is on the way of the compilation.
-      const size_t size = ZSTD_compress(packed->data(), packed->size(),
-                                        data.data(), data.size(), 1);
-      if (ZSTD_isError(size)) {
-        return false;
-      }
-      packed->resize(size);
-      return true;
-    }
-  }
-  return false;
-}
-
-bool Unpack(proto::Compression compression, Immutable data,
-            String* unpacked) {
-  switch (compression) {
-    case proto::NONE:
-      unpacked->assign(data.data(), data.size());
-      return true;
-    case proto::SNAPPY:
-      return snappy::Uncompress(data.data(), data.size(), unpacked);
-    case proto::ZSTD: {
-      const auto size = ZSTD_getFrameContentSize(data.data(), data.size());
-      if (size == ZSTD_CONTENTSIZE_UNKNOWN || size == ZSTD_CONTENTSIZE_ERROR) {
-        return false;
-      }
-      unpacked->resize(size);
-      const size_t actual_size = ZSTD_decompress(
-          unpacked->data(), unpacked->size(), data.data(), data.size());
-      return !ZSTD_isError(actual_size) && actual_size == size;
-    }
-  }
-  return false;
-}
-
 // The compression of the object and split DWARF files of the entry.
 proto::Compression GetCompression(const proto::Simple_Version1& v1) {
   if (v1.has_compression()) {
@@ -171,11 +124,9 @@ FileCache::FileCache(const Path& path, ui64 size,
                      proto::Compression compression, bool store_index,
                      bool link_outputs)
     : path_(ReplaceTildeInPath(path)),
-      // The linked outputs can't be compressed.
-      compression_(link_outputs ? proto::NONE : compression),
-      cold_compression_(link_outputs ? compression : proto::NONE),
       store_index_(store_index),
       link_outputs_(link_outputs),
+      blobs_(path_ / "blobs", compression, link_outputs),
       max_size_(size) {}
 
 FileCache::FileCache(const Path& path)
@@ -269,6 +220,10 @@ bool FileCache::Run(ui64 clean_period) {
         }
       };
   resetter_->AddWorker("Cache Resetter Worker"_l, worker);
+
+  // Count the references to the blobs before any other work of the cleaner.
+  const ui64 start_time = time(nullptr);
+  cleaner_.Push([this, start_time] { CountBlobRefs(start_time); });
   cleaner_.Run();
 
   return true;
@@ -497,10 +452,15 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
     return false;
   }
 
+  // The blobs aren't a part of the size of the entry.
+  ui64 blobs_size = 0;
   if (v1.obj() &&
-      !FindOutput(AppendExtension(CommonPath(hash), base::kExtObject),
-                  GetCompression(v1), v1.object_hash(), &entry->object,
-                  &entry->object_path, &size)) {
+      !(v1.blobs()
+            ? blobs_.Get(v1.object_hash(), &entry->object,
+                         &entry->object_path, &blobs_size)
+            : FindOutput(AppendExtension(CommonPath(hash), base::kExtObject),
+                         GetCompression(v1), v1.object_hash(), &entry->object,
+                         &entry->object_path, &size))) {
     return false;
   }
   entry->object_hash = v1.object_hash();
@@ -513,10 +473,12 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
   }
 
   if (v1.dwo() &&
-      !FindOutput(AppendExtension(CommonPath(hash), base::kExtDwo),
-                  GetCompression(v1), v1.dwo_hash(), &entry->dwo,
-                  &entry->dwo_path,
-                  &size)) {
+      !(v1.blobs()
+            ? blobs_.Get(v1.dwo_hash(), &entry->dwo, &entry->dwo_path,
+                         &blobs_size)
+            : FindOutput(AppendExtension(CommonPath(hash), base::kExtDwo),
+                         GetCompression(v1), v1.dwo_hash(), &entry->dwo,
+                         &entry->dwo_path, &size))) {
     return false;
   }
   entry->dwo_hash = v1.dwo_hash();
@@ -529,53 +491,6 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
 
   utime(manifest_path.c_str(), nullptr);
   new_entries_->Append({ui64(time(nullptr)), hash, true});
-  return true;
-}
-
-bool FileCache::StoreOutput(const Path& cache_path, Immutable content,
-                            const Path& path, String* hash, ui64* size,
-                            String* error) {
-  // Link the produced file into the cache.
-  if (link_outputs_ && content.empty() && !path.empty()) {
-    // Hash the file in the cache - that's what is restored later.
-    Immutable content_hash;
-    if (!base::File::Clone(path, cache_path, true, nullptr, error) ||
-        !base::File::Hash(cache_path, &content_hash, {}, error)) {
-      return false;
-    }
-    *hash = content_hash.string_copy();
-    *size += base::File::Size(cache_path);
-  } else {
-    Immutable read_content;
-    if (content.empty() && !path.empty() &&
-        !base::File::Read(path, &read_content, error)) {
-      return false;
-    }
-    Immutable data = content.empty() ? read_content : content;
-
-    *hash = base::Hexify(data.Hash());
-
-    String packed_content;
-    if (compression_ != proto::NONE &&
-        !Pack(compression_, data, &packed_content)) {
-      if (error) {
-        error->assign("failed to pack contents");
-      }
-      return false;
-    }
-
-    const Immutable to_write = compression_ != proto::NONE
-                                   ? Immutable(std::move(packed_content))
-                                   : data;
-    if (!base::File::Write(cache_path, to_write, error)) {
-      return false;
-    }
-    *size += to_write.size();
-  }
-
-  // The files aren't made read-only, though they may be hard-linked with
-  // build directories: the compilers refuse to replace read-only outputs.
-  // Modifications in place are detected by checking the hashes instead.
   return true;
 }
 
@@ -622,10 +537,16 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
   proto::Manifest manifest;
   manifest.set_version(kManifestVersion);
   auto* v1 = manifest.mutable_v1();
-  // The old versions know only Snappy.
-  v1->set_snappy(compression_ == proto::SNAPPY);
-  v1->set_compression(compression_);
+  v1->set_blobs(true);
   ui64 size = 0;
+
+  // The outputs of the old format.
+  for (const auto& extension : {base::kExtObject, base::kExtDwo}) {
+    const auto path = AppendExtension(CommonPath(hash), extension);
+    if (base::File::Exists(path)) {
+      base::File::Delete(path);
+    }
+  }
 
   v1->set_err(!entry.stderr.empty());
   if (!entry.stderr.empty()) {
@@ -643,15 +564,17 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
   }
 
   v1->set_obj(!entry.object.empty() || !entry.object_path.empty());
+  bool reused = false;
   if (v1->obj()) {
-    const auto object_path =
-        AppendExtension(CommonPath(hash), base::kExtObject);
-    if (!StoreOutput(object_path, entry.object, entry.object_path,
-                     v1->mutable_object_hash(), &size, &error)) {
+    if (!blobs_.Put(entry.object, entry.object_path,
+                    v1->mutable_object_hash(), &reused, &error)) {
       RemoveEntry(hash);
-      LOG(CACHE_ERROR) << "Failed to save object to " << object_path << ": "
+      LOG(CACHE_ERROR) << "Failed to save object of " << hash.str << ": "
                        << error;
       return;
+    }
+    if (reused) {
+      STAT(CACHE_BLOB_REUSED);
     }
   }
 
@@ -671,13 +594,15 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
 
   v1->set_dwo(!entry.dwo.empty() || !entry.dwo_path.empty());
   if (v1->dwo()) {
-    const auto dwo_path = AppendExtension(CommonPath(hash), base::kExtDwo);
-    if (!StoreOutput(dwo_path, entry.dwo, entry.dwo_path,
-                     v1->mutable_dwo_hash(), &size, &error)) {
+    if (!blobs_.Put(entry.dwo, entry.dwo_path, v1->mutable_dwo_hash(),
+                    &reused, &error)) {
       RemoveEntry(hash);
-      LOG(CACHE_ERROR) << "Failed to save split DWARF to " << dwo_path << ": "
+      LOG(CACHE_ERROR) << "Failed to save split DWARF of " << hash.str << ": "
                        << error;
       return;
+    }
+    if (reused) {
+      STAT(CACHE_BLOB_REUSED);
     }
   }
 
@@ -755,6 +680,7 @@ bool FileCache::RemoveEntry(string::Hash hash) {
   } else {
     LOG(CACHE_WARNING) << "Removing unconsidered entry: " << hash.str;
   }
+  RemoveBlobRefs(hash);
 
   if (base::File::Exists(object_path)) {
     if (!base::File::Delete(object_path, &error)) {
@@ -963,7 +889,15 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
       if (!entries_->Set(hash.str, entry)) {
         LOG(CACHE_ERROR) << "Failed to update the index for " << hash.str;
       }
+      std::lock_guard<Mutex> lock(blob_refs_mutex_);
+      auto it = entry_blobs_.find(hash.str.string_copy());
+      if (it != entry_blobs_.end()) {
+        for (const auto& blob : it->second) {
+          blobs_.Touch(blob, access->time);
+        }
+      }
     } else {
+      AddBlobRefs(hash, access->time);
       // Insert a new entry, or replace the stored again one.
       const bool exists = entries_->Get(hash.str, &entry);
       ui64 size = 0u;
@@ -988,118 +922,99 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
 }
 
 ui32 FileCache::CompressColdEntries() {
-  if (!compress_after_ || cold_compression_ == proto::NONE) {
+  if (!compress_after_) {
     return 0;
   }
 
+  // Don't hold the cleaner for too long.
   const ui64 kMaxCompressedSizePerPass = 1ull << 30;
   const ui64 now = time(nullptr);
-  ui32 compressed = 0;
-  ui64 compressed_size = 0;
-  for (const auto& [hash_str, entry] : entries_->GetInEvictionOrder()) {
-    if (std::get<SQLite::MTIME>(entry) + compress_after_ > now) {
-      continue;
-    }
-
-    // The outputs, that are linked with build directories, take no space.
-    const string::Hash hash{Immutable(hash_str)};
-    if (GetSharedSize(hash)) {
-      continue;
-    }
-
-    // Don't load the manifests of the compressed entries every time: check
-    // the magic number of zstd.
-    const auto object_path =
-        AppendExtension(CommonPath(hash), base::kExtObject);
-    FILE* file = fopen(object_path.c_str(), "rb");
-    if (!file) {
-      continue;
-    }
-    char magic[4] = {0};
-    const bool has_magic = fread(magic, sizeof(magic), 1, file) == 1;
-    fclose(file);
-    if (has_magic && !memcmp(magic, "\x28\xb5\x2f\xfd", sizeof(magic))) {
-      continue;
-    }
-
-    if (CompressEntry(hash)) {
-      ++compressed;
-      // Don't hold the cleaner for too long.
-      compressed_size += std::get<SQLite::SIZE>(entry);
-      if (compressed_size > kMaxCompressedSizePerPass) {
-        break;
-      }
-    }
-  }
-
-  return compressed;
+  std::lock_guard<Mutex> lock(blob_refs_mutex_);
+  return blobs_.CompressUnused(now - std::min(now, compress_after_),
+                               kMaxCompressedSizePerPass);
 }
 
-bool FileCache::CompressEntry(string::Hash hash) {
+void FileCache::AddBlobRefs(string::Hash hash, ui64 access_time) {
   const auto manifest_path =
       AppendExtension(CommonPath(hash), base::kExtManifest);
-  WriteLock lock(this, manifest_path);
-  if (!lock) {
-    return false;
-  }
-
   proto::Manifest manifest;
-  if (!base::LoadFromFile(manifest_path, &manifest) || !manifest.has_v1() ||
-      GetCompression(manifest.v1()) != proto::NONE) {
-    return false;
-  }
-  auto* v1 = manifest.mutable_v1();
-
-  // A crash in the middle leaves a compressed file of an uncompressed entry:
-  // its hash doesn't match, and the entry is removed later.
-  ui64 size = v1->size();
-  auto compress = [&](Literal extension, const String& expected_hash) {
-    const auto path = AppendExtension(CommonPath(hash), extension);
-    Immutable content;
-    String packed, error;
-    if (!base::File::Read(path, &content, &error) ||
-        base::Hexify(content.Hash()) != expected_hash ||
-        !Pack(cold_compression_, content, &packed)) {
-      return false;
+  Vector<String> blobs;
+  if (base::LoadFromFile(manifest_path, &manifest) && manifest.has_v1() &&
+      manifest.v1().blobs()) {
+    if (manifest.v1().obj()) {
+      blobs.push_back(manifest.v1().object_hash());
     }
-    const ui64 packed_size = packed.size();
-    if (!base::File::Write(path, Immutable(std::move(packed)), &error)) {
-      LOG(CACHE_ERROR) << "Failed to compress " << path << ": " << error;
-      return false;
+    if (manifest.v1().dwo()) {
+      blobs.push_back(manifest.v1().dwo_hash());
     }
-    size = size - content.size() + packed_size;
-    return true;
-  };
+  }
 
-  if ((v1->obj() && !compress(base::kExtObject, v1->object_hash())) ||
-      (v1->dwo() && !compress(base::kExtDwo, v1->dwo_hash()))) {
-    // The entry may be broken already.
-    RemoveEntry(hash);
+  std::lock_guard<Mutex> lock(blob_refs_mutex_);
+  // The new references go first: the blobs may be the same.
+  for (const auto& blob : blobs) {
+    blobs_.AddRef(blob, access_time);
+  }
+  const String key = hash.str.string_copy();
+  auto it = entry_blobs_.find(key);
+  if (it != entry_blobs_.end()) {
+    for (const auto& blob : it->second) {
+      blobs_.RemoveRef(blob);
+    }
+    entry_blobs_.erase(it);
+  }
+  if (!blobs.empty()) {
+    entry_blobs_.emplace(key, std::move(blobs));
+  }
+}
+
+void FileCache::RemoveBlobRefs(string::Hash hash) {
+  std::lock_guard<Mutex> lock(blob_refs_mutex_);
+  auto it = entry_blobs_.find(hash.str.string_copy());
+  if (it != entry_blobs_.end()) {
+    for (const auto& blob : it->second) {
+      blobs_.RemoveRef(blob);
+    }
+    entry_blobs_.erase(it);
+  }
+}
+
+void FileCache::CountBlobRefs(ui64 start_time) {
+  for (const auto& [hash, entry] : entries_->GetInEvictionOrder()) {
+    AddBlobRefs(string::Hash(Immutable(hash)), std::get<SQLite::MTIME>(entry));
+  }
+
+  // E.g. the blobs of the entries, that weren't stored because of a crash.
+  std::lock_guard<Mutex> lock(blob_refs_mutex_);
+  blobs_.RemoveUnreferenced(start_time);
+}
+
+bool FileCache::HasSharedBlobs(string::Hash hash) {
+  std::lock_guard<Mutex> lock(blob_refs_mutex_);
+  auto it = entry_blobs_.find(hash.str.string_copy());
+  if (it == entry_blobs_.end()) {
     return false;
   }
-
-  v1->set_compression(cold_compression_);
-  v1->set_snappy(cold_compression_ == proto::SNAPPY);
-  v1->set_size(size);
-  String error;
-  if (!base::SaveToFile(manifest_path, manifest, &error)) {
-    LOG(CACHE_ERROR) << "Failed to save manifest " << manifest_path << ": "
-                     << error;
-    RemoveEntry(hash);
-    return false;
+  for (const auto& blob : it->second) {
+    if (blobs_.IsShared(blob)) {
+      return true;
+    }
   }
+  return false;
+}
 
-  // Keep the access time.
-  SQLite::Value entry;
-  if (entries_->Get(hash.str, &entry)) {
-    const ui64 entry_size = size + base::File::Size(manifest_path);
-    cache_size_ = cache_size_ - std::get<SQLite::SIZE>(entry) + entry_size;
-    std::get<SQLite::SIZE>(entry) = entry_size;
-    entries_->Set(hash.str, entry);
+ui64 FileCache::GetOwnBlobsSize(string::Hash hash) {
+  std::lock_guard<Mutex> lock(blob_refs_mutex_);
+  auto it = entry_blobs_.find(hash.str.string_copy());
+  if (it == entry_blobs_.end()) {
+    return 0;
   }
-
-  LOG(CACHE_VERBOSE) << "Compressed the unused entry " << hash.str;
-  return true;
+  ui64 size = 0;
+  for (const auto& blob : it->second) {
+    if (blobs_.Refs(blob) == 1 && !blobs_.IsShared(blob)) {
+      size += blobs_.Size(blob);
+    }
+  }
+  return size;
 }
 
 ui64 FileCache::GetSharedSize(string::Hash hash) const {
@@ -1130,12 +1045,18 @@ void FileCache::Evict() {
   ui64 own_size = 0, shared_size = 0;
   Vector<ui64> own_sizes;
   own_sizes.reserve(entries.size());
-  for (const auto& [hash, entry] : entries) {
-    const ui64 shared = GetSharedSize(string::Hash(Immutable(hash)));
+  for (const auto& [hash_str, entry] : entries) {
+    const string::Hash hash{Immutable(hash_str)};
+    const ui64 shared = GetSharedSize(hash);
     const ui64 total = std::get<SQLite::SIZE>(entry);
-    own_sizes.push_back(shared ? 0 : total);
+    own_sizes.push_back(shared || HasSharedBlobs(hash) ? 0 : total);
     own_size += total - std::min(total, shared);
     shared_size += std::min(total, shared);
+  }
+  {
+    // Every blob counts once.
+    std::lock_guard<Mutex> lock(blob_refs_mutex_);
+    blobs_.GetTotalSize(&own_size, &shared_size);
   }
 
   base::Singleton<perf::StatService>::Get().Set(
@@ -1184,9 +1105,11 @@ void FileCache::Evict() {
     if (lock) {
       LOG(CACHE_VERBOSE) << "Removing " << hash.str << " with "
                          << std::get<SQLite::HITS>(entry) << " hits";
+      // The blobs, that are used by other entries, stay.
+      const ui64 removed_size = entry_own_size + GetOwnBlobsSize(hash);
       RemoveEntry(hash);
-      own_size -= std::min(own_size, entry_own_size);
-      freed += entry_own_size;
+      own_size -= std::min(own_size, removed_size);
+      freed += removed_size;
     }
   }
 }

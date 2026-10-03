@@ -53,6 +53,10 @@ message Simple_Version1 {
   // Hashes of the uncompressed contents of all files - every hit checks them:
   // the files may be broken by a crash or modified through a hard link.
 
+  optional bool blobs = 111;
+  // The object and split DWARF files are in the blob store - by their hashes.
+  // Then |size| doesn't include them.
+
   optional string warnings_hash = 107;
   // Hash of the warning flags, which produced the diagnostics in "stderr".
 }

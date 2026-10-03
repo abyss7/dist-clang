@@ -5,6 +5,7 @@
 #include <base/future.h>
 #include <base/path_utils.h>
 #include <base/protobuf_utils.h>
+#include <base/string_utils.h>
 #include <base/temporary_dir.h>
 
 #include <base/file_utils.h>
@@ -393,7 +394,6 @@ TEST(FileCacheTest, CompressColdEntries) {
   ASSERT_TRUE(cache.Run(3600));
 
   String object(100000, 'o'), dwo(100000, 'd');
-  object.replace(0, 4, "\x7f" "ELF");
   ASSERT_TRUE(base::File::Write(object_path, Immutable(String(object))));
   ASSERT_TRUE(base::File::Write(dwo_path, Immutable(String(dwo))));
 
@@ -405,7 +405,8 @@ TEST(FileCacheTest, CompressColdEntries) {
   entry.deps = "deps"_l;
   cache.Store(hash, entry);
 
-  // Wait, until the entry gets into the index, and make it old enough.
+  // Wait, until the entry gets into the index - and the references to the
+  // blobs are counted.
   cache.new_entries_.reset(new FileCache::EntryList,
                            cache.new_entries_deleter_);
   SQLite::Value value;
@@ -413,23 +414,26 @@ TEST(FileCacheTest, CompressColdEntries) {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
   ASSERT_TRUE(cache.entries_->Get(hash.str, &value));
-  std::get<SQLite::MTIME>(value) -= 10;
-  ASSERT_TRUE(cache.entries_->Set(hash.str, value));
 
-  const auto cache_object_path =
-      AppendExtension(cache.CommonPath(hash), base::kExtObject);
+  const String object_hash = base::Hexify(Immutable(String(object)).Hash());
+  const String dwo_hash = base::Hexify(Immutable(String(dwo)).Hash());
+
+  // Not used for a second.
+  cache.SetCompressAfter(1);
+  std::this_thread::sleep_for(std::chrono::milliseconds(1100));
 
   // The outputs are still linked with the build directory.
-  cache.SetCompressAfter(1);
   EXPECT_EQ(0u, cache.CompressColdEntries());
-  EXPECT_EQ(object.size(), base::File::Size(cache_object_path));
+  EXPECT_TRUE(base::File::Exists(cache.blobs_.RawPath(object_hash)));
 
   ASSERT_TRUE(base::File::Delete(object_path));
   ASSERT_TRUE(base::File::Delete(dwo_path));
-  EXPECT_EQ(1u, cache.CompressColdEntries());
-  EXPECT_GT(object.size() / 10, base::File::Size(cache_object_path));
-  ASSERT_TRUE(cache.entries_->Get(hash.str, &value));
-  EXPECT_GT(object.size() / 5, std::get<SQLite::SIZE>(value));
+  EXPECT_EQ(2u, cache.CompressColdEntries());
+  EXPECT_FALSE(base::File::Exists(cache.blobs_.RawPath(object_hash)));
+  EXPECT_GT(object.size() / 10,
+            base::File::Size(cache.blobs_.PackedPath(object_hash)));
+  EXPECT_GT(dwo.size() / 10,
+            base::File::Size(cache.blobs_.PackedPath(dwo_hash)));
 
   // Already compressed.
   EXPECT_EQ(0u, cache.CompressColdEntries());
@@ -442,6 +446,102 @@ TEST(FileCacheTest, CompressColdEntries) {
   EXPECT_EQ(object, found.object.string_copy());
   EXPECT_EQ(dwo, found.dwo.string_copy());
   EXPECT_EQ("deps"_l, found.deps);
+}
+
+TEST(FileCacheTest, DeduplicateOutputs) {
+  const base::TemporaryDir temp_dir;
+  const auto object_path = temp_dir.path() / "test.o";
+  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, proto::ZSTD,
+                  true, true);
+  ASSERT_TRUE(cache.Run(3600));
+
+  auto Hash = [](const char* flags) {
+    return FileCache::Hash(HandledSource("int main() {}"_l), {},
+                           CommandLine(Immutable(String(flags))),
+                           Version("1"_l));
+  };
+  auto Index = [&cache](const auto& hash) {
+    cache.new_entries_.reset(new FileCache::EntryList,
+                             cache.new_entries_deleter_);
+    SQLite::Value value;
+    for (int i = 0; i < 300 && !cache.entries_->Get(hash.str, &value); ++i) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return cache.entries_->Get(hash.str, &value);
+  };
+
+  // The same object with different keys - e.g. with other warnings.
+  const String object(100000, 'o');
+  const String object_hash = base::Hexify(Immutable(String(object)).Hash());
+  for (const char* flags : {"-c", "-c -Wall"}) {
+    // Every compilation produces a new file.
+    base::File::Delete(object_path);
+    ASSERT_TRUE(base::File::Write(object_path, Immutable(String(object))));
+    FileCache::Entry entry;
+    entry.object_path = object_path;
+    entry.deps = "deps"_l;
+    cache.Store(Hash(flags), entry);
+    ASSERT_TRUE(Index(Hash(flags)));
+  }
+
+  // One file in the cache - linked with the first output only.
+  const Path blob_path = cache.blobs_.RawPath(object_hash);
+  struct stat st;
+  ASSERT_EQ(0, stat(blob_path.c_str(), &st));
+  EXPECT_EQ(1u, st.st_nlink);
+  {
+    std::lock_guard<Mutex> lock(cache.blob_refs_mutex_);
+    EXPECT_EQ(2u, cache.blobs_.Refs(object_hash));
+  }
+
+  for (const char* flags : {"-c", "-c -Wall"}) {
+    FileCache::Entry found;
+    ASSERT_TRUE(cache.Find(Hash(flags), &found));
+    EXPECT_EQ(blob_path, found.object_path);
+  }
+
+  // The blob is removed with the last entry.
+  cache.RemoveEntry(Hash("-c"));
+  EXPECT_TRUE(base::File::Exists(blob_path));
+  cache.RemoveEntry(Hash("-c -Wall"));
+  EXPECT_FALSE(base::File::Exists(blob_path));
+}
+
+TEST(FileCacheTest, RemoveUnreferencedBlobs) {
+  const base::TemporaryDir temp_dir;
+  const auto hash = FileCache::Hash(HandledSource("int main() {}"_l), {},
+                                    CommandLine("-c"_l), Version("1"_l));
+  const auto hash2 = FileCache::Hash(HandledSource("int main() {}"_l), {},
+                                     CommandLine("-c -O2"_l), Version("1"_l));
+  Path blob_path, orphan_path;
+  {
+    FileCache cache(temp_dir.path(), FileCache::UNLIMITED, proto::ZSTD, true);
+    ASSERT_TRUE(cache.Run(3600));
+    cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l});
+    cache.Store(hash2, FileCache::Entry{"object2"_l, "deps"_l});
+    blob_path = cache.blobs_.PackedPath(base::Hexify(Immutable("object"_l).Hash()));
+    orphan_path = cache.blobs_.PackedPath(base::Hexify(Immutable("object2"_l).Hash()));
+  }
+  ASSERT_TRUE(base::File::Exists(blob_path));
+  ASSERT_TRUE(base::File::Exists(orphan_path));
+
+  // A crash before the second entry is stored.
+  ASSERT_TRUE(base::File::Delete(
+      AppendExtension(FileCache(temp_dir.path()).CommonPath(hash2),
+                      base::kExtManifest)));
+  std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+
+  FileCache cache(temp_dir.path(), FileCache::UNLIMITED, proto::ZSTD, true);
+  ASSERT_TRUE(cache.Run(3600));
+  for (int i = 0; i < 300 && base::File::Exists(orphan_path); ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  EXPECT_FALSE(base::File::Exists(orphan_path));
+  EXPECT_TRUE(base::File::Exists(blob_path));
+
+  FileCache::Entry entry;
+  ASSERT_TRUE(cache.Find(hash, &entry));
+  EXPECT_EQ("object"_l, entry.object);
 }
 
 TEST(FileCacheTest, LinkOutputsWithContents) {
@@ -476,8 +576,17 @@ TEST(FileCacheTest, DetectBrokenFiles) {
       cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l, "stderr"_l,
                                          "dwo"_l});
 
-      // Flip a byte, keeping the size - like a broken write.
-      const auto path = cache.CommonPath(hash).string() + "." + extension;
+      // Flip a byte, keeping the size - like a broken write. The outputs are
+      // in the blob store.
+      Path path = cache.CommonPath(hash).string() + "." + extension;
+      if (extension == String("o") || extension == String("dwo")) {
+        const String blob_hash = base::Hexify(
+            Immutable(extension == String("o") ? "object"_l : "dwo"_l).Hash());
+        path = cache.blobs_.RawPath(blob_hash);
+        if (!base::File::Exists(path)) {
+          path = cache.blobs_.PackedPath(blob_hash);
+        }
+      }
       Immutable content;
       ASSERT_TRUE(base::File::Read(path, &content));
       String broken = content.string_copy();

@@ -11,6 +11,10 @@ source_set("sqlite") {
 
 static_library("file_cache") {
   sources = [
+    "blob_store.cc",
+    "blob_store.h",
+    "compression.cc",
+    "compression.h",
     "database.h",
     "database_kv.cc",
     "database_kv.h",
