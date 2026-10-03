@@ -4,6 +4,15 @@ package dist_clang.cache.proto;
 
 message Direct {
   repeated string headers = 1;
+  // OBSOLETE: the only list of headers - read for compatibility.
+
+  message Variant {
+    repeated string headers = 1;
+  }
+
+  repeated Variant variants = 2;
+  // Different sets of headers of the same source, e.g. from different branches.
+  // The most recently stored variant goes first.
 }
 
 // ACTUAL.

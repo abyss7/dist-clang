@@ -52,6 +52,21 @@ String HashCombine(const Immutable& source, const cache::ExtraFiles& files) {
 
 namespace cache {
 
+namespace {
+
+List<List<String>> DirectVariants(const proto::Direct& direct) {
+  List<List<String>> variants;
+  for (const auto& variant : direct.variants()) {
+    variants.emplace_back(variant.headers().begin(), variant.headers().end());
+  }
+  if (variants.empty() && direct.headers_size()) {
+    variants.emplace_back(direct.headers().begin(), direct.headers().end());
+  }
+  return variants;
+}
+
+}  // namespace
+
 FileCache::FileCache(const Path& path, ui64 size, bool snappy, bool store_index)
     : path_(ReplaceTildeInPath(path)),
       snappy_(snappy),
@@ -172,22 +187,32 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
   utime(manifest_path.c_str(), nullptr);
   new_entries_->Append({time(nullptr), unhandled_hash});
 
-  Immutable::Rope hash_rope = {unhandled_hash};
-  for (const auto& header : manifest.direct().headers()) {
-    String header_hash;
-    const Path header_path =
-        Path(header).is_absolute() ? Path(header) : current_dir / header;
-    if (!file_hashes_.Hash(header_path, &header_hash)) {
-      return false;
+  // Try all known sets of headers: the same source may include different
+  // headers, e.g. on different branches.
+  for (const auto& headers : DirectVariants(manifest.direct())) {
+    Immutable::Rope hash_rope = {unhandled_hash};
+    bool hashed = true;
+    for (const auto& header : headers) {
+      String header_hash;
+      const Path header_path =
+          Path(header).is_absolute() ? Path(header) : current_dir / header;
+      if (!file_hashes_.Hash(header_path, &header_hash)) {
+        hashed = false;
+        break;
+      }
+      hash_rope.push_back(Immutable(std::move(header_hash)));
     }
-    hash_rope.push_back(Immutable(std::move(header_hash)));
-  }
-  Immutable hash_with_headers = base::Hexify(Immutable(hash_rope).Hash());
-  Immutable handled_hash;
+    if (!hashed) {
+      continue;
+    }
 
-  DCHECK(database_);
-  if (database_->Get(hash_with_headers, &handled_hash)) {
-    return Find(HandledHash(handled_hash), entry);
+    Immutable hash_with_headers = base::Hexify(Immutable(hash_rope).Hash());
+    Immutable handled_hash;
+
+    DCHECK(database_);
+    if (database_->Get(hash_with_headers, &handled_hash)) {
+      return Find(HandledHash(handled_hash), entry);
+    }
   }
 
   return false;
@@ -531,8 +556,18 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
 
   Immutable::Rope hash_rope = {orig_hash};
 
+  // Keep the previous variants of headers.
+  proto::Manifest old_manifest;
+  List<List<String>> variants;
+  if (base::File::Exists(manifest_path) &&
+      base::LoadFromFile(manifest_path, &old_manifest) &&
+      old_manifest.has_direct()) {
+    variants = DirectVariants(old_manifest.direct());
+  }
+
   proto::Manifest manifest;
   manifest.set_version(kManifestVersion);
+  List<String> new_variant;
 
   auto hash_headers = [&](const List<String>& headers,
                           const List<Literal>& skip_list) {
@@ -558,7 +593,7 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
         return false;
       }
       hash_rope.push_back(header_hash);
-      manifest.mutable_direct()->add_headers(header);
+      new_variant.push_back(header);
     }
     return true;
   };
@@ -577,6 +612,19 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
   DCHECK(database_);
   if (!database_->Set(direct_hash, hash)) {
     return;
+  }
+
+  // The most recent variant goes first, the oldest ones are dropped.
+  variants.remove(new_variant);
+  variants.push_front(std::move(new_variant));
+  while (variants.size() > kMaxDirectVariants) {
+    variants.pop_back();
+  }
+  for (const auto& variant : variants) {
+    auto* new_variant = manifest.mutable_direct()->add_variants();
+    for (const auto& header : variant) {
+      new_variant->add_headers(header);
+    }
   }
 
   String error;

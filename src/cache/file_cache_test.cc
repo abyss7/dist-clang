@@ -482,6 +482,81 @@ TEST(FileCacheTest, RestoreDirectEntryWithExtraFile) {
   EXPECT_EQ(expected_stderr, entry2.stderr);
 }
 
+TEST(FileCacheTest, DirectEntry_SeveralHeaderSets) {
+  const base::TemporaryDir temp_dir;
+  const auto header1_path = temp_dir.path() / "test1.h";
+  const auto header2_path = temp_dir.path() / "test2.h";
+  FileCache cache(temp_dir);
+  ASSERT_TRUE(cache.Run(1));
+
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  const UnhandledSource orig_code("#include \"test.h\""_l);
+
+  ASSERT_TRUE(base::File::Write(header1_path, "#define A"_l));
+  ASSERT_TRUE(base::File::Write(header2_path, "#define B"_l));
+
+  // The same source includes different headers, e.g. on different branches.
+  const auto hash1 = FileCache::Hash(HandledSource("1"_l), {}, cl, version);
+  cache.Store(hash1, FileCache::Entry{"object1"_l, "deps1"_l, Immutable()});
+  cache.Store(orig_code, {}, cl, version, {header1_path}, {}, temp_dir, hash1);
+
+  const auto hash2 = FileCache::Hash(HandledSource("2"_l), {}, cl, version);
+  cache.Store(hash2, FileCache::Entry{"object2"_l, "deps2"_l, Immutable()});
+  cache.Store(orig_code, {}, cl, version, {header2_path}, {}, temp_dir, hash2);
+
+  FileCache::Entry entry1;
+  ASSERT_TRUE(cache.Find(orig_code, {}, cl, version, temp_dir, &entry1));
+  EXPECT_EQ("object2"_l, entry1.object);
+
+  // The second set doesn't match anymore - the first one still does.
+  ASSERT_TRUE(base::File::Write(header2_path, "#define C"_l));
+  FileCache::Entry entry2;
+  ASSERT_TRUE(cache.Find(orig_code, {}, cl, version, temp_dir, &entry2));
+  EXPECT_EQ("object1"_l, entry2.object);
+
+  ASSERT_TRUE(base::File::Write(header1_path, "#define C"_l));
+  FileCache::Entry entry3;
+  EXPECT_FALSE(cache.Find(orig_code, {}, cl, version, temp_dir, &entry3));
+}
+
+TEST(FileCacheTest, DirectEntry_LimitedHeaderSets) {
+  const base::TemporaryDir temp_dir;
+  FileCache cache(temp_dir);
+  ASSERT_TRUE(cache.Run(1));
+
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  const UnhandledSource orig_code("#include \"test.h\""_l);
+
+  auto Store = [&](int i) {
+    const auto header_path = temp_dir.path() / ("test" + std::to_string(i));
+    ASSERT_TRUE(base::File::Write(header_path, Immutable(std::to_string(i))));
+    const auto hash = FileCache::Hash(
+        HandledSource(Immutable(std::to_string(i))), {}, cl, version);
+    cache.Store(hash, FileCache::Entry{Immutable(std::to_string(i)), "deps"_l,
+                                       Immutable()});
+    cache.Store(orig_code, {}, cl, version, {header_path}, {}, temp_dir, hash);
+  };
+
+  for (int i = 0; i <= int(FileCache::kMaxDirectVariants); ++i) {
+    Store(i);
+  }
+
+  // Only the latest variant is present in all headers - remove the latest
+  // ones one by one, and check the previous ones are still found, except the
+  // oldest one.
+  for (int i = FileCache::kMaxDirectVariants; i > 0; --i) {
+    FileCache::Entry entry;
+    ASSERT_TRUE(cache.Find(orig_code, {}, cl, version, temp_dir, &entry));
+    EXPECT_EQ(std::to_string(i), entry.object.string_copy());
+    ASSERT_TRUE(base::File::Delete(temp_dir.path() / ("test" + std::to_string(i))));
+  }
+
+  FileCache::Entry entry;
+  EXPECT_FALSE(cache.Find(orig_code, {}, cl, version, temp_dir, &entry));
+}
+
 TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
   const base::TemporaryDir temp_dir;
   const auto object_path = temp_dir.path() / "test.o";

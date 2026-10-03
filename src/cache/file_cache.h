@@ -93,6 +93,9 @@ class FileCache {
     UNLIMITED = 0,
   };
 
+  // Maximal number of the header sets per one source in the direct cache.
+  enum : size_t { kMaxDirectVariants = 8 };
+
   struct Entry {
     Immutable object;
     Immutable deps;
