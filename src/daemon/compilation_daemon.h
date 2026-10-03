@@ -76,11 +76,14 @@ class CompilationDaemon : public BaseDaemon {
                          cache::FileCache::Entry* entry) const;
 
   // On a miss sets |source_edited|, if another version of the same source
-  // was compiled with the same flags before.
+  // was compiled with the same flags before, and |source_seen|, if the same
+  // source was compiled with the same flags, except the preprocessing-only
+  // ones - i.e. the simple cache may have the result.
   bool SearchDirectCache(const base::proto::Flags& flags,
                          const String& current_dir,
                          cache::FileCache::Entry* entry,
-                         bool* source_edited = nullptr) const;
+                         bool* source_edited = nullptr,
+                         bool* source_seen = nullptr) const;
 
   void UpdateSimpleCache(const cache::string::HandledHash& hash,
                          const cache::FileCache::Entry& entry);

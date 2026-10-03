@@ -52,6 +52,8 @@ FORWARD_TEST(EmitterTest, RecheckWarnings);
 FORWARD_TEST(EmitterTest, DontStoreIfInputsChangedDuringCompilation);
 FORWARD_TEST(EmitterTest, DontHitDirectCacheForSameContentsOfAnotherSource);
 FORWARD_TEST(EmitterTest, VerifyHits);
+FORWARD_TEST(EmitterTest, NeverPreprocess);
+FORWARD_TEST(EmitterTest, PreprocessWhenIdle);
 }  // namespace daemon
 
 namespace base {
@@ -87,6 +89,11 @@ class Process
   inline const List<Immutable>& args() const { return args_; }
   inline bool canceled() const { return canceled_; }
 
+  // Kills the running process from another thread, or makes |Run()| fail at
+  // once, if it doesn't run yet. Then |canceled()| is |true|.
+  virtual void Cancel() THREAD_SAFE { cancel_requested_ = true; }
+  inline bool cancel_requested() const { return cancel_requested_; }
+
 #if defined(OS_WIN)
 // FIXME: cursed Windows STL defines these as macros.
 #undef stdout
@@ -108,6 +115,7 @@ class Process
   const ui32 uid_;
   int cancel_fd_ = -1;
   int nice_ = 0;
+  Atomic<bool> cancel_requested_ = false;
   bool canceled_ = false;
 
  private:
@@ -153,6 +161,8 @@ class Process
   FRIEND_TEST(daemon::EmitterTest,
               DontHitDirectCacheForSameContentsOfAnotherSource);
   FRIEND_TEST(daemon::EmitterTest, VerifyHits);
+  FRIEND_TEST(daemon::EmitterTest, NeverPreprocess);
+  FRIEND_TEST(daemon::EmitterTest, PreprocessWhenIdle);
 };
 
 }  // namespace base

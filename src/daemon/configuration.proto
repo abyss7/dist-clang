@@ -104,6 +104,26 @@ message Configuration {
     // the code generation, when only warnings change, but misses the warnings
     // of the backend, e.g. "-Wframe-larger-than".
 
+    enum Preprocessing {
+      ALWAYS    = 0;
+      // Preprocess the source on a miss of the direct cache, and look for it
+      // in the simple cache - then compile.
+
+      WHEN_IDLE = 1;
+      // Compile at once, and preprocess at the same time, while there are
+      // idle CPUs: if the preprocessed source is found in the simple cache
+      // before the compilation ends, the compilation is canceled. The result
+      // is stored for both caches.
+
+      NEVER     = 2;
+      // Compile at once: only the direct cache is used.
+    }
+    optional Preprocessing preprocessing = 13 [ default = WHEN_IDLE ];
+    // What to do on a miss of the direct cache. The edited sources are never
+    // preprocessed, the compilations without the dependency files are always
+    // preprocessed - the direct cache doesn't work for them - and so are all
+    // compilations with remotes.
+
     optional uint32 verify_hits_percent = 12 [ default = 0 ];
     // The percent of the cache hits, that are compiled again in background
     // with the lowest priority, to compare the results with the cached ones.

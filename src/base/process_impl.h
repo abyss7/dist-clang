@@ -13,6 +13,8 @@ class ProcessImpl : public Process {
 
   bool Run(ui16 sec_timeout, String* error = nullptr) override;
   bool Run(ui16 sec_timeout, Immutable input, String* error = nullptr) override;
+  void Cancel() override;
+  ~ProcessImpl() override;
 
  private:
   friend class DefaultFactory;
@@ -25,6 +27,8 @@ class ProcessImpl : public Process {
   void kill(int pid);
 
   bool killed_;
+  // Signals |Cancel()| to the running process.
+  int cancel_event_ = -1;
 };
 
 }  // namespace base

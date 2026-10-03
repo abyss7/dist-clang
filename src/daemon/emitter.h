@@ -34,6 +34,35 @@ class OutputLocks {
   HashMap<String, Pair<SharedPtr<Mutex>, ui32 /* users */>> locks_;
 };
 
+// The compilation, that runs at the same time with the preprocessing: if the
+// preprocessed source is found in the simple cache first, the compilation is
+// canceled.
+class Speculation {
+ public:
+  // The compilation starts - returns |false| if it's canceled already.
+  bool StartCompilation(base::Process* process) THREAD_SAFE;
+  // The compilation ends - returns |false| if it's canceled: then its result
+  // is dropped. Sets |handled_hash| of the preprocessed source, if it's known.
+  bool FinishCompilation(cache::string::HandledHash* handled_hash) THREAD_SAFE;
+
+  // The preprocessed source is found: cancels the compilation. Returns
+  // |false| if the compilation has ended already.
+  bool Cancel() THREAD_SAFE;
+  // The preprocessed source isn't found: the compilation stores its result
+  // with this hash too. Returns |true| if the compilation has ended already.
+  bool SetHandledHash(const cache::string::HandledHash& hash) THREAD_SAFE;
+
+  bool canceled() const THREAD_SAFE;
+
+ private:
+  enum State { COMPILING, COMPILED, CANCELED };
+
+  mutable Mutex mutex_;
+  State state_ = COMPILING;
+  base::Process* process_ = nullptr;
+  cache::string::HandledHash handled_hash_;
+};
+
 class Emitter : public CompilationDaemon {
  public:
   explicit Emitter(const Configuration& conf);
@@ -68,12 +97,16 @@ class Emitter : public CompilationDaemon {
     START_TIME = 7,
     // The file system time before the task started to read the inputs: the
     // inputs, modified after it, may not match the result.
+
+    SPECULATION = 8,
+    // The state of the compilation, that runs at the same time with the
+    // preprocessing - if it does.
   };
 
   using Message = UniquePtr<base::proto::Local>;
   using Task = Tuple<net::ConnectionPtr, Message, cache::string::HandledSource,
                      cache::ExtraFiles, cache::string::HandledHash, bool,
-                     Immutable, i64>;
+                     Immutable, i64, SharedPtr<Speculation>>;
   using Queue = base::LockedQueue<Task, true>;
   using QueueAggregator = base::QueueAggregator<Task>;
   using Optional = Queue::Optional;
@@ -99,6 +132,10 @@ class Emitter : public CompilationDaemon {
   void DoRemoteExecute(const base::WorkerPool&, ResolveFn resolver, ui32 shard);
   void DoPoll(const base::WorkerPool&, Vector<ResolveFn> resolvers);
 
+  // What to do on a miss of the direct cache.
+  using Preprocessing = proto::Configuration::Emitter::Preprocessing;
+  static Preprocessing GetPreprocessing(const proto::Configuration& conf);
+
   // Schedules the verification of the cache hit, if it's chosen for it - see
   // |verify_hits_percent|. |hit_time| is the start of the task of the hit.
   void MaybeVerifyHit(const base::proto::Local& message,
@@ -118,6 +155,9 @@ class Emitter : public CompilationDaemon {
   // Runs the verifications of the cache hits one by one, and drops the new
   // ones, while too many are waiting.
   UniquePtr<base::ThreadPool> verifier_;
+
+  // The compilations and the preprocessings at the same time with them.
+  Atomic<ui32> running_processes_ = 0;
 
   CompilerIdentity compiler_identity_;
   OutputLocks output_locks_;

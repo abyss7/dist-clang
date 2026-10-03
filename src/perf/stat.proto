@@ -66,6 +66,11 @@ message Metric {
 
     CACHE_ENTRIES               = 28;
 
+    PARALLEL_PREPROCESSING      = 38;
+    PARALLEL_PREPROCESSING_HIT  = 39;
+    // Preprocessings at the same time with the compilations, and the ones,
+    // that found the result in the simple cache before the compilation ended.
+
     CACHE_BLOB_REUSED           = 37;
     // Outputs, that are stored once for several entries.
 

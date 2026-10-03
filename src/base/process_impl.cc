@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #if defined(OS_LINUX)
+#include <sys/eventfd.h>
 #include <sys/prctl.h>
 #endif  // defined(OS_LINUX)
 
@@ -16,7 +17,25 @@ namespace dist_clang {
 namespace base {
 
 ProcessImpl::ProcessImpl(const Path& exec_path, const Path& cwd_path, ui32 uid)
-    : Process(exec_path, cwd_path, uid), killed_(false) {}
+    : Process(exec_path, cwd_path, uid), killed_(false) {
+#if defined(OS_LINUX)
+  cancel_event_ = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+#endif
+}
+
+ProcessImpl::~ProcessImpl() {
+  if (cancel_event_ >= 0) {
+    close(cancel_event_);
+  }
+}
+
+void ProcessImpl::Cancel() {
+  Process::Cancel();
+  if (cancel_event_ >= 0) {
+    const ui64 value = 1;
+    [[maybe_unused]] auto result = write(cancel_event_, &value, sizeof(value));
+  }
+}
 
 // This method contains code between |fork()| and |exec()|. Since we're in a
 // multi-threaded program, we have to obey the POSIX recommendations about

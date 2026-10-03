@@ -195,6 +195,9 @@ class FileCache {
   static List<Path> ShadowingPaths(const Path& header,
                                    const List<Path>& search_dirs);
 
+  // Remembers the |key|. Returns |true| if it's new.
+  bool MarkSeen(const String& key);
+
   // Remembers the last version of the source, compiled with the same flags,
   // under |key|. Returns |true| if the previous version is different - i.e.
   // the source is edited.

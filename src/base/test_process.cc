@@ -19,7 +19,13 @@ bool TestProcess::Run(ui16 sec_timeout, String* error) {
     (*run_attempts_)++;
   }
 
-  return on_run_(sec_timeout, String(), error);
+  // The callback may wait for the cancellation.
+  const bool result = !cancel_requested_ && on_run_(sec_timeout, String(), error);
+  if (cancel_requested_) {
+    canceled_ = true;
+    return false;
+  }
+  return result;
 }
 
 bool TestProcess::Run(ui16 sec_timeout, Immutable input, String* error) {

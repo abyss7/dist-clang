@@ -26,6 +26,14 @@ class WatchedSocket : public Handle {
 bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
   CHECK(args_.size() + 1 < MAX_ARGS);
 
+  if (cancel_requested_) {
+    canceled_ = true;
+    if (error) {
+      error->assign("Canceled");
+    }
+    return false;
+  }
+
   Pipe out, err;
   if (!out.IsValid()) {
     out.GetCreationError(error);
@@ -66,10 +74,15 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
       ::kill(child_pid, SIGTERM);
       return false;
     }
+    WatchedSocket cancel_event(cancel_event_);
+    if (cancel_event.IsValid() && !epoll.Add(cancel_event, EPOLLIN, error)) {
+      ::kill(child_pid, SIGTERM);
+      return false;
+    }
 
     size_t stdout_size = 0, stderr_size = 0;
     Immutable::Rope stdout, stderr;
-    std::array<struct epoll_event, 3> events;
+    std::array<struct epoll_event, 4> events;
 
     int epoll_timeout = sec_timeout == UNLIMITED ? -1 : sec_timeout * 1000;
     int exhausted_fds = 0;
@@ -95,6 +108,15 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
       }
 
       for (int i = 0; i < event_count; ++i) {
+        if (events[i].data.ptr == &cancel_event) {
+          ::kill(-child_pid, SIGKILL);
+          ::kill(child_pid, SIGKILL);
+          canceled_ = killed_ = true;
+          if (error) {
+            error->assign("Canceled");
+          }
+          break;
+        }
         if (events[i].data.ptr == &cancel_socket) {
           // The peer is gone - kill the whole process group at once.
           ::kill(-child_pid, SIGKILL);

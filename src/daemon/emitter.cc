@@ -222,6 +222,49 @@ inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
 
 namespace daemon {
 
+bool Speculation::StartCompilation(base::Process* process) {
+  std::lock_guard<Mutex> lock(mutex_);
+  if (state_ == CANCELED) {
+    return false;
+  }
+  process_ = process;
+  return true;
+}
+
+bool Speculation::FinishCompilation(cache::string::HandledHash* handled_hash) {
+  std::lock_guard<Mutex> lock(mutex_);
+  process_ = nullptr;
+  if (state_ == CANCELED) {
+    return false;
+  }
+  state_ = COMPILED;
+  *handled_hash = handled_hash_;
+  return true;
+}
+
+bool Speculation::Cancel() {
+  std::lock_guard<Mutex> lock(mutex_);
+  if (state_ == COMPILED) {
+    return false;
+  }
+  state_ = CANCELED;
+  if (process_) {
+    process_->Cancel();
+  }
+  return true;
+}
+
+bool Speculation::SetHandledHash(const cache::string::HandledHash& hash) {
+  std::lock_guard<Mutex> lock(mutex_);
+  handled_hash_ = hash;
+  return state_ == COMPILED;
+}
+
+bool Speculation::canceled() const {
+  std::lock_guard<Mutex> lock(mutex_);
+  return state_ == CANCELED;
+}
+
 OutputLocks::Lock::Lock(OutputLocks* locks, const String& path)
     : locks_(locks), path_(path) {
   {
@@ -331,6 +374,16 @@ bool Emitter::Initialize() {
 
   verifier_->Run();
   return CompilationDaemon::Initialize();
+}
+
+// static
+Emitter::Preprocessing Emitter::GetPreprocessing(
+    const proto::Configuration& conf) {
+  // The remote compilation needs the preprocessed source.
+  if (conf.emitter().remotes_size() || conf.emitter().coordinators_size()) {
+    return proto::Configuration::Emitter::ALWAYS;
+  }
+  return conf.emitter().preprocessing();
 }
 
 void Emitter::MaybeVerifyHit(const base::proto::Local& message,
@@ -462,7 +515,8 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
 
     auto task = std::make_tuple(connection, std::move(execute), HandledSource(),
                                 cache::ExtraFiles{}, HandledHash(), false,
-                                Immutable(), FileSystemTime());
+                                Immutable(), FileSystemTime(),
+                                SharedPtr<Speculation>());
     if (conf->has_cache() && !conf->cache().disabled()) {
       return cache_tasks_->Push(std::move(task));
     } else if (!IsRemotable(std::get<MESSAGE>(task)->flags())) {
@@ -714,9 +768,9 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       return true;
     };
 
-    bool source_edited = false;
+    bool source_edited = false, source_seen = false;
     if (SearchDirectCache(incoming->flags(), incoming->current_dir(), &entry,
-                          &source_edited) &&
+                          &source_edited, &source_seen) &&
         RestoreFromCache(HandledSource(), cache::ExtraFiles{})) {
       STAT(DIRECT_CACHE_HIT);
       continue;
@@ -733,14 +787,80 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
 
     // The edited source is unlikely to be found by its preprocessed version -
     // don't waste time on preprocessing, compile locally and store the result
-    // only for the direct cache.
-    if (source_edited && incoming->flags().has_deps_file()) {
+    // only for the direct cache. The same for all sources, if the
+    // preprocessing is off - or is done at the same time.
+    const auto preprocessing = GetPreprocessing(*conf);
+    if ((source_edited ||
+         preprocessing != proto::Configuration::Emitter::ALWAYS) &&
+        incoming->flags().has_deps_file()) {
       auto& extra_files = std::get<EXTRA_FILES>(*task);
       if (ReadExtraFiles(incoming->flags(), incoming->current_dir(),
                          &extra_files)) {
         std::get<HANDLED_HASH>(*task) = GenerateUniqueHash(incoming->flags());
-        STAT(PREPROCESSING_SKIPPED);
+
+        // Preprocess at the same time only on idle CPUs: otherwise it slows
+        // down the other compilations. The new sources - e.g. on the first
+        // build - can't be found by the preprocessed versions.
+        if (source_edited || !source_seen ||
+            preprocessing != proto::Configuration::Emitter::WHEN_IDLE ||
+            running_processes_ >= std::thread::hardware_concurrency()) {
+          STAT(PREPROCESSING_SKIPPED);
+          failed_tasks_->Push(std::move(*task));
+          continue;
+        }
+
+        // The compilation goes on with the original task, and this thread
+        // continues with its copy.
+        auto speculation = std::make_shared<Speculation>();
+        std::get<SPECULATION>(*task) = speculation;
+        const auto unique_hash = std::get<HANDLED_HASH>(*task);
+        Task copy(std::get<CONNECTION>(*task),
+                  std::make_unique<base::proto::Local>(*incoming),
+                  HandledSource(), extra_files, HandledHash(), false,
+                  Immutable(), std::get<START_TIME>(*task),
+                  SharedPtr<Speculation>());
         failed_tasks_->Push(std::move(*task));
+        task.emplace(std::move(copy));
+        incoming = std::get<MESSAGE>(*task).get();
+
+        STAT(PARALLEL_PREPROCESSING);
+        ++running_processes_;
+        auto& source = std::get<SOURCE>(*task);
+        const bool preprocessed =
+            GenerateSource(incoming, std::get<CONNECTION>(*task), &source,
+                           &std::get<PREPROCESSED_DEPS>(*task));
+        --running_processes_;
+        if (!preprocessed) {
+          continue;
+        }
+
+        const auto handled_hash = GenerateHash(
+            incoming->flags(), source, std::get<EXTRA_FILES>(*task));
+        if (SearchSimpleCache(handled_hash, &entry)) {
+          if (!speculation->Cancel()) {
+            // The compilation has ended already.
+            continue;
+          }
+          std::get<HANDLED_HASH>(*task) = handled_hash;
+          if (RestoreFromCache(source, std::get<EXTRA_FILES>(*task))) {
+            STAT(SIMPLE_CACHE_HIT);
+            STAT(PARALLEL_PREPROCESSING_HIT);
+          } else {
+            // The compilation is canceled - compile again.
+            failed_tasks_->Push(std::move(*task));
+          }
+          continue;
+        }
+
+        STAT(SIMPLE_CACHE_MISS);
+        if (speculation->SetHandledHash(handled_hash)) {
+          // The compilation has ended already - store its result for the
+          // simple cache too.
+          cache::FileCache::Entry compiled;
+          if (SearchSimpleCache(unique_hash, &compiled)) {
+            UpdateSimpleCache(handled_hash, compiled);
+          }
+        }
         continue;
       }
     }
@@ -823,6 +943,12 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
       continue;
     }
 
+    // The result is found by the preprocessed source already.
+    const auto& speculation = std::get<SPECULATION>(*task);
+    if (speculation && speculation->canceled()) {
+      continue;
+    }
+
     // Remove the old outputs: they may be hard-linked with other places, and
     // the compiler shouldn't write into them. Also the split DWARF file may be
     // not generated at all - don't take a stale one into the cache. If the
@@ -852,7 +978,19 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
     // If the client is gone, the compiler is killed before it writes the
     // outputs - they may be produced by another compilation already.
     process->CancelOnDisconnect(std::get<CONNECTION>(*task)->NativeHandle());
-    if (!process->Run(base::Process::UNLIMITED, &error)) {
+    if (speculation && !speculation->StartCompilation(process.get())) {
+      continue;
+    }
+    ++running_processes_;
+    const bool compiled = process->Run(base::Process::UNLIMITED, &error);
+    --running_processes_;
+    // The result is restored from the cache instead - by the other thread.
+    if (speculation && speculation->canceled()) {
+      counter.ReportOnDestroy(false);
+      continue;
+    }
+    std::optional<cache::FileCache::Entry> stored_entry;
+    if (!compiled) {
       if (process->canceled()) {
         LOG(INFO) << "Compilation is canceled: " << incoming->flags().input();
         STAT(TASK_CANCELED);
@@ -912,6 +1050,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
             UpdateSimpleCache(handled_hash, entry);
             UpdateDirectCache(incoming, handled_hash, extra_files, entry,
                               std::get<START_TIME>(*task));
+            stored_entry = entry;
           } else {
             STAT(CACHE_STORE_SKIPPED);
           }
@@ -919,6 +1058,19 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
       }
 
       STAT(LOCAL_TASK_DONE);
+    }
+
+    if (speculation) {
+      // The result is stored - only then the preprocessing at the same time
+      // may store it for the simple cache.
+      cache::string::HandledHash preprocessed_hash;
+      if (!speculation->FinishCompilation(&preprocessed_hash)) {
+        continue;
+      }
+      // The preprocessing has missed the cache already.
+      if (stored_entry && !preprocessed_hash.str.empty()) {
+        UpdateSimpleCache(preprocessed_hash, *stored_entry);
+      }
     }
 
     std::get<CONNECTION>(*task)->ReportStatus(status);

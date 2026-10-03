@@ -506,6 +506,17 @@ void FileCache::Store(UnhandledSource code, const ExtraFiles& extra_files,
           start_time);
 }
 
+bool FileCache::MarkSeen(const String& key) {
+  DCHECK(database_);
+  const String db_key = "seen:" + key;
+  Immutable value;
+  if (database_->Get(db_key, &value)) {
+    return false;
+  }
+  database_->Set(db_key, "1"_l);
+  return true;
+}
+
 bool FileCache::ReplaceLastSource(const String& key, UnhandledHash hash) {
   DCHECK(database_);
   const String db_key = "source:" + key;

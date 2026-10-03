@@ -565,7 +565,8 @@ bool CompilationDaemon::SearchSimpleCache(
 
 bool CompilationDaemon::SearchDirectCache(
     const base::proto::Flags& flags, const String& current_dir,
-    cache::FileCache::Entry* entry, bool* source_edited) const {
+    cache::FileCache::Entry* entry, bool* source_edited,
+    bool* source_seen) const {
   auto conf = this->conf();
 
   DCHECK(conf->has_emitter() && !conf->has_absorber());
@@ -610,6 +611,13 @@ bool CompilationDaemon::SearchDirectCache(
                     << (edited ? " - the source is edited" : "");
     if (source_edited) {
       *source_edited = edited;
+    }
+    if (source_seen) {
+      const String seen_key = base::Hexify(
+          (Immutable(input) + "\n"_l +
+           CommandLineForSimpleCache(flags).str + "\n"_l + version.str)
+              .Hash());
+      *source_seen = !cache_->MarkSeen(seen_key);
     }
     return false;
   }

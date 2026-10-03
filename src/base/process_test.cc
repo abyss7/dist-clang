@@ -136,6 +136,34 @@ TEST_F(ProcessTest, CancelOnDisconnect) {
   close(sockets[0]);
 }
 
+TEST_F(ProcessTest, CancelFromAnotherThread) {
+  ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+  process->AppendArg("-c"_l).AppendArg("sleep 30; echo done"_l);
+
+  std::thread cancel([&] {
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    process->Cancel();
+  });
+
+  const auto start = std::chrono::steady_clock::now();
+  EXPECT_FALSE(process->Run(Process::UNLIMITED));
+  cancel.join();
+
+  EXPECT_TRUE(process->canceled());
+  EXPECT_LT(std::chrono::steady_clock::now() - start, std::chrono::seconds(10));
+  EXPECT_TRUE(process->stdout().empty());
+}
+
+TEST_F(ProcessTest, CancelBeforeRun) {
+  ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+  process->AppendArg("-c"_l).AppendArg("echo done"_l);
+  process->Cancel();
+
+  EXPECT_FALSE(process->Run(Process::UNLIMITED));
+  EXPECT_TRUE(process->canceled());
+  EXPECT_TRUE(process->stdout().empty());
+}
+
 TEST_F(ProcessTest, NotCanceledWhileConnected) {
   int sockets[2];
   ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, sockets));
