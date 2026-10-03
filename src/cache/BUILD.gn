@@ -34,6 +34,7 @@ static_library("file_cache") {
     "//src/base:logging",
     "//src/perf:stat_service",
     "//src/third_party/snappy:snappy",
+    "//src/third_party/zstd:zstd",
   ]
 
   public_deps = [

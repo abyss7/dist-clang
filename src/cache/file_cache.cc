@@ -11,6 +11,7 @@
 #include <perf/stat_service.h>
 
 #include <snappy.h>
+#include <zstd.h>
 #include STL(regex)
 
 #include <sys/stat.h>
@@ -87,6 +88,60 @@ Path FromManifestPath(const String& header, const Path& current_dir,
   return Path(header).is_absolute() ? Path(header) : current_dir / header;
 }
 
+// Compresses |data| for the cache.
+bool Pack(proto::Compression compression, Immutable data,
+          String* packed) {
+  switch (compression) {
+    case proto::NONE:
+      packed->assign(data.data(), data.size());
+      return true;
+    case proto::SNAPPY:
+      return snappy::Compress(data.data(), data.size(), packed);
+    case proto::ZSTD: {
+      packed->resize(ZSTD_compressBound(data.size()));
+      // The fast level: the compression is on the way of the compilation.
+      const size_t size = ZSTD_compress(packed->data(), packed->size(),
+                                        data.data(), data.size(), 1);
+      if (ZSTD_isError(size)) {
+        return false;
+      }
+      packed->resize(size);
+      return true;
+    }
+  }
+  return false;
+}
+
+bool Unpack(proto::Compression compression, Immutable data,
+            String* unpacked) {
+  switch (compression) {
+    case proto::NONE:
+      unpacked->assign(data.data(), data.size());
+      return true;
+    case proto::SNAPPY:
+      return snappy::Uncompress(data.data(), data.size(), unpacked);
+    case proto::ZSTD: {
+      const auto size = ZSTD_getFrameContentSize(data.data(), data.size());
+      if (size == ZSTD_CONTENTSIZE_UNKNOWN || size == ZSTD_CONTENTSIZE_ERROR) {
+        return false;
+      }
+      unpacked->resize(size);
+      const size_t actual_size = ZSTD_decompress(
+          unpacked->data(), unpacked->size(), data.data(), data.size());
+      return !ZSTD_isError(actual_size) && actual_size == size;
+    }
+  }
+  return false;
+}
+
+// The compression of the object and split DWARF files of the entry.
+proto::Compression GetCompression(const proto::Simple_Version1& v1) {
+  if (v1.has_compression()) {
+    return v1.compression();
+  }
+  return v1.snappy() ? proto::SNAPPY : proto::NONE;
+}
+
 struct Variant {
   List<String> headers;
   HashSet<String> ignored_paths;
@@ -112,17 +167,18 @@ bool IsFile(const Path& path, struct stat* st) {
 
 }  // namespace
 
-FileCache::FileCache(const Path& path, ui64 size, bool snappy, bool store_index,
+FileCache::FileCache(const Path& path, ui64 size,
+                     proto::Compression compression, bool store_index,
                      bool link_outputs)
     : path_(ReplaceTildeInPath(path)),
       // The linked outputs can't be compressed.
-      snappy_(snappy && !link_outputs),
+      compression_(link_outputs ? proto::NONE : compression),
       store_index_(store_index),
       link_outputs_(link_outputs),
       max_size_(size) {}
 
 FileCache::FileCache(const Path& path)
-    : FileCache(path, UNLIMITED, false, false, false) {}
+    : FileCache(path, UNLIMITED, proto::NONE, false, false) {}
 
 FileCache::~FileCache() {
   resetter_.reset();
@@ -347,7 +403,8 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
   return false;
 }
 
-bool FileCache::FindOutput(const Path& cache_path, bool compressed,
+bool FileCache::FindOutput(const Path& cache_path,
+                           proto::Compression compression,
                            const String& expected_hash, Immutable* content,
                            Path* path, ui64* size) const {
   // An entry without the hash is broken, or from an old version.
@@ -365,7 +422,7 @@ bool FileCache::FindOutput(const Path& cache_path, bool compressed,
   };
 
   // Link the uncompressed output instead of reading it.
-  if (link_outputs_ && !compressed && path) {
+  if (link_outputs_ && compression == proto::NONE && path) {
     struct stat st;
     if (stat(cache_path.c_str(), &st) == -1) {
       return false;
@@ -393,7 +450,7 @@ bool FileCache::FindOutput(const Path& cache_path, bool compressed,
   }
   *size += file_content.size();
 
-  if (!compressed) {
+  if (compression == proto::NONE) {
     if (base::Hexify(file_content.Hash()) != expected_hash) {
       return Broken("wrong hash");
     }
@@ -402,8 +459,7 @@ bool FileCache::FindOutput(const Path& cache_path, bool compressed,
   }
 
   String unpacked;
-  if (!snappy::Uncompress(file_content.data(), file_content.size(),
-                          &unpacked)) {
+  if (!Unpack(compression, file_content, &unpacked)) {
     return Broken("can't unpack");
   }
   Immutable unpacked_content(std::move(unpacked));
@@ -434,28 +490,31 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
   ui64 size = 0;
 
   if (v1.err() &&
-      !FindOutput(AppendExtension(CommonPath(hash), base::kExtStderr), false,
+      !FindOutput(AppendExtension(CommonPath(hash), base::kExtStderr),
+                  proto::NONE,
                   v1.stderr_hash(), &entry->stderr, nullptr, &size)) {
     return false;
   }
 
   if (v1.obj() &&
       !FindOutput(AppendExtension(CommonPath(hash), base::kExtObject),
-                  v1.snappy(), v1.object_hash(), &entry->object,
+                  GetCompression(v1), v1.object_hash(), &entry->object,
                   &entry->object_path, &size)) {
     return false;
   }
   entry->object_hash = v1.object_hash();
 
   if (v1.dep() &&
-      !FindOutput(AppendExtension(CommonPath(hash), base::kExtDeps), false,
+      !FindOutput(AppendExtension(CommonPath(hash), base::kExtDeps),
+                  proto::NONE,
                   v1.deps_hash(), &entry->deps, nullptr, &size)) {
     return false;
   }
 
   if (v1.dwo() &&
       !FindOutput(AppendExtension(CommonPath(hash), base::kExtDwo),
-                  v1.snappy(), v1.dwo_hash(), &entry->dwo, &entry->dwo_path,
+                  GetCompression(v1), v1.dwo_hash(), &entry->dwo,
+                  &entry->dwo_path,
                   &size)) {
     return false;
   }
@@ -496,16 +555,17 @@ bool FileCache::StoreOutput(const Path& cache_path, Immutable content,
     *hash = base::Hexify(data.Hash());
 
     String packed_content;
-    if (snappy_ &&
-        !snappy::Compress(data.data(), data.size(), &packed_content)) {
+    if (compression_ != proto::NONE &&
+        !Pack(compression_, data, &packed_content)) {
       if (error) {
         error->assign("failed to pack contents");
       }
       return false;
     }
 
-    const Immutable to_write =
-        snappy_ ? Immutable(std::move(packed_content)) : data;
+    const Immutable to_write = compression_ != proto::NONE
+                                   ? Immutable(std::move(packed_content))
+                                   : data;
     if (!base::File::Write(cache_path, to_write, error)) {
       return false;
     }
@@ -561,7 +621,9 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
   proto::Manifest manifest;
   manifest.set_version(kManifestVersion);
   auto* v1 = manifest.mutable_v1();
-  v1->set_snappy(snappy_);
+  // The old versions know only Snappy.
+  v1->set_snappy(compression_ == proto::SNAPPY);
+  v1->set_compression(compression_);
   ui64 size = 0;
 
   v1->set_err(!entry.stderr.empty());

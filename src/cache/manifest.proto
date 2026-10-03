@@ -2,6 +2,12 @@ syntax = "proto2";
 
 package dist_clang.cache.proto;
 
+enum Compression {
+  NONE   = 0;
+  SNAPPY = 1;
+  ZSTD   = 2;
+}
+
 message Direct {
   repeated string headers = 1;
   // OBSOLETE: the only list of headers - read for compatibility.
@@ -25,7 +31,11 @@ message Direct {
 // Introduce new version for nicer names and no defaults.
 message Simple_Version1 {
   optional bool snappy = 1 [ default = false ];
-  // Should we compress the object file with Snappy.
+  // OBSOLETE: the object file is compressed with Snappy - if there is no
+  // |compression|.
+
+  optional Compression compression = 110;
+  // The compression of the object and split DWARF files.
 
   optional uint64 size = 2;
   // Size in bytes of the whole entry on disk without manifest.

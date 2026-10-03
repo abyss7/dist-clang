@@ -21,6 +21,7 @@ FORWARD_TEST(FileCacheTest, EvictNeverHitEntriesFirst);
 FORWARD_TEST(FileCacheTest, ExceedCacheSize_Sync);
 FORWARD_TEST(FileCacheTest, LockNonExistentFile);
 FORWARD_TEST(FileCacheTest, RemoveEntry);
+FORWARD_TEST(FileCacheTest, RoundTripCompressedEntry);
 FORWARD_TEST(FileCacheTest, RemoveEntryInBackground);
 FORWARD_TEST(FileCacheTest, RestoreEntryWithMissingFile);
 FORWARD_TEST(FileCacheTest, UseIndexFromDisk);
@@ -125,8 +126,8 @@ class FileCache {
 
   // With |link_outputs| the outputs are stored uncompressed, and are linked
   // into and out of the cache without copying, where possible.
-  FileCache(const Path& path, ui64 size, bool snappy, bool store_index,
-            bool link_outputs = false);
+  FileCache(const Path& path, ui64 size, proto::Compression compression,
+            bool store_index, bool link_outputs = false);
   explicit FileCache(const Path& path);
   ~FileCache();
 
@@ -199,6 +200,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, EvictNeverHitEntriesFirst);
   FRIEND_TEST(FileCacheTest, LockNonExistentFile);
   FRIEND_TEST(FileCacheTest, RemoveEntry);
+  FRIEND_TEST(FileCacheTest, RoundTripCompressedEntry);
   FRIEND_TEST(FileCacheTest, RemoveEntryInBackground);
   FRIEND_TEST(FileCacheTest, RestoreEntryWithMissingFile);
   FRIEND_TEST(FileCacheTest, UseIndexFromDisk);
@@ -272,7 +274,7 @@ class FileCache {
 
   bool Migrate(string::Hash hash, ui32 to_version = kManifestVersion) const;
 
-  bool FindOutput(const Path& cache_path, bool compressed,
+  bool FindOutput(const Path& cache_path, proto::Compression compression,
                   const String& expected_hash, Immutable* content, Path* path,
                   ui64* size) const;
   bool StoreOutput(const Path& cache_path, Immutable content, const Path& path,
@@ -298,7 +300,8 @@ class FileCache {
   mutable HashSet<String> write_locks_;
 
   const Path path_;
-  bool snappy_, store_index_, link_outputs_;
+  proto::Compression compression_;
+  bool store_index_, link_outputs_;
   UniquePtr<SQLiteKV> database_;
   mutable FileHashCache file_hashes_;
   UniquePtr<SQLite> entries_;

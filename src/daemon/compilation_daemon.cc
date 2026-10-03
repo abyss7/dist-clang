@@ -181,8 +181,14 @@ bool CompilationDaemon::Initialize() {
   auto conf = this->conf();
 
   if (conf->has_cache() && !conf->cache().disabled()) {
+    auto compression =
+        static_cast<cache::proto::Compression>(conf->cache().compression());
+    if (!conf->cache().has_compression() && conf->cache().has_snappy() &&
+        !conf->cache().snappy()) {
+      compression = cache::proto::NONE;
+    }
     cache_ = std::make_unique<cache::FileCache>(
-        conf->cache().path(), conf->cache().size(), conf->cache().snappy(),
+        conf->cache().path(), conf->cache().size(), compression,
         conf->cache().store_index(),
         conf->cache().link_outputs() && conf->has_emitter());
     cache_->SetMinFreePercent(conf->cache().min_free_percent());

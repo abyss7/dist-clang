@@ -33,6 +33,17 @@ message Configuration {
 
     optional bool disabled       = 6 [ default = false ];
     optional bool snappy         = 7 [ default = true ];
+    // OBSOLETE: "false" disables the compression, if there is no
+    // |compression|.
+
+    enum Compression {
+      NONE   = 0;
+      SNAPPY = 1;
+      ZSTD   = 2;
+    }
+    optional Compression compression = 14 [ default = ZSTD ];
+    // The compression of the stored object and split DWARF files - if they
+    // aren't linked.
 
     optional uint32 threads      = 8;
     // |std::thread::hardware_concurrency()| is default.
@@ -45,7 +56,7 @@ message Configuration {
     optional bool link_outputs   = 11 [ default = true ];
     // Store outputs uncompressed, and link them into and out of the cache
     // without copying: as copy-on-write clones or as read-only hard links.
-    // Only for emitters; overrides |snappy|.
+    // Only for emitters; overrides |compression|.
 
     repeated string source_roots = 13;
     // Absolute paths of the source trees, that are checked out in several

@@ -1,0 +1,48 @@
+config("includes") {
+  include_dirs = [ "exported/lib" ]
+}
+
+config("flags") {
+  # Without the assembly for the decompression - it's fast enough in C.
+  defines = [ "ZSTD_DISABLE_ASM=1" ]
+}
+
+static_library("zstd") {
+  sources = [
+    "exported/lib/common/debug.c",
+    "exported/lib/common/entropy_common.c",
+    "exported/lib/common/error_private.c",
+    "exported/lib/common/fse_decompress.c",
+    "exported/lib/common/pool.c",
+    "exported/lib/common/threading.c",
+    "exported/lib/common/xxhash.c",
+    "exported/lib/common/zstd_common.c",
+    "exported/lib/compress/fse_compress.c",
+    "exported/lib/compress/hist.c",
+    "exported/lib/compress/huf_compress.c",
+    "exported/lib/compress/zstd_compress.c",
+    "exported/lib/compress/zstd_compress_literals.c",
+    "exported/lib/compress/zstd_compress_sequences.c",
+    "exported/lib/compress/zstd_compress_superblock.c",
+    "exported/lib/compress/zstd_double_fast.c",
+    "exported/lib/compress/zstd_fast.c",
+    "exported/lib/compress/zstd_lazy.c",
+    "exported/lib/compress/zstd_ldm.c",
+    "exported/lib/compress/zstd_opt.c",
+    "exported/lib/compress/zstd_preSplit.c",
+    "exported/lib/compress/zstdmt_compress.c",
+    "exported/lib/decompress/huf_decompress.c",
+    "exported/lib/decompress/zstd_ddict.c",
+    "exported/lib/decompress/zstd_decompress.c",
+    "exported/lib/decompress/zstd_decompress_block.c",
+    "exported/lib/zstd.h",
+  ]
+
+  public = [ "exported/lib/zstd.h" ]
+
+  configs += [
+    ":flags",
+    "//build/config:third_party",
+  ]
+  public_configs = [ ":includes" ]
+}

@@ -111,7 +111,7 @@ TEST(FileCacheTest, DoubleLocks) {
 
 TEST(FileCacheTest, RemoveEntry) {
   const base::TemporaryDir temp_dir;
-  FileCache cache(temp_dir, 100, false, false);
+  FileCache cache(temp_dir, 100, proto::NONE, false);
 
   string::Hash hash1{"12345678901234567890123456789012" "-12345678-00000001"_l};
   {
@@ -289,8 +289,9 @@ TEST(FileCacheTest, RestoreSingleEntryWithExtraFile) {
 }
 
 TEST(FileCacheTest, RoundTripCompressedEntry) {
+  for (const auto compression : {proto::SNAPPY, proto::ZSTD}) {
   const base::TemporaryDir temp_dir;
-  FileCache cache(temp_dir, FileCache::UNLIMITED, true, false);
+  FileCache cache(temp_dir, FileCache::UNLIMITED, compression, false);
   ASSERT_TRUE(cache.Run(1));
 
   // Object files have long runs of zeros and repeated patterns - they used to
@@ -316,6 +317,13 @@ TEST(FileCacheTest, RoundTripCompressedEntry) {
   EXPECT_EQ(dwo, entry.dwo.string_copy());
   EXPECT_EQ("deps", entry.deps.string_copy());
   EXPECT_EQ("stderr", entry.stderr.string_copy());
+
+  // The files are really compressed.
+  EXPECT_GT(object.size() / 4,
+            base::File::Size(AppendExtension(cache.CommonPath(hash),
+                                             base::kExtObject)))
+      << compression;
+  }
 }
 
 TEST(FileCacheTest, LinkOutputs) {
@@ -323,8 +331,8 @@ TEST(FileCacheTest, LinkOutputs) {
   const auto object_path = temp_dir.path() / "test.o";
   const auto dwo_path = temp_dir.path() / "test.dwo";
   const auto restored_path = temp_dir.path() / "restored.o";
-  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, true, false,
-                  true);
+  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, proto::ZSTD,
+                  false, true);
   ASSERT_TRUE(cache.Run(1));
 
   ASSERT_TRUE(base::File::Write(object_path, "object"_l));
@@ -377,7 +385,7 @@ TEST(FileCacheTest, LinkOutputs) {
 
 TEST(FileCacheTest, LinkOutputsWithContents) {
   const base::TemporaryDir temp_dir;
-  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, false,
+  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, proto::NONE,
                   false, true);
   ASSERT_TRUE(cache.Run(1));
 
@@ -395,10 +403,11 @@ TEST(FileCacheTest, LinkOutputsWithContents) {
 }
 
 TEST(FileCacheTest, DetectBrokenFiles) {
-  for (const bool snappy : {false, true}) {
+  for (const auto compression : {proto::NONE, proto::SNAPPY, proto::ZSTD}) {
     for (const auto* extension : {"o", "d", "stderr", "dwo"}) {
       const base::TemporaryDir temp_dir;
-      FileCache cache(temp_dir.path(), FileCache::UNLIMITED, snappy, false);
+      FileCache cache(temp_dir.path(), FileCache::UNLIMITED, compression,
+                      false);
       ASSERT_TRUE(cache.Run(1));
 
       const auto hash = FileCache::Hash(HandledSource("int main() {}"_l), {},
@@ -417,7 +426,7 @@ TEST(FileCacheTest, DetectBrokenFiles) {
 
       FileCache::Entry entry;
       EXPECT_FALSE(cache.Find(hash, &entry))
-          << "snappy: " << snappy << ", file: " << extension;
+          << "compression: " << compression << ", file: " << extension;
     }
   }
 }
@@ -487,7 +496,7 @@ TEST(FileCacheTest, RecreateBrokenDatabases) {
   ASSERT_TRUE(base::File::Write(temp_dir.path() / "index.sqlite",
                                 "not a database at all"_l));
 
-  FileCache cache(temp_dir.path(), FileCache::UNLIMITED, false, true);
+  FileCache cache(temp_dir.path(), FileCache::UNLIMITED, proto::NONE, true);
   ASSERT_TRUE(cache.Run(1));
 
   const CommandLine cl("-c"_l);
@@ -584,8 +593,8 @@ TEST(FileCacheTest, ExceedCacheSize) {
   ui64 entry_size[3];
   {
     const base::TemporaryDir probe_dir;
-    FileCache probe(probe_dir.path() / "cache", FileCache::UNLIMITED, false,
-                    false);
+    FileCache probe(probe_dir.path() / "cache", FileCache::UNLIMITED,
+                    proto::NONE, false);
     ASSERT_TRUE(probe.Run(1));
     const auto probe_db_size = probe.database_->SizeOnDisk();
     ui64 total_size = 0;
@@ -601,7 +610,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
   }
 
   // Two first entries fit, but not with the third one.
-  FileCache cache(cache_path, entry_size[0] + entry_size[1], false, false);
+  FileCache cache(cache_path, entry_size[0] + entry_size[1], proto::NONE, false);
 
   ASSERT_TRUE(cache.Run(1));
   auto db_size = cache.database_->SizeOnDisk();
@@ -652,8 +661,8 @@ TEST(FileCacheTest, EvictNeverHitEntriesFirst) {
   ui64 total_size = 0;
   {
     const base::TemporaryDir probe_dir;
-    FileCache probe(probe_dir.path() / "cache", FileCache::UNLIMITED, false,
-                    false);
+    FileCache probe(probe_dir.path() / "cache", FileCache::UNLIMITED,
+                    proto::NONE, false);
     ASSERT_TRUE(probe.Run(1));
     const auto probe_db_size = probe.database_->SizeOnDisk();
     for (int i = 0; i < 3; ++i) {
@@ -664,7 +673,7 @@ TEST(FileCacheTest, EvictNeverHitEntriesFirst) {
   }
 
   // Only one entry doesn't fit.
-  FileCache cache(cache_path, total_size - 1, false, false);
+  FileCache cache(cache_path, total_size - 1, proto::NONE, false);
   ASSERT_TRUE(cache.Run(1));
 
   // The first entry is used again - the second one is removed, though it's
@@ -697,7 +706,7 @@ TEST(FileCacheTest, KeepEntriesLinkedWithBuildDirs) {
 
   // All entries, that can be removed, should be removed: the disk is never
   // free enough.
-  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, false,
+  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, proto::NONE,
                   false, true);
   cache.SetMinFreePercent(100);
   ASSERT_TRUE(cache.Run(1));
@@ -1364,7 +1373,7 @@ TEST(FileCacheTest, RestoreAndMigrateSnappyEntry) {
   const auto expected_deps = "some deps"_l;
 
   {
-    FileCache cache(temp_dir, 1000, true, false);
+    FileCache cache(temp_dir, 1000, proto::SNAPPY, false);
     ASSERT_TRUE(cache.Run(1));
     FileCache::Entry entry1, entry2;
 
@@ -1392,7 +1401,7 @@ TEST(FileCacheTest, RestoreAndMigrateSnappyEntry) {
     EXPECT_EQ(expected_stderr, entry2.stderr);
   }
   {
-    FileCache cache(temp_dir, 1000, true, false);
+    FileCache cache(temp_dir, 1000, proto::SNAPPY, false);
     ASSERT_TRUE(cache.Run(1));
     FileCache::Entry entry;
     const HandledSource code("int main() { return 0; }"_l);
@@ -1412,7 +1421,7 @@ TEST(FileCacheTest, UseIndexFromDisk) {
   string::Hash hash{"12345678901234567890123456789012" "-12345678-00000001"_l};
 
   {
-    FileCache cache(temp_dir, FileCache::UNLIMITED, false, true);
+    FileCache cache(temp_dir, FileCache::UNLIMITED, proto::NONE, true);
     const auto manifest_path =
         AppendExtension(cache.CommonPath(hash), base::kExtManifest);
 
@@ -1431,7 +1440,7 @@ TEST(FileCacheTest, UseIndexFromDisk) {
   }
 
   {
-    FileCache cache(temp_dir, FileCache::UNLIMITED, false, true);
+    FileCache cache(temp_dir, FileCache::UNLIMITED, proto::NONE, true);
     const auto manifest_path =
         AppendExtension(cache.CommonPath(hash), base::kExtManifest);
 
