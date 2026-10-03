@@ -21,6 +21,7 @@ FORWARD_TEST(FileCacheTest, EvictNeverHitEntriesFirst);
 FORWARD_TEST(FileCacheTest, ExceedCacheSize_Sync);
 FORWARD_TEST(FileCacheTest, LockNonExistentFile);
 FORWARD_TEST(FileCacheTest, RemoveEntry);
+FORWARD_TEST(FileCacheTest, CompressColdEntries);
 FORWARD_TEST(FileCacheTest, RoundTripCompressedEntry);
 FORWARD_TEST(FileCacheTest, RemoveEntryInBackground);
 FORWARD_TEST(FileCacheTest, RestoreEntryWithMissingFile);
@@ -138,6 +139,10 @@ class FileCache {
   // limit. Only the entries, that aren't linked with build directories, count.
   inline void SetMinFreePercent(ui32 percent) { min_free_percent_ = percent; }
 
+  // With linked outputs: compresses the outputs, that aren't linked with build
+  // directories anymore, and weren't used for |seconds|. Zero disables it.
+  inline void SetCompressAfter(ui64 seconds) { compress_after_ = seconds; }
+
   static string::HandledHash Hash(string::HandledSource code,
                                   const ExtraFiles& extra_files,
                                   string::CommandLine command_line,
@@ -200,6 +205,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, EvictNeverHitEntriesFirst);
   FRIEND_TEST(FileCacheTest, LockNonExistentFile);
   FRIEND_TEST(FileCacheTest, RemoveEntry);
+  FRIEND_TEST(FileCacheTest, CompressColdEntries);
   FRIEND_TEST(FileCacheTest, RoundTripCompressedEntry);
   FRIEND_TEST(FileCacheTest, RemoveEntryInBackground);
   FRIEND_TEST(FileCacheTest, RestoreEntryWithMissingFile);
@@ -295,12 +301,17 @@ class FileCache {
   // Size of the outputs of the entry, that are hard-linked with other places.
   ui64 GetSharedSize(string::Hash hash) const;
 
+  // Compresses the unused outputs - see |SetCompressAfter()|. Returns the
+  // number of compressed entries.
+  ui32 CompressColdEntries();
+  bool CompressEntry(string::Hash hash);
+
   mutable std::mutex locks_mutex_;
   mutable HashMap<String, ui32> read_locks_;
   mutable HashSet<String> write_locks_;
 
   const Path path_;
-  proto::Compression compression_;
+  proto::Compression compression_, cold_compression_;
   bool store_index_, link_outputs_;
   UniquePtr<SQLiteKV> database_;
   mutable FileHashCache file_hashes_;
@@ -308,6 +319,7 @@ class FileCache {
 
   ui64 max_size_, cache_size_ = {0u};
   ui32 min_free_percent_ = 0;
+  ui64 compress_after_ = 0;
   const EntryListDeleter new_entries_deleter_ = [this](EntryList* list) {
     auto task = [this, list] { Clean(UniquePtr<EntryList>(list)); };
     cleaner_.Push(task);

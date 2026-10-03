@@ -65,6 +65,12 @@ message Configuration {
     // "-fmacro-prefix-map" (or "-ffile-prefix-map"), and with the debug info
     // also "-fdebug-prefix-map" and "-fdebug-compilation-dir".
 
+    optional uint64 compress_after = 15 [ default = 3600 ];
+    // In seconds. With |link_outputs| compress the outputs of the entries,
+    // that aren't linked with build directories anymore - e.g. the results
+    // of other branches - and weren't used for this time. They are restored
+    // as copies then. Zero disables it.
+
     optional uint32 min_free_percent = 12 [ default = 5 ];
     // Remove entries, while the disk has less free space - even if the cache
     // isn't full. Entries, that are linked with build directories, are kept.

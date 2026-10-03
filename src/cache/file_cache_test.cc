@@ -383,6 +383,67 @@ TEST(FileCacheTest, LinkOutputs) {
   }
 }
 
+TEST(FileCacheTest, CompressColdEntries) {
+  const base::TemporaryDir temp_dir;
+  const auto object_path = temp_dir.path() / "test.o";
+  const auto dwo_path = temp_dir.path() / "test.dwo";
+  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, proto::ZSTD,
+                  true, true);
+  // The cleaner runs only when it's asked to.
+  ASSERT_TRUE(cache.Run(3600));
+
+  String object(100000, 'o'), dwo(100000, 'd');
+  object.replace(0, 4, "\x7f" "ELF");
+  ASSERT_TRUE(base::File::Write(object_path, Immutable(String(object))));
+  ASSERT_TRUE(base::File::Write(dwo_path, Immutable(String(dwo))));
+
+  const auto hash = FileCache::Hash(HandledSource("int main() {}"_l), {},
+                                    CommandLine("-c"_l), Version("1"_l));
+  FileCache::Entry entry;
+  entry.object_path = object_path;
+  entry.dwo_path = dwo_path;
+  entry.deps = "deps"_l;
+  cache.Store(hash, entry);
+
+  // Wait, until the entry gets into the index, and make it old enough.
+  cache.new_entries_.reset(new FileCache::EntryList,
+                           cache.new_entries_deleter_);
+  SQLite::Value value;
+  for (int i = 0; i < 300 && !cache.entries_->Get(hash.str, &value); ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  ASSERT_TRUE(cache.entries_->Get(hash.str, &value));
+  std::get<SQLite::MTIME>(value) -= 10;
+  ASSERT_TRUE(cache.entries_->Set(hash.str, value));
+
+  const auto cache_object_path =
+      AppendExtension(cache.CommonPath(hash), base::kExtObject);
+
+  // The outputs are still linked with the build directory.
+  cache.SetCompressAfter(1);
+  EXPECT_EQ(0u, cache.CompressColdEntries());
+  EXPECT_EQ(object.size(), base::File::Size(cache_object_path));
+
+  ASSERT_TRUE(base::File::Delete(object_path));
+  ASSERT_TRUE(base::File::Delete(dwo_path));
+  EXPECT_EQ(1u, cache.CompressColdEntries());
+  EXPECT_GT(object.size() / 10, base::File::Size(cache_object_path));
+  ASSERT_TRUE(cache.entries_->Get(hash.str, &value));
+  EXPECT_GT(object.size() / 5, std::get<SQLite::SIZE>(value));
+
+  // Already compressed.
+  EXPECT_EQ(0u, cache.CompressColdEntries());
+
+  // Restored as contents.
+  FileCache::Entry found;
+  ASSERT_TRUE(cache.Find(hash, &found));
+  EXPECT_TRUE(found.object_path.empty());
+  EXPECT_TRUE(found.dwo_path.empty());
+  EXPECT_EQ(object, found.object.string_copy());
+  EXPECT_EQ(dwo, found.dwo.string_copy());
+  EXPECT_EQ("deps"_l, found.deps);
+}
+
 TEST(FileCacheTest, LinkOutputsWithContents) {
   const base::TemporaryDir temp_dir;
   FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, proto::NONE,

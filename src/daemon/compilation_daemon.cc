@@ -192,6 +192,7 @@ bool CompilationDaemon::Initialize() {
         conf->cache().store_index(),
         conf->cache().link_outputs() && conf->has_emitter());
     cache_->SetMinFreePercent(conf->cache().min_free_percent());
+    cache_->SetCompressAfter(conf->cache().compress_after());
     if (!cache_->Run(conf->cache().clean_period())) {
       cache_.reset();
     }

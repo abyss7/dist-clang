@@ -173,6 +173,7 @@ FileCache::FileCache(const Path& path, ui64 size,
     : path_(ReplaceTildeInPath(path)),
       // The linked outputs can't be compressed.
       compression_(link_outputs ? proto::NONE : compression),
+      cold_compression_(link_outputs ? compression : proto::NONE),
       store_index_(store_index),
       link_outputs_(link_outputs),
       max_size_(size) {}
@@ -982,7 +983,123 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
   }
 
   Evict();
+  CompressColdEntries();
   entries_->EndTransaction();
+}
+
+ui32 FileCache::CompressColdEntries() {
+  if (!compress_after_ || cold_compression_ == proto::NONE) {
+    return 0;
+  }
+
+  const ui64 kMaxCompressedSizePerPass = 1ull << 30;
+  const ui64 now = time(nullptr);
+  ui32 compressed = 0;
+  ui64 compressed_size = 0;
+  for (const auto& [hash_str, entry] : entries_->GetInEvictionOrder()) {
+    if (std::get<SQLite::MTIME>(entry) + compress_after_ > now) {
+      continue;
+    }
+
+    // The outputs, that are linked with build directories, take no space.
+    const string::Hash hash{Immutable(hash_str)};
+    if (GetSharedSize(hash)) {
+      continue;
+    }
+
+    // Don't load the manifests of the compressed entries every time: check
+    // the magic number of zstd.
+    const auto object_path =
+        AppendExtension(CommonPath(hash), base::kExtObject);
+    FILE* file = fopen(object_path.c_str(), "rb");
+    if (!file) {
+      continue;
+    }
+    char magic[4] = {0};
+    const bool has_magic = fread(magic, sizeof(magic), 1, file) == 1;
+    fclose(file);
+    if (has_magic && !memcmp(magic, "\x28\xb5\x2f\xfd", sizeof(magic))) {
+      continue;
+    }
+
+    if (CompressEntry(hash)) {
+      ++compressed;
+      // Don't hold the cleaner for too long.
+      compressed_size += std::get<SQLite::SIZE>(entry);
+      if (compressed_size > kMaxCompressedSizePerPass) {
+        break;
+      }
+    }
+  }
+
+  return compressed;
+}
+
+bool FileCache::CompressEntry(string::Hash hash) {
+  const auto manifest_path =
+      AppendExtension(CommonPath(hash), base::kExtManifest);
+  WriteLock lock(this, manifest_path);
+  if (!lock) {
+    return false;
+  }
+
+  proto::Manifest manifest;
+  if (!base::LoadFromFile(manifest_path, &manifest) || !manifest.has_v1() ||
+      GetCompression(manifest.v1()) != proto::NONE) {
+    return false;
+  }
+  auto* v1 = manifest.mutable_v1();
+
+  // A crash in the middle leaves a compressed file of an uncompressed entry:
+  // its hash doesn't match, and the entry is removed later.
+  ui64 size = v1->size();
+  auto compress = [&](Literal extension, const String& expected_hash) {
+    const auto path = AppendExtension(CommonPath(hash), extension);
+    Immutable content;
+    String packed, error;
+    if (!base::File::Read(path, &content, &error) ||
+        base::Hexify(content.Hash()) != expected_hash ||
+        !Pack(cold_compression_, content, &packed)) {
+      return false;
+    }
+    const ui64 packed_size = packed.size();
+    if (!base::File::Write(path, Immutable(std::move(packed)), &error)) {
+      LOG(CACHE_ERROR) << "Failed to compress " << path << ": " << error;
+      return false;
+    }
+    size = size - content.size() + packed_size;
+    return true;
+  };
+
+  if ((v1->obj() && !compress(base::kExtObject, v1->object_hash())) ||
+      (v1->dwo() && !compress(base::kExtDwo, v1->dwo_hash()))) {
+    // The entry may be broken already.
+    RemoveEntry(hash);
+    return false;
+  }
+
+  v1->set_compression(cold_compression_);
+  v1->set_snappy(cold_compression_ == proto::SNAPPY);
+  v1->set_size(size);
+  String error;
+  if (!base::SaveToFile(manifest_path, manifest, &error)) {
+    LOG(CACHE_ERROR) << "Failed to save manifest " << manifest_path << ": "
+                     << error;
+    RemoveEntry(hash);
+    return false;
+  }
+
+  // Keep the access time.
+  SQLite::Value entry;
+  if (entries_->Get(hash.str, &entry)) {
+    const ui64 entry_size = size + base::File::Size(manifest_path);
+    cache_size_ = cache_size_ - std::get<SQLite::SIZE>(entry) + entry_size;
+    std::get<SQLite::SIZE>(entry) = entry_size;
+    entries_->Set(hash.str, entry);
+  }
+
+  LOG(CACHE_VERBOSE) << "Compressed the unused entry " << hash.str;
+  return true;
 }
 
 ui64 FileCache::GetSharedSize(string::Hash hash) const {
