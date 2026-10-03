@@ -3186,6 +3186,94 @@ TEST_F(EmitterTest, TagEntries) {
   emitter.reset();
 }
 
+TEST_F(EmitterTest, LimitLinksOfOutputs) {
+  for (const ui32 max_links : {1u, 0u}) {
+    const base::TemporaryDir temp_dir;
+    const auto input_path = temp_dir.path() / "test.cc";
+    const auto output1_path = temp_dir.path() / "test1.o";
+    const auto output2_path = temp_dir.path() / "test2.o";
+    const auto deps_path = temp_dir.path() / "test.d";
+    const String compiler_version = "fake_compiler_version";
+
+    ASSERT_TRUE(base::File::Write(input_path, "int main() { return 1; }"_l));
+
+    conf.Clear();
+    conf.mutable_emitter()->set_socket_path(socket_path);
+    conf.mutable_emitter()->set_preprocessing(
+        proto::Configuration::Emitter::NEVER);
+    conf.mutable_cache()->set_path(temp_dir.path() / "cache");
+    conf.mutable_cache()->set_direct(true);
+    conf.mutable_cache()->set_link_outputs(true);
+    conf.mutable_cache()->set_max_output_links(max_links);
+    auto* version = conf.add_versions();
+    version->set_version(compiler_version);
+    version->set_path("fake_compiler_path");
+
+    String output_path;
+    run_callback = [&](base::TestProcess* process) {
+      EXPECT_TRUE(base::File::Write(output_path, "object"_l));
+      EXPECT_TRUE(base::File::Write(
+          deps_path, Immutable("test.o: "_l) + Immutable(input_path)));
+    };
+
+    send_count = 0;
+    emitter = std::make_unique<Emitter>(conf);
+    ASSERT_TRUE(emitter->Initialize());
+
+    auto Compile = [&](const Path& output, ui32 expected_send_count) {
+      output_path = output;
+      auto connection = test_service->TriggerListen(socket_path);
+      SharedPtr<net::TestConnection> test_connection =
+          std::static_pointer_cast<net::TestConnection>(connection);
+      net::Connection::ScopedMessage message(new net::Connection::Message);
+      auto* extension =
+          message->MutableExtension(base::proto::Local::extension);
+      extension->set_current_dir(temp_dir);
+      auto* flags = extension->mutable_flags();
+      flags->set_input(input_path);
+      flags->set_output(output);
+      flags->set_deps_file(deps_path);
+      flags->set_deps_target("test.o");
+      flags->mutable_compiler()->set_version(compiler_version);
+      flags->set_action("fake_action");
+      net::proto::Status status;
+      status.set_code(net::proto::Status::OK);
+      EXPECT_TRUE(
+          test_connection->TriggerReadAsync(std::move(message), status));
+      UniqueLock lock(send_mutex);
+      EXPECT_TRUE(send_condition.wait_for(lock, Seconds(5), [&] {
+        return send_count == expected_send_count;
+      }));
+    };
+    auto Links = [](const Path& path) {
+      struct stat st;
+      EXPECT_EQ(0, stat(path.c_str(), &st));
+      return st.st_nlink;
+    };
+
+    // The output is linked with the cache.
+    Compile(output1_path, 1);
+    EXPECT_EQ(2u, Links(output1_path));
+
+    // Another build gets a copy - or a link, if unlimited.
+    Compile(output2_path, 2);
+    EXPECT_EQ(max_links ? 1u : 3u, Links(output2_path));
+    EXPECT_EQ(max_links ? 2u : 3u, Links(output1_path));
+
+    // The first output is gone - the cache file is linked again.
+    ASSERT_TRUE(base::File::Delete(output1_path));
+    Compile(output2_path, 3);
+    EXPECT_EQ(2u, Links(output2_path));
+
+    // Restoring the linked output again keeps the link.
+    Compile(output2_path, 4);
+    EXPECT_EQ(2u, Links(output2_path));
+
+    emitter.reset();
+    test_service = nullptr;
+  }
+}
+
 TEST_F(EmitterTest, RecheckWarnings) {
   const base::TemporaryDir temp_dir;
   const auto input_path = temp_dir.path() / "test.cc";

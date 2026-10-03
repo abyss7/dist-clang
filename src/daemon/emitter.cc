@@ -67,11 +67,29 @@ inline bool RequestsRestat(const base::proto::Local* WEAK_PTR message) {
                    "DC_RESTAT=1") != message->env().end();
 }
 
+// The number of the links of the cache file outside of the cache, except the
+// |path|, if it's one of them.
+ui64 OtherLinks(const Path& cache_file, const Path& path) {
+  struct stat cache_st, path_st;
+  if (stat(cache_file.c_str(), &cache_st) == -1) {
+    return 0;
+  }
+  const bool same_file = stat(path.c_str(), &path_st) == 0 &&
+                         path_st.st_ino == cache_st.st_ino &&
+                         path_st.st_dev == cache_st.st_dev;
+  return cache_st.st_nlink - 1 - (same_file ? 1 : 0);
+}
+
 // Puts the output from the cache to |path|: links the cache file, if possible.
 // With |keep_unchanged| doesn't touch the output, if it's the same already.
+// The cache file is hard-linked to at most |max_links| places (0 - to any
+// number): the build systems don't expect, that a modification of their
+// output in place changes the outputs of other builds, and its modification
+// time too.
 bool RestoreOutput(const Path& cache_file, const String& cache_hash,
                    Immutable content, const String& path, bool keep_unchanged,
-                   const base::proto::Local* WEAK_PTR message, String* error) {
+                   ui32 max_links, const base::proto::Local* WEAK_PTR message,
+                   String* error) {
   if (keep_unchanged &&
       (cache_file.empty() ? daemon::HasSameContents(path, content)
                           : daemon::HasSameContents(path, cache_file,
@@ -86,7 +104,15 @@ bool RestoreOutput(const Path& cache_file, const String& cache_hash,
 
   if (!cache_file.empty()) {
     base::File::CloneMode mode;
-    if (!base::File::Clone(cache_file, path, same_user, &mode, error)) {
+    const bool allow_hardlink =
+        same_user && (!max_links || OtherLinks(cache_file, path) < max_links);
+    if (!base::File::Clone(cache_file, path, allow_hardlink, &mode, error)) {
+      return false;
+    }
+    // Another task may have linked the same file meanwhile.
+    if (mode == base::File::CloneMode::HARDLINK && max_links &&
+        OtherLinks(cache_file, path) >= max_links &&
+        !base::File::Clone(cache_file, path, false, &mode, error)) {
       return false;
     }
     // The restored file must look newer than the sources.
@@ -721,8 +747,10 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       const bool keep_unchanged =
           conf->emitter().keep_unchanged_outputs() || RequestsRestat(incoming);
 
+      const ui32 max_links = conf->cache().max_output_links();
       if (!RestoreOutput(entry.object_path, entry.object_hash, entry.object,
-                         output_path, keep_unchanged, incoming, &error)) {
+                         output_path, keep_unchanged, max_links, incoming,
+                         &error)) {
         LOG(ERROR) << "Failed to write file from cache: " << output_path
                    << " : " << error;
         return false;
@@ -733,7 +761,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
         const String dwo_path = GetDwoPath(incoming);
 
         if (!RestoreOutput(entry.dwo_path, entry.dwo_hash, entry.dwo, dwo_path,
-                           keep_unchanged, incoming, &error)) {
+                           keep_unchanged, max_links, incoming, &error)) {
           LOG(ERROR) << "Failed to write file from cache: " << dwo_path
                      << " : " << error;
           return false;

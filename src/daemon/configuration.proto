@@ -58,6 +58,13 @@ message Configuration {
     // without copying: as copy-on-write clones or as read-only hard links.
     // Only for emitters; overrides |compression|.
 
+    optional uint32 max_output_links = 16 [ default = 1 ];
+    // With |link_outputs|: to how many places outside of the cache a cache
+    // file may be hard-linked - others get copies (or copy-on-write clones).
+    // The build systems don't expect, that a modification of their output in
+    // place - e.g. with "cp" over it - changes the outputs of other builds,
+    // and their modification time too. Zero - to any number of places.
+
     repeated string source_roots = 13;
     // Absolute paths of the source trees, that are checked out in several
     // places, e.g. as worktrees. The same sources under different roots get
