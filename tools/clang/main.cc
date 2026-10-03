@@ -17,11 +17,19 @@ namespace dist_clang {
 namespace {
 
 const char kUsage[] =
-    "Usage: dist-clang [--restat] <compiler> [args...]\n"
+    "Usage: dist-clang [--restat] [--tag=<tag>...] <compiler> [args...]\n"
     "       dist-clang --stats\n"
+    "       dist-clang --tag-stats\n"
+    "       dist-clang --forget-tag=<tag> [--force]\n"
     "\n"
-    "  --restat  Don't touch outputs, that don't change: for build systems,\n"
-    "            that re-stat outputs, like Ninja with \"restat = 1\".\n"
+    "  --restat      Don't touch outputs, that don't change: for build\n"
+    "                systems, that re-stat outputs, like Ninja with\n"
+    "                \"restat = 1\".\n"
+    "  --tag         Tag the used cache entries, e.g. with the branch of the\n"
+    "                sources; may be repeated, the empty tags are ignored.\n"
+    "  --tag-stats   Show the sizes of the tags in the cache.\n"
+    "  --forget-tag  Remove the tag from the cache, and the entries, that\n"
+    "                only it uses - with --force; otherwise only show them.\n"
     "\n"
     "Or make a symlink named like the compiler, e.g. \"clang++\", to "
     "dist-clang.\n";
@@ -82,11 +90,40 @@ int main(int argc, char* argv[]) {
     if (argv[1] == String("--stats")) {
       return client::PrintStats(socket_path, config) ? 0 : 1;
     }
+    if (argv[1] == String("--tag-stats")) {
+      return client::PrintTagStats(socket_path, config) ? 0 : 1;
+    }
+    const String kForgetTag = "--forget-tag=";
+    if (String(argv[1]).starts_with(kForgetTag)) {
+      const String tag = String(argv[1]).substr(kForgetTag.size());
+      const bool force = argc > 2 && argv[2] == String("--force");
+      if (tag.empty() || argc > (force ? 3 : 2)) {
+        std::cerr << kUsage;
+        return 1;
+      }
+      return client::ForgetTag(socket_path, config, tag, force) ? 0 : 1;
+    }
+
+    // The daemon gets the options with the environment.
     int first_arg = 1;
-    if (argv[first_arg] == String("--restat")) {
-      // The daemon gets it with the environment.
-      setenv("DC_RESTAT", "1", 1);
-      ++first_arg;
+    const String kTag = "--tag=";
+    String tags;
+    for (; first_arg < argc; ++first_arg) {
+      const String arg = argv[first_arg];
+      if (arg == "--restat") {
+        setenv("DC_RESTAT", "1", 1);
+      } else if (arg.starts_with(kTag)) {
+        // E.g. "$(git branch --show-current)" may give nothing.
+        const String tag = arg.substr(kTag.size());
+        if (!tag.empty() && tag.find('\n') == String::npos) {
+          tags += (tags.empty() ? "" : "\n") + tag;
+        }
+      } else {
+        break;
+      }
+    }
+    if (!tags.empty()) {
+      setenv(String(base::kEnvTags).c_str(), tags.c_str(), 1);
     }
     if (first_arg == argc) {
       std::cerr << kUsage;

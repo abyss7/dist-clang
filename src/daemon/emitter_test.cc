@@ -3071,6 +3071,121 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
   emitter.reset();
 }
 
+TEST_F(EmitterTest, TagEntries) {
+  const base::TemporaryDir temp_dir;
+  const auto input_path = temp_dir.path() / "test.cc";
+  const auto output_path = temp_dir.path() / "test.o";
+  const auto deps_path = temp_dir.path() / "test.d";
+  const String compiler_version = "fake_compiler_version";
+
+  ASSERT_TRUE(base::File::Write(input_path, "int main() { return 1; }"_l));
+
+  conf.mutable_cache()->set_path(temp_dir.path() / "cache");
+  conf.mutable_cache()->set_direct(true);
+  conf.mutable_cache()->set_clean_period(3600);
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path("fake_compiler_path");
+
+  Mutex replies_mutex;
+  List<net::Connection::Message> replies;
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      {
+        std::lock_guard<Mutex> lock(replies_mutex);
+        replies.emplace_back();
+        replies.back().CopyFrom(message);
+      }
+      send_condition.notify_all();
+    });
+    return true;
+  };
+
+  run_callback = [&](base::TestProcess* process) {
+    if (std::find(process->args_.begin(), process->args_.end(), "-E"_l) !=
+        process->args_.end()) {
+      process->stdout_ = "preprocessed"_l;
+      return;
+    }
+    EXPECT_TRUE(base::File::Write(output_path, "object"_l));
+    EXPECT_TRUE(base::File::Write(
+        deps_path, Immutable("test.o: "_l) + Immutable(input_path)));
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto Send = [&](net::Connection::ScopedMessage message,
+                  ui32 expected_send_count) {
+    auto connection = test_service->TriggerListen(socket_path);
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(5), [&] {
+      return send_count == expected_send_count;
+    }));
+    std::lock_guard<Mutex> replies_lock(replies_mutex);
+    return replies.back();
+  };
+  auto Compile = [&](const String& tags, ui32 expected_send_count) {
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(temp_dir);
+    if (!tags.empty()) {
+      extension->add_env("DC_TAGS=" + tags);
+    }
+    auto* flags = extension->mutable_flags();
+    flags->set_input(input_path);
+    flags->set_output(output_path);
+    flags->set_deps_file(deps_path);
+    flags->set_deps_target("test.o");
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action("fake_action");
+    Send(std::move(message), expected_send_count);
+  };
+  auto Request = [&](const String& forget, bool dry_run,
+                     ui32 expected_send_count) {
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* request =
+        message->MutableExtension(base::proto::TagsRequest::extension);
+    if (!forget.empty()) {
+      request->set_forget(forget);
+      request->set_dry_run(dry_run);
+    }
+    auto reply = Send(std::move(message), expected_send_count);
+    EXPECT_TRUE(reply.HasExtension(base::proto::TagsReport::extension));
+    return reply.GetExtension(base::proto::TagsReport::extension);
+  };
+
+  // Stored on one branch, and found on another one.
+  Compile("branch:a", 1);
+  Compile("branch:b\nworktree:1", 2);
+
+  auto report = Request(String(), true, 3);
+  ASSERT_EQ(3, report.tags_size());
+  EXPECT_EQ("branch:a", report.tags(0).name());
+  EXPECT_EQ("branch:b", report.tags(1).name());
+  EXPECT_EQ("worktree:1", report.tags(2).name());
+  for (const auto& tag : report.tags()) {
+    EXPECT_EQ(1u, tag.entries());
+    EXPECT_EQ(0u, tag.exclusive_entries());
+    EXPECT_LT(0u, tag.size());
+  }
+  EXPECT_EQ(3, report.overlaps_size());
+
+  // The entry is used by other tags.
+  report = Request("branch:a", false, 4);
+  EXPECT_EQ(0u, report.removed_entries());
+  EXPECT_EQ(1u, report.shared_entries());
+  report = Request(String(), true, 5);
+  EXPECT_EQ(2, report.tags_size());
+
+  emitter.reset();
+}
+
 TEST_F(EmitterTest, RecheckWarnings) {
   const base::TemporaryDir temp_dir;
   const auto input_path = temp_dir.path() / "test.cc";

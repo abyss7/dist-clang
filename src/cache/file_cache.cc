@@ -541,6 +541,8 @@ void FileCache::ApplyTags(string::Hash hash, const Vector<String>& tags) {
 
 bool FileCache::GetTagStats(
     Fn<void(const List<TagStats>&, const List<TagOverlap>&)> callback) {
+  // The recent accesses go first.
+  new_entries_.reset(new EntryList, new_entries_deleter_);
   return bool(cleaner_.Push([this, callback] {
     List<TagStats> stats;
     List<TagOverlap> overlaps;
@@ -551,6 +553,7 @@ bool FileCache::GetTagStats(
 
 bool FileCache::ForgetTag(const String& tag, bool dry_run,
                           Fn<void(const ForgetResult&)> callback) {
+  new_entries_.reset(new EntryList, new_entries_deleter_);
   return bool(cleaner_.Push([this, tag, dry_run, callback] {
     entries_->BeginTransaction();
     tag_index_->BeginTransaction();
@@ -573,6 +576,9 @@ void FileCache::ComputeTagStats(List<TagStats>* stats,
   std::map<Pair<String, String>, ui64> overlap_sizes;
 
   for (const auto& [hash, value] : entries_->GetInEvictionOrder()) {
+    if (direct_entries_.contains(hash)) {
+      continue;
+    }
     auto tags_it = entry_tags_.find(hash);
     const auto& tags =
         tags_it == entry_tags_.end() || tags_it->second.empty()
@@ -900,6 +906,7 @@ bool FileCache::RemoveEntry(string::Hash hash) {
     if (entry_tags_.erase(hash.str.string_copy())) {
       tag_index_->Delete(hash.str.string_copy());
     }
+    direct_entries_.erase(hash.str.string_copy());
   }
 
   if (base::File::Exists(object_path)) {
@@ -1176,6 +1183,9 @@ void FileCache::AddBlobRefs(string::Hash hash, ui64 access_time) {
   }
 
   std::lock_guard<Mutex> lock(blob_refs_mutex_);
+  if (manifest.has_direct()) {
+    direct_entries_.insert(hash.str.string_copy());
+  }
   // The new references go first: the blobs may be the same.
   for (const auto& blob : blobs) {
     blobs_.AddRef(blob, access_time);

@@ -142,6 +142,50 @@ message Local {
   }
 }
 
+// Sent from client to emitter: the statistics of the tags of the cache, or
+// the removal of a tag.
+message TagsRequest {
+  optional string forget = 1;
+  // The tag to remove: the entries, that only it uses, are removed too.
+
+  optional bool dry_run  = 2 [ default = true ];
+
+  extend net.proto.Universal {
+    optional TagsRequest extension = 9;
+  }
+}
+
+message TagsReport {
+  message Tag {
+    required string name              = 1;
+    // Empty for the entries without tags.
+
+    optional uint64 entries           = 2;
+    optional uint64 size              = 3;
+    optional uint64 exclusive_entries = 4;
+    optional uint64 exclusive_size    = 5;
+    // Only of this tag.
+  }
+  repeated Tag tags = 1;
+
+  message Overlap {
+    required string first  = 1;
+    required string second = 2;
+    optional uint64 size   = 3;
+  }
+  repeated Overlap overlaps = 2;
+
+  // The result of |TagsRequest::forget|.
+  optional uint64 removed_entries = 3;
+  optional uint64 freed_size      = 4;
+  optional uint64 shared_entries  = 5;
+  optional uint64 linked_entries  = 6;
+
+  extend net.proto.Universal {
+    optional TagsReport extension = 10;
+  }
+}
+
 message Verbosity {
   message Range {
     required uint32 right = 1;

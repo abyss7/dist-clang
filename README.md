@@ -42,6 +42,22 @@ Show the statistics of the daemon:
 
     dist-clang --stats
 
+## Tags
+
+The cache entries may be tagged with `--tag=<tag>` (repeatable): e.g. with the git branch, to see, how much space every branch takes, and to remove the entries of a finished branch. For GN, put the command into the launcher - the shell runs it for every compilation, while the command line stays the same for Ninja, so a branch switch doesn't rebuild anything by itself:
+
+    cc_wrapper = "dist-clang --restat --tag=\$(git -C /path/to/sources rev-parse --abbrev-ref HEAD)"
+
+The empty tags are ignored. The entries get the tags, when they are stored or found in the cache. Show the sizes of the tags - the exclusive ones are used only by the tag - and their overlaps; every output counts once:
+
+    dist-clang --tag-stats
+
+Remove a tag: the entries, that only it uses, are removed - except the ones, that are linked with build directories - and the other entries lose the tag. Without `--force` it only shows, what would be removed:
+
+    dist-clang --forget-tag=<tag> [--force]
+
+The objects, that weren't recompiled after a branch switch, keep only the tags of the previous branches - so a finished branch may be removed only after the other branches are built.
+
 ## Environment variables
 
 - `DC_DISABLED` - run the compiler as is, bypassing the daemon.

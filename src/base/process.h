@@ -52,6 +52,7 @@ FORWARD_TEST(EmitterTest, RecheckWarnings);
 FORWARD_TEST(EmitterTest, DontStoreIfInputsChangedDuringCompilation);
 FORWARD_TEST(EmitterTest, DontHitDirectCacheForSameContentsOfAnotherSource);
 FORWARD_TEST(EmitterTest, VerifyHits);
+FORWARD_TEST(EmitterTest, TagEntries);
 FORWARD_TEST(EmitterTest, NeverPreprocess);
 FORWARD_TEST(EmitterTest, PreprocessWhenIdle);
 }  // namespace daemon
@@ -161,6 +162,7 @@ class Process
   FRIEND_TEST(daemon::EmitterTest,
               DontHitDirectCacheForSameContentsOfAnotherSource);
   FRIEND_TEST(daemon::EmitterTest, VerifyHits);
+  FRIEND_TEST(daemon::EmitterTest, TagEntries);
   FRIEND_TEST(daemon::EmitterTest, NeverPreprocess);
   FRIEND_TEST(daemon::EmitterTest, PreprocessWhenIdle);
 };

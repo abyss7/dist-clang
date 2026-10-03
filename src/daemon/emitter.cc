@@ -526,6 +526,11 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
     }
   }
 
+  if (message->HasExtension(base::proto::TagsRequest::extension)) {
+    return HandleTagsRequest(
+        connection, message->GetExtension(base::proto::TagsRequest::extension));
+  }
+
   if (message->HasExtension(perf::proto::Report::extension)) {
     auto report = std::make_unique<perf::proto::Report>();
     base::Singleton<perf::StatService>::Get().DumpAll(report.get());
@@ -764,6 +769,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       LOG(INFO) << "Cache hit: " << incoming->flags().input();
 
       MaybeVerifyHit(*incoming, entry, std::get<START_TIME>(*task));
+      TagEntry(*incoming, HandledHash(Immutable(entry.handled_hash)));
 
       return true;
     };
@@ -859,6 +865,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
           cache::FileCache::Entry compiled;
           if (SearchSimpleCache(unique_hash, &compiled)) {
             UpdateSimpleCache(handled_hash, compiled);
+            TagEntry(*incoming, handled_hash);
           }
         }
         continue;
@@ -1050,6 +1057,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
             UpdateSimpleCache(handled_hash, entry);
             UpdateDirectCache(incoming, handled_hash, extra_files, entry,
                               std::get<START_TIME>(*task));
+            TagEntry(*incoming, handled_hash);
             stored_entry = entry;
           } else {
             STAT(CACHE_STORE_SKIPPED);
@@ -1070,6 +1078,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
       // The preprocessing has missed the cache already.
       if (stored_entry && !preprocessed_hash.str.empty()) {
         UpdateSimpleCache(preprocessed_hash, *stored_entry);
+        TagEntry(*incoming, preprocessed_hash);
       }
     }
 
@@ -1300,6 +1309,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
           UpdateSimpleCache(handled_hash, entry);
           UpdateDirectCache(incoming, handled_hash, extra_files, entry,
                             std::get<START_TIME>(*task));
+          TagEntry(*incoming, handled_hash);
         }
 
         std::get<CONNECTION>(*task)->ReportStatus(status);

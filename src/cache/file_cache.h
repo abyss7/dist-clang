@@ -378,6 +378,8 @@ class FileCache {
   // The blobs of the entries. Used by the cleaner - and by the failed stores.
   Mutex blob_refs_mutex_;
   HashMap<String, Vector<String>> entry_blobs_;
+  // The manifests of the direct cache - they aren't tagged.
+  HashSet<String> direct_entries_;
   // The tags of the entries - sorted. Used by the cleaner too.
   UniquePtr<TagIndex> tag_index_;
   HashMap<String, Vector<String>> entry_tags_;

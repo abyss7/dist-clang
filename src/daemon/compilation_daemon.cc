@@ -1,10 +1,12 @@
 #include <daemon/compilation_daemon.h>
 
 #include <base/assert.h>
+#include <base/constants.h>
 #include <base/file/file.h>
 #include <base/logging.h>
 #include <base/process_impl.h>
 #include <base/string_utils.h>
+#include <net/connection.h>
 #include <perf/stat_reporter.h>
 
 #include STL(random)
@@ -633,6 +635,67 @@ void CompilationDaemon::UpdateSimpleCache(
   }
   Counter counter(Metric::SIMPLE_CACHE_UPDATE_TIME);
   cache_->Store(hash, entry);
+}
+
+void CompilationDaemon::TagEntry(const base::proto::Local& message,
+                                 const HandledHash& hash) {
+  if (!cache_ || hash.str.empty()) {
+    return;
+  }
+  const String prefix = String(base::kEnvTags) + "=";
+  for (const auto& variable : message.env()) {
+    if (variable.starts_with(prefix)) {
+      List<String> tags;
+      base::SplitString<'\n'>(variable.substr(prefix.size()), tags);
+      cache_->AddTags(hash, Vector<String>(tags.begin(), tags.end()));
+      return;
+    }
+  }
+}
+
+bool CompilationDaemon::HandleTagsRequest(
+    net::ConnectionPtr connection, const base::proto::TagsRequest& request) {
+  if (!cache_) {
+    net::proto::Status status;
+    status.set_code(net::proto::Status::BAD_MESSAGE);
+    status.set_description("The cache is disabled");
+    return connection->ReportStatus(status);
+  }
+
+  // The connection lives, until the reply is sent.
+  if (request.has_forget()) {
+    return cache_->ForgetTag(
+        request.forget(), request.dry_run(),
+        [connection](const cache::FileCache::ForgetResult& result) {
+          auto report = std::make_unique<base::proto::TagsReport>();
+          report->set_removed_entries(result.removed_entries);
+          report->set_freed_size(result.freed_size);
+          report->set_shared_entries(result.shared_entries);
+          report->set_linked_entries(result.linked_entries);
+          connection->SendAsync(std::move(report));
+        });
+  }
+
+  return cache_->GetTagStats(
+      [connection](const List<cache::FileCache::TagStats>& stats,
+                   const List<cache::FileCache::TagOverlap>& overlaps) {
+        auto report = std::make_unique<base::proto::TagsReport>();
+        for (const auto& stat : stats) {
+          auto* tag = report->add_tags();
+          tag->set_name(stat.tag);
+          tag->set_entries(stat.entries);
+          tag->set_size(stat.size);
+          tag->set_exclusive_entries(stat.exclusive_entries);
+          tag->set_exclusive_size(stat.exclusive_size);
+        }
+        for (const auto& overlap : overlaps) {
+          auto* new_overlap = report->add_overlaps();
+          new_overlap->set_first(overlap.first);
+          new_overlap->set_second(overlap.second);
+          new_overlap->set_size(overlap.size);
+        }
+        connection->SendAsync(std::move(report));
+      });
 }
 
 void CompilationDaemon::RemoveFromCache(const HandledHash& hash) {

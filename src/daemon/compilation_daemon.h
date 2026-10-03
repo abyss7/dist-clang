@@ -91,6 +91,15 @@ class CompilationDaemon : public BaseDaemon {
   // Removes the wrong result from the cache.
   void RemoveFromCache(const cache::string::HandledHash& hash);
 
+  // Tags the entry with the tags of the client - see |base::kEnvTags|.
+  void TagEntry(const base::proto::Local& message,
+                const cache::string::HandledHash& hash);
+
+  // Replies with the statistics of the tags, or removes a tag - in
+  // background.
+  bool HandleTagsRequest(net::ConnectionPtr connection,
+                         const base::proto::TagsRequest& request);
+
   // |start_time| is the time of the start of the compilation - see
   // |FileSystemTime()|.
   void UpdateDirectCache(const base::proto::Local* message,

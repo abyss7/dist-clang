@@ -25,5 +25,14 @@ Result DoMain(const List<String>& args, const String& socket_path,
 // available.
 bool PrintStats(const String& socket_path, const proto::Configuration& config);
 
+// Prints the sizes of the tags of the cache, and how they overlap.
+bool PrintTagStats(const String& socket_path,
+                   const proto::Configuration& config);
+
+// Removes the |tag| from the cache - or only shows what is removed, unless
+// |force|.
+bool ForgetTag(const String& socket_path, const proto::Configuration& config,
+               const String& tag, bool force);
+
 }  // namespace client
 }  // namespace dist_clang
