@@ -30,6 +30,8 @@ source_set("daemon") {
     "driver_args.h",
     "emitter.cc",
     "emitter.h",
+    "outputs.cc",
+    "outputs.h",
   ]
 
   deps = [

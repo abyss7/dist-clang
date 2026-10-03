@@ -5,6 +5,7 @@
 #include <base/logging.h>
 #include <base/process.h>
 #include <daemon/driver_args.h>
+#include <daemon/outputs.h>
 #include <net/connection.h>
 #include <net/end_point.h>
 #include <perf/counter.h>
@@ -59,10 +60,25 @@ inline String GetDepsPath(const base::proto::Local* WEAK_PTR message) {
   }
 }
 
+// Checks if the client asks not to touch unchanged outputs.
+inline bool RequestsRestat(const base::proto::Local* WEAK_PTR message) {
+  return std::find(message->env().begin(), message->env().end(),
+                   "DC_RESTAT=1") != message->env().end();
+}
+
 // Puts the output from the cache to |path|: links the cache file, if possible.
-bool RestoreOutput(const Path& cache_file, Immutable content,
-                   const String& path,
+// With |keep_unchanged| doesn't touch the output, if it's the same already.
+bool RestoreOutput(const Path& cache_file, const String& cache_hash,
+                   Immutable content, const String& path, bool keep_unchanged,
                    const base::proto::Local* WEAK_PTR message, String* error) {
+  if (keep_unchanged &&
+      (cache_file.empty() ? daemon::HasSameContents(path, content)
+                          : daemon::HasSameContents(path, cache_file,
+                                                    cache_hash))) {
+    STAT(CACHE_OUTPUT_UNCHANGED);
+    return true;
+  }
+
   // The hard-linked file can't have another owner.
   const bool same_user =
       !message->has_user_id() || message->user_id() == getuid();
@@ -412,8 +428,11 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
         return false;
       }
 
-      if (!RestoreOutput(entry.object_path, entry.object, output_path,
-                         incoming, &error)) {
+      const bool keep_unchanged =
+          conf->emitter().keep_unchanged_outputs() || RequestsRestat(incoming);
+
+      if (!RestoreOutput(entry.object_path, entry.object_hash, entry.object,
+                         output_path, keep_unchanged, incoming, &error)) {
         LOG(ERROR) << "Failed to write file from cache: " << output_path
                    << " : " << error;
         return false;
@@ -423,8 +442,8 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
           (!entry.dwo.empty() || !entry.dwo_path.empty())) {
         const String dwo_path = GetDwoPath(incoming);
 
-        if (!RestoreOutput(entry.dwo_path, entry.dwo, dwo_path, incoming,
-                           &error)) {
+        if (!RestoreOutput(entry.dwo_path, entry.dwo_hash, entry.dwo, dwo_path,
+                           keep_unchanged, incoming, &error)) {
           LOG(ERROR) << "Failed to write file from cache: " << dwo_path
                      << " : " << error;
           return false;
@@ -509,6 +528,8 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
 }
 
 void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
+  auto conf = this->conf();
+
   while (!pool.IsShuttingDown()) {
     Optional&& task = local_tasks_->Pop();
     if (!task) {
@@ -535,10 +556,25 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
 
     // Remove the old outputs: they may be hard-linked with other places, and
     // the compiler shouldn't write into them. Also the split DWARF file may be
-    // not generated at all - don't take a stale one into the cache.
-    base::File::Delete(GetOutputPath(incoming));
+    // not generated at all - don't take a stale one into the cache. If the
+    // unchanged outputs should be kept, move them aside to compare later.
+    const bool keep_unchanged =
+        conf->emitter().keep_unchanged_outputs() || RequestsRestat(incoming);
+    PreviousOutput previous_output(GetOutputPath(incoming));
+    std::optional<PreviousOutput> previous_dwo;
     if (incoming->flags().has_dwo_file()) {
-      base::File::Delete(GetDwoPath(incoming));
+      previous_dwo.emplace(GetDwoPath(incoming));
+    }
+    if (keep_unchanged) {
+      previous_output.Save();
+      if (previous_dwo) {
+        previous_dwo->Save();
+      }
+    } else {
+      base::File::Delete(GetOutputPath(incoming));
+      if (previous_dwo) {
+        base::File::Delete(GetDwoPath(incoming));
+      }
     }
 
     Counter<> counter(Metric::LOCAL_COMPILATION_TIME);
@@ -560,6 +596,13 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
       status.set_description(process->stderr());
       LOG(INFO) << "Local compilation successful:  "
                 << incoming->flags().input();
+
+      if (previous_output.RestoreIfSame()) {
+        STAT(LOCAL_OUTPUT_UNCHANGED);
+      }
+      if (previous_dwo) {
+        previous_dwo->RestoreIfSame();
+      }
 
       const auto& source = std::get<SOURCE>(*task);
       const auto& extra_files = std::get<EXTRA_FILES>(*task);

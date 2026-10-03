@@ -17,8 +17,11 @@ namespace dist_clang {
 namespace {
 
 const char kUsage[] =
-    "Usage: dist-clang <compiler> [args...]\n"
+    "Usage: dist-clang [--restat] <compiler> [args...]\n"
     "       dist-clang --stats\n"
+    "\n"
+    "  --restat  Don't touch outputs, that don't change: for build systems,\n"
+    "            that re-stat outputs, like Ninja with \"restat = 1\".\n"
     "\n"
     "Or make a symlink named like the compiler, e.g. \"clang++\", to "
     "dist-clang.\n";
@@ -79,7 +82,17 @@ int main(int argc, char* argv[]) {
     if (argv[1] == String("--stats")) {
       return client::PrintStats(socket_path, config) ? 0 : 1;
     }
-    args.assign(argv + 1, argv + argc);
+    int first_arg = 1;
+    if (argv[first_arg] == String("--restat")) {
+      // The daemon gets it with the environment.
+      setenv("DC_RESTAT", "1", 1);
+      ++first_arg;
+    }
+    if (first_arg == argc) {
+      std::cerr << kUsage;
+      return 1;
+    }
+    args.assign(argv + first_arg, argv + argc);
   } else {
     if (config.path().empty()) {
       std::cerr << "dist-clang: provide the real compiler via "

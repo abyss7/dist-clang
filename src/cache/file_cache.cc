@@ -308,6 +308,7 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
                   &entry->object_path, &size)) {
     return false;
   }
+  entry->object_hash = v1.object_hash();
 
   if (v1.dep()) {
     const auto deps_path = AppendExtension(CommonPath(hash), base::kExtDeps);
@@ -323,6 +324,7 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
                   &size)) {
     return false;
   }
+  entry->dwo_hash = v1.dwo_hash();
 
   if (!v1.has_size() || v1.size() != size) {
     return false;

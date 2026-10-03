@@ -66,6 +66,11 @@ message Metric {
 
     CACHE_ENTRIES               = 28;
 
+    CACHE_OUTPUT_UNCHANGED      = 29;
+    LOCAL_OUTPUT_UNCHANGED      = 30;
+    // Outputs, that are the same after the cache hit or the compilation, and
+    // are kept untouched.
+
     CACHE_OUTPUT_LINKED         = 24;
     CACHE_OUTPUT_COPIED         = 25;
     // Output files restored from the cache: linked (copy-on-write clone or

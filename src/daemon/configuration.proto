@@ -72,6 +72,14 @@ message Configuration {
     // Implies strict sharding if specified limit is larger than zero.
     // All tasks of shard that exceed limit can be redistributed between other
     // shards.
+
+    optional bool keep_unchanged_outputs = 10 [ default = false ];
+    // Don't touch the outputs, that don't change after the compilation or the
+    // cache hit: then they keep their modification time, and the build system,
+    // that re-stats outputs (e.g. Ninja with "restat = 1"), doesn't rebuild the
+    // dependent targets. Without re-stating the build system would consider
+    // such outputs as always outdated. The client may request it per command
+    // with "--restat" flag or "DC_RESTAT=1" environment variable.
   }
 
   message Absorber {
