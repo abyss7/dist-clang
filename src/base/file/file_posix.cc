@@ -8,8 +8,11 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #if defined(OS_LINUX)
+#include <linux/fs.h>
+#include <sys/ioctl.h>
 #include <sys/sendfile.h>
 #elif defined(OS_MACOSX)
 #include <copyfile.h>
@@ -308,6 +311,63 @@ bool File::Link(const Path& src, const Path& dst, String* error) {
   }
 
   return File::Copy(src, dst, error);
+}
+
+// static
+bool File::Clone(const Path& src, const Path& dst, bool allow_hardlink,
+                 CloneMode* mode, String* error) {
+  // Use a unique temporary file in the same directory, so that the final
+  // rename is atomic.
+  static Atomic<ui64> counter(0);
+  const Path tmp_path = dst.string() + ".dc-" + std::to_string(getpid()) +
+                        "-" + std::to_string(counter++) + ".tmp";
+
+  auto Finish = [&](CloneMode clone_mode) {
+    if (!Move(tmp_path, dst, error)) {
+      unlink(tmp_path.c_str());
+      return false;
+    }
+    if (mode) {
+      *mode = clone_mode;
+    }
+    return true;
+  };
+
+#if defined(OS_LINUX)
+  {
+    const int src_fd = open(src.c_str(), O_RDONLY | O_CLOEXEC);
+    if (src_fd == -1) {
+      GetLastError(error);
+      return false;
+    }
+    struct stat st;
+    const int dst_fd =
+        fstat(src_fd, &st) == -1
+            ? -1
+            : open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC,
+                   (st.st_mode | S_IWUSR) & 0777);
+    const bool cloned = dst_fd != -1 && ioctl(dst_fd, FICLONE, src_fd) == 0;
+    if (dst_fd != -1) {
+      close(dst_fd);
+    }
+    close(src_fd);
+    if (cloned) {
+      return Finish(CloneMode::REFLINK);
+    }
+    unlink(tmp_path.c_str());
+  }
+#endif  // defined(OS_LINUX)
+
+  if (allow_hardlink && linkat(AT_FDCWD, src.c_str(), AT_FDCWD,
+                               tmp_path.c_str(), AT_SYMLINK_FOLLOW) == 0) {
+    return Finish(CloneMode::HARDLINK);
+  }
+
+  if (!Copy(src, tmp_path, error)) {
+    unlink(tmp_path.c_str());
+    return false;
+  }
+  return Finish(CloneMode::COPY);
 }
 
 // static

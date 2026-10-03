@@ -11,6 +11,10 @@
 #include <perf/stat_reporter.h>
 #include <perf/stat_service.h>
 
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include <base/using_log.h>
 
 #include STL(random)
@@ -53,6 +57,44 @@ inline String GetDepsPath(const base::proto::Local* WEAK_PTR message) {
   } else {
     return message->current_dir() + "/" + message->flags().deps_file();
   }
+}
+
+// Puts the output from the cache to |path|: links the cache file, if possible.
+bool RestoreOutput(const Path& cache_file, Immutable content,
+                   const String& path,
+                   const base::proto::Local* WEAK_PTR message, String* error) {
+  // The hard-linked file can't have another owner.
+  const bool same_user =
+      !message->has_user_id() || message->user_id() == getuid();
+
+  if (!cache_file.empty()) {
+    base::File::CloneMode mode;
+    if (!base::File::Clone(cache_file, path, same_user, &mode, error)) {
+      return false;
+    }
+    // The restored file must look newer than the sources.
+    utimensat(AT_FDCWD, path.c_str(), nullptr, 0);
+    if (mode == base::File::CloneMode::COPY) {
+      STAT(CACHE_OUTPUT_COPIED);
+    } else {
+      STAT(CACHE_OUTPUT_LINKED);
+    }
+  } else {
+    if (!base::File::Write(path, content, error)) {
+      return false;
+    }
+    STAT(CACHE_OUTPUT_COPIED);
+  }
+
+  if (!same_user) {
+    String chown_error;
+    if (!base::ChangeOwner(path, message->user_id(), &chown_error)) {
+      LOG(ERROR) << "Failed to change owner for " << path << " : "
+                 << chown_error;
+    }
+  }
+
+  return true;
 }
 
 inline String GetDwoPath(const base::proto::Local* WEAK_PTR message) {
@@ -370,21 +412,19 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
         return false;
       }
 
-      if (!base::File::Write(output_path, entry.object, &error)) {
+      if (!RestoreOutput(entry.object_path, entry.object, output_path,
+                         incoming, &error)) {
         LOG(ERROR) << "Failed to write file from cache: " << output_path
                    << " : " << error;
         return false;
       }
-      if (incoming->has_user_id() &&
-          !base::ChangeOwner(output_path, incoming->user_id(), &error)) {
-        LOG(ERROR) << "Failed to change owner for " << output_path << " : "
-                   << error;
-      }
 
-      if (flags.has_dwo_file() && !entry.dwo.empty()) {
+      if (flags.has_dwo_file() &&
+          (!entry.dwo.empty() || !entry.dwo_path.empty())) {
         const String dwo_path = GetDwoPath(incoming);
 
-        if (!base::File::Write(dwo_path, entry.dwo, &error)) {
+        if (!RestoreOutput(entry.dwo_path, entry.dwo, dwo_path, incoming,
+                           &error)) {
           LOG(ERROR) << "Failed to write file from cache: " << dwo_path
                      << " : " << error;
           return false;
@@ -529,11 +569,14 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
         cache::FileCache::Entry entry;
         const auto& flags = incoming->flags();
         Immutable deps;
-        if (base::File::Read(GetOutputPath(incoming), &entry.object) &&
+        // The outputs are linked into the cache, or read, if needed.
+        entry.object_path = GetOutputPath(incoming);
+        if (flags.has_dwo_file() && base::File::Exists(GetDwoPath(incoming))) {
+          entry.dwo_path = GetDwoPath(incoming);
+        }
+        if (base::File::Exists(entry.object_path) &&
             (!flags.has_deps_file() ||
-             base::File::Read(GetDepsPath(incoming), &deps)) &&
-            (!flags.has_dwo_file() || !base::File::Exists(GetDwoPath(incoming)) ||
-             base::File::Read(GetDwoPath(incoming), &entry.dwo))) {
+             base::File::Read(GetDepsPath(incoming), &deps))) {
           entry.deps = NormalizeDeps(deps, flags.deps_target());
           entry.stderr = process->stderr();
           auto& handled_hash = std::get<HANDLED_HASH>(*task);

@@ -41,6 +41,19 @@ class File final : public Data {
   static bool Link(const Path& src_path, const Path& dst_path,
                    String* error = nullptr);
   static bool Move(const Path& src, const Path& dst, String* error = nullptr);
+
+  enum class CloneMode {
+    REFLINK,   // A copy-on-write clone - an independent file.
+    HARDLINK,  // The same file - may be modified through any of its paths.
+    COPY,
+  };
+
+  // Makes |dst| to have the contents of |src| in the cheapest way: tries a
+  // copy-on-write clone, then a hard link, then a plain copy. The |dst| is
+  // replaced atomically, if exists. With |allow_hardlink| = false never shares
+  // the file.
+  static bool Clone(const Path& src, const Path& dst, bool allow_hardlink,
+                    CloneMode* mode = nullptr, String* error = nullptr);
   static bool Delete(const Path& path, String* error = nullptr);
 
  private:

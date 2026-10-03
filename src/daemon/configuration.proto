@@ -41,6 +41,11 @@ message Configuration {
     // in seconds.
 
     optional bool store_index    = 10 [ default = true ];
+
+    optional bool link_outputs   = 11 [ default = true ];
+    // Store outputs uncompressed, and link them into and out of the cache
+    // without copying: as copy-on-write clones or as read-only hard links.
+    // Only for emitters; overrides |snappy|.
   }
 
   message Emitter {

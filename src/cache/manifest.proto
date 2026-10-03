@@ -29,6 +29,11 @@ message Simple_Version1 {
   optional bool dep = 103;
   optional bool dwo = 104;
   // Split DWARF file - compressed the same way as the object file.
+
+  optional string object_hash = 105;
+  optional string dwo_hash    = 106;
+  // Hashes of the uncompressed files - to check their integrity, if they are
+  // shared through hard links.
 }
 
 message Manifest {

@@ -10,6 +10,8 @@
 #include <base/file_utils.h>
 
 #include <gtest/gtest.h>
+
+#include <sys/stat.h>
 #include STL(regex)
 
 namespace dist_clang {
@@ -272,6 +274,82 @@ TEST(FileCacheTest, RoundTripCompressedEntry) {
   EXPECT_EQ("stderr", entry.stderr.string_copy());
 }
 
+TEST(FileCacheTest, LinkOutputs) {
+  const base::TemporaryDir temp_dir;
+  const auto object_path = temp_dir.path() / "test.o";
+  const auto dwo_path = temp_dir.path() / "test.dwo";
+  const auto restored_path = temp_dir.path() / "restored.o";
+  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, true, false,
+                  true);
+  ASSERT_TRUE(cache.Run(1));
+
+  ASSERT_TRUE(base::File::Write(object_path, "object"_l));
+  ASSERT_TRUE(base::File::Write(dwo_path, "dwo"_l));
+
+  const auto hash = FileCache::Hash(HandledSource("int main() {}"_l), {},
+                                    CommandLine("-c"_l), Version("1"_l));
+  FileCache::Entry stored;
+  stored.deps = "deps"_l;
+  stored.object_path = object_path;
+  stored.dwo_path = dwo_path;
+  cache.Store(hash, stored);
+
+  // The outputs are linked, not read.
+  FileCache::Entry entry;
+  ASSERT_TRUE(cache.Find(hash, &entry));
+  EXPECT_TRUE(entry.object.empty());
+  EXPECT_TRUE(entry.dwo.empty());
+  EXPECT_EQ("deps"_l, entry.deps);
+  ASSERT_FALSE(entry.object_path.empty());
+  ASSERT_FALSE(entry.dwo_path.empty());
+
+  Immutable object, dwo;
+  ASSERT_TRUE(base::File::Read(entry.object_path, &object));
+  ASSERT_TRUE(base::File::Read(entry.dwo_path, &dwo));
+  EXPECT_EQ("object"_l, object);
+  EXPECT_EQ("dwo"_l, dwo);
+
+  // The cache files are read-only.
+  struct stat st;
+  ASSERT_EQ(0, stat(entry.object_path.c_str(), &st));
+  EXPECT_EQ(0u, st.st_mode & (S_IWUSR | S_IWGRP | S_IWOTH));
+
+  // A shared file, modified in place, is detected - even after the link is
+  // removed.
+  base::File::CloneMode mode;
+  ASSERT_TRUE(base::File::Clone(entry.object_path, restored_path, true, &mode));
+  if (mode == base::File::CloneMode::HARDLINK) {
+    ASSERT_EQ(0, chmod(restored_path.c_str(), S_IRUSR | S_IWUSR));
+    FILE* file = fopen(restored_path.c_str(), "r+");
+    ASSERT_TRUE(file);
+    fputs("OBJECT", file);
+    fclose(file);
+    ASSERT_TRUE(base::File::Delete(restored_path));
+
+    FileCache::Entry broken_entry;
+    EXPECT_FALSE(cache.Find(hash, &broken_entry));
+  }
+}
+
+TEST(FileCacheTest, LinkOutputsWithContents) {
+  const base::TemporaryDir temp_dir;
+  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, false,
+                  false, true);
+  ASSERT_TRUE(cache.Run(1));
+
+  // E.g. the result of the remote compilation - there is no file to link.
+  const auto hash = FileCache::Hash(HandledSource("int main() {}"_l), {},
+                                    CommandLine("-c"_l), Version("1"_l));
+  cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l, Immutable()});
+
+  FileCache::Entry entry;
+  ASSERT_TRUE(cache.Find(hash, &entry));
+  ASSERT_FALSE(entry.object_path.empty());
+  Immutable object;
+  ASSERT_TRUE(base::File::Read(entry.object_path, &object));
+  EXPECT_EQ("object"_l, object);
+}
+
 TEST(FileCacheTest, RestoreEntryWithMissingFile) {
   const base::TemporaryDir temp_dir;
   const auto object_path = temp_dir.path() / "test.o";
@@ -350,9 +428,28 @@ TEST(FileCacheTest, ExceedCacheSize) {
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
 
-  FileCache cache(cache_path, 164, false, false);
-  // 164 = sizeof(obj_content[0]) + sizeof(obj_content[1]) + 1 + 2 *
-  // <size_of_manifest>. The current typical size of manifest is 79 bytes.
+  // Measure the sizes of entries on disk - they depend on the manifest format.
+  ui64 entry_size[3];
+  {
+    const base::TemporaryDir probe_dir;
+    FileCache probe(probe_dir.path() / "cache", FileCache::UNLIMITED, false,
+                    false);
+    ASSERT_TRUE(probe.Run(1));
+    const auto probe_db_size = probe.database_->SizeOnDisk();
+    ui64 total_size = 0;
+    for (int i = 0; i < 3; ++i) {
+      probe.Store(FileCache::Hash(code[i], {}, cl, version),
+                  FileCache::Entry{obj_content[i], String(), String()});
+      const auto new_total_size =
+          base::CalculateDirectorySize(probe_dir.path() / "cache") -
+          probe_db_size;
+      entry_size[i] = new_total_size - total_size;
+      total_size = new_total_size;
+    }
+  }
+
+  // Two first entries fit, but not with the third one.
+  FileCache cache(cache_path, entry_size[0] + entry_size[1], false, false);
 
   ASSERT_TRUE(cache.Run(1));
   auto db_size = cache.database_->SizeOnDisk();
@@ -360,7 +457,8 @@ TEST(FileCacheTest, ExceedCacheSize) {
   {
     FileCache::Entry entry{obj_content[0], String(), String()};
     cache.Store(FileCache::Hash(code[0], {}, cl, version), entry);
-    EXPECT_EQ(81u, base::CalculateDirectorySize(cache_path) - db_size);
+    EXPECT_EQ(entry_size[0],
+              base::CalculateDirectorySize(cache_path) - db_size);
   }
 
   std::this_thread::sleep_for(Seconds(1));
@@ -368,7 +466,8 @@ TEST(FileCacheTest, ExceedCacheSize) {
   {
     FileCache::Entry entry{obj_content[1], String(), String()};
     cache.Store(FileCache::Hash(code[1], {}, cl, version), entry);
-    EXPECT_EQ(163u, base::CalculateDirectorySize(cache_path) - db_size);
+    EXPECT_EQ(entry_size[0] + entry_size[1],
+              base::CalculateDirectorySize(cache_path) - db_size);
   }
 
   std::this_thread::sleep_for(Seconds(1));
@@ -377,7 +476,8 @@ TEST(FileCacheTest, ExceedCacheSize) {
     FileCache::Entry entry{obj_content[2], String(), String()};
     cache.Store(FileCache::Hash(code[2], {}, cl, version), entry);
     std::this_thread::sleep_for(Seconds(3));
-    EXPECT_EQ(83u, base::CalculateDirectorySize(cache_path) - db_size);
+    EXPECT_EQ(entry_size[2],
+              base::CalculateDirectorySize(cache_path) - db_size);
   }
 
   FileCache::Entry entry;

@@ -150,6 +150,50 @@ TEST(FileTest, Copy) {
   EXPECT_EQ(expected_content2, content);
 }
 
+TEST(FileTest, Clone) {
+  const auto content1 = "All your base are belong to us"_l;
+  const auto content2 = "Something else"_l;
+  const TemporaryDir temp_dir;
+  const auto src = temp_dir.path() / "src";
+  const auto dst = temp_dir.path() / "dst";
+
+  ASSERT_TRUE(File::Write(src, content1));
+  ASSERT_TRUE(File::Write(dst, content2));
+
+  File::CloneMode mode;
+  String error;
+  ASSERT_TRUE(File::Clone(src, dst, true, &mode, &error)) << error;
+  EXPECT_NE(File::CloneMode::COPY, mode);
+
+  Immutable content;
+  ASSERT_TRUE(File::Read(dst, &content));
+  EXPECT_EQ(content1, content);
+
+  struct stat src_st, dst_st;
+  ASSERT_EQ(0, stat(src.c_str(), &src_st));
+  ASSERT_EQ(0, stat(dst.c_str(), &dst_st));
+  EXPECT_EQ(mode == File::CloneMode::HARDLINK, src_st.st_ino == dst_st.st_ino);
+
+  // Without hard links the files never share the inode.
+  ASSERT_TRUE(File::Clone(src, dst, false, &mode, &error)) << error;
+  EXPECT_NE(File::CloneMode::HARDLINK, mode);
+  ASSERT_EQ(0, stat(dst.c_str(), &dst_st));
+  EXPECT_NE(src_st.st_ino, dst_st.st_ino);
+  Immutable content2_read;
+  ASSERT_TRUE(File::Read(dst, &content2_read));
+  EXPECT_EQ(content1, content2_read);
+
+  // No temporary files are left.
+  ui32 files = 0;
+  for ([[maybe_unused]] const auto& entry :
+       std::filesystem::directory_iterator(temp_dir.path())) {
+    ++files;
+  }
+  EXPECT_EQ(2u, files);
+
+  EXPECT_FALSE(File::Clone(temp_dir.path() / "missing", dst, true));
+}
+
 TEST(FileTest, Link) {
   const auto expected_content = "All your base are belong to us"_l;
   const TemporaryDir temp_dir;

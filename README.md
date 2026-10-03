@@ -56,6 +56,8 @@ The daemon classifies the flags of the compiler driver: the flags, that affect o
 
 The results include the object file, the split DWARF file (`-gsplit-dwarf`), the dependency file and the compiler's diagnostics.
 
+The object and split DWARF files are stored uncompressed, and are put into and out of the cache without copying: as copy-on-write clones on filesystems that support them (btrfs, XFS), or as hard links otherwise. The hard-linked files are read-only, and their contents are checked on every cache hit - a file modified in place through another link is not taken from the cache. Set `link_outputs: false` in the cache configuration to store compressed copies instead.
+
 # How to configure the daemon
 
 Without a configuration the daemon uses the defaults: the cache in `~/.cache/dist-clang` of 20 GiB. To change them, copy `install/daemon.conf.example` to `~/.config/dist-clang/daemon.conf`. The format is the text protobuf, see `src/daemon/configuration.proto`.

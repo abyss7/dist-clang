@@ -13,6 +13,7 @@
 #include <snappy.h>
 #include STL(regex)
 
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <utime.h>
 
@@ -67,14 +68,17 @@ List<List<String>> DirectVariants(const proto::Direct& direct) {
 
 }  // namespace
 
-FileCache::FileCache(const Path& path, ui64 size, bool snappy, bool store_index)
+FileCache::FileCache(const Path& path, ui64 size, bool snappy, bool store_index,
+                     bool link_outputs)
     : path_(ReplaceTildeInPath(path)),
-      snappy_(snappy),
+      // The linked outputs can't be compressed.
+      snappy_(snappy && !link_outputs),
       store_index_(store_index),
+      link_outputs_(link_outputs),
       max_size_(size) {}
 
 FileCache::FileCache(const Path& path)
-    : FileCache(path, UNLIMITED, false, false) {}
+    : FileCache(path, UNLIMITED, false, false, false) {}
 
 FileCache::~FileCache() {
   resetter_.reset();
@@ -218,6 +222,57 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
   return false;
 }
 
+bool FileCache::FindOutput(const Path& cache_path, bool compressed,
+                           const String& expected_hash, Immutable* content,
+                           Path* path, ui64* size) const {
+  // Link the uncompressed output instead of reading it - if we know its hash
+  // to check the integrity.
+  if (link_outputs_ && !compressed && !expected_hash.empty()) {
+    struct stat st;
+    if (stat(cache_path.c_str(), &st) == -1) {
+      return false;
+    }
+
+    // The file may be shared through a hard link - and modified in place by
+    // someone else, though it's read-only. The link may be gone already, so
+    // check the contents always: it's cheap compared to the compilation.
+    Immutable actual_hash;
+    if (!base::File::Hash(cache_path, &actual_hash) ||
+        actual_hash.string_copy() != expected_hash) {
+      LOG(CACHE_WARNING) << "Cache file is modified outside: " << cache_path;
+      // Break the entry, so that it's removed later.
+      base::File::Delete(cache_path);
+      return false;
+    }
+
+    *path = cache_path;
+    *size += st.st_size;
+    return true;
+  }
+
+  Immutable file_content;
+  String error;
+  if (!base::File::Read(cache_path, &file_content, &error)) {
+    LOG(CACHE_ERROR) << "Failed to read " << cache_path << " : " << error;
+    return false;
+  }
+  *size += file_content.size();
+
+  if (!compressed) {
+    *content = file_content;
+    return true;
+  }
+
+  String unpacked;
+  if (!snappy::Uncompress(file_content.data(), file_content.size(),
+                          &unpacked)) {
+    LOG(CACHE_ERROR) << "Failed to unpack contents of " << cache_path;
+    return false;
+  }
+  *content = std::move(unpacked);
+  return true;
+}
+
 bool FileCache::Find(HandledHash hash, Entry* entry) const {
   DCHECK(entry);
 
@@ -237,9 +292,10 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
   utime(manifest_path.c_str(), nullptr);
   new_entries_->Append({time(nullptr), hash});
 
+  const auto& v1 = manifest.v1();
   ui64 size = 0;
 
-  if (manifest.v1().err()) {
+  if (v1.err()) {
     const auto stderr_path =
         AppendExtension(CommonPath(hash), base::kExtStderr);
     if (!base::File::Read(stderr_path, &entry->stderr)) {
@@ -248,37 +304,14 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
     size += entry->stderr.size();
   }
 
-  if (manifest.v1().obj()) {
-    const auto object_path =
-        AppendExtension(CommonPath(hash), base::kExtObject);
-
-    if (manifest.v1().snappy()) {
-      String error;
-
-      Immutable packed_content;
-      if (!base::File::Read(object_path, &packed_content, &error)) {
-        LOG(CACHE_ERROR) << "Failed to read " << object_path << " : " << error;
-        return false;
-      }
-      size += packed_content.size();
-
-      String object_str;
-      if (!snappy::Uncompress(packed_content.data(), packed_content.size(),
-                              &object_str)) {
-        LOG(CACHE_ERROR) << "Failed to unpack contents of " << object_path;
-        return false;
-      }
-
-      entry->object = std::move(object_str);
-    } else {
-      if (!base::File::Read(object_path, &entry->object)) {
-        return false;
-      }
-      size += entry->object.size();
-    }
+  if (v1.obj() &&
+      !FindOutput(AppendExtension(CommonPath(hash), base::kExtObject),
+                  v1.snappy(), v1.object_hash(), &entry->object,
+                  &entry->object_path, &size)) {
+    return false;
   }
 
-  if (manifest.v1().dep()) {
+  if (v1.dep()) {
     const auto deps_path = AppendExtension(CommonPath(hash), base::kExtDeps);
     if (!base::File::Read(deps_path, &entry->deps)) {
       return false;
@@ -286,27 +319,60 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
     size += entry->deps.size();
   }
 
-  if (manifest.v1().dwo()) {
-    const auto dwo_path = AppendExtension(CommonPath(hash), base::kExtDwo);
-    Immutable content;
-    if (!base::File::Read(dwo_path, &content)) {
-      return false;
-    }
-    size += content.size();
-
-    if (manifest.v1().snappy()) {
-      String unpacked;
-      if (!snappy::Uncompress(content.data(), content.size(), &unpacked)) {
-        LOG(CACHE_ERROR) << "Failed to unpack contents of " << dwo_path;
-        return false;
-      }
-      entry->dwo = std::move(unpacked);
-    } else {
-      entry->dwo = content;
-    }
+  if (v1.dwo() &&
+      !FindOutput(AppendExtension(CommonPath(hash), base::kExtDwo),
+                  v1.snappy(), v1.dwo_hash(), &entry->dwo, &entry->dwo_path,
+                  &size)) {
+    return false;
   }
 
-  return manifest.v1().has_size() && manifest.v1().size() == size;
+  return v1.has_size() && v1.size() == size;
+}
+
+bool FileCache::StoreOutput(const Path& cache_path, Immutable content,
+                            const Path& path, String* hash, ui64* size,
+                            String* error) {
+  // Link the produced file into the cache.
+  if (link_outputs_ && content.empty() && !path.empty()) {
+    Immutable content_hash;
+    if (!base::File::Hash(path, &content_hash, {}, error) ||
+        !base::File::Clone(path, cache_path, true, nullptr, error)) {
+      return false;
+    }
+    *hash = content_hash.string_copy();
+    *size += base::File::Size(cache_path);
+  } else {
+    Immutable read_content;
+    if (content.empty() && !path.empty() &&
+        !base::File::Read(path, &read_content, error)) {
+      return false;
+    }
+    Immutable data = content.empty() ? read_content : content;
+
+    String packed_content;
+    if (snappy_) {
+      if (!snappy::Compress(data.data(), data.size(), &packed_content)) {
+        if (error) {
+          error->assign("failed to pack contents");
+        }
+        return false;
+      }
+    } else {
+      *hash = base::Hexify(data.Hash());
+    }
+
+    const Immutable to_write =
+        snappy_ ? Immutable(std::move(packed_content)) : data;
+    if (!base::File::Write(cache_path, to_write, error)) {
+      return false;
+    }
+    *size += to_write.size();
+  }
+
+  // Make writing to a hard-linked file fail loudly - instead of corrupting the
+  // cache silently.
+  return base::SetPermissions(cache_path.string(), S_IRUSR | S_IRGRP | S_IROTH,
+                              error);
 }
 
 void FileCache::Store(UnhandledSource code, const ExtraFiles& extra_files,
@@ -335,8 +401,11 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
 
   proto::Manifest manifest;
   manifest.set_version(kManifestVersion);
+  auto* v1 = manifest.mutable_v1();
+  v1->set_snappy(snappy_);
+  ui64 size = 0;
 
-  manifest.mutable_v1()->set_err(!entry.stderr.empty());
+  v1->set_err(!entry.stderr.empty());
   if (!entry.stderr.empty()) {
     const auto stderr_path =
         AppendExtension(CommonPath(hash), base::kExtStderr);
@@ -347,47 +416,23 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
                        << error;
       return;
     }
+    size += entry.stderr.size();
   }
 
-  ui64 object_size = 0;
-
-  manifest.mutable_v1()->set_obj(!entry.object.empty());
-  if (!entry.object.empty()) {
+  v1->set_obj(!entry.object.empty() || !entry.object_path.empty());
+  if (v1->obj()) {
     const auto object_path =
         AppendExtension(CommonPath(hash), base::kExtObject);
-
-    if (!snappy_) {
-      object_size = entry.object.size();
-
-      if (!base::File::Write(object_path, entry.object, &error)) {
-        RemoveEntry(hash);
-        LOG(CACHE_ERROR) << "Failed to save object to " << object_path << ": "
-                         << error;
-        return;
-      }
-    } else {
-      String packed_content;
-      if (!snappy::Compress(entry.object.data(), entry.object.size(),
-                            &packed_content)) {
-        RemoveEntry(hash);
-        LOG(CACHE_ERROR) << "Failed to pack contents for " << object_path;
-        return;
-      }
-
-      object_size = packed_content.size();
-
-      if (!base::File::Write(object_path, std::move(packed_content), &error)) {
-        RemoveEntry(hash);
-        LOG(CACHE_ERROR) << "Failed to write to " << object_path << ": "
-                         << error;
-        return;
-      }
-
-      manifest.mutable_v1()->set_snappy(true);
+    if (!StoreOutput(object_path, entry.object, entry.object_path,
+                     v1->mutable_object_hash(), &size, &error)) {
+      RemoveEntry(hash);
+      LOG(CACHE_ERROR) << "Failed to save object to " << object_path << ": "
+                       << error;
+      return;
     }
   }
 
-  manifest.mutable_v1()->set_dep(!entry.deps.empty());
+  v1->set_dep(!entry.deps.empty());
   if (!entry.deps.empty()) {
     const auto deps_path = AppendExtension(CommonPath(hash), base::kExtDeps);
 
@@ -397,30 +442,14 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
                        << error;
       return;
     }
+    size += entry.deps.size();
   }
 
-  ui64 dwo_size = 0;
-
-  manifest.mutable_v1()->set_dwo(!entry.dwo.empty());
-  if (!entry.dwo.empty()) {
+  v1->set_dwo(!entry.dwo.empty() || !entry.dwo_path.empty());
+  if (v1->dwo()) {
     const auto dwo_path = AppendExtension(CommonPath(hash), base::kExtDwo);
-
-    String packed_content;
-    if (snappy_) {
-      Immutable unpacked_content = entry.dwo;
-      if (!snappy::Compress(unpacked_content.data(), unpacked_content.size(),
-                            &packed_content)) {
-        RemoveEntry(hash);
-        LOG(CACHE_ERROR) << "Failed to pack contents for " << dwo_path;
-        return;
-      }
-      manifest.mutable_v1()->set_snappy(true);
-    }
-    const Immutable content =
-        snappy_ ? Immutable(std::move(packed_content)) : entry.dwo;
-    dwo_size = content.size();
-
-    if (!base::File::Write(dwo_path, content, &error)) {
+    if (!StoreOutput(dwo_path, entry.dwo, entry.dwo_path,
+                     v1->mutable_dwo_hash(), &size, &error)) {
       RemoveEntry(hash);
       LOG(CACHE_ERROR) << "Failed to save split DWARF to " << dwo_path << ": "
                        << error;
@@ -428,8 +457,7 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
     }
   }
 
-  manifest.mutable_v1()->set_size(entry.stderr.size() + object_size +
-                                  entry.deps.size() + dwo_size);
+  v1->set_size(size);
 
   if (!base::SaveToFile(manifest_path, manifest, &error)) {
     RemoveEntry(hash);

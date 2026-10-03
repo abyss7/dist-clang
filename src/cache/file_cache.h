@@ -101,9 +101,18 @@ class FileCache {
     Immutable deps;
     Immutable stderr;
     Immutable dwo;
+
+    // With linked outputs the object and split DWARF files are passed by
+    // paths instead of contents: the produced files for |Store()| and the
+    // files in the cache from |Find()|.
+    Path object_path;
+    Path dwo_path;
   };
 
-  FileCache(const Path& path, ui64 size, bool snappy, bool store_index);
+  // With |link_outputs| the outputs are stored uncompressed, and are linked
+  // into and out of the cache without copying, where possible.
+  FileCache(const Path& path, ui64 size, bool snappy, bool store_index,
+            bool link_outputs = false);
   explicit FileCache(const Path& path);
   ~FileCache();
 
@@ -198,6 +207,12 @@ class FileCache {
 
   bool Migrate(string::Hash hash, ui32 to_version = kManifestVersion) const;
 
+  bool FindOutput(const Path& cache_path, bool compressed,
+                  const String& expected_hash, Immutable* content, Path* path,
+                  ui64* size) const;
+  bool StoreOutput(const Path& cache_path, Immutable content, const Path& path,
+                   String* hash, ui64* size, String* error);
+
   bool GetEntrySize(string::Hash hash, ui64* size) const;
   // Sets |0u| if the entry is broken.
   // Returns |true| if the entry is from index.
@@ -212,7 +227,7 @@ class FileCache {
   mutable HashSet<String> write_locks_;
 
   const Path path_;
-  bool snappy_, store_index_;
+  bool snappy_, store_index_, link_outputs_;
   UniquePtr<SQLiteKV> database_;
   mutable FileHashCache file_hashes_;
   UniquePtr<SQLite> entries_;

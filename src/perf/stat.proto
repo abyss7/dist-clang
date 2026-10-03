@@ -59,6 +59,11 @@ message Metric {
 
     UNSUPPORTED_COMMAND         = 23;
     // Commands, which weren't handled by daemon and were run as is.
+
+    CACHE_OUTPUT_LINKED         = 24;
+    CACHE_OUTPUT_COPIED         = 25;
+    // Output files restored from the cache: linked (copy-on-write clone or
+    // hard link), or copied.
   }
 
   required Name name    = 1;

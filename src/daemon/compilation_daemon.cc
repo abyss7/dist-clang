@@ -124,7 +124,8 @@ bool CompilationDaemon::Initialize() {
   if (conf->has_cache() && !conf->cache().disabled()) {
     cache_ = std::make_unique<cache::FileCache>(
         conf->cache().path(), conf->cache().size(), conf->cache().snappy(),
-        conf->cache().store_index());
+        conf->cache().store_index(),
+        conf->cache().link_outputs() && conf->has_emitter());
     if (!cache_->Run(conf->cache().clean_period())) {
       cache_.reset();
     }
