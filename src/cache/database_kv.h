@@ -1,0 +1,35 @@
+#pragma once
+
+#include <base/attributes.h>
+#include <base/types.h>
+#include <cache/database.h>
+
+struct sqlite3;
+
+namespace dist_clang {
+namespace cache {
+
+// Simple persistent key-value storage on top of SQLite.
+class SQLiteKV : public Database<Immutable> {
+ public:
+  SQLiteKV(const String& path, const String& name);
+  ~SQLiteKV() override;
+
+  bool Set(const String& key, const Immutable& value) override THREAD_SAFE;
+  bool Get(const String& key, Immutable* value) const override THREAD_SAFE;
+  bool Delete(const String& key) override THREAD_SAFE;
+
+  inline ui32 GetVersion() const override {
+    // No versioning for now.
+    return 0;
+  }
+
+  ui64 SizeOnDisk() const;
+
+ private:
+  sqlite3* db_ = nullptr;
+  const String path_;
+};
+
+}  // namespace cache
+}  // namespace dist_clang

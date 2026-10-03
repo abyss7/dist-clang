@@ -26,7 +26,7 @@ void GetStackTrace(ui8 depth, Vector<String>& strings);
     for (size_t i = 1; i < strings.size(); ++i) {                            \
       ss << "  " << strings[i] << std::endl;                                 \
     }                                                                        \
-    if (!std::uncaught_exception()) {                                        \
+    if (!std::uncaught_exceptions()) {                                       \
       throw std::runtime_error(ss.str());                                    \
     } else {                                                                 \
       Log log(named_levels::ASSERT);                                         \

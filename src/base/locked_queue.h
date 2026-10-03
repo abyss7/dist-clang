@@ -4,7 +4,7 @@
 #include <base/attributes.h>
 #include <base/worker_pool.h>
 
-#include <third_party/gtest/exported/include/gtest/gtest_prod.h>
+#include <base/test_forward.h>
 
 #include STL(condition_variable)
 #include STL(limits)

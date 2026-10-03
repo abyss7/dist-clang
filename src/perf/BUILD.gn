@@ -1,6 +1,6 @@
 import("//build/template/protobuf.gni")
 
-shared_library("counter") {
+static_library("counter") {
   sources = [
     "counter.h",
     "log_reporter.cc",
@@ -9,30 +9,26 @@ shared_library("counter") {
     "stat_reporter.h",
   ]
 
-  deps += [
+  deps = [
     ":stat_service",
     "//src/base:base",
     "//src/base:logging",
   ]
 }
 
-shared_library("stat_service") {
+static_library("stat_service") {
   sources = [
     "stat_service.cc",
     "stat_service.h",
   ]
 
-  deps += [
+  deps = [
     ":stat_proto",
     "//src/base:base",
   ]
 }
 
 protobuf("stat_proto") {
-  deps = [
-    "//src/net:net_proto",
-  ]
-  sources = [
-    "stat.proto",
-  ]
+  deps = [ "//src/net:net_proto" ]
+  sources = [ "stat.proto" ]
 }

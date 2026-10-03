@@ -1,0 +1,25 @@
+# Configuration of the local daemon - copy to ~/.config/dist-clang/daemon.conf
+# The format is the text protobuf: see src/daemon/configuration.proto
+#
+# Without this file the autostarted daemon uses the same defaults, but with
+# the cache size of 20 GiB, and with the number of threads twice the number
+# of CPUs.
+
+emitter {
+  socket_path: "/run/user/1000/dist-clang.socket"  # $XDG_RUNTIME_DIR
+  threads: 64  # Local compilations - don't limit the build system.
+}
+
+cache {
+  path: "~/.cache/dist-clang"
+  size: 53687091200  # 50 GiB
+  direct: true
+  threads: 64
+}
+
+verbosity {
+  levels {
+    right: 30
+    left: 0
+  }
+}

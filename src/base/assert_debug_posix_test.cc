@@ -3,7 +3,7 @@
 
 #include <base/string_utils.h>
 
-#include <third_party/gtest/exported/include/gtest/gtest.h>
+#include <test/throw_std.h>
 
 namespace dist_clang {
 namespace base {
@@ -19,7 +19,7 @@ TEST(AssertDebugTest, FailureStackTrace) {
       "est, void>(testing::Test*, void (testing::Test::*)(), char const*)\n"
       "  testing::Test::Run()\n"
       "  testing::TestInfo::Run()\n"
-      "  testing::TestCase::Run()\n"
+      "  testing::TestSuite::Run()\n"
       "  testing::internal::UnitTestImpl::RunAllTests()\n"
       "  bool testing::internal::HandleSehExceptionsInMethodIfSupported<testing"
       "::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool "

@@ -19,8 +19,10 @@ namespace {
 const char kOverloadedErrorText[] = "Tasks queue reached limit";
 
 void AdjustFlags(proto::Remote* incoming) {
+  // The source code is piped to the compiler, and the object file is read
+  // from its stdout.
   incoming->mutable_flags()->set_output("-");
-  incoming->mutable_flags()->clear_input();
+  incoming->mutable_flags()->set_input("-");
   incoming->mutable_flags()->clear_deps_file();
   incoming->mutable_flags()->mutable_compiler()->clear_path();
   auto& plugins =

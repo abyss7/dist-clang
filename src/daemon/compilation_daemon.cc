@@ -54,12 +54,22 @@ inline auto CreateArgumentList(const Args&... args) {
   return list;
 }
 
+// Parts of the cache key that aren't flags.
+inline String KeyExtra(const base::proto::Flags& flags) {
+  String result;
+  for (const auto& part : flags.key_extra()) {
+    result += "\n" + part;
+  }
+  return result;
+}
+
 inline CommandLine CommandLineForSimpleCache(const base::proto::Flags& flags) {
   auto arg_list = CreateArgumentList(flags.other(), flags.cc_only());
   auto command_line = base::JoinString<' '>(arg_list.begin(), arg_list.end());
   if (flags.has_language()) {
     command_line += " -x " + flags.language();
   }
+  command_line += KeyExtra(flags);
 
   return CommandLine(command_line);
 }
@@ -78,6 +88,7 @@ inline CommandLine CommandLineForDirectCache(const String& current_dir,
   //        paths.
   String input_path = flags.input().substr(0, flags.input().find_last_of('/'));
   command_line += " -I" + GetRelativePath(current_dir, input_path);
+  command_line += KeyExtra(flags);
 
   return CommandLine(command_line);
 }
@@ -159,6 +170,32 @@ CompilationDaemon::CompilationDaemon(const Configuration& conf)
   }
 }
 
+namespace {
+
+const char kDepsTargetPlaceholder[] = "@DIST_CLANG_TARGET@";
+
+}  // namespace
+
+// static
+Immutable CompilationDaemon::NormalizeDeps(Immutable deps,
+                                           const String& target) {
+  String content = deps.string_copy();
+  if (target.empty() || !content.starts_with(target + ":")) {
+    return deps;
+  }
+  return Immutable(kDepsTargetPlaceholder + content.substr(target.size()));
+}
+
+// static
+Immutable CompilationDaemon::RestoreDeps(Immutable deps,
+                                         const String& target) {
+  String content = deps.string_copy();
+  if (!content.starts_with(kDepsTargetPlaceholder)) {
+    return deps;
+  }
+  return Immutable(target + content.substr(strlen(kDepsTargetPlaceholder)));
+}
+
 // static
 HandledHash CompilationDaemon::GenerateHash(const base::proto::Flags& flags,
                                             const HandledSource& code,
@@ -233,6 +270,20 @@ bool CompilationDaemon::ReadExtraFiles(const base::proto::Flags& flags,
                                        ExtraFiles* extra_files) const {
   DCHECK(extra_files);
   DCHECK(extra_files->empty());
+
+  if (flags.key_files_size()) {
+    String key_files;
+    for (const auto& file : flags.key_files()) {
+      String hash, error;
+      if (!file_hashes_.Hash(GetFullPath(current_dir, file), &hash, &error)) {
+        LOG(CACHE_ERROR) << "Failed to hash input file " << file << ": "
+                         << error;
+        return false;
+      }
+      key_files += file + ":" + hash + "\n";
+    }
+    extra_files->emplace(cache::KEY_FILES, std::move(key_files));
+  }
 
   if (!flags.has_sanitize_blacklist()) {
     return true;
@@ -376,20 +427,17 @@ base::ProcessPtr CompilationDaemon::CreateProcess(
   DCHECK(flags.compiler().has_path());
   base::ProcessPtr process =
       base::Process::Create(flags.compiler().path(), cwd_path, user_id);
-  auto arg_list =
-      CreateArgumentList(flags.other(), flags.non_cached(), flags.non_direct());
-
-  // Indexed flags always go first, since they contain the "-cc1" flag.
+  auto arg_list = CreateArgumentList(flags.other(), flags.non_cached(),
+                                     flags.cc_only(), flags.non_direct(),
+                                     flags.ignored());
   process->AppendArg(arg_list.begin(), arg_list.end());
-  process->AppendArg(Immutable(flags.action()));
 
-  // TODO: render args using libclang
+  process->AppendArg(Immutable(flags.action()));
   for (const auto& plugin : flags.compiler().plugins()) {
-    process->AppendArg("-load"_l).AppendArg(Immutable(plugin.path()));
-  }
-  if (flags.has_deps_file()) {
-    process->AppendArg("-dependency-file"_l)
-        .AppendArg(Immutable(flags.deps_file()));
+    process->AppendArg("-Xclang"_l)
+        .AppendArg("-load"_l)
+        .AppendArg("-Xclang"_l)
+        .AppendArg(Immutable(plugin.path()));
   }
   if (flags.has_language()) {
     process->AppendArg("-x"_l).AppendArg(Immutable(flags.language()));
@@ -403,6 +451,12 @@ base::ProcessPtr CompilationDaemon::CreateProcess(
   }
   if (flags.has_input()) {
     process->AppendArg(Immutable(flags.input()));
+  }
+
+  for (const auto& variable : flags.env()) {
+    const auto pos = variable.find('=');
+    process->AddEnv(variable.substr(0, pos).c_str(),
+                    pos == String::npos ? "" : variable.c_str() + pos + 1);
   }
 
   return process;

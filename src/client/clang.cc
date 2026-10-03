@@ -3,176 +3,134 @@
 #include <base/base.pb.h>
 #include <base/file_utils.h>
 #include <base/logging.h>
-#include <base/process_impl.h>
-#include <base/string_utils.h>
+#include <client/configuration.pb.h>
 #include <net/connection.h>
 #include <net/end_point.h>
 #include <net/network_service_impl.h>
-#include <client/command.hh>
+#include <perf/stat.pb.h>
 
-#include <clang/Basic/Version.h>
+#include STL(iostream)
+
+#include <unistd.h>
 
 #include <base/using_log.h>
+
+extern char** environ;
 
 namespace dist_clang {
 namespace client {
 
-bool DoMain(int argc, const char* const argv[], Immutable socket_path,
-            const Path& clang_path, Immutable version,
-            ui32 connect_timeout_secs, ui32 read_timeout_secs,
-            ui32 send_timeout_secs, ui32 read_min_bytes,
-            const HashMap<String, String>& plugins, bool disabled,
-            bool rewrite_includes) {
-  if (clang_path.empty() || disabled) {
-    return true;
-  }
+namespace {
 
-  auto service =
-      net::NetworkService::Create(connect_timeout_secs, read_timeout_secs,
-                                  send_timeout_secs, read_min_bytes);
-  auto end_point = net::EndPoint::UnixSocket(socket_path);
+net::ConnectionPtr Connect(const String& socket_path,
+                           const proto::Configuration& config,
+                           UniquePtr<net::NetworkService>* service) {
+  *service = net::NetworkService::Create(
+      config.connect_timeout(), config.read_timeout(), config.send_timeout(),
+      config.read_minimum());
+
+  String error;
+  auto connection =
+      (*service)->Connect(net::EndPoint::UnixSocket(socket_path), &error);
+  if (!connection) {
+    LOG(VERBOSE) << "Failed to connect to daemon: " << error;
+  }
+  return connection;
+}
+
+}  // namespace
+
+Result DoMain(const List<String>& args, const String& socket_path,
+              const proto::Configuration& config) {
+  DCHECK(!args.empty());
 
   String error;
   auto current_dir = base::GetCurrentDir(&error);
   if (current_dir.empty()) {
     LOG(WARNING) << "Can't get current directory : " << error;
-    return true;
+    return Result::RUN_LOCALLY;
   }
 
-  Command::List commands;
-
-  if (!Command::GenerateFromArgs(argc, argv, commands)) {
-    LOG(WARNING) << "Failed to parse driver arguments - see errors above";
-    return true;
-  }
-
-  auto connection = service->Connect(end_point, &error);
+  UniquePtr<net::NetworkService> service;
+  auto connection = Connect(socket_path, config, &service);
   if (!connection) {
-    LOG(WARNING) << "Failed to connect to daemon: " << error;
-    return true;
+    return Result::RUN_LOCALLY;
   }
 
-  if (version.empty()) {
-    String error;
-    auto process =
-        base::Process::Create(clang_path, String(), base::Process::SAME_UID);
-    process->AppendArg("--version"_l);
-    if (!process->Run(1, &error)) {
-      if (error.empty()) {
-        error = process->stderr();
-      } else if (!process->stderr().empty()) {
-        error += Immutable(", "_l) + process->stderr();
-      }
-
-      if (!error.empty()) {
-        LOG(WARNING) << "Can't get compiler version : " << error;
-      } else {
-        LOG(WARNING) << "Can't get compiler version by unknown reason";
-      }
-
-      return true;
-    }
-
-    List<String> output;
-    base::SplitString<'\n'>(process->stdout(), output);
-    if (output.size() < 3) {
-      if (!process->stderr().empty()) {
-        LOG(ERROR) << process->stderr();
-      }
-      LOG(WARNING) << "Clang binary has unknown version format : "
-                   << process->stdout();
-      return true;
-    }
-
-    version = Immutable(*output.begin());
+  UniquePtr<base::proto::Local> message(new base::proto::Local);
+  message->set_user_id(getuid());
+  message->set_current_dir(current_dir);
+  for (const auto& arg : args) {
+    message->add_args(arg);
+  }
+  for (char** variable = environ; *variable; ++variable) {
+    message->add_env(*variable);
   }
 
-  String major_version;
-  std::regex version_regex("clang version (\\d+\\.\\d+\\.\\d+)");
-  std::cmatch match;
-  if (std::regex_search(version.c_str(), match, version_regex) &&
-      match.size() > 1 && match[1].matched) {
-    LOG(VERBOSE) << "Matched Clang major version: " << match[1];
-    major_version = match[1];
-  } else {
-    major_version = CLANG_VERSION_STRING;
+  net::proto::Status status;
+  if (!connection->SendSync(std::move(message), &status)) {
+    LOG(ERROR) << "Failed to send message: " << status.description();
+    return Result::RUN_LOCALLY;
   }
 
-  for (const auto& command : commands) {
-    UniquePtr<base::proto::Local> message(new base::proto::Local);
-    message->set_user_id(getuid());
-    message->set_current_dir(current_dir);
-
-    auto* flags = message->mutable_flags();
-    if (!command->CanFillFlags()) {
-      auto process = command->CreateProcess(current_dir, getuid());
-      if (!process->Run(base::Process::UNLIMITED)) {
-        LOG(WARNING) << "Subcommand failed: " << command->GetExecutable()
-                     << std::endl
-                     << process->stderr();
-        LOG(VERBOSE) << "Arguments: " << command->RenderAllArgs();
-        return true;
-      }
-      continue;
-    } else {
-      if (!command->FillFlags(flags, clang_path, major_version,
-                              rewrite_includes)) {
-        LOG(WARNING) << "Failed to fill flags for subcommand";
-        return true;
-      }
-    }
-
-    if (!flags->has_action() || flags->input() == "-") {
-      LOG(WARNING) << "Command line contains unknown action or requires input "
-                      "from stdin";
-      return true;
-    }
-
-    flags->mutable_compiler()->set_version(version);
-    flags->mutable_compiler()->set_path(clang_path);
-
-    auto& mutable_plugins = *flags->mutable_compiler()->mutable_plugins();
-    for (auto& plugin : mutable_plugins) {
-      auto it = plugins.find(plugin.name());
-      if (it != plugins.end()) {
-        plugin.set_path(it->second);
-      }
-    }
-
-    net::proto::Status status;
-    if (!connection->SendSync(std::move(message), &status)) {
-      LOG(ERROR) << "Failed to send message: " << status.description();
-      return true;
-    }
-
-    net::Connection::Message top_message;
-    if (!connection->ReadSync(&top_message, &status)) {
-      LOG(ERROR) << "Failed to read message: " << status.description();
-      return true;
-    }
-
-    if (!top_message.HasExtension(net::proto::Status::extension)) {
-      LOG(ERROR)
-          << "Message from daemon has wrong format : no Status extension";
-      return true;
-    }
-
-    status = top_message.GetExtension(net::proto::Status::extension);
-    if (status.code() != net::proto::Status::EXECUTION &&
-        status.code() != net::proto::Status::OK) {
-      LOG(VERBOSE) << "Failed to use daemon: " << status.description();
-      return true;
-    }
-
-    if (status.code() == net::proto::Status::EXECUTION) {
-      LOG(FATAL) << "Compilation on daemon failed:" << std::endl
-                 << status.description();
-    }
-
-    LOG(VERBOSE) << "Compilation on daemon successful" << std::endl;
+  net::Connection::Message reply;
+  if (!connection->ReadSync(&reply, &status)) {
+    LOG(ERROR) << "Failed to read message: " << status.description();
+    return Result::RUN_LOCALLY;
   }
 
-  return false;
+  if (!reply.HasExtension(net::proto::Status::extension)) {
+    LOG(ERROR) << "Message from daemon has wrong format : no Status extension";
+    return Result::RUN_LOCALLY;
+  }
+
+  status = reply.GetExtension(net::proto::Status::extension);
+  switch (status.code()) {
+    case net::proto::Status::OK:
+      std::cerr << status.description();
+      return Result::SUCCESS;
+    case net::proto::Status::EXECUTION:
+      std::cerr << status.description();
+      return Result::FAILURE;
+    default:
+      LOG(VERBOSE) << "Daemon didn't handle the command: "
+                   << status.description();
+      return Result::RUN_LOCALLY;
+  }
+}
+
+bool PrintStats(const String& socket_path,
+                const proto::Configuration& config) {
+  UniquePtr<net::NetworkService> service;
+  auto connection = Connect(socket_path, config, &service);
+  if (!connection) {
+    std::cerr << "Daemon isn't running on " << socket_path << std::endl;
+    return false;
+  }
+
+  net::proto::Status status;
+  if (!connection->SendSync(std::make_unique<perf::proto::Report>(),
+                            &status)) {
+    std::cerr << "Failed to send request: " << status.description()
+              << std::endl;
+    return false;
+  }
+
+  net::Connection::Message reply;
+  if (!connection->ReadSync(&reply, &status) ||
+      !reply.HasExtension(perf::proto::Report::extension)) {
+    std::cerr << "Failed to read statistics: " << status.description()
+              << std::endl;
+    return false;
+  }
+
+  for (const auto& metric :
+       reply.GetExtension(perf::proto::Report::extension).metric()) {
+    std::cout << perf::proto::Metric::Name_Name(metric.name()) << " "
+              << metric.value() << std::endl;
+  }
+
+  return true;
 }
 
 }  // namespace client

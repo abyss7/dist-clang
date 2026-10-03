@@ -2,6 +2,7 @@
 
 #include <base/process_forward.h>
 #include <cache/file_cache.h>
+#include <cache/file_hash_cache.h>
 #include <daemon/base_daemon.h>
 
 namespace dist_clang {
@@ -20,6 +21,11 @@ class CompilationDaemon : public BaseDaemon {
   static cache::string::HandledHash GenerateHash(
       const base::proto::Flags& flags, const cache::string::HandledSource& code,
       const cache::ExtraFiles& extra_files);
+
+  // The target of the dependency rule depends on the output path, which isn't
+  // a part of the cache key - so it's replaced with a placeholder in the cache.
+  static Immutable NormalizeDeps(Immutable deps, const String& target);
+  static Immutable RestoreDeps(Immutable deps, const String& target);
 
  protected:
   explicit CompilationDaemon(const Configuration& conf);
@@ -55,6 +61,7 @@ class CompilationDaemon : public BaseDaemon {
   using PluginNameMap = HashMap<String /* name */, String /* path */>;
 
   UniquePtr<cache::FileCache> cache_;
+  mutable cache::FileHashCache file_hashes_;
 };
 
 }  // namespace daemon

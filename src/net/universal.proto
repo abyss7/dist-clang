@@ -1,3 +1,5 @@
+syntax = "proto2";
+
 // It's not possible to optimize for LITE_RUNTIME, since the configuration uses
 // |TextFormat::Parse()|, which uses the descriptor and the reflection.
 
@@ -17,6 +19,8 @@ message Status {
     EXECUTION     = 5;
     OVERLOAD      = 6;
     NO_VERSION    = 7;
+    UNSUPPORTED   = 8;
+    // The command can't be handled by the daemon - run it as is.
   }
 
   required Code code           = 1 [ default = OK ];

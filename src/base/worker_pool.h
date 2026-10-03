@@ -3,6 +3,7 @@
 #include <base/types.h>
 #include <base/file/pipe.h>
 
+#include STL(condition_variable)
 #include STL(thread)
 
 namespace dist_clang {

@@ -4,10 +4,10 @@
 #include <net/socket.h>
 #include <perf/log_reporter.h>
 
-#include <third_party/gtest/exported/include/gtest/gtest_prod.h>
-#include <third_party/protobuf/exported/src/google/protobuf/io/coded_stream.h>
-#include <third_party/protobuf/exported/src/google/protobuf/io/gzip_stream.h>
-#include <third_party/protobuf/exported/src/google/protobuf/io/zero_copy_stream_impl.h>
+#include <base/test_forward.h>
+#include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/io/gzip_stream.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
 
 #include <unistd.h>
 

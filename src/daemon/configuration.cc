@@ -1,39 +1,93 @@
 #include <daemon/configuration.h>
 
+#include <base/constants.h>
+#include <base/file/file.h>
 #include <base/logging.h>
 #include <base/protobuf_utils.h>
 
-#include <gflags.h>
-#include <third_party/protobuf/exported/src/google/protobuf/io/zero_copy_stream_impl.h>
-#include <third_party/protobuf/exported/src/google/protobuf/text_format.h>
-
-#include <fcntl.h>
+#include STL(iostream)
+#include STL(thread)
 
 #include <base/using_log.h>
 
 namespace dist_clang {
 namespace daemon {
 
-DEFINE_string(config, String(), "Path to the configuration file");
-DEFINE_bool(daemon, false, "Daemonize after start");
+namespace {
 
-Configuration::Configuration(int argc, char* argv[]) {
-  gflags::SetUsageMessage("Daemon from Clang distributed system.");
-  gflags::SetVersionString(VERSION);
+const char kUsage[] =
+    "Usage: dist-clangd [--config=<path>] [--daemon]\n"
+    "       dist-clangd --autostart\n"
+    "\n"
+    "  --config=<path>  Path to the configuration file\n"
+    "  --daemon         Daemonize after start\n"
+    "  --autostart      Run the local emitter in background - with the config\n"
+    "                   from the default path, if exists, or with defaults\n"
+    "  --version        Print version and exit\n";
 
-  gflags::ParseCommandLineFlags(&argc, &argv, false);
+// The configuration of the local emitter, when there is no config file.
+void SetDefaults(proto::Configuration* config) {
+  const ui32 threads = std::max(1u, std::thread::hardware_concurrency());
 
-  String error;
-  if (!FLAGS_config.empty() &&
-      !base::LoadFromFile(FLAGS_config, &config_, &error)) {
-    LOG(ERROR) << "Failed to read configuration from " << FLAGS_config << ": "
-               << error;
-  }
-  daemonize_ = FLAGS_daemon;
+  auto* emitter = config->mutable_emitter();
+  emitter->set_socket_path(base::DefaultSocketPath());
+  // The build system controls the parallelism - don't limit it.
+  emitter->set_threads(threads * 2);
+
+  auto* cache = config->mutable_cache();
+  cache->set_path(base::DefaultCacheDir());
+  cache->set_size(20ull << 30);
+  cache->set_direct(true);
+  cache->set_threads(threads * 2);
 }
 
-Configuration::~Configuration() {
-  gflags::ShutDownCommandLineFlags();
+}  // namespace
+
+Configuration::Configuration(int argc, char* argv[]) {
+  String config_path;
+
+  for (int i = 1; i < argc; ++i) {
+    const String arg = argv[i];
+    if (arg == "--config" || arg == "-config") {
+      if (++i == argc) {
+        LOG(FATAL) << "Flag " << arg << " requires a value" << std::endl
+                   << kUsage;
+      }
+      config_path = argv[i];
+    } else if (arg.starts_with("--config=") || arg.starts_with("-config=")) {
+      config_path = arg.substr(arg.find('=') + 1);
+    } else if (arg == "--daemon" || arg == "-daemon") {
+      daemonize_ = true;
+    } else if (arg == "--autostart") {
+      autostart_ = true;
+      daemonize_ = true;
+    } else if (arg.starts_with("--lock-fd=")) {
+      lock_fd_ = std::stoi(arg.substr(strlen("--lock-fd=")));
+    } else if (arg == "--version") {
+      std::cout << VERSION << std::endl;
+      exit(0);
+    } else if (arg == "--help" || arg == "-h") {
+      std::cout << kUsage;
+      exit(0);
+    } else {
+      LOG(FATAL) << "Unknown argument: " << arg << std::endl << kUsage;
+    }
+  }
+
+  if (autostart_ && config_path.empty()) {
+    config_path = base::DefaultDaemonConfigPath();
+    if (!base::File::Exists(config_path)) {
+      config_path.clear();
+      SetDefaults(&config_);
+    }
+  }
+
+  String error;
+  if (!config_path.empty() &&
+      !base::LoadFromFile(config_path, &config_, &error)) {
+    LOG(ERROR) << "Failed to read configuration from " << config_path << ": "
+               << error;
+  }
 }
 
 }  // namespace daemon

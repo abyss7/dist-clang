@@ -595,7 +595,7 @@ TEST_F(AbsorberTest, SuccessfulCompilationWithRewriteIncludes) {
 
   run_callback = [&](base::TestProcess* process) {
     // Check that there is no -x argument in compiler invocation.
-    EXPECT_EQ((Immutable::Rope{action, "-o"_l, "-"_l}), process->args_);
+    EXPECT_EQ((Immutable::Rope{action, "-o"_l, "-"_l, "-"_l}), process->args_);
     process->stdout_ = object_code;
   };
 
@@ -795,7 +795,7 @@ TEST_F(AbsorberTest, StoreLocalCacheWithoutBlacklist) {
 
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(
-        (Immutable::Rope{action, "-x"_l, converted_language, "-o"_l, "-"_l}),
+        (Immutable::Rope{action, "-x"_l, converted_language, "-o"_l, "-"_l, "-"_l}),
         process->args_);
     process->stdout_ = object_code;
   };
@@ -895,7 +895,7 @@ TEST_F(AbsorberTest, DoNotStoreLocalCacheWhenDisabled) {
 
   run_callback = [&](base::TestProcess* process) {
     EXPECT_EQ(
-        (Immutable::Rope{action, "-x"_l, converted_language, "-o"_l, "-"_l}),
+        (Immutable::Rope{action, "-x"_l, converted_language, "-o"_l, "-"_l, "-"_l}),
         process->args_);
     process->stdout_ = object_code;
   };
@@ -1000,6 +1000,7 @@ TEST_F(AbsorberTest, StoreLocalCacheWithBlacklist) {
         sanitize_blacklist_prefix,
         Immutable(*(process_args_iter++), sanitize_blacklist_prefix.size()));
     EXPECT_EQ("-o"_l, *(process_args_iter++));
+    EXPECT_EQ("-"_l, *(process_args_iter++));
     EXPECT_EQ("-"_l, *(process_args_iter++));
     EXPECT_EQ(process->args_.end(), process_args_iter);
     process->stdout_ = object_code;

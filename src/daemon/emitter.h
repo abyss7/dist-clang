@@ -3,8 +3,9 @@
 #include <base/queue_aggregator.h>
 #include <base/worker_pool.h>
 #include <daemon/compilation_daemon.h>
+#include <daemon/compiler_identity.h>
 
-#include <third_party/gtest/exported/include/gtest/gtest_prod.h>
+#include <base/test_forward.h>
 
 namespace dist_clang {
 namespace daemon {
@@ -52,6 +53,10 @@ class Emitter : public CompilationDaemon {
   bool HandleNewMessage(net::ConnectionPtr connection, Universal message,
                         const net::proto::Status& status) override;
 
+  // Fills the flags of |message| from its command line. Returns |false| if
+  // the command can't be handled - with the reason in |status|.
+  bool PrepareFlags(base::proto::Local* message, net::proto::Status* status);
+
   void SetExtraFiles(const cache::ExtraFiles& extra_files,
                      proto::Remote* message);
 
@@ -67,6 +72,8 @@ class Emitter : public CompilationDaemon {
   UniquePtr<base::WorkerPool> workers_;
   UniquePtr<base::WorkerPool> coordinator_workers_;
   UniquePtr<base::WorkerPool> remote_workers_;
+
+  CompilerIdentity compiler_identity_;
 
   bool handle_all_tasks_ = true;
   // Indicates if we force shutdown of the remote workers pool: we shouldn't if

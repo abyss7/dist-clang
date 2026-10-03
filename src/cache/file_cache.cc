@@ -1,17 +1,17 @@
 #include <cache/file_cache.h>
 
 #include <base/constants.h>
+#include <base/c_utils.h>
 #include <base/file/file.h>
+#include <base/file_utils.h>
 #include <base/logging.h>
 #include <base/path_utils.h>
 #include <base/protobuf_utils.h>
 #include <base/string_utils.h>
 #include <perf/stat_service.h>
 
-#include <third_party/snappy/exported/snappy.h>
+#include <snappy.h>
 #include STL(regex)
-
-#include <clang/Basic/Version.h>
 
 #include <sys/types.h>
 #include <utime.h>
@@ -21,6 +21,10 @@
 namespace dist_clang {
 
 namespace {
+
+// Bump to invalidate all direct cache entries, e.g. when the way of collecting
+// the direct-mode command line changes.
+const Literal kDirectKeyVersion = "direct-2"_l;
 
 Path ReplaceTildeInPath(const String& path) {
   // FIXME: try to handle |Path| instead of |String|
@@ -70,7 +74,7 @@ bool FileCache::Run(ui64 clean_period) {
     return false;
   }
 
-  database_.reset(new LevelDB(path_, "direct"));
+  database_.reset(new SQLiteKV(path_, "direct"));
   if (store_index_) {
     entries_.reset(new SQLite(path_, "index"));
   } else {
@@ -143,8 +147,7 @@ UnhandledHash FileCache::Hash(UnhandledSource code,
   return UnhandledHash(
       HashCombine(code.str, extra_files) + "-" +
       base::Hexify(command_line.str.Hash(4)) + "-" +
-      base::Hexify(
-          (version.str + "\n"_l + clang::getClangFullVersion()).Hash(4)));
+      base::Hexify((version.str + "\n"_l + kDirectKeyVersion).Hash(4)));
 }
 
 bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
@@ -171,13 +174,13 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
 
   Immutable::Rope hash_rope = {unhandled_hash};
   for (const auto& header : manifest.direct().headers()) {
-    Immutable header_hash;
+    String header_hash;
     const Path header_path =
         Path(header).is_absolute() ? Path(header) : current_dir / header;
-    if (!base::File::Hash(header_path, &header_hash)) {
+    if (!file_hashes_.Hash(header_path, &header_hash)) {
       return false;
     }
-    hash_rope.push_back(header_hash);
+    hash_rope.push_back(Immutable(std::move(header_hash)));
   }
   Immutable hash_with_headers = base::Hexify(Immutable(hash_rope).Hash());
   Immutable handled_hash;
@@ -256,6 +259,26 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
       return false;
     }
     size += entry->deps.size();
+  }
+
+  if (manifest.v1().dwo()) {
+    const auto dwo_path = AppendExtension(CommonPath(hash), base::kExtDwo);
+    Immutable content;
+    if (!base::File::Read(dwo_path, &content)) {
+      return false;
+    }
+    size += content.size();
+
+    if (manifest.v1().snappy()) {
+      String unpacked;
+      if (!snappy::Uncompress(content.data(), content.size(), &unpacked)) {
+        LOG(CACHE_ERROR) << "Failed to unpack contents of " << dwo_path;
+        return false;
+      }
+      entry->dwo = std::move(unpacked);
+    } else {
+      entry->dwo = content;
+    }
   }
 
   return manifest.v1().has_size() && manifest.v1().size() == size;
@@ -351,8 +374,37 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
     }
   }
 
+  ui64 dwo_size = 0;
+
+  manifest.mutable_v1()->set_dwo(!entry.dwo.empty());
+  if (!entry.dwo.empty()) {
+    const auto dwo_path = AppendExtension(CommonPath(hash), base::kExtDwo);
+
+    String packed_content;
+    if (snappy_) {
+      Immutable unpacked_content = entry.dwo;
+      if (!snappy::Compress(unpacked_content.data(), unpacked_content.size(),
+                            &packed_content)) {
+        RemoveEntry(hash);
+        LOG(CACHE_ERROR) << "Failed to pack contents for " << dwo_path;
+        return;
+      }
+      manifest.mutable_v1()->set_snappy(true);
+    }
+    const Immutable content =
+        snappy_ ? Immutable(std::move(packed_content)) : entry.dwo;
+    dwo_size = content.size();
+
+    if (!base::File::Write(dwo_path, content, &error)) {
+      RemoveEntry(hash);
+      LOG(CACHE_ERROR) << "Failed to save split DWARF to " << dwo_path << ": "
+                       << error;
+      return;
+    }
+  }
+
   manifest.mutable_v1()->set_size(entry.stderr.size() + object_size +
-                                  entry.deps.size());
+                                  entry.deps.size() + dwo_size);
 
   if (!base::SaveToFile(manifest_path, manifest, &error)) {
     RemoveEntry(hash);
@@ -399,6 +451,7 @@ bool FileCache::RemoveEntry(string::Hash hash) {
   const String object_path = common_path + ".o";
   const String deps_path = common_path + ".d";
   const String stderr_path = common_path + ".stderr";
+  const String dwo_path = common_path + ".dwo";
   bool result = true;
   auto entry_size = has_entry ? std::get<SQLite::SIZE>(entry) : 0u;
 
@@ -421,6 +474,14 @@ bool FileCache::RemoveEntry(string::Hash hash) {
       entry_size -= base::File::Size(deps_path);
       result = false;
       LOG(CACHE_WARNING) << "Failed to delete " << deps_path << ": " << error;
+    }
+  }
+
+  if (base::File::Exists(dwo_path)) {
+    if (!base::File::Delete(dwo_path, &error)) {
+      entry_size -= base::File::Size(dwo_path);
+      result = false;
+      LOG(CACHE_WARNING) << "Failed to delete " << dwo_path << ": " << error;
     }
   }
 
@@ -480,17 +541,37 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
       Immutable header_hash;
       const Path header_path =
           Path(header).is_absolute() ? Path(header) : current_dir / header;
-      if (!base::File::Hash(header_path, &header_hash, skip_list, &error)) {
-        LOG(CACHE_ERROR) << "Failed to hash " << header_path << ": " << error;
-        return;
+      // Precompiled headers are binary - and already contain the expanded
+      // time macros, if any.
+      const auto extension = header_path.extension();
+      const bool is_precompiled = extension == ".pch" || extension == ".gch" ||
+                                  extension == ".pcm";
+      String precompiled_hash;
+      if (is_precompiled &&
+          file_hashes_.Hash(header_path, &precompiled_hash, &error)) {
+        header_hash = Immutable(std::move(precompiled_hash));
+      } else if (is_precompiled ||
+                 !base::File::Hash(header_path, &header_hash, skip_list,
+                                   &error)) {
+        LOG(CACHE_INFO) << "Not storing direct cache entry - failed to hash "
+                        << header_path << ": " << error;
+        return false;
       }
       hash_rope.push_back(header_hash);
       manifest.mutable_direct()->add_headers(header);
     }
+    return true;
   };
 
-  hash_headers(headers, {"__DATE__"_l, "__TIME__"_l});
-  hash_headers(preprocessed_headers, {});
+  // The result depends on the time, if these macros are used - the direct
+  // cache can't detect it. The simple cache is still fine, since the macros
+  // are expanded in the preprocessed source.
+  const List<Literal> time_macros = {"__DATE__"_l, "__TIME__"_l,
+                                     "__TIMESTAMP__"_l};
+  if (!hash_headers(headers, time_macros) ||
+      !hash_headers(preprocessed_headers, {})) {
+    return;
+  }
 
   auto direct_hash = base::Hexify(Immutable(hash_rope).Hash());
   DCHECK(database_);

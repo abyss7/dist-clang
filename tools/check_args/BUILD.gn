@@ -1,0 +1,9 @@
+executable("check_args") {
+  sources = [ "main.cc" ]
+
+  deps = [
+    "//src/base:base",
+    "//src/base:base_proto",
+    "//src/daemon:daemon",
+  ]
+}

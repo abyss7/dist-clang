@@ -1,23 +1,18 @@
 config("includes") {
   include_dirs = [
     "exported",
-    host_os,
+    "config",
   ]
 }
 
-config("no_warnings") {
-  cflags = [
-    "-Wno-sign-compare",
-    "-Wno-unused-function",
-    "-Wno-unused-parameter",
-  ]
+config("flags") {
+  defines = [ "HAVE_CONFIG_H=1" ]
 }
 
-shared_library("snappy") {
-  visibility += [ "//src/third_party/leveldb:*" ]
-
+static_library("snappy") {
   sources = [
-    host_os + "/snappy-stubs-public.h",
+    "config/config.h",
+    "config/snappy-stubs-public.h",
     "exported/snappy-c.cc",
     "exported/snappy-c.h",
     "exported/snappy-internal.h",
@@ -31,6 +26,9 @@ shared_library("snappy") {
 
   public = [ "exported/snappy.h" ]
 
-  configs += [ ":no_warnings" ]
+  configs += [
+    ":flags",
+    "//build/config:third_party",
+  ]
   public_configs = [ ":includes" ]
 }

@@ -6,14 +6,16 @@
 #include <cache/file_cache.h>
 #include <cache/manifest.pb.h>
 
-#include <third_party/gtest/exported/include/gtest/gtest.h>
+#include <base/file_utils.h>
+
+#include <gtest/gtest.h>
 
 namespace dist_clang {
 namespace cache {
 
 TEST(FileCacheMigratorTest, Version_0_to_1_Simple) {
   const base::TemporaryDir temp_dir;
-  string::Hash hash{"12345678901234567890123456789012-12345678-00000001"_l};
+  string::Hash hash{"12345678901234567890123456789012" "-12345678-00000001"_l};
   FileCache cache(temp_dir);
   const auto common_prefix = cache.CommonPath(hash);
   const auto manifest_path = AppendExtension(common_prefix, base::kExtManifest);
@@ -49,7 +51,7 @@ TEST(FileCacheMigratorTest, Version_0_to_1_Simple) {
 
 TEST(FileCacheMigratorTest, Version_0_to_1_Direct) {
   const base::TemporaryDir temp_dir;
-  string::Hash hash{"12345678901234567890123456789012-12345678-00000001"_l};
+  string::Hash hash{"12345678901234567890123456789012" "-12345678-00000001"_l};
   FileCache cache(temp_dir);
   const auto manifest_path =
       AppendExtension(cache.CommonPath(hash), base::kExtManifest);
@@ -78,7 +80,7 @@ TEST(FileCacheMigratorTest, Version_0_to_1_Direct) {
 
 TEST(FileCacheMigratorTest, Version_1_to_2_Simple) {
   const base::TemporaryDir temp_dir;
-  string::Hash hash{"12345678901234567890123456789012-12345678-00000001"_l};
+  string::Hash hash{"12345678901234567890123456789012" "-12345678-00000001"_l};
   FileCache cache(temp_dir);
   const auto common_prefix = cache.CommonPath(hash);
   const auto manifest_path = AppendExtension(common_prefix, base::kExtManifest);
@@ -107,7 +109,7 @@ TEST(FileCacheMigratorTest, Version_1_to_2_Simple) {
 
 TEST(FileCacheMigratorTest, Version_1_to_2_Direct) {
   const base::TemporaryDir temp_dir;
-  string::Hash hash{"12345678901234567890123456789012-12345678-00000001"_l};
+  string::Hash hash{"12345678901234567890123456789012" "-12345678-00000001"_l};
   FileCache cache(temp_dir);
   const auto manifest_path =
       AppendExtension(cache.CommonPath(hash), base::kExtManifest);

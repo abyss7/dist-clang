@@ -3,7 +3,7 @@
 #include <base/const_string.h>
 #include <base/temporary_dir.h>
 
-#include <third_party/gtest/exported/include/gtest/gtest.h>
+#include <gtest/gtest.h>
 
 #include <fcntl.h>
 
@@ -45,14 +45,14 @@ TEST(FileTest, Write) {
   String error;
   EXPECT_TRUE(File::Write(file_path, expected_content, &error)) << error;
 
-  char content[expected_content.size()];
+  Vector<char> content(expected_content.size());
   int fd = open(file_path.c_str(), O_RDONLY);
   ASSERT_NE(-1, fd);
-  int size = read(fd, content, expected_content.size());
+  int size = read(fd, content.data(), expected_content.size());
   ASSERT_EQ(expected_content.size(), static_cast<size_t>(size));
   close(fd);
 
-  EXPECT_EQ(expected_content, String(content, expected_content.size()));
+  EXPECT_EQ(expected_content, String(content.data(), expected_content.size()));
 
   // Can't write to directory.
   EXPECT_FALSE(File::Write(temp_dir, expected_content));

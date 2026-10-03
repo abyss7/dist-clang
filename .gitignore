@@ -6,3 +6,6 @@
 *.swp
 /.ccls-cache/
 /.vscode/
+/.cache/
+/.clangd_env
+/compile_commands.json

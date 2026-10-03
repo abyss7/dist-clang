@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
+# Usage: build/configure [gn args...], e.g.
+#   build/configure 'clang_cc="clang-18"' 'clang_cxx="clang++-18"'
 
-gn --check --args="config_for_debug=true $@" gen //out/Debug.gn
-gn --check --args="$@" gen //out/Release.gn
-gn --check --args="portable_build=true $@" gen //out/Portable.gn
-gn --check --args="config_for_tests=true $@" gen //out/Test.gn
+set -e
+
+cd "$(dirname "$0")/.."
+
+gn gen --check --args="config_for_debug=true $*" out/Debug
+gn gen --check --args="$*" out/Release
+gn gen --check --args="config_for_tests=true $*" out/Test

@@ -3,11 +3,12 @@
 #include <base/const_string.h>
 #include <base/locked_list.h>
 #include <base/thread_pool.h>
-#include <cache/database_leveldb.h>
+#include <cache/database_kv.h>
 #include <cache/database_sqlite.h>
+#include <cache/file_hash_cache.h>
 #include <cache/manifest.pb.h>
 
-#include <third_party/gtest/exported/include/gtest/gtest_prod.h>
+#include <base/test_forward.h>
 
 namespace dist_clang {
 namespace cache {
@@ -26,6 +27,8 @@ FORWARD_TEST(FileCacheMigratorTest, Version_1_to_2_Simple);
 
 enum ExtraFileType {
   SANITIZE_BLACKLIST = 0,
+  KEY_FILES = 1,
+  // Hashes of files, which contents affect the result, e.g. profiles.
 };
 
 using ExtraFiles = HashMap<ExtraFileType, Immutable>;
@@ -94,6 +97,7 @@ class FileCache {
     Immutable object;
     Immutable deps;
     Immutable stderr;
+    Immutable dwo;
   };
 
   FileCache(const Path& path, ui64 size, bool snappy, bool store_index);
@@ -206,7 +210,8 @@ class FileCache {
 
   const Path path_;
   bool snappy_, store_index_;
-  UniquePtr<LevelDB> database_;
+  UniquePtr<SQLiteKV> database_;
+  mutable FileHashCache file_hashes_;
   UniquePtr<SQLite> entries_;
 
   ui64 max_size_, cache_size_ = {0u};

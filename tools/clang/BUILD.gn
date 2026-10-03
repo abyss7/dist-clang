@@ -1,9 +1,7 @@
-executable("clang") {
-  sources = [
-    "main.cc",
-  ]
+executable("dist-clang") {
+  sources = [ "main.cc" ]
 
-  deps += [
+  deps = [
     "//src/base:base",
     "//src/base:logging",
     "//src/client",

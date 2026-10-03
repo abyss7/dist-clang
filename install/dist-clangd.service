@@ -1,0 +1,12 @@
+# systemd user unit - an alternative to the autostart by the client:
+#   cp dist-clangd.service ~/.config/systemd/user/
+#   systemctl --user enable --now dist-clangd
+
+[Unit]
+Description=dist-clang local compilation daemon
+
+[Service]
+ExecStart=%h/.local/bin/dist-clangd --config=%h/.config/dist-clang/daemon.conf
+
+[Install]
+WantedBy=default.target

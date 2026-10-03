@@ -1,3 +1,5 @@
+syntax = "proto2";
+
 import "net/universal.proto";
 
 package dist_clang.net.proto;

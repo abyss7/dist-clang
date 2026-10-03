@@ -78,11 +78,19 @@ class ConstString {
 
   size_t find(const char* str) const;  // 1-copy
 
+  ConstString(const ConstString& other) = default;                     // 0-copy
   inline void operator=(const ConstString& other) { assign(other); }  // 0-copy
   const char& operator[](size_t index) const;                         // 0-copy
   ConstString operator+(const ConstString& other) const;              // 0-copy
   bool operator==(const ConstString& other) const;                    // 0-copy
   inline bool operator!=(const ConstString& other) const {            // 0-copy
+    return !this->operator==(other);
+  }
+  // Exact overloads to avoid ambiguity with the reversed operators of C++20.
+  inline bool operator==(const Literal& other) const {  // 0-copy
+    return this->operator==(ConstString(other));
+  }
+  inline bool operator!=(const Literal& other) const {  // 0-copy
     return !this->operator==(other);
   }
 
@@ -117,6 +125,11 @@ bool Literal::operator==(const ConstString& other) const {
 
 bool Literal::operator!=(const ConstString& other) const {
   return other != *this;
+}
+
+// For printing in tests.
+inline void PrintTo(const ConstString& str, std::ostream* os) {
+  *os << '"' << str.string_copy() << '"';
 }
 
 template <>

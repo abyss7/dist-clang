@@ -3,8 +3,8 @@
 #include <base/const_string.h>
 #include <base/file/file.h>
 #include <base/logging.h>
-#include <third_party/protobuf/exported/src/google/protobuf/io/zero_copy_stream_impl.h>
-#include <third_party/protobuf/exported/src/google/protobuf/text_format.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/text_format.h>
 
 #include <base/using_log.h>
 

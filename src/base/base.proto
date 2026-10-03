@@ -1,3 +1,5 @@
+syntax = "proto2";
+
 import "net/universal.proto";
 
 package dist_clang.base.proto;
@@ -18,59 +20,94 @@ message Argument {
   repeated string values = 2;
 }
 
-// TODO: migrate all arguments to |Argument| message type.
+// Flags of a single compilation, classified by the daemon from the driver's
+// command line. All argument lists keep their original indices, so that the
+// original order of flags can be restored.
 message Flags {
   required Compiler compiler         = 1;
-  // original compiler executable.
+  // |path| is the compiler executable to run, |version| is its identity.
 
   optional string output             = 2;
   // "-o" flag and it's param.
 
   optional string input              = 3;
-  // relative path in the last argument.
+  // path to the source file, as passed.
 
   repeated Argument other            = 4;
-  // all unsorted flags.
+  // all unclassified flags: affect both preprocessing and compilation.
 
   optional string deps_file          = 5;
+  // path to the dependency file, if it's generated.
 
   optional string language           = 6;
   // absorbs "-x" flag and stores it's param.
 
   repeated Argument non_cached       = 7;
-  // flags, that shouldn't be cached.
+  // flags, that affect only preprocessing (e.g. -I, -D) - their effect is
+  // visible in the preprocessed source.
 
   repeated Argument cc_only          = 8;
-  // flags for compilation only.
+  // flags for compilation only - not used for preprocessing.
 
   required string action             = 9;
-  // "-emit-obj", "-E", etc.
+  // "-c", "-E", etc.
 
   repeated Argument non_direct       = 10;
-  // flags, that shouldn't be neither direct cached, nor cached.
+  // flags, that don't affect the result, but have to be passed both for
+  // preprocessing and compilation (e.g. dependency file generation).
 
   optional string sanitize_blacklist = 11;
   // sanitizer blacklist file
 
   repeated string included_files     = 12;
-  // PCH or PTH files, included explicitly through command line arguments.
+  // precompiled headers, included explicitly through command line arguments.
+  // Their sources are still visible in the preprocessed source.
 
   optional bool rewrite_includes     = 13;
   // Indicates if preprocessing should/was made using 'frewrite-includes' flag.
 
-  // Compilation = All
-  // Preprocessing = All - output - cc_only
-  // Cache = other + language + cc_only
-  // Direct = other + language + non_cached + cc_only
+  repeated Argument ignored          = 14;
+  // flags for compilation only, that don't affect the result
+  // (e.g. -ftime-trace).
+
+  repeated string env                = 15;
+  // environment of the compiler: "NAME=value".
+
+  optional string deps_target        = 16;
+  // target of the dependency file rule, already escaped for Make.
+
+  optional string dwo_file           = 17;
+  // path to the split DWARF file, if it's generated.
+
+  repeated string key_files          = 19;
+  // files, which contents affect the result, but aren't visible in the
+  // preprocessed source: profiles, sanitizer lists, plugins, etc.
+
+  repeated string key_extra          = 18;
+  // parts of the cache key that aren't flags: the environment, the current
+  // directory for the debug info, etc.
+
+  // Compilation   = other + non_cached + cc_only + non_direct + ignored
+  // Preprocessing = other + non_cached + non_direct
+  // Cache         = other + language + cc_only + key_extra
+  // Direct        = other + language + cc_only + non_cached + key_extra
 }
 
 // Sent from client to emitter.
 message Local {
-  required Flags flags         = 1;
+  optional Flags flags         = 1;
+  // filled by the emitter from |args|.
+
   required string current_dir  = 2;
 
   optional uint32 user_id      = 3;
   // Owner of local objects.
+
+  repeated string args         = 4;
+  // original command line: the compiler followed by its arguments.
+
+  repeated string env          = 5;
+  // environment of the client: "NAME=value".
 
   extend net.proto.Universal {
     optional Local extension = 5;

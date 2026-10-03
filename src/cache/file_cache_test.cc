@@ -7,7 +7,9 @@
 #include <base/protobuf_utils.h>
 #include <base/temporary_dir.h>
 
-#include <third_party/gtest/exported/include/gtest/gtest.h>
+#include <base/file_utils.h>
+
+#include <gtest/gtest.h>
 #include STL(regex)
 
 namespace dist_clang {
@@ -94,7 +96,7 @@ TEST(FileCacheTest, RemoveEntry) {
   const base::TemporaryDir temp_dir;
   FileCache cache(temp_dir, 100, false, false);
 
-  string::Hash hash1{"12345678901234567890123456789012-12345678-00000001"_l};
+  string::Hash hash1{"12345678901234567890123456789012" "-12345678-00000001"_l};
   {
     ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash1)));
     const auto common_prefix = cache.CommonPath(hash1);
@@ -115,7 +117,7 @@ TEST(FileCacheTest, RemoveEntry) {
     ASSERT_TRUE(base::File::Write(stderr_path, "1"_l));
   }
 
-  string::Hash hash2{"12345678901234567890123456789012-12345678-00000002"_l};
+  string::Hash hash2{"12345678901234567890123456789012" "-12345678-00000002"_l};
   {
     ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash2)));
     const auto common_prefix = cache.CommonPath(hash2);
@@ -134,7 +136,7 @@ TEST(FileCacheTest, RemoveEntry) {
     ASSERT_TRUE(base::File::Write(deps_path, "1"_l));
   }
 
-  string::Hash hash3{"12345678901234567890123456789012-12345678-00000003"_l};
+  string::Hash hash3{"12345678901234567890123456789012" "-12345678-00000003"_l};
   {
     ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash3)));
     const auto common_prefix = cache.CommonPath(hash3);
@@ -240,6 +242,36 @@ TEST(FileCacheTest, RestoreSingleEntryWithExtraFile) {
   EXPECT_EQ(expected_stderr, entry2.stderr);
 }
 
+TEST(FileCacheTest, RoundTripCompressedEntry) {
+  const base::TemporaryDir temp_dir;
+  FileCache cache(temp_dir, FileCache::UNLIMITED, true, false);
+  ASSERT_TRUE(cache.Run(1));
+
+  // Object files have long runs of zeros and repeated patterns - they used to
+  // break an old version of Snappy.
+  String object(1 << 20, '\0'), dwo;
+  for (size_t i = 0; i < object.size(); i += 97) {
+    object[i] = static_cast<char>(i % 251);
+  }
+  for (size_t i = 0; i < 100000; ++i) {
+    dwo.push_back("\x7f" "ELF\0\x11\x01"[i % 7]);
+  }
+
+  const auto hash = FileCache::Hash(HandledSource("int main() {}"_l), {},
+                                    CommandLine("-c"_l), Version("1"_l));
+  cache.Store(hash, FileCache::Entry{Immutable(String(object)),
+                                     Immutable(String("deps")),
+                                     Immutable(String("stderr")),
+                                     Immutable(String(dwo))});
+
+  FileCache::Entry entry;
+  ASSERT_TRUE(cache.Find(hash, &entry));
+  EXPECT_EQ(object, entry.object.string_copy());
+  EXPECT_EQ(dwo, entry.dwo.string_copy());
+  EXPECT_EQ("deps", entry.deps.string_copy());
+  EXPECT_EQ("stderr", entry.stderr.string_copy());
+}
+
 TEST(FileCacheTest, RestoreEntryWithMissingFile) {
   const base::TemporaryDir temp_dir;
   const auto object_path = temp_dir.path() / "test.o";
@@ -318,9 +350,9 @@ TEST(FileCacheTest, ExceedCacheSize) {
   const CommandLine cl("-c"_l);
   const Version version("3.5 (revision 100000)"_l);
 
-  FileCache cache(cache_path, 138, false, false);
-  // 138 = sizeof(obj_content[0]) + sizeof(obj_content[1]) + 1 + 2 *
-  // <size_of_manifest>. The current typical size of manifest is 66 bytes.
+  FileCache cache(cache_path, 164, false, false);
+  // 164 = sizeof(obj_content[0]) + sizeof(obj_content[1]) + 1 + 2 *
+  // <size_of_manifest>. The current typical size of manifest is 79 bytes.
 
   ASSERT_TRUE(cache.Run(1));
   auto db_size = cache.database_->SizeOnDisk();
@@ -328,7 +360,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
   {
     FileCache::Entry entry{obj_content[0], String(), String()};
     cache.Store(FileCache::Hash(code[0], {}, cl, version), entry);
-    EXPECT_EQ(68u, base::CalculateDirectorySize(cache_path) - db_size);
+    EXPECT_EQ(81u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
   std::this_thread::sleep_for(Seconds(1));
@@ -336,7 +368,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
   {
     FileCache::Entry entry{obj_content[1], String(), String()};
     cache.Store(FileCache::Hash(code[1], {}, cl, version), entry);
-    EXPECT_EQ(137u, base::CalculateDirectorySize(cache_path) - db_size);
+    EXPECT_EQ(163u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
   std::this_thread::sleep_for(Seconds(1));
@@ -345,7 +377,7 @@ TEST(FileCacheTest, ExceedCacheSize) {
     FileCache::Entry entry{obj_content[2], String(), String()};
     cache.Store(FileCache::Hash(code[2], {}, cl, version), entry);
     std::this_thread::sleep_for(Seconds(3));
-    EXPECT_EQ(70u, base::CalculateDirectorySize(cache_path) - db_size);
+    EXPECT_EQ(83u, base::CalculateDirectorySize(cache_path) - db_size);
   }
 
   FileCache::Entry entry;
@@ -724,7 +756,7 @@ TEST(FileCacheTest, RestoreAndMigrateSnappyEntry) {
 
 TEST(FileCacheTest, UseIndexFromDisk) {
   const base::TemporaryDir temp_dir;
-  string::Hash hash{"12345678901234567890123456789012-12345678-00000001"_l};
+  string::Hash hash{"12345678901234567890123456789012" "-12345678-00000001"_l};
 
   {
     FileCache cache(temp_dir, FileCache::UNLIMITED, false, true);

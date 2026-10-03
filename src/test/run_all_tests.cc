@@ -3,7 +3,7 @@
 #include <base/logging.h>
 #include <base/string_utils.h>
 
-#include <third_party/gtest/exported/include/gtest/gtest.h>
+#include <gtest/gtest.h>
 
 #include <base/using_log.h>
 

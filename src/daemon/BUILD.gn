@@ -1,11 +1,9 @@
 import("//build/template/protobuf.gni")
 
-executable("clangd") {
-  sources = [
-    "clangd_main.cc",
-  ]
+executable("dist-clangd") {
+  sources = [ "daemon_main.cc" ]
 
-  deps += [
+  deps = [
     ":configuration",
     ":daemon",
     "//src/base:base",
@@ -15,11 +13,6 @@ executable("clangd") {
 
 # Separate source set for unit-tests.
 source_set("daemon") {
-  visibility += [
-    "//src/test:unit_tests",
-    "//tools/args_parser:*",
-  ]
-
   sources = [
     "absorber.cc",
     "absorber.h",
@@ -29,13 +22,17 @@ source_set("daemon") {
     "collector.h",
     "compilation_daemon.cc",
     "compilation_daemon.h",
+    "compiler_identity.cc",
+    "compiler_identity.h",
     "coordinator.cc",
     "coordinator.h",
+    "driver_args.cc",
+    "driver_args.h",
     "emitter.cc",
     "emitter.h",
   ]
 
-  deps += [
+  deps = [
     ":remote_proto",
     "//src/base:base",
     "//src/base:logging",
@@ -47,6 +44,7 @@ source_set("daemon") {
 
   public_deps = [
     ":configuration",
+    "//src/third_party/gtest:prod",
   ]
 }
 
@@ -58,21 +56,16 @@ source_set("configuration") {
 
   configs += [ "//build/config:version" ]
 
-  deps += [
+  deps = [
     ":config_proto",
     "//src/base:base",
     "//src/base:logging",
-    "//src/third_party/gflags:gflags",
   ]
 }
 
 protobuf("config_proto") {
-  deps = [
-    "//src/base:base_proto",
-  ]
-  sources = [
-    "configuration.proto",
-  ]
+  deps = [ "//src/base:base_proto" ]
+  sources = [ "configuration.proto" ]
 }
 
 protobuf("remote_proto") {
@@ -80,7 +73,5 @@ protobuf("remote_proto") {
     "//src/base:base_proto",
     "//src/net:net_proto",
   ]
-  sources = [
-    "remote.proto",
-  ]
+  sources = [ "remote.proto" ]
 }

@@ -3,7 +3,7 @@
 #include <base/file_utils.h>
 #include <base/string_utils.h>
 
-#include <third_party/gtest/exported/include/gtest/gtest.h>
+#include <test/throw_std.h>
 
 namespace dist_clang {
 

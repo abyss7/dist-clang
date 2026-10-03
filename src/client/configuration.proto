@@ -1,3 +1,5 @@
+syntax = "proto2";
+
 import "base/base.proto";
 
 package dist_clang.client.proto;
@@ -25,8 +27,8 @@ message Configuration {
   optional uint32 send_timeout    = 4 [ default = 5  ];
   // in seconds.
 
-  optional uint32 read_timeout    = 5 [ default = 60 ];
-  // in seconds.
+  optional uint32 read_timeout    = 5 [ default = 3600 ];
+  // in seconds - includes the time of compilation by daemon.
 
   optional uint32 read_minimum    = 6 [ default = 32 ];
   // in bytes.

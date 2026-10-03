@@ -3,6 +3,8 @@ template("protobuf") {
 
   action_name = "${target_name}_gen"
   source_set_name = target_name
+  protoc_label = "//src/third_party/protobuf:protoc"
+
   action_foreach(action_name) {
     visibility = [ ":$source_set_name" ]
     script = "//build/protoc.py"
@@ -10,32 +12,22 @@ template("protobuf") {
     outputs = [
       "{{source_gen_dir}}/{{source_name_part}}.pb.cc",
       "{{source_gen_dir}}/{{source_name_part}}.pb.h",
-      "{{source_gen_dir}}/{{source_name_part}}_pb2.py",
     ]
     args = [
+      "./" + get_label_info(protoc_label, "name"),
       rebase_path("//src", root_build_dir),
       rebase_path("$root_gen_dir/src", root_build_dir),
       "{{source}}",
     ]
-    deps = [
-      "//src/third_party/protobuf:protoc",
-    ]
+    deps = [ protoc_label ]
   }
 
-  target_type = "source_set"
-  if (defined(invoker.shared) && invoker.shared) {
-    target_type = "shared_library"
-  }
-
-  target(target_type, target_name) {
-    if (defined(invoker.deps)) {
-      deps += invoker.deps
-    }
-    if (defined(invoker.visibility)) {
-      visibility += invoker.visibility
-    }
-
-    visibility += [ "//:*" ]
+  static_library(target_name) {
+    forward_variables_from(invoker,
+                           [
+                             "deps",
+                             "visibility",
+                           ])
 
     sources = get_target_outputs(":$action_name")
 

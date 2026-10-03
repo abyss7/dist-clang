@@ -1,14 +1,6 @@
 import("//build/template/protobuf.gni")
 
-shared_library("net") {
-  visibility = []
-  visibility = [
-    "//:*",
-    "//src/client:*",
-    "//src/daemon:*",
-    "//src/test:unit_tests",
-  ]
-
+static_library("net") {
   sources = [
     "connection.cc",
     "connection.h",
@@ -35,8 +27,9 @@ shared_library("net") {
     "socket.cc",
     "socket.h",
   ]
+  sources -= filter_include(sources, platform_sources_filter)
 
-  deps += [
+  deps = [
     ":net_proto",
     "//src/base:base",
     "//src/base:logging",
@@ -45,11 +38,5 @@ shared_library("net") {
 }
 
 protobuf("net_proto") {
-  shared = true
-
-  visibility = [ "//src/base:base_proto" ]
-
-  sources = [
-    "universal.proto",
-  ]
+  sources = [ "universal.proto" ]
 }

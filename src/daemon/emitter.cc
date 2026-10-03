@@ -1,8 +1,10 @@
 #include <daemon/emitter.h>
 
 #include <base/file/file.h>
+#include <base/file_utils.h>
 #include <base/logging.h>
 #include <base/process.h>
+#include <daemon/driver_args.h>
 #include <net/connection.h>
 #include <net/end_point.h>
 #include <perf/counter.h>
@@ -53,6 +55,32 @@ inline String GetDepsPath(const base::proto::Local* WEAK_PTR message) {
   }
 }
 
+inline String GetDwoPath(const base::proto::Local* WEAK_PTR message) {
+  DCHECK(message);
+  if (message->flags().dwo_file()[0] == '/') {
+    return message->flags().dwo_file();
+  } else {
+    return message->current_dir() + "/" + message->flags().dwo_file();
+  }
+}
+
+// Checks if the dependency file target is set explicitly via flags.
+inline bool HasExplicitDepsTarget(const base::proto::Flags& flags) {
+  for (const auto& arg : flags.non_direct()) {
+    if (arg.values_size() && (arg.values(0).starts_with("-MT") ||
+                              arg.values(0).starts_with("-MQ"))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Some compilations can't be done remotely: they depend on local files, which
+// aren't sent, or produce more than one output file.
+inline bool IsRemotable(const base::proto::Flags& flags) {
+  return !flags.has_dwo_file() && !flags.key_files_size();
+}
+
 inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
                            cache::string::HandledSource* source) {
   Counter<> preprocess_time_counter(Metric::PREPROCESS_TIME);
@@ -61,8 +89,19 @@ inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
   DCHECK(message);
   pp_flags.CopyFrom(message->flags());
   pp_flags.clear_cc_only();
+  pp_flags.clear_ignored();
   pp_flags.set_output("-");
   pp_flags.set_action("-E");
+
+  // The dependency file is generated along with preprocessing - for the case
+  // of the remote compilation. The default target depends on the output, so
+  // set it explicitly.
+  if (pp_flags.has_deps_target() && !HasExplicitDepsTarget(pp_flags)) {
+    auto* target = pp_flags.add_non_direct();
+    target->set_index(0);
+    target->add_values("-MT");
+    target->add_values(pp_flags.deps_target());
+  }
 
   // Clang plugins can't affect source code.
   pp_flags.mutable_compiler()->clear_plugins();
@@ -203,19 +242,90 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
 
   if (message->HasExtension(base::proto::Local::extension)) {
     Message execute(message->ReleaseExtension(base::proto::Local::extension));
-    if (conf->has_cache() && !conf->cache().disabled()) {
-      return cache_tasks_->Push(
-          std::make_tuple(connection, std::move(execute), HandledSource(),
-                          cache::ExtraFiles{}, HandledHash(), false));
-    } else {
-      return all_tasks_->Push(
-          std::make_tuple(connection, std::move(execute), HandledSource(),
-                          cache::ExtraFiles{}, HandledHash(), false));
+
+    net::proto::Status status;
+    if (!PrepareFlags(execute.get(), &status)) {
+      STAT(UNSUPPORTED_COMMAND);
+      return connection->ReportStatus(status);
     }
+
+    auto task = std::make_tuple(connection, std::move(execute), HandledSource(),
+                                cache::ExtraFiles{}, HandledHash(), false);
+    if (conf->has_cache() && !conf->cache().disabled()) {
+      return cache_tasks_->Push(std::move(task));
+    } else if (!IsRemotable(std::get<MESSAGE>(task)->flags())) {
+      return failed_tasks_->Push(std::move(task));
+    } else {
+      return all_tasks_->Push(std::move(task));
+    }
+  }
+
+  if (message->HasExtension(perf::proto::Report::extension)) {
+    auto report = std::make_unique<perf::proto::Report>();
+    base::Singleton<perf::StatService>::Get().DumpAll(report.get());
+    return connection->SendAsync(std::move(report));
   }
 
   NOTREACHED();
   return false;
+}
+
+bool Emitter::PrepareFlags(base::proto::Local* message,
+                           net::proto::Status* status) {
+  DCHECK(message);
+  DCHECK(status);
+
+  // The flags may be already filled - e.g. by tests.
+  if (!message->args_size()) {
+    if (message->has_flags()) {
+      return true;
+    }
+    status->set_code(net::proto::Status::BAD_MESSAGE);
+    status->set_description("No command line");
+    return false;
+  }
+
+  auto Unsupported = [&](const String& reason) {
+    LOG(VERBOSE) << "Unsupported command: " << reason;
+    status->set_code(net::proto::Status::UNSUPPORTED);
+    status->set_description(reason);
+    return false;
+  };
+
+  const String& current_dir = message->current_dir();
+  List<String> args(std::next(message->args().begin()), message->args().end());
+  const List<String> env(message->env().begin(), message->env().end());
+
+  String error;
+  if (!ExpandResponseFiles(args, current_dir, &error)) {
+    return Unsupported("Failed to expand response files: " + error);
+  }
+
+  auto* flags = message->mutable_flags();
+  flags->Clear();
+
+  String reason;
+  if (!ParseDriverArgs(args, current_dir, flags, &reason) ||
+      !ParseEnvironment(env, flags, &reason)) {
+    return Unsupported(reason);
+  }
+
+  const String compiler_path =
+      CompilerIdentity::Resolve(message->args(0), current_dir, env);
+  if (compiler_path.empty()) {
+    return Unsupported("Can't find compiler " + message->args(0));
+  }
+
+  String identity;
+  if (!compiler_identity_.Get(compiler_path, &identity, &error)) {
+    return Unsupported("Can't identify compiler " + compiler_path + ": " +
+                       error);
+  }
+
+  flags->mutable_compiler()->set_path(compiler_path);
+  flags->mutable_compiler()->set_version(identity);
+
+  return true;
 }
 
 void Emitter::SetExtraFiles(const cache::ExtraFiles& extra_files,
@@ -250,6 +360,15 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
                                 const cache::ExtraFiles& extra_files) {
       String error;
       const String output_path = GetOutputPath(incoming);
+      const auto& flags = incoming->flags();
+
+      // The dependency file isn't a part of the key - the entry may be
+      // created by a compilation without it.
+      if (flags.has_deps_file() && entry.deps.empty()) {
+        LOG(CACHE_INFO) << "Cache entry has no dependency file: "
+                        << flags.input();
+        return false;
+      }
 
       if (!base::File::Write(output_path, entry.object, &error)) {
         LOG(ERROR) << "Failed to write file from cache: " << output_path
@@ -262,12 +381,22 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
                    << error;
       }
 
-      if (incoming->flags().has_deps_file()) {
-        DCHECK(!entry.deps.empty());
+      if (flags.has_dwo_file() && !entry.dwo.empty()) {
+        const String dwo_path = GetDwoPath(incoming);
 
+        if (!base::File::Write(dwo_path, entry.dwo, &error)) {
+          LOG(ERROR) << "Failed to write file from cache: " << dwo_path
+                     << " : " << error;
+          return false;
+        }
+      }
+
+      if (flags.has_deps_file()) {
         const String deps_path = GetDepsPath(incoming);
 
-        if (!base::File::Write(deps_path, entry.deps, &error)) {
+        if (!base::File::Write(deps_path,
+                               RestoreDeps(entry.deps, flags.deps_target()),
+                               &error)) {
           LOG(ERROR) << "Failed to write file from cache: " << deps_path
                      << " : " << error;
           return false;
@@ -325,6 +454,11 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
 
     STAT(SIMPLE_CACHE_MISS);
 
+    if (!IsRemotable(incoming->flags())) {
+      failed_tasks_->Push(std::move(*task));
+      continue;
+    }
+
     ui32 shard = Queue::DEFAULT_SHARD;
     if (conf->emitter().has_total_shards()) {
       DCHECK(conf->emitter().total_shards() > 0);
@@ -358,6 +492,15 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
 
     ui32 uid =
         incoming->has_user_id() ? incoming->user_id() : base::Process::SAME_UID;
+
+    // Remove the old outputs: they may be hard-linked with other places, and
+    // the compiler shouldn't write into them. Also the split DWARF file may be
+    // not generated at all - don't take a stale one into the cache.
+    base::File::Delete(GetOutputPath(incoming));
+    if (incoming->flags().has_dwo_file()) {
+      base::File::Delete(GetDwoPath(incoming));
+    }
+
     Counter<> counter(Metric::LOCAL_COMPILATION_TIME);
     base::ProcessPtr process =
         CreateProcess(incoming->flags(), uid, Path(incoming->current_dir()));
@@ -384,9 +527,14 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
       counter.Report();
       if (!source.str.empty()) {
         cache::FileCache::Entry entry;
+        const auto& flags = incoming->flags();
+        Immutable deps;
         if (base::File::Read(GetOutputPath(incoming), &entry.object) &&
-            (!incoming->flags().has_deps_file() ||
-             base::File::Read(GetDepsPath(incoming), &entry.deps))) {
+            (!flags.has_deps_file() ||
+             base::File::Read(GetDepsPath(incoming), &deps)) &&
+            (!flags.has_dwo_file() || !base::File::Exists(GetDwoPath(incoming)) ||
+             base::File::Read(GetDwoPath(incoming), &entry.dwo))) {
+          entry.deps = NormalizeDeps(deps, flags.deps_target());
           entry.stderr = process->stderr();
           auto& handled_hash = std::get<HANDLED_HASH>(*task);
           if (handled_hash.str.empty()) {
@@ -516,7 +664,11 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
     flags->clear_output();
     flags->clear_input();
     flags->clear_non_cached();
+    flags->clear_non_direct();
+    flags->clear_ignored();
+    flags->clear_env();
     flags->clear_deps_file();
+    flags->clear_deps_target();
 
     Counter<false> counter(Metric::REMOTE_TIME_WASTED);
     Counter<false> compilation_time_counter(Metric::REMOTE_COMPILATION_TIME);
@@ -578,15 +730,16 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
           String error;
 
           entry.object = result->release_obj();
+          Immutable deps;
           if (result->has_deps()) {
-            entry.deps = result->release_deps();
+            deps = result->release_deps();
           } else if (incoming->flags().has_deps_file() &&
-                     !base::File::Read(GetDepsPath(incoming), &entry.deps,
-                                       &error)) {
+                     !base::File::Read(GetDepsPath(incoming), &deps, &error)) {
             LOG(CACHE_WARNING) << "Can't read deps file "
                                << GetDepsPath(incoming) << " : " << error;
             return false;
           }
+          entry.deps = NormalizeDeps(deps, incoming->flags().deps_target());
           entry.stderr = Immutable(status.description());
 
           return true;

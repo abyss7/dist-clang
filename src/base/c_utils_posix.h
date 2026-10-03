@@ -1,5 +1,7 @@
 #pragma once
 
+#include <limits.h>
+
 #include <base/const_string.h>
 
 #include <fcntl.h>

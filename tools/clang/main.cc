@@ -2,10 +2,12 @@
 #include <base/c_utils.h>
 #include <base/constants.h>
 #include <base/logging.h>
+#include <client/autostart.h>
 #include <client/clang.h>
 #include <client/configuration.hh>
 
-#include <fcntl.h>
+#include STL(iostream)
+
 #include <signal.h>
 #include <unistd.h>
 
@@ -14,19 +16,28 @@
 namespace dist_clang {
 namespace {
 
-int ExecuteLocally(char* argv[], const String& clang_path) {
-  if (clang_path.empty()) {
-    LOG(FATAL) << "Provide real clang driver path via " << base::kEnvClangPath;
+const char kUsage[] =
+    "Usage: dist-clang <compiler> [args...]\n"
+    "       dist-clang --stats\n"
+    "\n"
+    "Or make a symlink named like the compiler, e.g. \"clang++\", to "
+    "dist-clang.\n";
+
+[[noreturn]] void ExecuteLocally(const List<String>& args) {
+  Vector<const char*> argv;
+  for (const auto& arg : args) {
+    argv.push_back(arg.c_str());
   }
+  argv.push_back(nullptr);
 
-  LOG(INFO) << "Running locally.";
+  execvp(argv[0], const_cast<char* const*>(argv.data()));
+  std::cerr << "dist-clang: failed to execute " << args.front() << ": "
+            << strerror(errno) << std::endl;
+  exit(1);
+}
 
-  if (execv(clang_path.c_str(), argv) == -1) {
-    LOG(FATAL) << "Local execution failed: " << strerror(errno);
-  }
-
-  NOTREACHED();
-  return 1;
+String BaseName(const String& path) {
+  return path.substr(path.find_last_of('/') + 1);
 }
 
 }  // namespace
@@ -50,29 +61,58 @@ int main(int argc, char* argv[]) {
     base::Log::Reset(config.verbosity().error_mark(), std::move(ranges));
   }
 
-  HashMap<String, String> plugins;
-  for (const auto& plugin : config.plugins()) {
-    // FIXME: check, if plugin with the same name is not already in the map.
-    plugins.emplace(plugin.name(), plugin.path());
-    CHECK(plugin.path()[0] == '/') << "Plugin path is not absolute: "
-                                   << plugin.path();
+  const String socket_env =
+      String(base::GetEnv(base::kEnvSocketPath, Literal::empty));
+  const String socket_path =
+      socket_env.empty() ? base::DefaultSocketPath() : socket_env;
+
+  // There are two modes:
+  //   - as a launcher: "dist-clang clang++ <args>";
+  //   - as the compiler itself: through a symlink "clang++" -> "dist-clang".
+  List<String> args;
+  const String self_name = BaseName(argv[0]);
+  if (self_name == "dist-clang") {
+    if (argc < 2 || argv[1] == String("--help")) {
+      std::cerr << kUsage;
+      return 1;
+    }
+    if (argv[1] == String("--stats")) {
+      return client::PrintStats(socket_path, config) ? 0 : 1;
+    }
+    args.assign(argv + 1, argv + argc);
+  } else {
+    if (config.path().empty()) {
+      std::cerr << "dist-clang: provide the real compiler via "
+                << base::kEnvClangPath << std::endl;
+      return 1;
+    }
+    args.push_back(config.path());
+    // The driver mode depends on the name of the executable.
+    if (self_name.find("++") != String::npos &&
+        BaseName(config.path()).find("++") == String::npos) {
+      args.push_back("--driver-mode=g++");
+    }
+    args.insert(args.end(), argv + 1, argv + argc);
   }
 
-  // FIXME: Make default socket path the build param - for consistent packaging.
-  Immutable socket_path =
-      base::GetEnv(base::kEnvSocketPath, base::kDefaultSocketPath);
+  if (config.disabled()) {
+    ExecuteLocally(args);
+  }
 
   // NOTICE: Use separate |DoMain| function to make sure that all local objects
-  //         get destructed before the invokation of |exec|. Do not use global
-  //         objects!
-  // FIXME: move |configuration| et al. inside |DoMain()| after mocking |GetEnv|
-  if (client::DoMain(argc, argv, socket_path, config.path(),
-                     Immutable::WrapString(config.version()),
-                     config.connect_timeout(), config.read_timeout(),
-                     config.send_timeout(), config.read_minimum(),
-                     plugins, config.disabled(), config.rewrite_includes())) {
-    return ExecuteLocally(argv, config.path());
+  //         get destructed before the invocation of |exec|.
+  switch (client::DoMain(args, socket_path, config)) {
+    case client::Result::SUCCESS:
+      return 0;
+    case client::Result::FAILURE:
+      return 1;
+    case client::Result::RUN_LOCALLY:
+      break;
   }
 
-  return 0;
+  if (String(base::GetEnv(base::kEnvNoAutostart, Literal::empty)).empty()) {
+    client::StartDaemon(socket_path);
+  }
+
+  ExecuteLocally(args);
 }

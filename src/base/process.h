@@ -4,7 +4,7 @@
 #include <base/process_forward.h>
 #include <base/testable.h>
 
-#include <third_party/gtest/exported/include/gtest/gtest_prod.h>
+#include <base/test_forward.h>
 
 namespace dist_clang {
 

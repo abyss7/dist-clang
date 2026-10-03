@@ -4,7 +4,7 @@
 #include <base/protobuf_utils.h>
 #include <base/temporary_dir.h>
 
-#include <third_party/gtest/exported/include/gtest/gtest.h>
+#include <gtest/gtest.h>
 
 namespace dist_clang {
 namespace client {

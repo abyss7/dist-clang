@@ -4,7 +4,7 @@
 #include <base/file/file.h>
 #include <base/temporary_dir.h>
 
-#include <third_party/gtest/exported/include/gtest/gtest.h>
+#include <gtest/gtest.h>
 #include STL(thread)
 
 #include <dirent.h>

@@ -1,19 +1,18 @@
 import("//build/template/protobuf.gni")
 
 source_set("assert") {
-  visibility = []
-  visibility = [ ":base" ]
   sources = [
     "assert.h",
     "assert_linux.cc",
     "assert_mac.cc",
     "assert_win.cc",
   ]
+  sources -= filter_include(sources, platform_sources_filter)
 
-  deps += [ ":logging" ]
+  deps = [ ":logging" ]
 }
 
-shared_library("base") {
+static_library("base") {
   sources = [
     "attributes.h",
     "c_utils.h",
@@ -104,12 +103,13 @@ shared_library("base") {
     "worker_pool.h",
   ]
 
-  cflags = [ "-Wno-c99-extensions" ] # FIXME: fix the code
+  sources -= filter_include(sources, platform_sources_filter)
 
   public_deps = [
     ":assert",
     ":base_proto",
     ":logging",
+    "//src/third_party/gtest:prod",
   ]
 
   allow_circular_includes_from = [
@@ -118,9 +118,8 @@ shared_library("base") {
   ]
 }
 
-shared_library("logging") {
+static_library("logging") {
   # TODO: upstream ability to change logging facility for gtest.
-  visibility += [ "//src/third_party/gtest:gtest" ]
 
   sources = [
     "logging.cc",
@@ -130,17 +129,6 @@ shared_library("logging") {
 }
 
 protobuf("base_proto") {
-  shared = true
-
-  visibility = [
-    "//src/client:config_proto",
-    "//src/daemon:config_proto",
-  ]
-
-  deps = [
-    "//src/net:net_proto",
-  ]
-  sources = [
-    "base.proto",
-  ]
+  deps = [ "//src/net:net_proto" ]
+  sources = [ "base.proto" ]
 }

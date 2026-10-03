@@ -1,14 +1,9 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
+# Usage: protoc.py <protoc> <proto_path> <cpp_out> <source.proto>
 
-import os
 import subprocess
 import sys
 
-# Hack for running 'protoc' in test configuration.
-env = os.environ
-env['LSAN_OPTIONS'] = 'detect_leaks=0'
-
-subprocess.Popen(['./protoc', '--proto_path=' + sys.argv[1],
-                  '--cpp_out=' + sys.argv[2],
-                  '--python_out=' + sys.argv[2], sys.argv[3]], env=env)
+protoc, proto_path, cpp_out, source = sys.argv[1:]
+sys.exit(subprocess.call([protoc, "--proto_path=" + proto_path,
+                          "--cpp_out=" + cpp_out, source]))

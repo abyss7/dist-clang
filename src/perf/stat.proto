@@ -1,3 +1,5 @@
+syntax = "proto2";
+
 import "net/universal.proto";
 
 package dist_clang.perf.proto;
@@ -54,6 +56,9 @@ message Metric {
     REMOTE_CACHE_HIT            = 21;
 
     HASH_MISMATCH               = 22;
+
+    UNSUPPORTED_COMMAND         = 23;
+    // Commands, which weren't handled by daemon and were run as is.
   }
 
   required Name name    = 1;

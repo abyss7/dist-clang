@@ -2,7 +2,7 @@
 
 #include <base/process.h>
 
-#include <third_party/gtest/exported/include/gtest/gtest.h>
+#include <gtest/gtest.h>
 
 namespace dist_clang {
 namespace daemon {
@@ -11,11 +11,12 @@ TEST(CompilationDaemonTest, CreateProcessFromFlags) {
   const List<Literal> expected_args = {
       "-cc1"_l,
       "-I."_l,
+      "-mrelax-all"_l,
       "-emit-obj"_l,
+      "-Xclang"_l,
       "-load"_l,
+      "-Xclang"_l,
       "/usr/lib/libplugin.so"_l,
-      "-dependency-file"_l,
-      "some_deps_file"_l,
       "-x"_l,
       "c++"_l,
       "-fsanitize-blacklist=asan-blacklist.txt"_l,

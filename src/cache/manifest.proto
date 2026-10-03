@@ -1,3 +1,5 @@
+syntax = "proto2";
+
 package dist_clang.cache.proto;
 
 message Direct {
@@ -16,6 +18,8 @@ message Simple_Version1 {
   optional bool err = 101;
   optional bool obj = 102;
   optional bool dep = 103;
+  optional bool dwo = 104;
+  // Split DWARF file - compressed the same way as the object file.
 }
 
 message Manifest {

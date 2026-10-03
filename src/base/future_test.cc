@@ -1,6 +1,6 @@
 #include <base/future.h>
 
-#include <third_party/gtest/exported/include/gtest/gtest.h>
+#include <gtest/gtest.h>
 #include STL(thread)
 
 namespace dist_clang {

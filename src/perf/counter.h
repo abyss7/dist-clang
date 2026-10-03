@@ -1,5 +1,6 @@
 #pragma once
 
+#include <base/assert.h>
 #include <base/types.h>
 
 namespace dist_clang {

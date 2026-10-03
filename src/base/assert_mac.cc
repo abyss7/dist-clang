@@ -2,7 +2,7 @@
 
 #include <base/string_utils.h>
 
-#include <third_party/libcxxabi/exported/include/cxxabi.h>
+#include <cxxabi.h>
 
 #include <execinfo.h>
 

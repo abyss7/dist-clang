@@ -20,6 +20,9 @@ class StatService {
   void Add(proto::Metric::Name name, ui64 value = 1);
   void Dump(proto::Metric& report);
 
+  // Adds all metrics to |report| without resetting them.
+  void DumpAll(proto::Report* report) const;
+
  private:
   Array<SharedPtr<Atomic<ui64>>, proto::Metric::Name_ARRAYSIZE> values_;
 };

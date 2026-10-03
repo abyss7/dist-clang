@@ -1,80 +1,65 @@
-[![Build Status](https://travis-ci.org/abyss7/dist-clang.svg?branch=master)](https://travis-ci.org/abyss7/dist-clang)
+**DistClang** is a compilation cache and distributed compilation system for Clang. It intercepts compiler invocations, and reuses the results of previous compilations - both locally and from remote hosts.
 
-**DistClang** is the Clang compiler extension with a client-server infrastructure. It features the distributed cross-platform compilation and the intermediate result caching.
+The project consists of 2 executables:
 
-The project consists of 2 executables and a couple of configuration files.
-
-**clang** is a client part and should reside on the machine where the compilation is invoked. It should replace the invocation of the original compiler.
-
-**clangd** is a server that has 2 different roles: **emitter** and **absorber**.
+- **dist-clang** is a thin client - it replaces the invocation of the compiler, and sends the command line to the daemon. If the daemon isn't available, the client runs the compiler as is.
+- **dist-clangd** is a daemon. The local daemon (**emitter**) classifies the compiler flags, looks up the cache, compiles on a cache miss and stores the result. Remote daemons (**absorbers**) may compile preprocessed sources for emitters.
 
 # How to build
 
-First of all do clone with an argument `--recurse-submodules` and then configure the project:
+Clone with submodules (`git clone --recurse-submodules`, or `git submodule update --init` after cloning). You need [GN](https://gn.googlesource.com/gn/), Ninja, Clang with C++20 support and zlib headers.
 
-    ./build/configure
-    
-To build You have to use a recent Clang compiler with C++14 support.
+    build/configure 'clang_cc="clang-18"' 'clang_cxx="clang++-18"'
+    ninja -C out/Release All
 
-## For debugging and local usage
+The resulting files `dist-clang` and `dist-clangd` are located in `out/Release` - they should be placed in the same directory.
 
-    ninja -C out/Debug.gn All
-    cd out/Debug.gn
-    ln -s clang clang++
+To build and run the tests:
 
-The resulting files `clang`, `clang++` and `clangd` are located in the `out/Debug.gn` folder.
+    ninja -C out/Test Tests
+    build/run_all_tests
 
-## Linux DEB and RPM packages
+# How to use
 
-    ninja -C out/Release.gn rpm_package deb_package
+Run the compiler through the client:
 
-The resulting packages are:
+    dist-clang clang++ -c foo.cc -o foo.o
 
-    out/Release.gn/dist-clang_<version>_amd64.deb
-    out/Release.gn/rpmbuild/RPMS/x86_64/dist-clang-<version>-1.x86_64.rpm
+The first invocation starts the daemon in background. For build systems:
 
-Don't use locally the `clang` and `clangd` from the `out/Release.gn` folder since they are hardcoded to use libraries from `/usr/lib/dist-clang` folder.
+- GN: use the client as a prefix of the compiler in the toolchain, e.g. `cxx = "dist-clang clang++"`.
+- CMake: `-DCMAKE_C_COMPILER_LAUNCHER=dist-clang -DCMAKE_CXX_COMPILER_LAUNCHER=dist-clang`.
 
-## Mac OS X package
+Alternatively make symlinks `clang` and `clang++` to `dist-clang`, and provide the real compiler via `DC_CLANG_PATH` environment variable, or via `.distclang` file in any parent directory:
 
-    ninja -C out/Release.gn pkg_package
+    path: "/usr/bin/clang-18"
 
-The resulting package is `out/Release.gn/dist-clang-<version>.pkg`
+Commands, which can't be cached (linking, preprocessing, unknown inputs, etc.), are run as is.
 
-# How to configure the emitter
+Show the statistics of the daemon:
 
-TODO!
+    dist-clang --stats
 
-# How to configure the absorber
+## Environment variables
 
-TODO!
+- `DC_DISABLED` - run the compiler as is, bypassing the daemon.
+- `DC_NO_AUTOSTART` - don't start the daemon automatically.
+- `DC_SOCKET_PATH` - path to the daemon's socket: `$XDG_RUNTIME_DIR/dist-clang.socket` by default.
+- `DC_CLANG_PATH` - the real compiler, when the client is called via a symlink.
 
-# How to run local compilation
+# How the cache works
 
-The basics is to make use of dist-clang's `clang` and `clang++` as the compilers. Doing
+The daemon classifies the flags of the compiler driver: the flags, that affect only the preprocessing (`-I`, `-D`, etc.), the flags, that don't affect the result at all (dependency file generation, `-ftime-trace`), and all others - unknown flags are considered to affect the result. The cache key includes the identity of the compiler (the hash of its binary and of its default configuration), the flags and the parts of the environment that affect the compilation. There are 2 modes of the cache:
 
-    export CC=/usr/bin/dist-clang/clang CXX=/usr/bin/dist-clang/clang++
+- **direct**: the key is the source file, the flags and the contents of all included headers - from the dependency file of the previous compilation. A hit doesn't run the compiler at all.
+- **simple**: the key is the preprocessed source and the flags, except the preprocessing-only ones. It catches the changes, that don't affect the preprocessed source, e.g. touched or regenerated headers, comments at the end of a file, or unused macro definitions.
 
-possibly should work almost always.
+The results include the object file, the split DWARF file (`-gsplit-dwarf`), the dependency file and the compiler's diagnostics.
 
-To work properly the dist-clang should know about the real compiler's path and compiler's version.
+# How to configure the daemon
 
-## Use local config file
+Without a configuration the daemon uses the defaults: the cache in `~/.cache/dist-clang` of 20 GiB. To change them, copy `install/daemon.conf.example` to `~/.config/dist-clang/daemon.conf`. The format is the text protobuf, see `src/daemon/configuration.proto`.
 
-One way to provide information about a real compiler is to put config file somewhere on the path to the folder where the build is performed. File must be named `.distclang` and should contain something like this:
+# Benchmarks
 
-    path: "third_party/llvm-build/Release+Asserts/bin/clang"
-    version: "clang version 3.7.0 (trunk 231690)"
-
-## Use environment variables
-
-Another way - is to set some env. vars:
-
-    export DC_CLANG_PATH="/usr/bin/clang"
-    export DC_CLANG_VERSION="clang version 3.7.0 (trunk 231690)"
-
-## Rely on auto-detect
-
-The last resort is to use dist-clang's auto-detect feature: it tries to find the next `clang` in the path, that differs from the current binary, i.e. `/usr/bin/dist-clang/clang`. It's a not recommended and error-prone way, since internally paths are compared as a raw strings - without link resolution, etc.
-
-In any way, if the clang path is provided without version, then the version is carved out of the real clang's output.
+`tools/bench/incremental.py` measures incremental rebuilds of a ninja project with and without the cache.

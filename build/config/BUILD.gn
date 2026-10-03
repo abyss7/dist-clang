@@ -9,35 +9,27 @@ config("base") {
     "-Wsign-compare",
     "-Wwrite-strings",
     "-Wno-unknown-warning-option",
-    "-Wno-error=assume",
-    "-Wno-error=unused-command-line-argument",
+    "-Wno-unused-parameter",
+    "-Wno-missing-field-initializers",
     "-Werror",
-    "-pedantic",
   ]
 
-  cflags_cc = [ "-std=c++17" ]
+  cflags_cc = [ "-std=c++20" ]
 
   include_dirs = [
     "//src",
     "$root_gen_dir/src",
   ]
+
+  ldflags = [ "-pthread" ]
 }
 
-config("default_library") {
-  cflags = [ "-fPIC" ]
-
-  cflags_cc = [
-    "-std=c++17",
-    "-nostdinc++",
+# Third-party code isn't ours to fix: keep the warnings, but don't fail on them.
+config("third_party") {
+  cflags = [
+    "-Wno-error",
+    "-w",
   ]
-
-  defines = [ "_LIBCPP_ENABLE_CXX17_REMOVED_UNEXPECTED_FUNCTIONS" ]
-
-  include_dirs = [ "//src/third_party/libcxx/exported/include" ]
-
-  ldflags = [ "-nodefaultlibs" ]
-
-  libs = [ "c" ]
 }
 
 config("debug") {
@@ -52,36 +44,10 @@ config("debug") {
 config("release") {
   cflags = [
     "-fomit-frame-pointer",
-    "-O3",
+    "-O2",
   ]
 
   defines = [ "NDEBUG" ]
-
-  if (!portable_build) {
-    if (host_os == "linux") {
-      ldflags = [
-        "-rpath",
-        "/usr/lib/dist-clang",
-      ]
-    } else {
-      ldflags = [
-        "-rpath",
-        "/usr/local/lib/dist-clang",
-      ]
-    }
-  }
-}
-
-config("no_stdlibs") {
-  cflags_cc = [ "-nostdinc++" ]
-
-  ldflags = [ "-nodefaultlibs" ]
-
-  libs = [
-    "c",
-    "m",
-    "pthread",
-  ]
 }
 
 config("no_exceptions") {
@@ -98,44 +64,6 @@ config("no_rtti") {
   ldflags = [ "-fno-rtti" ]
 }
 
-import("//build/llvm/llvm.gni")
-
-config("libclang_includes") {
-  defines = llvm_defines
-  include_dirs = [ "//build/llvm/" + host_os + "/include" ]
-}
-
-config("libclang") {
-  defines = llvm_defines
-  include_dirs = [ "//build/llvm/" + host_os + "/include" ]
-  lib_dirs = [ "//build/llvm/" + host_os + "/lib" ]
-
-  libs = [ "c" ]
-  libs += [
-    "clangTooling",
-    "clangFrontendTool",
-    "clangFrontend",
-    "clangDriver",
-    "clangSerialization",
-    "clangCodeGen",
-    "clangParse",
-    "clangSema",
-    "clangStaticAnalyzerFrontend",
-    "clangStaticAnalyzerCheckers",
-    "clangStaticAnalyzerCore",
-    "clangAnalysis",
-    "clangARCMigrate",
-    "clangRewriteFrontend",
-    "clangRewrite",
-    "clangEdit",
-    "clangAST",
-    "clangLex",
-    "clangBasic",
-  ]
-  libs += llvm_libs
-  libs += llvm_system_libs
-}
-
 config("version") {
   defines = [ "VERSION=\"$version\"" ]
 }
@@ -148,13 +76,6 @@ config("asan") {
     ]
 
     ldflags = [ "-fsanitize=address" ]
-
-    if (host_os == "linux") {
-      libs = [
-        "dl",
-        "rt",
-      ]
-    }
   }
 }
 
@@ -162,9 +83,5 @@ config("tsan") {
   if (use_tsan) {
     cflags = [ "-fsanitize=thread" ]
     ldflags = [ "-fsanitize=thread" ]
-
-    if (host_os == "linux") {
-      libs = [ "dl" ]
-    }
   }
 }

@@ -1,6 +1,6 @@
 toolchain("clang") {
-  cc = "clang"
-  cxx = "clang++"
+  cc = clang_cc
+  cxx = clang_cxx
   ar = "ar"
   ld = cxx
 

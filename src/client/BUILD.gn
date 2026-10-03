@@ -1,84 +1,39 @@
 import("//build/template/protobuf.gni")
 
-# Separate source set for unit-tests.
 source_set("client") {
-  visibility += [
-    "//src/test:unit_tests",
-    "//tools/clang",
-  ]
-
   sources = [
+    "autostart.cc",
+    "autostart.h",
     "clang.cc",
     "clang.h",
   ]
 
-  deps += [
-    ":command",
+  deps = [
+    ":config_proto",
     "//src/base:base",
     "//src/base:logging",
     "//src/net:net",
     "//src/net:net_proto",
+    "//src/perf:stat_proto",
   ]
-}
-
-# NOTICE: Uses custom libclang ldflags, thus, have to be shared library.
-shared_library("command") {
-  visibility = []
-  visibility = [
-    ":*",
-    "//:*",
-    "//src/test:unit_tests",
-    "//tools/args_parser",
-  ]
-
-  sources = [
-    "clang_command.cc",
-    "clang_command.hh",
-    "clean_command.cc",
-    "clean_command.hh",
-    "command.cc",
-    "command.hh",
-    "driver_command.cc",
-    "driver_command.hh",
-  ]
-
-  configs += [ "//build/config:libclang" ]
-
-  deps += [
-    "//src/base:base",
-    "//src/base:logging",
-  ]
-
-  public_configs = [ "//build/config:libclang_includes" ]
 }
 
 source_set("configuration") {
-  visibility += [
-    "//src/test:unit_tests",
-    "//tools/args_parser",
-    "//tools/clang",
-  ]
-
   sources = [
     "configuration.cc",
     "configuration.hh",
   ]
 
-  deps += [
-    ":config_proto",
+  deps = [
     "//src/base:base",
     "//src/base:logging",
   ]
+
+  public_deps = [ ":config_proto" ]
 }
 
 protobuf("config_proto") {
-  visibility = [ "//tools/args_parser" ]
+  deps = [ "//src/base:base_proto" ]
 
-  deps = [
-    "//src/base:base_proto",
-  ]
-
-  sources = [
-    "configuration.proto",
-  ]
+  sources = [ "configuration.proto" ]
 }

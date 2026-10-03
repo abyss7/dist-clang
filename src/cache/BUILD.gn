@@ -1,60 +1,45 @@
 import("//build/template/protobuf.gni")
 
 source_set("sqlite") {
-  visibility = []
-  visibility = [ ":*" ]
-
   sources = [
     "sqlite3.c",
     "sqlite3.h",
   ]
 
-  cflags = [ "-Wno-incompatible-pointer-types-discards-qualifiers" ]
+  configs += [ "//build/config:third_party" ]
 }
 
-shared_library("file_cache") {
-  visibility = []
-  visibility = [
-    "//:*",
-    "//src/daemon:*",
-    "//src/test:unit_tests",
-  ]
-
+static_library("file_cache") {
   sources = [
     "database.h",
-    "database_leveldb.cc",
-    "database_leveldb.h",
+    "database_kv.cc",
+    "database_kv.h",
     "database_sqlite.cc",
     "database_sqlite.h",
     "database_sqlite_migrator.cc",
     "file_cache.cc",
     "file_cache.h",
     "file_cache_migrator.cc",
+    "file_hash_cache.cc",
+    "file_hash_cache.h",
   ]
 
   public = [ "file_cache.h" ]
 
-  configs += [ "//build/config:libclang_includes" ]
-
-  # FIXME: make the libclang a shared library.
-  if (!config_for_tests || host_os == "mac") {
-    configs += [ "//build/config:libclang" ]
-  }
-
-  deps += [
+  deps = [
     ":sqlite",
     "//src/base:base",
     "//src/base:logging",
     "//src/perf:stat_service",
-    "//src/third_party/leveldb:leveldb",
     "//src/third_party/snappy:snappy",
   ]
 
-  public_deps = [ ":manifest_proto" ] # for file_cache_migrator_test.cc
+  public_deps = [
+    ":manifest_proto",  # for file_cache_migrator_test.cc
+    "//src/third_party/gtest:prod",
+  ]
 }
 
 protobuf("manifest_proto") {
-  sources = [
-    "manifest.proto",
-  ]
+  sources = [ "manifest.proto" ]
 }

@@ -9,9 +9,6 @@ declare_args() {
   # Build for testing.
   config_for_tests = false
 
-  # Portable build
-  portable_build = false
-
   # Build version.
   version = exec_script("//build/version.py", [], "string")
 
@@ -20,21 +17,13 @@ declare_args() {
 
   # Use Clang TSan.
   use_tsan = false
+
+  # Compilers used to build the project itself, e.g. "clang-18".
+  clang_cc = "clang"
+  clang_cxx = "clang++"
 }
 
 assert(!(use_asan && use_tsan), "Use either ASan or TSan at the same time")
-
-# =============================================================================
-# Internal flags, with default values and conditions.
-# =============================================================================
-
-use_tcmalloc = false
-
-# Mac OS X 10.10 doesn't work with tcmalloc. FIXME: Check Mac OS X 10.11
-# Thread Sanitizer doesn't like tcmalloc either.
-if (host_os != "mac" && host_os != "win" && !use_tsan) {
-  use_tcmalloc = true
-}
 
 # =============================================================================
 # Setup configurations.
@@ -43,14 +32,11 @@ if (host_os != "mac" && host_os != "win" && !use_tsan) {
 default_configs = [
   "//build/config:asan",
   "//build/config:base",
-  "//build/config:no_stdlibs",
   "//build/config:tsan",
 ]
 
 if (host_os == "mac") {
-  default_configs += [
-    "//build/config/mac:compatibility",
-  ]
+  default_configs += [ "//build/config/mac:compatibility" ]
 }
 
 if (config_for_tests) {
@@ -87,112 +73,60 @@ if (host_os == "win") {
 }
 
 # =============================================================================
-# Setup dependencies.
-# =============================================================================
-
-default_deps = []
-if (host_os != "win") {
-  default_deps += [
-    "//src/third_party/libcxx:c++",
-    "//src/third_party/libcxxabi:c++abi",
-  ]
-}
-
-if (use_tcmalloc) {
-  default_deps += [ "//src/third_party/gperftools:tcmalloc" ]
-}
-
-# =============================================================================
-# Setup visibility.
-# =============================================================================
-
-default_visibility = [
-  ":*",
-  "//:*",
-  "//src/cache/*",
-  "//src/client/*",
-  "//src/daemon/*",
-  "//src/net/*",
-  "//src/perf/*",
-  "//src/test/*",
-  "//tools/*",
-]
-
-# =============================================================================
 # Set defaults.
 # =============================================================================
 
 set_defaults("executable") {
-  visibility = default_visibility
   configs = default_configs
-  deps = default_deps
 }
 
 set_defaults("shared_library") {
-  visibility = default_visibility
   configs = default_configs
-  deps = default_deps
 }
 
 set_defaults("source_set") {
-  visibility = [ ":*" ]
   configs = default_configs
-  deps = default_deps
 }
 
 set_defaults("static_library") {
-  visibility = [ ":*" ]
   configs = default_configs
-  deps = default_deps
 }
 
 # =============================================================================
-# Filter platform-specific sources.
+# Platform-specific sources.
+#
+# Usage: sources -= filter_include(sources, platform_sources_filter)
 # =============================================================================
 
-linux_sources_filters = [
-  "*_linux.h",
-  "*_linux.cc",
-  "*_linux_test.h",
-  "*_linux_test.cc",
-]
-
-mac_sources_filters = [
-  "*_mac.h",
-  "*_mac.cc",
-  "*_mac_test.h",
-  "*_mac_test.cc",
-]
-
-posix_sources_filters = [
-  "*_posix.h",
-  "*_posix.cc",
-  "*_posix_test.h",
-  "*_posix_test.cc",
-]
-
-win_sources_filters = [
-  "*_win.h",
-  "*_win.cc",
-  "*_win_test.h",
-  "*_win_test.cc",
-]
-
-sources_assignment_filter = []
+platform_sources_filter = []
 if (host_os != "mac") {
-  sources_assignment_filter += mac_sources_filters
+  platform_sources_filter += [
+    "*_mac.h",
+    "*_mac.cc",
+    "*_mac_test.cc",
+  ]
 }
 if (host_os != "linux") {
-  sources_assignment_filter += linux_sources_filters
+  platform_sources_filter += [
+    "*_linux.h",
+    "*_linux.cc",
+    "*_linux_test.cc",
+  ]
 }
 if (host_os != "mac" && host_os != "linux") {
-  sources_assignment_filter += posix_sources_filters
+  platform_sources_filter += [
+    "*_posix.h",
+    "*_posix.cc",
+    "*_posix_test.cc",
+  ]
 }
 if (host_os != "win") {
-  sources_assignment_filter += win_sources_filters
+  platform_sources_filter += [
+    "*_win.h",
+    "*_win.cc",
+    "*_win_test.cc",
+  ]
 }
-
-set_sources_assignment_filter(sources_assignment_filter)
 
 # =============================================================================
 # Setup toolchain.

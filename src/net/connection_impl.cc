@@ -181,7 +181,7 @@ bool ConnectionImpl::SendSyncImpl(Status* status) {
 
   {
     CodedOutputStream coded_stream(gzip_output_stream_.get());
-    coded_stream.WriteVarint32(message_->ByteSize());
+    coded_stream.WriteVarint32(message_->ByteSizeLong());
   }
 
   if (!message_->SerializeToZeroCopyStream(gzip_output_stream_.get())) {
