@@ -18,6 +18,7 @@ class StatService {
   StatService();
 
   void Add(proto::Metric::Name name, ui64 value = 1);
+  void Set(proto::Metric::Name name, ui64 value);
   void Dump(proto::Metric& report);
 
   // Adds all metrics to |report| without resetting them.

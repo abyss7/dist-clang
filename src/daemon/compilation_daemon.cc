@@ -126,6 +126,7 @@ bool CompilationDaemon::Initialize() {
         conf->cache().path(), conf->cache().size(), conf->cache().snappy(),
         conf->cache().store_index(),
         conf->cache().link_outputs() && conf->has_emitter());
+    cache_->SetMinFreePercent(conf->cache().min_free_percent());
     if (!cache_->Run(conf->cache().clean_period())) {
       cache_.reset();
     }

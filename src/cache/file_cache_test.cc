@@ -486,6 +486,99 @@ TEST(FileCacheTest, ExceedCacheSize) {
   EXPECT_TRUE(cache.Find(FileCache::Hash(code[2], {}, cl, version), &entry));
 }
 
+TEST(FileCacheTest, EvictNeverHitEntriesFirst) {
+  const base::TemporaryDir temp_dir;
+  const auto cache_path = temp_dir.path() / "cache";
+  const Literal obj_content[] = {"22"_l, "333"_l, "4444"_l};
+  const HandledSource code[] = {HandledSource("int main() { return 0; }"_l),
+                                HandledSource("int main() { return 1; }"_l),
+                                HandledSource("int main() { return 2; }"_l)};
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  auto Hash = [&](int i) { return FileCache::Hash(code[i], {}, cl, version); };
+
+  ui64 total_size = 0;
+  {
+    const base::TemporaryDir probe_dir;
+    FileCache probe(probe_dir.path() / "cache", FileCache::UNLIMITED, false,
+                    false);
+    ASSERT_TRUE(probe.Run(1));
+    const auto probe_db_size = probe.database_->SizeOnDisk();
+    for (int i = 0; i < 3; ++i) {
+      probe.Store(Hash(i), FileCache::Entry{obj_content[i], String(), String()});
+    }
+    total_size = base::CalculateDirectorySize(probe_dir.path() / "cache") -
+                 probe_db_size;
+  }
+
+  // Only one entry doesn't fit.
+  FileCache cache(cache_path, total_size - 1, false, false);
+  ASSERT_TRUE(cache.Run(1));
+
+  // The first entry is used again - the second one is removed, though it's
+  // newer.
+  cache.Store(Hash(0), FileCache::Entry{obj_content[0], String(), String()});
+  std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+  cache.Store(Hash(1), FileCache::Entry{obj_content[1], String(), String()});
+  std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+  FileCache::Entry entry0;
+  ASSERT_TRUE(cache.Find(Hash(0), &entry0));
+  std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+  cache.Store(Hash(2), FileCache::Entry{obj_content[2], String(), String()});
+  std::this_thread::sleep_for(Seconds(3));
+
+  FileCache::Entry entry1, entry2, entry3;
+  EXPECT_TRUE(cache.Find(Hash(0), &entry1));
+  EXPECT_FALSE(cache.Find(Hash(1), &entry2));
+  EXPECT_TRUE(cache.Find(Hash(2), &entry3));
+}
+
+TEST(FileCacheTest, KeepEntriesLinkedWithBuildDirs) {
+  const base::TemporaryDir temp_dir;
+  const auto object_path = temp_dir.path() / "test.o";
+  const HandledSource code[] = {HandledSource("int main() { return 0; }"_l),
+                                HandledSource("int main() { return 1; }"_l),
+                                HandledSource("int main() { return 2; }"_l)};
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  auto Hash = [&](int i) { return FileCache::Hash(code[i], {}, cl, version); };
+
+  // All entries, that can be removed, should be removed: the disk is never
+  // free enough.
+  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, false,
+                  false, true);
+  cache.SetMinFreePercent(100);
+  ASSERT_TRUE(cache.Run(1));
+
+  ASSERT_TRUE(base::File::Write(object_path, "object"_l));
+  FileCache::Entry linked;
+  linked.object_path = object_path;
+  cache.Store(Hash(0), linked);
+
+  struct stat st;
+  ASSERT_EQ(0, stat(object_path.c_str(), &st));
+  if (st.st_nlink < 2) {
+    // The filesystem doesn't support hard links - nothing to check.
+    return;
+  }
+
+  cache.Store(Hash(1), FileCache::Entry{"object1"_l, String(), String()});
+  std::this_thread::sleep_for(Seconds(3));
+
+  FileCache::Entry entry0, entry1;
+  EXPECT_TRUE(cache.Find(Hash(0), &entry0));
+  EXPECT_FALSE(cache.Find(Hash(1), &entry1));
+
+  // The link is gone - the entry isn't protected anymore.
+  ASSERT_TRUE(base::File::Delete(object_path));
+  cache.Store(Hash(2), FileCache::Entry{"object2"_l, String(), String()});
+  std::this_thread::sleep_for(Seconds(3));
+
+  FileCache::Entry entry2, entry3;
+  EXPECT_FALSE(cache.Find(Hash(0), &entry2));
+  EXPECT_FALSE(cache.Find(Hash(2), &entry3));
+}
+
 TEST(FileCacheTest, RestoreDirectEntry) {
   const base::TemporaryDir temp_dir;
   const auto object_path = temp_dir.path() / "test.o";

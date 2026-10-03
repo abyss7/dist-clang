@@ -60,6 +60,12 @@ message Metric {
     UNSUPPORTED_COMMAND         = 23;
     // Commands, which weren't handled by daemon and were run as is.
 
+    CACHE_OWN_SIZE              = 26;
+    CACHE_SHARED_SIZE           = 27;
+    // in bytes - the cache files, that are and aren't linked with other places.
+
+    CACHE_ENTRIES               = 28;
+
     CACHE_OUTPUT_LINKED         = 24;
     CACHE_OUTPUT_COPIED         = 25;
     // Output files restored from the cache: linked (copy-on-write clone or

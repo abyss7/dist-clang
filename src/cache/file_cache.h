@@ -15,6 +15,7 @@ namespace cache {
 
 FORWARD_TEST(FileCacheTest, DoubleLocks);
 FORWARD_TEST(FileCacheTest, ExceedCacheSize);
+FORWARD_TEST(FileCacheTest, EvictNeverHitEntriesFirst);
 FORWARD_TEST(FileCacheTest, ExceedCacheSize_Sync);
 FORWARD_TEST(FileCacheTest, LockNonExistentFile);
 FORWARD_TEST(FileCacheTest, RemoveEntry);
@@ -119,6 +120,10 @@ class FileCache {
   bool Run(ui64 clean_period);
   // |clean_period| is in seconds.
 
+  // Removes entries, while the disk has less free space - besides the size
+  // limit. Only the entries, that aren't linked with build directories, count.
+  inline void SetMinFreePercent(ui32 percent) { min_free_percent_ = percent; }
+
   static string::HandledHash Hash(string::HandledSource code,
                                   const ExtraFiles& extra_files,
                                   string::CommandLine command_line,
@@ -146,6 +151,7 @@ class FileCache {
  private:
   FRIEND_TEST(FileCacheTest, DoubleLocks);
   FRIEND_TEST(FileCacheTest, ExceedCacheSize);
+  FRIEND_TEST(FileCacheTest, EvictNeverHitEntriesFirst);
   FRIEND_TEST(FileCacheTest, LockNonExistentFile);
   FRIEND_TEST(FileCacheTest, RemoveEntry);
   FRIEND_TEST(FileCacheTest, RestoreEntryWithMissingFile);
@@ -201,8 +207,12 @@ class FileCache {
                const List<String>& preprocessed_headers,
                const Path& current_dir, const string::HandledHash& hash);
 
-  using TimeHashPair = Pair<ui64 /* mtime */, string::Hash>;
-  using EntryList = base::LockedList<TimeHashPair>;
+  struct Access {
+    ui64 time;
+    string::Hash hash;
+    bool hit;  // |false| if the entry is just stored.
+  };
+  using EntryList = base::LockedList<Access>;
   using EntryListDeleter = Fn<void(EntryList* list)>;
 
   bool Migrate(string::Hash hash, ui32 to_version = kManifestVersion) const;
@@ -222,6 +232,12 @@ class FileCache {
 
   void Clean(UniquePtr<EntryList> list);
 
+  // Removes entries, if the cache is too large, or the disk is too full.
+  void Evict();
+
+  // Size of the outputs of the entry, that are hard-linked with other places.
+  ui64 GetSharedSize(string::Hash hash) const;
+
   mutable std::mutex locks_mutex_;
   mutable HashMap<String, ui32> read_locks_;
   mutable HashSet<String> write_locks_;
@@ -233,6 +249,7 @@ class FileCache {
   UniquePtr<SQLite> entries_;
 
   ui64 max_size_, cache_size_ = {0u};
+  ui32 min_free_percent_ = 0;
   const EntryListDeleter new_entries_deleter_ = [this](EntryList* list) {
     auto task = [this, list] { Clean(UniquePtr<EntryList>(list)); };
     cleaner_.Push(task);

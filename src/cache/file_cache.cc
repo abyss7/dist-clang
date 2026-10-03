@@ -14,6 +14,7 @@
 #include STL(regex)
 
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <sys/types.h>
 #include <utime.h>
 
@@ -124,7 +125,7 @@ bool FileCache::Run(ui64 clean_period) {
     if (size) {
       CHECK(from_index ||
             entries_->Set(hash.str,
-                          std::make_tuple(mtime, size, kManifestVersion)));
+                          std::make_tuple(mtime, size, kManifestVersion, 0u)));
 
       cache_size_ += size;
       LOG(CACHE_INFO) << hash.str << " is considered";
@@ -188,9 +189,6 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
     return false;
   }
 
-  utime(manifest_path.c_str(), nullptr);
-  new_entries_->Append({time(nullptr), unhandled_hash});
-
   // Try all known sets of headers: the same source may include different
   // headers, e.g. on different branches.
   for (const auto& headers : DirectVariants(manifest.direct())) {
@@ -214,8 +212,11 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
     Immutable handled_hash;
 
     DCHECK(database_);
-    if (database_->Get(hash_with_headers, &handled_hash)) {
-      return Find(HandledHash(handled_hash), entry);
+    if (database_->Get(hash_with_headers, &handled_hash) &&
+        Find(HandledHash(handled_hash), entry)) {
+      utime(manifest_path.c_str(), nullptr);
+      new_entries_->Append({ui64(time(nullptr)), unhandled_hash, true});
+      return true;
     }
   }
 
@@ -289,9 +290,6 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
     return false;
   }
 
-  utime(manifest_path.c_str(), nullptr);
-  new_entries_->Append({time(nullptr), hash});
-
   const auto& v1 = manifest.v1();
   ui64 size = 0;
 
@@ -326,7 +324,13 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
     return false;
   }
 
-  return v1.has_size() && v1.size() == size;
+  if (!v1.has_size() || v1.size() != size) {
+    return false;
+  }
+
+  utime(manifest_path.c_str(), nullptr);
+  new_entries_->Append({ui64(time(nullptr)), hash, true});
+  return true;
 }
 
 bool FileCache::StoreOutput(const Path& cache_path, Immutable content,
@@ -467,7 +471,7 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
   }
 
   utime(manifest_path.c_str(), nullptr);
-  new_entries_->Append({time(nullptr), hash});
+  new_entries_->Append({ui64(time(nullptr)), hash, false});
 
   LOG(CACHE_VERBOSE) << "File is cached on path " << CommonPath(hash);
 }
@@ -664,54 +668,127 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
   }
 
   utime(manifest_path.c_str(), nullptr);
-  new_entries_->Append({time(nullptr), orig_hash});
+  new_entries_->Append({ui64(time(nullptr)), orig_hash, false});
 }
 
 void FileCache::Clean(UniquePtr<EntryList> list) {
   entries_->BeginTransaction();
-  while (auto new_entry = list->Pop()) {
-    const auto& hash = new_entry->second;
+  while (auto access = list->Pop()) {
+    const auto& hash = access->hash;
     SQLite::Value entry;
-    if (entries_->Get(hash.str, &entry)) {
-      // Update mtime of an existing entry.
-      CHECK(entries_->Set(
-          hash.str,
-          std::make_tuple(new_entry->first, std::get<SQLite::SIZE>(entry),
-                          kManifestVersion)));
-      LOG(CACHE_VERBOSE) << hash.str << " wasn't used for "
-                         << (new_entry->first - std::get<SQLite::MTIME>(entry))
-                         << " seconds";
+    if (entries_->Get(hash.str, &entry) && access->hit) {
+      // Update the access time and the hits of an existing entry.
+      std::get<SQLite::MTIME>(entry) = access->time;
+      std::get<SQLite::HITS>(entry) += 1;
+      CHECK(entries_->Set(hash.str, entry));
     } else {
-      // Insert new entry.
+      // Insert a new entry, or replace the stored again one.
+      const bool exists = entries_->Get(hash.str, &entry);
       ui64 size = 0u;
       GetEntrySize(hash, &size);
+      if (exists) {
+        cache_size_ -= std::get<SQLite::SIZE>(entry);
+      }
       CHECK(entries_->Set(
-          hash.str, std::make_tuple(new_entry->first, size, kManifestVersion)));
+          hash.str,
+          std::make_tuple(access->time, size, kManifestVersion,
+                          exists ? std::get<SQLite::HITS>(entry) : 0u)));
       cache_size_ += size;
       STAT(CACHE_SIZE_ADDED, size);
     }
   }
 
-  if (max_size_ == UNLIMITED) {
-    entries_->EndTransaction();
+  Evict();
+  entries_->EndTransaction();
+}
+
+ui64 FileCache::GetSharedSize(string::Hash hash) const {
+  if (!link_outputs_) {
+    return 0;
+  }
+
+  ui64 shared_size = 0;
+  for (const auto& extension : {base::kExtObject, base::kExtDwo}) {
+    struct stat st;
+    const auto path = AppendExtension(CommonPath(hash), extension);
+    if (stat(path.c_str(), &st) == 0 && st.st_nlink > 1) {
+      shared_size += st.st_size;
+    }
+  }
+  return shared_size;
+}
+
+void FileCache::Evict() {
+  if (max_size_ == UNLIMITED && !min_free_percent_) {
     return;
   }
 
-  while (cache_size_ > max_size_) {
-    string::Hash hash;
-    SQLite::Value entry;
-    CHECK(entries_->First(&hash.str, &entry));
+  // The entries, which outputs are shared with build directories, are free:
+  // their removal doesn't free the disk space. They are likely to be used
+  // soon, so they are never removed.
+  auto entries = entries_->GetInEvictionOrder();
+  ui64 own_size = 0, shared_size = 0;
+  Vector<ui64> own_sizes;
+  own_sizes.reserve(entries.size());
+  for (const auto& [hash, entry] : entries) {
+    const ui64 shared = GetSharedSize(string::Hash(Immutable(hash)));
+    const ui64 total = std::get<SQLite::SIZE>(entry);
+    own_sizes.push_back(shared ? 0 : total);
+    own_size += total - std::min(total, shared);
+    shared_size += std::min(total, shared);
+  }
 
+  base::Singleton<perf::StatService>::Get().Set(
+      perf::proto::Metric::CACHE_OWN_SIZE, own_size);
+  base::Singleton<perf::StatService>::Get().Set(
+      perf::proto::Metric::CACHE_SHARED_SIZE, shared_size);
+  base::Singleton<perf::StatService>::Get().Set(
+      perf::proto::Metric::CACHE_ENTRIES, entries.size());
+
+  // Clean a bit more than necessary - to clean less often.
+  ui64 target_size = max_size_;
+  if (max_size_ != UNLIMITED && own_size > max_size_) {
+    target_size = max_size_ - max_size_ / 10;
+  }
+
+  // Keep some free space on the disk, since the build directories grow too.
+  ui64 need_to_free = 0;
+  if (min_free_percent_) {
+    struct statvfs st;
+    if (statvfs(path_.c_str(), &st) == 0) {
+      const ui64 total = ui64(st.f_blocks) * st.f_frsize;
+      const ui64 free = ui64(st.f_bavail) * st.f_frsize;
+      const ui64 min_free = total / 100 * min_free_percent_;
+      if (free < min_free) {
+        need_to_free = min_free - free;
+      }
+    }
+  }
+
+  ui64 freed = 0;
+  auto own_size_it = own_sizes.begin();
+  for (const auto& [hash_str, entry] : entries) {
+    const ui64 entry_own_size = *(own_size_it++);
+    if ((max_size_ == UNLIMITED || own_size <= target_size) &&
+        freed >= need_to_free) {
+      break;
+    }
+    if (!entry_own_size) {
+      continue;
+    }
+
+    const string::Hash hash{Immutable(hash_str)};
     const auto manifest_path =
         AppendExtension(CommonPath(hash), base::kExtManifest);
     WriteLock lock(this, manifest_path);
     if (lock) {
-      LOG(CACHE_VERBOSE) << "Cache overuse is " << (cache_size_ - max_size_)
-                         << " bytes: removing " << hash.str;
-      DCHECK_O_EVAL(RemoveEntry(hash));
+      LOG(CACHE_VERBOSE) << "Removing " << hash.str << " with "
+                         << std::get<SQLite::HITS>(entry) << " hits";
+      RemoveEntry(hash);
+      own_size -= std::min(own_size, entry_own_size);
+      freed += entry_own_size;
     }
   }
-  entries_->EndTransaction();
 }
 
 FileCache::ReadLock::ReadLock(const FileCache* file_cache, const String& path)

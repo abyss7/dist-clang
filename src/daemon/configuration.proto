@@ -46,6 +46,10 @@ message Configuration {
     // Store outputs uncompressed, and link them into and out of the cache
     // without copying: as copy-on-write clones or as read-only hard links.
     // Only for emitters; overrides |snappy|.
+
+    optional uint32 min_free_percent = 12 [ default = 5 ];
+    // Remove entries, while the disk has less free space - even if the cache
+    // isn't full. Entries, that are linked with build directories, are kept.
   }
 
   message Emitter {

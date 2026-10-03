@@ -12,7 +12,8 @@ emitter {
 
 cache {
   path: "~/.cache/dist-clang"
-  size: 53687091200  # 50 GiB
+  size: 53687091200  # 50 GiB - files linked with build directories don't count
+  min_free_percent: 5
   direct: true
   threads: 64
 }

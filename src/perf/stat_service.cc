@@ -18,6 +18,10 @@ void StatService::Add(proto::Metric::Name name, ui64 value) {
   values_[name]->fetch_add(value);
 }
 
+void StatService::Set(proto::Metric::Name name, ui64 value) {
+  values_[name]->store(value);
+}
+
 void StatService::DumpAll(proto::Report* report) const {
   CHECK(report);
 

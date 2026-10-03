@@ -11,13 +11,15 @@ struct sqlite3_stmt;
 namespace dist_clang {
 namespace cache {
 
+// The index of the cache entries.
 class SQLite : public Database<size_t /* mtime */, size_t /* size */,
-                               ui32 /* version */> {
+                               ui32 /* version */, ui32 /* hits */> {
  public:
   enum Field {
     MTIME = 0,
     SIZE,
     VERSION,
+    HITS,
 
     MAX_FIELD_VALUE,
     // special value - don't place anything beyond it.
@@ -33,12 +35,15 @@ class SQLite : public Database<size_t /* mtime */, size_t /* size */,
 
   ui32 GetVersion() const override;
 
-  bool First(Immutable* hash, Value* value) const;
+  // All entries in the order of eviction: never hit entries go first, then
+  // the least recently used ones.
+  List<Pair<String, Value>> GetInEvictionOrder() const;
 
   bool BeginTransaction();
   bool EndTransaction();
 
  private:
+  void CreateOrMigrateTable();
   bool Migrate() const;
 
   sqlite3* db_ = nullptr;
