@@ -32,6 +32,9 @@ message Simple_Version1 {
 
   optional string object_hash = 105;
   optional string dwo_hash    = 106;
+
+  optional string warnings_hash = 107;
+  // Hash of the warning flags, which produced the diagnostics in "stderr".
   // Hashes of the uncompressed files - to check their integrity, if they are
   // shared through hard links.
 }

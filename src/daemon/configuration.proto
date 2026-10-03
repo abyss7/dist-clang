@@ -73,6 +73,13 @@ message Configuration {
     // All tasks of shard that exceed limit can be redistributed between other
     // shards.
 
+    optional bool recheck_warnings = 11 [ default = false ];
+    // Don't make warning flags a part of the cache key. If a cached result was
+    // produced with other warning flags, check the source with "-fsyntax-only"
+    // and the current flags, and take the object file from the cache. It saves
+    // the code generation, when only warnings change, but misses the warnings
+    // of the backend, e.g. "-Wframe-larger-than".
+
     optional bool keep_unchanged_outputs = 10 [ default = false ];
     // Don't touch the outputs, that don't change after the compilation or the
     // cache hit: then they keep their modification time, and the build system,

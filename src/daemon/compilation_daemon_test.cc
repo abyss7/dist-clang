@@ -63,5 +63,25 @@ TEST(CompilationDaemonTest, CreateProcessFromFlags) {
   }
 }
 
+TEST(CompilationDaemonTest, StripColors) {
+  EXPECT_EQ("a.cc:1:1: warning: text [-Wfoo]",
+            CompilationDaemon::StripColors(
+                "\x1b[1ma.cc:1:1: \x1b[0;1;35mwarning: \x1b[0mtext "
+                "[-Wfoo]\x1b[0m"));
+  EXPECT_EQ("plain", CompilationDaemon::StripColors("plain"));
+}
+
+TEST(CompilationDaemonTest, WarningsHash) {
+  base::proto::Flags flags1, flags2;
+  flags1.add_warnings()->add_values("-Wall");
+  flags2.add_warnings()->add_values("-Wall");
+  EXPECT_EQ(CompilationDaemon::WarningsHash(flags1),
+            CompilationDaemon::WarningsHash(flags2));
+
+  flags2.add_warnings()->add_values("-Werror");
+  EXPECT_NE(CompilationDaemon::WarningsHash(flags1),
+            CompilationDaemon::WarningsHash(flags2));
+}
+
 }  // namespace daemon
 }  // namespace dist_clang

@@ -22,6 +22,12 @@ class CompilationDaemon : public BaseDaemon {
       const base::proto::Flags& flags, const cache::string::HandledSource& code,
       const cache::ExtraFiles& extra_files);
 
+  // Hash of the warning flags - to know, if the cached diagnostics are valid.
+  static String WarningsHash(const base::proto::Flags& flags);
+
+  // Removes ANSI escape sequences of colored diagnostics.
+  static String StripColors(const String& text);
+
   // Generates a hash for an entry, that can't be found by the preprocessed
   // source - only through the direct cache.
   static cache::string::HandledHash GenerateUniqueHash(

@@ -66,7 +66,7 @@ TEST(DriverArgsTest, PreprocessorFlags) {
   base::proto::Flags flags;
   ASSERT_TRUE(Parse({"-c", "test.cc", "-I", "include", "-Iinclude2", "-DFOO",
                      "-D", "BAR=1", "-isystem", "sys", "-include", "pre.h",
-                     "-nostdinc++", "-fmacro-prefix-map=../=", "-Wall"},
+                     "-nostdinc++", "-fmacro-prefix-map=../=", "-O2"},
                     &flags));
 
   const List<String> expected = {"-I",  "include", "-Iinclude2",
@@ -75,12 +75,12 @@ TEST(DriverArgsTest, PreprocessorFlags) {
                                  "pre.h", "-nostdinc++",
                                  "-fmacro-prefix-map=../="};
   EXPECT_EQ(expected, Values(flags.non_cached()));
-  EXPECT_EQ(List<String>{"-Wall"}, Values(flags.other()));
+  EXPECT_EQ(List<String>{"-O2"}, Values(flags.other()));
 }
 
 TEST(DriverArgsTest, ArgumentsKeepOrder) {
   base::proto::Flags flags;
-  ASSERT_TRUE(Parse({"-Wall", "-I", "include", "-c", "-O2", "test.cc"},
+  ASSERT_TRUE(Parse({"-fno-rtti", "-I", "include", "-c", "-O2", "test.cc"},
                     &flags));
 
   ASSERT_EQ(2, flags.other_size());
@@ -166,6 +166,36 @@ TEST(DriverArgsTest, SplitDwarf) {
   flags.Clear();
   ASSERT_TRUE(Parse({"-c", "test.cc", "-gsplit-dwarf"}, &flags));
   EXPECT_FALSE(flags.has_dwo_file());
+}
+
+TEST(DriverArgsTest, DiagnosticsFormat) {
+  base::proto::Flags flags;
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-fcolor-diagnostics",
+                     "-fmessage-length=120", "-fdiagnostics-show-option",
+                     "-fno-caret-diagnostics", "-ferror-limit=10"},
+                    &flags));
+  EXPECT_TRUE(Values(flags.other()).empty());
+  EXPECT_EQ(5u, Values(flags.non_direct()).size());
+  EXPECT_TRUE(flags.color_diagnostics());
+
+  flags.Clear();
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-fdiagnostics-color=always",
+                     "-fdiagnostics-color=never"},
+                    &flags));
+  EXPECT_FALSE(flags.color_diagnostics());
+}
+
+TEST(DriverArgsTest, Warnings) {
+  base::proto::Flags flags;
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-Wall", "-Werror", "-Wno-unused",
+                     "-Werror=format", "-w", "-pedantic", "-Wl,--as-needed",
+                     "-Wa,--noexecstack"},
+                    &flags));
+  EXPECT_EQ((List<String>{"-Wall", "-Werror", "-Wno-unused", "-Werror=format",
+                          "-w", "-pedantic"}),
+            Values(flags.warnings()));
+  EXPECT_EQ((List<String>{"-Wl,--as-needed", "-Wa,--noexecstack"}),
+            Values(flags.other()));
 }
 
 TEST(DriverArgsTest, Language) {

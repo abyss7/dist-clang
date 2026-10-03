@@ -66,6 +66,9 @@ message Metric {
 
     CACHE_ENTRIES               = 28;
 
+    WARNINGS_RECHECKED          = 32;
+    // Cache hits with other warnings, checked with "-fsyntax-only".
+
     PREPROCESSING_SKIPPED       = 31;
     // Edited sources, compiled without preprocessing.
 

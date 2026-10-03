@@ -382,6 +382,7 @@ bool Emitter::PrepareFlags(base::proto::Local* message,
 
   flags->mutable_compiler()->set_path(compiler_path);
   flags->mutable_compiler()->set_version(identity);
+  flags->set_recheck_warnings(conf()->emitter().recheck_warnings());
 
   return true;
 }
@@ -428,6 +429,41 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
         return false;
       }
 
+      // The cached diagnostics are produced with other warnings - check the
+      // source again, but without the code generation.
+      String diagnostics = entry.stderr.string_copy();
+      if (flags.recheck_warnings() &&
+          entry.warnings_hash != WarningsHash(flags)) {
+        net::proto::Status setup_status;
+        if (!SetupCompiler(incoming->mutable_flags(), &setup_status)) {
+          return false;
+        }
+        // Keep the flags of the diagnostics format and of the dependency file:
+        // the latter is restored from the cache anyway.
+        auto check_flags = flags;
+        check_flags.set_action("-fsyntax-only");
+        check_flags.clear_output();
+        check_flags.clear_ignored();
+        const ui32 uid = incoming->has_user_id() ? incoming->user_id()
+                                                 : base::Process::SAME_UID;
+        auto process =
+            CreateProcess(check_flags, uid, Path(incoming->current_dir()));
+        STAT(WARNINGS_RECHECKED);
+        if (!process->Run(base::Process::UNLIMITED, &error)) {
+          // The same errors, as the compilation would report - e.g. with
+          // "-Werror".
+          net::proto::Status status;
+          status.set_code(net::proto::Status::EXECUTION);
+          status.set_description(process->stderr().empty()
+                                     ? error
+                                     : process->stderr().string_copy());
+          std::get<CONNECTION>(*task)->ReportStatus(status);
+          LOG(INFO) << "Recheck of warnings failed: " << flags.input();
+          return true;
+        }
+        diagnostics = process->stderr().string_copy();
+      }
+
       const bool keep_unchanged =
           conf->emitter().keep_unchanged_outputs() || RequestsRestat(incoming);
 
@@ -469,7 +505,10 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
 
       net::proto::Status status;
       status.set_code(net::proto::Status::OK);
-      status.set_description(entry.stderr);
+      // The colors aren't a part of the key.
+      status.set_description(flags.color_diagnostics()
+                                 ? diagnostics
+                                 : StripColors(diagnostics));
       std::get<CONNECTION>(*task)->ReportStatus(status);
       LOG(INFO) << "Cache hit: " << incoming->flags().input();
 
@@ -641,6 +680,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
              base::File::Read(GetDepsPath(incoming), &deps))) {
           entry.deps = NormalizeDeps(deps, flags.deps_target());
           entry.stderr = process->stderr();
+          entry.warnings_hash = WarningsHash(flags);
           auto& handled_hash = std::get<HANDLED_HASH>(*task);
           if (handled_hash.str.empty()) {
             handled_hash = GenerateHash(incoming->flags(), source, extra_files);
@@ -846,6 +886,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
           }
           entry.deps = NormalizeDeps(deps, incoming->flags().deps_target());
           entry.stderr = Immutable(status.description());
+          entry.warnings_hash = WarningsHash(incoming->flags());
 
           return true;
         };

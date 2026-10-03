@@ -66,7 +66,10 @@ inline String KeyExtra(const base::proto::Flags& flags) {
 }
 
 inline CommandLine CommandLineForSimpleCache(const base::proto::Flags& flags) {
-  auto arg_list = CreateArgumentList(flags.other(), flags.cc_only());
+  auto arg_list = flags.recheck_warnings()
+                      ? CreateArgumentList(flags.other(), flags.cc_only())
+                      : CreateArgumentList(flags.other(), flags.cc_only(),
+                                           flags.warnings());
   auto command_line = base::JoinString<' '>(arg_list.begin(), arg_list.end());
   if (flags.has_language()) {
     command_line += " -x " + flags.language();
@@ -79,7 +82,11 @@ inline CommandLine CommandLineForSimpleCache(const base::proto::Flags& flags) {
 inline CommandLine CommandLineForDirectCache(const String& current_dir,
                                              const base::proto::Flags& flags) {
   auto args_list =
-      CreateArgumentList(flags.other(), flags.cc_only(), flags.non_cached());
+      flags.recheck_warnings()
+          ? CreateArgumentList(flags.other(), flags.cc_only(),
+                               flags.non_cached())
+          : CreateArgumentList(flags.other(), flags.cc_only(),
+                               flags.non_cached(), flags.warnings());
   auto command_line = base::JoinString<' '>(args_list.begin(), args_list.end());
   if (flags.has_language()) {
     command_line += " -x " + flags.language();
@@ -198,6 +205,32 @@ Immutable CompilationDaemon::RestoreDeps(Immutable deps,
     return deps;
   }
   return Immutable(target + content.substr(strlen(kDepsTargetPlaceholder)));
+}
+
+// static
+String CompilationDaemon::WarningsHash(const base::proto::Flags& flags) {
+  auto arg_list = CreateArgumentList(flags.warnings());
+  return base::Hexify(
+      Immutable(base::JoinString<' '>(arg_list.begin(), arg_list.end()))
+          .Hash());
+}
+
+// static
+String CompilationDaemon::StripColors(const String& text) {
+  String result;
+  result.reserve(text.size());
+  for (size_t i = 0; i < text.size(); ++i) {
+    // CSI sequences: ESC '[' parameters final-byte.
+    if (text[i] == '\x1b' && i + 1 < text.size() && text[i + 1] == '[') {
+      i += 2;
+      while (i < text.size() && !(text[i] >= 0x40 && text[i] <= 0x7e)) {
+        ++i;
+      }
+      continue;
+    }
+    result.push_back(text[i]);
+  }
+  return result;
 }
 
 // static
@@ -458,7 +491,7 @@ base::ProcessPtr CompilationDaemon::CreateProcess(
       base::Process::Create(flags.compiler().path(), cwd_path, user_id);
   auto arg_list = CreateArgumentList(flags.other(), flags.non_cached(),
                                      flags.cc_only(), flags.non_direct(),
-                                     flags.ignored());
+                                     flags.ignored(), flags.warnings());
   process->AppendArg(arg_list.begin(), arg_list.end());
 
   process->AppendArg(Immutable(flags.action()));

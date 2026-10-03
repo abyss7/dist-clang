@@ -112,6 +112,9 @@ class FileCache {
     // Hashes of the linked files from |Find()|.
     String object_hash;
     String dwo_hash;
+
+    // Hash of the warning flags of the compilation.
+    String warnings_hash;
   };
 
   // With |link_outputs| the outputs are stored uncompressed, and are linked

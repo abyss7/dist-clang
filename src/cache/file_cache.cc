@@ -325,6 +325,7 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
     return false;
   }
   entry->dwo_hash = v1.dwo_hash();
+  entry->warnings_hash = v1.warnings_hash();
 
   if (!v1.has_size() || v1.size() != size) {
     return false;
@@ -477,6 +478,9 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
   }
 
   v1->set_size(size);
+  if (!entry.warnings_hash.empty()) {
+    v1->set_warnings_hash(entry.warnings_hash);
+  }
 
   if (!base::SaveToFile(manifest_path, manifest, &error)) {
     RemoveEntry(hash);

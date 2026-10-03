@@ -56,7 +56,9 @@ The daemon classifies the flags of the compiler driver: the flags, that affect o
 - **direct**: the key is the source file, the flags and the contents of all included headers - from the dependency file of the previous compilation. A hit doesn't run the compiler at all.
 - **simple**: the key is the preprocessed source and the flags, except the preprocessing-only ones. It catches the changes, that don't affect the preprocessed source, e.g. touched or regenerated headers, comments at the end of a file, or unused macro definitions.
 
-The results include the object file, the split DWARF file (`-gsplit-dwarf`), the dependency file and the compiler's diagnostics.
+The results include the object file, the split DWARF file (`-gsplit-dwarf`), the dependency file and the compiler's diagnostics. The flags, that change only the format of the diagnostics (`-fcolor-diagnostics`, `-fmessage-length=`, etc.), aren't a part of the key.
+
+The warning flags (`-W*`, `-w`, `-pedantic`) are a part of the key by default. With `recheck_warnings: true` in the emitter configuration they aren't: if a cached result was produced with other warnings, the daemon checks the source with `-fsyntax-only` and the current flags, and takes the object file from the cache - so changing warnings doesn't cause the code generation. The warnings of the backend (e.g. `-Wframe-larger-than`) are missed in this case.
 
 The object and split DWARF files are stored uncompressed, and are put into and out of the cache without copying: as copy-on-write clones on filesystems that support them (btrfs, XFS), or as hard links otherwise. The contents of the linked files are checked on every cache hit - a file modified in place through another link is not taken from the cache. Set `link_outputs: false` in the cache configuration to store compressed copies instead.
 

@@ -2518,6 +2518,119 @@ TEST_F(EmitterTest, SkipPreprocessingOfEditedSource) {
   emitter.reset();
 }
 
+TEST_F(EmitterTest, RecheckWarnings) {
+  const base::TemporaryDir temp_dir;
+  const auto input_path = temp_dir.path() / "test.cc";
+  const auto output_path = temp_dir.path() / "test.o";
+  const auto deps_path = temp_dir.path() / "test.d";
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+
+  ASSERT_TRUE(base::File::Write(input_path, "int main() { return 1; }"_l));
+
+  conf.mutable_cache()->set_path(temp_dir.path() / "cache");
+  conf.mutable_cache()->set_direct(true);
+  conf.mutable_cache()->set_clean_period(1);
+
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+
+  String last_description;
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_EQ(expected_code, status.code()) << status.description();
+      last_description = status.description();
+
+      send_condition.notify_all();
+    });
+    return true;
+  };
+
+  List<String> runs;
+  run_callback = [&](base::TestProcess* process) {
+    auto Has = [&](Literal arg) {
+      return std::find(process->args_.begin(), process->args_.end(),
+                       Immutable(arg)) != process->args_.end();
+    };
+    const auto deps = Immutable("test.o: "_l) + Immutable(input_path);
+    if (Has("-E"_l)) {
+      runs.push_back("-E");
+      process->stdout_ = "preprocessed"_l;
+      EXPECT_TRUE(base::File::Write(deps_path, deps));
+    } else if (Has("-fsyntax-only"_l)) {
+      runs.push_back("-fsyntax-only");
+      EXPECT_TRUE(Has("-Wextra"_l));
+      EXPECT_FALSE(Has("-o"_l));
+      process->stderr_ = "new warning"_l;
+    } else {
+      runs.push_back("compile");
+      process->stderr_ = "old warning"_l;
+      EXPECT_TRUE(base::File::Write(output_path, "object"_l));
+      EXPECT_TRUE(base::File::Write(deps_path, deps));
+    }
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto Compile = [&](ui32 expected_send_count, const List<String>& warnings) {
+    auto connection = test_service->TriggerListen(socket_path);
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(temp_dir);
+    auto* flags = extension->mutable_flags();
+    flags->set_input(input_path);
+    flags->set_output(output_path);
+    flags->set_deps_file(deps_path);
+    flags->set_deps_target("test.o");
+    flags->set_recheck_warnings(true);
+    for (const auto& warning : warnings) {
+      flags->add_warnings()->add_values(warning);
+    }
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action("-c");
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(1), [&] {
+      return send_count == expected_send_count;
+    }));
+  };
+
+  Compile(1, {"-Wall"});
+  EXPECT_EQ((List<String>{"-E", "compile"}), runs);
+  EXPECT_EQ("old warning", last_description);
+
+  // The same warnings - the cached diagnostics.
+  ASSERT_TRUE(base::File::Delete(output_path));
+  runs.clear();
+  Compile(2, {"-Wall"});
+  EXPECT_TRUE(runs.empty());
+  EXPECT_EQ("old warning", last_description);
+
+  // Other warnings - only the check.
+  ASSERT_TRUE(base::File::Delete(output_path));
+  runs.clear();
+  Compile(3, {"-Wall", "-Wextra"});
+  EXPECT_EQ((List<String>{"-fsyntax-only"}), runs);
+  EXPECT_EQ("new warning", last_description);
+
+  Immutable object;
+  EXPECT_TRUE(base::File::Read(output_path, &object));
+  EXPECT_EQ("object"_l, object);
+
+  emitter.reset();
+}
+
 TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
   // Prepare environment.
   const base::TemporaryDir temp_dir;

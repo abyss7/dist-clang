@@ -21,6 +21,7 @@ enum class Class {
   CC_ONLY,
   NON_DIRECT,
   IGNORED,
+  WARNINGS,
 };
 
 // Options, that need a special treatment.
@@ -186,6 +187,37 @@ const char* const kInputFilePrefixes[] = {
     "-fxray-never-instrument=",
 };
 
+// Options, that change only the formatting of the diagnostics.
+const char* const kDiagnosticsFormat[] = {
+    "-fansi-escape-codes",
+    "-fcaret-diagnostics",
+    "-fdiagnostics-absolute-paths",
+    "-fdiagnostics-fixit-info",
+    "-fdiagnostics-parseable-fixits",
+    "-fdiagnostics-print-source-range-info",
+    "-felide-type",
+    "-fno-caret-diagnostics",
+    "-fno-diagnostics-fixit-info",
+    "-fno-elide-type",
+    "-fno-show-column",
+    "-fno-show-source-location",
+    "-fshow-column",
+    "-fshow-source-location",
+};
+
+const char* const kDiagnosticsFormatPrefixes[] = {
+    "-fcaret-diagnostics-max-lines=",
+    "-fconstexpr-backtrace-limit=",
+    "-fdiagnostics-format=",
+    "-fdiagnostics-show-",
+    "-ferror-limit=",
+    "-fmacro-backtrace-limit=",
+    "-fmessage-length=",
+    "-fno-diagnostics-show-",
+    "-fspell-checking-limit=",
+    "-ftemplate-backtrace-limit=",
+};
+
 // Environment variables, that affect the result.
 const char* const kEnvAffecting[] = {
     "CPATH",
@@ -343,6 +375,9 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
       case Class::IGNORED:
         argument = flags->add_ignored();
         break;
+      case Class::WARNINGS:
+        argument = flags->add_warnings();
+        break;
     }
     argument->set_index(index);
     for (const auto& value : values) {
@@ -487,6 +522,33 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
           option->special != Special::LANGUAGE) {
         AddArgument(option->cls, index, {arg});
       }
+      continue;
+    }
+
+    // The color of the diagnostics.
+    if (arg == "-fcolor-diagnostics" || arg == "-fdiagnostics-color" ||
+        arg == "-fdiagnostics-color=always") {
+      flags->set_color_diagnostics(true);
+      AddArgument(Class::NON_DIRECT, index, {arg});
+      continue;
+    }
+    if (arg == "-fno-color-diagnostics" || arg == "-fno-diagnostics-color" ||
+        arg.starts_with("-fdiagnostics-color=")) {
+      flags->set_color_diagnostics(false);
+      AddArgument(Class::NON_DIRECT, index, {arg});
+      continue;
+    }
+    if (MatchesAny(kDiagnosticsFormat, arg) ||
+        MatchesAnyPrefix(kDiagnosticsFormatPrefixes, arg)) {
+      AddArgument(Class::NON_DIRECT, index, {arg});
+      continue;
+    }
+
+    // Warnings - but not the options for the assembler and the linker.
+    if ((arg.starts_with("-W") && !arg.starts_with("-Wa,") &&
+         !arg.starts_with("-Wl,")) ||
+        arg == "-w" || arg == "-pedantic" || arg == "-pedantic-errors") {
+      AddArgument(Class::WARNINGS, index, {arg});
       continue;
     }
 

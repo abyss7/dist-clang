@@ -83,14 +83,28 @@ message Flags {
   // files, which contents affect the result, but aren't visible in the
   // preprocessed source: profiles, sanitizer lists, plugins, etc.
 
+  repeated Argument warnings         = 20;
+  // flags, that enable or disable warnings: they affect the diagnostics and
+  // the success of the compilation, but not the result.
+
+  optional bool color_diagnostics    = 21;
+  // if the diagnostics are expected to be colored.
+
+  optional bool recheck_warnings     = 22;
+  // if set, |warnings| aren't a part of the cache key: a cached result,
+  // produced with other warnings, is rechecked with "-fsyntax-only".
+
   repeated string key_extra          = 18;
   // parts of the cache key that aren't flags: the environment, the current
   // directory for the debug info, etc.
 
   // Compilation   = other + non_cached + cc_only + non_direct + ignored
-  // Preprocessing = other + non_cached + non_direct
+  //                 + warnings
+  // Preprocessing = other + non_cached + non_direct + warnings
   // Cache         = other + language + cc_only + key_extra
+  //                 + warnings (unless |recheck_warnings|)
   // Direct        = other + language + cc_only + non_cached + key_extra
+  //                 + warnings (unless |recheck_warnings|)
 }
 
 // Sent from client to emitter.
