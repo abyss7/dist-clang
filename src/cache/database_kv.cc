@@ -5,6 +5,7 @@
 #include <base/file/file.h>
 #include <base/logging.h>
 #include <cache/sqlite3.h>
+#include <cache/sqlite_utils.h>
 
 #include <base/using_log.h>
 
@@ -41,15 +42,10 @@ class Statement {
 
 SQLiteKV::SQLiteKV(const String& path, const String& name)
     : path_(path + "/" + name + ".sqlite") {
-  auto result = sqlite3_open_v2(
-      path_.c_str(), &db_,
-      SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX,
-      nullptr);
-  CHECK(result == SQLITE_OK) << "Failed to open " << path_ << ": "
-                             << sqlite3_errstr(result);
+  db_ = OpenDatabase(path_);
 
   char* error = nullptr;
-  result = sqlite3_exec(db_,
+  auto result = sqlite3_exec(db_,
                         "PRAGMA journal_mode=WAL;"
                         "PRAGMA synchronous=NORMAL;"
                         "CREATE TABLE IF NOT EXISTS kv("

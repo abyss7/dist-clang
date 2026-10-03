@@ -136,6 +136,28 @@ bool FileCache::Run(ui64 clean_period) {
 
   entries_->BeginTransaction();
   base::WalkDirectory(path_, [this](const String& file_path, ui64 mtime, ui64) {
+    // The temporary files are left by crashes: only one daemon uses the cache
+    // at the moment, and it doesn't write anything yet.
+    if (file_path.ends_with(".tmp")) {
+      LOG(CACHE_INFO) << "Removing stale temporary file " << file_path;
+      base::File::Delete(file_path);
+      return;
+    }
+
+    // The files of an entry without the manifest are left by a crash in the
+    // middle of storing: nothing refers to them.
+    std::regex data_regex(
+        "[a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8}\\.(o|d|dwo|stderr)$");
+    if (std::regex_search(file_path, data_regex)) {
+      const auto manifest_path =
+          Path(file_path).replace_extension(".manifest");
+      if (!base::File::Exists(manifest_path)) {
+        LOG(CACHE_INFO) << "Removing file of incomplete entry " << file_path;
+        base::File::Delete(file_path);
+      }
+      return;
+    }
+
     std::regex regex("([a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8})\\.manifest$");
     std::cmatch match;
     if (!std::regex_search(file_path.c_str(), match, regex) ||
@@ -154,9 +176,11 @@ bool FileCache::Run(ui64 clean_period) {
     }
 
     if (size) {
-      CHECK(from_index ||
-            entries_->Set(hash.str,
-                          std::make_tuple(mtime, size, kManifestVersion, 0u)));
+      if (!from_index &&
+          !entries_->Set(hash.str,
+                         std::make_tuple(mtime, size, kManifestVersion, 0u))) {
+        LOG(CACHE_ERROR) << "Failed to add to the index " << hash.str;
+      }
 
       cache_size_ += size;
       LOG(CACHE_INFO) << hash.str << " is considered";
@@ -257,24 +281,34 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
 bool FileCache::FindOutput(const Path& cache_path, bool compressed,
                            const String& expected_hash, Immutable* content,
                            Path* path, ui64* size) const {
-  // Link the uncompressed output instead of reading it - if we know its hash
-  // to check the integrity.
-  if (link_outputs_ && !compressed && !expected_hash.empty()) {
+  // An entry without the hash is broken, or from an old version.
+  if (expected_hash.empty()) {
+    LOG(CACHE_WARNING) << "No hash for " << cache_path;
+    return false;
+  }
+
+  auto Broken = [&cache_path](const char* reason) {
+    LOG(CACHE_WARNING) << "Cache file is broken (" << reason
+                       << "): " << cache_path;
+    // Break the entry, so that it's removed later.
+    base::File::Delete(cache_path);
+    return false;
+  };
+
+  // Link the uncompressed output instead of reading it.
+  if (link_outputs_ && !compressed && path) {
     struct stat st;
     if (stat(cache_path.c_str(), &st) == -1) {
       return false;
     }
 
     // The file may be shared through a hard link - and modified in place by
-    // someone else, though it's read-only. The link may be gone already, so
-    // check the contents always: it's cheap compared to the compilation.
+    // someone else. The link may be gone already, so check the contents
+    // always: it's cheap compared to the compilation.
     Immutable actual_hash;
     if (!base::File::Hash(cache_path, &actual_hash) ||
         actual_hash.string_copy() != expected_hash) {
-      LOG(CACHE_WARNING) << "Cache file is modified outside: " << cache_path;
-      // Break the entry, so that it's removed later.
-      base::File::Delete(cache_path);
-      return false;
+      return Broken("wrong hash");
     }
 
     *path = cache_path;
@@ -291,6 +325,9 @@ bool FileCache::FindOutput(const Path& cache_path, bool compressed,
   *size += file_content.size();
 
   if (!compressed) {
+    if (base::Hexify(file_content.Hash()) != expected_hash) {
+      return Broken("wrong hash");
+    }
     *content = file_content;
     return true;
   }
@@ -298,10 +335,13 @@ bool FileCache::FindOutput(const Path& cache_path, bool compressed,
   String unpacked;
   if (!snappy::Uncompress(file_content.data(), file_content.size(),
                           &unpacked)) {
-    LOG(CACHE_ERROR) << "Failed to unpack contents of " << cache_path;
-    return false;
+    return Broken("can't unpack");
   }
-  *content = std::move(unpacked);
+  Immutable unpacked_content(std::move(unpacked));
+  if (base::Hexify(unpacked_content.Hash()) != expected_hash) {
+    return Broken("wrong hash");
+  }
+  *content = unpacked_content;
   return true;
 }
 
@@ -324,13 +364,10 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
   const auto& v1 = manifest.v1();
   ui64 size = 0;
 
-  if (v1.err()) {
-    const auto stderr_path =
-        AppendExtension(CommonPath(hash), base::kExtStderr);
-    if (!base::File::Read(stderr_path, &entry->stderr)) {
-      return false;
-    }
-    size += entry->stderr.size();
+  if (v1.err() &&
+      !FindOutput(AppendExtension(CommonPath(hash), base::kExtStderr), false,
+                  v1.stderr_hash(), &entry->stderr, nullptr, &size)) {
+    return false;
   }
 
   if (v1.obj() &&
@@ -341,12 +378,10 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
   }
   entry->object_hash = v1.object_hash();
 
-  if (v1.dep()) {
-    const auto deps_path = AppendExtension(CommonPath(hash), base::kExtDeps);
-    if (!base::File::Read(deps_path, &entry->deps)) {
-      return false;
-    }
-    size += entry->deps.size();
+  if (v1.dep() &&
+      !FindOutput(AppendExtension(CommonPath(hash), base::kExtDeps), false,
+                  v1.deps_hash(), &entry->deps, nullptr, &size)) {
+    return false;
   }
 
   if (v1.dwo() &&
@@ -372,9 +407,10 @@ bool FileCache::StoreOutput(const Path& cache_path, Immutable content,
                             String* error) {
   // Link the produced file into the cache.
   if (link_outputs_ && content.empty() && !path.empty()) {
+    // Hash the file in the cache - that's what is restored later.
     Immutable content_hash;
-    if (!base::File::Hash(path, &content_hash, {}, error) ||
-        !base::File::Clone(path, cache_path, true, nullptr, error)) {
+    if (!base::File::Clone(path, cache_path, true, nullptr, error) ||
+        !base::File::Hash(cache_path, &content_hash, {}, error)) {
       return false;
     }
     *hash = content_hash.string_copy();
@@ -387,16 +423,15 @@ bool FileCache::StoreOutput(const Path& cache_path, Immutable content,
     }
     Immutable data = content.empty() ? read_content : content;
 
+    *hash = base::Hexify(data.Hash());
+
     String packed_content;
-    if (snappy_) {
-      if (!snappy::Compress(data.data(), data.size(), &packed_content)) {
-        if (error) {
-          error->assign("failed to pack contents");
-        }
-        return false;
+    if (snappy_ &&
+        !snappy::Compress(data.data(), data.size(), &packed_content)) {
+      if (error) {
+        error->assign("failed to pack contents");
       }
-    } else {
-      *hash = base::Hexify(data.Hash());
+      return false;
     }
 
     const Immutable to_write =
@@ -469,6 +504,7 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
       return;
     }
     size += entry.stderr.size();
+    v1->set_stderr_hash(base::Hexify(entry.stderr.Hash()));
   }
 
   v1->set_obj(!entry.object.empty() || !entry.object_path.empty());
@@ -495,6 +531,7 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
       return;
     }
     size += entry.deps.size();
+    v1->set_deps_hash(base::Hexify(entry.deps.Hash()));
   }
 
   v1->set_dwo(!entry.dwo.empty() || !entry.dwo_path.empty());
@@ -732,7 +769,9 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
       // Update the access time and the hits of an existing entry.
       std::get<SQLite::MTIME>(entry) = access->time;
       std::get<SQLite::HITS>(entry) += 1;
-      CHECK(entries_->Set(hash.str, entry));
+      if (!entries_->Set(hash.str, entry)) {
+        LOG(CACHE_ERROR) << "Failed to update the index for " << hash.str;
+      }
     } else {
       // Insert a new entry, or replace the stored again one.
       const bool exists = entries_->Get(hash.str, &entry);
@@ -741,10 +780,12 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
       if (exists) {
         cache_size_ -= std::get<SQLite::SIZE>(entry);
       }
-      CHECK(entries_->Set(
+      if (!entries_->Set(
           hash.str,
           std::make_tuple(access->time, size, kManifestVersion,
-                          exists ? std::get<SQLite::HITS>(entry) : 0u)));
+                          exists ? std::get<SQLite::HITS>(entry) : 0u))) {
+        LOG(CACHE_ERROR) << "Failed to update the index for " << hash.str;
+      }
       cache_size_ += size;
       STAT(CACHE_SIZE_ADDED, size);
     }

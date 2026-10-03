@@ -5,6 +5,7 @@
 #include <base/logging.h>
 #include <base/string_utils.h>
 #include <cache/sqlite3.h>
+#include <cache/sqlite_utils.h>
 
 #include <base/using_log.h>
 
@@ -72,9 +73,7 @@ SQLite::SQLite() : path_(":memory:") {
 
 SQLite::SQLite(const String& path, const String& name)
     : path_(path + "/" + name + ".sqlite") {
-  auto result = sqlite3_open(path_.c_str(), &db_);
-  CHECK(result == SQLITE_OK) << "Failed to open " << path_ << ": "
-                             << sqlite3_errstr(result);
+  db_ = OpenDatabase(path_);
   CreateOrMigrateTable();
   LOG(DB_INFO) << "SQLite database is opened on path " << path_;
 }

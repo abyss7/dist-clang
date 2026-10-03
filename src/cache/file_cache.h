@@ -15,6 +15,8 @@ namespace cache {
 
 FORWARD_TEST(FileCacheTest, DoubleLocks);
 FORWARD_TEST(FileCacheTest, ExceedCacheSize);
+FORWARD_TEST(FileCacheTest, EntryWithoutHashes);
+FORWARD_TEST(FileCacheTest, DetectBrokenFiles);
 FORWARD_TEST(FileCacheTest, EvictNeverHitEntriesFirst);
 FORWARD_TEST(FileCacheTest, ExceedCacheSize_Sync);
 FORWARD_TEST(FileCacheTest, LockNonExistentFile);
@@ -166,6 +168,8 @@ class FileCache {
  private:
   FRIEND_TEST(FileCacheTest, DoubleLocks);
   FRIEND_TEST(FileCacheTest, ExceedCacheSize);
+  FRIEND_TEST(FileCacheTest, EntryWithoutHashes);
+  FRIEND_TEST(FileCacheTest, DetectBrokenFiles);
   FRIEND_TEST(FileCacheTest, EvictNeverHitEntriesFirst);
   FRIEND_TEST(FileCacheTest, LockNonExistentFile);
   FRIEND_TEST(FileCacheTest, RemoveEntry);

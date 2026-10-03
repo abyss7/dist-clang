@@ -350,6 +350,114 @@ TEST(FileCacheTest, LinkOutputsWithContents) {
   EXPECT_EQ("object"_l, object);
 }
 
+TEST(FileCacheTest, DetectBrokenFiles) {
+  for (const bool snappy : {false, true}) {
+    for (const auto* extension : {"o", "d", "stderr", "dwo"}) {
+      const base::TemporaryDir temp_dir;
+      FileCache cache(temp_dir.path(), FileCache::UNLIMITED, snappy, false);
+      ASSERT_TRUE(cache.Run(1));
+
+      const auto hash = FileCache::Hash(HandledSource("int main() {}"_l), {},
+                                        CommandLine("-c"_l), Version("1"_l));
+      cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l, "stderr"_l,
+                                         "dwo"_l});
+
+      // Flip a byte, keeping the size - like a broken write.
+      const auto path = cache.CommonPath(hash).string() + "." + extension;
+      Immutable content;
+      ASSERT_TRUE(base::File::Read(path, &content));
+      String broken = content.string_copy();
+      broken[0] ^= 1;
+      ASSERT_EQ(0, chmod(path.c_str(), S_IRUSR | S_IWUSR));
+      ASSERT_TRUE(base::File::Write(path, Immutable(std::move(broken))));
+
+      FileCache::Entry entry;
+      EXPECT_FALSE(cache.Find(hash, &entry))
+          << "snappy: " << snappy << ", file: " << extension;
+    }
+  }
+}
+
+TEST(FileCacheTest, EntryWithoutHashes) {
+  const base::TemporaryDir temp_dir;
+  FileCache cache(temp_dir);
+  ASSERT_TRUE(cache.Run(1));
+
+  const auto hash = FileCache::Hash(HandledSource("int main() {}"_l), {},
+                                    CommandLine("-c"_l), Version("1"_l));
+  cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l, "stderr"_l});
+
+  // E.g. a manifest, written partially before a crash of the system.
+  const auto manifest_path = cache.CommonPath(hash).string() + ".manifest";
+  proto::Manifest manifest;
+  ASSERT_TRUE(base::LoadFromFile(manifest_path, &manifest));
+  manifest.mutable_v1()->clear_object_hash();
+  ASSERT_TRUE(base::SaveToFile(manifest_path, manifest));
+
+  FileCache::Entry entry;
+  EXPECT_FALSE(cache.Find(hash, &entry));
+}
+
+TEST(FileCacheTest, RemoveStaleTemporaryFiles) {
+  const base::TemporaryDir temp_dir;
+  const auto tmp1 = temp_dir.path() / "index.sqlite.tmp";
+  const auto tmp2 = temp_dir.path() / "a" / "b" / "hash.o.dc-123-4.tmp";
+  const auto kept = temp_dir.path() / "a" / "b" / "hash.o";
+  ASSERT_TRUE(base::CreateDirectory(temp_dir.path() / "a" / "b"));
+  for (const auto& path : {tmp1, tmp2, kept}) {
+    ASSERT_TRUE(base::File::Write(path, "garbage"_l));
+  }
+
+  // A crash in the middle of storing: the files without the manifest.
+  const String orphan_hash =
+      "12345678901234567890123456789012" "-12345678-00000001";
+  const auto orphan1 = temp_dir.path() / "a" / "b" / (orphan_hash + ".o");
+  const auto orphan2 = temp_dir.path() / "a" / "b" / (orphan_hash + ".stderr");
+  for (const auto& path : {orphan1, orphan2}) {
+    ASSERT_TRUE(base::File::Write(path, "garbage"_l));
+  }
+
+  FileCache cache(temp_dir);
+  ASSERT_TRUE(cache.Run(1));
+
+  EXPECT_FALSE(base::File::Exists(tmp1));
+  EXPECT_FALSE(base::File::Exists(tmp2));
+  EXPECT_FALSE(base::File::Exists(orphan1));
+  EXPECT_FALSE(base::File::Exists(orphan2));
+  EXPECT_TRUE(base::File::Exists(kept));
+
+  // The complete entries are kept.
+  const auto hash = FileCache::Hash(HandledSource("int main() {}"_l), {},
+                                    CommandLine("-c"_l), Version("1"_l));
+  cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l, "stderr"_l});
+  FileCache cache2(temp_dir);
+  ASSERT_TRUE(cache2.Run(1));
+  FileCache::Entry entry;
+  EXPECT_TRUE(cache2.Find(hash, &entry));
+}
+
+TEST(FileCacheTest, RecreateBrokenDatabases) {
+  const base::TemporaryDir temp_dir;
+  ASSERT_TRUE(base::File::Write(temp_dir.path() / "direct.sqlite",
+                                "not a database at all"_l));
+  ASSERT_TRUE(base::File::Write(temp_dir.path() / "index.sqlite",
+                                "not a database at all"_l));
+
+  FileCache cache(temp_dir.path(), FileCache::UNLIMITED, false, true);
+  ASSERT_TRUE(cache.Run(1));
+
+  const CommandLine cl("-c"_l);
+  const Version version("1"_l);
+  const auto hash = FileCache::Hash(HandledSource("1"_l), {}, cl, version);
+  cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l, Immutable()});
+  const UnhandledSource code("int main() {}"_l);
+  ASSERT_TRUE(base::File::Write(temp_dir.path() / "a.h", "#define A"_l));
+  cache.Store(code, {}, cl, version, {"a.h"}, {}, temp_dir.path(), hash);
+
+  FileCache::Entry entry;
+  EXPECT_TRUE(cache.Find(code, {}, cl, version, temp_dir.path(), &entry));
+}
+
 TEST(FileCacheTest, RestoreEntryWithMissingFile) {
   const base::TemporaryDir temp_dir;
   const auto object_path = temp_dir.path() / "test.o";

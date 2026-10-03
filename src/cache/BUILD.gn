@@ -22,6 +22,8 @@ static_library("file_cache") {
     "file_cache_migrator.cc",
     "file_hash_cache.cc",
     "file_hash_cache.h",
+    "sqlite_utils.cc",
+    "sqlite_utils.h",
   ]
 
   public = [ "file_cache.h" ]
