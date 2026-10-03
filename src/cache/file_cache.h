@@ -145,20 +145,38 @@ class FileCache {
 
   // The headers under the source |root| are stored relative to it - so that
   // the same sources from different locations are found.
+  //
+  // |search_dirs| are the absolute normal paths of the directories, where the
+  // compiler searches the headers, in the order of the search. The entry isn't
+  // found, if a new file appears in them, that would be found instead of one
+  // of the headers.
   bool Find(string::UnhandledSource code, const ExtraFiles& extra_files,
             string::CommandLine command_line, string::Version version,
             const Path& current_dir, Entry* entry,
-            const String& root = String()) const;
+            const String& root = String(),
+            const List<Path>& search_dirs = List<Path>()) const;
 
   bool Find(string::HandledHash hash, Entry* entry) const;
 
+  // The files in |search_dirs|, that could be found instead of the headers,
+  // mustn't be created after |start_time| - the start of the compilation in
+  // nanoseconds: the compiler may have missed them.
   void Store(string::UnhandledSource code, const ExtraFiles& extra_files,
              string::CommandLine command_line, string::Version version,
              const List<String>& headers,
              const List<String>& preprocessed_headers, const Path& current_dir,
-             string::HandledHash hash, const String& root = String());
+             string::HandledHash hash, const String& root = String(),
+             const List<Path>& search_dirs = List<Path>(),
+             i64 start_time = 0);
 
   void Store(string::HandledHash hash, Entry entry);
+
+  // Returns the paths, where a new file would be found by the compiler instead
+  // of |header|: the same relative path in the |search_dirs| before the
+  // directory of the header. All paths are absolute and normal. The include
+  // directive isn't known, so not all of them are real candidates.
+  static List<Path> ShadowingPaths(const Path& header,
+                                   const List<Path>& search_dirs);
 
   // Remembers the last version of the source, compiled with the same flags,
   // under |key|. Returns |true| if the previous version is different - i.e.
@@ -225,7 +243,15 @@ class FileCache {
   void DoStore(string::UnhandledHash orig_hash, const List<String>& headers,
                const List<String>& preprocessed_headers,
                const Path& current_dir, const string::HandledHash& hash,
-               const String& root);
+               const String& root, const List<Path>& search_dirs,
+               i64 start_time);
+
+  // Checks, that no new files appeared in the search directories, which would
+  // be found instead of the |headers|.
+  bool IsShadowed(const List<String>& headers,
+                  const HashSet<String>& ignored_paths,
+                  const Path& current_dir, const String& root,
+                  const List<Path>& search_dirs) const;
 
   struct Access {
     ui64 time;

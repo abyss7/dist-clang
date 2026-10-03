@@ -13,11 +13,26 @@
 
 #include <sys/stat.h>
 #include STL(regex)
+#include STL(thread)
 
 namespace dist_clang {
 namespace cache {
 
 using namespace string;
+
+namespace {
+
+// The time of the start of a compilation - like the daemon takes it. The files,
+// that are modified later, must be modified after a tick of the clock.
+i64 CompilationTime() {
+  struct timespec now;
+  // The file systems take the time from the coarse clock.
+  clock_gettime(CLOCK_REALTIME_COARSE, &now);
+  std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  return i64(now.tv_sec) * 1'000'000'000 + now.tv_nsec;
+}
+
+}  // namespace
 
 TEST(FileCacheTest, HashCompliesWithRegex) {
   std::regex hash_regex("[a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8}");
@@ -1011,6 +1026,127 @@ TEST(FileCacheTest, DirectEntry_TimeMacros) {
   cache.Store(orig_code, {}, cl, version, {source_path, header_path}, {},
               temp_dir, hash);
   EXPECT_TRUE(FindDirect());
+}
+
+TEST(FileCacheTest, ShadowingPaths) {
+  const List<Path> dirs = {"/src/dir", "/src", "/build/gen", "/src/inc"};
+
+  // The header may be found in "/src" as "inc/a.h" or in "/src/inc" as "a.h".
+  EXPECT_EQ((List<Path>{"/src/dir/inc/a.h", "/src/dir/a.h", "/src/a.h",
+                        "/build/gen/a.h"}),
+            FileCache::ShadowingPaths("/src/inc/a.h", dirs));
+  EXPECT_EQ((List<Path>{"/src/dir/b/c.h", "/src/b/c.h"}),
+            FileCache::ShadowingPaths("/build/gen/b/c.h", dirs));
+  // Nothing is searched before the first directory - but the header may be
+  // found also in "/src" as "dir/d.h".
+  EXPECT_EQ((List<Path>{"/src/dir/dir/d.h"}),
+            FileCache::ShadowingPaths("/src/dir/d.h", dirs));
+  EXPECT_EQ(List<Path>(), FileCache::ShadowingPaths("/src/dir/d.h",
+                                                    {"/src/dir", "/build"}));
+  // The header isn't from the search directories.
+  EXPECT_EQ(List<Path>(), FileCache::ShadowingPaths("/usr/include/e.h", dirs));
+  EXPECT_EQ(List<Path>(), FileCache::ShadowingPaths("/src/dirx.h", {"/src/dir"}));
+}
+
+TEST(FileCacheTest, DirectEntry_ShadowedHeader) {
+  const base::TemporaryDir temp_dir;
+  const Path dir1 = temp_dir.path() / "dir1";
+  const Path dir2 = temp_dir.path() / "dir2";
+  ASSERT_TRUE(base::CreateDirectory(dir1 / "sub"));
+  ASSERT_TRUE(base::CreateDirectory(dir2 / "sub"));
+  const List<Path> search_dirs = {dir1, dir2};
+  const auto header1_path = dir2 / "sub" / "a.h";
+  const auto header2_path = dir2 / "b.h";
+  const auto shadow1_path = dir1 / "sub" / "a.h";
+  const auto shadow2_path = dir1 / "b.h";
+
+  FileCache cache(temp_dir.path() / "cache");
+  ASSERT_TRUE(cache.Run(1));
+
+  const HandledSource code("int main() { return 0; }"_l);
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  const auto hash = FileCache::Hash(code, {}, cl, version);
+  const UnhandledSource orig_code("int main() {}"_l);
+
+  FileCache::Entry stored_entry;
+  stored_entry.object = "some object code"_l;
+  stored_entry.deps = "some deps"_l;
+  cache.Store(hash, stored_entry);
+
+  auto FindDirect = [&] {
+    FileCache::Entry entry;
+    return cache.Find(orig_code, {}, cl, version, temp_dir, &entry, String(),
+                      search_dirs);
+  };
+
+  // The second header has a file with the same name before it - which
+  // isn't used, e.g. because of "#include_next".
+  ASSERT_TRUE(base::File::Write(header1_path, "#define A"_l));
+  ASSERT_TRUE(base::File::Write(header2_path, "#define B"_l));
+  ASSERT_TRUE(base::File::Write(shadow2_path, "#define C"_l));
+  cache.Store(orig_code, {}, cl, version, {header1_path, header2_path}, {},
+              temp_dir, hash, String(), search_dirs,
+              CompilationTime());
+  EXPECT_TRUE(FindDirect());
+
+  // A new file would be found instead of the first header.
+  ASSERT_TRUE(base::File::Write(shadow1_path, "#define D"_l));
+  EXPECT_FALSE(FindDirect());
+  // Also without the search directories nothing is checked.
+  {
+    FileCache::Entry entry;
+    EXPECT_TRUE(cache.Find(orig_code, {}, cl, version, temp_dir, &entry));
+  }
+
+  // The directories don't shadow headers.
+  ASSERT_TRUE(base::File::Delete(shadow1_path));
+  ASSERT_TRUE(base::CreateDirectory(shadow1_path));
+  EXPECT_TRUE(FindDirect());
+  ASSERT_EQ(0, rmdir(shadow1_path.c_str()));
+  EXPECT_TRUE(FindDirect());
+
+  // The ignored file is still fine after it's re-created.
+  ASSERT_TRUE(base::File::Delete(shadow2_path));
+  ASSERT_TRUE(base::File::Write(shadow2_path, "#define E"_l));
+  EXPECT_TRUE(FindDirect());
+}
+
+TEST(FileCacheTest, DirectEntry_DontStoreIfShadowAppearsDuringCompilation) {
+  const base::TemporaryDir temp_dir;
+  const Path dir1 = temp_dir.path() / "dir1";
+  const Path dir2 = temp_dir.path() / "dir2";
+  ASSERT_TRUE(base::CreateDirectory(dir1));
+  ASSERT_TRUE(base::CreateDirectory(dir2));
+  const List<Path> search_dirs = {dir1, dir2};
+  const auto header_path = dir2 / "a.h";
+
+  FileCache cache(temp_dir.path() / "cache");
+  ASSERT_TRUE(cache.Run(1));
+
+  const HandledSource code("int main() { return 0; }"_l);
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  const auto hash = FileCache::Hash(code, {}, cl, version);
+  const UnhandledSource orig_code("int main() {}"_l);
+
+  FileCache::Entry stored_entry;
+  stored_entry.object = "some object code"_l;
+  stored_entry.deps = "some deps"_l;
+  cache.Store(hash, stored_entry);
+
+  ASSERT_TRUE(base::File::Write(header_path, "#define A"_l));
+  const i64 start_time = CompilationTime();
+
+  // The compiler may have missed the file, that appears during the
+  // compilation - nothing is known about the result.
+  ASSERT_TRUE(base::File::Write(dir1 / "a.h", "#define B"_l));
+  cache.Store(orig_code, {}, cl, version, {header_path}, {}, temp_dir, hash,
+              String(), search_dirs, start_time);
+
+  FileCache::Entry entry;
+  EXPECT_FALSE(cache.Find(orig_code, {}, cl, version, temp_dir, &entry,
+                          String(), search_dirs));
 }
 
 TEST(FileCacheTest, DirectEntry_ChangedPreprocessedHeaderContents) {

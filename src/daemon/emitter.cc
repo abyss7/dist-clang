@@ -594,7 +594,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
           InputsUnchangedSince(incoming, entry.deps,
                                std::get<START_TIME>(*task))) {
         UpdateDirectCache(incoming, std::get<HANDLED_HASH>(*task), extra_files,
-                          entry);
+                          entry, std::get<START_TIME>(*task));
       }
 
       net::proto::Status status;
@@ -805,7 +805,8 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
           if (InputsUnchangedSince(incoming, deps,
                                    std::get<START_TIME>(*task))) {
             UpdateSimpleCache(handled_hash, entry);
-            UpdateDirectCache(incoming, handled_hash, extra_files, entry);
+            UpdateDirectCache(incoming, handled_hash, extra_files, entry,
+                              std::get<START_TIME>(*task));
           } else {
             STAT(CACHE_STORE_SKIPPED);
           }
@@ -1040,7 +1041,8 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
         if (GenerateEntry() &&
             InputsUnchangedSince(incoming, deps, std::get<START_TIME>(*task))) {
           UpdateSimpleCache(handled_hash, entry);
-          UpdateDirectCache(incoming, handled_hash, extra_files, entry);
+          UpdateDirectCache(incoming, handled_hash, extra_files, entry,
+                            std::get<START_TIME>(*task));
         }
 
         std::get<CONNECTION>(*task)->ReportStatus(status);

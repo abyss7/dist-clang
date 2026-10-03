@@ -8,6 +8,12 @@ message Direct {
 
   message Variant {
     repeated string headers = 1;
+
+    repeated string ignored_paths = 2;
+    // Files with the same relative paths as the headers in the search
+    // directories before them, which existed during the compilation, but
+    // weren't used - e.g. because of "#include_next". The other such paths
+    // must not exist: a new file there would be found instead of the header.
   }
 
   repeated Variant variants = 2;

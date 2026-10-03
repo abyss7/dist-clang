@@ -87,15 +87,27 @@ Path FromManifestPath(const String& header, const Path& current_dir,
   return Path(header).is_absolute() ? Path(header) : current_dir / header;
 }
 
-List<List<String>> DirectVariants(const proto::Direct& direct) {
-  List<List<String>> variants;
+struct Variant {
+  List<String> headers;
+  HashSet<String> ignored_paths;
+};
+
+List<Variant> DirectVariants(const proto::Direct& direct) {
+  List<Variant> variants;
   for (const auto& variant : direct.variants()) {
-    variants.emplace_back(variant.headers().begin(), variant.headers().end());
+    variants.push_back(
+        {{variant.headers().begin(), variant.headers().end()},
+         {variant.ignored_paths().begin(), variant.ignored_paths().end()}});
   }
   if (variants.empty() && direct.headers_size()) {
-    variants.emplace_back(direct.headers().begin(), direct.headers().end());
+    variants.push_back({{direct.headers().begin(), direct.headers().end()}, {}});
   }
   return variants;
+}
+
+// Only regular files and links to them are found by the compiler.
+bool IsFile(const Path& path, struct stat* st) {
+  return stat(path.c_str(), st) == 0 && !S_ISDIR(st->st_mode);
 }
 
 }  // namespace
@@ -225,10 +237,65 @@ UnhandledHash FileCache::Hash(UnhandledSource code,
       base::Hexify((version.str + "\n"_l + kDirectKeyVersion).Hash(4)));
 }
 
+// static
+List<Path> FileCache::ShadowingPaths(const Path& header,
+                                     const List<Path>& search_dirs) {
+  List<Path> result;
+  const String& header_str = header.native();
+  for (auto dir = search_dirs.begin(); dir != search_dirs.end(); ++dir) {
+    String prefix = dir->native();
+    if (!prefix.ends_with('/')) {
+      prefix.push_back('/');
+    }
+    if (header_str.size() <= prefix.size() || !header_str.starts_with(prefix)) {
+      continue;
+    }
+
+    // The header may be found in this directory by its relative path - then a
+    // file with the same relative path in any previous directory is found
+    // instead.
+    const String relative = header_str.substr(prefix.size());
+    for (auto other_dir = search_dirs.begin(); other_dir != dir; ++other_dir) {
+      Path path = *other_dir / relative;
+      if (path != header) {
+        result.push_back(std::move(path));
+      }
+    }
+  }
+  return result;
+}
+
+bool FileCache::IsShadowed(const List<String>& headers,
+                           const HashSet<String>& ignored_paths,
+                           const Path& current_dir, const String& root,
+                           const List<Path>& search_dirs) const {
+  if (search_dirs.empty()) {
+    return false;
+  }
+
+  for (const auto& header : headers) {
+    const Path header_path =
+        FromManifestPath(header, current_dir, root).lexically_normal();
+    for (const auto& path : ShadowingPaths(header_path, search_dirs)) {
+      struct stat st;
+      if (IsFile(path, &st) &&
+          !ignored_paths.contains(
+              ToManifestPath(path.string(), current_dir, root))) {
+        LOG(CACHE_INFO) << "Header " << header_path << " is shadowed by "
+                        << path;
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
                      CommandLine command_line, Version version,
                      const Path& current_dir, Entry* entry,
-                     const String& root) const {
+                     const String& root,
+                     const List<Path>& search_dirs) const {
   DCHECK(entry);
 
   auto unhandled_hash = Hash(code, extra_files, command_line, version);
@@ -247,10 +314,10 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
 
   // Try all known sets of headers: the same source may include different
   // headers, e.g. on different branches.
-  for (const auto& headers : DirectVariants(manifest.direct())) {
+  for (const auto& variant : DirectVariants(manifest.direct())) {
     Immutable::Rope hash_rope = {unhandled_hash};
     bool hashed = true;
-    for (const auto& header : headers) {
+    for (const auto& header : variant.headers) {
       String header_hash;
       const Path header_path = FromManifestPath(header, current_dir, root);
       if (header_path.empty() || !file_hashes_.Hash(header_path, &header_hash)) {
@@ -268,6 +335,8 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
 
     DCHECK(database_);
     if (database_->Get(hash_with_headers, &handled_hash) &&
+        !IsShadowed(variant.headers, variant.ignored_paths, current_dir, root,
+                    search_dirs) &&
         Find(HandledHash(handled_hash), entry)) {
       utime(manifest_path.c_str(), nullptr);
       new_entries_->Append({ui64(time(nullptr)), unhandled_hash, true});
@@ -453,9 +522,11 @@ void FileCache::Store(UnhandledSource code, const ExtraFiles& extra_files,
                       const List<String>& headers,
                       const List<String>& preprocessed_headers,
                       const Path& current_dir, string::HandledHash hash,
-                      const String& root) {
+                      const String& root, const List<Path>& search_dirs,
+                      i64 start_time) {
   DoStore(Hash(code, extra_files, command_line, version), headers,
-          preprocessed_headers, current_dir, hash, root);
+          preprocessed_headers, current_dir, hash, root, search_dirs,
+          start_time);
 }
 
 bool FileCache::ReplaceLastSource(const String& key, UnhandledHash hash) {
@@ -655,7 +726,8 @@ bool FileCache::RemoveEntry(string::Hash hash) {
 void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
                         const List<String>& preprocessed_headers,
                         const Path& current_dir, const HandledHash& hash,
-                        const String& root) {
+                        const String& root, const List<Path>& search_dirs,
+                        i64 start_time) {
   // We have to store manifest on the path based only on the hash of unhandled
   // source code. Otherwise, we won't be able to get list of the dependent
   // headers, while checking the direct cache. Such approach has a little
@@ -679,7 +751,7 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
 
   // Keep the previous variants of headers.
   proto::Manifest old_manifest;
-  List<List<String>> variants;
+  List<Variant> variants;
   if (base::File::Exists(manifest_path) &&
       base::LoadFromFile(manifest_path, &old_manifest) &&
       old_manifest.has_direct()) {
@@ -688,7 +760,7 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
 
   proto::Manifest manifest;
   manifest.set_version(kManifestVersion);
-  List<String> new_variant;
+  Variant new_variant;
 
   auto hash_headers = [&](const List<String>& headers,
                           const List<Literal>& skip_list) {
@@ -714,7 +786,36 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
         return false;
       }
       hash_rope.push_back(header_hash);
-      new_variant.push_back(ToManifestPath(header, current_dir, root));
+      new_variant.headers.push_back(ToManifestPath(header, current_dir, root));
+    }
+    return true;
+  };
+
+  // The files, that could be found instead of the headers, but weren't, are
+  // remembered - the others must not appear later.
+  auto collect_ignored_paths = [&](const List<String>& headers) {
+    for (const auto& header : headers) {
+      const Path header_path =
+          (Path(header).is_absolute() ? Path(header) : current_dir / header)
+              .lexically_normal();
+      for (const auto& path : FileCache::ShadowingPaths(header_path,
+                                                        search_dirs)) {
+        struct stat st;
+        if (!IsFile(path, &st)) {
+          continue;
+        }
+        // The compiler may have missed the file, that is created during the
+        // compilation.
+        const i64 ctime =
+            i64(st.st_ctim.tv_sec) * 1'000'000'000 + st.st_ctim.tv_nsec;
+        if (start_time && ctime > start_time) {
+          LOG(CACHE_INFO) << "Not storing direct cache entry - " << path
+                          << " is created during the compilation";
+          return false;
+        }
+        new_variant.ignored_paths.insert(
+            ToManifestPath(path.string(), current_dir, root));
+      }
     }
     return true;
   };
@@ -725,7 +826,9 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
   const List<Literal> time_macros = {"__DATE__"_l, "__TIME__"_l,
                                      "__TIMESTAMP__"_l};
   if (!hash_headers(headers, time_macros) ||
-      !hash_headers(preprocessed_headers, {})) {
+      !hash_headers(preprocessed_headers, {}) ||
+      !collect_ignored_paths(headers) ||
+      !collect_ignored_paths(preprocessed_headers)) {
     return;
   }
 
@@ -736,15 +839,24 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
   }
 
   // The most recent variant goes first, the oldest ones are dropped.
-  variants.remove(new_variant);
+  variants.remove_if([&new_variant](const Variant& variant) {
+    return variant.headers == new_variant.headers;
+  });
   variants.push_front(std::move(new_variant));
   while (variants.size() > kMaxDirectVariants) {
     variants.pop_back();
   }
   for (const auto& variant : variants) {
     auto* new_variant = manifest.mutable_direct()->add_variants();
-    for (const auto& header : variant) {
+    for (const auto& header : variant.headers) {
       new_variant->add_headers(header);
+    }
+    // Sorted - for the stable contents of the manifest.
+    Vector<String> ignored_paths(variant.ignored_paths.begin(),
+                                 variant.ignored_paths.end());
+    std::sort(ignored_paths.begin(), ignored_paths.end());
+    for (const auto& path : ignored_paths) {
+      new_variant->add_ignored_paths(path);
     }
   }
 

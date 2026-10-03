@@ -39,6 +39,13 @@ class CompilationDaemon : public BaseDaemon {
   static bool InputsUnchangedSince(const base::proto::Local* message,
                                    Immutable deps, i64 time);
 
+  // The directories, where the compiler searches the included headers, in the
+  // order of the search: the directory of the source, "-iquote", "-I",
+  // "-isystem" and "-idirafter" ones - as absolute normal paths. The implicit
+  // directories of the compiler aren't known.
+  static List<Path> IncludeSearchDirs(const base::proto::Flags& flags,
+                                      const String& current_dir);
+
   // Hash of the warning flags - to know, if the cached diagnostics are valid.
   static String WarningsHash(const base::proto::Flags& flags);
 
@@ -78,10 +85,13 @@ class CompilationDaemon : public BaseDaemon {
   void UpdateSimpleCache(const cache::string::HandledHash& hash,
                          const cache::FileCache::Entry& entry);
 
+  // |start_time| is the time of the start of the compilation - see
+  // |FileSystemTime()|.
   void UpdateDirectCache(const base::proto::Local* message,
                          const cache::string::HandledHash& hash,
                          const cache::ExtraFiles& extra_files,
-                         const cache::FileCache::Entry& entry);
+                         const cache::FileCache::Entry& entry,
+                         i64 start_time);
 
   bool Check(const Configuration& conf) const override;
   inline bool Reload(const Configuration& conf) override {

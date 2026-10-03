@@ -1,5 +1,7 @@
 #include <daemon/compilation_daemon.h>
 
+#include <daemon/driver_args.h>
+
 #include <base/file/file.h>
 #include <base/process.h>
 #include <base/temporary_dir.h>
@@ -65,6 +67,22 @@ TEST(CompilationDaemonTest, CreateProcessFromFlags) {
     EXPECT_EQ(Path("/usr/bin/clang"), process->exec_path_);
     EXPECT_EQ(base::Process::SAME_UID, process->uid_);
   }
+}
+
+TEST(CompilationDaemonTest, IncludeSearchDirs) {
+  base::proto::Flags flags;
+  String reason;
+  ASSERT_TRUE(ParseDriverArgs(
+      {"-idirafter", "after", "-isystem/sys", "-I", "../src/",
+       "-iquote", "quote", "-Igen", "-c", "dir/test.cc", "-o", "test.o",
+       "-I../src", "-isystem-after", "after2", "-D", "A", "-Iinc/./x/.."},
+      "/build", &flags, &reason))
+      << reason;
+
+  EXPECT_EQ((List<Path>{"/build/dir", "/build/quote", "/src", "/build/gen",
+                        "/build/inc", "/sys", "/build/after",
+                        "/build/after2"}),
+            CompilationDaemon::IncludeSearchDirs(flags, "/build"));
 }
 
 TEST(CompilationDaemonTest, StripColors) {

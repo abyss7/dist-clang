@@ -341,6 +341,63 @@ String CompilationDaemon::NormalizeLineMarkers(const String& source,
 }
 
 // static
+List<Path> CompilationDaemon::IncludeSearchDirs(
+    const base::proto::Flags& flags, const String& current_dir) {
+  // The groups of the directories in the order of the search.
+  enum Group { QUOTE, ANGLED, SYSTEM, AFTER, GROUPS };
+  const std::pair<const char*, Group> kOptions[] = {
+      {"-iquote", QUOTE},          {"-I", ANGLED},
+      {"-isystem", SYSTEM},        {"-cxx-isystem", SYSTEM},
+      {"-stdlib++-isystem", SYSTEM}, {"-idirafter", AFTER},
+      {"-isystem-after", AFTER},
+  };
+
+  List<String> groups[GROUPS];
+  // The quoted includes are searched in the directory of the source first.
+  groups[QUOTE].push_back(Path(flags.input()).parent_path().string());
+
+  std::map<ui32, const base::proto::Argument*> args;
+  for (const auto& arg : flags.non_cached()) {
+    args.emplace(arg.index(), &arg);
+  }
+  for (const auto& [index, arg] : args) {
+    if (!arg->values_size()) {
+      continue;
+    }
+    const String& name = arg->values(0);
+    for (const auto& [option, group] : kOptions) {
+      if (arg->values_size() == 2 && name == option) {
+        groups[group].push_back(arg->values(1));
+        break;
+      }
+      if (arg->values_size() == 1 && name.size() > strlen(option) &&
+          name.starts_with(option)) {
+        groups[group].push_back(name.substr(strlen(option)));
+        break;
+      }
+    }
+  }
+
+  // The compiler skips the duplicates.
+  List<Path> result;
+  HashSet<String> seen;
+  for (const auto& group : groups) {
+    for (const auto& dir : group) {
+      Path path = (Path(dir).is_absolute() ? Path(dir) : Path(current_dir) / dir)
+                      .lexically_normal();
+      String path_str = path.string();
+      while (path_str.size() > 1 && path_str.ends_with('/')) {
+        path_str.pop_back();
+      }
+      if (seen.insert(path_str).second) {
+        result.emplace_back(path_str);
+      }
+    }
+  }
+  return result;
+}
+
+// static
 String CompilationDaemon::WarningsHash(const base::proto::Flags& flags) {
   auto arg_list = CreateArgumentList(flags.warnings());
   return base::Hexify(
@@ -529,7 +586,8 @@ bool CompilationDaemon::SearchDirectCache(
   }
 
   const bool found = cache_->Find(code, extra_files, command_line, version,
-                                 current_dir, entry, flags.key_root());
+                                 current_dir, entry, flags.key_root(),
+                                 IncludeSearchDirs(flags, current_dir));
 
   // The same source with the same flags - regardless of the headers.
   const String source_key =
@@ -564,7 +622,8 @@ void CompilationDaemon::UpdateSimpleCache(
 
 void CompilationDaemon::UpdateDirectCache(
     const base::proto::Local* message, const HandledHash& hash,
-    const ExtraFiles& extra_files, const cache::FileCache::Entry& entry) {
+    const ExtraFiles& extra_files, const cache::FileCache::Entry& entry,
+    i64 start_time) {
   auto conf = this->conf();
   DCHECK(conf->has_emitter() && !conf->has_absorber());
 
@@ -595,7 +654,9 @@ void CompilationDaemon::UpdateDirectCache(
                                       message->flags().included_files().end());
     cache_->Store(original_code, extra_files, command_line, version, headers,
                   preprocessed_headers, message->current_dir(), hash,
-                  flags.key_root());
+                  flags.key_root(),
+                  IncludeSearchDirs(flags, message->current_dir()),
+                  start_time);
   } else {
     LOG(CACHE_ERROR) << "Failed to parse deps or read input " << input_path;
   }
