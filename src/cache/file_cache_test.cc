@@ -962,6 +962,57 @@ TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
   EXPECT_FALSE(cache.Find(orig_code, {}, cl, version, temp_dir, &entry));
 }
 
+TEST(FileCacheTest, DirectEntry_TimeMacros) {
+  const base::TemporaryDir temp_dir;
+  const auto source_path = temp_dir.path() / "test.cc";
+  const auto header_path = temp_dir.path() / "test.h";
+  FileCache cache(temp_dir);
+  ASSERT_TRUE(cache.Run(1));
+  const HandledSource code("int main() { return 0; }"_l);
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  const auto hash = FileCache::Hash(code, {}, cl, version);
+  const UnhandledSource orig_code("int main() {}"_l);
+
+  FileCache::Entry stored_entry;
+  stored_entry.object = "some object code"_l;
+  stored_entry.deps = "some deps"_l;
+  cache.Store(hash, stored_entry);
+
+  auto FindDirect = [&] {
+    FileCache::Entry entry;
+    return cache.Find(orig_code, {}, cl, version, temp_dir, &entry);
+  };
+
+  ASSERT_TRUE(base::File::Write(source_path, orig_code.str));
+
+  // The result depends on the time of the compilation - only the simple cache
+  // is fine: the macros are expanded in the preprocessed source.
+  for (const auto macro : {"__DATE__"_l, "__TIME__"_l, "__TIMESTAMP__"_l}) {
+    ASSERT_TRUE(base::File::Write(header_path,
+                                  Immutable("const char* t = "_l) + macro));
+    cache.Store(orig_code, {}, cl, version, {source_path, header_path}, {},
+                temp_dir, hash);
+    EXPECT_FALSE(FindDirect())
+        << macro;
+    FileCache::Entry entry;
+    EXPECT_TRUE(cache.Find(hash, &entry));
+  }
+
+  // The same with the macro in the source itself.
+  ASSERT_TRUE(base::File::Write(header_path, "#define A"_l));
+  ASSERT_TRUE(base::File::Write(source_path, "const char* t = __DATE__;"_l));
+  cache.Store(orig_code, {}, cl, version, {source_path, header_path}, {},
+              temp_dir, hash);
+  EXPECT_FALSE(FindDirect());
+
+  // Without the macros the direct entry is stored.
+  ASSERT_TRUE(base::File::Write(source_path, orig_code.str));
+  cache.Store(orig_code, {}, cl, version, {source_path, header_path}, {},
+              temp_dir, hash);
+  EXPECT_TRUE(FindDirect());
+}
+
 TEST(FileCacheTest, DirectEntry_ChangedPreprocessedHeaderContents) {
   const base::TemporaryDir temp_dir;
   const auto object_path = temp_dir.path() / "test.o";
