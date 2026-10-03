@@ -64,6 +64,10 @@ The object and split DWARF files are stored uncompressed, and are put into and o
 
 The size limit of the cache applies only to the files, that aren't linked with build directories: the cache doesn't take any additional space for the outputs of the current builds. Such entries are never removed. Other entries are removed, when the cache exceeds the limit, or when the disk has less than `min_free_percent` (5% by default) of free space: the entries, that were never taken from the cache - e.g. the results of one-off edits - go first, then the least recently used ones.
 
+## Several checkouts of the same sources
+
+The cache key includes the paths from the flags and from the preprocessed source. To share the cache between several checkouts of the same sources - e.g. git worktrees - list them in `source_roots` of the cache configuration: the root of the compiled source is replaced with a placeholder in the key, both as an absolute path and as a path relative to the build directory. It works only for relocatable compilations, that remap the paths of the sources in the results: with `-fmacro-prefix-map` (or `-ffile-prefix-map`) for `__FILE__`, and, if the debug info is on, with `-fdebug-prefix-map` and `-fdebug-compilation-dir` too.
+
 # How to configure the daemon
 
 Without a configuration the daemon uses the defaults: the cache in `~/.cache/dist-clang` of 20 GiB. To change them, copy `install/daemon.conf.example` to `~/.config/dist-clang/daemon.conf`. The format is the text protobuf, see `src/daemon/configuration.proto`.

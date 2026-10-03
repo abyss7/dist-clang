@@ -47,6 +47,13 @@ message Configuration {
     // without copying: as copy-on-write clones or as read-only hard links.
     // Only for emitters; overrides |snappy|.
 
+    repeated string source_roots = 13;
+    // Absolute paths of the source trees, that are checked out in several
+    // places, e.g. as worktrees. The same sources under different roots get
+    // the same cache key - if their compilation is relocatable: uses
+    // "-fmacro-prefix-map" (or "-ffile-prefix-map"), and with the debug info
+    // also "-fdebug-prefix-map" and "-fdebug-compilation-dir".
+
     optional uint32 min_free_percent = 12 [ default = 5 ];
     // Remove entries, while the disk has less free space - even if the cache
     // isn't full. Entries, that are linked with build directories, are kept.

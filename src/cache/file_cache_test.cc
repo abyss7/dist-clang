@@ -768,6 +768,49 @@ TEST(FileCacheTest, ReplaceLastSource) {
   EXPECT_TRUE(cache.ReplaceLastSource("a.cc", hash1));
 }
 
+TEST(FileCacheTest, DirectEntry_SourceRoot) {
+  const base::TemporaryDir temp_dir;
+  const auto root1 = temp_dir.path() / "root1";
+  const auto root2 = temp_dir.path() / "root2";
+  ASSERT_TRUE(base::CreateDirectory(root1));
+  ASSERT_TRUE(base::CreateDirectory(root2));
+  ASSERT_TRUE(base::File::Write(root1 / "a.h", "#define A"_l));
+  ASSERT_TRUE(base::File::Write(root2 / "a.h", "#define A"_l));
+
+  FileCache cache(temp_dir.path() / "cache");
+  ASSERT_TRUE(cache.Run(1));
+
+  const CommandLine cl("-c -I<ROOT>"_l);
+  const Version version("1"_l);
+  const UnhandledSource code("#include \"a.h\""_l);
+  const auto hash = FileCache::Hash(HandledSource("1"_l), {}, cl, version);
+  cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l, Immutable()});
+
+  // The header is given relative to the build directory, which is outside of
+  // the root.
+  const auto build_dir = temp_dir.path() / "build";
+  ASSERT_TRUE(base::CreateDirectory(build_dir));
+  cache.Store(code, {}, cl, version, {"../root1/a.h"}, {}, build_dir, hash,
+              root1.string());
+
+  FileCache::Entry entry1;
+  EXPECT_TRUE(cache.Find(code, {}, cl, version, build_dir, &entry1,
+                         root2.string()));
+
+  // The header from the other root is used.
+  ASSERT_TRUE(base::File::Write(root2 / "a.h", "#define B"_l));
+  FileCache::Entry entry2;
+  EXPECT_FALSE(cache.Find(code, {}, cl, version, build_dir, &entry2,
+                          root2.string()));
+  FileCache::Entry entry3;
+  EXPECT_TRUE(cache.Find(code, {}, cl, version, build_dir, &entry3,
+                         root1.string()));
+
+  // Without the root it's not found.
+  FileCache::Entry entry4;
+  EXPECT_FALSE(cache.Find(code, {}, cl, version, build_dir, &entry4));
+}
+
 TEST(FileCacheTest, DirectEntry_ChangedHeaderContents) {
   const base::TemporaryDir temp_dir;
   const auto object_path = temp_dir.path() / "test.o";

@@ -141,9 +141,12 @@ class FileCache {
                                     string::CommandLine command_line,
                                     string::Version version);
 
+  // The headers under the source |root| are stored relative to it - so that
+  // the same sources from different locations are found.
   bool Find(string::UnhandledSource code, const ExtraFiles& extra_files,
             string::CommandLine command_line, string::Version version,
-            const Path& current_dir, Entry* entry) const;
+            const Path& current_dir, Entry* entry,
+            const String& root = String()) const;
 
   bool Find(string::HandledHash hash, Entry* entry) const;
 
@@ -151,7 +154,7 @@ class FileCache {
              string::CommandLine command_line, string::Version version,
              const List<String>& headers,
              const List<String>& preprocessed_headers, const Path& current_dir,
-             string::HandledHash hash);
+             string::HandledHash hash, const String& root = String());
 
   void Store(string::HandledHash hash, Entry entry);
 
@@ -217,7 +220,8 @@ class FileCache {
 
   void DoStore(string::UnhandledHash orig_hash, const List<String>& headers,
                const List<String>& preprocessed_headers,
-               const Path& current_dir, const string::HandledHash& hash);
+               const Path& current_dir, const string::HandledHash& hash,
+               const String& root);
 
   struct Access {
     ui64 time;

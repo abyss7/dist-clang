@@ -56,6 +56,37 @@ namespace cache {
 
 namespace {
 
+const char kRootPlaceholder[] = "<ROOT>";
+
+// The path of the header in the manifest: relative to the source root, if the
+// header is under it.
+String ToManifestPath(const String& header, const Path& current_dir,
+                      const String& root) {
+  if (root.empty()) {
+    return header;
+  }
+  const String path =
+      (Path(header).is_absolute() ? Path(header) : current_dir / header)
+          .lexically_normal()
+          .string();
+  if (path.starts_with(root + "/")) {
+    return kRootPlaceholder + path.substr(root.size());
+  }
+  return header;
+}
+
+// The path of the header to read.
+Path FromManifestPath(const String& header, const Path& current_dir,
+                      const String& root) {
+  if (header.starts_with(kRootPlaceholder)) {
+    // Can't be resolved without the root - the empty path is never read.
+    return root.empty()
+               ? Path()
+               : Path(root + header.substr(strlen(kRootPlaceholder)));
+  }
+  return Path(header).is_absolute() ? Path(header) : current_dir / header;
+}
+
 List<List<String>> DirectVariants(const proto::Direct& direct) {
   List<List<String>> variants;
   for (const auto& variant : direct.variants()) {
@@ -172,7 +203,8 @@ UnhandledHash FileCache::Hash(UnhandledSource code,
 
 bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
                      CommandLine command_line, Version version,
-                     const Path& current_dir, Entry* entry) const {
+                     const Path& current_dir, Entry* entry,
+                     const String& root) const {
   DCHECK(entry);
 
   auto unhandled_hash = Hash(code, extra_files, command_line, version);
@@ -196,9 +228,8 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
     bool hashed = true;
     for (const auto& header : headers) {
       String header_hash;
-      const Path header_path =
-          Path(header).is_absolute() ? Path(header) : current_dir / header;
-      if (!file_hashes_.Hash(header_path, &header_hash)) {
+      const Path header_path = FromManifestPath(header, current_dir, root);
+      if (header_path.empty() || !file_hashes_.Hash(header_path, &header_hash)) {
         hashed = false;
         break;
       }
@@ -386,9 +417,10 @@ void FileCache::Store(UnhandledSource code, const ExtraFiles& extra_files,
                       CommandLine command_line, Version version,
                       const List<String>& headers,
                       const List<String>& preprocessed_headers,
-                      const Path& current_dir, string::HandledHash hash) {
+                      const Path& current_dir, string::HandledHash hash,
+                      const String& root) {
   DoStore(Hash(code, extra_files, command_line, version), headers,
-          preprocessed_headers, current_dir, hash);
+          preprocessed_headers, current_dir, hash, root);
 }
 
 bool FileCache::ReplaceLastSource(const String& key, UnhandledHash hash) {
@@ -585,7 +617,8 @@ bool FileCache::RemoveEntry(string::Hash hash) {
 
 void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
                         const List<String>& preprocessed_headers,
-                        const Path& current_dir, const HandledHash& hash) {
+                        const Path& current_dir, const HandledHash& hash,
+                        const String& root) {
   // We have to store manifest on the path based only on the hash of unhandled
   // source code. Otherwise, we won't be able to get list of the dependent
   // headers, while checking the direct cache. Such approach has a little
@@ -644,7 +677,7 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
         return false;
       }
       hash_rope.push_back(header_hash);
-      new_variant.push_back(header);
+      new_variant.push_back(ToManifestPath(header, current_dir, root));
     }
     return true;
   };

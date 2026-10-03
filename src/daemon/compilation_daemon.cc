@@ -56,6 +56,48 @@ inline auto CreateArgumentList(const Args&... args) {
   return list;
 }
 
+const char kRootPlaceholder[] = "<ROOT>";
+
+// Checks, that the path at |pos| starts a token, maybe after a flag name:
+// "path", "-Ipath", "-isystem path", "=path", "\"path\"".
+bool IsPathStart(const String& text, size_t pos) {
+  size_t token_start = pos;
+  while (token_start > 0 && !strchr(" \"=,\n", text[token_start - 1])) {
+    --token_start;
+  }
+  if (token_start == pos) {
+    return true;
+  }
+  if (text[token_start] != '-') {
+    return false;
+  }
+  for (size_t i = token_start; i < pos; ++i) {
+    if (!isalpha(text[i]) && text[i] != '-' && text[i] != '+') {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Replaces |prefix| with the placeholder, where it's a whole prefix of a path.
+void ReplacePathPrefix(String& text, const String& prefix) {
+  if (prefix.empty() || prefix == ".") {
+    return;
+  }
+  size_t pos = 0;
+  while ((pos = text.find(prefix, pos)) != String::npos) {
+    const size_t end = pos + prefix.size();
+    if ((end == text.size() || text[end] == '/' || text[end] == '"' ||
+         text[end] == ' ' || text[end] == '\n') &&
+        IsPathStart(text, pos)) {
+      text.replace(pos, prefix.size(), kRootPlaceholder);
+      pos += strlen(kRootPlaceholder);
+    } else {
+      pos = end;
+    }
+  }
+}
+
 // Parts of the cache key that aren't flags.
 inline String KeyExtra(const base::proto::Flags& flags) {
   String result;
@@ -76,7 +118,7 @@ inline CommandLine CommandLineForSimpleCache(const base::proto::Flags& flags) {
   }
   command_line += KeyExtra(flags);
 
-  return CommandLine(command_line);
+  return CommandLine(daemon::CompilationDaemon::NormalizePaths(command_line, flags));
 }
 
 inline CommandLine CommandLineForDirectCache(const String& current_dir,
@@ -99,7 +141,8 @@ inline CommandLine CommandLineForDirectCache(const String& current_dir,
   command_line += " -I" + GetRelativePath(current_dir, input_path);
   command_line += KeyExtra(flags);
 
-  return CommandLine(command_line);
+  return CommandLine(
+      daemon::CompilationDaemon::NormalizePaths(command_line, flags));
 }
 
 bool ParseDeps(String deps, List<String>& headers) {
@@ -208,6 +251,45 @@ Immutable CompilationDaemon::RestoreDeps(Immutable deps,
 }
 
 // static
+String CompilationDaemon::NormalizePaths(const String& text,
+                                         const base::proto::Flags& flags) {
+  if (!flags.has_key_root()) {
+    return text;
+  }
+  String result = text;
+  ReplacePathPrefix(result, flags.key_root());
+  ReplacePathPrefix(result, flags.key_root_relative());
+  return result;
+}
+
+// static
+String CompilationDaemon::NormalizeLineMarkers(const String& source,
+                                               const base::proto::Flags& flags) {
+  if (!flags.has_key_root()) {
+    return source;
+  }
+
+  String result;
+  result.reserve(source.size());
+  size_t line_start = 0;
+  while (line_start < source.size()) {
+    size_t line_end = source.find('\n', line_start);
+    line_end = line_end == String::npos ? source.size() : line_end + 1;
+
+    // Line markers look like: # 123 "path/to/file.h" 1
+    if (source.compare(line_start, 2, "# ") == 0 &&
+        line_start + 2 < source.size() && isdigit(source[line_start + 2])) {
+      result += NormalizePaths(
+          source.substr(line_start, line_end - line_start), flags);
+    } else {
+      result.append(source, line_start, line_end - line_start);
+    }
+    line_start = line_end;
+  }
+  return result;
+}
+
+// static
 String CompilationDaemon::WarningsHash(const base::proto::Flags& flags) {
   auto arg_list = CreateArgumentList(flags.warnings());
   return base::Hexify(
@@ -250,6 +332,12 @@ HandledHash CompilationDaemon::GenerateHash(const base::proto::Flags& flags,
                                             const HandledSource& code,
                                             const ExtraFiles& extra_files) {
   const Version version(flags.compiler().version());
+  if (flags.has_key_root()) {
+    const HandledSource normalized_code(
+        Immutable(NormalizeLineMarkers(code.str.string_copy(), flags)));
+    return cache::FileCache::Hash(normalized_code, extra_files,
+                                  CommandLineForSimpleCache(flags), version);
+  }
   return cache::FileCache::Hash(code, extra_files,
                                 CommandLineForSimpleCache(flags), version);
 }
@@ -390,7 +478,7 @@ bool CompilationDaemon::SearchDirectCache(
   }
 
   const bool found = cache_->Find(code, extra_files, command_line, version,
-                                 current_dir, entry);
+                                 current_dir, entry, flags.key_root());
 
   // The same source with the same flags - regardless of the headers.
   const String source_key =
@@ -455,7 +543,8 @@ void CompilationDaemon::UpdateDirectCache(
     List<String> preprocessed_headers(message->flags().included_files().begin(),
                                       message->flags().included_files().end());
     cache_->Store(original_code, extra_files, command_line, version, headers,
-                  preprocessed_headers, message->current_dir(), hash);
+                  preprocessed_headers, message->current_dir(), hash,
+                  flags.key_root());
   } else {
     LOG(CACHE_ERROR) << "Failed to parse deps or read input " << input_path;
   }

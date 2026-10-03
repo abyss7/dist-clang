@@ -198,6 +198,28 @@ TEST(DriverArgsTest, Warnings) {
             Values(flags.other()));
 }
 
+TEST(DriverArgsTest, Relocatable) {
+  base::proto::Flags flags;
+  ASSERT_TRUE(Parse({"-c", "test.cc"}, &flags));
+  EXPECT_FALSE(flags.relocatable());
+
+  flags.Clear();
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-fmacro-prefix-map=/src="}, &flags));
+  EXPECT_TRUE(flags.relocatable());
+
+  // The debug info has paths too.
+  flags.Clear();
+  ASSERT_TRUE(
+      Parse({"-c", "test.cc", "-g", "-fmacro-prefix-map=/src="}, &flags));
+  EXPECT_FALSE(flags.relocatable());
+
+  flags.Clear();
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-g", "-ffile-prefix-map=/src=.",
+                     "-fdebug-compilation-dir=."},
+                    &flags));
+  EXPECT_TRUE(flags.relocatable());
+}
+
 TEST(DriverArgsTest, Language) {
   base::proto::Flags flags;
   ASSERT_TRUE(Parse({"-x", "c++", "-c", "test.inc"}, &flags));

@@ -384,6 +384,24 @@ bool Emitter::PrepareFlags(base::proto::Local* message,
   flags->mutable_compiler()->set_version(identity);
   flags->set_recheck_warnings(conf()->emitter().recheck_warnings());
 
+  // The same sources from different places should share the cache.
+  if (flags->relocatable()) {
+    const Path input =
+        (Path(current_dir) / flags->input()).lexically_normal();
+    for (const auto& root : conf()->cache().source_roots()) {
+      String root_path = Path(root).lexically_normal().string();
+      while (root_path.size() > 1 && root_path.back() == '/') {
+        root_path.pop_back();
+      }
+      if (input.string().starts_with(root_path + "/")) {
+        flags->set_key_root(root_path);
+        flags->set_key_root_relative(
+            Path(root_path).lexically_relative(current_dir).string());
+        break;
+      }
+    }
+  }
+
   return true;
 }
 

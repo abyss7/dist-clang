@@ -94,6 +94,16 @@ message Flags {
   // if set, |warnings| aren't a part of the cache key: a cached result,
   // produced with other warnings, is rechecked with "-fsyntax-only".
 
+  optional bool relocatable          = 23;
+  // if the result doesn't depend on the location of the sources: the paths
+  // in the "__FILE__" macro and in the debug info are remapped.
+
+  optional string key_root           = 24;
+  optional string key_root_relative  = 25;
+  // the source root and its path relative to the current directory - they are
+  // replaced with a placeholder in the cache key, so that the same sources
+  // from different locations have the same key.
+
   repeated string key_extra          = 18;
   // parts of the cache key that aren't flags: the environment, the current
   // directory for the debug info, etc.

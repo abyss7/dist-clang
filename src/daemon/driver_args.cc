@@ -36,6 +36,9 @@ enum class Special {
   DEPS_QUOTED_TARGET,
   XCLANG,
   COMPILATION_DIR,
+  MACRO_PREFIX_MAP,
+  DEBUG_PREFIX_MAP,
+  FILE_PREFIX_MAP,
   UNSUPPORTED,
 };
 
@@ -125,7 +128,9 @@ const Option kJoined[] = {
     {"--sysroot=", Class::NON_CACHED},
     {"-fdebug-compilation-dir=", Class::OTHER, Special::COMPILATION_DIR},
     {"-ffile-compilation-dir=", Class::OTHER, Special::COMPILATION_DIR},
-    {"-fmacro-prefix-map=", Class::NON_CACHED},
+    {"-fdebug-prefix-map=", Class::OTHER, Special::DEBUG_PREFIX_MAP},
+    {"-ffile-prefix-map=", Class::OTHER, Special::FILE_PREFIX_MAP},
+    {"-fmacro-prefix-map=", Class::NON_CACHED, Special::MACRO_PREFIX_MAP},
     {"-ftime-trace-granularity=", Class::IGNORED},
     {"-ftime-trace=", Class::IGNORED},
     {"-save-stats=", Class::OTHER, Special::UNSUPPORTED},
@@ -353,7 +358,8 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
   String language, output, deps_file;
   List<String> deps_targets;
   bool has_compile_action = false, has_deps = false, has_debug_info = false,
-       has_split_dwarf = false, has_compilation_dir = false;
+       has_split_dwarf = false, has_compilation_dir = false,
+       has_macro_prefix_map = false, has_debug_prefix_map = false;
   bool next_xclang_is_pch = false;
 
   auto AddArgument = [flags](Class cls, ui32 index,
@@ -430,6 +436,16 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
         return true;
       case Special::COMPILATION_DIR:
         has_compilation_dir = true;
+        return true;
+      case Special::MACRO_PREFIX_MAP:
+        has_macro_prefix_map = true;
+        return true;
+      case Special::DEBUG_PREFIX_MAP:
+        has_debug_prefix_map = true;
+        return true;
+      case Special::FILE_PREFIX_MAP:
+        has_macro_prefix_map = true;
+        has_debug_prefix_map = true;
         return true;
     }
 
@@ -612,6 +628,12 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
       flags->set_deps_target(target);
     }
   }
+
+  // The paths of the sources get into the result through the "__FILE__" macro
+  // and the debug info - unless they are remapped.
+  flags->set_relocatable(has_macro_prefix_map &&
+                         (!has_debug_info ||
+                          (has_compilation_dir && has_debug_prefix_map)));
 
   if (has_debug_info) {
     if (!has_compilation_dir) {

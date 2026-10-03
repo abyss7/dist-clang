@@ -22,6 +22,14 @@ class CompilationDaemon : public BaseDaemon {
       const base::proto::Flags& flags, const cache::string::HandledSource& code,
       const cache::ExtraFiles& extra_files);
 
+  // Replace the source root of the compilation - see |Flags::key_root| - with
+  // a placeholder: in any text, or only in the line markers of the
+  // preprocessed source.
+  static String NormalizePaths(const String& text,
+                               const base::proto::Flags& flags);
+  static String NormalizeLineMarkers(const String& source,
+                                     const base::proto::Flags& flags);
+
   // Hash of the warning flags - to know, if the cached diagnostics are valid.
   static String WarningsHash(const base::proto::Flags& flags);
 

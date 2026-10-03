@@ -83,5 +83,64 @@ TEST(CompilationDaemonTest, WarningsHash) {
             CompilationDaemon::WarningsHash(flags2));
 }
 
+TEST(CompilationDaemonTest, NormalizePaths) {
+  base::proto::Flags flags;
+  EXPECT_EQ("-I/src/a", CompilationDaemon::NormalizePaths("-I/src/a", flags));
+
+  flags.set_key_root("/home/user/src");
+  flags.set_key_root_relative("../src");
+  EXPECT_EQ(
+      "-I<ROOT>/a -I<ROOT> -I<ROOT>/b -I../src.old/c \"<ROOT>\" "
+      "-isystem <ROOT>/d /other/home/user/src/e x/../src/f "
+      "-fmacro-prefix-map=<ROOT>/=",
+      CompilationDaemon::NormalizePaths(
+          "-I/home/user/src/a -I/home/user/src -I../src/b -I../src.old/c "
+          "\"../src\" -isystem /home/user/src/d /other/home/user/src/e "
+          "x/../src/f -fmacro-prefix-map=../src/=",
+          flags));
+}
+
+TEST(CompilationDaemonTest, NormalizeLineMarkers) {
+  base::proto::Flags flags;
+  flags.set_key_root("/root1");
+  flags.set_key_root_relative("../root1");
+
+  EXPECT_EQ(
+      "# 1 \"<ROOT>/a.cc\"\nconst char* f = \"/root1/a.cc\";\n"
+      "# 2 \"<ROOT>/b.h\" 1\n",
+      CompilationDaemon::NormalizeLineMarkers(
+          "# 1 \"/root1/a.cc\"\nconst char* f = \"/root1/a.cc\";\n"
+          "# 2 \"../root1/b.h\" 1\n",
+          flags));
+}
+
+TEST(CompilationDaemonTest, HashDoesntDependOnSourceRoot) {
+  using cache::string::HandledSource;
+
+  base::proto::Flags flags1, flags2;
+  for (auto* flags : {&flags1, &flags2}) {
+    flags->mutable_compiler()->set_version("1");
+    flags->set_action("-c");
+  }
+  flags1.add_other()->add_values("-fmacro-prefix-map=../../root1/=");
+  flags1.set_key_root("/home/root1");
+  flags1.set_key_root_relative("../../root1");
+  flags2.add_other()->add_values("-fmacro-prefix-map=../../root2/=");
+  flags2.set_key_root("/home/root2");
+  flags2.set_key_root_relative("../../root2");
+
+  const HandledSource source1(
+      "# 1 \"../../root1/a.cc\"\nint main() {}\n"_l);
+  const HandledSource source2(
+      "# 1 \"../../root2/a.cc\"\nint main() {}\n"_l);
+  EXPECT_EQ(CompilationDaemon::GenerateHash(flags1, source1, {}),
+            CompilationDaemon::GenerateHash(flags2, source2, {}));
+
+  const HandledSource source3(
+      "# 1 \"../../root2/a.cc\"\nint main() { return 1; }\n"_l);
+  EXPECT_NE(CompilationDaemon::GenerateHash(flags1, source1, {}),
+            CompilationDaemon::GenerateHash(flags2, source3, {}));
+}
+
 }  // namespace daemon
 }  // namespace dist_clang
