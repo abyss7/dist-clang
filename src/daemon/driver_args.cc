@@ -360,6 +360,8 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
   bool has_compile_action = false, has_deps = false, has_debug_info = false,
        has_split_dwarf = false, has_compilation_dir = false,
        has_macro_prefix_map = false, has_debug_prefix_map = false;
+  // The default depends on the build of the compiler.
+  bool records_command_line = true;
   bool next_xclang_is_pch = false;
 
   auto AddArgument = [flags](Class cls, ui32 index,
@@ -577,6 +579,12 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
         has_split_dwarf = true;
       } else if (arg == "-gsplit-dwarf=single" || arg == "-gno-split-dwarf") {
         has_split_dwarf = false;
+      } else if (arg == "-grecord-command-line" ||
+                 arg == "-grecord-gcc-switches") {
+        records_command_line = true;
+      } else if (arg == "-gno-record-command-line" ||
+                 arg == "-gno-record-gcc-switches") {
+        records_command_line = false;
       } else if (!arg.starts_with("-gno-")) {
         has_debug_info = true;
       }
@@ -636,6 +644,7 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
                           (has_compilation_dir && has_debug_prefix_map)));
 
   if (has_debug_info) {
+    flags->set_records_command_line(records_command_line);
     if (!has_compilation_dir) {
       flags->add_key_extra("cwd:" + current_dir);
     }

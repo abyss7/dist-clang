@@ -8,6 +8,8 @@
 #include <net/test_connection.h>
 #include <perf/stat_service.h>
 
+#include STL(thread)
+
 namespace dist_clang {
 namespace daemon {
 
@@ -2646,6 +2648,172 @@ TEST_F(EmitterTest, DontHitDirectCacheForSameContentsOfAnotherSource) {
   runs.clear();
   Compile(input_path2, 3);
   EXPECT_EQ((List<String>{"-E", "fake_action"}), runs);
+
+  emitter.reset();
+}
+
+TEST_F(EmitterTest, VerifyHits) {
+  const base::TemporaryDir temp_dir;
+  const auto input_path = temp_dir.path() / "test.cc";
+  const auto output_path = temp_dir.path() / "test.o";
+  const auto deps_path = temp_dir.path() / "test.d";
+  const auto dwo_path = temp_dir.path() / "test.dwo";
+  const String compiler_version = "fake_compiler_version";
+  const String compiler_path = "fake_compiler_path";
+  const auto action = "fake_action"_l;
+
+  ASSERT_TRUE(base::File::Write(input_path, "int main() { return 1; }"_l));
+
+  conf.mutable_cache()->set_path(temp_dir.path() / "cache");
+  conf.mutable_cache()->set_direct(true);
+  conf.mutable_cache()->set_clean_period(1);
+  conf.mutable_emitter()->set_verify_hits_percent(100);
+
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path(compiler_path);
+
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
+      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_EQ(expected_code, status.code()) << status.description();
+
+      send_condition.notify_all();
+    });
+    return true;
+  };
+
+  // The compiler gives this result.
+  Mutex object_mutex;
+  String object = "object";
+  List<String> runs;
+  ui32 preprocessed_count = 0;
+  run_callback = [&](base::TestProcess* process) {
+    const Vector<String> args(process->args_.begin(), process->args_.end());
+    if (std::find(args.begin(), args.end(), "-E") != args.end()) {
+      process->stdout_ = Immutable(String("preprocessed ") +
+                                   std::to_string(++preprocessed_count));
+      WriteDepsFile(process, Immutable("test.o: "_l) + Immutable(input_path));
+      std::lock_guard<Mutex> lock(object_mutex);
+      runs.push_back("-E");
+      return;
+    }
+
+    String output, split_dwarf_output, split_dwarf_file;
+    for (size_t i = 0; i + 1 < args.size(); ++i) {
+      if (args[i] == "-o") {
+        output = args[i + 1];
+      } else if (args[i] == "-split-dwarf-output") {
+        split_dwarf_output = args[i + 2];
+      } else if (args[i] == "-split-dwarf-file") {
+        split_dwarf_file = args[i + 2];
+      }
+    }
+    std::lock_guard<Mutex> lock(object_mutex);
+    const bool verification = output != String(output_path);
+    runs.push_back(verification ? "verify" : "compile");
+    if (verification) {
+      // Nothing is written into the build directory - but the object refers
+      // to the original split DWARF file.
+      EXPECT_EQ(Path(output).parent_path() / "output.dwo", split_dwarf_output);
+      EXPECT_EQ("test.dwo", split_dwarf_file);
+      EXPECT_EQ(19, process->nice_);
+    } else {
+      EXPECT_TRUE(split_dwarf_output.empty());
+      EXPECT_EQ(0, process->nice_);
+    }
+    EXPECT_TRUE(base::File::Write(output, Immutable(object)));
+    EXPECT_TRUE(base::File::Write(
+        verification ? Path(output).parent_path() / "output.dwo" : dwo_path,
+        "dwo"_l));
+    const auto deps = Immutable("test.o: "_l) + Immutable(input_path);
+    if (verification) {
+      WriteDepsFile(process, deps);
+    } else {
+      EXPECT_TRUE(base::File::Write(deps_path, deps));
+    }
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto Compile = [&](ui32 expected_send_count) {
+    auto connection = test_service->TriggerListen(socket_path);
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    extension->set_current_dir(temp_dir);
+    auto* flags = extension->mutable_flags();
+    flags->set_input(input_path);
+    flags->set_output(output_path);
+    flags->set_deps_file(deps_path);
+    flags->set_deps_target("test.o");
+    flags->set_dwo_file("test.dwo");
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action(action);
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(1), [&] {
+      return send_count == expected_send_count;
+    }));
+  };
+
+  // The dump resets the metric.
+  HashMap<int, ui64> stats;
+  auto Stat = [&stats](perf::proto::Metric::Name name) {
+    perf::proto::Metric metric;
+    metric.set_name(name);
+    base::Singleton<perf::StatService>::Get().Dump(metric);
+    return stats[name] += metric.value();
+  };
+  auto WaitForStat = [&](perf::proto::Metric::Name name, ui64 value) {
+    for (int i = 0; i < 200 && Stat(name) < value; ++i) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return Stat(name);
+  };
+  auto Runs = [&] {
+    std::lock_guard<Mutex> lock(object_mutex);
+    auto result = runs;
+    runs.clear();
+    return result;
+  };
+
+  Compile(1);
+  EXPECT_EQ((List<String>{"-E", "compile"}), Runs());
+
+  // The same result.
+  Compile(2);
+  EXPECT_EQ(1u, WaitForStat(perf::proto::Metric::HIT_VERIFIED, 1));
+  EXPECT_EQ((List<String>{"verify"}), Runs());
+  EXPECT_EQ(0u, Stat(perf::proto::Metric::HIT_VERIFICATION_FAILED));
+  Immutable content;
+  ASSERT_TRUE(base::File::Read(output_path, &content));
+  EXPECT_EQ("object"_l, content);
+
+  // Something, that isn't a part of the key, changes the result.
+  {
+    std::lock_guard<Mutex> lock(object_mutex);
+    object = "another object";
+  }
+  Compile(3);
+  EXPECT_EQ(1u, WaitForStat(perf::proto::Metric::HIT_VERIFICATION_FAILED, 1));
+  EXPECT_EQ((List<String>{"verify"}), Runs());
+
+  // The wrong entry is removed - in background.
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  Compile(4);
+  EXPECT_EQ((List<String>{"-E", "compile"}), Runs());
+  Immutable new_content;
+  ASSERT_TRUE(base::File::Read(output_path, &new_content));
+  EXPECT_EQ("another object"_l, new_content);
 
   emitter.reset();
 }

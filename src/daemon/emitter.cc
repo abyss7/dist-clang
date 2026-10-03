@@ -140,6 +140,22 @@ inline bool IsRemotable(const base::proto::Flags& flags) {
   return !flags.has_dwo_file() && !flags.key_files_size();
 }
 
+// Makes the compilation write the dependency file into |path|.
+void RedirectDepsFile(base::proto::Flags* flags, const Path& path) {
+  auto* args = flags->mutable_non_direct();
+  for (int i = 0; i < args->size();) {
+    if (args->Get(i).values_size() && args->Get(i).values(0).starts_with("-MF")) {
+      args->DeleteSubrange(i, 1);
+    } else {
+      ++i;
+    }
+  }
+  auto* deps_file = flags->add_non_direct();
+  deps_file->set_index(0);
+  deps_file->add_values("-MF");
+  deps_file->add_values(path.string());
+}
+
 // Preprocesses the source. The dependency file is generated along with
 // preprocessing - for the case of the remote compilation - but never into the
 // build directory: a preprocessing, which isn't needed anymore, mustn't
@@ -161,19 +177,7 @@ inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
   std::optional<base::TemporaryDir> deps_dir;
   if (pp_flags.has_deps_file()) {
     deps_dir.emplace();
-    // Replace the path of the dependency file.
-    auto* args = pp_flags.mutable_non_direct();
-    for (int i = 0; i < args->size();) {
-      if (args->Get(i).values_size() && args->Get(i).values(0).starts_with("-MF")) {
-        args->DeleteSubrange(i, 1);
-      } else {
-        ++i;
-      }
-    }
-    auto* deps_file = pp_flags.add_non_direct();
-    deps_file->set_index(0);
-    deps_file->add_values("-MF");
-    deps_file->add_values((deps_dir->path() / "deps.d").string());
+    RedirectDepsFile(&pp_flags, deps_dir->path() / "deps.d");
 
     // The default target depends on the output, so set it explicitly.
     if (pp_flags.has_deps_target() && !HasExplicitDepsTarget(pp_flags)) {
@@ -249,6 +253,7 @@ Emitter::Emitter(const proto::Configuration& conf) : CompilationDaemon(conf) {
   CHECK(conf.has_emitter());
 
   workers_ = std::make_unique<base::WorkerPool>();
+  verifier_ = std::make_unique<base::ThreadPool>(16, 1);
   coordinator_workers_ = std::make_unique<base::WorkerPool>(true);
   all_tasks_ = std::make_unique<Queue>(Seconds(conf.emitter().pop_timeout()));
   cache_tasks_ = std::make_unique<Queue>();
@@ -311,6 +316,7 @@ Emitter::~Emitter() {
   coordinator_workers_.reset();
   workers_.reset();
   remote_workers_.reset();
+  verifier_.reset();
 }
 
 bool Emitter::Initialize() {
@@ -323,7 +329,104 @@ bool Emitter::Initialize() {
     return false;
   }
 
+  verifier_->Run();
   return CompilationDaemon::Initialize();
+}
+
+void Emitter::MaybeVerifyHit(const base::proto::Local& message,
+                             const cache::FileCache::Entry& entry,
+                             i64 hit_time) {
+  const ui32 percent = conf()->emitter().verify_hits_percent();
+  if (!percent || entry.handled_hash.empty() || entry.object_hash.empty()) {
+    return;
+  }
+  // The command line in the debug info has the path of the output, which is
+  // another one for the verification.
+  if (message.flags().records_command_line()) {
+    return;
+  }
+
+  thread_local std::mt19937 generator(std::random_device{}());
+  if (std::uniform_int_distribution<ui32>(0, 99)(generator) >= percent) {
+    return;
+  }
+
+  // Don't let the verifications pile up.
+  verifier_->Push([this, message, handled_hash = entry.handled_hash,
+                   object_hash = entry.object_hash,
+                   dwo_hash = entry.dwo_hash, hit_time] {
+    VerifyHit(message, handled_hash, object_hash, dwo_hash, hit_time);
+  });
+}
+
+void Emitter::VerifyHit(base::proto::Local message, const String& handled_hash,
+                        const String& object_hash, const String& dwo_hash,
+                        i64 hit_time) {
+  auto* flags = message.mutable_flags();
+  if (!SetupCompiler(flags, nullptr)) {
+    return;
+  }
+
+  // Nothing is written into the build directory.
+  const base::TemporaryDir temp_dir;
+  const Path output_path = temp_dir.path() / "output.o";
+  const Path dwo_path = temp_dir.path() / "output.dwo";
+  const Path deps_path = temp_dir.path() / "deps.d";
+  flags->clear_ignored();
+  flags->set_output(output_path.string());
+  if (flags->has_deps_file()) {
+    RedirectDepsFile(flags, deps_path);
+  }
+  if (flags->has_dwo_file()) {
+    // The object refers to the split DWARF file by its original name.
+    auto* arg = flags->add_other();
+    arg->set_index(std::numeric_limits<ui32>::max());
+    const List<String> values = {
+        "-Xclang", "-split-dwarf-file",   "-Xclang", flags->dwo_file(),
+        "-Xclang", "-split-dwarf-output", "-Xclang", dwo_path.string()};
+    for (const auto& value : values) {
+      arg->add_values(value);
+    }
+  }
+
+  const ui32 uid =
+      message.has_user_id() ? message.user_id() : base::Process::SAME_UID;
+  auto process = CreateProcess(*flags, uid, Path(message.current_dir()));
+  process->SetNice(19);
+  String error;
+  if (!process->Run(base::Process::UNLIMITED, &error)) {
+    LOG(WARNING) << "Failed to verify the cache hit for " << flags->input()
+                 << ": " << (error.empty() ? process->stderr().string_copy()
+                                           : error);
+    return;
+  }
+
+  // The inputs, changed since the hit, give another result.
+  Immutable deps;
+  if (flags->has_deps_file() && !base::File::Read(deps_path, &deps)) {
+    return;
+  }
+  if (!InputsUnchangedSince(&message, deps, hit_time)) {
+    return;
+  }
+
+  auto SameHash = [](const Path& path, const String& expected_hash) {
+    Immutable hash;
+    return base::File::Hash(path, &hash) && hash.string_copy() == expected_hash;
+  };
+  const bool has_dwo = flags->has_dwo_file() && base::File::Exists(dwo_path);
+  if (SameHash(output_path, object_hash) &&
+      has_dwo == !dwo_hash.empty() &&
+      (!has_dwo || SameHash(dwo_path, dwo_hash))) {
+    STAT(HIT_VERIFIED);
+    return;
+  }
+
+  LOG(ERROR) << "The cached result differs from the compilation of "
+             << flags->input() << " in " << message.current_dir()
+             << " - the cache entry " << handled_hash << " is removed";
+  STAT(HIT_VERIFICATION_FAILED);
+  RemoveFromCache(cache::string::HandledHash(Immutable(handled_hash)));
 }
 
 // static
@@ -605,6 +708,8 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
                                  : StripColors(diagnostics));
       std::get<CONNECTION>(*task)->ReportStatus(status);
       LOG(INFO) << "Cache hit: " << incoming->flags().input();
+
+      MaybeVerifyHit(*incoming, entry, std::get<START_TIME>(*task));
 
       return true;
     };

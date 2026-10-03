@@ -51,6 +51,7 @@ FORWARD_TEST(EmitterTest, SkipPreprocessingOfEditedSource);
 FORWARD_TEST(EmitterTest, RecheckWarnings);
 FORWARD_TEST(EmitterTest, DontStoreIfInputsChangedDuringCompilation);
 FORWARD_TEST(EmitterTest, DontHitDirectCacheForSameContentsOfAnotherSource);
+FORWARD_TEST(EmitterTest, VerifyHits);
 }  // namespace daemon
 
 namespace base {
@@ -81,6 +82,8 @@ class Process
   // client, that waits for the process, is gone. Then |Run()| fails, and
   // |canceled()| is |true|. The socket isn't read.
   inline void CancelOnDisconnect(int fd) { cancel_fd_ = fd; }
+  // Runs the process with the lower priority - see "nice(2)".
+  inline void SetNice(int nice) { nice_ = nice; }
   inline const List<Immutable>& args() const { return args_; }
   inline bool canceled() const { return canceled_; }
 
@@ -104,6 +107,7 @@ class Process
   Immutable stdout_, stderr_;
   const ui32 uid_;
   int cancel_fd_ = -1;
+  int nice_ = 0;
   bool canceled_ = false;
 
  private:
@@ -148,6 +152,7 @@ class Process
   FRIEND_TEST(daemon::EmitterTest, DontStoreIfInputsChangedDuringCompilation);
   FRIEND_TEST(daemon::EmitterTest,
               DontHitDirectCacheForSameContentsOfAnotherSource);
+  FRIEND_TEST(daemon::EmitterTest, VerifyHits);
 };
 
 }  // namespace base

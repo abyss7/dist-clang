@@ -217,6 +217,35 @@ TEST(FileCacheTest, RestoreSingleEntry) {
   EXPECT_EQ(expected_stderr, entry2.stderr);
 }
 
+TEST(FileCacheTest, RemoveEntryInBackground) {
+  const base::TemporaryDir temp_dir;
+  FileCache cache(temp_dir);
+  ASSERT_TRUE(cache.Run(1));
+
+  const auto hash = FileCache::Hash(HandledSource("int main() {}"_l), {},
+                                    CommandLine("-c"_l), Version("1"_l));
+  FileCache::Entry entry;
+  entry.object = "object"_l;
+  cache.Store(hash, entry);
+
+  {
+    FileCache::Entry found;
+    ASSERT_TRUE(cache.Find(hash, &found));
+    EXPECT_EQ(hash.str.string_copy(), found.handled_hash);
+  }
+
+  cache.Remove(hash);
+  bool found = true;
+  for (int i = 0; i < 100 && found; ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    FileCache::Entry found_entry;
+    found = cache.Find(hash, &found_entry);
+  }
+  EXPECT_FALSE(found);
+  EXPECT_FALSE(base::File::Exists(
+      AppendExtension(cache.CommonPath(hash), base::kExtObject)));
+}
+
 TEST(FileCacheTest, RestoreSingleEntryWithExtraFile) {
   const base::TemporaryDir temp_dir;
   const auto object_path = temp_dir.path() / "test.o";

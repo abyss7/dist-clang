@@ -1,6 +1,7 @@
 #pragma once
 
 #include <base/queue_aggregator.h>
+#include <base/thread_pool.h>
 #include <base/worker_pool.h>
 #include <daemon/compilation_daemon.h>
 #include <daemon/compiler_identity.h>
@@ -98,11 +99,25 @@ class Emitter : public CompilationDaemon {
   void DoRemoteExecute(const base::WorkerPool&, ResolveFn resolver, ui32 shard);
   void DoPoll(const base::WorkerPool&, Vector<ResolveFn> resolvers);
 
+  // Schedules the verification of the cache hit, if it's chosen for it - see
+  // |verify_hits_percent|. |hit_time| is the start of the task of the hit.
+  void MaybeVerifyHit(const base::proto::Local& message,
+                      const cache::FileCache::Entry& entry, i64 hit_time);
+
+  // Compiles the source of the cache hit again, and compares the results.
+  void VerifyHit(base::proto::Local message, const String& handled_hash,
+                 const String& object_hash, const String& dwo_hash,
+                 i64 hit_time);
+
   UniquePtr<Queue> all_tasks_, cache_tasks_, failed_tasks_;
   UniquePtr<QueueAggregator> local_tasks_;
   UniquePtr<base::WorkerPool> workers_;
   UniquePtr<base::WorkerPool> coordinator_workers_;
   UniquePtr<base::WorkerPool> remote_workers_;
+
+  // Runs the verifications of the cache hits one by one, and drops the new
+  // ones, while too many are waiting.
+  UniquePtr<base::ThreadPool> verifier_;
 
   CompilerIdentity compiler_identity_;
   OutputLocks output_locks_;

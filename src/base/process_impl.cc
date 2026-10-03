@@ -54,6 +54,14 @@ bool ProcessImpl::RunChild(Pipe& out, Pipe& err, Pipe* in) {
   // The own process group - to kill the whole tree of the compiler.
   setpgid(0, 0);
 
+  if (nice_) {
+    errno = 0;
+    if (nice(nice_) == -1 && errno) {
+      std::cerr << "Can't change the priority" << std::endl;
+      exit(1);
+    }
+  }
+
 #if defined(OS_LINUX)
   // Don't let the compiler outlive the daemon: otherwise it may write the
   // outputs after the client has given up, and has started another

@@ -87,6 +87,14 @@ message Configuration {
     // the code generation, when only warnings change, but misses the warnings
     // of the backend, e.g. "-Wframe-larger-than".
 
+    optional uint32 verify_hits_percent = 12 [ default = 0 ];
+    // The percent of the cache hits, that are compiled again in background
+    // with the lowest priority, to compare the results with the cached ones.
+    // A mismatch means that something, which affects the result, isn't a
+    // part of the cache key: it's reported to the log and to the statistics,
+    // and the entry is removed. The compilations, that record the command
+    // line in the debug info, aren't checked - the path of the output differs.
+
     optional bool keep_unchanged_outputs = 10 [ default = false ];
     // Don't touch the outputs, that don't change after the compilation or the
     // cache hit: then they keep their modification time, and the build system,

@@ -168,6 +168,34 @@ TEST(DriverArgsTest, SplitDwarf) {
   EXPECT_FALSE(flags.has_dwo_file());
 }
 
+TEST(DriverArgsTest, RecordsCommandLine) {
+  base::proto::Flags flags;
+  ASSERT_TRUE(Parse({"-c", "test.cc"}, &flags));
+  EXPECT_FALSE(flags.records_command_line());
+
+  // The default depends on the build of the compiler.
+  flags.Clear();
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-g"}, &flags));
+  EXPECT_TRUE(flags.records_command_line());
+
+  flags.Clear();
+  ASSERT_TRUE(
+      Parse({"-c", "test.cc", "-g", "-gno-record-command-line"}, &flags));
+  EXPECT_FALSE(flags.records_command_line());
+
+  flags.Clear();
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-gno-record-gcc-switches", "-g",
+                     "-grecord-command-line"},
+                    &flags));
+  EXPECT_TRUE(flags.records_command_line());
+
+  // Doesn't enable the debug info.
+  flags.Clear();
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-grecord-command-line"}, &flags));
+  EXPECT_FALSE(flags.records_command_line());
+  EXPECT_TRUE(KeyExtra(flags).empty());
+}
+
 TEST(DriverArgsTest, DiagnosticsFormat) {
   base::proto::Flags flags;
   ASSERT_TRUE(Parse({"-c", "test.cc", "-fcolor-diagnostics",

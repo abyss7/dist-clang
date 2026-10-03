@@ -461,6 +461,7 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
   }
   entry->dwo_hash = v1.dwo_hash();
   entry->warnings_hash = v1.warnings_hash();
+  entry->handled_hash = hash.str.string_copy();
 
   if (!v1.has_size() || v1.size() != size) {
     return false;
@@ -633,6 +634,21 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
   new_entries_->Append({ui64(time(nullptr)), hash, false});
 
   LOG(CACHE_VERBOSE) << "File is cached on path " << CommonPath(hash);
+}
+
+void FileCache::Remove(string::HandledHash hash) {
+  // The index is updated only by the cleaner.
+  cleaner_.Push([this, hash] {
+    const auto manifest_path =
+        AppendExtension(CommonPath(hash), base::kExtManifest);
+    WriteLock lock(this, manifest_path);
+    if (!lock || !base::File::Exists(manifest_path)) {
+      return;
+    }
+    entries_->BeginTransaction();
+    RemoveEntry(hash);
+    entries_->EndTransaction();
+  });
 }
 
 bool FileCache::GetEntrySize(string::Hash hash, ui64* size) const {

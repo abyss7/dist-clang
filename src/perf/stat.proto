@@ -66,6 +66,11 @@ message Metric {
 
     CACHE_ENTRIES               = 28;
 
+    HIT_VERIFIED                = 35;
+    HIT_VERIFICATION_FAILED     = 36;
+    // Cache hits, compiled again in background to compare the results - see
+    // |verify_hits_percent|. The failed ones are removed from the cache.
+
     CACHE_STORE_SKIPPED         = 34;
     // Results, that aren't cached: their inputs are modified during the
     // compilation.

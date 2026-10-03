@@ -85,6 +85,9 @@ class CompilationDaemon : public BaseDaemon {
   void UpdateSimpleCache(const cache::string::HandledHash& hash,
                          const cache::FileCache::Entry& entry);
 
+  // Removes the wrong result from the cache.
+  void RemoveFromCache(const cache::string::HandledHash& hash);
+
   // |start_time| is the time of the start of the compilation - see
   // |FileSystemTime()|.
   void UpdateDirectCache(const base::proto::Local* message,

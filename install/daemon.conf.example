@@ -8,6 +8,7 @@
 emitter {
   socket_path: "/run/user/1000/dist-clang.socket"  # $XDG_RUNTIME_DIR
   threads: 64  # Local compilations - don't limit the build system.
+  # verify_hits_percent: 1  # Compile some cache hits again to check them.
 }
 
 cache {

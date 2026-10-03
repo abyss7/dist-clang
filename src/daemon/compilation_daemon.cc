@@ -620,6 +620,12 @@ void CompilationDaemon::UpdateSimpleCache(
   cache_->Store(hash, entry);
 }
 
+void CompilationDaemon::RemoveFromCache(const HandledHash& hash) {
+  if (cache_) {
+    cache_->Remove(hash);
+  }
+}
+
 void CompilationDaemon::UpdateDirectCache(
     const base::proto::Local* message, const HandledHash& hash,
     const ExtraFiles& extra_files, const cache::FileCache::Entry& entry,

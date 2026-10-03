@@ -98,6 +98,10 @@ message Flags {
   // if the result doesn't depend on the location of the sources: the paths
   // in the "__FILE__" macro and in the debug info are remapped.
 
+  optional bool records_command_line = 26;
+  // if the debug info may contain the command line of the compiler - with the
+  // paths of the outputs, that aren't a part of the cache key.
+
   optional string key_root           = 24;
   optional string key_root_relative  = 25;
   // the source root and its path relative to the current directory - they are

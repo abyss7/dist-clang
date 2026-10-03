@@ -21,6 +21,7 @@ FORWARD_TEST(FileCacheTest, EvictNeverHitEntriesFirst);
 FORWARD_TEST(FileCacheTest, ExceedCacheSize_Sync);
 FORWARD_TEST(FileCacheTest, LockNonExistentFile);
 FORWARD_TEST(FileCacheTest, RemoveEntry);
+FORWARD_TEST(FileCacheTest, RemoveEntryInBackground);
 FORWARD_TEST(FileCacheTest, RestoreEntryWithMissingFile);
 FORWARD_TEST(FileCacheTest, UseIndexFromDisk);
 FORWARD_TEST(FileCacheMigratorTest, Version_0_to_1_Direct);
@@ -117,6 +118,9 @@ class FileCache {
 
     // Hash of the warning flags of the compilation.
     String warnings_hash;
+
+    // The key of the found entry - from |Find()|.
+    String handled_hash;
   };
 
   // With |link_outputs| the outputs are stored uncompressed, and are linked
@@ -171,6 +175,10 @@ class FileCache {
 
   void Store(string::HandledHash hash, Entry entry);
 
+  // Removes the entry in background - e.g. if its result is wrong. The direct
+  // entries, that refer to it, aren't found anymore.
+  void Remove(string::HandledHash hash);
+
   // Returns the paths, where a new file would be found by the compiler instead
   // of |header|: the same relative path in the |search_dirs| before the
   // directory of the header. All paths are absolute and normal. The include
@@ -191,6 +199,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, EvictNeverHitEntriesFirst);
   FRIEND_TEST(FileCacheTest, LockNonExistentFile);
   FRIEND_TEST(FileCacheTest, RemoveEntry);
+  FRIEND_TEST(FileCacheTest, RemoveEntryInBackground);
   FRIEND_TEST(FileCacheTest, RestoreEntryWithMissingFile);
   FRIEND_TEST(FileCacheTest, UseIndexFromDisk);
   FRIEND_TEST(FileCacheMigratorTest, Version_0_to_1_Direct);
