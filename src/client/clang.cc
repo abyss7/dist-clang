@@ -207,16 +207,21 @@ bool PrintTagStats(const String& socket_path,
     width = std::max(width, TagName(tag.name()).size());
   }
 
+  // "in builds" - linked with build directories: takes no space in the
+  // cache, and isn't removed with the tag.
   std::cout << std::left << std::setw(width) << "tag" << std::right
-            << std::setw(10) << "entries" << std::setw(12) << "size"
-            << std::setw(12) << "exclusive" << std::setw(12) << "excl. size"
-            << std::endl;
+            << std::setw(9) << "entries" << std::setw(12) << "size"
+            << std::setw(12) << "in builds" << std::setw(12) << "exclusive"
+            << std::setw(12) << "freeable" << std::endl;
   for (const auto& tag : report.tags()) {
     std::cout << std::left << std::setw(width) << TagName(tag.name())
-              << std::right << std::setw(10) << tag.entries() << std::setw(12)
+              << std::right << std::setw(9) << tag.entries() << std::setw(12)
               << HumanSize(tag.size()) << std::setw(12)
-              << tag.exclusive_entries() << std::setw(12)
-              << HumanSize(tag.exclusive_size()) << std::endl;
+              << HumanSize(tag.linked_size()) << std::setw(12)
+              << HumanSize(tag.exclusive_size()) << std::setw(12)
+              << (tag.name().empty() ? String("-")
+                                     : HumanSize(tag.freeable_size()))
+              << std::endl;
   }
 
   if (report.overlaps_size()) {
@@ -227,6 +232,14 @@ bool PrintTagStats(const String& socket_path,
                 << HumanSize(overlap.size()) << std::endl;
     }
   }
+
+  std::cout << std::endl
+            << "in builds - linked with build directories: takes no space in"
+            << std::endl
+            << "            the cache, and isn't removed with the tag;"
+            << std::endl
+            << "exclusive - used only by the tag;" << std::endl
+            << "freeable  - removed by --forget-tag now." << std::endl;
 
   return true;
 }

@@ -620,6 +620,8 @@ TEST(FileCacheTest, TagStats) {
                 BlobSize("object 2"),
             it->size);
   EXPECT_EQ(EntrySize(hash1) + BlobSize("object 1"), it->exclusive_size);
+  EXPECT_EQ(it->exclusive_size, it->freeable_size);
+  EXPECT_EQ(0u, it->linked_size);
 
   ++it;
   EXPECT_EQ("b", it->tag);
@@ -629,6 +631,8 @@ TEST(FileCacheTest, TagStats) {
   EXPECT_EQ(EntrySize(hash2) + EntrySize(hash3) + BlobSize("object 2"),
             it->size);
   EXPECT_EQ(EntrySize(hash3), it->exclusive_size);
+  // The object stays with the other tag.
+  EXPECT_EQ(EntrySize(hash3), it->freeable_size);
 
   ASSERT_EQ(1u, overlaps.size());
   EXPECT_EQ("a", overlaps.front().first);
@@ -700,8 +704,21 @@ TEST(FileCacheTest, ForgetTag) {
     return cache.entries_->Get(hash.str, &value);
   };
 
-  // Nothing is removed on the dry run.
   const ui64 size1 = EntrySize(hash1) + base::File::Size(BlobPath("object 1"));
+
+  // The output of the build directory is a part of the size of the tag, but
+  // isn't freed with it.
+  List<FileCache::TagStats> stats;
+  List<FileCache::TagOverlap> overlaps;
+  cache.ComputeTagStats(&stats, &overlaps);
+  ASSERT_EQ(2u, stats.size());
+  EXPECT_EQ("a", stats.front().tag);
+  EXPECT_EQ(base::File::Size(BlobPath("object 4")), stats.front().linked_size);
+  EXPECT_EQ(size1 + EntrySize(hash4) + base::File::Size(BlobPath("object 4")),
+            stats.front().exclusive_size);
+  EXPECT_EQ(size1, stats.front().freeable_size);
+
+  // Nothing is removed on the dry run.
   auto result = cache.DoForgetTag("a", true);
   EXPECT_EQ(1u, result.removed_entries);
   EXPECT_EQ(size1, result.freed_size);

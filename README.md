@@ -48,7 +48,7 @@ The cache entries may be tagged with `--tag=<tag>` (repeatable): e.g. with the g
 
     cc_wrapper = "dist-clang --restat --tag=\$(git -C /path/to/sources rev-parse --abbrev-ref HEAD)"
 
-The empty tags are ignored. The entries get the tags, when they are stored or found in the cache. Show the sizes of the tags - the exclusive ones are used only by the tag - and their overlaps; every output counts once:
+The empty tags are ignored. The entries get the tags, when they are stored or found in the cache. Show the sizes of the tags and their overlaps; every output counts once. The size "in builds" is linked with build directories: it takes no space in the cache, and isn't removed with the tag. The "exclusive" size is used only by the tag, and the "freeable" one is what `--forget-tag` frees now:
 
     dist-clang --tag-stats
 

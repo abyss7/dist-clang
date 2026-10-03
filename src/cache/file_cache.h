@@ -205,8 +205,13 @@ class FileCache {
   struct TagStats {
     String tag;  // Empty for the entries without tags.
     ui64 entries = 0, size = 0;
+    // The part of the size, that is linked with build directories: it takes
+    // no space in the cache, and isn't removed with the tag.
+    ui64 linked_size = 0;
     // Only for this tag.
     ui64 exclusive_entries = 0, exclusive_size = 0;
+    // The size, that |ForgetTag()| frees now.
+    ui64 freeable_size = 0;
   };
   struct TagOverlap {
     String first, second;

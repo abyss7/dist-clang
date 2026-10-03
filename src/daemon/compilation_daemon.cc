@@ -687,6 +687,8 @@ bool CompilationDaemon::HandleTagsRequest(
           tag->set_size(stat.size);
           tag->set_exclusive_entries(stat.exclusive_entries);
           tag->set_exclusive_size(stat.exclusive_size);
+          tag->set_linked_size(stat.linked_size);
+          tag->set_freeable_size(stat.freeable_size);
         }
         for (const auto& overlap : overlaps) {
           auto* new_overlap = report->add_overlaps();

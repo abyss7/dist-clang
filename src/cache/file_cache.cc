@@ -567,7 +567,7 @@ bool FileCache::ForgetTag(const String& tag, bool dry_run,
 void FileCache::ComputeTagStats(List<TagStats>* stats,
                                 List<TagOverlap>* overlaps) {
   const Vector<String> kNoTags = {String()};
-  std::lock_guard<Mutex> lock(blob_refs_mutex_);
+  std::unique_lock<Mutex> lock(blob_refs_mutex_);
 
   // The tags of every blob, and the sizes of the blobs.
   HashMap<String, std::set<String>> blob_tags;
@@ -585,11 +585,15 @@ void FileCache::ComputeTagStats(List<TagStats>* stats,
             ? kNoTags
             : tags_it->second;
     const ui64 size = std::get<SQLite::SIZE>(value);
+    // The outputs of the old format are a part of the entry.
+    const ui64 linked_size =
+        std::min(size, GetSharedSize(string::Hash(Immutable(hash))));
     for (const auto& tag : tags) {
       auto& stat = tag_stats[tag];
       stat.tag = tag;
       ++stat.entries;
       stat.size += size;
+      stat.linked_size += linked_size;
       if (tags.size() == 1) {
         ++stat.exclusive_entries;
         stat.exclusive_size += size;
@@ -615,8 +619,12 @@ void FileCache::ComputeTagStats(List<TagStats>* stats,
   // Every blob counts once for every tag.
   for (const auto& [blob, tags] : blob_tags) {
     const ui64 size = blob_sizes[blob];
+    const bool linked = blobs_.IsShared(blob);
     for (const auto& tag : tags) {
       tag_stats[tag].size += size;
+      if (linked) {
+        tag_stats[tag].linked_size += size;
+      }
       if (tags.size() == 1) {
         tag_stats[tag].exclusive_size += size;
       }
@@ -628,7 +636,12 @@ void FileCache::ComputeTagStats(List<TagStats>* stats,
     }
   }
 
+  lock.unlock();
+
   for (auto& [tag, stat] : tag_stats) {
+    if (!tag.empty()) {
+      stat.freeable_size = DoForgetTag(tag, true).freed_size;
+    }
     stats->push_back(std::move(stat));
   }
   for (const auto& [tags, size] : overlap_sizes) {
