@@ -44,9 +44,11 @@ Show the statistics of the daemon:
 
 ## Tags
 
-The cache entries may be tagged with `--tag=<tag>` (repeatable): e.g. with the git branch, to see, how much space every branch takes, and to remove the entries of a finished branch. For GN, put the command into the launcher - the shell runs it for every compilation, while the command line stays the same for Ninja, so a branch switch doesn't rebuild anything by itself:
+The cache entries may be tagged with `--tag=<tag>` (repeatable): e.g. with the git branch, to see, how much space every branch takes, and to remove the entries of a finished branch. For GN, put the command into the launcher - the shell runs it for every compilation, while the command line stays the same for Ninja, so a branch switch doesn't rebuild anything by itself. The branch, or the short hash of the commit for the detached HEAD, of the sources, where `gn gen` runs:
 
-    cc_wrapper = "dist-clang --restat --tag=\$(git -C /path/to/sources rev-parse --abbrev-ref HEAD)"
+    cc_wrapper = "dist-clang --restat --tag=\$\$(cd " + rebase_path("//") + " 2>/dev/null && { git symbolic-ref --short -q HEAD || git rev-parse --short HEAD; } 2>/dev/null)"
+
+Here the toolchain passes `cc_wrapper` to the compiler tools as `command_launcher`: GN doesn't put the launcher into `compile_commands.json` - otherwise clangd and other tools get the options of dist-clang, and the command substitution, as the arguments of the compiler. GN doesn't escape the launcher for Ninja, so `$` is written as `$$`. If the toolchain puts `cc_wrapper` into the command itself, GN escapes it, and a single `\$` is enough.
 
 The empty tags are ignored. The entries get the tags, when they are stored or found in the cache. Show the sizes of the tags and their overlaps; every output counts once. The size "in builds" is linked with build directories: it takes no space in the cache, and isn't removed with the tag. The "exclusive" size is used only by the tag, and the "freeable" one is what `--forget-tag` frees now:
 
