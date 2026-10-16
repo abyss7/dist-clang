@@ -65,6 +65,9 @@ message Metric {
 
     CACHE_ENTRIES               = 28;
 
+    CACHE_MAX_SIZE              = 55;
+    // in bytes - the limit of the own size of the cache, 0 if unlimited.
+
     PARALLEL_PREPROCESSING      = 38;
     PARALLEL_PREPROCESSING_HIT  = 39;
     // Preprocessings at the same time with the compilations, and the ones,

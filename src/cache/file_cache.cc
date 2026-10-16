@@ -1530,6 +1530,7 @@ void FileCache::ReportSizes() {
   stats.Set(M::CACHE_OWN_SIZE, cache_size_ + sizes.own);
   stats.Set(M::CACHE_SHARED_SIZE, sizes.shared);
   stats.Set(M::CACHE_ENTRIES, entry_count_);
+  stats.Set(M::CACHE_MAX_SIZE, max_size_);
   stats.Set(M::DISK_SAVED_BY_DEDUPLICATION, sizes.deduplicated);
   stats.Set(M::DISK_SAVED_BY_LINKS, sizes.linked);
 

@@ -117,7 +117,7 @@ struct StatLine {
 };
 
 struct StatGroup {
-  const char* title;
+  String title;
   Vector<StatLine> lines;
 };
 
@@ -194,6 +194,12 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
   }
 
   using M = perf::proto::Metric;
+  // The own size counts against the limit.
+  const String cache_size_title =
+      "Cache size (" + HumanSize(values[M::CACHE_OWN_SIZE]) + " of " +
+      (values[M::CACHE_MAX_SIZE] ? HumanSize(values[M::CACHE_MAX_SIZE])
+                                 : String("unlimited")) +
+      ")";
   const StatGroup groups[] = {
       {"Saved (times summed over parallel tasks)",
        {
@@ -201,8 +207,6 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
             Unit::MILLISECONDS},
            {M::TIME_SAVED_BY_SIMPLE_HITS, "Compilation by simple hits",
             Unit::MILLISECONDS},
-           {M::DISK_SAVED_BY_DEDUPLICATION,
-            "Disk: one copy for several entries", Unit::BYTES},
            // Only with |max_output_links| other than 1.
            {M::DISK_SAVED_BY_LINKS, "Disk: one copy for several builds",
             Unit::BYTES, true},
@@ -270,11 +274,15 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
            {M::HASH_MISMATCH, "Hash mismatches of remote results",
             Unit::COUNT, true},
        }},
-      {"Cache size",
+      {cache_size_title,
        {
            {M::CACHE_ENTRIES, "Entries"},
            {M::CACHE_OWN_SIZE, "Own size", Unit::BYTES},
            {M::CACHE_SHARED_SIZE, "Linked with build directories (free)",
+            Unit::BYTES},
+           // The outputs of several entries - e.g. after the changes of the
+           // headers, that don't change the objects.
+           {M::DISK_SAVED_BY_DEDUPLICATION, "Stored once for several entries",
             Unit::BYTES},
            {M::CACHE_SIZE_ADDED, "Added", Unit::BYTES},
            {M::CACHE_SIZE_CLEANED, "Removed", Unit::BYTES},
@@ -315,7 +323,8 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
     return FormatCount(value);
   };
 
-  HashSet<int> shown;
+  // The limit is in the title.
+  HashSet<int> shown = {M::CACHE_MAX_SIZE};
   const int kLabelWidth = 40, kValueWidth = 14;
   for (const auto& group : groups) {
     // The groups are separated by the empty lines.
