@@ -38,9 +38,9 @@ Commands, which can't be cached (linking, preprocessing, unknown inputs, etc.), 
 
 If the build system re-stats outputs after commands - like Ninja with `restat = 1` for the compilation rules - use `dist-clang --restat clang++ ...`: then the outputs, that don't change after a cache hit or a compilation, are kept untouched with their old modification time, and the dependent targets aren't relinked. E.g. touching a header, or changing a comment in it, doesn't relink anything. Don't use it without re-stating: the build system would consider such outputs as outdated forever.
 
-Show the statistics of the daemon:
+Show the statistics of the daemon - grouped, or with `--raw` as `NAME value` lines for scripts:
 
-    dist-clang --stats
+    dist-clang --stats [--raw]
 
 ## Tags
 

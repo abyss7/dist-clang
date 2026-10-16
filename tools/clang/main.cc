@@ -18,7 +18,7 @@ namespace {
 
 const char kUsage[] =
     "Usage: dist-clang [--restat] [--tag=<tag>...] <compiler> [args...]\n"
-    "       dist-clang --stats\n"
+    "       dist-clang --stats [--raw]\n"
     "       dist-clang --tag-stats\n"
     "       dist-clang --forget-tag=<tag> [--force]\n"
     "       dist-clang --forget-untagged [--force]\n"
@@ -26,6 +26,8 @@ const char kUsage[] =
     "  --restat      Don't touch outputs, that don't change: for build\n"
     "                systems, that re-stat outputs, like Ninja with\n"
     "                \"restat = 1\".\n"
+    "  --stats       Show the statistics of the daemon; --raw prints them\n"
+    "                as \"NAME value\" lines - for scripts.\n"
     "  --tag         Tag the used cache entries, e.g. with the branch of the\n"
     "                sources; may be repeated, the empty tags are ignored.\n"
     "  --tag-stats   Show the sizes of the tags in the cache.\n"
@@ -90,7 +92,8 @@ int main(int argc, char* argv[]) {
       return 1;
     }
     if (argv[1] == String("--stats")) {
-      return client::PrintStats(socket_path, config) ? 0 : 1;
+      const bool raw = argc > 2 && argv[2] == String("--raw");
+      return client::PrintStats(socket_path, config, raw) ? 0 : 1;
     }
     if (argv[1] == String("--tag-stats")) {
       return client::PrintTagStats(socket_path, config) ? 0 : 1;

@@ -44,7 +44,8 @@ def run_ninja(build_dir, target, env):
 
 
 def read_stats(dist_clang):
-    proc = subprocess.run([dist_clang, "--stats"], stdout=subprocess.PIPE,
+    proc = subprocess.run([dist_clang, "--stats", "--raw"],
+                          stdout=subprocess.PIPE,
                           stderr=subprocess.DEVNULL, text=True)
     stats = {}
     for line in proc.stdout.splitlines():

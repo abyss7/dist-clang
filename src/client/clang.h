@@ -21,9 +21,10 @@ enum class Result {
 Result DoMain(const List<String>& args, const String& socket_path,
               const proto::Configuration& config);
 
-// Prints the daemon's statistics. Returns |false| if the daemon isn't
-// available.
-bool PrintStats(const String& socket_path, const proto::Configuration& config);
+// Prints the daemon's statistics - grouped, or as "NAME value" lines with
+// |raw|. Returns |false| if the daemon isn't available.
+bool PrintStats(const String& socket_path, const proto::Configuration& config,
+                bool raw = false);
 
 // Prints the sizes of the tags of the cache, and how they overlap.
 bool PrintTagStats(const String& socket_path,

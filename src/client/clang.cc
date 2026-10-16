@@ -100,8 +100,58 @@ Result DoMain(const List<String>& args, const String& socket_path,
   }
 }
 
-bool PrintStats(const String& socket_path,
-                const proto::Configuration& config) {
+namespace {
+
+enum class Unit { COUNT, BYTES, MILLISECONDS };
+
+struct StatLine {
+  perf::proto::Metric::Name metric;
+  const char* label;
+  Unit unit = Unit::COUNT;
+  // Hidden, while zero - e.g. the remote compilation, that isn't used.
+  bool hide_zero = false;
+  // The rate of this metric among it and the next one, e.g. hits and misses.
+  bool rate_with_next = false;
+};
+
+struct StatGroup {
+  const char* title;
+  Vector<StatLine> lines;
+};
+
+String FormatCount(ui64 value) {
+  String digits = std::to_string(value), result;
+  for (size_t i = 0; i < digits.size(); ++i) {
+    if (i && (digits.size() - i) % 3 == 0) {
+      result.push_back(',');
+    }
+    result.push_back(digits[i]);
+  }
+  return result;
+}
+
+String FormatTime(ui64 ms) {
+  std::ostringstream stream;
+  if (ms < 1000) {
+    stream << ms << " ms";
+  } else if (ms < 60 * 1000) {
+    stream << std::fixed << std::setprecision(1) << ms / 1000.0 << " s";
+  } else if (ms < 3600 * 1000) {
+    stream << ms / 60000 << " min " << std::setw(2) << std::setfill('0')
+           << ms / 1000 % 60 << " s";
+  } else {
+    stream << ms / 3600000 << " h " << std::setw(2) << std::setfill('0')
+           << ms / 60000 % 60 << " min";
+  }
+  return stream.str();
+}
+
+String HumanSize(ui64 size);
+
+}  // namespace
+
+bool PrintStats(const String& socket_path, const proto::Configuration& config,
+                bool raw) {
   UniquePtr<net::NetworkService> service;
   auto connection = Connect(socket_path, config, &service);
   if (!connection) {
@@ -125,10 +175,150 @@ bool PrintStats(const String& socket_path,
     return false;
   }
 
-  for (const auto& metric :
-       reply.GetExtension(perf::proto::Report::extension).metric()) {
-    std::cout << perf::proto::Metric::Name_Name(metric.name()) << " "
-              << metric.value() << std::endl;
+  const auto& report = reply.GetExtension(perf::proto::Report::extension);
+  // For scripts: "NAME value".
+  if (raw) {
+    for (const auto& metric : report.metric()) {
+      std::cout << perf::proto::Metric::Name_Name(metric.name()) << " "
+                << metric.value() << std::endl;
+    }
+    return true;
+  }
+
+  HashMap<int, ui64> values;
+  for (const auto& metric : report.metric()) {
+    values[metric.name()] = metric.value();
+  }
+
+  using M = perf::proto::Metric;
+  const StatGroup groups[] = {
+      {"Cache",
+       {
+           {M::DIRECT_CACHE_HIT, "Direct cache hits", Unit::COUNT, false, true},
+           {M::DIRECT_CACHE_MISS, "Direct cache misses"},
+           {M::SIMPLE_CACHE_HIT, "Simple cache hits", Unit::COUNT, false, true},
+           {M::SIMPLE_CACHE_MISS, "Simple cache misses"},
+           {M::PARALLEL_PREPROCESSING_HIT, "Hits by parallel preprocessing",
+            Unit::COUNT, true},
+           {M::REMOTE_CACHE_HIT, "Hits in the cache of remotes", Unit::COUNT,
+            true},
+           {M::HIT_VERIFIED, "Hits verified by compiling again", Unit::COUNT,
+            true},
+           {M::HIT_VERIFICATION_FAILED, "Hits failed the verification",
+            Unit::COUNT, true},
+           {M::CACHE_INCOMPATIBLE, "Not used: incompatible format",
+            Unit::COUNT, true},
+       }},
+      {"Compilations",
+       {
+           {M::LOCAL_TASK_DONE, "Compiled locally"},
+           {M::REMOTE_TASK_DONE, "Compiled remotely", Unit::COUNT, true},
+           {M::REMOTE_COMPILATION_FAILED, "Remote compilations failed",
+            Unit::COUNT, true},
+           {M::REMOTE_COMPILATION_REJECTED, "Remote compilations rejected",
+            Unit::COUNT, true},
+           {M::UNSUPPORTED_COMMAND, "Run as is (not supported)"},
+           {M::TASK_CANCELED, "Canceled (the client is gone)"},
+           {M::PREPROCESSING_SKIPPED, "Preprocessing skipped on a miss"},
+           {M::PARALLEL_PREPROCESSING, "Preprocessed during the compilation"},
+           {M::WARNINGS_RECHECKED, "Warnings rechecked (-fsyntax-only)",
+            Unit::COUNT, true},
+       }},
+      {"Outputs",
+       {
+           {M::CACHE_OUTPUT_LINKED, "Restored as links (hard or reflink)"},
+           {M::CACHE_OUTPUT_COPIED, "Restored as copies"},
+           {M::CACHE_OUTPUT_UNCHANGED, "Unchanged after a hit (kept)"},
+           {M::LOCAL_OUTPUT_UNCHANGED, "Unchanged after compiling (kept)"},
+           {M::CACHE_BLOB_REUSED, "Stored once for several entries"},
+           {M::CACHE_STORE_SKIPPED, "Not stored: inputs changed meanwhile"},
+           {M::HASH_MISMATCH, "Hash mismatches of remote results",
+            Unit::COUNT, true},
+       }},
+      {"Cache size",
+       {
+           {M::CACHE_ENTRIES, "Entries"},
+           {M::CACHE_OWN_SIZE, "Own size", Unit::BYTES},
+           {M::CACHE_SHARED_SIZE, "Linked with build directories (free)",
+            Unit::BYTES},
+           {M::CACHE_SIZE_ADDED, "Added", Unit::BYTES},
+           {M::CACHE_SIZE_CLEANED, "Removed", Unit::BYTES},
+       }},
+      {"Time (summed over parallel tasks)",
+       {
+           {M::LOCAL_COMPILATION_TIME, "Local compilation",
+            Unit::MILLISECONDS},
+           {M::PREPROCESS_TIME, "Preprocessing", Unit::MILLISECONDS},
+           {M::DIRECT_CACHE_LOOKUP_TIME, "Direct cache lookups",
+            Unit::MILLISECONDS},
+           {M::DIRECT_CACHE_UPDATE_TIME, "Direct cache updates",
+            Unit::MILLISECONDS},
+           {M::SIMPLE_CACHE_LOOKUP_TIME, "Simple cache lookups",
+            Unit::MILLISECONDS},
+           {M::SIMPLE_CACHE_UPDATE_TIME, "Simple cache updates",
+            Unit::MILLISECONDS},
+           {M::REMOTE_COMPILATION_TIME, "Remote compilation",
+            Unit::MILLISECONDS, true},
+           {M::REMOTE_RESOLVE_TIME, "Resolving remotes", Unit::MILLISECONDS,
+            true},
+           {M::REMOTE_CONNECT_TIME, "Connecting to remotes",
+            Unit::MILLISECONDS, true},
+           {M::REMOTE_TIME_WASTED, "Wasted on failed remotes",
+            Unit::MILLISECONDS, true},
+       }},
+  };
+
+  auto Format = [](Unit unit, ui64 value) {
+    switch (unit) {
+      case Unit::BYTES:
+        return HumanSize(value);
+      case Unit::MILLISECONDS:
+        return FormatTime(value);
+      case Unit::COUNT:
+        break;
+    }
+    return FormatCount(value);
+  };
+
+  HashSet<int> shown;
+  const int kLabelWidth = 40, kValueWidth = 14;
+  for (const auto& group : groups) {
+    std::cout << group.title << std::endl;
+    for (size_t i = 0; i < group.lines.size(); ++i) {
+      const auto& line = group.lines[i];
+      shown.insert(line.metric);
+      const ui64 value = values[line.metric];
+      if (line.hide_zero && !value) {
+        continue;
+      }
+      std::cout << "  " << std::left << std::setw(kLabelWidth) << line.label
+                << std::right << std::setw(kValueWidth)
+                << Format(line.unit, value);
+      if (line.rate_with_next && i + 1 < group.lines.size()) {
+        const ui64 total = value + values[group.lines[i + 1].metric];
+        if (total) {
+          std::cout << "  " << std::fixed << std::setprecision(1)
+                    << 100.0 * value / total << "%";
+        }
+      }
+      std::cout << std::endl;
+    }
+  }
+
+  // Nothing is lost, if a new metric isn't described here yet.
+  bool other = false;
+  for (const auto& metric : report.metric()) {
+    if (shown.contains(metric.name()) || !metric.value()) {
+      continue;
+    }
+    if (!other) {
+      std::cout << "Other" << std::endl;
+      other = true;
+    }
+    std::cout << "  " << std::left << std::setw(kLabelWidth)
+              << perf::proto::Metric::Name_Name(metric.name()) << std::right
+              << std::setw(kValueWidth) << FormatCount(metric.value())
+              << std::endl;
   }
 
   return true;
