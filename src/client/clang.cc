@@ -112,6 +112,8 @@ struct StatLine {
   bool hide_zero = false;
   // The rate of this metric among it and the next one, e.g. hits and misses.
   bool rate_with_next = false;
+  // The values of the same kind, shown after this one through " / ".
+  Vector<perf::proto::Metric::Name> more = {};
 };
 
 struct StatGroup {
@@ -198,8 +200,8 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
             Unit::MILLISECONDS},
            {M::TIME_SAVED_BY_SIMPLE_HITS, "Compilation by simple hits",
             Unit::MILLISECONDS},
-           {M::DISK_SAVED_BY_DEDUPLICATION, "Disk: one copy for several entries",
-            Unit::BYTES},
+           {M::DISK_SAVED_BY_DEDUPLICATION,
+            "Disk: one copy for several entries", Unit::BYTES},
            // Only with |max_output_links| other than 1.
            {M::DISK_SAVED_BY_LINKS, "Disk: one copy for several builds",
             Unit::BYTES, true},
@@ -211,12 +213,13 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
            {M::TIME_LOST_TO_EVICTION, "Time lost to eviction",
             Unit::MILLISECONDS},
            // The size of the entries, evicted since the lost ones.
-           {M::EXTRA_SIZE_FOR_HALF_LOSSES, "Larger cache to keep 50% of them",
-            Unit::BYTES},
-           {M::EXTRA_SIZE_FOR_90_PERCENT_LOSSES,
-            "Larger cache to keep 90% of them", Unit::BYTES},
-           {M::EXTRA_SIZE_FOR_ALL_LOSSES, "Larger cache to keep all of them",
-            Unit::BYTES},
+           {M::EXTRA_SIZE_FOR_HALF_LOSSES,
+            "Larger cache to keep 50/90/100%",
+            Unit::BYTES,
+            false,
+            false,
+            {M::EXTRA_SIZE_FOR_90_PERCENT_LOSSES,
+             M::EXTRA_SIZE_FOR_ALL_LOSSES}},
            {M::FORGOTTEN_NEEDED_AGAIN, "Compiled again after --forget-*"},
            {M::TIME_LOST_TO_FORGETTING, "Time lost to --forget-*",
             Unit::MILLISECONDS},
@@ -326,9 +329,19 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
       if (line.hide_zero && !value) {
         continue;
       }
-      std::cout << "  " << std::left << std::setw(kLabelWidth) << line.label
-                << std::right << std::setw(kValueWidth)
-                << Format(line.unit, value);
+      String formatted = Format(line.unit, value);
+      for (const auto metric : line.more) {
+        shown.insert(metric);
+        formatted += " / " + Format(line.unit, values[metric]);
+      }
+      // The long values take the place of the label - aligned to the right.
+      const int label_width = std::max<int>(
+          strlen(line.label) + 1,
+          kLabelWidth + kValueWidth - static_cast<int>(formatted.size()));
+      std::cout << "  " << std::left << std::setw(label_width) << line.label
+                << std::right
+                << std::setw(kLabelWidth + kValueWidth - label_width)
+                << formatted;
       if (line.rate_with_next && i + 1 < group.lines.size()) {
         const ui64 total = value + values[group.lines[i + 1].metric];
         if (total) {
