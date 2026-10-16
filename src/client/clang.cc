@@ -110,8 +110,6 @@ struct StatLine {
   Unit unit = Unit::COUNT;
   // Hidden, while zero - e.g. the remote compilation, that isn't used.
   bool hide_zero = false;
-  // The rate of this metric among it and the next one, e.g. hits and misses.
-  bool rate_with_next = false;
   // The values of the same kind, shown after this one through " / ".
   Vector<perf::proto::Metric::Name> more = {};
 };
@@ -119,6 +117,8 @@ struct StatLine {
 struct StatGroup {
   String title;
   Vector<StatLine> lines;
+  // The counts are shown with their part of all compilations.
+  bool of_compilations = false;
 };
 
 String FormatCount(ui64 value) {
@@ -194,6 +194,14 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
   }
 
   using M = perf::proto::Metric;
+  // All compilations, that the daemon has got: with the direct cache every
+  // one is looked up in it, otherwise - in the simple cache.
+  const ui64 compilations =
+      std::max(values[M::DIRECT_CACHE_HIT] + values[M::DIRECT_CACHE_MISS],
+               values[M::SIMPLE_CACHE_HIT] + values[M::SIMPLE_CACHE_MISS]) +
+      values[M::UNSUPPORTED_COMMAND];
+  const String cache_title = "Cache (" + FormatCount(compilations) +
+                             " compilations since the start of the daemon)";
   // The own size counts against the limit.
   const String cache_size_title =
       "Cache size (" + HumanSize(values[M::CACHE_OWN_SIZE]) + " of " +
@@ -222,7 +230,6 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
             "Larger cache to keep 50/90/100%",
             Unit::BYTES,
             false,
-            false,
             {M::EXTRA_SIZE_FOR_90_PERCENT_LOSSES,
              M::EXTRA_SIZE_FOR_ALL_LOSSES}},
            {M::FORGOTTEN_NEEDED_AGAIN, "Compiled again after --forget-*"},
@@ -230,11 +237,11 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
             Unit::MILLISECONDS},
            {M::GHOSTS, "Removed entries remembered"},
        }},
-      {"Cache",
+      {cache_title,
        {
-           {M::DIRECT_CACHE_HIT, "Direct cache hits", Unit::COUNT, false, true},
+           {M::DIRECT_CACHE_HIT, "Direct cache hits"},
            {M::DIRECT_CACHE_MISS, "Direct cache misses"},
-           {M::SIMPLE_CACHE_HIT, "Simple cache hits", Unit::COUNT, false, true},
+           {M::SIMPLE_CACHE_HIT, "Simple cache hits"},
            {M::SIMPLE_CACHE_MISS, "Simple cache misses"},
            {M::PARALLEL_PREPROCESSING_HIT, "Hits by parallel preprocessing",
             Unit::COUNT, true},
@@ -244,9 +251,8 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
             true},
            {M::HIT_VERIFICATION_FAILED, "Hits failed the verification",
             Unit::COUNT, true},
-           {M::CACHE_INCOMPATIBLE, "Not used: incompatible format",
-            Unit::COUNT, true},
-       }},
+       },
+       true},
       {"Compilations",
        {
            {M::LOCAL_TASK_DONE, "Compiled locally"},
@@ -262,7 +268,8 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
            {M::PARALLEL_PREPROCESSING, "Preprocessed during the compilation"},
            {M::WARNINGS_RECHECKED, "Warnings rechecked (-fsyntax-only)",
             Unit::COUNT, true},
-       }},
+       },
+       true},
       {"Outputs",
        {
            {M::CACHE_OUTPUT_LINKED, "Restored as links (hard or reflink)"},
@@ -276,6 +283,8 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
        }},
       {cache_size_title,
        {
+           {M::CACHE_INCOMPATIBLE, "Not used: incompatible format",
+            Unit::COUNT, true},
            {M::CACHE_ENTRIES, "Entries"},
            {M::CACHE_OWN_SIZE, "Own size", Unit::BYTES},
            {M::CACHE_SHARED_SIZE, "Linked with build directories (free)",
@@ -358,12 +367,10 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
                 << std::right
                 << std::setw(kLabelWidth + kValueWidth - label_width)
                 << formatted;
-      if (line.rate_with_next && i + 1 < group.lines.size()) {
-        const ui64 total = value + values[group.lines[i + 1].metric];
-        if (total) {
-          std::cout << "  " << std::fixed << std::setprecision(1)
-                    << 100.0 * value / total << "%";
-        }
+      if (group.of_compilations && line.unit == Unit::COUNT &&
+          compilations) {
+        std::cout << "  " << std::fixed << std::setprecision(1)
+                  << std::setw(5) << 100.0 * value / compilations << "%";
       }
       std::cout << std::endl;
     }
