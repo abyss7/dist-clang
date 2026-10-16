@@ -112,8 +112,6 @@ struct StatLine {
   bool hide_zero = false;
   // The rate of this metric among it and the next one, e.g. hits and misses.
   bool rate_with_next = false;
-  // Computes the value from the other metrics instead.
-  ui64 (*compute)(const HashMap<int, ui64>& values) = nullptr;
 };
 
 struct StatGroup {
@@ -200,24 +198,6 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
             Unit::MILLISECONDS},
            {M::TIME_SAVED_BY_SIMPLE_HITS, "Compilation by simple hits",
             Unit::MILLISECONDS},
-           // Each direct hit and each skipped preprocessing saves the
-           // preprocessing of the average time.
-           // Unknown without the preprocessings.
-           {M::PREPROCESSINGS, "Preprocessing (estimate)", Unit::MILLISECONDS,
-            true, false,
-            [](const HashMap<int, ui64>& values) -> ui64 {
-              const auto get = [&](M::Name name) {
-                auto it = values.find(name);
-                return it == values.end() ? 0 : it->second;
-              };
-              const ui64 count = get(M::PREPROCESSINGS);
-              if (!count) {
-                return 0;
-              }
-              return (get(M::DIRECT_CACHE_HIT) +
-                      get(M::PREPROCESSING_SKIPPED)) *
-                     get(M::PREPROCESS_TIME) / count;
-            }},
            {M::DISK_SAVED_BY_DEDUPLICATION, "Disk: one copy for several entries",
             Unit::BYTES},
            {M::DISK_SAVED_BY_LINKS, "Disk: links with build directories",
@@ -341,8 +321,7 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
     for (size_t i = 0; i < group.lines.size(); ++i) {
       const auto& line = group.lines[i];
       shown.insert(line.metric);
-      const ui64 value =
-          line.compute ? line.compute(values) : values[line.metric];
+      const ui64 value = values[line.metric];
       if (line.hide_zero && !value) {
         continue;
       }

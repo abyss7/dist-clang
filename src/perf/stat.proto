@@ -75,7 +75,7 @@ message Metric {
     // in milliseconds - the time of the compilations of the found entries.
 
     PREPROCESSINGS              = 43;
-    // The number of preprocessings - for the average of their time.
+    // The number of preprocessings.
 
     DISK_SAVED_BY_DEDUPLICATION = 44;
     DISK_SAVED_BY_LINKS         = 45;
