@@ -6,6 +6,21 @@
 namespace dist_clang {
 namespace net {
 
+// Puts the message into the field of |proto::Universal| for its type.
+#define DEFINE_WRAP(type, field)                                      \
+  inline void Wrap(proto::Universal* universal, type* message) {    \
+    universal->set_allocated_##field(message);                       \
+  }
+DEFINE_WRAP(proto::Status, status)
+DEFINE_WRAP(daemon::proto::Result, result)
+DEFINE_WRAP(base::proto::Local, local)
+DEFINE_WRAP(daemon::proto::Remote, remote)
+DEFINE_WRAP(perf::proto::Report, report)
+DEFINE_WRAP(daemon::proto::Configuration, configuration)
+DEFINE_WRAP(base::proto::TagsRequest, tags_request)
+DEFINE_WRAP(base::proto::TagsReport, tags_report)
+#undef DEFINE_WRAP
+
 class Connection : public std::enable_shared_from_this<Connection> {
  public:
   using Status = proto::Status;
@@ -32,14 +47,14 @@ class Connection : public std::enable_shared_from_this<Connection> {
   bool SendAsync(UniquePtr<M> message,
                  SendCallback callback = CloseAfterSend()) {
     message_.reset(new Message);
-    message_->SetAllocatedExtension(M::extension, message.release());
+    Wrap(message_.get(), message.release());
     return SendAsyncImpl(callback);
   }
 
   template <class M>
   bool SendSync(UniquePtr<M> message, Status* status = nullptr) {
     message_.reset(new Message);
-    message_->SetAllocatedExtension(M::extension, message.release());
+    Wrap(message_.get(), message.release());
     return SendSyncImpl(status);
   }
 

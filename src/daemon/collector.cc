@@ -41,9 +41,9 @@ bool Collector::HandleNewMessage(net::ConnectionPtr connection,
     return connection->ReportStatus(status);
   }
 
-  if (message->HasExtension(perf::proto::Report::extension)) {
+  if (message->has_report()) {
     UniquePtr<perf::proto::Report> report(
-        message->ReleaseExtension(perf::proto::Report::extension));
+        message->release_report());
     for (auto& metric : *report->mutable_metric()) {
       if (metric.has_name()) {
         base::Singleton<perf::StatService>::Get().Dump(metric);

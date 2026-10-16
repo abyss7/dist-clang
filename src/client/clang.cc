@@ -80,12 +80,12 @@ Result DoMain(const List<String>& args, const String& socket_path,
     return Result::RUN_LOCALLY;
   }
 
-  if (!reply.HasExtension(net::proto::Status::extension)) {
+  if (!reply.has_status()) {
     LOG(ERROR) << "Message from daemon has wrong format : no Status extension";
     return Result::RUN_LOCALLY;
   }
 
-  status = reply.GetExtension(net::proto::Status::extension);
+  status = reply.status();
   switch (status.code()) {
     case net::proto::Status::OK:
       std::cerr << status.description();
@@ -169,13 +169,13 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
 
   net::Connection::Message reply;
   if (!connection->ReadSync(&reply, &status) ||
-      !reply.HasExtension(perf::proto::Report::extension)) {
+      !reply.has_report()) {
     std::cerr << "Failed to read statistics: " << status.description()
               << std::endl;
     return false;
   }
 
-  const auto& report = reply.GetExtension(perf::proto::Report::extension);
+  const auto& report = reply.report();
   // For scripts: "NAME value".
   if (raw) {
     for (const auto& metric : report.metric()) {
@@ -367,9 +367,9 @@ bool RequestTags(const String& socket_path, const proto::Configuration& config,
               << std::endl;
     return false;
   }
-  if (!reply.HasExtension(base::proto::TagsReport::extension)) {
-    if (reply.HasExtension(net::proto::Status::extension)) {
-      std::cerr << reply.GetExtension(net::proto::Status::extension)
+  if (!reply.has_tags_report()) {
+    if (reply.has_status()) {
+      std::cerr << reply.status()
                        .description()
                 << std::endl;
     } else {
@@ -378,7 +378,7 @@ bool RequestTags(const String& socket_path, const proto::Configuration& config,
     return false;
   }
 
-  report->CopyFrom(reply.GetExtension(base::proto::TagsReport::extension));
+  report->CopyFrom(reply.tags_report());
   return true;
 }
 

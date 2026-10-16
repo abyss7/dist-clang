@@ -40,9 +40,9 @@ bool Coordinator::HandleNewMessage(net::ConnectionPtr connection,
     return connection->ReportStatus(status);
   }
 
-  if (message->HasExtension(Configuration::extension)) {
+  if (message->has_configuration()) {
     UniquePtr<Configuration> configuration(
-        message->ReleaseExtension(Configuration::extension));
+        message->release_configuration());
     configuration->Clear();
 
     Configuration::Emitter* emitter = configuration->mutable_emitter();

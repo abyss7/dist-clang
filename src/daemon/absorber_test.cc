@@ -15,7 +15,7 @@ net::Connection::ScopedMessage CreateMessage(
     const S1& source, const S2& action, const S3& compiler_version,
     const S4& language = S4(), const S5& sanitize_blacklist = S5()) {
   net::Connection::ScopedMessage message(new net::Connection::Message);
-  auto* extension = message->MutableExtension(proto::Remote::extension);
+  auto* extension = message->mutable_remote();
   extension->set_source(source);
   auto* compiler = extension->mutable_flags()->mutable_compiler();
   compiler->set_version(compiler_version);
@@ -90,8 +90,8 @@ TEST_F(AbsorberTest, Overloaded) {
   };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
 
       if (send_count == 2) {
         // After we blocked Absorber::DoExecute on sending result for first task
@@ -103,14 +103,14 @@ TEST_F(AbsorberTest, Overloaded) {
         // for third task with the OVERLOAD status(we're processing right now).
 
         EXPECT_EQ(overload_code, status.code());
-        EXPECT_FALSE(message.HasExtension(proto::Result::extension));
+        EXPECT_FALSE(message.has_result());
         queue_limit_reached = true;
         send_condition.notify_one();
       } else {
         EXPECT_EQ(expected_code, status.code());
 
-        EXPECT_TRUE(message.HasExtension(proto::Result::extension));
-        const auto& ext = message.GetExtension(proto::Result::extension);
+        EXPECT_TRUE(message.has_result());
+        const auto& ext = message.result();
         EXPECT_TRUE(ext.has_obj());
         EXPECT_TRUE(ext.hash_match());
 
@@ -137,7 +137,7 @@ TEST_F(AbsorberTest, Overloaded) {
   auto connection1 = test_service->TriggerListen(expected_host, expected_port);
   {
     auto message(CreateMessage(source_code, "fake_action"_l, compiler_version));
-    auto* extension = message->MutableExtension(proto::Remote::extension);
+    auto* extension = message->mutable_remote();
     auto handled_hash = CompilationDaemon::GenerateHash(
         extension->flags(), cache::string::HandledSource(source_code),
         cache::ExtraFiles());
@@ -160,7 +160,7 @@ TEST_F(AbsorberTest, Overloaded) {
   auto connection2 = test_service->TriggerListen(expected_host, expected_port);
   {
     auto message(CreateMessage(source_code, "fake_action"_l, compiler_version));
-    auto* extension = message->MutableExtension(proto::Remote::extension);
+    auto* extension = message->mutable_remote();
     auto handled_hash = CompilationDaemon::GenerateHash(
         extension->flags(), cache::string::HandledSource(source_code),
         cache::ExtraFiles());
@@ -175,7 +175,7 @@ TEST_F(AbsorberTest, Overloaded) {
   auto connection3 = test_service->TriggerListen(expected_host, expected_port);
   {
     auto message(CreateMessage(source_code, "fake_action"_l, compiler_version));
-    auto* extension = message->MutableExtension(proto::Remote::extension);
+    auto* extension = message->mutable_remote();
     auto handled_hash = CompilationDaemon::GenerateHash(
         extension->flags(), cache::string::HandledSource(source_code),
         cache::ExtraFiles());
@@ -242,12 +242,12 @@ TEST_F(AbsorberTest, CacheHitsIfOverloaded) {
   };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code());
-      EXPECT_TRUE(message.HasExtension(proto::Result::extension));
+      EXPECT_TRUE(message.has_result());
 
-      const auto& ext = message.GetExtension(proto::Result::extension);
+      const auto& ext = message.result();
       EXPECT_TRUE(ext.has_obj());
       EXPECT_TRUE(ext.hash_match());
 
@@ -275,7 +275,7 @@ TEST_F(AbsorberTest, CacheHitsIfOverloaded) {
   auto connection1 = test_service->TriggerListen(expected_host, expected_port);
   {
     auto message(CreateMessage(source_code, "fake_action"_l, compiler_version));
-    auto* extension = message->MutableExtension(proto::Remote::extension);
+    auto* extension = message->mutable_remote();
     auto handled_hash = CompilationDaemon::GenerateHash(
         extension->flags(), cache::string::HandledSource(source_code),
         cache::ExtraFiles());
@@ -298,7 +298,7 @@ TEST_F(AbsorberTest, CacheHitsIfOverloaded) {
   auto connection2 = test_service->TriggerListen(expected_host, expected_port);
   {
     auto message(CreateMessage(source_code, "fake_action"_l, compiler_version));
-    auto* extension = message->MutableExtension(proto::Remote::extension);
+    auto* extension = message->mutable_remote();
     auto handled_hash = CompilationDaemon::GenerateHash(
         extension->flags(), cache::string::HandledSource(source_code),
         cache::ExtraFiles());
@@ -313,7 +313,7 @@ TEST_F(AbsorberTest, CacheHitsIfOverloaded) {
   auto connection3 = test_service->TriggerListen(expected_host, expected_port);
   {
     auto message(CreateMessage(source_code, "fake_action"_l, compiler_version));
-    auto* extension = message->MutableExtension(proto::Remote::extension);
+    auto* extension = message->mutable_remote();
     auto handled_hash = CompilationDaemon::GenerateHash(
         extension->flags(), cache::string::HandledSource(source_code),
         cache::ExtraFiles());
@@ -384,18 +384,18 @@ TEST_F(AbsorberTest, OverloadedOnCacheMiss) {
   };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       if (send_count == 2) {
         EXPECT_EQ(overload_code, status.code());
-        EXPECT_FALSE(message.HasExtension(proto::Result::extension));
+        EXPECT_FALSE(message.has_result());
         queue_limit_reached = true;
         send_condition.notify_one();
       } else {
         EXPECT_EQ(expected_code, status.code());
-        EXPECT_TRUE(message.HasExtension(proto::Result::extension));
+        EXPECT_TRUE(message.has_result());
 
-        const auto& ext = message.GetExtension(proto::Result::extension);
+        const auto& ext = message.result();
         EXPECT_TRUE(ext.has_obj());
         EXPECT_TRUE(ext.hash_match());
 
@@ -422,7 +422,7 @@ TEST_F(AbsorberTest, OverloadedOnCacheMiss) {
   auto connection1 = test_service->TriggerListen(expected_host, expected_port);
   {
     auto message(CreateMessage(source_code, "fake_action"_l, compiler_version));
-    auto* extension = message->MutableExtension(proto::Remote::extension);
+    auto* extension = message->mutable_remote();
     auto handled_hash = CompilationDaemon::GenerateHash(
         extension->flags(), cache::string::HandledSource(source_code),
         cache::ExtraFiles());
@@ -446,7 +446,7 @@ TEST_F(AbsorberTest, OverloadedOnCacheMiss) {
   {
     auto message(
         CreateMessage(different_code, "fake_action"_l, compiler_version));
-    auto* extension = message->MutableExtension(proto::Remote::extension);
+    auto* extension = message->mutable_remote();
     auto handled_hash = CompilationDaemon::GenerateHash(
         extension->flags(), cache::string::HandledSource(different_code),
         cache::ExtraFiles());
@@ -462,7 +462,7 @@ TEST_F(AbsorberTest, OverloadedOnCacheMiss) {
   {
     auto message(
         CreateMessage(different_code, "fake_action"_l, compiler_version));
-    auto* extension = message->MutableExtension(proto::Remote::extension);
+    auto* extension = message->mutable_remote();
     auto handled_hash = CompilationDaemon::GenerateHash(
         extension->flags(), cache::string::HandledSource(source_code),
         cache::ExtraFiles());
@@ -519,13 +519,13 @@ TEST_F(AbsorberTest, SuccessfulCompilation) {
   };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code());
 
-      EXPECT_TRUE(message.HasExtension(proto::Result::extension));
-      EXPECT_TRUE(message.GetExtension(proto::Result::extension).has_obj());
-      EXPECT_TRUE(message.GetExtension(proto::Result::extension).hash_match());
+      EXPECT_TRUE(message.has_result());
+      EXPECT_TRUE(message.result().has_obj());
+      EXPECT_TRUE(message.result().hash_match());
     });
     return true;
   };
@@ -536,7 +536,7 @@ TEST_F(AbsorberTest, SuccessfulCompilation) {
   auto connection = test_service->TriggerListen(expected_host, expected_port);
   {
     auto message(CreateMessage(source_code, "fake_action"_l, compiler_version));
-    auto* extension = message->MutableExtension(proto::Remote::extension);
+    auto* extension = message->mutable_remote();
     auto handled_hash = CompilationDaemon::GenerateHash(
         extension->flags(), cache::string::HandledSource(source_code),
         cache::ExtraFiles());
@@ -582,13 +582,13 @@ TEST_F(AbsorberTest, SuccessfulCompilationWithRewriteIncludes) {
   };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code());
 
-      EXPECT_TRUE(message.HasExtension(proto::Result::extension));
-      EXPECT_TRUE(message.GetExtension(proto::Result::extension).has_obj());
-      EXPECT_TRUE(message.GetExtension(proto::Result::extension).hash_match());
+      EXPECT_TRUE(message.has_result());
+      EXPECT_TRUE(message.result().has_obj());
+      EXPECT_TRUE(message.result().hash_match());
     });
     return true;
   };
@@ -605,7 +605,7 @@ TEST_F(AbsorberTest, SuccessfulCompilationWithRewriteIncludes) {
   auto connection = test_service->TriggerListen(expected_host, expected_port);
   {
     auto message(CreateMessage(source_code, action, compiler_version));
-    auto* extension = message->MutableExtension(proto::Remote::extension);
+    auto* extension = message->mutable_remote();
     extension->mutable_flags()->set_rewrite_includes(true);
     auto handled_hash = CompilationDaemon::GenerateHash(
         extension->flags(), cache::string::HandledSource(source_code),
@@ -649,13 +649,13 @@ TEST_F(AbsorberTest, SuccessfulCompilationWithBlacklist) {
   };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code());
 
-      EXPECT_TRUE(message.HasExtension(proto::Result::extension));
-      EXPECT_TRUE(message.GetExtension(proto::Result::extension).has_obj());
-      EXPECT_FALSE(message.GetExtension(proto::Result::extension).hash_match());
+      EXPECT_TRUE(message.has_result());
+      EXPECT_TRUE(message.result().has_obj());
+      EXPECT_FALSE(message.result().hash_match());
     });
     return true;
   };
@@ -668,7 +668,7 @@ TEST_F(AbsorberTest, SuccessfulCompilationWithBlacklist) {
     auto message(CreateMessage("fake_source"_l, "fake_action"_l,
                                compiler_version, "", "sanitize_blacklist"));
 
-    auto* extension = message->MutableExtension(proto::Remote::extension);
+    auto* extension = message->mutable_remote();
     extension->set_handled_hash("difficult_to_match_hash");
 
     SharedPtr<net::TestConnection> test_connection =
@@ -708,11 +708,11 @@ TEST_F(AbsorberTest, FailedCompilation) {
   };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code());
 
-      EXPECT_FALSE(message.HasExtension(proto::Result::extension));
+      EXPECT_FALSE(message.has_result());
     });
     return true;
   };
@@ -772,12 +772,12 @@ TEST_F(AbsorberTest, StoreLocalCacheWithoutBlacklist) {
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code()) << status.description();
 
-      EXPECT_TRUE(message.HasExtension(proto::Result::extension));
-      const auto& ext = message.GetExtension(proto::Result::extension);
+      EXPECT_TRUE(message.has_result());
+      const auto& ext = message.result();
       EXPECT_TRUE(ext.has_obj());
       EXPECT_EQ(String(object_code), ext.obj());
 
@@ -876,12 +876,12 @@ TEST_F(AbsorberTest, DoNotStoreLocalCacheWhenDisabled) {
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code()) << status.description();
 
-      EXPECT_TRUE(message.HasExtension(proto::Result::extension));
-      const auto& ext = message.GetExtension(proto::Result::extension);
+      EXPECT_TRUE(message.has_result());
+      const auto& ext = message.result();
       EXPECT_TRUE(ext.has_obj());
       EXPECT_EQ(String(object_code), ext.obj());
 
@@ -974,12 +974,12 @@ TEST_F(AbsorberTest, StoreLocalCacheWithBlacklist) {
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code()) << status.description();
 
-      EXPECT_TRUE(message.HasExtension(proto::Result::extension));
-      const auto& ext = message.GetExtension(proto::Result::extension);
+      EXPECT_TRUE(message.has_result());
+      const auto& ext = message.result();
       EXPECT_TRUE(ext.has_obj());
       EXPECT_EQ(String(object_code), ext.obj());
 
@@ -1084,12 +1084,12 @@ TEST_F(AbsorberTest, StoreLocalCacheWithAndWithoutBlacklist) {
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code()) << status.description();
 
-      EXPECT_TRUE(message.HasExtension(proto::Result::extension));
-      const auto& ext = message.GetExtension(proto::Result::extension);
+      EXPECT_TRUE(message.has_result());
+      const auto& ext = message.result();
       EXPECT_TRUE(ext.has_obj());
       EXPECT_EQ(String(object_code), ext.obj());
 
@@ -1177,11 +1177,11 @@ TEST_F(AbsorberTest, BadCompilerVersion) {
                                      net::EndPointPtr) {
     connection->CallOnSend([expected_code](
         const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code());
 
-      EXPECT_FALSE(message.HasExtension(proto::Result::extension));
+      EXPECT_FALSE(message.has_result());
     });
     return true;
   };
@@ -1233,11 +1233,11 @@ TEST_F(AbsorberTest, BadMessageStatus) {
                                      net::EndPointPtr) {
     connection->CallOnSend([expected_code](
         const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code());
 
-      EXPECT_FALSE(message.HasExtension(proto::Result::extension));
+      EXPECT_FALSE(message.has_result());
     });
     return true;
   };

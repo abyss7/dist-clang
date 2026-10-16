@@ -30,8 +30,8 @@ TEST_F(CollectorTest, SimpleReport) {
   };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(perf::proto::Report::extension));
-      const auto& report = message.GetExtension(perf::proto::Report::extension);
+      EXPECT_TRUE(message.has_report());
+      const auto& report = message.report();
       EXPECT_EQ(2, report.metric_size());
       EXPECT_EQ(perf::proto::Metric::DIRECT_CACHE_HIT, report.metric(0).name());
       EXPECT_EQ(1u, report.metric(0).value());
@@ -50,7 +50,7 @@ TEST_F(CollectorTest, SimpleReport) {
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(perf::proto::Report::extension);
+    auto* extension = message->mutable_report();
     extension->add_metric()->set_name(perf::proto::Metric::DIRECT_CACHE_HIT);
     extension->add_metric()->set_name(perf::proto::Metric::SIMPLE_CACHE_HIT);
 

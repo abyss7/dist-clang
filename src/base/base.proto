@@ -1,6 +1,5 @@
 syntax = "proto2";
 
-import "net/universal.proto";
 
 package dist_clang.base.proto;
 
@@ -136,10 +135,6 @@ message Local {
 
   repeated string env          = 5;
   // environment of the client: "NAME=value".
-
-  extend net.proto.Universal {
-    optional Local extension = 5;
-  }
 }
 
 // Sent from client to emitter: the statistics of the tags of the cache, or
@@ -149,10 +144,6 @@ message TagsRequest {
   // The tag to remove: the entries, that only it uses, are removed too.
 
   optional bool dry_run  = 2 [ default = true ];
-
-  extend net.proto.Universal {
-    optional TagsRequest extension = 9;
-  }
 }
 
 message TagsReport {
@@ -186,10 +177,6 @@ message TagsReport {
   optional uint64 freed_size      = 4;
   optional uint64 shared_entries  = 5;
   optional uint64 linked_entries  = 6;
-
-  extend net.proto.Universal {
-    optional TagsReport extension = 10;
-  }
 }
 
 message Verbosity {

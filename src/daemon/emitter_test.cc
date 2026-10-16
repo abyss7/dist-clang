@@ -87,8 +87,8 @@ class EmitterTest : public CommonDaemonTest {
     connect_callback = [this](net::TestConnection* connection, net::EndPointPtr) {
       connection->CallOnSend([this](const net::Connection::Message& message) {
         using net::proto::Status;
-        EXPECT_TRUE(message.HasExtension(Status::extension));
-        const auto& status = message.GetExtension(Status::extension);
+        EXPECT_TRUE(message.has_status());
+        const auto& status = message.status();
         EXPECT_EQ(expected_code, status.code());
         return !::testing::Test::HasNonfatalFailure();
       });
@@ -129,8 +129,8 @@ TEST_F(EmitterTest, BadLocalMessage) {
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code());
       EXPECT_EQ(expected_description, status.description());
     });
@@ -214,7 +214,7 @@ TEST_F(EmitterTest, LocalMessageWithBadCompiler) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(current_dir);
     extension->mutable_flags()->mutable_compiler()->set_version(bad_version);
     extension->mutable_flags()->set_action("fake_action");
@@ -293,7 +293,7 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
       EXPECT_EQ(EndPointString(coordinator_host, coordinator_port), end_point->Print());
 
       connection->CallOnRead([&](net::Connection::Message* message) {
-        auto* emitter = message->MutableExtension(proto::Configuration::extension)->mutable_emitter();
+        auto* emitter = message->mutable_configuration()->mutable_emitter();
         auto* remote = emitter->add_remotes();
         remote->set_host(old_remote_host);
         remote->set_port(old_remote_port);
@@ -321,7 +321,7 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
       });
 
       connection->CallOnRead([&](net::Connection::Message* message) {
-        auto* emitter = message->MutableExtension(proto::Configuration::extension)->mutable_emitter();
+        auto* emitter = message->mutable_configuration()->mutable_emitter();
         auto* remote = emitter->add_remotes();
         remote->set_host(new_remote_host);
         remote->set_port(new_remote_port);
@@ -336,8 +336,8 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
       EXPECT_EQ(EndPointString(socket_path, 0), end_point->Print());
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
-        EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-        const auto& status = message.GetExtension(net::proto::Status::extension);
+        EXPECT_TRUE(message.has_status());
+        const auto& status = message.status();
         EXPECT_EQ(expected_code, status.code()) << status.description();
       });
     } else if (connect_count == 4) {
@@ -347,7 +347,7 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
       EXPECT_EQ(old_total_shards, emitter->conf()->emitter().total_shards());
 
       connection->CallOnRead([&](net::Connection::Message* message) {
-        message->MutableExtension(proto::Result::extension)->set_obj(object_code);
+        message->mutable_result()->set_obj(object_code);
         send_condition.notify_all();
       });
     } else if (connect_count == 5) {
@@ -375,7 +375,7 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
       });
 
       connection->CallOnRead([&](net::Connection::Message* message) {
-        message->MutableExtension(proto::Result::extension)->set_obj(object_code);
+        message->mutable_result()->set_obj(object_code);
       });
     }
 
@@ -409,7 +409,7 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
     auto test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     auto message = std::make_unique<net::Connection::Message>();
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
 
     auto* flags = extension->mutable_flags();
@@ -437,7 +437,7 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
     auto test_connection = std::static_pointer_cast<net::TestConnection>(connection2);
 
     auto message = std::make_unique<net::Connection::Message>();
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
 
     auto* flags = extension->mutable_flags();
@@ -528,7 +528,7 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
       });
 
       connection->CallOnRead([&](net::Connection::Message* message) {
-        auto* emitter = message->MutableExtension(proto::Configuration::extension)->mutable_emitter();
+        auto* emitter = message->mutable_configuration()->mutable_emitter();
         for (ui32 remote = 0; remote < new_total_shards; ++remote) {
           auto* remote_host = emitter->add_remotes();
           remote_host->set_host(remote_host_name);
@@ -546,8 +546,8 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
       EXPECT_EQ(EndPointString(socket_path, 0), end_point->Print());
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
-        EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-        const auto& status = message.GetExtension(net::proto::Status::extension);
+        EXPECT_TRUE(message.has_status());
+        const auto& status = message.status();
         EXPECT_EQ(expected_code, status.code()) << status.description();
 
         // If connect_count == 3:
@@ -562,8 +562,8 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
       // Connection from emitter to remote absorber. Task #1.
 
       connection->CallOnSend([&, end_point](const net::Connection::Message& message) {
-        EXPECT_TRUE(message.HasExtension(proto::Remote::extension));
-        const auto& outgoing = message.GetExtension(proto::Remote::extension);
+        EXPECT_TRUE(message.has_remote());
+        const auto& outgoing = message.remote();
         auto handled_hash = Immutable::WrapString(outgoing.handled_hash());
 
         const ui32 expected_shard = Emitter::CalculateShard(cache::string::HandledHash(handled_hash), old_total_shards);
@@ -592,8 +592,8 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
       DCHECK(emitter);
 
       connection->CallOnSend([&, end_point](const net::Connection::Message& message) {
-        EXPECT_TRUE(message.HasExtension(proto::Remote::extension));
-        const auto& outgoing = message.GetExtension(proto::Remote::extension);
+        EXPECT_TRUE(message.has_remote());
+        const auto& outgoing = message.remote();
         auto handled_hash = Immutable::WrapString(outgoing.handled_hash());
 
         const ui32 expected_shard = Emitter::CalculateShard(cache::string::HandledHash(handled_hash), new_total_shards);
@@ -602,7 +602,7 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
       });
 
       connection->CallOnRead([&](net::Connection::Message* message) {
-        message->MutableExtension(proto::Result::extension)->set_obj(object_code);
+        message->mutable_result()->set_obj(object_code);
       });
     }
 
@@ -633,7 +633,7 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
     auto test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     auto message = std::make_unique<net::Connection::Message>();
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
 
     auto* flags = extension->mutable_flags();
@@ -652,7 +652,7 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
     auto test_connection = std::static_pointer_cast<net::TestConnection>(connection2);
 
     auto message = std::make_unique<net::Connection::Message>();
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
 
     auto* flags = extension->mutable_flags();
@@ -738,8 +738,8 @@ TEST_F(EmitterTest, TasksGetReshardedOnFailedRemote) {
       EXPECT_EQ(EndPointString(socket_path, 0), end_point->Print());
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
-        EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-        const auto& status = message.GetExtension(net::proto::Status::extension);
+        EXPECT_TRUE(message.has_status());
+        const auto& status = message.status();
         EXPECT_EQ(expected_code, status.code()) << status.description();
 
         // Emitter sent result for task, so reset emitter now and finish test.
@@ -783,7 +783,7 @@ TEST_F(EmitterTest, TasksGetReshardedOnFailedRemote) {
     auto test_connection = std::static_pointer_cast<net::TestConnection>(connection);
 
     auto message = std::make_unique<net::Connection::Message>();
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
 
     auto* flags = extension->mutable_flags();
@@ -901,7 +901,7 @@ TEST_F(EmitterTest, CoordinatorNoConnection) {
     if (connections_created >= 2) {
       EXPECT_EQ(end_point->Print(), EndPointString(good_coordinator_host, good_coordinator_port));
       connection->CallOnRead(
-          [&](net::Connection::Message* message) { message->MutableExtension(proto::Configuration::extension); });
+          [&](net::Connection::Message* message) { message->mutable_configuration(); });
       if (connections_created > 2) {
         send_condition.notify_all();
       }
@@ -966,7 +966,7 @@ TEST_F(EmitterTest, CoordinatorSendFailed) {
     if (connections_created >= 2) {
       EXPECT_EQ(end_point->Print(), EndPointString(good_coordinator_host, good_coordinator_port));
       connection->CallOnRead(
-          [&](net::Connection::Message* message) { message->MutableExtension(proto::Configuration::extension); });
+          [&](net::Connection::Message* message) { message->mutable_configuration(); });
       if (connections_created > 2) {
         send_condition.notify_all();
       }
@@ -1031,7 +1031,7 @@ TEST_F(EmitterTest, CoordinatorReadFailed) {
     if (connections_created >= 2) {
       EXPECT_EQ(end_point->Print(), EndPointString(good_coordinator_host, good_coordinator_port));
       connection->CallOnRead(
-          [&](net::Connection::Message* message) { message->MutableExtension(proto::Configuration::extension); });
+          [&](net::Connection::Message* message) { message->mutable_configuration(); });
       if (connections_created > 2) {
         send_condition.notify_all();
       }
@@ -1089,7 +1089,7 @@ TEST_F(EmitterTest, CoordinatorNoConfiguration) {
     if (connections_created >= 2) {
       EXPECT_EQ(end_point->Print(), EndPointString(good_coordinator_host, good_coordinator_port));
       connection->CallOnRead(
-          [&](net::Connection::Message* message) { message->MutableExtension(proto::Configuration::extension); });
+          [&](net::Connection::Message* message) { message->mutable_configuration(); });
       if (connections_created > 2) {
         send_condition.notify_all();
       }
@@ -1149,13 +1149,13 @@ TEST_F(EmitterTest, CoordinatorNoRemotes) {
     if (connections_created == 1) {
       EXPECT_EQ(end_point->Print(), EndPointString(bad_coordinator_host, bad_coordinator_port));
       connection->CallOnRead(
-          [&](net::Connection::Message* message) { message->MutableExtension(proto::Configuration::extension); });
+          [&](net::Connection::Message* message) { message->mutable_configuration(); });
       return true;
     }
     if (connections_created >= 2) {
       EXPECT_EQ(end_point->Print(), EndPointString(good_coordinator_host, good_coordinator_port));
       connection->CallOnRead([&](net::Connection::Message* message) {
-        auto remote = message->MutableExtension(proto::Configuration::extension)->mutable_emitter()->add_remotes();
+        auto remote = message->mutable_configuration()->mutable_emitter()->add_remotes();
         remote->set_host(remote_host);
         remote->set_port(remote_port);
       });
@@ -1218,7 +1218,7 @@ TEST_F(EmitterTest, CoordinatorNoEnabledRemotes) {
     if (connections_created == 1) {
       EXPECT_EQ(end_point->Print(), EndPointString(bad_coordinator_host, bad_coordinator_port));
       connection->CallOnRead([&](net::Connection::Message* message) {
-        auto remote = message->MutableExtension(proto::Configuration::extension)->mutable_emitter()->add_remotes();
+        auto remote = message->mutable_configuration()->mutable_emitter()->add_remotes();
         remote->set_host(remote_host);
         remote->set_port(remote_port);
         remote->set_disabled(true);
@@ -1228,7 +1228,7 @@ TEST_F(EmitterTest, CoordinatorNoEnabledRemotes) {
     if (connections_created >= 2) {
       EXPECT_EQ(end_point->Print(), EndPointString(good_coordinator_host, good_coordinator_port));
       connection->CallOnRead([&](net::Connection::Message* message) {
-        auto remote = message->MutableExtension(proto::Configuration::extension)->mutable_emitter()->add_remotes();
+        auto remote = message->mutable_configuration()->mutable_emitter()->add_remotes();
         remote->set_host(remote_host);
         remote->set_port(remote_port);
       });
@@ -1286,7 +1286,7 @@ TEST_F(EmitterTest, CoordinatorSuccessfulUpdate) {
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr end_point) {
     EXPECT_EQ(end_point->Print(), EndPointString(good_coordinator_host, good_coordinator_port));
     connection->CallOnRead([&](net::Connection::Message* message) {
-      auto remote = message->MutableExtension(proto::Configuration::extension)->mutable_emitter()->add_remotes();
+      auto remote = message->mutable_configuration()->mutable_emitter()->add_remotes();
       remote->set_host(remote_host);
       remote->set_port(remote_port);
     });
@@ -1353,7 +1353,7 @@ TEST_F(EmitterTest, RemoteMessageWithBadCompiler) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(current_dir);
     extension->mutable_flags()->mutable_compiler()->set_version(bad_version);
     extension->mutable_flags()->set_action("fake_action");
@@ -1395,7 +1395,7 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(current_dir);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
@@ -1444,7 +1444,7 @@ TEST_F(EmitterTest, LocalMessageWithBadPlugin2) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(current_dir);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
@@ -1495,7 +1495,7 @@ TEST_F(EmitterTest, LocalMessageWithPluginPath) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(current_dir);
     extension->set_user_id(user_id);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
@@ -1551,7 +1551,7 @@ TEST_F(EmitterTest, LocalMessageWithSanitizeBlacklist) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(current_dir);
     extension->set_user_id(user_id);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
@@ -1601,7 +1601,7 @@ TEST_F(EmitterTest, ConfigurationWithoutVersions) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(current_dir);
     extension->set_user_id(user_id);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
@@ -1661,7 +1661,7 @@ TEST_F(EmitterTest, LocalSuccessfulCompilation) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(current_dir);
     extension->set_user_id(user_id);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
@@ -1716,7 +1716,7 @@ TEST_F(EmitterTest, LocalFailedCompilation) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(current_dir);
     auto* compiler = extension->mutable_flags()->mutable_compiler();
     compiler->set_version(compiler_version);
@@ -1777,8 +1777,8 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code()) << status.description();
 
       send_condition.notify_all();
@@ -1808,7 +1808,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
 
     extension->mutable_flags()->set_input(input_path1);
@@ -1833,7 +1833,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection2);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
 
     extension->mutable_flags()->set_input(input_path2);
@@ -1923,8 +1923,8 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
       // Connection from client to local daemon.
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
-        EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-        const auto& status = message.GetExtension(net::proto::Status::extension);
+        EXPECT_TRUE(message.has_status());
+        const auto& status = message.status();
         EXPECT_EQ(expected_code, status.code()) << status.description();
 
         send_condition.notify_all();
@@ -1933,8 +1933,8 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
       // Connection from local daemon to remote daemon.
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
-        EXPECT_TRUE(message.HasExtension(proto::Remote::extension));
-        const auto& command = message.GetExtension(proto::Remote::extension);
+        EXPECT_TRUE(message.has_remote());
+        const auto& command = message.remote();
         EXPECT_EQ(source, command.source());
 
         send_condition.notify_all();
@@ -1943,14 +1943,14 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
       connection->CallOnRead([&](net::Connection::Message* message) {
         // Used to check remote compilation timing statistics.
         std::this_thread::sleep_for(remote_compilation_time);
-        message->MutableExtension(proto::Result::extension)->set_obj(object_code);
+        message->mutable_result()->set_obj(object_code);
       });
     } else if (connect_count == 3) {
       // Connection from client to local daemon.
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
-        EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-        const auto& status = message.GetExtension(net::proto::Status::extension);
+        EXPECT_TRUE(message.has_status());
+        const auto& status = message.status();
         EXPECT_EQ(expected_code, status.code()) << status.description();
 
         send_condition.notify_all();
@@ -1977,7 +1977,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
 
     extension->set_current_dir(temp_dir);
     extension->mutable_flags()->set_input(input_path1);
@@ -2003,7 +2003,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForRemoteResult) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection2);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
 
     extension->mutable_flags()->set_input(input_path2);
@@ -2099,8 +2099,8 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteFail) {
       // Connection from client to local daemon.
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
-        EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-        const auto& status = message.GetExtension(net::proto::Status::extension);
+        EXPECT_TRUE(message.has_status());
+        const auto& status = message.status();
         EXPECT_EQ(expected_code, status.code()) << status.description();
 
         send_condition.notify_all();
@@ -2109,8 +2109,8 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteFail) {
       // Connection from local daemon to remote daemon.
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
-        EXPECT_TRUE(message.HasExtension(proto::Remote::extension));
-        const auto& command = message.GetExtension(proto::Remote::extension);
+        EXPECT_TRUE(message.has_remote());
+        const auto& command = message.remote();
         EXPECT_EQ(source, command.source());
 
         EXPECT_TRUE(command.flags().rewrite_includes());
@@ -2118,7 +2118,7 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteFail) {
         send_condition.notify_all();
       });
       connection->CallOnRead([&](net::Connection::Message* message) {
-        message->MutableExtension(net::proto::Status::extension)->set_code(net::proto::Status::EXECUTION);
+        message->mutable_status()->set_code(net::proto::Status::EXECUTION);
       });
     }
     return true;
@@ -2145,7 +2145,7 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteFail) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
 
     extension->set_current_dir(temp_dir);
     extension->mutable_flags()->set_input(input_path1);
@@ -2233,8 +2233,8 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteRejects) {
       // Connection from client to local daemon.
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
-        EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-        const auto& status = message.GetExtension(net::proto::Status::extension);
+        EXPECT_TRUE(message.has_status());
+        const auto& status = message.status();
         EXPECT_EQ(expected_code, status.code()) << status.description();
 
         send_condition.notify_all();
@@ -2243,14 +2243,14 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteRejects) {
       // Connection from local daemon to remote daemon.
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
-        EXPECT_TRUE(message.HasExtension(proto::Remote::extension));
-        const auto& command = message.GetExtension(proto::Remote::extension);
+        EXPECT_TRUE(message.has_remote());
+        const auto& command = message.remote();
         EXPECT_EQ(source, command.source());
 
         send_condition.notify_all();
       });
       connection->CallOnRead([&](net::Connection::Message* message) {
-        message->MutableExtension(net::proto::Status::extension)->set_code(net::proto::Status::OVERLOAD);
+        message->mutable_status()->set_code(net::proto::Status::OVERLOAD);
       });
     }
     return true;
@@ -2277,7 +2277,7 @@ TEST_F(EmitterTest, FallbackToLocalCompilationAfterRemoteRejects) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
 
     extension->set_current_dir(temp_dir);
     extension->mutable_flags()->set_input(input_path1);
@@ -2353,8 +2353,8 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code()) << status.description();
 
       send_condition.notify_all();
@@ -2388,7 +2388,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
 
     extension->mutable_flags()->set_input(input_path);
@@ -2413,7 +2413,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResultWithAndWithoutBlacklist) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection2);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
 
     extension->mutable_flags()->set_input(input_path);
@@ -2472,8 +2472,8 @@ TEST_F(EmitterTest, SkipPreprocessingOfEditedSource) {
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code()) << status.description();
 
       send_condition.notify_all();
@@ -2510,7 +2510,7 @@ TEST_F(EmitterTest, SkipPreprocessingOfEditedSource) {
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
     auto* flags = extension->mutable_flags();
     flags->set_input(input_path);
@@ -2580,8 +2580,8 @@ TEST_F(EmitterTest, DontHitDirectCacheForSameContentsOfAnotherSource) {
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code()) << status.description();
 
       send_condition.notify_all();
@@ -2618,7 +2618,7 @@ TEST_F(EmitterTest, DontHitDirectCacheForSameContentsOfAnotherSource) {
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
     auto* flags = extension->mutable_flags();
     flags->set_input(input);
@@ -2677,8 +2677,8 @@ TEST_F(EmitterTest, VerifyHits) {
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code()) << status.description();
 
       send_condition.notify_all();
@@ -2746,7 +2746,7 @@ TEST_F(EmitterTest, VerifyHits) {
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
     auto* flags = extension->mutable_flags();
     flags->set_input(input_path);
@@ -2842,7 +2842,7 @@ TEST_F(EmitterTest, NeverPreprocess) {
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      const auto& status = message.status();
       EXPECT_EQ(net::proto::Status::OK, status.code()) << status.description();
       send_condition.notify_all();
     });
@@ -2869,7 +2869,7 @@ TEST_F(EmitterTest, NeverPreprocess) {
     SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
     auto* flags = extension->mutable_flags();
     flags->set_input(input_path);
@@ -2926,7 +2926,7 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      const auto& status = message.status();
       EXPECT_EQ(net::proto::Status::OK, status.code()) << status.description();
       send_condition.notify_all();
     });
@@ -2981,7 +2981,7 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
     SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
     auto* flags = extension->mutable_flags();
     flags->set_input(input_path);
@@ -3132,7 +3132,7 @@ TEST_F(EmitterTest, TagEntries) {
   };
   auto Compile = [&](const String& tags, ui32 expected_send_count) {
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
     if (!tags.empty()) {
       extension->add_env("DC_TAGS=" + tags);
@@ -3150,14 +3150,14 @@ TEST_F(EmitterTest, TagEntries) {
                      ui32 expected_send_count) {
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* request =
-        message->MutableExtension(base::proto::TagsRequest::extension);
+        message->mutable_tags_request();
     if (!forget.empty()) {
       request->set_forget(forget);
       request->set_dry_run(dry_run);
     }
     auto reply = Send(std::move(message), expected_send_count);
-    EXPECT_TRUE(reply.HasExtension(base::proto::TagsReport::extension));
-    return reply.GetExtension(base::proto::TagsReport::extension);
+    EXPECT_TRUE(reply.has_tags_report());
+    return reply.tags_report();
   };
 
   // Stored on one branch, and found on another one.
@@ -3227,7 +3227,7 @@ TEST_F(EmitterTest, LimitLinksOfOutputs) {
           std::static_pointer_cast<net::TestConnection>(connection);
       net::Connection::ScopedMessage message(new net::Connection::Message);
       auto* extension =
-          message->MutableExtension(base::proto::Local::extension);
+          message->mutable_local();
       extension->set_current_dir(temp_dir);
       auto* flags = extension->mutable_flags();
       flags->set_input(input_path);
@@ -3295,8 +3295,8 @@ TEST_F(EmitterTest, RecheckWarnings) {
   String last_description;
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code()) << status.description();
       last_description = status.description();
 
@@ -3338,7 +3338,7 @@ TEST_F(EmitterTest, RecheckWarnings) {
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
     auto* flags = extension->mutable_flags();
     flags->set_input(input_path);
@@ -3443,7 +3443,7 @@ TEST_F(EmitterTest, DontStoreIfInputsChangedDuringCompilation) {
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
     auto* flags = extension->mutable_flags();
     flags->set_input(input_path);
@@ -3524,8 +3524,8 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code()) << status.description();
 
       send_condition.notify_all();
@@ -3558,7 +3558,7 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
 
     extension->mutable_flags()->set_input(input1_path);
@@ -3584,7 +3584,7 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection2);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
 
     extension->mutable_flags()->set_input(input2_path);
@@ -3683,8 +3683,8 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResultWithAndWithoutIncludedHeaders)
   // Prepare callbacks.
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code()) << status.description();
 
       send_condition.notify_all();
@@ -3723,7 +3723,7 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResultWithAndWithoutIncludedHeaders)
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
 
     extension->mutable_flags()->set_input(input_path);
@@ -3749,7 +3749,7 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResultWithAndWithoutIncludedHeaders)
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection2);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
 
     extension->mutable_flags()->set_input(input_path);
@@ -3781,7 +3781,7 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResultWithAndWithoutIncludedHeaders)
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection3);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
 
     extension->mutable_flags()->set_input(input_path);
@@ -3876,8 +3876,8 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
       // Connection from client to local daemon.
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
-        EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-        const auto& status = message.GetExtension(net::proto::Status::extension);
+        EXPECT_TRUE(message.has_status());
+        const auto& status = message.status();
         EXPECT_EQ(expected_code, status.code()) << status.description();
 
         send_condition.notify_all();
@@ -3886,22 +3886,22 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
       // Connection from local daemon to remote daemon.
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
-        EXPECT_TRUE(message.HasExtension(proto::Remote::extension));
-        const auto& command = message.GetExtension(proto::Remote::extension);
+        EXPECT_TRUE(message.has_remote());
+        const auto& command = message.remote();
         EXPECT_EQ(preprocessed_source, command.source());
 
         send_condition.notify_all();
       });
 
       connection->CallOnRead([&](net::Connection::Message* message) {
-        message->MutableExtension(proto::Result::extension)->set_obj(object_code);
+        message->mutable_result()->set_obj(object_code);
       });
     } else if (connect_count == 3) {
       // Connection from client to local daemon.
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
-        EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-        const auto& status = message.GetExtension(net::proto::Status::extension);
+        EXPECT_TRUE(message.has_status());
+        const auto& status = message.status();
         EXPECT_EQ(expected_code, status.code()) << status.description();
 
         send_condition.notify_all();
@@ -3926,7 +3926,7 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
 
     extension->mutable_flags()->set_input(input1_path);
@@ -3952,7 +3952,7 @@ TEST_F(EmitterTest, StoreDirectCacheForRemoteResult) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection2);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
 
     extension->mutable_flags()->set_input(input2_path);
@@ -4036,8 +4036,8 @@ TEST_F(EmitterTest, ConfigurationUpdateCompiler) {
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code_no_version, status.code());
     });
     return true;
@@ -4051,7 +4051,7 @@ TEST_F(EmitterTest, ConfigurationUpdateCompiler) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(current_dir);
     extension->mutable_flags()->mutable_compiler()->set_version(bad_version);
     extension->mutable_flags()->set_action("fake_action");
@@ -4072,8 +4072,8 @@ TEST_F(EmitterTest, ConfigurationUpdateCompiler) {
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code_ok, status.code());
     });
     return true;
@@ -4088,7 +4088,7 @@ TEST_F(EmitterTest, ConfigurationUpdateCompiler) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection2);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(current_dir);
     extension->mutable_flags()->mutable_compiler()->set_version(bad_version);
     extension->mutable_flags()->set_action(action);
@@ -4158,8 +4158,8 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code()) << status.description();
 
       send_condition.notify_all();
@@ -4194,7 +4194,7 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir1);
 
     extension->mutable_flags()->set_input(input_path);
@@ -4235,7 +4235,7 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
     ASSERT_TRUE(base::File::Write(sanitize_blacklist_path, sanitize_blacklist_contents));
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir2);
 
     extension->mutable_flags()->set_input(input_path);
@@ -4358,8 +4358,8 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(net::proto::Status::extension));
-      const auto& status = message.GetExtension(net::proto::Status::extension);
+      EXPECT_TRUE(message.has_status());
+      const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code()) << status.description();
 
       send_condition.notify_all();
@@ -4404,7 +4404,7 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection1);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
 
     extension->mutable_flags()->set_input(input_path);
@@ -4430,7 +4430,7 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
     SharedPtr<net::TestConnection> test_connection = std::static_pointer_cast<net::TestConnection>(connection2);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    auto* extension = message->MutableExtension(base::proto::Local::extension);
+    auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
 
     extension->mutable_flags()->set_input(input_path2);

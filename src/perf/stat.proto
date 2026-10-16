@@ -1,6 +1,5 @@
 syntax = "proto2";
 
-import "net/universal.proto";
 
 package dist_clang.perf.proto;
 
@@ -113,8 +112,4 @@ message Metric {
 
 message Report {
   repeated Metric metric = 1;
-
-  extend net.proto.Universal {
-    optional Report extension = 7;
-  }
 }

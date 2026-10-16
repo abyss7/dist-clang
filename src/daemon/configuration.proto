@@ -1,7 +1,6 @@
 syntax = "proto2";
 
 import "base/base.proto";
-import "net/universal.proto";
 
 package dist_clang.daemon.proto;
 
@@ -201,8 +200,4 @@ message Configuration {
   // in bytes.
 
   optional Coordinator coordinator = 14;
-
-  extend net.proto.Universal {
-    optional Configuration extension = 8;
-  }
 }

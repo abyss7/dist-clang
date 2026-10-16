@@ -4,6 +4,7 @@
 #include <daemon/configuration.h>
 #include <daemon/remote.pb.h>
 #include <net/connection_forward.h>
+#include <net/universal.pb.h>
 #include <net/end_point_resolver.h>
 #include <net/network_service.h>
 

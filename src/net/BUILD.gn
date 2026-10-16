@@ -38,5 +38,11 @@ static_library("net") {
 }
 
 protobuf("net_proto") {
+  deps = [
+    "//src/base:base_proto",
+    "//src/daemon:config_proto",
+    "//src/daemon:remote_proto",
+    "//src/perf:stat_proto",
+  ]
   sources = [ "universal.proto" ]
 }

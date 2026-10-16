@@ -96,8 +96,8 @@ bool Absorber::HandleNewMessage(net::ConnectionPtr connection,
     return connection->ReportStatus(status);
   }
 
-  if (message->HasExtension(proto::Remote::extension)) {
-    Message execute(message->ReleaseExtension(proto::Remote::extension));
+  if (message->has_remote()) {
+    Message execute(message->release_remote());
     DCHECK(!execute->flags().compiler().has_path());
     if (execute->has_source()) {
       // TODO(matthewtff): check several releases that handled hashes calculated
@@ -185,7 +185,7 @@ void Absorber::DoCheckCache(const base::WorkerPool& pool) {
     if (SearchSimpleCache(local_hash, &entry)) {
       Universal outgoing(new net::proto::Universal);
 
-      auto* result = outgoing->MutableExtension(proto::Result::extension);
+      auto* result = outgoing->mutable_result();
 
       result->set_obj(entry.object);
       result->set_from_cache(true);
@@ -194,7 +194,7 @@ void Absorber::DoCheckCache(const base::WorkerPool& pool) {
         result->set_hash_match(HandledHash(remote_hash) == local_hash);
       }
 
-      auto status = outgoing->MutableExtension(net::proto::Status::extension);
+      auto status = outgoing->mutable_status();
       status->set_code(net::proto::Status::OK);
       status->set_description(entry.stderr);
 
@@ -296,7 +296,7 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
       status.set_description(process->stderr());
       LOG(INFO) << "External compilation successful";
 
-      auto* result = outgoing->MutableExtension(proto::Result::extension);
+      auto* result = outgoing->mutable_result();
       result->set_obj(process->stdout());
       result->set_from_cache(false);
       if (incoming->has_handled_hash()) {
@@ -305,7 +305,7 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
       }
     }
 
-    outgoing->MutableExtension(net::proto::Status::extension)->CopyFrom(status);
+    outgoing->mutable_status()->CopyFrom(status);
 
     if (status.code() == net::proto::Status::OK) {
       cache::FileCache::Entry entry;

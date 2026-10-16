@@ -1,7 +1,6 @@
 syntax = "proto2";
 
 import "base/base.proto";
-import "net/universal.proto";
 
 package dist_clang.daemon.proto;
 
@@ -16,10 +15,6 @@ message Remote {
 
   optional string handled_hash       = 4;
   // Hash of preprocessed source for simple cache.
-
-  extend net.proto.Universal {
-    optional Remote extension = 6;
-  }
 }
 
 // Sent from absorber to emitter.
@@ -35,8 +30,4 @@ message Result {
   optional bool hash_match = 4;
   // Set to true if hash sent by emitter doesn't match the one,
   // calculated on absorber.
-
-  extend net.proto.Universal {
-    optional Result extension = 4;
-  }
 }

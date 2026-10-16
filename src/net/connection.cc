@@ -48,7 +48,7 @@ Connection::SendCallback Connection::CloseAfterSend() {
 
 bool Connection::ReportStatus(const Status& message, SendCallback callback) {
   message_.reset(new Message);
-  message_->SetAllocatedExtension(Status::extension, new Status(message));
+  message_->set_allocated_status(new Status(message));
   return SendAsyncImpl(callback);
 }
 

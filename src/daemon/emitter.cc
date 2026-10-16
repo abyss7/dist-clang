@@ -530,8 +530,8 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
     return connection->ReportStatus(status);
   }
 
-  if (message->HasExtension(base::proto::Local::extension)) {
-    Message execute(message->ReleaseExtension(base::proto::Local::extension));
+  if (message->has_local()) {
+    Message execute(message->release_local());
 
     net::proto::Status status;
     if (!PrepareFlags(execute.get(), &status)) {
@@ -552,12 +552,12 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
     }
   }
 
-  if (message->HasExtension(base::proto::TagsRequest::extension)) {
+  if (message->has_tags_request()) {
     return HandleTagsRequest(
-        connection, message->GetExtension(base::proto::TagsRequest::extension));
+        connection, message->tags_request());
   }
 
-  if (message->HasExtension(perf::proto::Report::extension)) {
+  if (message->has_report()) {
     auto report = std::make_unique<perf::proto::Report>();
     base::Singleton<perf::StatService>::Get().DumpAll(report.get());
     return connection->SendAsync(std::move(report));
@@ -1256,8 +1256,8 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
       continue;
     }
 
-    if (reply->HasExtension(net::proto::Status::extension)) {
-      const auto& status = reply->GetExtension(net::proto::Status::extension);
+    if (reply->has_status()) {
+      const auto& status = reply->status();
       if (status.code() != net::proto::Status::OK) {
         if (status.code() == net::proto::Status::OVERLOAD) {
           STAT(REMOTE_COMPILATION_REJECTED);
@@ -1273,8 +1273,8 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
     }
 
     const String output_path = GetOutputPath(incoming);
-    if (reply->HasExtension(proto::Result::extension)) {
-      auto* result = reply->MutableExtension(proto::Result::extension);
+    if (reply->has_result()) {
+      auto* result = reply->mutable_result();
       if (result->has_from_cache() && result->from_cache()) {
         STAT(REMOTE_CACHE_HIT);
       }
@@ -1400,10 +1400,10 @@ void Emitter::DoPoll(const base::WorkerPool& pool,
       continue;
     }
 
-    if (reply->HasExtension(Configuration::extension)) {
+    if (reply->has_configuration()) {
       Configuration new_conf(*this->conf());
       const auto& emitter =
-          reply->GetExtension(Configuration::extension).emitter();
+          reply->configuration().emitter();
       new_conf.mutable_emitter()->mutable_remotes()->CopyFrom(
           emitter.remotes());
       if (emitter.has_total_shards()) {

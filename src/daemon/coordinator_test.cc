@@ -45,9 +45,9 @@ TEST_F(CoordinatorTest, ConfigurationRespond) {
   };
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
-      EXPECT_TRUE(message.HasExtension(proto::Configuration::extension));
+      EXPECT_TRUE(message.has_configuration());
       const auto& config =
-          message.GetExtension(proto::Configuration::extension);
+          message.configuration();
 
       ASSERT_EQ(number_of_remotes, config.emitter().remotes_size());
       for (ui16 remote = 0; remote < number_of_remotes; ++remote) {
@@ -74,7 +74,7 @@ TEST_F(CoordinatorTest, ConfigurationRespond) {
         std::static_pointer_cast<net::TestConnection>(connection);
 
     net::Connection::ScopedMessage message(new net::Connection::Message);
-    message->MutableExtension(proto::Configuration::extension);
+    message->mutable_configuration();
 
     net::proto::Status status;
     status.set_code(net::proto::Status::OK);

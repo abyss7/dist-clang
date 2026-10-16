@@ -3,11 +3,12 @@ syntax = "proto2";
 // It's not possible to optimize for LITE_RUNTIME, since the configuration uses
 // |TextFormat::Parse()|, which uses the descriptor and the reflection.
 
-package dist_clang.net.proto;
+import "base/base.proto";
+import "daemon/configuration.proto";
+import "daemon/remote.proto";
+import "perf/stat.proto";
 
-message Universal {
-  extensions 1 to 200;
-}
+package dist_clang.net.proto;
 
 message Status {
   enum Code {
@@ -25,10 +26,19 @@ message Status {
 
   required Code code           = 1 [ default = OK ];
   optional string description  = 2;
-
-  extend Universal {
-    optional Status extension = 2;
-  }
 }
 
-// Last unused extension index: 9.
+// Every message between the client and the daemons. Several parts may go
+// together, e.g. a result with its status. The numbers of the fields are the
+// ones of the extensions of the older versions - the messages stay the same
+// on the wire.
+message Universal {
+  optional Status status                            = 2;
+  optional daemon.proto.Result result               = 4;
+  optional base.proto.Local local                   = 5;
+  optional daemon.proto.Remote remote               = 6;
+  optional perf.proto.Report report                 = 7;
+  optional daemon.proto.Configuration configuration = 8;
+  optional base.proto.TagsRequest tags_request      = 9;
+  optional base.proto.TagsReport tags_report        = 10;
+}
