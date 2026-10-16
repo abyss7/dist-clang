@@ -115,7 +115,7 @@ class FileCache {
   //               the old manifests, and the outputs beside the manifests.
   // Generation 2: the outputs only in the blob store, the blobs of the
   //               entries in the index, no Snappy.
-  enum : ui32 { kGeneration = 2, kRevision = 1 };
+  enum : ui32 { kGeneration = 2, kRevision = 2 };
 
   // Maximal number of the header sets per one source in the direct cache.
   enum : size_t { kMaxDirectVariants = 8 };
@@ -138,6 +138,9 @@ class FileCache {
 
     // Hash of the warning flags of the compilation.
     String warnings_hash;
+
+    // The time of the compilation in milliseconds - 0, if unknown.
+    ui64 compilation_time = 0;
 
     // The key of the found entry - from |Find()|.
     String handled_hash;

@@ -56,8 +56,15 @@ class BlobStore {
   bool IsShared(const String& hash) const;
   ui32 Refs(const String& hash) const;
 
-  // The total size of the blobs, that are and aren't linked with other places.
-  void GetTotalSize(ui64* own_size, ui64* shared_size) const;
+  struct Sizes {
+    // The blobs, that aren't and are linked with other places.
+    ui64 own = 0, shared = 0;
+    // The space of the copies, that aren't needed: of the blobs of several
+    // entries, and of the blobs linked with other places.
+    ui64 deduplicated = 0, linked = 0;
+  };
+  // Adds the sizes of all blobs.
+  void GetSizes(Sizes* sizes) const;
 
   Path RawPath(const String& hash) const;
   Path PackedPath(const String& hash) const;

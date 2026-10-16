@@ -737,6 +737,7 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
   }
   entry->dwo_hash = v1.dwo_hash();
   entry->warnings_hash = v1.warnings_hash();
+  entry->compilation_time = v1.compilation_time();
   entry->handled_hash = hash.str.string_copy();
 
   if (!v1.has_size() || v1.size() != size) {
@@ -1120,6 +1121,9 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
   if (!entry.warnings_hash.empty()) {
     v1->set_warnings_hash(entry.warnings_hash);
   }
+  if (entry.compilation_time) {
+    v1->set_compilation_time(entry.compilation_time);
+  }
 
   if (!base::SaveToFile(manifest_path, manifest, &error)) {
     RemoveEntry(hash);
@@ -1444,17 +1448,20 @@ void FileCache::Maintain() {
 
 void FileCache::ReportSizes() {
   const auto start = Clock::now();
-  ui64 own_size = cache_size_, shared_size = 0;
+  BlobStore::Sizes sizes;
   {
     // Every blob counts once.
     std::lock_guard<Mutex> lock(blob_refs_mutex_);
-    blobs_.GetTotalSize(&own_size, &shared_size);
+    blobs_.GetSizes(&sizes);
   }
 
+  using M = perf::proto::Metric;
   auto& stats = base::Singleton<perf::StatService>::Get();
-  stats.Set(perf::proto::Metric::CACHE_OWN_SIZE, own_size);
-  stats.Set(perf::proto::Metric::CACHE_SHARED_SIZE, shared_size);
-  stats.Set(perf::proto::Metric::CACHE_ENTRIES, entry_count_);
+  stats.Set(M::CACHE_OWN_SIZE, cache_size_ + sizes.own);
+  stats.Set(M::CACHE_SHARED_SIZE, sizes.shared);
+  stats.Set(M::CACHE_ENTRIES, entry_count_);
+  stats.Set(M::DISK_SAVED_BY_DEDUPLICATION, sizes.deduplicated);
+  stats.Set(M::DISK_SAVED_BY_LINKS, sizes.linked);
   const auto now = Clock::now();
   next_sizes_report_ = now + (now - start) * kSizesReportCost;
 }
@@ -1605,7 +1612,7 @@ void FileCache::Evict() {
   // their removal doesn't free the disk space. They are likely to be used
   // soon, so they are never removed.
   auto entries = entries_->GetInEvictionOrder();
-  ui64 own_size = 0, shared_size = 0;
+  ui64 own_size = 0;
   Vector<ui64> own_sizes;
   own_sizes.reserve(entries.size());
   for (const auto& [hash_str, entry] : entries) {
@@ -1617,7 +1624,9 @@ void FileCache::Evict() {
   {
     // Every blob counts once.
     std::lock_guard<Mutex> lock(blob_refs_mutex_);
-    blobs_.GetTotalSize(&own_size, &shared_size);
+    BlobStore::Sizes sizes;
+    blobs_.GetSizes(&sizes);
+    own_size += sizes.own;
   }
 
   // Clean a bit more than necessary - to clean less often.

@@ -102,6 +102,9 @@ bool RestoreOutput(const Path& cache_file, const String& cache_hash,
                           : daemon::HasSameContents(path, cache_file,
                                                     cache_hash))) {
     STAT(CACHE_OUTPUT_UNCHANGED);
+    STAT(OUTPUT_WRITES_AVOIDED, cache_file.empty()
+                                    ? content.size()
+                                    : base::File::Size(cache_file));
     return true;
   }
 
@@ -128,6 +131,7 @@ bool RestoreOutput(const Path& cache_file, const String& cache_hash,
       STAT(CACHE_OUTPUT_COPIED);
     } else {
       STAT(CACHE_OUTPUT_LINKED);
+      STAT(OUTPUT_WRITES_AVOIDED, base::File::Size(cache_file));
     }
   } else {
     if (!base::File::Write(path, content, error)) {
@@ -198,6 +202,7 @@ inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
                            cache::string::HandledSource* source,
                            Immutable* deps) {
   Counter<> preprocess_time_counter(Metric::PREPROCESS_TIME);
+  STAT(PREPROCESSINGS);
   base::proto::Flags pp_flags;
 
   DCHECK(message);
@@ -825,6 +830,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
                           &source_edited, &source_seen) &&
         RestoreFromCache(HandledSource(), cache::ExtraFiles{})) {
       STAT(DIRECT_CACHE_HIT);
+      STAT(TIME_SAVED_BY_DIRECT_HITS, entry.compilation_time);
       continue;
     }
 
@@ -896,6 +902,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
           std::get<HANDLED_HASH>(*task) = handled_hash;
           if (RestoreFromCache(source, std::get<EXTRA_FILES>(*task))) {
             STAT(SIMPLE_CACHE_HIT);
+            STAT(TIME_SAVED_BY_SIMPLE_HITS, entry.compilation_time);
             STAT(PARALLEL_PREPROCESSING_HIT);
           } else {
             // The compilation is canceled - compile again.
@@ -941,6 +948,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     if (SearchSimpleCache(handled_hash, &entry) &&
         RestoreFromCache(source, extra_files)) {
       STAT(SIMPLE_CACHE_HIT);
+      STAT(TIME_SAVED_BY_SIMPLE_HITS, entry.compilation_time);
       continue;
     }
 
@@ -1035,7 +1043,12 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
       continue;
     }
     ++running_processes_;
+    const auto compilation_start = Clock::now();
     const bool compiled = process->Run(base::Process::UNLIMITED, &error);
+    const auto compilation_time =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            Clock::now() - compilation_start)
+            .count();
     --running_processes_;
     // The result is restored from the cache instead - by the other thread.
     if (speculation && !speculation->FinishCompilation()) {
@@ -1095,6 +1108,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
           entry.deps = NormalizeDeps(deps, flags.deps_target());
           entry.stderr = process->stderr();
           entry.warnings_hash = WarningsHash(flags);
+          entry.compilation_time = compilation_time;
           auto& handled_hash = std::get<HANDLED_HASH>(*task);
           if (handled_hash.str.empty()) {
             handled_hash = GenerateHash(incoming->flags(), source, extra_files);

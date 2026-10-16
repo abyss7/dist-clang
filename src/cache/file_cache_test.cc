@@ -53,6 +53,17 @@ i64 CompilationTime() {
   return i64(now.tv_sec) * 1'000'000'000 + now.tv_nsec;
 }
 
+ui64 GetStat(perf::proto::Metric::Name name) {
+  perf::proto::Report report;
+  base::Singleton<perf::StatService>::Get().DumpAll(&report);
+  for (const auto& metric : report.metric()) {
+    if (metric.name() == name) {
+      return metric.value();
+    }
+  }
+  return 0;
+}
+
 }  // namespace
 
 TEST(FileCacheTest, HashCompliesWithRegex) {
@@ -191,6 +202,7 @@ TEST(FileCacheTest, RestoreSingleEntry) {
   entry1.object = expected_object_code;
   entry1.deps = expected_deps;
   entry1.stderr = expected_stderr;
+  entry1.compilation_time = 1234;
 
   cache.Store(hash, entry1);
 
@@ -198,6 +210,7 @@ TEST(FileCacheTest, RestoreSingleEntry) {
   EXPECT_EQ(expected_object_code, entry2.object);
   EXPECT_EQ(expected_deps, entry2.deps);
   EXPECT_EQ(expected_stderr, entry2.stderr);
+  EXPECT_EQ(1234u, entry2.compilation_time);
 }
 
 TEST(FileCacheTest, RemoveEntryInBackground) {
@@ -481,6 +494,18 @@ TEST(FileCacheTest, DeduplicateOutputs) {
     ASSERT_TRUE(cache.Find(Hash(flags), &found));
     EXPECT_EQ(blob_path, found.object_path);
   }
+
+  // The second copy isn't needed - and the copy in the build directory.
+  using M = perf::proto::Metric;
+  cache.ReportSizes();
+  EXPECT_EQ(object.size(), GetStat(M::DISK_SAVED_BY_DEDUPLICATION));
+  EXPECT_EQ(0u, GetStat(M::DISK_SAVED_BY_LINKS));
+  ASSERT_TRUE(base::File::Delete(object_path));
+  ASSERT_EQ(0, link(blob_path.c_str(), object_path.c_str()));
+  cache.ReportSizes();
+  EXPECT_EQ(object.size(), GetStat(M::DISK_SAVED_BY_DEDUPLICATION));
+  EXPECT_EQ(object.size(), GetStat(M::DISK_SAVED_BY_LINKS));
+  EXPECT_EQ(object.size(), GetStat(M::CACHE_SHARED_SIZE));
 
   // The blob is removed with the last entry.
   cache.RemoveEntry(Hash("-c"));
@@ -2018,21 +2043,6 @@ TEST(FileCacheTest, CheckFilesOnlyAfterCrash) {
     EXPECT_FALSE(base::File::Exists(old_entry));
   }
 }
-
-namespace {
-
-ui64 GetStat(perf::proto::Metric::Name name) {
-  perf::proto::Report report;
-  base::Singleton<perf::StatService>::Get().DumpAll(&report);
-  for (const auto& metric : report.metric()) {
-    if (metric.name() == name) {
-      return metric.value();
-    }
-  }
-  return 0;
-}
-
-}  // namespace
 
 TEST(FileCacheTest, ReportSizes) {
   using M = perf::proto::Metric;

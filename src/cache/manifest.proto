@@ -58,6 +58,9 @@ message Simple_Version1 {
 
   optional string warnings_hash = 107;
   // Hash of the warning flags, which produced the diagnostics in "stderr".
+
+  optional uint64 compilation_time = 110;
+  // in milliseconds - the time, that the hits save. Since the revision 2.
 }
 
 message Manifest {

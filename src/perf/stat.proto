@@ -70,6 +70,22 @@ message Metric {
     // Preprocessings at the same time with the compilations, and the ones,
     // that found the result in the simple cache before the compilation ended.
 
+    TIME_SAVED_BY_DIRECT_HITS   = 41;
+    TIME_SAVED_BY_SIMPLE_HITS   = 42;
+    // in milliseconds - the time of the compilations of the found entries.
+
+    PREPROCESSINGS              = 43;
+    // The number of preprocessings - for the average of their time.
+
+    DISK_SAVED_BY_DEDUPLICATION = 44;
+    DISK_SAVED_BY_LINKS         = 45;
+    // in bytes - the copies of the outputs, that aren't needed: of the outputs
+    // of several entries, and of the outputs linked with build directories.
+
+    OUTPUT_WRITES_AVOIDED       = 46;
+    // in bytes - the outputs, that are restored without writing: unchanged or
+    // linked.
+
     CACHE_INCOMPATIBLE          = 40;
     // 1, if the cache isn't used: it's written by a newer daemon, that has
     // changed the format incompatibly.

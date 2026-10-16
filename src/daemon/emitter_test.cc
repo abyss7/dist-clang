@@ -3547,6 +3547,8 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
                 process->args_)
           << process->PrintArgs();
       EXPECT_TRUE(base::File::Write(process->cwd_path_ / output1_path, object_code));
+      // The hit saves this time.
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
   };
 
@@ -3611,6 +3613,9 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
   metric.set_name(perf::proto::Metric::DIRECT_CACHE_HIT);
   base::Singleton<perf::StatService>::Get().Dump(metric);
   EXPECT_EQ(1u, metric.value());
+  metric.set_name(perf::proto::Metric::TIME_SAVED_BY_DIRECT_HITS);
+  base::Singleton<perf::StatService>::Get().Dump(metric);
+  EXPECT_LE(100u, metric.value());
 
   Immutable cache_output;
   EXPECT_TRUE(base::File::Exists(output2_path));

@@ -279,9 +279,19 @@ ui32 BlobStore::Refs(const String& hash) const {
   return it == blobs_.end() ? 0 : it->second.refs;
 }
 
-void BlobStore::GetTotalSize(ui64* own_size, ui64* shared_size) const {
+void BlobStore::GetSizes(Sizes* sizes) const {
   for (const auto& [hash, blob] : blobs_) {
-    (IsShared(hash) ? *shared_size : *own_size) += Size(hash);
+    struct stat st;
+    ui64 links = 1;
+    if (stat(RawPath(hash).c_str(), &st) == 0) {
+      links = st.st_nlink;
+    } else if (stat(PackedPath(hash).c_str(), &st) != 0) {
+      continue;
+    }
+    const ui64 size = st.st_size;
+    (links > 1 ? sizes->shared : sizes->own) += size;
+    sizes->deduplicated += size * (std::max(blob.refs, 1u) - 1);
+    sizes->linked += size * (links - 1);
   }
 }
 
