@@ -149,6 +149,7 @@ String FormatTime(ui64 ms) {
 }
 
 String HumanSize(ui64 size);
+String HumanSizes(const Vector<ui64>& sizes);
 
 }  // namespace
 
@@ -330,9 +331,15 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
         continue;
       }
       String formatted = Format(line.unit, value);
+      Vector<ui64> sizes = {value};
       for (const auto metric : line.more) {
         shown.insert(metric);
         formatted += " / " + Format(line.unit, values[metric]);
+        sizes.push_back(values[metric]);
+      }
+      // The same unit for all sizes - to fit them into the line.
+      if (line.unit == Unit::BYTES && sizes.size() > 1) {
+        formatted = HumanSizes(sizes);
       }
       // The long values take the place of the label - aligned to the right.
       const int label_width = std::max<int>(
@@ -385,6 +392,27 @@ String HumanSize(ui64 size) {
   std::ostringstream stream;
   stream << std::fixed << std::setprecision(unit ? 1 : 0) << value << " "
          << units[unit];
+  return stream.str();
+}
+
+// The sizes in the same unit - of the largest one: "1.5 / 20.0 / 30.0 MiB".
+String HumanSizes(const Vector<ui64>& sizes) {
+  const char* units[] = {"B", "KiB", "MiB", "GiB", "TiB"};
+  double max = *std::max_element(sizes.begin(), sizes.end());
+  size_t unit = 0;
+  double scale = 1;
+  while (max >= 1024 && unit + 1 < std::size(units)) {
+    max /= 1024;
+    scale *= 1024;
+    ++unit;
+  }
+  // Not more than 4 digits for every size.
+  std::ostringstream stream;
+  stream << std::fixed << std::setprecision(unit && max < 99.95 ? 1 : 0);
+  for (size_t i = 0; i < sizes.size(); ++i) {
+    stream << (i ? " / " : "") << sizes[i] / scale;
+  }
+  stream << " " << units[unit];
   return stream.str();
 }
 
