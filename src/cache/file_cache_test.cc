@@ -11,6 +11,7 @@
 #include <base/file_utils.h>
 
 #include <gtest/gtest.h>
+#include <perf/stat_service.h>
 
 #include <sys/stat.h>
 #include <utime.h>
@@ -2016,6 +2017,61 @@ TEST(FileCacheTest, CheckFilesOnlyAfterCrash) {
     cache.WaitForCleaner();
     EXPECT_FALSE(base::File::Exists(old_entry));
   }
+}
+
+namespace {
+
+ui64 GetStat(perf::proto::Metric::Name name) {
+  perf::proto::Report report;
+  base::Singleton<perf::StatService>::Get().DumpAll(&report);
+  for (const auto& metric : report.metric()) {
+    if (metric.name() == name) {
+      return metric.value();
+    }
+  }
+  return 0;
+}
+
+}  // namespace
+
+TEST(FileCacheTest, ReportSizes) {
+  using M = perf::proto::Metric;
+  const base::TemporaryDir temp_dir;
+  const auto hash1 = FileCache::Hash(HandledSource("int main() {}"_l), {},
+                                     CommandLine("-c"_l), Version("1"_l));
+  const auto hash2 = FileCache::Hash(HandledSource("int main() {}"_l), {},
+                                     CommandLine("-c -O2"_l), Version("1"_l));
+
+  {
+    FileCache cache(temp_dir, FileCache::UNLIMITED, proto::NONE, true);
+    cache.flush_period_ = 1;
+    ASSERT_TRUE(cache.Run(3600));
+    cache.WaitForCleaner();
+    EXPECT_EQ(0u, GetStat(M::CACHE_ENTRIES));
+    EXPECT_EQ(0u, GetStat(M::CACHE_OWN_SIZE));
+
+    // The accesses are applied without waiting for the maintenance.
+    const ui64 added = GetStat(M::CACHE_SIZE_ADDED);
+    cache.Store(hash1, FileCache::Entry{"object"_l, "deps"_l});
+    for (int i = 0; i < 30 && GetStat(M::CACHE_SIZE_ADDED) == added; ++i) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    EXPECT_LT(added, GetStat(M::CACHE_SIZE_ADDED));
+    cache.Store(hash2, FileCache::Entry{"object2"_l, "deps"_l});
+  }
+
+  // The sizes are known after the start - without waiting for the maintenance.
+  FileCache cache(temp_dir, FileCache::UNLIMITED, proto::NONE, true);
+  ASSERT_TRUE(cache.Run(3600));
+  cache.WaitForCleaner();
+  EXPECT_EQ(2u, GetStat(M::CACHE_ENTRIES));
+  EXPECT_LT("object"_l.size() + "object2"_l.size(),
+            GetStat(M::CACHE_OWN_SIZE));
+  EXPECT_EQ(0u, GetStat(M::CACHE_SHARED_SIZE));
+
+  EXPECT_TRUE(cache.RemoveEntry(hash1));
+  cache.ReportSizes();
+  EXPECT_EQ(1u, GetStat(M::CACHE_ENTRIES));
 }
 
 }  // namespace cache

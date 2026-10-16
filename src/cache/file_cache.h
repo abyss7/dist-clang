@@ -290,6 +290,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, RemoveEntryInBackground);
   FRIEND_TEST(FileCacheTest, RestoreEntryWithMissingFile);
   FRIEND_TEST(FileCacheTest, CheckFilesOnlyAfterCrash);
+  FRIEND_TEST(FileCacheTest, ReportSizes);
 
   enum : ui32 { kManifestVersion = 2 };
 
@@ -401,6 +402,9 @@ class FileCache {
   // Evicts and compresses the entries - periodically, with a limit of time.
   void Maintain();
 
+  // Updates the statistics of the size of the cache - in the cleaner.
+  void ReportSizes();
+
   // Removes entries, if the cache is too large, or the disk is too full.
   void Evict();
 
@@ -433,7 +437,14 @@ class FileCache {
   UniquePtr<TagIndex> tag_index_;
   HashMap<String, Vector<String>> entry_tags_;
 
-  ui64 max_size_, cache_size_ = {0u};
+  ui64 max_size_;
+  // The size of the entries without the blobs, and their number - the failed
+  // stores remove the entries too.
+  Atomic<ui64> cache_size_ = {0u}, entry_count_ = {0u};
+  Clock::time_point next_sizes_report_;
+  // The accesses are applied to the index at least so often, in seconds - the
+  // statistics show them.
+  ui64 flush_period_ = 10;
   ui32 min_free_percent_ = 0;
   ui64 compress_after_ = 0;
   const EntryListDeleter new_entries_deleter_ = [this](EntryList* list) {

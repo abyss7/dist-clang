@@ -228,6 +228,9 @@ const char kFormatFile[] = "format";
 // Exists, while the daemon uses the cache: after a crash it's left.
 const char kRunningFile[] = "running";
 const char kRemovedSuffix[] = ".removed-";
+// The sizes check all blobs - the cleaner spends on it not more than 1% of the
+// time.
+const ui32 kSizesReportCost = 100;
 
 // The files and the directories in the root of the cache.
 bool IsCacheFile(const String& name) {
@@ -503,11 +506,17 @@ bool FileCache::Run(ui64 clean_period) {
 
   new_entries_.reset(new EntryList, new_entries_deleter_);
 
+  const ui64 flush_period = std::min(clean_period, flush_period_);
   base::WorkerPool::SimpleWorker worker =
-      [this, clean_period](const base::WorkerPool& pool) {
-        while (!pool.WaitUntilShutdown(Seconds(clean_period))) {
+      [this, clean_period, flush_period](const base::WorkerPool& pool) {
+        ui64 elapsed = 0;
+        while (!pool.WaitUntilShutdown(Seconds(flush_period))) {
           new_entries_.reset(new EntryList, new_entries_deleter_);
-          cleaner_.Push([this] { Maintain(); });
+          elapsed += flush_period;
+          if (elapsed >= clean_period) {
+            elapsed = 0;
+            cleaner_.Push([this] { Maintain(); });
+          }
         }
       };
   resetter_->AddWorker("Cache Resetter Worker"_l, worker);
@@ -1189,6 +1198,7 @@ bool FileCache::RemoveEntry(string::Hash hash) {
 
   if (has_entry) {
     cache_size_ -= entry_size;
+    --entry_count_;
     STAT(CACHE_SIZE_CLEANED, entry_size);
   }
 
@@ -1399,6 +1409,8 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
       const bool exists = entries_->Get(hash.str, &entry);
       if (exists) {
         cache_size_ -= std::get<SQLite::SIZE>(entry);
+      } else {
+        ++entry_count_;
       }
       if (!entries_->Set(
               hash.str,
@@ -1414,6 +1426,10 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
 
   tag_index_->EndTransaction();
   entries_->EndTransaction();
+
+  if (Clock::now() >= next_sizes_report_) {
+    ReportSizes();
+  }
 }
 
 void FileCache::Maintain() {
@@ -1423,6 +1439,24 @@ void FileCache::Maintain() {
   CompressColdEntries();
   tag_index_->EndTransaction();
   entries_->EndTransaction();
+  ReportSizes();
+}
+
+void FileCache::ReportSizes() {
+  const auto start = Clock::now();
+  ui64 own_size = cache_size_, shared_size = 0;
+  {
+    // Every blob counts once.
+    std::lock_guard<Mutex> lock(blob_refs_mutex_);
+    blobs_.GetTotalSize(&own_size, &shared_size);
+  }
+
+  auto& stats = base::Singleton<perf::StatService>::Get();
+  stats.Set(perf::proto::Metric::CACHE_OWN_SIZE, own_size);
+  stats.Set(perf::proto::Metric::CACHE_SHARED_SIZE, shared_size);
+  stats.Set(perf::proto::Metric::CACHE_ENTRIES, entry_count_);
+  const auto now = Clock::now();
+  next_sizes_report_ = now + (now - start) * kSizesReportCost;
 }
 
 ui32 FileCache::CompressColdEntries() {
@@ -1505,6 +1539,7 @@ void FileCache::CountBlobRefs(ui64 start_time) {
     AddBlobRefs(string::Hash(Immutable(hash)), info,
                 std::get<SQLite::MTIME>(entry));
     cache_size_ += std::get<SQLite::SIZE>(entry);
+    ++entry_count_;
   }
 
   // The tags of the removed entries may stay after a crash.
@@ -1524,8 +1559,12 @@ void FileCache::CountBlobRefs(ui64 start_time) {
   }
 
   // E.g. the blobs of the entries, that weren't stored because of a crash.
-  std::lock_guard<Mutex> lock(blob_refs_mutex_);
-  blobs_.RemoveUnreferenced(start_time);
+  {
+    std::lock_guard<Mutex> lock(blob_refs_mutex_);
+    blobs_.RemoveUnreferenced(start_time);
+  }
+
+  ReportSizes();
 }
 
 bool FileCache::HasSharedBlobs(string::Hash hash) {
@@ -1580,13 +1619,6 @@ void FileCache::Evict() {
     std::lock_guard<Mutex> lock(blob_refs_mutex_);
     blobs_.GetTotalSize(&own_size, &shared_size);
   }
-
-  base::Singleton<perf::StatService>::Get().Set(
-      perf::proto::Metric::CACHE_OWN_SIZE, own_size);
-  base::Singleton<perf::StatService>::Get().Set(
-      perf::proto::Metric::CACHE_SHARED_SIZE, shared_size);
-  base::Singleton<perf::StatService>::Get().Set(
-      perf::proto::Metric::CACHE_ENTRIES, entries.size());
 
   // Clean a bit more than necessary - to clean less often.
   ui64 target_size = max_size_;
