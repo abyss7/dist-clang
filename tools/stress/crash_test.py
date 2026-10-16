@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Checks, that crashes never put wrong outputs into a build.
 
+Only the processes with the same XDG_RUNTIME_DIR are killed: run it with a
+separate runtime directory, so that the daemon of the user isn't touched.
+
 Two build directories of the same ninja project are needed: one compiles
 through dist-clang, the other - with the plain compiler. Their objects must be
 the same - so the build shouldn't put the paths of the build directory into
@@ -46,10 +49,23 @@ def build(build_dir, target, env=None, check=True):
     return proc.returncode
 
 
+def same_environment(pid):
+    """Only the processes of this test - not the daemon of the user, that has
+    the same name, but another runtime directory."""
+    try:
+        with open("/proc/%d/environ" % pid, "rb") as f:
+            env = f.read().split(b"\0")
+    except OSError:
+        return False
+    runtime_dir = os.environ.get("XDG_RUNTIME_DIR", "").encode()
+    return b"XDG_RUNTIME_DIR=" + runtime_dir in env
+
+
 def pids(pattern):
     proc = subprocess.run(["pgrep", "-f", pattern], stdout=subprocess.PIPE,
                           text=True)
-    return [int(pid) for pid in proc.stdout.split() if int(pid) != os.getpid()]
+    return [int(pid) for pid in proc.stdout.split()
+            if int(pid) != os.getpid() and same_environment(int(pid))]
 
 
 def kill_random(victim):

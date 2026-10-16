@@ -1,6 +1,3 @@
-[submodule "src/third_party/snappy/exported"]
-	path = src/third_party/snappy/exported
-	url = https://github.com/google/snappy.git
 [submodule "src/third_party/protobuf/exported"]
 	path = src/third_party/protobuf/exported
 	url = https://github.com/protocolbuffers/protobuf.git
