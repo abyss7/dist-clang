@@ -42,20 +42,24 @@ class Speculation {
   // The compilation starts - returns |false| if it's canceled already.
   bool StartCompilation(base::Process* process) THREAD_SAFE;
   // The compilation ends - returns |false| if it's canceled: then its result
-  // is dropped. Sets |handled_hash| of the preprocessed source, if it's known.
-  bool FinishCompilation(cache::string::HandledHash* handled_hash) THREAD_SAFE;
+  // is dropped. It can't be canceled after that.
+  bool FinishCompilation() THREAD_SAFE;
+  // The result is stored into the cache. Sets |handled_hash| of the
+  // preprocessed source, if it's known - the result is stored with it too.
+  void FinishStore(cache::string::HandledHash* handled_hash) THREAD_SAFE;
 
   // The preprocessed source is found: cancels the compilation. Returns
   // |false| if the compilation has ended already.
   bool Cancel() THREAD_SAFE;
   // The preprocessed source isn't found: the compilation stores its result
-  // with this hash too. Returns |true| if the compilation has ended already.
+  // with this hash too. Returns |true| if the result is stored already - then
+  // the caller stores it with this hash.
   bool SetHandledHash(const cache::string::HandledHash& hash) THREAD_SAFE;
 
   bool canceled() const THREAD_SAFE;
 
  private:
-  enum State { COMPILING, COMPILED, CANCELED };
+  enum State { COMPILING, COMPILED, STORED, CANCELED };
 
   mutable Mutex mutex_;
   State state_ = COMPILING;
@@ -161,6 +165,9 @@ class Emitter : public CompilationDaemon {
 
   CompilerIdentity compiler_identity_;
   OutputLocks output_locks_;
+  // The sources, which results are being stored into the direct cache after
+  // the reply: the lookups of them wait for it.
+  OutputLocks direct_stores_;
 
   bool handle_all_tasks_ = true;
   // Indicates if we force shutdown of the remote workers pool: we shouldn't if

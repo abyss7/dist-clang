@@ -52,6 +52,13 @@ inline String GetOutputPath(const base::proto::Local* WEAK_PTR message) {
   }
 }
 
+// The same source in other checkouts has the same direct key: the stores of
+// the sources with the same name are waited for - it's cheap.
+inline String DirectStoreKey(const base::proto::Local* WEAK_PTR message) {
+  DCHECK(message);
+  return Path(message->flags().input()).filename().string();
+}
+
 inline String GetDepsPath(const base::proto::Local* WEAK_PTR message) {
   DCHECK(message);
   if (message->flags().deps_file()[0] == '/') {
@@ -257,20 +264,25 @@ bool Speculation::StartCompilation(base::Process* process) {
   return true;
 }
 
-bool Speculation::FinishCompilation(cache::string::HandledHash* handled_hash) {
+bool Speculation::FinishCompilation() {
   std::lock_guard<Mutex> lock(mutex_);
   process_ = nullptr;
   if (state_ == CANCELED) {
     return false;
   }
   state_ = COMPILED;
-  *handled_hash = handled_hash_;
   return true;
+}
+
+void Speculation::FinishStore(cache::string::HandledHash* handled_hash) {
+  std::lock_guard<Mutex> lock(mutex_);
+  state_ = STORED;
+  *handled_hash = handled_hash_;
 }
 
 bool Speculation::Cancel() {
   std::lock_guard<Mutex> lock(mutex_);
-  if (state_ == COMPILED) {
+  if (state_ != COMPILING) {
     return false;
   }
   state_ = CANCELED;
@@ -283,7 +295,7 @@ bool Speculation::Cancel() {
 bool Speculation::SetHandledHash(const cache::string::HandledHash& hash) {
   std::lock_guard<Mutex> lock(mutex_);
   handled_hash_ = hash;
-  return state_ == COMPILED;
+  return state_ == STORED;
 }
 
 bool Speculation::canceled() const {
@@ -802,6 +814,12 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       return true;
     };
 
+    // The result of the previous compilation of the same source - maybe from
+    // another checkout - may be being stored right now.
+    {
+      OutputLocks::Lock wait(&direct_stores_, DirectStoreKey(incoming));
+    }
+
     bool source_edited = false, source_seen = false;
     if (SearchDirectCache(incoming->flags(), incoming->current_dir(), &entry,
                           &source_edited, &source_seen) &&
@@ -1020,11 +1038,12 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
     const bool compiled = process->Run(base::Process::UNLIMITED, &error);
     --running_processes_;
     // The result is restored from the cache instead - by the other thread.
-    if (speculation && speculation->canceled()) {
+    if (speculation && !speculation->FinishCompilation()) {
       counter.ReportOnDestroy(false);
       continue;
     }
-    std::optional<cache::FileCache::Entry> stored_entry;
+    std::optional<cache::FileCache::Entry> entry_to_store;
+    Immutable deps;
     if (!compiled) {
       if (process->canceled()) {
         LOG(INFO) << "Compilation is canceled: " << incoming->flags().input();
@@ -1064,8 +1083,8 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
       if (!source.str.empty() || !std::get<HANDLED_HASH>(*task).str.empty()) {
         cache::FileCache::Entry entry;
         const auto& flags = incoming->flags();
-        Immutable deps;
-        // The outputs are linked into the cache, or read, if needed.
+        // The outputs are linked into the cache, or read, if needed. The
+        // dependency file is read before the reply: Ninja removes it.
         entry.object_path = GetOutputPath(incoming);
         if (flags.has_dwo_file() && base::File::Exists(GetDwoPath(incoming))) {
           entry.dwo_path = GetDwoPath(incoming);
@@ -1080,37 +1099,53 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
           if (handled_hash.str.empty()) {
             handled_hash = GenerateHash(incoming->flags(), source, extra_files);
           }
-          if (InputsUnchangedSince(incoming, deps,
-                                   std::get<START_TIME>(*task))) {
-            UpdateSimpleCache(handled_hash, entry);
-            UpdateDirectCache(incoming, handled_hash, extra_files, entry,
-                              std::get<START_TIME>(*task));
-            TagEntry(*incoming, handled_hash);
-            stored_entry = entry;
-          } else {
-            STAT(CACHE_STORE_SKIPPED);
-          }
+          entry_to_store = entry;
         }
       }
 
       STAT(LOCAL_TASK_DONE);
     }
 
+    // The outputs are put into the cache before the reply - the build system
+    // may remove them after it.
+    bool stored = false;
+    if (entry_to_store) {
+      if (InputsUnchangedSince(incoming, deps, std::get<START_TIME>(*task))) {
+        UpdateSimpleCache(std::get<HANDLED_HASH>(*task), *entry_to_store);
+        TagEntry(*incoming, std::get<HANDLED_HASH>(*task));
+        stored = true;
+      } else {
+        STAT(CACHE_STORE_SKIPPED);
+      }
+    }
+
+    // The client doesn't wait for the direct cache, that hashes all headers:
+    // it's updated after the reply. The next lookups of the same source wait
+    // for it.
+    std::optional<OutputLocks::Lock> direct_store;
+    if (stored) {
+      direct_store.emplace(&direct_stores_, DirectStoreKey(incoming));
+    }
+    std::get<CONNECTION>(*task)->ReportStatus(status);
+
+    if (stored) {
+      UpdateDirectCache(incoming, std::get<HANDLED_HASH>(*task),
+                        std::get<EXTRA_FILES>(*task), *entry_to_store,
+                        std::get<START_TIME>(*task));
+    }
+    direct_store.reset();
+
     if (speculation) {
       // The result is stored - only then the preprocessing at the same time
       // may store it for the simple cache.
       cache::string::HandledHash preprocessed_hash;
-      if (!speculation->FinishCompilation(&preprocessed_hash)) {
-        continue;
-      }
+      speculation->FinishStore(&preprocessed_hash);
       // The preprocessing has missed the cache already.
-      if (stored_entry && !preprocessed_hash.str.empty()) {
-        UpdateSimpleCache(preprocessed_hash, *stored_entry);
+      if (stored && !preprocessed_hash.str.empty()) {
+        UpdateSimpleCache(preprocessed_hash, *entry_to_store);
         TagEntry(*incoming, preprocessed_hash);
       }
     }
-
-    std::get<CONNECTION>(*task)->ReportStatus(status);
   }
 }
 

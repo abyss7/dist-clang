@@ -131,6 +131,78 @@ bool IsFile(const Path& path, struct stat* st) {
   return stat(path.c_str(), st) == 0 && !S_ISDIR(st->st_mode);
 }
 
+// The search directories with the trailing separators.
+Vector<String> SearchPrefixes(const List<Path>& search_dirs) {
+  Vector<String> prefixes;
+  for (const auto& dir : search_dirs) {
+    String prefix = dir.native();
+    if (!prefix.ends_with('/')) {
+      prefix.push_back('/');
+    }
+    prefixes.push_back(std::move(prefix));
+  }
+  return prefixes;
+}
+
+// Calls |visit(prefix, relative)| for the paths, where a new file would be
+// found instead of |header| - see |FileCache::ShadowingPaths()|.
+template <class Visit>
+void VisitShadowingPaths(const String& header, const Vector<String>& prefixes,
+                         Visit visit) {
+  for (size_t dir = 0; dir < prefixes.size(); ++dir) {
+    const String& prefix = prefixes[dir];
+    if (header.size() <= prefix.size() ||
+        header.compare(0, prefix.size(), prefix) != 0) {
+      continue;
+    }
+    // The header may be found in this directory by its relative path - then a
+    // file with the same relative path in any previous directory is found
+    // instead.
+    const std::string_view relative(header.c_str() + prefix.size(),
+                                    header.size() - prefix.size());
+    for (size_t other_dir = 0; other_dir < dir; ++other_dir) {
+      visit(prefixes[other_dir], relative);
+    }
+  }
+}
+
+// Checks the files, that could shadow the headers. Most of them are in the
+// directories, that don't exist: each directory on the way to a file is
+// checked once - without building the paths of all candidates.
+class ShadowChecker {
+ public:
+  // Returns the path of the file |prefix| + |relative|, if it exists.
+  bool IsFile(const String& prefix, std::string_view relative, String* path,
+              struct stat* st) {
+    path->assign(prefix);
+    size_t start = 0, end;
+    while ((end = relative.find('/', start)) != std::string_view::npos) {
+      path->append(relative.substr(start, end - start));
+      if (!IsDirectory(*path)) {
+        return false;
+      }
+      path->push_back('/');
+      start = end + 1;
+    }
+    path->append(relative.substr(start));
+    return cache::IsFile(*path, st);
+  }
+
+ private:
+  bool IsDirectory(const String& path) {
+    auto it = dirs_.find(path);
+    if (it == dirs_.end()) {
+      struct stat st;
+      it = dirs_.emplace(path, stat(path.c_str(), &st) == 0 &&
+                                   S_ISDIR(st.st_mode))
+               .first;
+    }
+    return it->second;
+  }
+
+  HashMap<String, bool> dirs_;
+};
+
 }  // namespace
 
 FileCache::FileCache(const Path& path, ui64 size,
@@ -486,27 +558,10 @@ UnhandledHash FileCache::Hash(UnhandledSource code,
 List<Path> FileCache::ShadowingPaths(const Path& header,
                                      const List<Path>& search_dirs) {
   List<Path> result;
-  const String& header_str = header.native();
-  for (auto dir = search_dirs.begin(); dir != search_dirs.end(); ++dir) {
-    String prefix = dir->native();
-    if (!prefix.ends_with('/')) {
-      prefix.push_back('/');
-    }
-    if (header_str.size() <= prefix.size() || !header_str.starts_with(prefix)) {
-      continue;
-    }
-
-    // The header may be found in this directory by its relative path - then a
-    // file with the same relative path in any previous directory is found
-    // instead.
-    const String relative = header_str.substr(prefix.size());
-    for (auto other_dir = search_dirs.begin(); other_dir != dir; ++other_dir) {
-      Path path = *other_dir / relative;
-      if (path != header) {
-        result.push_back(std::move(path));
-      }
-    }
-  }
+  VisitShadowingPaths(header.native(), SearchPrefixes(search_dirs),
+                      [&](const String& prefix, std::string_view relative) {
+                        result.emplace_back(prefix + String(relative));
+                      });
   return result;
 }
 
@@ -518,18 +573,27 @@ bool FileCache::IsShadowed(const List<String>& headers,
     return false;
   }
 
+  ShadowChecker checker;
+  const auto prefixes = SearchPrefixes(search_dirs);
+  bool shadowed = false;
+  String path;
   for (const auto& header : headers) {
-    const Path header_path =
-        FromManifestPath(header, current_dir, root).lexically_normal();
-    for (const auto& path : ShadowingPaths(header_path, search_dirs)) {
-      struct stat st;
-      if (IsFile(path, &st) &&
-          !ignored_paths.contains(
-              ToManifestPath(path.string(), current_dir, root))) {
-        LOG(CACHE_INFO) << "Header " << header_path << " is shadowed by "
-                        << path;
-        return true;
-      }
+    const String header_path =
+        FromManifestPath(header, current_dir, root).lexically_normal().native();
+    VisitShadowingPaths(
+        header_path, prefixes,
+        [&](const String& prefix, std::string_view relative) {
+          struct stat st;
+          if (!shadowed && checker.IsFile(prefix, relative, &path, &st) &&
+              !ignored_paths.contains(
+                  ToManifestPath(path, current_dir, root))) {
+            LOG(CACHE_INFO) << "Header " << header_path << " is shadowed by "
+                            << path;
+            shadowed = true;
+          }
+        });
+    if (shadowed) {
+      return true;
     }
   }
 
@@ -1172,7 +1236,7 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
   Variant new_variant;
 
   auto hash_headers = [&](const List<String>& headers,
-                          const List<Literal>& skip_list) {
+                          bool check_time_macros) {
     for (const auto& header : headers) {
       String error;
       Immutable header_hash;
@@ -1183,17 +1247,28 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
       const auto extension = header_path.extension();
       const bool is_precompiled = extension == ".pch" || extension == ".gch" ||
                                   extension == ".pcm";
-      String precompiled_hash;
-      if (is_precompiled &&
-          file_hashes_.Hash(header_path, &precompiled_hash, &error)) {
-        header_hash = Immutable(std::move(precompiled_hash));
-      } else if (is_precompiled ||
-                 !base::File::Hash(header_path, &header_hash, skip_list,
-                                   &error)) {
+      // The hashes are memoized: the same headers are used by many sources.
+      String hash;
+      bool time_macros = false;
+      i64 modified = 0;
+      if (!file_hashes_.Hash(header_path, &hash, &error, &time_macros,
+                             &modified)) {
         LOG(CACHE_INFO) << "Not storing direct cache entry - failed to hash "
                         << header_path << ": " << error;
         return false;
       }
+      // The compilation may have read the previous version.
+      if (start_time && modified > start_time) {
+        LOG(CACHE_INFO) << "Not storing direct cache entry - " << header_path
+                        << " is modified during the compilation";
+        return false;
+      }
+      if (check_time_macros && time_macros && !is_precompiled) {
+        LOG(CACHE_INFO) << "Not storing direct cache entry - " << header_path
+                        << " uses the time macros";
+        return false;
+      }
+      header_hash = Immutable(std::move(hash));
       hash_rope.push_back(header_hash);
       new_variant.headers.push_back(ToManifestPath(header, current_dir, root));
     }
@@ -1202,28 +1277,38 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
 
   // The files, that could be found instead of the headers, but weren't, are
   // remembered - the others must not appear later.
+  ShadowChecker checker;
+  const auto prefixes = SearchPrefixes(search_dirs);
   auto collect_ignored_paths = [&](const List<String>& headers) {
+    bool created = false;
+    String path;
     for (const auto& header : headers) {
-      const Path header_path =
+      const String header_path =
           (Path(header).is_absolute() ? Path(header) : current_dir / header)
-              .lexically_normal();
-      for (const auto& path : FileCache::ShadowingPaths(header_path,
-                                                        search_dirs)) {
-        struct stat st;
-        if (!IsFile(path, &st)) {
-          continue;
-        }
-        // The compiler may have missed the file, that is created during the
-        // compilation.
-        const i64 ctime =
-            i64(st.st_ctim.tv_sec) * 1'000'000'000 + st.st_ctim.tv_nsec;
-        if (start_time && ctime > start_time) {
-          LOG(CACHE_INFO) << "Not storing direct cache entry - " << path
-                          << " is created during the compilation";
-          return false;
-        }
-        new_variant.ignored_paths.insert(
-            ToManifestPath(path.string(), current_dir, root));
+              .lexically_normal()
+              .native();
+      VisitShadowingPaths(
+          header_path, prefixes,
+          [&](const String& prefix, std::string_view relative) {
+            struct stat st;
+            if (created || !checker.IsFile(prefix, relative, &path, &st)) {
+              return;
+            }
+            // The compiler may have missed the file, that is created during
+            // the compilation.
+            const i64 ctime =
+                i64(st.st_ctim.tv_sec) * 1'000'000'000 + st.st_ctim.tv_nsec;
+            if (start_time && ctime > start_time) {
+              LOG(CACHE_INFO) << "Not storing direct cache entry - " << path
+                              << " is created during the compilation";
+              created = true;
+              return;
+            }
+            new_variant.ignored_paths.insert(
+                ToManifestPath(path, current_dir, root));
+          });
+      if (created) {
+        return false;
       }
     }
     return true;
@@ -1232,10 +1317,8 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
   // The result depends on the time, if these macros are used - the direct
   // cache can't detect it. The simple cache is still fine, since the macros
   // are expanded in the preprocessed source.
-  const List<Literal> time_macros = {"__DATE__"_l, "__TIME__"_l,
-                                     "__TIMESTAMP__"_l};
-  if (!hash_headers(headers, time_macros) ||
-      !hash_headers(preprocessed_headers, {}) ||
+  if (!hash_headers(headers, true) ||
+      !hash_headers(preprocessed_headers, false) ||
       !collect_ignored_paths(headers) ||
       !collect_ignored_paths(preprocessed_headers)) {
     return;

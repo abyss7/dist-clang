@@ -1727,6 +1727,66 @@ TEST(FileCacheTest, DirectEntry_DontStoreIfShadowAppearsDuringCompilation) {
                           String(), search_dirs));
 }
 
+TEST(FileCacheTest, DirectEntry_DontStoreIfHeaderModifiedDuringCompilation) {
+  const base::TemporaryDir temp_dir;
+  const auto header_path = temp_dir.path() / "test.h";
+  FileCache cache(temp_dir.path() / "cache");
+  ASSERT_TRUE(cache.Run(1));
+
+  const HandledSource code("int main() { return 0; }"_l);
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  const auto hash = FileCache::Hash(code, {}, cl, version);
+  const UnhandledSource orig_code("int main() {}"_l);
+  FileCache::Entry stored_entry;
+  stored_entry.object = "some object code"_l;
+  stored_entry.deps = "some deps"_l;
+  cache.Store(hash, stored_entry);
+
+  // The direct cache is updated after the compilation - the header may be
+  // edited since its start, and the compiler may have read its old version.
+  ASSERT_TRUE(base::File::Write(header_path, "#define A"_l));
+  const i64 start_time = CompilationTime();
+  ASSERT_TRUE(base::File::Write(header_path, "#define B"_l));
+  cache.Store(orig_code, {}, cl, version, {header_path}, {}, temp_dir, hash,
+              String(), {}, start_time);
+  {
+    FileCache::Entry entry;
+    EXPECT_FALSE(cache.Find(orig_code, {}, cl, version, temp_dir, &entry));
+  }
+
+  // Not modified since the start.
+  cache.Store(orig_code, {}, cl, version, {header_path}, {}, temp_dir, hash,
+              String(), {}, CompilationTime());
+  FileCache::Entry entry;
+  EXPECT_TRUE(cache.Find(orig_code, {}, cl, version, temp_dir, &entry));
+}
+
+TEST(FileHashCacheTest, TimeMacrosAndModificationTime) {
+  const base::TemporaryDir temp_dir;
+  const auto path = temp_dir.path() / "test.h";
+  FileHashCache hashes;
+
+  for (const auto& [content, expected] :
+       List<Pair<Literal, bool>>{{"#define A"_l, false},
+                                 {"const char* t = __TIME__;"_l, true}}) {
+    ASSERT_TRUE(base::File::Write(path, content));
+    String hash;
+    bool time_macros = !expected;
+    i64 modified = 0;
+    ASSERT_TRUE(hashes.Hash(path, &hash, nullptr, &time_macros, &modified));
+    EXPECT_EQ(base::Hexify(Immutable(content).Hash()), hash);
+    EXPECT_EQ(expected, time_macros);
+    struct stat st;
+    ASSERT_EQ(0, stat(path.c_str(), &st));
+    EXPECT_EQ(std::max(i64(st.st_mtim.tv_sec) * 1'000'000'000 +
+                           st.st_mtim.tv_nsec,
+                       i64(st.st_ctim.tv_sec) * 1'000'000'000 +
+                           st.st_ctim.tv_nsec),
+              modified);
+  }
+}
+
 TEST(FileCacheTest, DirectEntry_ChangedPreprocessedHeaderContents) {
   const base::TemporaryDir temp_dir;
   const auto object_path = temp_dir.path() / "test.o";
