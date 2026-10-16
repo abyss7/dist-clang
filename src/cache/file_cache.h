@@ -153,6 +153,10 @@ class FileCache {
   bool Run(ui64 clean_period);
   // |clean_period| is in seconds.
 
+  // Waits for the work of the cleaner, that is queued now - e.g. for the check
+  // of the files after the start.
+  void WaitForCleaner();
+
   // Removes entries, while the disk has less free space - besides the size
   // limit. Only the entries, that aren't linked with build directories, count.
   inline void SetMinFreePercent(ui32 percent) { min_free_percent_ = percent; }
@@ -359,6 +363,11 @@ class FileCache {
   // Counts the references of the entry to the blobs - in the cleaner.
   void AddBlobRefs(string::Hash hash, ui64 access_time);
   void RemoveBlobRefs(string::Hash hash);
+  // Checks the files of all entries after the start: removes the files, that
+  // are left by the crashes before |start_time|, migrates the old entries,
+  // and adds the missing ones to the index.
+  void ScanEntries(ui64 start_time);
+
   // Counts the references of all entries - after the start.
   void CountBlobRefs(ui64 start_time);
 

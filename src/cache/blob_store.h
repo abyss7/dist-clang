@@ -74,6 +74,12 @@ class BlobStore {
   const proto::Compression compression_;
   const bool link_;
 
+  // The blobs, that are reused, until |RemoveUnreferenced()|: the entries,
+  // that refer to them, may be not counted yet.
+  mutable Mutex reused_mutex_;
+  mutable HashSet<String> reused_;
+  bool track_reused_ = true;
+
   HashMap<String, Blob> blobs_;
 };
 

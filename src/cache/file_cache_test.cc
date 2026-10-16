@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 
 #include <sys/stat.h>
+#include <utime.h>
 #include STL(regex)
 #include STL(future)
 #include STL(thread)
@@ -23,6 +24,14 @@ namespace cache {
 using namespace string;
 
 namespace {
+
+// The cache checks only the files, that are left before its start.
+void MakeOld(const Path& dir) {
+  for (const auto& entry : std::filesystem::recursive_directory_iterator(dir)) {
+    struct utimbuf times = {time(nullptr) - 10, time(nullptr) - 10};
+    utime(entry.path().c_str(), &times);
+  }
+}
 
 // The time of the start of a compilation - like the daemon takes it. The files,
 // that are modified later, must be modified after a tick of the clock.
@@ -169,7 +178,9 @@ TEST(FileCacheTest, RemoveEntry) {
     ASSERT_TRUE(base::File::Write(deps_path, "1"_l));
   }
 
+  MakeOld(temp_dir);
   ASSERT_TRUE(cache.Run(1));
+  cache.WaitForCleaner();
   EXPECT_TRUE(cache.RemoveEntry(hash1));
   EXPECT_TRUE(cache.RemoveEntry(hash2));
   EXPECT_FALSE(cache.RemoveEntry(hash3));
@@ -1008,9 +1019,18 @@ TEST(FileCacheTest, RemoveStaleTemporaryFiles) {
   for (const auto& path : {orphan1, orphan2}) {
     ASSERT_TRUE(base::File::Write(path, "garbage"_l));
   }
+  // They are left before the start - the new ones may be written right now.
+  const auto fresh_tmp = temp_dir.path() / "a" / "b" / "hash.o.dc-123-5.tmp";
+  for (const auto& path : {tmp1, tmp2, kept, orphan1, orphan2}) {
+    struct utimbuf times = {time(nullptr) - 10, time(nullptr) - 10};
+    ASSERT_EQ(0, utime(path.c_str(), &times));
+  }
 
   FileCache cache(temp_dir);
   ASSERT_TRUE(cache.Run(1));
+  ASSERT_TRUE(base::File::Write(fresh_tmp, "garbage"_l));
+  cache.WaitForCleaner();
+  EXPECT_TRUE(base::File::Exists(fresh_tmp));
 
   EXPECT_FALSE(base::File::Exists(tmp1));
   EXPECT_FALSE(base::File::Exists(tmp2));
@@ -1024,6 +1044,7 @@ TEST(FileCacheTest, RemoveStaleTemporaryFiles) {
   cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l, "stderr"_l});
   FileCache cache2(temp_dir);
   ASSERT_TRUE(cache2.Run(1));
+  cache2.WaitForCleaner();
   FileCache::Entry entry;
   EXPECT_TRUE(cache2.Find(hash, &entry));
 }
@@ -1973,7 +1994,9 @@ TEST(FileCacheTest, UseIndexFromDisk) {
 
     ASSERT_TRUE(base::SaveToFile(manifest_path, manifest));
     manifest.Clear();
+    MakeOld(temp_dir);
     EXPECT_TRUE(cache.Run(1));
+    cache.WaitForCleaner();
     ASSERT_TRUE(base::LoadFromFile(manifest_path, &manifest));
     EXPECT_EQ(FileCache::kManifestVersion, manifest.version());
   }
@@ -1984,7 +2007,9 @@ TEST(FileCacheTest, UseIndexFromDisk) {
         AppendExtension(cache.CommonPath(hash), base::kExtManifest);
 
     ASSERT_TRUE(base::File::Write(manifest_path, "1"_l));
+    MakeOld(temp_dir);
     EXPECT_TRUE(cache.Run(1));
+    cache.WaitForCleaner();
     EXPECT_TRUE(base::File::Exists(manifest_path));
   }
 }

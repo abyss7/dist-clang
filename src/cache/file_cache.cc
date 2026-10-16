@@ -14,8 +14,8 @@ static const char kDaemonVersion[] = VERSION;
 #include <cache/compression.h>
 #include <perf/stat_service.h>
 
+#include STL(future)
 #include STL(map)
-#include STL(regex)
 #include STL(set)
 #include STL(thread)
 
@@ -260,6 +260,108 @@ ui64 FileCache::MetadataSize() const {
          base::File::Size(path_ / kFormatFile);
 }
 
+namespace {
+
+// Checks the name of the files of the entries: "<32 hex>-<8 hex>-<8 hex>".
+bool IsEntryHash(const String& name) {
+  if (name.size() != 50 || name[32] != '-' || name[41] != '-') {
+    return false;
+  }
+  for (size_t i = 0; i < name.size(); ++i) {
+    if (i != 32 && i != 41 && !isxdigit(name[i])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+}  // namespace
+
+void FileCache::WaitForCleaner() {
+  std::promise<void> done;
+  if (cleaner_.Push([&done] { done.set_value(); })) {
+    done.get_future().wait();
+  }
+}
+
+void FileCache::ScanEntries(ui64 start_time) {
+  entries_->BeginTransaction();
+  base::WalkDirectory(path_, [this, start_time](const String& file_path,
+                                                ui64 mtime, ui64) {
+    // The temporary files are left by crashes - but the new ones are written
+    // right now.
+    if (file_path.ends_with(".tmp")) {
+      if (mtime < start_time) {
+        LOG(CACHE_INFO) << "Removing stale temporary file " << file_path;
+        base::File::Delete(file_path);
+      }
+      return;
+    }
+
+    const Path path(file_path);
+    const String extension = path.extension().string();
+    const String hash_str = path.stem().string();
+    if (!IsEntryHash(hash_str)) {
+      return;
+    }
+
+    // The files of an entry without the manifest are left by a crash in the
+    // middle of storing: nothing refers to them. The new entries are being
+    // stored right now.
+    if (extension == ".o" || extension == ".d" || extension == ".dwo" ||
+        extension == ".stderr") {
+      if (mtime < start_time &&
+          !base::File::Exists(Path(file_path).replace_extension(".manifest"))) {
+        LOG(CACHE_INFO) << "Removing file of incomplete entry " << file_path;
+        base::File::Delete(file_path);
+      }
+      return;
+    }
+    if (extension != ".manifest") {
+      return;
+    }
+
+    // The daemon serves the compilations already: the new entries are added
+    // by the cleaner anyway, and the indexed ones need nothing.
+    if (mtime >= start_time) {
+      return;
+    }
+    const string::Hash hash{Immutable(hash_str)};
+    SQLite::Value value;
+    if (entries_->Get(hash.str, &value) &&
+        std::get<SQLite::VERSION>(value) == kManifestVersion &&
+        std::get<SQLite::SIZE>(value)) {
+      cache_size_ += std::get<SQLite::SIZE>(value);
+      return;
+    }
+    WriteLock lock(this, file_path);
+    if (!lock) {
+      return;
+    }
+    ui64 size = 0u;
+    bool from_index = false;
+
+    if (!Migrate(hash)) {
+      RemoveEntry(hash);
+    } else {
+      from_index = GetEntrySize(hash, &size);
+    }
+
+    if (size) {
+      if (!from_index &&
+          !entries_->Set(hash.str,
+                         std::make_tuple(mtime, size, kManifestVersion, 0u))) {
+        LOG(CACHE_ERROR) << "Failed to add to the index " << hash.str;
+      }
+      cache_size_ += size;
+    } else {
+      // When an entry has a zero size, it's not useful even if it's correct.
+      RemoveEntry(hash);
+    }
+  });
+  entries_->EndTransaction();
+}
+
 bool FileCache::Run(ui64 clean_period) {
   String error;
   if (!base::CreateDirectory(path_, &error)) {
@@ -283,63 +385,6 @@ bool FileCache::Run(ui64 clean_period) {
 
   CHECK(clean_period > 0);
 
-  entries_->BeginTransaction();
-  base::WalkDirectory(path_, [this](const String& file_path, ui64 mtime, ui64) {
-    // The temporary files are left by crashes: only one daemon uses the cache
-    // at the moment, and it doesn't write anything yet.
-    if (file_path.ends_with(".tmp")) {
-      LOG(CACHE_INFO) << "Removing stale temporary file " << file_path;
-      base::File::Delete(file_path);
-      return;
-    }
-
-    // The files of an entry without the manifest are left by a crash in the
-    // middle of storing: nothing refers to them.
-    std::regex data_regex(
-        "[a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8}\\.(o|d|dwo|stderr)$");
-    if (std::regex_search(file_path, data_regex)) {
-      const auto manifest_path =
-          Path(file_path).replace_extension(".manifest");
-      if (!base::File::Exists(manifest_path)) {
-        LOG(CACHE_INFO) << "Removing file of incomplete entry " << file_path;
-        base::File::Delete(file_path);
-      }
-      return;
-    }
-
-    std::regex regex("([a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8})\\.manifest$");
-    std::cmatch match;
-    if (!std::regex_search(file_path.c_str(), match, regex) ||
-        match.size() < 2 || !match[1].matched) {
-      return;
-    }
-
-    auto hash = string::Hash(String(match[1]));
-    ui64 size = 0u;
-    bool from_index = false;
-
-    if (!Migrate(hash)) {
-      RemoveEntry(hash);
-    } else {
-      from_index = GetEntrySize(hash, &size);
-    }
-
-    if (size) {
-      if (!from_index &&
-          !entries_->Set(hash.str,
-                         std::make_tuple(mtime, size, kManifestVersion, 0u))) {
-        LOG(CACHE_ERROR) << "Failed to add to the index " << hash.str;
-      }
-
-      cache_size_ += size;
-      LOG(CACHE_INFO) << hash.str << " is considered";
-    } else {
-      // When an entry has a zero size, it's not useful even if it's correct.
-      RemoveEntry(hash);
-    }
-  });
-  entries_->EndTransaction();
-
   new_entries_.reset(new EntryList, new_entries_deleter_);
 
   base::WorkerPool::SimpleWorker worker =
@@ -357,9 +402,14 @@ bool FileCache::Run(ui64 clean_period) {
   cleaner_.Push([] { setpriority(PRIO_PROCESS, syscall(SYS_gettid), 10); });
 #endif
 
-  // Count the references to the blobs before any other work of the cleaner.
+  // Check the files of the cache, and count the references to the blobs
+  // before any other work of the cleaner - in background: the daemon serves
+  // the compilations at once.
   const ui64 start_time = time(nullptr);
-  cleaner_.Push([this, start_time] { CountBlobRefs(start_time); });
+  cleaner_.Push([this, start_time] {
+    ScanEntries(start_time);
+    CountBlobRefs(start_time);
+  });
   cleaner_.Run();
 
   return true;
