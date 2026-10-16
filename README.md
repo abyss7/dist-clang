@@ -58,6 +58,10 @@ Remove a tag: the entries, that only it uses, are removed - except the ones, tha
 
     dist-clang --forget-tag=<tag> [--force]
 
+The same for the entries without tags - e.g. stored before the tags were used:
+
+    dist-clang --forget-untagged [--force]
+
 The objects, that weren't recompiled after a branch switch, keep only the tags of the previous branches - so a finished branch may be removed only after the other branches are built.
 
 ## Environment variables

@@ -219,9 +219,7 @@ bool PrintTagStats(const String& socket_path,
               << HumanSize(tag.size()) << std::setw(12)
               << HumanSize(tag.linked_size()) << std::setw(12)
               << HumanSize(tag.exclusive_size()) << std::setw(12)
-              << (tag.name().empty() ? String("-")
-                                     : HumanSize(tag.freeable_size()))
-              << std::endl;
+              << HumanSize(tag.freeable_size()) << std::endl;
   }
 
   if (report.overlaps_size()) {

@@ -21,6 +21,8 @@ static const char kDaemonVersion[] = VERSION;
 
 #include <sys/stat.h>
 #include <sys/statvfs.h>
+#include <sys/resource.h>
+#include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <utime.h>
@@ -344,9 +346,16 @@ bool FileCache::Run(ui64 clean_period) {
       [this, clean_period](const base::WorkerPool& pool) {
         while (!pool.WaitUntilShutdown(Seconds(clean_period))) {
           new_entries_.reset(new EntryList, new_entries_deleter_);
+          cleaner_.Push([this] { Maintain(); });
         }
       };
   resetter_->AddWorker("Cache Resetter Worker"_l, worker);
+
+  // The cleaner works in background - it shouldn't slow down the
+  // compilations.
+#if defined(OS_LINUX)
+  cleaner_.Push([] { setpriority(PRIO_PROCESS, syscall(SYS_gettid), 10); });
+#endif
 
   // Count the references to the blobs before any other work of the cleaner.
   const ui64 start_time = time(nullptr);
@@ -663,22 +672,48 @@ void FileCache::ApplyTags(string::Hash hash, const Vector<String>& tags) {
   }
 }
 
-bool FileCache::GetTagStats(
-    Fn<void(const List<TagStats>&, const List<TagOverlap>&)> callback) {
+bool FileCache::GetTagStats(TagStatsCallback callback, NeededFn needed) {
+  {
+    // Join the waiting request.
+    std::lock_guard<Mutex> lock(tag_stats_mutex_);
+    const bool waiting = !tag_stats_requests_.empty();
+    tag_stats_requests_.emplace_back(std::move(callback), std::move(needed));
+    if (waiting) {
+      return true;
+    }
+  }
+
   // The recent accesses go first.
   new_entries_.reset(new EntryList, new_entries_deleter_);
-  return bool(cleaner_.Push([this, callback] {
+  return bool(cleaner_.Push([this] {
+    List<Pair<TagStatsCallback, NeededFn>> requests;
+    {
+      std::lock_guard<Mutex> lock(tag_stats_mutex_);
+      requests.swap(tag_stats_requests_);
+    }
+    requests.remove_if([](const auto& request) { return !request.second(); });
+    if (requests.empty()) {
+      return;
+    }
+
     List<TagStats> stats;
     List<TagOverlap> overlaps;
     ComputeTagStats(&stats, &overlaps);
-    callback(stats, overlaps);
+    for (const auto& request : requests) {
+      request.first(stats, overlaps);
+    }
   }));
 }
 
 bool FileCache::ForgetTag(const String& tag, bool dry_run,
-                          Fn<void(const ForgetResult&)> callback) {
+                          Fn<void(const ForgetResult&)> callback,
+                          NeededFn needed) {
   new_entries_.reset(new EntryList, new_entries_deleter_);
-  return bool(cleaner_.Push([this, tag, dry_run, callback] {
+  return bool(cleaner_.Push([this, tag, dry_run, callback, needed] {
+    // E.g. the user has interrupted it.
+    if (!needed()) {
+      return;
+    }
     entries_->BeginTransaction();
     tag_index_->BeginTransaction();
     const auto result = DoForgetTag(tag, dry_run);
@@ -763,9 +798,7 @@ void FileCache::ComputeTagStats(List<TagStats>* stats,
   lock.unlock();
 
   for (auto& [tag, stat] : tag_stats) {
-    if (!tag.empty()) {
-      stat.freeable_size = DoForgetTag(tag, true).freed_size;
-    }
+    stat.freeable_size = DoForgetTag(tag, true).freed_size;
     stats->push_back(std::move(stat));
   }
   for (const auto& [tags, size] : overlap_sizes) {
@@ -780,7 +813,18 @@ FileCache::ForgetResult FileCache::DoForgetTag(const String& tag,
   // The entries to remove, and how many references of the blobs they have.
   List<String> removed;
   HashMap<String, ui32> removed_refs;
-  {
+  if (tag.empty()) {
+    // The entries without tags - except the manifests of the direct cache.
+    const auto entries = entries_->GetInEvictionOrder();
+    std::lock_guard<Mutex> lock(blob_refs_mutex_);
+    for (const auto& [entry, value] : entries) {
+      auto it = entry_tags_.find(entry);
+      if (!direct_entries_.contains(entry) &&
+          (it == entry_tags_.end() || it->second.empty())) {
+        removed.push_back(entry);
+      }
+    }
+  } else {
     std::lock_guard<Mutex> lock(blob_refs_mutex_);
     for (auto& [entry, tags] : entry_tags_) {
       if (!std::binary_search(tags.begin(), tags.end(), tag)) {
@@ -837,6 +881,10 @@ FileCache::ForgetResult FileCache::DoForgetTag(const String& tag,
     if (lock) {
       RemoveEntry(hash);
     }
+  }
+
+  if (tag.empty()) {
+    return result;
   }
 
   // The other entries keep their other tags.
@@ -1285,6 +1333,13 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
     }
   }
 
+  tag_index_->EndTransaction();
+  entries_->EndTransaction();
+}
+
+void FileCache::Maintain() {
+  entries_->BeginTransaction();
+  tag_index_->BeginTransaction();
   Evict();
   CompressColdEntries();
   tag_index_->EndTransaction();
@@ -1296,12 +1351,15 @@ ui32 FileCache::CompressColdEntries() {
     return 0;
   }
 
-  // Don't hold the cleaner for too long.
-  const ui64 kMaxCompressedSizePerPass = 1ull << 30;
+  // Don't hold the cleaner for too long: the requests of the tags wait for
+  // it, and the rest is compressed on the next passes.
+  const ui64 kMaxCompressedSizePerPass = 256ull << 20;
+  const auto kMaxTimePerPass = std::chrono::seconds(2);
   const ui64 now = time(nullptr);
   std::lock_guard<Mutex> lock(blob_refs_mutex_);
   return blobs_.CompressUnused(now - std::min(now, compress_after_),
-                               kMaxCompressedSizePerPass);
+                               kMaxCompressedSizePerPass,
+                               Clock::now() + kMaxTimePerPass);
 }
 
 void FileCache::AddBlobRefs(string::Hash hash, ui64 access_time) {

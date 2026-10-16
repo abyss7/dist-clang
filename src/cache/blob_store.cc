@@ -203,7 +203,8 @@ ui32 BlobStore::RemoveUnreferenced(ui64 time) {
   return removed;
 }
 
-ui32 BlobStore::CompressUnused(ui64 time, ui64 max_size) {
+ui32 BlobStore::CompressUnused(ui64 time, ui64 max_size,
+                               Clock::time_point deadline) {
   if (compression_ == proto::NONE) {
     return 0;
   }
@@ -211,7 +212,10 @@ ui32 BlobStore::CompressUnused(ui64 time, ui64 max_size) {
   ui32 compressed = 0;
   ui64 compressed_size = 0;
   for (const auto& [hash, blob] : blobs_) {
-    if (blob.access_time > time || compressed_size >= max_size) {
+    if (compressed_size >= max_size || Clock::now() >= deadline) {
+      break;
+    }
+    if (blob.access_time > time) {
       continue;
     }
 

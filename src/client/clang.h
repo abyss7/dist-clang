@@ -30,7 +30,7 @@ bool PrintTagStats(const String& socket_path,
                    const proto::Configuration& config);
 
 // Removes the |tag| from the cache - or only shows what is removed, unless
-// |force|.
+// |force|. The empty |tag| removes the entries without tags.
 bool ForgetTag(const String& socket_path, const proto::Configuration& config,
                const String& tag, bool force);
 

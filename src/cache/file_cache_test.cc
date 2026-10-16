@@ -823,6 +823,96 @@ TEST(FileCacheTest, Format) {
   EXPECT_TRUE(removed);
 }
 
+TEST(FileCacheTest, ForgetUntagged) {
+  const base::TemporaryDir temp_dir;
+  FileCache cache(temp_dir, FileCache::UNLIMITED, proto::ZSTD, true);
+  ASSERT_TRUE(cache.Run(3600));
+
+  const auto hash1 = TestHash("-c"), hash2 = TestHash("-c -O1");
+  cache.Store(hash1, FileCache::Entry{"object 1"_l, "deps"_l});
+  cache.Store(hash2, FileCache::Entry{"object 2"_l, "deps"_l});
+  cache.AddTags(hash2, {"a"});
+
+  // A request of the client, that is gone, isn't done.
+  ASSERT_TRUE(cache.ForgetTag(String(), false,
+                              [](const FileCache::ForgetResult&) {
+                                ADD_FAILURE() << "Not needed anymore";
+                              },
+                              [] { return false; }));
+
+  std::promise<FileCache::ForgetResult> dry_run;
+  ASSERT_TRUE(cache.ForgetTag(String(), true,
+                              [&](const FileCache::ForgetResult& result) {
+                                dry_run.set_value(result);
+                              }));
+  EXPECT_EQ(1u, dry_run.get_future().get().removed_entries);
+
+  std::promise<FileCache::ForgetResult> forgotten;
+  ASSERT_TRUE(cache.ForgetTag(String(), false,
+                              [&](const FileCache::ForgetResult& result) {
+                                forgotten.set_value(result);
+                              }));
+  EXPECT_EQ(1u, forgotten.get_future().get().removed_entries);
+
+  FileCache::Entry entry1, entry2;
+  EXPECT_FALSE(cache.Find(hash1, &entry1));
+  EXPECT_TRUE(cache.Find(hash2, &entry2));
+}
+
+TEST(FileCacheTest, TagStatsDontWaitForMaintenance) {
+  const base::TemporaryDir temp_dir;
+  const auto object_path = temp_dir.path() / "test.o";
+  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, proto::ZSTD,
+                  true, true);
+  ASSERT_TRUE(cache.Run(3600));
+
+  // An unused output, that isn't linked anymore.
+  const String object(100000, 'o');
+  ASSERT_TRUE(base::File::Write(object_path, Immutable(String(object))));
+  const auto hash = TestHash("-c");
+  FileCache::Entry entry;
+  entry.object_path = object_path;
+  entry.deps = "deps"_l;
+  cache.Store(hash, entry);
+  ASSERT_TRUE(base::File::Delete(object_path));
+  cache.SetCompressAfter(1);
+  std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+
+  // The statistics only apply the accesses - the requests, that wait at the
+  // same time, get the same ones.
+  std::promise<ui64> first, second;
+  ASSERT_TRUE(cache.GetTagStats(
+      [&](const List<FileCache::TagStats>& stats,
+          const List<FileCache::TagOverlap>&) {
+        first.set_value(stats.size() ? stats.front().entries : 0);
+      }));
+  ASSERT_TRUE(cache.GetTagStats(
+      [&](const List<FileCache::TagStats>& stats,
+          const List<FileCache::TagOverlap>&) {
+        second.set_value(stats.size() ? stats.front().entries : 0);
+      }));
+  EXPECT_EQ(1u, first.get_future().get());
+  EXPECT_EQ(1u, second.get_future().get());
+
+  const auto raw_path =
+      cache.blobs_.RawPath(base::Hexify(Immutable(String(object)).Hash()));
+  EXPECT_TRUE(base::File::Exists(raw_path));
+
+  // The maintenance compresses it.
+  std::promise<void> done;
+  cache.cleaner_.Push([&] {
+    cache.Maintain();
+    done.set_value();
+  });
+  done.get_future().wait();
+  EXPECT_FALSE(base::File::Exists(raw_path));
+
+  // Nothing is compressed after the deadline.
+  std::lock_guard<Mutex> lock(cache.blob_refs_mutex_);
+  EXPECT_EQ(0u, cache.blobs_.CompressUnused(time(nullptr), FileCache::UNLIMITED,
+                                            Clock::now()));
+}
+
 TEST(FileCacheTest, LinkOutputsWithContents) {
   const base::TemporaryDir temp_dir;
   FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, proto::NONE,

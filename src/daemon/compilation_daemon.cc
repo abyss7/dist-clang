@@ -662,7 +662,9 @@ bool CompilationDaemon::HandleTagsRequest(
     return connection->ReportStatus(status);
   }
 
-  // The connection lives, until the reply is sent.
+  // The connection lives, until the reply is sent. The client, that is gone,
+  // doesn't need it.
+  auto needed = [connection] { return !connection->IsPeerGone(); };
   if (request.has_forget()) {
     return cache_->ForgetTag(
         request.forget(), request.dry_run(),
@@ -673,7 +675,8 @@ bool CompilationDaemon::HandleTagsRequest(
           report->set_shared_entries(result.shared_entries);
           report->set_linked_entries(result.linked_entries);
           connection->SendAsync(std::move(report));
-        });
+        },
+        needed);
   }
 
   return cache_->GetTagStats(
@@ -697,7 +700,8 @@ bool CompilationDaemon::HandleTagsRequest(
           new_overlap->set_size(overlap.size);
         }
         connection->SendAsync(std::move(report));
-      });
+      },
+      needed);
 }
 
 void CompilationDaemon::RemoveFromCache(const HandledHash& hash) {

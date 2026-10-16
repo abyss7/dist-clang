@@ -23,6 +23,7 @@ FORWARD_TEST(FileCacheTest, EvictNeverHitEntriesFirst);
 FORWARD_TEST(FileCacheTest, ExceedCacheSize_Sync);
 FORWARD_TEST(FileCacheTest, LockNonExistentFile);
 FORWARD_TEST(FileCacheTest, RemoveEntry);
+FORWARD_TEST(FileCacheTest, TagStatsDontWaitForMaintenance);
 FORWARD_TEST(FileCacheTest, Format);
 FORWARD_TEST(FileCacheTest, TagStats);
 FORWARD_TEST(FileCacheTest, ForgetTag);
@@ -234,17 +235,25 @@ class FileCache {
     ui64 shared_entries = 0, linked_entries = 0;
   };
 
+  using TagStatsCallback =
+      Fn<void(const List<TagStats>&, const List<TagOverlap>&)>;
+  // Tells, if the result is still needed - e.g. the client is still waiting.
+  using NeededFn = Fn<bool()>;
+
   // Calls back from the cleaner with the statistics of all tags. The sizes
-  // count every output once.
-  bool GetTagStats(
-      Fn<void(const List<TagStats>&, const List<TagOverlap>&)> callback);
+  // count every output once. The requests, that wait at the same time, get
+  // the same statistics; they aren't computed, if nobody needs them anymore.
+  bool GetTagStats(TagStatsCallback callback,
+                   NeededFn needed = [] { return true; });
 
   // Removes the entries, which only have the |tag|, from the cache - except
   // the ones, that are linked with build directories. Removes the |tag| from
-  // other entries. With |dry_run| only counts them. Calls back from the
-  // cleaner.
+  // other entries. The empty |tag| removes the entries without tags. With
+  // |dry_run| only counts them. Calls back from the cleaner, if it's still
+  // |needed|.
   bool ForgetTag(const String& tag, bool dry_run,
-                 Fn<void(const ForgetResult&)> callback);
+                 Fn<void(const ForgetResult&)> callback,
+                 NeededFn needed = [] { return true; });
 
   // Remembers the |key|. Returns |true| if it's new.
   bool MarkSeen(const String& key);
@@ -262,6 +271,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, EvictNeverHitEntriesFirst);
   FRIEND_TEST(FileCacheTest, LockNonExistentFile);
   FRIEND_TEST(FileCacheTest, RemoveEntry);
+  FRIEND_TEST(FileCacheTest, TagStatsDontWaitForMaintenance);
   FRIEND_TEST(FileCacheTest, Format);
   FRIEND_TEST(FileCacheTest, TagStats);
   FRIEND_TEST(FileCacheTest, ForgetTag);
@@ -371,7 +381,11 @@ class FileCache {
   bool RemoveEntry(string::Hash hash);
   // Returns |false| only if some part of entry can't be physically removed.
 
+  // Applies the accesses to the index - quickly, since the requests of the
+  // tags wait for it.
   void Clean(UniquePtr<EntryList> list);
+  // Evicts and compresses the entries - periodically, with a limit of time.
+  void Maintain();
 
   // Removes entries, if the cache is too large, or the disk is too full.
   void Evict();
@@ -419,8 +433,12 @@ class FileCache {
 
   base::ThreadPool cleaner_{base::ThreadPool::TaskQueue::UNLIMITED, 1};
 
+  // The requests of the statistics of the tags, that wait for it.
+  Mutex tag_stats_mutex_;
+  List<Pair<TagStatsCallback, NeededFn>> tag_stats_requests_;
+
   UniquePtr<base::WorkerPool> resetter_{new base::WorkerPool(true)};
-  // Simply resets |new_entries_| periodically.
+  // Resets |new_entries_| periodically, and starts the maintenance.
 };
 
 }  // namespace cache

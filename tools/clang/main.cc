@@ -21,6 +21,7 @@ const char kUsage[] =
     "       dist-clang --stats\n"
     "       dist-clang --tag-stats\n"
     "       dist-clang --forget-tag=<tag> [--force]\n"
+    "       dist-clang --forget-untagged [--force]\n"
     "\n"
     "  --restat      Don't touch outputs, that don't change: for build\n"
     "                systems, that re-stat outputs, like Ninja with\n"
@@ -30,6 +31,7 @@ const char kUsage[] =
     "  --tag-stats   Show the sizes of the tags in the cache.\n"
     "  --forget-tag  Remove the tag from the cache, and the entries, that\n"
     "                only it uses - with --force; otherwise only show them.\n"
+    "  --forget-untagged  The same for the entries without tags.\n"
     "\n"
     "Or make a symlink named like the compiler, e.g. \"clang++\", to "
     "dist-clang.\n";
@@ -94,10 +96,12 @@ int main(int argc, char* argv[]) {
       return client::PrintTagStats(socket_path, config) ? 0 : 1;
     }
     const String kForgetTag = "--forget-tag=";
-    if (String(argv[1]).starts_with(kForgetTag)) {
-      const String tag = String(argv[1]).substr(kForgetTag.size());
+    const bool untagged = argv[1] == String("--forget-untagged");
+    if (String(argv[1]).starts_with(kForgetTag) || untagged) {
+      const String tag =
+          untagged ? String() : String(argv[1]).substr(kForgetTag.size());
       const bool force = argc > 2 && argv[2] == String("--force");
-      if (tag.empty() || argc > (force ? 3 : 2)) {
+      if ((tag.empty() && !untagged) || argc > (force ? 3 : 2)) {
         std::cerr << kUsage;
         return 1;
       }
