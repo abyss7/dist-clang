@@ -60,7 +60,8 @@ class BlobStore {
     // The blobs, that aren't and are linked with other places.
     ui64 own = 0, shared = 0;
     // The space of the copies, that aren't needed: of the blobs of several
-    // entries, and of the blobs linked with other places.
+    // entries, and of the blobs linked with several other places - e.g. with
+    // the build directories of several working copies.
     ui64 deduplicated = 0, linked = 0;
   };
   // Adds the sizes of all blobs.

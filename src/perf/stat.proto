@@ -80,7 +80,8 @@ message Metric {
     DISK_SAVED_BY_DEDUPLICATION = 44;
     DISK_SAVED_BY_LINKS         = 45;
     // in bytes - the copies of the outputs, that aren't needed: of the outputs
-    // of several entries, and of the outputs linked with build directories.
+    // of several entries, and of the outputs linked with several build
+    // directories.
 
     OUTPUT_WRITES_AVOIDED       = 46;
     // in bytes - the outputs, that are restored without writing: unchanged or

@@ -291,7 +291,8 @@ void BlobStore::GetSizes(Sizes* sizes) const {
     const ui64 size = st.st_size;
     (links > 1 ? sizes->shared : sizes->own) += size;
     sizes->deduplicated += size * (std::max(blob.refs, 1u) - 1);
-    sizes->linked += size * (links - 1);
+    // The first link only replaces the copy in the build directory.
+    sizes->linked += size * (std::max<ui64>(links, 2) - 2);
   }
 }
 

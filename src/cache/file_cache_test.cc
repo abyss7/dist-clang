@@ -495,7 +495,8 @@ TEST(FileCacheTest, DeduplicateOutputs) {
     EXPECT_EQ(blob_path, found.object_path);
   }
 
-  // The second copy isn't needed - and the copy in the build directory.
+  // The second copy isn't needed - and the copy in the second build
+  // directory: the first one only replaces the cache file.
   using M = perf::proto::Metric;
   cache.ReportSizes();
   EXPECT_EQ(object.size(), GetStat(M::DISK_SAVED_BY_DEDUPLICATION));
@@ -503,9 +504,14 @@ TEST(FileCacheTest, DeduplicateOutputs) {
   ASSERT_TRUE(base::File::Delete(object_path));
   ASSERT_EQ(0, link(blob_path.c_str(), object_path.c_str()));
   cache.ReportSizes();
+  EXPECT_EQ(0u, GetStat(M::DISK_SAVED_BY_LINKS));
+  EXPECT_EQ(object.size(), GetStat(M::CACHE_SHARED_SIZE));
+  const Path second_path = temp_dir.path() / "second.o";
+  ASSERT_EQ(0, link(blob_path.c_str(), second_path.c_str()));
+  cache.ReportSizes();
   EXPECT_EQ(object.size(), GetStat(M::DISK_SAVED_BY_DEDUPLICATION));
   EXPECT_EQ(object.size(), GetStat(M::DISK_SAVED_BY_LINKS));
-  EXPECT_EQ(object.size(), GetStat(M::CACHE_SHARED_SIZE));
+  ASSERT_TRUE(base::File::Delete(second_path));
 
   // The blob is removed with the last entry.
   cache.RemoveEntry(Hash("-c"));
