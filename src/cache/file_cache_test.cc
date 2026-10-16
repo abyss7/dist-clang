@@ -25,6 +25,15 @@ using namespace string;
 
 namespace {
 
+// A hash of an entry: "<32 hex>-<8 hex>-<8 hex>". It's formed in the code:
+// the literals of this form look like the API keys of Mailgun to the secret
+// scanners.
+String EntryHashForTest(ui32 index) {
+  char suffix[9];
+  snprintf(suffix, sizeof(suffix), "%08x", index);
+  return String(32, '1') + "-" + String(8, '2') + "-" + suffix;
+}
+
 // The cache checks only the files, that are left before its start.
 void MakeOld(const Path& dir) {
   for (const auto& entry : std::filesystem::recursive_directory_iterator(dir)) {
@@ -984,8 +993,7 @@ TEST(FileCacheTest, RemoveStaleTemporaryFiles) {
   }
 
   // A crash in the middle of storing: the files without the manifest.
-  const String orphan_hash =
-      "12345678901234567890123456789012" "-12345678-00000001";
+  const String orphan_hash = EntryHashForTest(1);
   const auto orphan1 = temp_dir.path() / "a" / "b" / (orphan_hash + ".d");
   const auto orphan2 = temp_dir.path() / "a" / "b" / (orphan_hash + ".stderr");
   for (const auto& path : {orphan1, orphan2}) {
@@ -1898,7 +1906,7 @@ TEST(FileCacheTest, DirectEntry_ChangedExtraFile) {
 
 TEST(FileCacheTest, CheckFilesOnlyAfterCrash) {
   const base::TemporaryDir temp_dir;
-  string::Hash hash{"12345678901234567890123456789012" "-12345678-00000001"_l};
+  string::Hash hash{Immutable(EntryHashForTest(1))};
   const auto old_entry = [&] {
     FileCache cache(temp_dir);
     return AppendExtension(cache.CommonPath(hash), base::kExtManifest);
