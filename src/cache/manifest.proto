@@ -3,9 +3,8 @@ syntax = "proto2";
 package dist_clang.cache.proto;
 
 enum Compression {
-  NONE   = 0;
-  SNAPPY = 1;
-  ZSTD   = 2;
+  NONE = 0;
+  ZSTD = 2;
 }
 
 // The format of the whole cache - in the file "format" in its root.
@@ -23,9 +22,6 @@ message Format {
 }
 
 message Direct {
-  repeated string headers = 1;
-  // OBSOLETE: the only list of headers - read for compatibility.
-
   message Variant {
     repeated string headers = 1;
 
@@ -41,24 +37,17 @@ message Direct {
   // The most recently stored variant goes first.
 }
 
-// ACTUAL.
-// Introduce new version for nicer names and no defaults.
+// The result of a compilation. The object and split DWARF files are in the
+// blob store - by the hashes of their contents.
 message Simple_Version1 {
-  optional bool snappy = 1 [ default = false ];
-  // OBSOLETE: the object file is compressed with Snappy - if there is no
-  // |compression|.
-
-  optional Compression compression = 110;
-  // The compression of the object and split DWARF files.
-
   optional uint64 size = 2;
-  // Size in bytes of the whole entry on disk without manifest.
+  // Size in bytes of the files of the entry without the manifest and the
+  // blobs.
 
   optional bool err = 101;
   optional bool obj = 102;
   optional bool dep = 103;
   optional bool dwo = 104;
-  // Split DWARF file - compressed the same way as the object file.
 
   optional string object_hash = 105;
   optional string dwo_hash    = 106;
@@ -66,10 +55,6 @@ message Simple_Version1 {
   optional string deps_hash   = 109;
   // Hashes of the uncompressed contents of all files - every hit checks them:
   // the files may be broken by a crash or modified through a hard link.
-
-  optional bool blobs = 111;
-  // The object and split DWARF files are in the blob store - by their hashes.
-  // Then |size| doesn't include them.
 
   optional string warnings_hash = 107;
   // Hash of the warning flags, which produced the diagnostics in "stderr".
@@ -82,13 +67,4 @@ message Manifest {
     Direct direct      = 4;
     Simple_Version1 v1 = 5;
   }
-
-  // Version 0 - OBSOLETE
-  // FIXME: replace with an in-code descriptor - for parsing and migration.
-  repeated string headers = 1;
-  optional bool   snappy  = 2 [ default = false ];
-
-  optional bool stderr  = 100 [ default = false ];
-  optional bool object  = 101 [ default = true ];
-  optional bool deps    = 102 [ default = true ];
 }

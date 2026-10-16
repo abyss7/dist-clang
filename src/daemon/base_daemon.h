@@ -58,6 +58,10 @@ class BaseDaemon {
   virtual ~BaseDaemon();
   virtual bool Initialize() THREAD_UNSAFE = 0;
 
+  // Saves the state before the exit - e.g. on a signal. The daemon may be
+  // destroyed without waiting for the running tasks then.
+  virtual void Flush() THREAD_SAFE {}
+
   bool Update(const Configuration& conf) THREAD_SAFE;
 
   inline ConstConfigurationPtr conf() const THREAD_SAFE {

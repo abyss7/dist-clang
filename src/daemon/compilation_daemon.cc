@@ -183,8 +183,11 @@ bool CompilationDaemon::Initialize() {
   auto conf = this->conf();
 
   if (conf->has_cache() && !conf->cache().disabled()) {
+    // Snappy is only for the old caches.
     auto compression =
-        static_cast<cache::proto::Compression>(conf->cache().compression());
+        conf->cache().compression() == proto::Configuration::Cache::NONE
+            ? cache::proto::NONE
+            : cache::proto::ZSTD;
     if (!conf->cache().has_compression() && conf->cache().has_snappy() &&
         !conf->cache().snappy()) {
       compression = cache::proto::NONE;
@@ -201,6 +204,12 @@ bool CompilationDaemon::Initialize() {
   }
 
   return BaseDaemon::Initialize();
+}
+
+void CompilationDaemon::Flush() {
+  if (cache_) {
+    cache_->Close();
+  }
 }
 
 CompilationDaemon::CompilationDaemon(const Configuration& conf)

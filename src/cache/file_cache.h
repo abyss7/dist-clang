@@ -33,11 +33,7 @@ FORWARD_TEST(FileCacheTest, CompressColdEntries);
 FORWARD_TEST(FileCacheTest, RoundTripCompressedEntry);
 FORWARD_TEST(FileCacheTest, RemoveEntryInBackground);
 FORWARD_TEST(FileCacheTest, RestoreEntryWithMissingFile);
-FORWARD_TEST(FileCacheTest, UseIndexFromDisk);
-FORWARD_TEST(FileCacheMigratorTest, Version_0_to_1_Direct);
-FORWARD_TEST(FileCacheMigratorTest, Version_0_to_1_Simple);
-FORWARD_TEST(FileCacheMigratorTest, Version_1_to_2_Direct);
-FORWARD_TEST(FileCacheMigratorTest, Version_1_to_2_Simple);
+FORWARD_TEST(FileCacheTest, CheckFilesOnlyAfterCrash);
 
 enum ExtraFileType {
   SANITIZE_BLACKLIST = 0,
@@ -113,9 +109,13 @@ class FileCache {
   // manifests and of the databases. Bump the revision for the compatible
   // changes, e.g. new optional fields, that the older daemons ignore.
   //
-  // Generation 1, revision 1: the cache before the generations - the older
-  // formats of the manifests are migrated or read as is.
-  enum : ui32 { kGeneration = 1, kRevision = 1 };
+  // Nothing is migrated: the entries of other versions are just removed.
+  //
+  // Generation 1: the cache before the generations - with the migrations of
+  //               the old manifests, and the outputs beside the manifests.
+  // Generation 2: the outputs only in the blob store, the blobs of the
+  //               entries in the index, no Snappy.
+  enum : ui32 { kGeneration = 2, kRevision = 1 };
 
   // Maximal number of the header sets per one source in the direct cache.
   enum : size_t { kMaxDirectVariants = 8 };
@@ -156,6 +156,10 @@ class FileCache {
   // Waits for the work of the cleaner, that is queued now - e.g. for the check
   // of the files after the start.
   void WaitForCleaner();
+
+  // Stops the periodic work, applies the recent accesses to the index, and
+  // marks the normal stop: the files aren't checked at the next start.
+  void Close();
 
   // Removes entries, while the disk has less free space - besides the size
   // limit. Only the entries, that aren't linked with build directories, count.
@@ -285,11 +289,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, RoundTripCompressedEntry);
   FRIEND_TEST(FileCacheTest, RemoveEntryInBackground);
   FRIEND_TEST(FileCacheTest, RestoreEntryWithMissingFile);
-  FRIEND_TEST(FileCacheTest, UseIndexFromDisk);
-  FRIEND_TEST(FileCacheMigratorTest, Version_0_to_1_Direct);
-  FRIEND_TEST(FileCacheMigratorTest, Version_0_to_1_Simple);
-  FRIEND_TEST(FileCacheMigratorTest, Version_1_to_2_Direct);
-  FRIEND_TEST(FileCacheMigratorTest, Version_1_to_2_Simple);
+  FRIEND_TEST(FileCacheTest, CheckFilesOnlyAfterCrash);
 
   enum : ui32 { kManifestVersion = 2 };
 
@@ -355,17 +355,26 @@ class FileCache {
   using EntryList = base::LockedList<Access>;
   using EntryListDeleter = Fn<void(EntryList* list)>;
 
-  bool Migrate(string::Hash hash, ui32 to_version = kManifestVersion) const;
+  // Reads the small file of the entry, and checks its hash.
+  bool FindFile(const Path& cache_path, const String& expected_hash,
+                Immutable* content, ui64* size) const;
 
-  bool FindOutput(const Path& cache_path, proto::Compression compression,
-                  const String& expected_hash, Immutable* content, Path* path,
-                  ui64* size) const;
+  // What the index keeps about the entry - from its manifest.
+  struct EntryInfo {
+    ui64 size = 0;  // With the manifest, without the blobs.
+    bool direct = false;
+    Vector<String> blobs;
+  };
+  // Returns |false| for a broken entry, or of another version.
+  bool LoadEntryInfo(string::Hash hash, EntryInfo* info) const;
+
   // Counts the references of the entry to the blobs - in the cleaner.
-  void AddBlobRefs(string::Hash hash, ui64 access_time);
+  void AddBlobRefs(string::Hash hash, const EntryInfo& info,
+                   ui64 access_time);
   void RemoveBlobRefs(string::Hash hash);
-  // Checks the files of all entries after the start: removes the files, that
-  // are left by the crashes before |start_time|, migrates the old entries,
-  // and adds the missing ones to the index.
+  // Checks the files of all entries after a crash: removes the files, that
+  // are left by it before |start_time|, removes the entries of other
+  // versions, and adds the missing ones to the index.
   void ScanEntries(ui64 start_time);
 
   // Counts the references of all entries - after the start.
@@ -383,10 +392,6 @@ class FileCache {
   // The size of the files, that aren't the entries: the databases, etc.
   ui64 MetadataSize() const;
 
-  bool GetEntrySize(string::Hash hash, ui64* size) const;
-  // Sets |0u| if the entry is broken.
-  // Returns |true| if the entry is from index.
-
   bool RemoveEntry(string::Hash hash);
   // Returns |false| only if some part of entry can't be physically removed.
 
@@ -399,9 +404,6 @@ class FileCache {
   // Removes entries, if the cache is too large, or the disk is too full.
   void Evict();
 
-  // Size of the outputs of the entry, that are hard-linked with other places.
-  // Only for the old format - without blobs.
-  ui64 GetSharedSize(string::Hash hash) const;
   // If any blob of the entry is hard-linked with other places.
   bool HasSharedBlobs(string::Hash hash);
   // Size of the blobs, that are used only by the entry.
@@ -439,6 +441,12 @@ class FileCache {
     cleaner_.Push(task);
   };
   SharedPtr<EntryList> new_entries_;
+
+  // Removes the file "running" after the cleaner - at the normal stop.
+  struct RunningMarker {
+    ~RunningMarker();
+    Path path;
+  } running_marker_;
 
   base::ThreadPool cleaner_{base::ThreadPool::TaskQueue::UNLIMITED, 1};
 

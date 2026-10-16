@@ -96,14 +96,6 @@ Path FromManifestPath(const String& header, const Path& current_dir,
   return Path(header).is_absolute() ? Path(header) : current_dir / header;
 }
 
-// The compression of the object and split DWARF files of the entry.
-proto::Compression GetCompression(const proto::Simple_Version1& v1) {
-  if (v1.has_compression()) {
-    return v1.compression();
-  }
-  return v1.snappy() ? proto::SNAPPY : proto::NONE;
-}
-
 struct Variant {
   List<String> headers;
   HashSet<String> ignored_paths;
@@ -116,10 +108,22 @@ List<Variant> DirectVariants(const proto::Direct& direct) {
         {{variant.headers().begin(), variant.headers().end()},
          {variant.ignored_paths().begin(), variant.ignored_paths().end()}});
   }
-  if (variants.empty() && direct.headers_size()) {
-    variants.push_back({{direct.headers().begin(), direct.headers().end()}, {}});
-  }
   return variants;
+}
+
+// The blobs of the entry in the index.
+String JoinBlobs(const Vector<String>& blobs) {
+  String result;
+  for (const auto& blob : blobs) {
+    result += (result.empty() ? "" : "\n") + blob;
+  }
+  return result;
+}
+
+Vector<String> SplitBlobs(const String& blobs) {
+  List<String> list;
+  base::SplitString<'\n'>(blobs, list);
+  return Vector<String>(list.begin(), list.end());
 }
 
 // Only regular files and links to them are found by the compiler.
@@ -149,7 +153,22 @@ FileCache::~FileCache() {
 namespace {
 
 const char kFormatFile[] = "format";
+// Exists, while the daemon uses the cache: after a crash it's left.
+const char kRunningFile[] = "running";
 const char kRemovedSuffix[] = ".removed-";
+
+// The files and the directories in the root of the cache.
+bool IsCacheFile(const String& name) {
+  if (name.size() == 1 && isxdigit(name[0])) {
+    return true;
+  }
+  for (const char* prefix : {"index.sqlite", "direct.sqlite", "tags.sqlite"}) {
+    if (name.starts_with(prefix)) {
+      return true;
+    }
+  }
+  return name == "blobs" || name == kFormatFile || name == kRunningFile;
+}
 
 // The path without the trailing separator - to put another one beside it.
 Path WithoutTrailingSeparator(const Path& path) {
@@ -184,18 +203,23 @@ void RemoveOldCaches(const Path& cache_path) {
 
 }  // namespace
 
+FileCache::RunningMarker::~RunningMarker() {
+  if (!path.empty()) {
+    base::File::Delete(path);
+  }
+}
+
 bool FileCache::CheckFormat() {
   const Path format_path = path_ / kFormatFile;
   proto::Format format;
-  std::error_code ec;
-  const bool empty = std::filesystem::is_empty(path_, ec);
 
   if (base::File::Exists(format_path)) {
     if (!base::LoadFromFile(format_path, &format)) {
       // Can't tell anything - start anew.
       format.set_generation(0);
     }
-  } else if (!empty) {
+  } else if (base::File::Exists(path_ / "index.sqlite") ||
+             base::File::Exists(path_ / "direct.sqlite")) {
     // The cache before the generations.
     format.set_generation(1);
     format.set_revision(0);
@@ -218,22 +242,22 @@ bool FileCache::CheckFormat() {
   if (format.generation() < kGeneration) {
     LOG(CACHE_WARNING) << "The cache " << path_ << " has the old generation "
                        << format.generation() << " - it's removed";
-    // Move the whole cache aside at once, and remove it in background.
+    // Move the files of the cache aside at once, and remove them in
+    // background. Only the files of the cache: the directory may have others.
     const Path removed_path = WithoutTrailingSeparator(path_).string() +
                               kRemovedSuffix + std::to_string(time(nullptr)) +
                               "-" + std::to_string(getpid());
     String error;
-    if (!base::File::Move(WithoutTrailingSeparator(path_), removed_path,
-                          &error)) {
-      LOG(CACHE_WARNING) << "Failed to move the old cache aside: " << error;
-      for (const auto& entry : std::filesystem::directory_iterator(path_, ec)) {
+    std::error_code ec;
+    const bool moved = base::CreateDirectory(removed_path, &error);
+    for (const auto& entry : std::filesystem::directory_iterator(path_, ec)) {
+      const String name = entry.path().filename().string();
+      if (!IsCacheFile(name)) {
+        continue;
+      }
+      if (!moved || !base::File::Move(entry.path(), removed_path / name)) {
         std::filesystem::remove_all(entry.path(), ec);
       }
-    }
-    if (!base::CreateDirectory(path_, &error)) {
-      LOG(CACHE_ERROR) << "Failed to create directory " << path_ << " : "
-                       << error;
-      return false;
     }
     format.Clear();
     format.set_generation(kGeneration);
@@ -257,7 +281,8 @@ bool FileCache::CheckFormat() {
 
 ui64 FileCache::MetadataSize() const {
   return database_->SizeOnDisk() + tag_index_->SizeOnDisk() +
-         base::File::Size(path_ / kFormatFile);
+         base::File::Size(path_ / kFormatFile) +
+         base::File::Size(path_ / kRunningFile);
 }
 
 namespace {
@@ -281,6 +306,16 @@ void FileCache::WaitForCleaner() {
   std::promise<void> done;
   if (cleaner_.Push([&done] { done.set_value(); })) {
     done.get_future().wait();
+  }
+}
+
+void FileCache::Close() {
+  resetter_.reset();
+  new_entries_.reset(new EntryList, new_entries_deleter_);
+  WaitForCleaner();
+  if (!running_marker_.path.empty()) {
+    base::File::Delete(running_marker_.path);
+    running_marker_.path.clear();
   }
 }
 
@@ -308,8 +343,7 @@ void FileCache::ScanEntries(ui64 start_time) {
     // The files of an entry without the manifest are left by a crash in the
     // middle of storing: nothing refers to them. The new entries are being
     // stored right now.
-    if (extension == ".o" || extension == ".d" || extension == ".dwo" ||
-        extension == ".stderr") {
+    if (extension == ".d" || extension == ".stderr") {
       if (mtime < start_time &&
           !base::File::Exists(Path(file_path).replace_extension(".manifest"))) {
         LOG(CACHE_INFO) << "Removing file of incomplete entry " << file_path;
@@ -328,37 +362,35 @@ void FileCache::ScanEntries(ui64 start_time) {
     }
     const string::Hash hash{Immutable(hash_str)};
     SQLite::Value value;
-    if (entries_->Get(hash.str, &value) &&
-        std::get<SQLite::VERSION>(value) == kManifestVersion &&
-        std::get<SQLite::SIZE>(value)) {
-      cache_size_ += std::get<SQLite::SIZE>(value);
+    if (entries_->Get(hash.str, &value) && std::get<SQLite::SIZE>(value)) {
       return;
     }
     WriteLock lock(this, file_path);
     if (!lock) {
       return;
     }
-    ui64 size = 0u;
-    bool from_index = false;
 
-    if (!Migrate(hash)) {
+    // The entries of other versions aren't migrated - just removed.
+    EntryInfo info;
+    if (!LoadEntryInfo(hash, &info)) {
       RemoveEntry(hash);
-    } else {
-      from_index = GetEntrySize(hash, &size);
+      return;
     }
-
-    if (size) {
-      if (!from_index &&
-          !entries_->Set(hash.str,
-                         std::make_tuple(mtime, size, kManifestVersion, 0u))) {
-        LOG(CACHE_ERROR) << "Failed to add to the index " << hash.str;
-      }
-      cache_size_ += size;
-    } else {
-      // When an entry has a zero size, it's not useful even if it's correct.
-      RemoveEntry(hash);
+    if (!entries_->Set(hash.str,
+                       std::make_tuple(mtime, info.size, kManifestVersion, 0u,
+                                       info.direct, JoinBlobs(info.blobs)))) {
+      LOG(CACHE_ERROR) << "Failed to add to the index " << hash.str;
     }
   });
+
+  // The entries, that are gone, but still in the index.
+  for (const auto& [hash, value] : entries_->GetInEvictionOrder()) {
+    if (std::get<SQLite::MTIME>(value) < start_time &&
+        !base::File::Exists(AppendExtension(
+            CommonPath(string::Hash(Immutable(hash))), base::kExtManifest))) {
+      entries_->Delete(hash);
+    }
+  }
   entries_->EndTransaction();
 }
 
@@ -370,10 +402,10 @@ bool FileCache::Run(ui64 clean_period) {
     return false;
   }
 
-  RemoveOldCaches(path_);
   if (!CheckFormat()) {
     return false;
   }
+  RemoveOldCaches(path_);
 
   database_.reset(new SQLiteKV(path_, "direct"));
   tag_index_.reset(new TagIndex(path_, "tags"));
@@ -382,6 +414,18 @@ bool FileCache::Run(ui64 clean_period) {
   } else {
     entries_.reset(new SQLite);
   }
+
+  // The files are checked only after a crash, or with a new index: otherwise
+  // the index has all entries.
+  const Path running_path = path_ / kRunningFile;
+  const bool check_files = entries_->created() ||
+                           base::File::Exists(running_path);
+  if (!base::File::Write(running_path, Immutable(std::to_string(getpid())),
+                         &error)) {
+    LOG(CACHE_ERROR) << "Failed to write " << running_path << ": " << error;
+    return false;
+  }
+  running_marker_.path = running_path;
 
   CHECK(clean_period > 0);
 
@@ -406,8 +450,11 @@ bool FileCache::Run(ui64 clean_period) {
   // before any other work of the cleaner - in background: the daemon serves
   // the compilations at once.
   const ui64 start_time = time(nullptr);
-  cleaner_.Push([this, start_time] {
-    ScanEntries(start_time);
+  cleaner_.Push([this, start_time, check_files] {
+    if (check_files) {
+      LOG(CACHE_INFO) << "Checking the files of the cache " << path_;
+      ScanEntries(start_time);
+    }
     CountBlobRefs(start_time);
   });
   cleaner_.Run();
@@ -506,7 +553,8 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
   }
 
   proto::Manifest manifest;
-  if (!base::LoadFromFile(manifest_path, &manifest) || !manifest.has_direct()) {
+  if (!base::LoadFromFile(manifest_path, &manifest) || !manifest.has_direct() ||
+      manifest.version() != kManifestVersion) {
     return false;
   }
 
@@ -545,43 +593,12 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
   return false;
 }
 
-bool FileCache::FindOutput(const Path& cache_path,
-                           proto::Compression compression,
-                           const String& expected_hash, Immutable* content,
-                           Path* path, ui64* size) const {
-  // An entry without the hash is broken, or from an old version.
+bool FileCache::FindFile(const Path& cache_path, const String& expected_hash,
+                         Immutable* content, ui64* size) const {
+  // An entry without the hash is broken.
   if (expected_hash.empty()) {
     LOG(CACHE_WARNING) << "No hash for " << cache_path;
     return false;
-  }
-
-  auto Broken = [&cache_path](const char* reason) {
-    LOG(CACHE_WARNING) << "Cache file is broken (" << reason
-                       << "): " << cache_path;
-    // Break the entry, so that it's removed later.
-    base::File::Delete(cache_path);
-    return false;
-  };
-
-  // Link the uncompressed output instead of reading it.
-  if (link_outputs_ && compression == proto::NONE && path) {
-    struct stat st;
-    if (stat(cache_path.c_str(), &st) == -1) {
-      return false;
-    }
-
-    // The file may be shared through a hard link - and modified in place by
-    // someone else. The link may be gone already, so check the contents
-    // always: it's cheap compared to the compilation.
-    Immutable actual_hash;
-    if (!base::File::Hash(cache_path, &actual_hash) ||
-        actual_hash.string_copy() != expected_hash) {
-      return Broken("wrong hash");
-    }
-
-    *path = cache_path;
-    *size += st.st_size;
-    return true;
   }
 
   Immutable file_content;
@@ -592,23 +609,13 @@ bool FileCache::FindOutput(const Path& cache_path,
   }
   *size += file_content.size();
 
-  if (compression == proto::NONE) {
-    if (base::Hexify(file_content.Hash()) != expected_hash) {
-      return Broken("wrong hash");
-    }
-    *content = file_content;
-    return true;
+  if (base::Hexify(file_content.Hash()) != expected_hash) {
+    LOG(CACHE_WARNING) << "Cache file is broken (wrong hash): " << cache_path;
+    // Break the entry, so that it's removed later.
+    base::File::Delete(cache_path);
+    return false;
   }
-
-  String unpacked;
-  if (!Unpack(compression, file_content, &unpacked)) {
-    return Broken("can't unpack");
-  }
-  Immutable unpacked_content(std::move(unpacked));
-  if (base::Hexify(unpacked_content.Hash()) != expected_hash) {
-    return Broken("wrong hash");
-  }
-  *content = unpacked_content;
+  *content = file_content;
   return true;
 }
 
@@ -624,7 +631,8 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
   }
 
   proto::Manifest manifest;
-  if (!base::LoadFromFile(manifest_path, &manifest) || !manifest.has_v1()) {
+  if (!base::LoadFromFile(manifest_path, &manifest) || !manifest.has_v1() ||
+      manifest.version() != kManifestVersion) {
     return false;
   }
 
@@ -632,39 +640,26 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
   ui64 size = 0;
 
   if (v1.err() &&
-      !FindOutput(AppendExtension(CommonPath(hash), base::kExtStderr),
-                  proto::NONE,
-                  v1.stderr_hash(), &entry->stderr, nullptr, &size)) {
+      !FindFile(AppendExtension(CommonPath(hash), base::kExtStderr),
+                v1.stderr_hash(), &entry->stderr, &size)) {
     return false;
   }
 
   // The blobs aren't a part of the size of the entry.
   ui64 blobs_size = 0;
-  if (v1.obj() &&
-      !(v1.blobs()
-            ? blobs_.Get(v1.object_hash(), &entry->object,
-                         &entry->object_path, &blobs_size)
-            : FindOutput(AppendExtension(CommonPath(hash), base::kExtObject),
-                         GetCompression(v1), v1.object_hash(), &entry->object,
-                         &entry->object_path, &size))) {
+  if (v1.obj() && !blobs_.Get(v1.object_hash(), &entry->object,
+                              &entry->object_path, &blobs_size)) {
     return false;
   }
   entry->object_hash = v1.object_hash();
 
-  if (v1.dep() &&
-      !FindOutput(AppendExtension(CommonPath(hash), base::kExtDeps),
-                  proto::NONE,
-                  v1.deps_hash(), &entry->deps, nullptr, &size)) {
+  if (v1.dep() && !FindFile(AppendExtension(CommonPath(hash), base::kExtDeps),
+                            v1.deps_hash(), &entry->deps, &size)) {
     return false;
   }
 
   if (v1.dwo() &&
-      !(v1.blobs()
-            ? blobs_.Get(v1.dwo_hash(), &entry->dwo, &entry->dwo_path,
-                         &blobs_size)
-            : FindOutput(AppendExtension(CommonPath(hash), base::kExtDwo),
-                         GetCompression(v1), v1.dwo_hash(), &entry->dwo,
-                         &entry->dwo_path, &size))) {
+      !blobs_.Get(v1.dwo_hash(), &entry->dwo, &entry->dwo_path, &blobs_size)) {
     return false;
   }
   entry->dwo_hash = v1.dwo_hash();
@@ -794,15 +789,11 @@ void FileCache::ComputeTagStats(List<TagStats>* stats,
             ? kNoTags
             : tags_it->second;
     const ui64 size = std::get<SQLite::SIZE>(value);
-    // The outputs of the old format are a part of the entry.
-    const ui64 linked_size =
-        std::min(size, GetSharedSize(string::Hash(Immutable(hash))));
     for (const auto& tag : tags) {
       auto& stat = tag_stats[tag];
       stat.tag = tag;
       ++stat.entries;
       stat.size += size;
-      stat.linked_size += linked_size;
       if (tags.size() == 1) {
         ++stat.exclusive_entries;
         stat.exclusive_size += size;
@@ -891,7 +882,7 @@ FileCache::ForgetResult FileCache::DoForgetTag(const String& tag,
   for (auto it = removed.begin(); it != removed.end();) {
     const string::Hash hash{Immutable(*it)};
     // The outputs of the current builds are likely to be used again.
-    if (GetSharedSize(hash) || HasSharedBlobs(hash)) {
+    if (HasSharedBlobs(hash)) {
       ++result.linked_entries;
       it = removed.erase(it);
       continue;
@@ -992,16 +983,7 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
   proto::Manifest manifest;
   manifest.set_version(kManifestVersion);
   auto* v1 = manifest.mutable_v1();
-  v1->set_blobs(true);
   ui64 size = 0;
-
-  // The outputs of the old format.
-  for (const auto& extension : {base::kExtObject, base::kExtDwo}) {
-    const auto path = AppendExtension(CommonPath(hash), extension);
-    if (base::File::Exists(path)) {
-      base::File::Delete(path);
-    }
-  }
 
   v1->set_err(!entry.stderr.empty());
   if (!entry.stderr.empty()) {
@@ -1094,39 +1076,14 @@ void FileCache::Remove(string::HandledHash hash) {
   });
 }
 
-bool FileCache::GetEntrySize(string::Hash hash, ui64* size) const {
-  DCHECK(size);
-
-  const auto common_prefix = CommonPath(hash);
-  const auto manifest_path = AppendExtension(common_prefix, base::kExtManifest);
-
-  SQLite::Value entry;
-  if (entries_ && entries_->Get(hash.str, &entry)) {
-    *size = std::get<SQLite::SIZE>(entry);
-    return true;
-  }
-
-  proto::Manifest manifest;
-  if (!base::LoadFromFile(manifest_path, &manifest)) {
-    LOG(CACHE_WARNING) << "Can't load manifest for " << hash.str;
-    *size = 0u;
-    return false;
-  }
-
-  *size = manifest.v1().size() + base::File::Size(manifest_path);
-  return false;
-}
-
 bool FileCache::RemoveEntry(string::Hash hash) {
   String error;
   SQLite::Value entry;
   bool has_entry = entries_->Get(hash.str, &entry);
   const String common_path = CommonPath(hash);
   const String manifest_path = common_path + ".manifest";
-  const String object_path = common_path + ".o";
   const String deps_path = common_path + ".d";
   const String stderr_path = common_path + ".stderr";
-  const String dwo_path = common_path + ".dwo";
   bool result = true;
   auto entry_size = has_entry ? std::get<SQLite::SIZE>(entry) : 0u;
 
@@ -1144,27 +1101,11 @@ bool FileCache::RemoveEntry(string::Hash hash) {
     direct_entries_.erase(hash.str.string_copy());
   }
 
-  if (base::File::Exists(object_path)) {
-    if (!base::File::Delete(object_path, &error)) {
-      entry_size -= base::File::Size(object_path);
-      result = false;
-      LOG(CACHE_WARNING) << "Failed to delete " << object_path << ": " << error;
-    }
-  }
-
   if (base::File::Exists(deps_path)) {
     if (!base::File::Delete(deps_path, &error)) {
       entry_size -= base::File::Size(deps_path);
       result = false;
       LOG(CACHE_WARNING) << "Failed to delete " << deps_path << ": " << error;
-    }
-  }
-
-  if (base::File::Exists(dwo_path)) {
-    if (!base::File::Delete(dwo_path, &error)) {
-      entry_size -= base::File::Size(dwo_path);
-      result = false;
-      LOG(CACHE_WARNING) << "Failed to delete " << dwo_path << ": " << error;
     }
   }
 
@@ -1221,7 +1162,8 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
   List<Variant> variants;
   if (base::File::Exists(manifest_path) &&
       base::LoadFromFile(manifest_path, &old_manifest) &&
-      old_manifest.has_direct()) {
+      old_manifest.has_direct() &&
+      old_manifest.version() == kManifestVersion) {
     variants = DirectVariants(old_manifest.direct());
   }
 
@@ -1364,22 +1306,26 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
         }
       }
     } else {
-      AddBlobRefs(hash, access->time);
+      // The entry may be removed already.
+      EntryInfo info;
+      if (!LoadEntryInfo(hash, &info)) {
+        continue;
+      }
+      AddBlobRefs(hash, info, access->time);
       // Insert a new entry, or replace the stored again one.
       const bool exists = entries_->Get(hash.str, &entry);
-      ui64 size = 0u;
-      GetEntrySize(hash, &size);
       if (exists) {
         cache_size_ -= std::get<SQLite::SIZE>(entry);
       }
       if (!entries_->Set(
-          hash.str,
-          std::make_tuple(access->time, size, kManifestVersion,
-                          exists ? std::get<SQLite::HITS>(entry) : 0u))) {
+              hash.str,
+              std::make_tuple(access->time, info.size, kManifestVersion,
+                              exists ? std::get<SQLite::HITS>(entry) : 0u,
+                              ui32(info.direct), JoinBlobs(info.blobs)))) {
         LOG(CACHE_ERROR) << "Failed to update the index for " << hash.str;
       }
-      cache_size_ += size;
-      STAT(CACHE_SIZE_ADDED, size);
+      cache_size_ += info.size;
+      STAT(CACHE_SIZE_ADDED, info.size);
     }
   }
 
@@ -1412,27 +1358,35 @@ ui32 FileCache::CompressColdEntries() {
                                Clock::now() + kMaxTimePerPass);
 }
 
-void FileCache::AddBlobRefs(string::Hash hash, ui64 access_time) {
+bool FileCache::LoadEntryInfo(string::Hash hash, EntryInfo* info) const {
   const auto manifest_path =
       AppendExtension(CommonPath(hash), base::kExtManifest);
   proto::Manifest manifest;
-  Vector<String> blobs;
-  if (base::LoadFromFile(manifest_path, &manifest) && manifest.has_v1() &&
-      manifest.v1().blobs()) {
-    if (manifest.v1().obj()) {
-      blobs.push_back(manifest.v1().object_hash());
-    }
-    if (manifest.v1().dwo()) {
-      blobs.push_back(manifest.v1().dwo_hash());
-    }
+  if (!base::LoadFromFile(manifest_path, &manifest) ||
+      manifest.version() != kManifestVersion ||
+      (!manifest.has_v1() && !manifest.has_direct())) {
+    return false;
   }
 
+  info->direct = manifest.has_direct();
+  info->size = manifest.v1().size() + base::File::Size(manifest_path);
+  if (manifest.v1().obj()) {
+    info->blobs.push_back(manifest.v1().object_hash());
+  }
+  if (manifest.v1().dwo()) {
+    info->blobs.push_back(manifest.v1().dwo_hash());
+  }
+  return true;
+}
+
+void FileCache::AddBlobRefs(string::Hash hash, const EntryInfo& info,
+                            ui64 access_time) {
   std::lock_guard<Mutex> lock(blob_refs_mutex_);
-  if (manifest.has_direct()) {
+  if (info.direct) {
     direct_entries_.insert(hash.str.string_copy());
   }
   // The new references go first: the blobs may be the same.
-  for (const auto& blob : blobs) {
+  for (const auto& blob : info.blobs) {
     blobs_.AddRef(blob, access_time);
   }
   const String key = hash.str.string_copy();
@@ -1443,8 +1397,8 @@ void FileCache::AddBlobRefs(string::Hash hash, ui64 access_time) {
     }
     entry_blobs_.erase(it);
   }
-  if (!blobs.empty()) {
-    entry_blobs_.emplace(key, std::move(blobs));
+  if (!info.blobs.empty()) {
+    entry_blobs_.emplace(key, info.blobs);
   }
 }
 
@@ -1460,8 +1414,14 @@ void FileCache::RemoveBlobRefs(string::Hash hash) {
 }
 
 void FileCache::CountBlobRefs(ui64 start_time) {
+  // The index keeps the blobs of the entries - the manifests aren't read.
   for (const auto& [hash, entry] : entries_->GetInEvictionOrder()) {
-    AddBlobRefs(string::Hash(Immutable(hash)), std::get<SQLite::MTIME>(entry));
+    EntryInfo info;
+    info.direct = std::get<SQLite::DIRECT>(entry);
+    info.blobs = SplitBlobs(std::get<SQLite::BLOBS>(entry));
+    AddBlobRefs(string::Hash(Immutable(hash)), info,
+                std::get<SQLite::MTIME>(entry));
+    cache_size_ += std::get<SQLite::SIZE>(entry);
   }
 
   // The tags of the removed entries may stay after a crash.
@@ -1514,22 +1474,6 @@ ui64 FileCache::GetOwnBlobsSize(string::Hash hash) {
   return size;
 }
 
-ui64 FileCache::GetSharedSize(string::Hash hash) const {
-  if (!link_outputs_) {
-    return 0;
-  }
-
-  ui64 shared_size = 0;
-  for (const auto& extension : {base::kExtObject, base::kExtDwo}) {
-    struct stat st;
-    const auto path = AppendExtension(CommonPath(hash), extension);
-    if (stat(path.c_str(), &st) == 0 && st.st_nlink > 1) {
-      shared_size += st.st_size;
-    }
-  }
-  return shared_size;
-}
-
 void FileCache::Evict() {
   if (max_size_ == UNLIMITED && !min_free_percent_) {
     return;
@@ -1544,11 +1488,9 @@ void FileCache::Evict() {
   own_sizes.reserve(entries.size());
   for (const auto& [hash_str, entry] : entries) {
     const string::Hash hash{Immutable(hash_str)};
-    const ui64 shared = GetSharedSize(hash);
-    const ui64 total = std::get<SQLite::SIZE>(entry);
-    own_sizes.push_back(shared || HasSharedBlobs(hash) ? 0 : total);
-    own_size += total - std::min(total, shared);
-    shared_size += std::min(total, shared);
+    const ui64 size = std::get<SQLite::SIZE>(entry);
+    own_sizes.push_back(HasSharedBlobs(hash) ? 0 : size);
+    own_size += size;
   }
   {
     // Every blob counts once.

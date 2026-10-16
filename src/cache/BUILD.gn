@@ -20,10 +20,8 @@ static_library("file_cache") {
     "database_kv.h",
     "database_sqlite.cc",
     "database_sqlite.h",
-    "database_sqlite_migrator.cc",
     "file_cache.cc",
     "file_cache.h",
-    "file_cache_migrator.cc",
     "file_hash_cache.cc",
     "file_hash_cache.h",
     "sqlite_utils.cc",
@@ -41,12 +39,11 @@ static_library("file_cache") {
     "//src/base:base",
     "//src/base:logging",
     "//src/perf:stat_service",
-    "//src/third_party/snappy:snappy",
     "//src/third_party/zstd:zstd",
   ]
 
   public_deps = [
-    ":manifest_proto",  # for file_cache_migrator_test.cc
+    ":manifest_proto",  # for file_cache_test.cc
     "//src/third_party/gtest:prod",
   ]
 }

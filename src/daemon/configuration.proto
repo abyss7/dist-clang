@@ -39,11 +39,12 @@ message Configuration {
     enum Compression {
       NONE   = 0;
       SNAPPY = 1;
+      // OBSOLETE: the same as ZSTD.
       ZSTD   = 2;
     }
     optional Compression compression = 14 [ default = ZSTD ];
     // The compression of the stored object and split DWARF files - if they
-    // aren't linked.
+    // aren't linked, or aren't used anymore.
 
     optional uint32 threads      = 8;
     // |std::thread::hardware_concurrency()| is default.

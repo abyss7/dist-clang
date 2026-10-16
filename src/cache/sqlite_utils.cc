@@ -29,7 +29,10 @@ bool IsIntact(sqlite3* db) {
 
 }  // namespace
 
-sqlite3* OpenDatabase(const String& path) {
+sqlite3* OpenDatabase(const String& path, bool* created) {
+  if (created) {
+    *created = access(path.c_str(), F_OK) != 0;
+  }
   sqlite3* db = nullptr;
   auto result = sqlite3_open_v2(
       path.c_str(), &db,
@@ -42,6 +45,9 @@ sqlite3* OpenDatabase(const String& path) {
   LOG(DB_ERROR) << "Database " << path << " is broken - recreating it: "
                 << (db ? sqlite3_errmsg(db) : sqlite3_errstr(result));
   sqlite3_close(db);
+  if (created) {
+    *created = true;
+  }
   for (const char* suffix : {"", "-wal", "-shm", "-journal"}) {
     unlink((path + suffix).c_str());
   }

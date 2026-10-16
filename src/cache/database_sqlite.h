@@ -12,14 +12,20 @@ namespace dist_clang {
 namespace cache {
 
 // The index of the cache entries.
-class SQLite : public Database<size_t /* mtime */, size_t /* size */,
-                               ui32 /* version */, ui32 /* hits */> {
+class SQLite
+    : public Database<size_t /* mtime */, size_t /* size */,
+                      ui32 /* version */, ui32 /* hits */, ui32 /* direct */,
+                      String /* blobs */> {
  public:
   enum Field {
     MTIME = 0,
     SIZE,
     VERSION,
     HITS,
+    DIRECT,
+    // If the entry is a manifest of the direct cache.
+    BLOBS,
+    // The hashes of the blobs of the entry, separated by the new lines.
 
     MAX_FIELD_VALUE,
     // special value - don't place anything beyond it.
@@ -33,7 +39,10 @@ class SQLite : public Database<size_t /* mtime */, size_t /* size */,
   bool Set(const String& key, const Value& value) override;
   bool Delete(const String& key) override;
 
-  ui32 GetVersion() const override;
+  inline ui32 GetVersion() const override { return 0; }
+
+  // If the index is new: it didn't exist, or was broken.
+  inline bool created() const { return created_; }
 
   // All entries in the order of eviction: never hit entries go first, then
   // the least recently used ones.
@@ -43,13 +52,11 @@ class SQLite : public Database<size_t /* mtime */, size_t /* size */,
   bool EndTransaction();
 
  private:
-  void CreateOrMigrateTable();
-  bool Migrate() const;
+  void CreateTable();
 
   sqlite3* db_ = nullptr;
   const String path_;
-
-  const ui32 kSQLiteVersion = 0;
+  bool created_ = true;
 };
 
 }  // namespace cache

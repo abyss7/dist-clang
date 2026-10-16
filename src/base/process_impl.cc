@@ -73,6 +73,11 @@ bool ProcessImpl::RunChild(Pipe& out, Pipe& err, Pipe* in) {
   // The own process group - to kill the whole tree of the compiler.
   setpgid(0, 0);
 
+  // The daemon blocks the signals of the exit - the compiler shouldn't.
+  sigset_t no_signals;
+  sigemptyset(&no_signals);
+  sigprocmask(SIG_SETMASK, &no_signals, nullptr);
+
   if (nice_) {
     errno = 0;
     if (nice(nice_) == -1 && errno) {

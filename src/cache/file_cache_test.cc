@@ -122,77 +122,37 @@ TEST(FileCacheTest, DoubleLocks) {
 
 TEST(FileCacheTest, RemoveEntry) {
   const base::TemporaryDir temp_dir;
-  FileCache cache(temp_dir, 100, proto::NONE, false);
+  FileCache cache(temp_dir, 100000, proto::NONE, false);
+  ASSERT_TRUE(cache.Run(3600));
 
-  string::Hash hash1{"12345678901234567890123456789012" "-12345678-00000001"_l};
-  {
-    ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash1)));
-    const auto common_prefix = cache.CommonPath(hash1);
-    const auto manifest_path =
-        AppendExtension(common_prefix, base::kExtManifest);
-    const auto object_path = AppendExtension(common_prefix, base::kExtObject);
-    const auto deps_path = AppendExtension(common_prefix, base::kExtDeps);
-    const auto stderr_path = AppendExtension(common_prefix, base::kExtStderr);
-
-    proto::Manifest manifest;
-    manifest.set_version(1);
-    manifest.mutable_v1()->set_obj(true);
-    manifest.mutable_v1()->set_dep(true);
-    manifest.mutable_v1()->set_err(true);
-    ASSERT_TRUE(base::SaveToFile(manifest_path, manifest));
-    ASSERT_TRUE(base::File::Write(object_path, "1"_l));
-    ASSERT_TRUE(base::File::Write(deps_path, "1"_l));
-    ASSERT_TRUE(base::File::Write(stderr_path, "1"_l));
-  }
-
-  string::Hash hash2{"12345678901234567890123456789012" "-12345678-00000002"_l};
-  {
-    ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash2)));
-    const auto common_prefix = cache.CommonPath(hash2);
-    const auto manifest_path =
-        AppendExtension(common_prefix, base::kExtManifest);
-    const auto object_path = AppendExtension(common_prefix, base::kExtObject);
-    const auto deps_path = AppendExtension(common_prefix, base::kExtDeps);
-
-    proto::Manifest manifest;
-    manifest.set_version(1);
-    manifest.mutable_v1()->set_obj(true);
-    manifest.mutable_v1()->set_dep(true);
-    manifest.mutable_v1()->set_err(true);
-    ASSERT_TRUE(base::SaveToFile(manifest_path, manifest));
-    ASSERT_TRUE(base::File::Write(object_path, "1"_l));
-    ASSERT_TRUE(base::File::Write(deps_path, "1"_l));
-  }
-
-  string::Hash hash3{"12345678901234567890123456789012" "-12345678-00000003"_l};
-  {
-    ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash3)));
-    const auto common_prefix = cache.CommonPath(hash3);
-    const auto manifest_path =
-        AppendExtension(common_prefix, base::kExtManifest);
-    const auto object_path = AppendExtension(common_prefix, base::kExtObject);
-    const auto deps_path = AppendExtension(common_prefix, base::kExtDeps);
-
-    ASSERT_TRUE(base::File::Write(manifest_path, "1"_l));
-    ASSERT_TRUE(base::File::Write(object_path, "1"_l));
-    ASSERT_TRUE(base::File::Write(deps_path, "1"_l));
-  }
-
-  MakeOld(temp_dir);
-  ASSERT_TRUE(cache.Run(1));
+  const auto hash1 = FileCache::Hash(HandledSource("int main() {}"_l), {},
+                                     CommandLine("-c"_l), Version("1"_l));
+  const auto hash2 = FileCache::Hash(HandledSource("int main() {}"_l), {},
+                                     CommandLine("-c -O2"_l), Version("1"_l));
+  cache.Store(hash1, FileCache::Entry{"object"_l, "deps"_l, "stderr"_l});
+  cache.Store(hash2, FileCache::Entry{"object"_l, "deps"_l});
+  cache.new_entries_.reset(new FileCache::EntryList,
+                           cache.new_entries_deleter_);
   cache.WaitForCleaner();
-  EXPECT_TRUE(cache.RemoveEntry(hash1));
-  EXPECT_TRUE(cache.RemoveEntry(hash2));
-  EXPECT_FALSE(cache.RemoveEntry(hash3));
-  // If we can't even read manifest, then the entry should be removed when we
-  // try to migrate it.
 
-  auto db_size = cache.MetadataSize();
-  EXPECT_EQ(cache.cache_size_,
-            base::CalculateDirectorySize(temp_dir) - db_size);
+  const auto common_path = cache.CommonPath(hash1);
+  const auto blob_path =
+      cache.blobs_.RawPath(base::Hexify(Immutable("object"_l).Hash()));
+  ASSERT_TRUE(base::File::Exists(blob_path));
+
+  // The files of the entry are removed - but not the blob of another one.
+  EXPECT_TRUE(cache.RemoveEntry(hash1));
+  for (const auto& extension :
+       {base::kExtManifest, base::kExtDeps, base::kExtStderr}) {
+    EXPECT_FALSE(base::File::Exists(AppendExtension(common_path, extension)));
+  }
   EXPECT_FALSE(cache.entries_->Exists(hash1.str));
+  EXPECT_TRUE(base::File::Exists(blob_path));
+
+  EXPECT_TRUE(cache.RemoveEntry(hash2));
   EXPECT_FALSE(cache.entries_->Exists(hash2.str));
-  EXPECT_FALSE(cache.entries_->Exists(hash3.str));
+  EXPECT_FALSE(base::File::Exists(blob_path));
+  EXPECT_EQ(0u, cache.cache_size_);
 }
 
 TEST(FileCacheTest, RestoreSingleEntry) {
@@ -302,7 +262,7 @@ TEST(FileCacheTest, RestoreSingleEntryWithExtraFile) {
 }
 
 TEST(FileCacheTest, RoundTripCompressedEntry) {
-  for (const auto compression : {proto::SNAPPY, proto::ZSTD}) {
+  for (const auto compression : {proto::ZSTD}) {
   const base::TemporaryDir temp_dir;
   FileCache cache(temp_dir, FileCache::UNLIMITED, compression, false);
   ASSERT_TRUE(cache.Run(1));
@@ -541,6 +501,7 @@ TEST(FileCacheTest, RemoveUnreferencedBlobs) {
   ASSERT_TRUE(base::File::Delete(
       AppendExtension(FileCache(temp_dir.path()).CommonPath(hash2),
                       base::kExtManifest)));
+  ASSERT_TRUE(base::File::Write(temp_dir.path() / "running", "1"_l));
   std::this_thread::sleep_for(std::chrono::milliseconds(1100));
 
   FileCache cache(temp_dir.path(), FileCache::UNLIMITED, proto::ZSTD, true);
@@ -795,10 +756,20 @@ TEST(FileCacheTest, Format) {
   EXPECT_EQ(FileCache::kRevision, ReadFormat().revision());
   EXPECT_FALSE(ReadFormat().written_by().empty());
 
-  // The cache before the generations is the first generation.
+  // The cache before the generations is the first one - it's removed, but
+  // not the other files in its directory.
+  const Path foreign_path = cache_path / "foreign.txt";
+  ASSERT_TRUE(base::File::Write(foreign_path, "foreign"_l));
   ASSERT_TRUE(base::File::Delete(format_path));
-  EXPECT_TRUE(Found());
+  EXPECT_FALSE(Found());
   EXPECT_EQ(FileCache::kGeneration, ReadFormat().generation());
+  EXPECT_TRUE(base::File::Exists(foreign_path));
+  {
+    FileCache cache(cache_path, FileCache::UNLIMITED, proto::ZSTD, true);
+    ASSERT_TRUE(cache.Run(3600));
+    cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l});
+  }
+  EXPECT_TRUE(Found());
 
   // The newer revision of the same generation is used - and stays.
   WriteFormat(FileCache::kGeneration, FileCache::kRevision + 1);
@@ -830,6 +801,7 @@ TEST(FileCacheTest, Format) {
          std::filesystem::directory_iterator(temp_dir.path())) {
       removed &= entry.path() == cache_path;
     }
+    removed &= base::File::Exists(foreign_path);
   }
   EXPECT_TRUE(removed);
 }
@@ -944,7 +916,7 @@ TEST(FileCacheTest, LinkOutputsWithContents) {
 }
 
 TEST(FileCacheTest, DetectBrokenFiles) {
-  for (const auto compression : {proto::NONE, proto::SNAPPY, proto::ZSTD}) {
+  for (const auto compression : {proto::NONE, proto::ZSTD}) {
     for (const auto* extension : {"o", "d", "stderr", "dwo"}) {
       const base::TemporaryDir temp_dir;
       FileCache cache(temp_dir.path(), FileCache::UNLIMITED, compression,
@@ -1014,7 +986,7 @@ TEST(FileCacheTest, RemoveStaleTemporaryFiles) {
   // A crash in the middle of storing: the files without the manifest.
   const String orphan_hash =
       "12345678901234567890123456789012" "-12345678-00000001";
-  const auto orphan1 = temp_dir.path() / "a" / "b" / (orphan_hash + ".o");
+  const auto orphan1 = temp_dir.path() / "a" / "b" / (orphan_hash + ".d");
   const auto orphan2 = temp_dir.path() / "a" / "b" / (orphan_hash + ".stderr");
   for (const auto& path : {orphan1, orphan2}) {
     ASSERT_TRUE(base::File::Write(path, "garbage"_l));
@@ -1924,93 +1896,57 @@ TEST(FileCacheTest, DirectEntry_ChangedExtraFile) {
                           version, temp_dir, &entry));
 }
 
-TEST(FileCacheTest, RestoreAndMigrateSnappyEntry) {
-  const base::TemporaryDir temp_dir;
-  const auto object_path = temp_dir.path() / "test.o";
-  const auto deps_path = temp_dir.path() / "test.d";
-  const auto expected_stderr = "some warning"_l;
-  const auto expected_object_code = "some object code"_l;
-  const auto expected_deps = "some deps"_l;
-
-  {
-    FileCache cache(temp_dir, 1000, proto::SNAPPY, false);
-    ASSERT_TRUE(cache.Run(1));
-    FileCache::Entry entry1, entry2;
-
-    const HandledSource code("int main() { return 0; }"_l);
-    const CommandLine cl("-c"_l);
-    const Version version("3.5 (revision 100000)"_l);
-    const auto hash = FileCache::Hash(code, {}, cl, version);
-
-    ASSERT_TRUE(base::File::Write(object_path, expected_object_code));
-    ASSERT_TRUE(base::File::Write(deps_path, expected_deps));
-    EXPECT_FALSE(cache.Find(hash, &entry1));
-    EXPECT_TRUE(entry1.object.empty());
-    EXPECT_TRUE(entry1.deps.empty());
-    EXPECT_TRUE(entry1.stderr.empty());
-
-    entry1.object = expected_object_code;
-    entry1.deps = expected_deps;
-    entry1.stderr = expected_stderr;
-
-    cache.Store(hash, entry1);
-
-    ASSERT_TRUE(cache.Find(hash, &entry2));
-    EXPECT_EQ(expected_object_code, entry2.object);
-    EXPECT_EQ(expected_deps, entry2.deps);
-    EXPECT_EQ(expected_stderr, entry2.stderr);
-  }
-  {
-    FileCache cache(temp_dir, 1000, proto::SNAPPY, false);
-    ASSERT_TRUE(cache.Run(1));
-    FileCache::Entry entry;
-    const HandledSource code("int main() { return 0; }"_l);
-    const CommandLine cl("-c"_l);
-    const Version version("3.5 (revision 100000)"_l);
-    const auto hash = FileCache::Hash(code, {}, cl, version);
-
-    ASSERT_TRUE(cache.Find(hash, &entry));
-    EXPECT_EQ(expected_object_code, entry.object);
-    EXPECT_EQ(expected_deps, entry.deps);
-    EXPECT_EQ(expected_stderr, entry.stderr);
-  }
-}
-
-TEST(FileCacheTest, UseIndexFromDisk) {
+TEST(FileCacheTest, CheckFilesOnlyAfterCrash) {
   const base::TemporaryDir temp_dir;
   string::Hash hash{"12345678901234567890123456789012" "-12345678-00000001"_l};
+  const auto old_entry = [&] {
+    FileCache cache(temp_dir);
+    return AppendExtension(cache.CommonPath(hash), base::kExtManifest);
+  }();
 
   {
+    // The manifest of an old version isn't migrated - it's removed.
     FileCache cache(temp_dir, FileCache::UNLIMITED, proto::NONE, true);
-    const auto manifest_path =
-        AppendExtension(cache.CommonPath(hash), base::kExtManifest);
-
     ASSERT_TRUE(base::CreateDirectory(cache.SecondPath(hash)));
-
     proto::Manifest manifest;
-    manifest.set_stderr(false);
-    manifest.set_object(false);
-    manifest.set_deps(false);
-
-    ASSERT_TRUE(base::SaveToFile(manifest_path, manifest));
-    manifest.Clear();
+    manifest.set_version(1);
+    manifest.mutable_v1()->set_size(0);
+    ASSERT_TRUE(base::SaveToFile(old_entry, manifest));
     MakeOld(temp_dir);
+    // The new index - the files are checked.
     EXPECT_TRUE(cache.Run(1));
     cache.WaitForCleaner();
-    ASSERT_TRUE(base::LoadFromFile(manifest_path, &manifest));
-    EXPECT_EQ(FileCache::kManifestVersion, manifest.version());
+    EXPECT_FALSE(base::File::Exists(old_entry));
+    EXPECT_TRUE(base::File::Exists(temp_dir.path() / "running"));
+  }
+  EXPECT_FALSE(base::File::Exists(temp_dir.path() / "running"));
+
+  // The stop on a signal is the normal one too.
+  {
+    FileCache cache(temp_dir, FileCache::UNLIMITED, proto::NONE, true);
+    EXPECT_TRUE(cache.Run(1));
+    cache.Close();
+    EXPECT_FALSE(base::File::Exists(temp_dir.path() / "running"));
   }
 
+  // After the normal stop the files aren't checked.
+  ASSERT_TRUE(base::File::Write(old_entry, "1"_l));
+  MakeOld(temp_dir);
   {
     FileCache cache(temp_dir, FileCache::UNLIMITED, proto::NONE, true);
-    const auto manifest_path =
-        AppendExtension(cache.CommonPath(hash), base::kExtManifest);
-
-    ASSERT_TRUE(base::File::Write(manifest_path, "1"_l));
-    MakeOld(temp_dir);
     EXPECT_TRUE(cache.Run(1));
     cache.WaitForCleaner();
-    EXPECT_TRUE(base::File::Exists(manifest_path));
+    EXPECT_TRUE(base::File::Exists(old_entry));
+  }
+
+  // After a crash they are.
+  ASSERT_TRUE(base::File::Write(temp_dir.path() / "running", "1"_l));
+  MakeOld(temp_dir);
+  {
+    FileCache cache(temp_dir, FileCache::UNLIMITED, proto::NONE, true);
+    EXPECT_TRUE(cache.Run(1));
+    cache.WaitForCleaner();
+    EXPECT_FALSE(base::File::Exists(old_entry));
   }
 }
 

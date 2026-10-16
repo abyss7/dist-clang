@@ -50,6 +50,14 @@ int main(int argc, char* argv[]) {
   signal(SIGPIPE, SIG_IGN);
   signal(SIGSEGV, signal_handler);
 
+  // The signals of the exit are waited for below - all threads inherit the
+  // mask.
+  sigset_t signal_mask;
+  sigemptyset(&signal_mask);
+  sigaddset(&signal_mask, SIGTERM);
+  sigaddset(&signal_mask, SIGINT);
+  pthread_sigmask(SIG_BLOCK, &signal_mask, nullptr);
+
   daemon::Configuration configuration(argc, argv);
   UniquePtr<daemon::BaseDaemon> daemon, collector, coordinator;
 
@@ -119,14 +127,12 @@ int main(int argc, char* argv[]) {
     LOG(FATAL) << "Daemon failed to initialize.";
   }
 
-  sigset_t signal_mask;
-  sigemptyset(&signal_mask);
-  sigaddset(&signal_mask, SIGTERM);
-  sigaddset(&signal_mask, SIGINT);
-
   int sig;
   sigwait(&signal_mask, &sig);
   LOG(INFO) << "Received " << sig << " signal before quit";
 
-  return 0;
+  // Don't wait for the running compilations: they are killed with the
+  // daemon, and the clients compile without it.
+  daemon->Flush();
+  _exit(0);
 }
