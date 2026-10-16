@@ -316,6 +316,10 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
   HashSet<int> shown;
   const int kLabelWidth = 40, kValueWidth = 14;
   for (const auto& group : groups) {
+    // The groups are separated by the empty lines.
+    if (&group != groups) {
+      std::cout << std::endl;
+    }
     std::cout << group.title << std::endl;
     for (size_t i = 0; i < group.lines.size(); ++i) {
       const auto& line = group.lines[i];
@@ -346,7 +350,7 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
       continue;
     }
     if (!other) {
-      std::cout << "Other" << std::endl;
+      std::cout << std::endl << "Other" << std::endl;
       other = true;
     }
     std::cout << "  " << std::left << std::setw(kLabelWidth)
