@@ -22,6 +22,7 @@ const char kUsage[] =
     "       dist-clang --tag-stats\n"
     "       dist-clang --forget-tag=<tag> [--force]\n"
     "       dist-clang --forget-untagged [--force]\n"
+    "       dist-clang --forget-removed\n"
     "\n"
     "  --restat      Don't touch outputs, that don't change: for build\n"
     "                systems, that re-stat outputs, like Ninja with\n"
@@ -34,6 +35,8 @@ const char kUsage[] =
     "  --forget-tag  Remove the tag from the cache, and the entries, that\n"
     "                only it uses - with --force; otherwise only show them.\n"
     "  --forget-untagged  The same for the entries without tags.\n"
+    "  --forget-removed  Forget the records of the removed entries, that\n"
+    "                count the losses - see \"ghosts_ttl\" in the config.\n"
     "\n"
     "Or make a symlink named like the compiler, e.g. \"clang++\", to "
     "dist-clang.\n";
@@ -97,6 +100,9 @@ int main(int argc, char* argv[]) {
     }
     if (argv[1] == String("--tag-stats")) {
       return client::PrintTagStats(socket_path, config) ? 0 : 1;
+    }
+    if (argv[1] == String("--forget-removed") && argc == 2) {
+      return client::ForgetGhosts(socket_path, config) ? 0 : 1;
     }
     const String kForgetTag = "--forget-tag=";
     const bool untagged = argv[1] == String("--forget-untagged");

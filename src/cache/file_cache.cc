@@ -237,7 +237,8 @@ bool IsCacheFile(const String& name) {
   if (name.size() == 1 && isxdigit(name[0])) {
     return true;
   }
-  for (const char* prefix : {"index.sqlite", "direct.sqlite", "tags.sqlite"}) {
+  for (const char* prefix :
+       {"index.sqlite", "direct.sqlite", "tags.sqlite", "ghosts.sqlite"}) {
     if (name.starts_with(prefix)) {
       return true;
     }
@@ -356,6 +357,7 @@ bool FileCache::CheckFormat() {
 
 ui64 FileCache::MetadataSize() const {
   return database_->SizeOnDisk() + tag_index_->SizeOnDisk() +
+         ghosts_->SizeOnDisk() +
          base::File::Size(path_ / kFormatFile) +
          base::File::Size(path_ / kRunningFile);
 }
@@ -484,6 +486,7 @@ bool FileCache::Run(ui64 clean_period) {
 
   database_.reset(new SQLiteKV(path_, "direct"));
   tag_index_.reset(new TagIndex(path_, "tags"));
+  ghosts_.reset(new GhostIndex(path_, "ghosts"));
   if (store_index_) {
     entries_.reset(new SQLite(path_, "index"));
   } else {
@@ -835,7 +838,9 @@ bool FileCache::ForgetTag(const String& tag, bool dry_run,
     }
     entries_->BeginTransaction();
     tag_index_->BeginTransaction();
+    ghosts_->BeginTransaction();
     const auto result = DoForgetTag(tag, dry_run);
+    ghosts_->EndTransaction();
     tag_index_->EndTransaction();
     entries_->EndTransaction();
     callback(result);
@@ -911,6 +916,16 @@ void FileCache::ComputeTagStats(List<TagStats>* stats,
   }
 
   lock.unlock();
+
+  // The tags of the removed entries may have no entries anymore.
+  for (const auto& loss : ghosts_->GetLosses()) {
+    for (const auto& tag : loss.tags.empty() ? kNoTags : loss.tags) {
+      auto& stat = tag_stats[tag];
+      stat.tag = tag;
+      ++stat.lost_entries;
+      stat.lost_time += loss.compilation_time;
+    }
+  }
 
   for (auto& [tag, stat] : tag_stats) {
     stat.freeable_size = DoForgetTag(tag, true).freed_size;
@@ -994,6 +1009,11 @@ FileCache::ForgetResult FileCache::DoForgetTag(const String& tag,
     const string::Hash hash{Immutable(entry)};
     WriteLock lock(this, AppendExtension(CommonPath(hash), base::kExtManifest));
     if (lock) {
+      SQLite::Value value;
+      const ui64 size =
+          (entries_->Get(entry, &value) ? std::get<SQLite::SIZE>(value) : 0) +
+          GetOwnBlobsSize(hash);
+      AddGhost(hash, size, GhostIndex::FORGOTTEN);
       RemoveEntry(hash);
     }
   }
@@ -1381,6 +1401,7 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
 void FileCache::Clean(UniquePtr<EntryList> list) {
   entries_->BeginTransaction();
   tag_index_->BeginTransaction();
+  ghosts_->BeginTransaction();
   while (auto access = list->Pop()) {
     const auto& hash = access->hash;
     if (!access->tags.empty()) {
@@ -1425,9 +1446,17 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
       }
       cache_size_ += info.size;
       STAT(CACHE_SIZE_ADDED, info.size);
+      // The removed entry would have been a hit.
+      if (!exists && ghosts_ttl_ && !info.object.empty() &&
+          ghosts_->Resurrect(info.object, info.compilation_time,
+                             access->time)) {
+        LOG(CACHE_VERBOSE) << "The removed entry is needed again: "
+                           << hash.str;
+      }
     }
   }
 
+  ghosts_->EndTransaction();
   tag_index_->EndTransaction();
   entries_->EndTransaction();
 
@@ -1439,11 +1468,52 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
 void FileCache::Maintain() {
   entries_->BeginTransaction();
   tag_index_->BeginTransaction();
+  ghosts_->BeginTransaction();
   Evict();
   CompressColdEntries();
+  const ui64 now = time(nullptr);
+  ghosts_->RemoveOlderThan(ghosts_ttl_ ? now - std::min(now, ghosts_ttl_)
+                                       : now + 1);
+  ghosts_->EndTransaction();
   tag_index_->EndTransaction();
   entries_->EndTransaction();
   ReportSizes();
+}
+
+void FileCache::AddGhost(string::Hash hash, ui64 size,
+                         GhostIndex::Reason reason) {
+  if (!ghosts_ttl_) {
+    return;
+  }
+  // Only the entries with the objects: they are found by them.
+  EntryInfo info;
+  if (!LoadEntryInfo(hash, &info) || info.object.empty()) {
+    return;
+  }
+  GhostIndex::Ghost ghost;
+  ghost.object = info.object;
+  ghost.size = size;
+  ghost.compilation_time = info.compilation_time;
+  ghost.reason = reason;
+  {
+    std::lock_guard<Mutex> lock(blob_refs_mutex_);
+    auto it = entry_tags_.find(hash.str.string_copy());
+    if (it != entry_tags_.end()) {
+      ghost.tags = it->second;
+    }
+  }
+  ghosts_->Add(ghost, time(nullptr));
+}
+
+bool FileCache::ForgetGhosts(Fn<void(ui64)> callback, NeededFn needed) {
+  return bool(cleaner_.Push([this, callback, needed] {
+    if (!needed()) {
+      return;
+    }
+    const ui64 count = ghosts_->Clear();
+    ReportSizes();
+    callback(count);
+  }));
 }
 
 void FileCache::ReportSizes() {
@@ -1462,6 +1532,37 @@ void FileCache::ReportSizes() {
   stats.Set(M::CACHE_ENTRIES, entry_count_);
   stats.Set(M::DISK_SAVED_BY_DEDUPLICATION, sizes.deduplicated);
   stats.Set(M::DISK_SAVED_BY_LINKS, sizes.linked);
+
+  // The removed entries, that are needed again.
+  ui64 evicted = 0, evicted_time = 0, forgotten = 0, forgotten_time = 0;
+  Vector<ui64> extra_sizes;
+  for (const auto& loss : ghosts_->GetLosses()) {
+    if (loss.reason == GhostIndex::EVICTED) {
+      ++evicted;
+      evicted_time += loss.compilation_time;
+      extra_sizes.push_back(loss.extra_size);
+    } else {
+      ++forgotten;
+      forgotten_time += loss.compilation_time;
+    }
+  }
+  // How much larger cache would have kept the part of the evicted entries.
+  std::sort(extra_sizes.begin(), extra_sizes.end());
+  auto ExtraSize = [&extra_sizes](ui32 percent) -> ui64 {
+    if (extra_sizes.empty()) {
+      return 0;
+    }
+    const size_t count = (extra_sizes.size() * percent + 99) / 100;
+    return extra_sizes[std::max<size_t>(count, 1) - 1];
+  };
+  stats.Set(M::GHOSTS, ghosts_->Count());
+  stats.Set(M::EVICTED_NEEDED_AGAIN, evicted);
+  stats.Set(M::TIME_LOST_TO_EVICTION, evicted_time);
+  stats.Set(M::EXTRA_SIZE_FOR_HALF_LOSSES, ExtraSize(50));
+  stats.Set(M::EXTRA_SIZE_FOR_90_PERCENT_LOSSES, ExtraSize(90));
+  stats.Set(M::EXTRA_SIZE_FOR_ALL_LOSSES, ExtraSize(100));
+  stats.Set(M::FORGOTTEN_NEEDED_AGAIN, forgotten);
+  stats.Set(M::TIME_LOST_TO_FORGETTING, forgotten_time);
   const auto now = Clock::now();
   next_sizes_report_ = now + (now - start) * kSizesReportCost;
 }
@@ -1496,7 +1597,9 @@ bool FileCache::LoadEntryInfo(string::Hash hash, EntryInfo* info) const {
   info->size = manifest.v1().size() + base::File::Size(manifest_path);
   if (manifest.v1().obj()) {
     info->blobs.push_back(manifest.v1().object_hash());
+    info->object = manifest.v1().object_hash();
   }
+  info->compilation_time = manifest.v1().compilation_time();
   if (manifest.v1().dwo()) {
     info->blobs.push_back(manifest.v1().dwo_hash());
   }
@@ -1670,6 +1773,7 @@ void FileCache::Evict() {
                          << std::get<SQLite::HITS>(entry) << " hits";
       // The blobs, that are used by other entries, stay.
       const ui64 removed_size = entry_own_size + GetOwnBlobsSize(hash);
+      AddGhost(hash, removed_size, GhostIndex::EVICTED);
       RemoveEntry(hash);
       own_size -= std::min(own_size, removed_size);
       freed += removed_size;

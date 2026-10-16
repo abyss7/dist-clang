@@ -24,6 +24,8 @@ static_library("file_cache") {
     "file_cache.h",
     "file_hash_cache.cc",
     "file_hash_cache.h",
+    "ghost_index.cc",
+    "ghost_index.h",
     "sqlite_utils.cc",
     "sqlite_utils.h",
     "tag_index.cc",

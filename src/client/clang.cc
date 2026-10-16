@@ -224,6 +224,23 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
             Unit::BYTES},
            {M::OUTPUT_WRITES_AVOIDED, "Writes of outputs avoided", Unit::BYTES},
        }},
+      {"Lost (removed entries, compiled again - see ghosts_ttl)",
+       {
+           {M::EVICTED_NEEDED_AGAIN, "Compiled again after eviction"},
+           {M::TIME_LOST_TO_EVICTION, "Time lost to eviction",
+            Unit::MILLISECONDS},
+           // The size of the entries, evicted since the lost ones.
+           {M::EXTRA_SIZE_FOR_HALF_LOSSES, "Larger cache to keep 50% of them",
+            Unit::BYTES},
+           {M::EXTRA_SIZE_FOR_90_PERCENT_LOSSES,
+            "Larger cache to keep 90% of them", Unit::BYTES},
+           {M::EXTRA_SIZE_FOR_ALL_LOSSES, "Larger cache to keep all of them",
+            Unit::BYTES},
+           {M::FORGOTTEN_NEEDED_AGAIN, "Compiled again after --forget-*"},
+           {M::TIME_LOST_TO_FORGETTING, "Time lost to --forget-*",
+            Unit::MILLISECONDS},
+           {M::GHOSTS, "Removed entries remembered"},
+       }},
       {"Cache",
        {
            {M::DIRECT_CACHE_HIT, "Direct cache hits", Unit::COUNT, false, true},
@@ -440,14 +457,17 @@ bool PrintTagStats(const String& socket_path,
   std::cout << std::left << std::setw(width) << "tag" << std::right
             << std::setw(9) << "entries" << std::setw(12) << "size"
             << std::setw(12) << "in builds" << std::setw(12) << "exclusive"
-            << std::setw(12) << "freeable" << std::endl;
+            << std::setw(12) << "freeable" << std::setw(7) << "lost"
+            << std::setw(14) << "lost time" << std::endl;
   for (const auto& tag : report.tags()) {
     std::cout << std::left << std::setw(width) << TagName(tag.name())
               << std::right << std::setw(9) << tag.entries() << std::setw(12)
               << HumanSize(tag.size()) << std::setw(12)
               << HumanSize(tag.linked_size()) << std::setw(12)
               << HumanSize(tag.exclusive_size()) << std::setw(12)
-              << HumanSize(tag.freeable_size()) << std::endl;
+              << HumanSize(tag.freeable_size()) << std::setw(7)
+              << tag.lost_entries() << std::setw(14)
+              << FormatTime(tag.lost_time()) << std::endl;
   }
 
   if (report.overlaps_size()) {
@@ -465,7 +485,10 @@ bool PrintTagStats(const String& socket_path,
             << "            the cache, and isn't removed with the tag;"
             << std::endl
             << "exclusive - used only by the tag;" << std::endl
-            << "freeable  - removed by --forget-tag now." << std::endl;
+            << "freeable  - removed by --forget-tag now;" << std::endl
+            << "lost      - removed entries, that were compiled again, and"
+            << std::endl
+            << "            the time of these compilations." << std::endl;
 
   return true;
 }
@@ -489,6 +512,19 @@ bool ForgetTag(const String& socket_path, const proto::Configuration& config,
   if (!force) {
     std::cout << "Add --force to remove them" << std::endl;
   }
+  return true;
+}
+
+bool ForgetGhosts(const String& socket_path,
+                  const proto::Configuration& config) {
+  auto request = std::make_unique<base::proto::TagsRequest>();
+  request->set_forget_ghosts(true);
+  base::proto::TagsReport report;
+  if (!RequestTags(socket_path, config, std::move(request), &report)) {
+    return false;
+  }
+  std::cout << "Forgot " << report.removed_ghosts() << " removed entries"
+            << std::endl;
   return true;
 }
 

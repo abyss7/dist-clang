@@ -1203,8 +1203,9 @@ TEST(FileCacheTest, ExceedCacheSize) {
     FileCache::Entry entry{obj_content[2], String(), String()};
     cache.Store(FileCache::Hash(code[2], {}, cl, version), entry);
     std::this_thread::sleep_for(Seconds(3));
+    // The records of the evicted entries are added.
     EXPECT_EQ(entry_size[2],
-              base::CalculateDirectorySize(cache_path) - db_size);
+              base::CalculateDirectorySize(cache_path) - cache.MetadataSize());
   }
 
   FileCache::Entry entry;
@@ -2082,6 +2083,116 @@ TEST(FileCacheTest, ReportSizes) {
   EXPECT_TRUE(cache.RemoveEntry(hash1));
   cache.ReportSizes();
   EXPECT_EQ(1u, GetStat(M::CACHE_ENTRIES));
+}
+
+TEST(FileCacheTest, Ghosts) {
+  using M = perf::proto::Metric;
+  const base::TemporaryDir temp_dir;
+  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, proto::NONE,
+                  true);
+  ASSERT_TRUE(cache.Run(3600));
+
+  // Makes the cleaner process the stored entries and the tags.
+  auto Flush = [&cache] {
+    cache.new_entries_.reset(new FileCache::EntryList,
+                             cache.new_entries_deleter_);
+    cache.WaitForCleaner();
+  };
+  auto Store = [&](const char* flags, const char* object, ui64 time) {
+    FileCache::Entry entry{Immutable(String(object)), "deps"_l};
+    entry.compilation_time = time;
+    cache.Store(TestHash(flags), entry);
+  };
+  auto RunInCleaner = [&cache](Fn<void()> task) {
+    std::promise<void> done;
+    cache.cleaner_.Push([&] {
+      task();
+      done.set_value();
+    });
+    done.get_future().wait();
+  };
+
+  Store("-c", "object 1", 500);
+  Store("-c -O1", "object 2", 700);
+  Flush();
+
+  // Both entries are evicted.
+  RunInCleaner([&] {
+    cache.max_size_ = 1;
+    cache.Evict();
+    cache.max_size_ = FileCache::UNLIMITED;
+  });
+  FileCache::Entry entry;
+  ASSERT_FALSE(cache.Find(TestHash("-c"), &entry));
+  ASSERT_FALSE(cache.Find(TestHash("-c -O1"), &entry));
+  EXPECT_EQ(2u, cache.ghosts_->Count());
+
+  // The same object is compiled again - with other flags too: the evicted
+  // entry would have been found.
+  Store("-c -O2", "object 1", 900);
+  Flush();
+  auto losses = cache.ghosts_->GetLosses();
+  ASSERT_EQ(1u, losses.size());
+  EXPECT_EQ(GhostIndex::EVICTED, losses.front().reason);
+  EXPECT_EQ(900u, losses.front().compilation_time);
+  EXPECT_LT(0u, losses.front().extra_size);
+  EXPECT_EQ(1u, cache.ghosts_->Count());
+
+  // The entry exists again - another compilation isn't a loss.
+  Store("-c -O3", "object 1", 900);
+  Flush();
+  EXPECT_EQ(1u, cache.ghosts_->GetLosses().size());
+
+  RunInCleaner([&] { cache.ReportSizes(); });
+  EXPECT_EQ(1u, GetStat(M::EVICTED_NEEDED_AGAIN));
+  EXPECT_EQ(900u, GetStat(M::TIME_LOST_TO_EVICTION));
+  EXPECT_EQ(losses.front().extra_size,
+            GetStat(M::EXTRA_SIZE_FOR_ALL_LOSSES));
+  EXPECT_EQ(1u, GetStat(M::GHOSTS));
+
+  // The forgotten entry keeps its tag - the tag has no entries anymore.
+  Store("-c -g", "object 3", 300);
+  cache.AddTags(TestHash("-c -g"), {"branch"});
+  Flush();
+  RunInCleaner([&] { cache.DoForgetTag("branch", false); });
+  Store("-c -g -O1", "object 3", 400);
+  Flush();
+  losses = cache.ghosts_->GetLosses();
+  ASSERT_EQ(2u, losses.size());
+  EXPECT_EQ(GhostIndex::FORGOTTEN, losses.back().reason);
+  EXPECT_EQ(Vector<String>{"branch"}, losses.back().tags);
+  EXPECT_EQ(0u, losses.back().extra_size);
+
+  List<FileCache::TagStats> stats;
+  List<FileCache::TagOverlap> overlaps;
+  RunInCleaner([&] { cache.ComputeTagStats(&stats, &overlaps); });
+  auto branch = std::find_if(stats.begin(), stats.end(),
+                             [](const auto& stat) { return stat.tag == "branch"; });
+  ASSERT_NE(stats.end(), branch);
+  EXPECT_EQ(0u, branch->entries);
+  EXPECT_EQ(1u, branch->lost_entries);
+  EXPECT_EQ(400u, branch->lost_time);
+
+  // The records are forgotten - with the losses.
+  std::promise<ui64> forgotten;
+  ASSERT_TRUE(cache.ForgetGhosts(
+      [&forgotten](ui64 count) { forgotten.set_value(count); }));
+  EXPECT_EQ(1u, forgotten.get_future().get());
+  EXPECT_EQ(0u, cache.ghosts_->Count());
+  EXPECT_TRUE(cache.ghosts_->GetLosses().empty());
+  EXPECT_EQ(0u, GetStat(M::EVICTED_NEEDED_AGAIN));
+
+  // The old records expire.
+  Store("-c -g -O2", "object 4", 300);
+  Flush();
+  RunInCleaner([&] {
+    cache.max_size_ = 1;
+    cache.Evict();
+    cache.max_size_ = FileCache::UNLIMITED;
+  });
+  EXPECT_LT(0u, cache.ghosts_->Count());
+  cache.ghosts_->RemoveOlderThan(time(nullptr) + 1);
+  EXPECT_EQ(0u, cache.ghosts_->Count());
 }
 
 }  // namespace cache

@@ -7,6 +7,7 @@
 #include <cache/database_kv.h>
 #include <cache/database_sqlite.h>
 #include <cache/file_hash_cache.h>
+#include <cache/ghost_index.h>
 #include <cache/manifest.pb.h>
 #include <cache/tag_index.h>
 
@@ -34,6 +35,8 @@ FORWARD_TEST(FileCacheTest, RoundTripCompressedEntry);
 FORWARD_TEST(FileCacheTest, RemoveEntryInBackground);
 FORWARD_TEST(FileCacheTest, RestoreEntryWithMissingFile);
 FORWARD_TEST(FileCacheTest, CheckFilesOnlyAfterCrash);
+FORWARD_TEST(FileCacheTest, ReportSizes);
+FORWARD_TEST(FileCacheTest, Ghosts);
 
 enum ExtraFileType {
   SANITIZE_BLACKLIST = 0,
@@ -115,7 +118,7 @@ class FileCache {
   //               the old manifests, and the outputs beside the manifests.
   // Generation 2: the outputs only in the blob store, the blobs of the
   //               entries in the index, no Snappy.
-  enum : ui32 { kGeneration = 2, kRevision = 2 };
+  enum : ui32 { kGeneration = 2, kRevision = 3 };
 
   // Maximal number of the header sets per one source in the direct cache.
   enum : size_t { kMaxDirectVariants = 8 };
@@ -171,6 +174,10 @@ class FileCache {
   // With linked outputs: compresses the outputs, that aren't linked with build
   // directories anymore, and weren't used for |seconds|. Zero disables it.
   inline void SetCompressAfter(ui64 seconds) { compress_after_ = seconds; }
+
+  // Remembers the evicted and the forgotten entries for |seconds| - to count
+  // the ones, that are needed again. Zero disables it.
+  inline void SetGhostsTtl(ui64 seconds) { ghosts_ttl_ = seconds; }
 
   static string::HandledHash Hash(string::HandledSource code,
                                   const ExtraFiles& extra_files,
@@ -228,6 +235,9 @@ class FileCache {
   struct TagStats {
     String tag;  // Empty for the entries without tags.
     ui64 entries = 0, size = 0;
+    // The removed entries of the tag, that were needed again - and the time
+    // of their compilations in milliseconds.
+    ui64 lost_entries = 0, lost_time = 0;
     // The part of the size, that is linked with build directories: it takes
     // no space in the cache, and isn't removed with the tag.
     ui64 linked_size = 0;
@@ -266,6 +276,11 @@ class FileCache {
                  Fn<void(const ForgetResult&)> callback,
                  NeededFn needed = [] { return true; });
 
+  // Forgets the records of the removed entries - calls back with their number
+  // from the cleaner, if it's still |needed|.
+  bool ForgetGhosts(Fn<void(ui64)> callback,
+                    NeededFn needed = [] { return true; });
+
   // Remembers the |key|. Returns |true| if it's new.
   bool MarkSeen(const String& key);
 
@@ -294,6 +309,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, RestoreEntryWithMissingFile);
   FRIEND_TEST(FileCacheTest, CheckFilesOnlyAfterCrash);
   FRIEND_TEST(FileCacheTest, ReportSizes);
+  FRIEND_TEST(FileCacheTest, Ghosts);
 
   enum : ui32 { kManifestVersion = 2 };
 
@@ -368,6 +384,9 @@ class FileCache {
     ui64 size = 0;  // With the manifest, without the blobs.
     bool direct = false;
     Vector<String> blobs;
+    // Only from the manifest.
+    String object;  // The hash of the object file.
+    ui64 compilation_time = 0;
   };
   // Returns |false| for a broken entry, or of another version.
   bool LoadEntryInfo(string::Hash hash, EntryInfo* info) const;
@@ -405,8 +424,12 @@ class FileCache {
   // Evicts and compresses the entries - periodically, with a limit of time.
   void Maintain();
 
-  // Updates the statistics of the size of the cache - in the cleaner.
+  // Updates the statistics of the size of the cache, and of the removed
+  // entries - in the cleaner.
   void ReportSizes();
+
+  // Remembers the removed entry, that freed |size| - before the removal.
+  void AddGhost(string::Hash hash, ui64 size, GhostIndex::Reason reason);
 
   // Removes entries, if the cache is too large, or the disk is too full.
   void Evict();
@@ -438,6 +461,9 @@ class FileCache {
   HashSet<String> direct_entries_;
   // The tags of the entries - sorted. Used by the cleaner too.
   UniquePtr<TagIndex> tag_index_;
+  // The removed entries - used only by the cleaner.
+  UniquePtr<GhostIndex> ghosts_;
+  ui64 ghosts_ttl_ = 30 * 24 * 3600;
   HashMap<String, Vector<String>> entry_tags_;
 
   ui64 max_size_;

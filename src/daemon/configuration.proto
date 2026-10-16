@@ -78,6 +78,11 @@ message Configuration {
     // of other branches - and weren't used for this time. They are restored
     // as copies then. Zero disables it.
 
+    optional uint64 ghosts_ttl = 17 [ default = 2592000 ];
+    // In seconds - 30 days by default. Remember the evicted and the forgotten
+    // entries for this time: the statistics show the ones, that are compiled
+    // again - the losses. Zero disables it.
+
     optional uint32 min_free_percent = 12 [ default = 5 ];
     // Remove entries, while the disk has less free space - even if the cache
     // isn't full. Entries, that are linked with build directories, are kept.

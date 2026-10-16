@@ -144,6 +144,9 @@ message TagsRequest {
   // The tag to remove: the entries, that only it uses, are removed too.
 
   optional bool dry_run  = 2 [ default = true ];
+
+  optional bool forget_ghosts = 3;
+  // Forget the records of the removed entries - see |ghosts_ttl|.
 }
 
 message TagsReport {
@@ -162,6 +165,11 @@ message TagsReport {
 
     optional uint64 freeable_size     = 7;
     // What the removal of the tag frees now.
+
+    optional uint64 lost_entries      = 8;
+    optional uint64 lost_time         = 9;
+    // The removed entries of the tag, that are compiled again - and the time
+    // of these compilations in milliseconds.
   }
   repeated Tag tags = 1;
 
@@ -177,6 +185,9 @@ message TagsReport {
   optional uint64 freed_size      = 4;
   optional uint64 shared_entries  = 5;
   optional uint64 linked_entries  = 6;
+
+  // The result of |TagsRequest::forget_ghosts|.
+  optional uint64 removed_ghosts  = 7;
 }
 
 message Verbosity {

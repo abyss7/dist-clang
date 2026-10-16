@@ -198,6 +198,7 @@ bool CompilationDaemon::Initialize() {
         conf->cache().link_outputs() && conf->has_emitter());
     cache_->SetMinFreePercent(conf->cache().min_free_percent());
     cache_->SetCompressAfter(conf->cache().compress_after());
+    cache_->SetGhostsTtl(conf->cache().ghosts_ttl());
     if (!cache_->Run(conf->cache().clean_period())) {
       cache_.reset();
     }
@@ -674,6 +675,16 @@ bool CompilationDaemon::HandleTagsRequest(
   // The connection lives, until the reply is sent. The client, that is gone,
   // doesn't need it.
   auto needed = [connection] { return !connection->IsPeerGone(); };
+  if (request.forget_ghosts()) {
+    return cache_->ForgetGhosts(
+        [connection](ui64 count) {
+          auto report = std::make_unique<base::proto::TagsReport>();
+          report->set_removed_ghosts(count);
+          connection->SendAsync(std::move(report));
+        },
+        needed);
+  }
+
   if (request.has_forget()) {
     return cache_->ForgetTag(
         request.forget(), request.dry_run(),
@@ -701,6 +712,8 @@ bool CompilationDaemon::HandleTagsRequest(
           tag->set_exclusive_size(stat.exclusive_size);
           tag->set_linked_size(stat.linked_size);
           tag->set_freeable_size(stat.freeable_size);
+          tag->set_lost_entries(stat.lost_entries);
+          tag->set_lost_time(stat.lost_time);
         }
         for (const auto& overlap : overlaps) {
           auto* new_overlap = report->add_overlaps();

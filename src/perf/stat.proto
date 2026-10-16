@@ -86,6 +86,23 @@ message Metric {
     // in bytes - the outputs, that are restored without writing: unchanged or
     // linked.
 
+    GHOSTS                      = 47;
+    // The removed entries, that are remembered - see |ghosts_ttl|.
+
+    EVICTED_NEEDED_AGAIN        = 48;
+    TIME_LOST_TO_EVICTION       = 49;
+    FORGOTTEN_NEEDED_AGAIN      = 50;
+    TIME_LOST_TO_FORGETTING     = 51;
+    // The evicted and the forgotten entries, which objects are compiled again,
+    // and the time of these compilations in milliseconds - during the TTL.
+
+    EXTRA_SIZE_FOR_HALF_LOSSES       = 52;
+    EXTRA_SIZE_FOR_90_PERCENT_LOSSES = 53;
+    EXTRA_SIZE_FOR_ALL_LOSSES        = 54;
+    // in bytes - how much larger cache would have kept the part of the evicted
+    // entries, that are needed again: the size of the entries, that were
+    // evicted since them.
+
     CACHE_INCOMPATIBLE          = 40;
     // 1, if the cache isn't used: it's written by a newer daemon, that has
     // changed the format incompatibly.

@@ -35,5 +35,9 @@ bool PrintTagStats(const String& socket_path,
 bool ForgetTag(const String& socket_path, const proto::Configuration& config,
                const String& tag, bool force);
 
+// Forgets the records of the removed entries of the cache - and the losses.
+bool ForgetGhosts(const String& socket_path,
+                  const proto::Configuration& config);
+
 }  // namespace client
 }  // namespace dist_clang
