@@ -16,6 +16,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+          # The version is counted from the history of master.
+          fetch-depth: 0
 
       - name: Install toolchain
         run: |
