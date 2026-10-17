@@ -31,6 +31,11 @@ class Passive final : public base::Handle {
   }
 
  private:
+  // Accepts the connection, that isn't inherited by the child processes.
+  // Returns -1 with |errno| EAGAIN, if there is no connection. Differs between
+  // the platforms - in "passive_<os>.cc".
+  int AcceptNative();
+
   String error_;
 };
 

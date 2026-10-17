@@ -11,6 +11,22 @@
 namespace dist_clang {
 namespace base {
 
+// static
+int ProcessImpl::CreateCancelEvent() {
+  // Unsupported yet: the running process isn't canceled.
+  return -1;
+}
+
+// static
+void ProcessImpl::SignalCancelEvent(int) {
+  // Unsupported yet.
+}
+
+// static
+void ProcessImpl::DieWithParent() {
+  // Unsupported yet: the child outlives the parent.
+}
+
 bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
   CHECK(args_.size() + 1 < MAX_ARGS);
 

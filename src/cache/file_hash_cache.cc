@@ -2,10 +2,10 @@
 
 #include <base/c_utils.h>
 #include <base/file/file.h>
+#include <base/platform.h>
 #include <base/string_utils.h>
 
 #include <sys/stat.h>
-#include <time.h>
 
 namespace dist_clang {
 namespace cache {
@@ -15,10 +15,6 @@ namespace {
 // Files modified so recently may still be modified within the same timestamp
 // granularity - don't memoize their hashes.
 const i64 kRacyIntervalNs = 2'000'000'000;
-
-i64 ToNs(const struct timespec& time) {
-  return static_cast<i64>(time.tv_sec) * 1'000'000'000 + time.tv_nsec;
-}
 
 }  // namespace
 
@@ -31,7 +27,7 @@ bool FileHashCache::Hash(const Path& path, String* hash, String* error,
   }
 
   if (modified) {
-    *modified = std::max(ToNs(st.st_mtim), ToNs(st.st_ctim));
+    *modified = std::max(base::ModificationTime(st), base::StatusChangeTime(st));
   }
 
   const String key = path.string();
@@ -40,8 +36,8 @@ bool FileHashCache::Hash(const Path& path, String* hash, String* error,
     auto it = entries_.find(key);
     if (it != entries_.end() && it->second.inode == st.st_ino &&
         it->second.size == static_cast<ui64>(st.st_size) &&
-        it->second.mtime_ns == ToNs(st.st_mtim) &&
-        it->second.ctime_ns == ToNs(st.st_ctim)) {
+        it->second.mtime_ns == base::ModificationTime(st) &&
+        it->second.ctime_ns == base::StatusChangeTime(st)) {
       *hash = it->second.hash;
       if (time_macros) {
         *time_macros = it->second.time_macros;
@@ -58,8 +54,8 @@ bool FileHashCache::Hash(const Path& path, String* hash, String* error,
   struct stat new_st;
   if (stat(path.c_str(), &new_st) == -1 || new_st.st_ino != st.st_ino ||
       new_st.st_size != st.st_size ||
-      ToNs(new_st.st_mtim) != ToNs(st.st_mtim) ||
-      ToNs(new_st.st_ctim) != ToNs(st.st_ctim)) {
+      base::ModificationTime(new_st) != base::ModificationTime(st) ||
+      base::StatusChangeTime(new_st) != base::StatusChangeTime(st)) {
     if (error) {
       error->assign("modified while hashing");
     }
@@ -74,14 +70,13 @@ bool FileHashCache::Hash(const Path& path, String* hash, String* error,
     *time_macros = has_time_macros;
   }
 
-  struct timespec now;
-  clock_gettime(CLOCK_REALTIME, &now);
-  if (ToNs(now) - ToNs(st.st_mtim) > kRacyIntervalNs &&
-      ToNs(now) - ToNs(st.st_ctim) > kRacyIntervalNs) {
+  const i64 now = base::FileSystemTime();
+  if (now - base::ModificationTime(st) > kRacyIntervalNs &&
+      now - base::StatusChangeTime(st) > kRacyIntervalNs) {
     std::lock_guard<Mutex> lock(mutex_);
     entries_[key] = {static_cast<ui64>(st.st_ino),
-                     static_cast<ui64>(st.st_size), ToNs(st.st_mtim),
-                     ToNs(st.st_ctim), *hash, has_time_macros};
+                     static_cast<ui64>(st.st_size), base::ModificationTime(st),
+                     base::StatusChangeTime(st), *hash, has_time_macros};
   }
 
   return true;

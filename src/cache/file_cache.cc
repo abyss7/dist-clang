@@ -9,6 +9,7 @@ static const char kDaemonVersion[] = VERSION;
 #include <base/file_utils.h>
 #include <base/logging.h>
 #include <base/path_utils.h>
+#include <base/platform.h>
 #include <base/protobuf_utils.h>
 #include <base/string_utils.h>
 #include <cache/compression.h>
@@ -21,8 +22,6 @@ static const char kDaemonVersion[] = VERSION;
 
 #include <sys/stat.h>
 #include <sys/statvfs.h>
-#include <sys/resource.h>
-#include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <utime.h>
@@ -526,9 +525,7 @@ bool FileCache::Run(ui64 clean_period) {
 
   // The cleaner works in background - it shouldn't slow down the
   // compilations.
-#if defined(OS_LINUX)
-  cleaner_.Push([] { setpriority(PRIO_PROCESS, syscall(SYS_gettid), 10); });
-#endif
+  cleaner_.Push([] { base::LowerCurrentThreadPriority(); });
 
   // Check the files of the cache, and count the references to the blobs
   // before any other work of the cleaner - in background: the daemon serves
@@ -1330,9 +1327,7 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
             }
             // The compiler may have missed the file, that is created during
             // the compilation.
-            const i64 ctime =
-                i64(st.st_ctim.tv_sec) * 1'000'000'000 + st.st_ctim.tv_nsec;
-            if (start_time && ctime > start_time) {
+            if (start_time && base::StatusChangeTime(st) > start_time) {
               LOG(CACHE_INFO) << "Not storing direct cache entry - " << path
                               << " is created during the compilation";
               created = true;

@@ -23,6 +23,15 @@ class ProcessImpl : public Process {
                        ui32 uid = SAME_UID);
 
   bool RunChild(Pipe& out, Pipe& err, Pipe* in);
+
+  // The parts, that differ between the platforms - in "process_impl_<os>.cc".
+  // The event, that |Cancel()| signals to the running process - or -1, if the
+  // platform can't.
+  static int CreateCancelEvent();
+  static void SignalCancelEvent(int event);
+  // Kills the child with the parent - called in the child: only the
+  // async-signal-safe functions.
+  static void DieWithParent();
   bool WaitPid(int pid, ui64 sec_timeout, String* error = nullptr);
   void kill(int pid);
 

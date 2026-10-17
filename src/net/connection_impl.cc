@@ -127,13 +127,11 @@ bool ConnectionImpl::ReadSync(Message* message, Status* status) {
 
 bool ConnectionImpl::SendTimeout(ui32 sec_timeout, String* error) {
   if (!fd_.SendTimeout(sec_timeout, error)) {
-#if defined(OS_MACOSX)
     // According to Mac OS X manual the |setsockopt()| may return EINVAL in case
     // the socket is already shut down.
     if (errno == EINVAL) {
       DCHECK(IsClosed());
     }
-#endif  // defined(OS_MACOSX)
     return false;
   }
   return true;
@@ -141,13 +139,11 @@ bool ConnectionImpl::SendTimeout(ui32 sec_timeout, String* error) {
 
 bool ConnectionImpl::ReadTimeout(ui32 sec_timeout, String* error) {
   if (!fd_.ReadTimeout(sec_timeout, error)) {
-#if defined(OS_MACOSX)
     // According to Mac OS X manual the |setsockopt()| may return EINVAL in case
     // the socket is already shut down.
     if (errno == EINVAL) {
       DCHECK(IsClosed());
     }
-#endif  // defined(OS_MACOSX)
     return false;
   }
   return true;

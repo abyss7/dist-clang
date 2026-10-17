@@ -4,6 +4,7 @@
 #include <base/file/file.h>
 #include <base/file_utils.h>
 #include <base/logging.h>
+#include <base/platform.h>
 #include <base/protobuf_utils.h>
 #include <base/string_utils.h>
 #include <base/types.h>
@@ -29,15 +30,9 @@ Configuration::Configuration() {
 
       for (int i = 0; i < config_.plugins_size(); ++i) {
         auto* plugin = config_.mutable_plugins(i);
-#if defined(OS_LINUX)
-        auto os = client::proto::Plugin::LINUX;
-#elif defined(OS_MACOSX)
-        auto os = client::proto::Plugin::MACOSX;
-#elif defined(OS_WIN)
-        auto os = client::proto::Plugin::WIN;
-#else
-        auto os = client::proto::Plugin::UNKNOWN;
-#endif
+        const auto os = base::CurrentPlatform() == base::Platform::MACOSX
+                            ? client::proto::Plugin::MACOSX
+                            : client::proto::Plugin::LINUX;
         if (plugin->os() != os) {
           config_.mutable_plugins()->SwapElements(i--, config_.plugins_size() - 1);
           config_.mutable_plugins()->RemoveLast();

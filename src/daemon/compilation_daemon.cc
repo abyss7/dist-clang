@@ -4,6 +4,7 @@
 #include <base/constants.h>
 #include <base/file/file.h>
 #include <base/logging.h>
+#include <base/platform.h>
 #include <base/process_impl.h>
 #include <base/string_utils.h>
 #include <net/connection.h>
@@ -12,7 +13,6 @@
 #include STL(random)
 
 #include <sys/stat.h>
-#include <time.h>
 
 #include <base/using_log.h>
 
@@ -278,10 +278,7 @@ Immutable CompilationDaemon::RestoreDeps(Immutable deps,
 
 // static
 i64 CompilationDaemon::FileSystemTime() {
-  // The file systems take the time of modifications from the coarse clock.
-  struct timespec now;
-  clock_gettime(CLOCK_REALTIME_COARSE, &now);
-  return i64(now.tv_sec) * 1'000'000'000 + now.tv_nsec;
+  return base::FileSystemTime();
 }
 
 // static
@@ -307,8 +304,8 @@ bool CompilationDaemon::InputsUnchangedSince(const base::proto::Local* message,
       LOG(CACHE_INFO) << "Input is gone during the compilation: " << path;
       return false;
     }
-    const i64 mtime = i64(st.st_mtim.tv_sec) * 1'000'000'000 + st.st_mtim.tv_nsec;
-    const i64 ctime = i64(st.st_ctim.tv_sec) * 1'000'000'000 + st.st_ctim.tv_nsec;
+    const i64 mtime = base::ModificationTime(st);
+    const i64 ctime = base::StatusChangeTime(st);
     // The modifications within the same tick of the coarse clock, before the
     // start, have the same time - they are fine.
     if (mtime > time || ctime > time) {

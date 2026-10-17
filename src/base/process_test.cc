@@ -5,6 +5,7 @@
 
 #include <test/throw_std.h>
 
+#include <fcntl.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -12,19 +13,11 @@
 
 namespace dist_clang {
 
-namespace {
-
-#if defined(OS_MACOSX)
-// Bash is too old on a common MacOS and fails some tests
-// (e.g. RunWithEnvironment), use zsh instead.
-const char* sh = "/bin/zsh";
-#else
-const char* sh = "/bin/sh";
-#endif
-
-}  // namespace
-
 namespace base {
+
+// The shell of the tests - differs between the platforms: in
+// "process_test_shell_<os>.cc".
+extern const char* const sh;
 
 class ProcessTest : public ::testing::Test {
  public:
@@ -113,7 +106,10 @@ TEST_F(ProcessTest, TooManyArgs) {
 
 TEST_F(ProcessTest, CancelOnDisconnect) {
   int sockets[2];
-  ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, sockets));
+  ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM, 0, sockets));
+  // The child mustn't keep the connection.
+  fcntl(sockets[0], F_SETFD, FD_CLOEXEC);
+  fcntl(sockets[1], F_SETFD, FD_CLOEXEC);
 
   // The child of the shell is killed too.
   ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
@@ -166,7 +162,10 @@ TEST_F(ProcessTest, CancelBeforeRun) {
 
 TEST_F(ProcessTest, NotCanceledWhileConnected) {
   int sockets[2];
-  ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, sockets));
+  ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM, 0, sockets));
+  // The child mustn't keep the connection.
+  fcntl(sockets[0], F_SETFD, FD_CLOEXEC);
+  fcntl(sockets[1], F_SETFD, FD_CLOEXEC);
 
   ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
   process->AppendArg("-c"_l).AppendArg("echo done"_l);

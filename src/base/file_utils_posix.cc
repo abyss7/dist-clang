@@ -2,6 +2,7 @@
 
 #include <base/assert.h>
 #include <base/const_string.h>
+#include <base/platform.h>
 #include <base/string_utils.h>
 
 #include STL(map)
@@ -40,16 +41,8 @@ void WalkDirectory(
             if (S_ISDIR(buffer.st_mode)) {
               paths.push_back(new_path);
             } else if (S_ISREG(buffer.st_mode)) {
-              struct timespec time_spec;
-#if defined(OS_MACOSX)
-              time_spec = buffer.st_mtimespec;
-#elif defined(OS_LINUX)
-              time_spec = buffer.st_mtim;
-#else
-#pragma message "Don't know how to get modification time on this platform!"
-              NOTREACHED();
-#endif
-              visitor(new_path, time_spec.tv_sec, buffer.st_size);
+              visitor(new_path, ModificationTime(buffer) / 1'000'000'000,
+                      buffer.st_size);
             }
           } else {
             GetLastError(error);
@@ -83,16 +76,8 @@ Pair<time_t> GetModificationTime(const String& path, String* error) {
     return {0, 0};
   }
 
-  struct timespec time_spec;
-#if defined(OS_MACOSX)
-  time_spec = buffer.st_mtimespec;
-#elif defined(OS_LINUX)
-  time_spec = buffer.st_mtim;
-#else
-#pragma message "Don't know how to get modification time on this platform!"
-  NOTREACHED();
-#endif
-  return {time_spec.tv_sec, time_spec.tv_nsec};
+  const i64 time = ModificationTime(buffer);
+  return {time / 1'000'000'000, time % 1'000'000'000};
 }
 
 }  // namespace base

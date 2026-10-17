@@ -24,6 +24,8 @@ static_library("net") {
     "network_service_mac.cc",
     "passive.cc",
     "passive.h",
+    "passive_linux.cc",
+    "passive_mac.cc",
     "socket.cc",
     "socket.h",
   ]

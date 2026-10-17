@@ -60,6 +60,17 @@ class File final : public Data {
   File(const Path& path, ui64 size);  // Open truncated write-only file
   bool Close(String* error = nullptr);
 
+  // The parts, that differ between the platforms - in "file_<os>.cc".
+  bool AdviseSequentialRead();
+  // Only a hint for the file system.
+  void Preallocate(ui64 size);
+  // Returns MAP_FAILED on failure.
+  void* MapForRead(ui64 size);
+  bool CopyContentsInto(File& dst, ui64 size, String* error);
+  // Makes |dst| a copy-on-write clone of |src| - if the file system can. The
+  // |dst| shouldn't exist.
+  static bool CloneContents(const Path& src, const Path& dst);
+
   String error_;
   String move_on_close_;
 };

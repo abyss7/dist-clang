@@ -10,14 +10,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#if defined(OS_LINUX)
-#include <linux/fs.h>
-#include <sys/ioctl.h>
-#include <sys/sendfile.h>
-#elif defined(OS_MACOSX)
-#include <copyfile.h>
-#endif
-
 namespace dist_clang {
 namespace base {
 
@@ -33,19 +25,11 @@ File::File(const Path& path) : Data(open(path.c_str(), O_RDONLY)) {
     return;
   }
 
-#if defined(OS_LINUX)
-  if (posix_fadvise(native(), 0, 0, POSIX_FADV_SEQUENTIAL) == -1) {
+  if (!AdviseSequentialRead()) {
     GetLastError(&error_);
     Handle::Close();
     return;
   }
-#elif defined(OS_MACOSX)
-  if (fcntl(native(), F_RDAHEAD, 1) == -1) {
-    GetLastError(&error_);
-    Handle::Close();
-    return;
-  }
-#endif
 }
 
 // static
@@ -112,16 +96,7 @@ bool File::Read(Immutable* output, String* error) {
     return true;
   }
 
-  auto flags = MAP_PRIVATE;
-#if defined(OS_LINUX)
-  flags |= MAP_POPULATE;
-  void* map = mmap64(nullptr, size, PROT_READ, flags, native(), 0);
-#elif defined(OS_MACOSX)
-  void* map = mmap(nullptr, size, PROT_READ, flags, native(), 0);
-#else
-#pragma message "This platform doesn't support mmap interface!"
-  void* map = MAP_FAILED;
-#endif
+  void* map = MapForRead(size);
   if (map == MAP_FAILED) {
     GetLastError(error);
     return false;
@@ -171,28 +146,7 @@ bool File::CopyInto(const Path& dst_path, String* error) {
     return false;
   }
 
-  bool result = false;
-#if defined(OS_LINUX)
-  size_t total_bytes = 0;
-  ssize_t size = 0;
-  while (total_bytes < src_size) {
-    size = sendfile(dst.native(), native(), nullptr, src_size - total_bytes);
-    if (size <= 0) {
-      break;
-    }
-    total_bytes += size;
-  }
-  result = (total_bytes == src_size);
-#elif defined(OS_MACOSX)
-  if (fcopyfile(native(), dst.native(), nullptr, COPYFILE_ALL) != 0) {
-    GetLastError(error);
-    return false;
-  }
-  result = true;
-#else
-#pragma message "Don't know how to make quick file copy on this platform!"
-// TODO: implement fallback file copy.
-#endif
+  const bool result = CopyContentsInto(dst, src_size, error);
 
   if (!dst.Close(error)) {
     return false;
@@ -290,18 +244,10 @@ bool File::Copy(const Path& src_path, const Path& dst_path, String* error) {
 // static
 bool File::Link(const Path& src, const Path& dst, String* error) {
   auto Link = [&src, &dst]() -> int {
-#if defined(OS_LINUX)
-    // Linux doesn't guarantee that |link()| do dereferences symlinks, thus
-    // we use |linkat()| which does for sure.
+    // The |link()| doesn't always dereference the symlinks, thus we use
+    // |linkat()| which does for sure.
     return linkat(AT_FDCWD, src.c_str(), AT_FDCWD, dst.c_str(),
                   AT_SYMLINK_FOLLOW);
-#elif defined(OS_MACOSX)
-    return link(src.c_str(), dst.c_str());
-#else
-#pragma message "This platform doesn't support hardlinks!"
-    errno = EACCES;
-    return -1;
-#endif
   };
 
   // Try to create hard-link at first.
@@ -336,30 +282,9 @@ bool File::Clone(const Path& src, const Path& dst, bool allow_hardlink,
     return true;
   };
 
-#if defined(OS_LINUX)
-  {
-    const int src_fd = open(src.c_str(), O_RDONLY | O_CLOEXEC);
-    if (src_fd == -1) {
-      GetLastError(error);
-      return false;
-    }
-    struct stat st;
-    const int dst_fd =
-        fstat(src_fd, &st) == -1
-            ? -1
-            : open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC,
-                   (st.st_mode | S_IWUSR) & 0777);
-    const bool cloned = dst_fd != -1 && ioctl(dst_fd, FICLONE, src_fd) == 0;
-    if (dst_fd != -1) {
-      close(dst_fd);
-    }
-    close(src_fd);
-    if (cloned) {
-      return Finish(CloneMode::REFLINK);
-    }
-    unlink(tmp_path.c_str());
+  if (CloneContents(src, tmp_path)) {
+    return Finish(CloneMode::REFLINK);
   }
-#endif  // defined(OS_LINUX)
 
   if (allow_hardlink && linkat(AT_FDCWD, src.c_str(), AT_FDCWD,
                                tmp_path.c_str(), AT_SYMLINK_FOLLOW) == 0) {
@@ -406,27 +331,7 @@ File::File(const Path& path, ui64 size)
     return fstat(native(), &st) == 0 && (st.st_mode & mode) == mode;
   }());
 
-#if defined(OS_LINUX)
-  if (posix_fallocate(native(), 0, size) == -1) {
-    GetLastError(&error_);
-    Handle::Close();
-    return;
-  }
-#elif defined(OS_MACOSX)
-  fstore_t store = {
-      F_ALLOCATECONTIG | F_ALLOCATEALL, F_PEOFPOSMODE, 0,
-      static_cast<off_t>(size),
-  };
-
-  if (fcntl(native(), F_PREALLOCATE, &store) == -1) {
-    store.fst_flags = F_ALLOCATEALL;
-    if (fcntl(native(), F_PREALLOCATE, &store) == -1) {
-      GetLastError(&error_);
-      Handle::Close();
-      return;
-    }
-  }
-#endif
+  Preallocate(size);
 }
 
 bool File::Close(String* error) {

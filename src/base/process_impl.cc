@@ -8,20 +8,13 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#if defined(OS_LINUX)
-#include <sys/eventfd.h>
-#include <sys/prctl.h>
-#endif  // defined(OS_LINUX)
-
 namespace dist_clang {
 namespace base {
 
 ProcessImpl::ProcessImpl(const Path& exec_path, const Path& cwd_path, ui32 uid)
-    : Process(exec_path, cwd_path, uid), killed_(false) {
-#if defined(OS_LINUX)
-  cancel_event_ = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
-#endif
-}
+    : Process(exec_path, cwd_path, uid),
+      killed_(false),
+      cancel_event_(CreateCancelEvent()) {}
 
 ProcessImpl::~ProcessImpl() {
   if (cancel_event_ >= 0) {
@@ -32,8 +25,7 @@ ProcessImpl::~ProcessImpl() {
 void ProcessImpl::Cancel() {
   Process::Cancel();
   if (cancel_event_ >= 0) {
-    const ui64 value = 1;
-    [[maybe_unused]] auto result = write(cancel_event_, &value, sizeof(value));
+    SignalCancelEvent(cancel_event_);
   }
 }
 
@@ -86,16 +78,10 @@ bool ProcessImpl::RunChild(Pipe& out, Pipe& err, Pipe* in) {
     }
   }
 
-#if defined(OS_LINUX)
   // Don't let the compiler outlive the daemon: otherwise it may write the
   // outputs after the client has given up, and has started another
   // compilation of the same file.
-  const pid_t parent = getppid();
-  prctl(PR_SET_PDEATHSIG, SIGKILL);
-  if (getppid() != parent) {
-    _exit(1);
-  }
-#endif  // defined(OS_LINUX)
+  DieWithParent();
 
   const char* argv[MAX_ARGS];
   argv[0] = exec_path_.c_str();

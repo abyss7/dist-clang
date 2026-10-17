@@ -1,5 +1,6 @@
 #include <base/c_utils.h>
 #include <base/logging.h>
+#include <base/platform.h>
 #include <daemon/absorber.h>
 #include <daemon/collector.h>
 #include <daemon/configuration.h>
@@ -74,14 +75,10 @@ int main(int argc, char* argv[]) {
   }
 
   if (configuration.daemonize()) {
-// The function |daemon()| is deprecated on Mac. Use launchd instead.
-#if !defined(OS_MACOSX)
-    if (::daemon(0, 1) != 0) {
-      String error;
-      base::GetLastError(&error);
+    String error;
+    if (!base::Daemonize(&error)) {
       LOG(FATAL) << "Failed to daemonize: " << error;
     }
-#endif  // !defined(OS_MACOSX)
 
     base::Log::SetMode(base::Log::SYSLOG);
   }

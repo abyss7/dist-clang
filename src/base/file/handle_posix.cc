@@ -1,34 +1,13 @@
 #include <base/file/handle_posix.h>
 
 #include <base/c_utils.h>
+#include <base/file/handle_tracking.h>
 
-#include STL(bitset)
-#include STL(limits)
-
-#include <pthread.h>
 #include <sys/socket.h>
 
 namespace dist_clang {
 namespace base {
 
-#if !defined(NDEBUG) && !defined(OS_MACOSX)
-namespace {
-
-std::mutex used_fds_mutex;
-std::bitset<std::numeric_limits<Handle::NativeType>::max()> used_fds;
-
-void before_fork() {
-  used_fds_mutex.lock();
-}
-
-void after_fork() {
-  used_fds_mutex.unlock();
-}
-
-int atfork_result = pthread_atfork(before_fork, after_fork, after_fork);
-
-}  // namespace
-#endif  // !defined(NDEBUG) && !defined(OS_MACOSX)
 
 Handle::Handle(NativeType fd) : fd_(fd) {
   if (fd == -1) {
@@ -39,12 +18,7 @@ Handle::Handle(NativeType fd) : fd_(fd) {
 
 // FIXME: check that |fd| is opened.
 
-#if !defined(NDEBUG) && !defined(OS_MACOSX)
-  // FIXME: may deadlock here on Mac, when doing fork. Don't know why.
-  UniqueLock lock(used_fds_mutex);
-  DCHECK(!used_fds[fd_]);
-  used_fds[fd_] = true;
-#endif  // !defined(NDEBUG) && !defined(OS_MACOSX)
+  TrackHandle(fd_);
 }
 
 Handle::Handle(Handle&& other) {
@@ -115,14 +89,8 @@ bool Handle::Duplicate(Handle&& other, String* error) {
 }
 
 void Handle::Close() {
-#if !defined(NDEBUG) && !defined(OS_MACOSX)
-  UniqueLock lock(used_fds_mutex);
-
   DCHECK(IsValid());
-  DCHECK(used_fds[fd_]);
-
-  used_fds[fd_] = false;
-#endif  // !defined(NDEBUG) && !defined(OS_MACOSX)
+  UntrackHandle(fd_);
 
   close(fd_);
   fd_ = -1;

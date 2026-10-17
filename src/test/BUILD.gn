@@ -11,6 +11,8 @@ executable("unit_tests") {
     "//src/base/locked_list_test.cc",
     "//src/base/locked_queue_test.cc",
     "//src/base/process_test.cc",
+    "//src/base/process_test_shell_linux.cc",
+    "//src/base/process_test_shell_mac.cc",
     "//src/base/queue_aggregator_test.cc",
     "//src/base/string_utils_test.cc",
     "//src/base/test_process.cc",

@@ -7,6 +7,9 @@
 #include <base/logging.h>
 
 #include <signal.h>
+#include <sys/eventfd.h>
+#include <sys/prctl.h>
+#include <unistd.h>
 
 #include <base/using_log.h>
 
@@ -22,6 +25,27 @@ class WatchedSocket : public Handle {
 };
 
 }  // namespace
+
+// static
+int ProcessImpl::CreateCancelEvent() {
+  return eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+}
+
+// static
+void ProcessImpl::SignalCancelEvent(int event) {
+  const ui64 value = 1;
+  [[maybe_unused]] auto result = write(event, &value, sizeof(value));
+}
+
+// static
+void ProcessImpl::DieWithParent() {
+  const pid_t parent = getppid();
+  prctl(PR_SET_PDEATHSIG, SIGKILL);
+  // The parent may be gone already.
+  if (getppid() != parent) {
+    _exit(1);
+  }
+}
 
 bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
   CHECK(args_.size() + 1 < MAX_ARGS);

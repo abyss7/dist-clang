@@ -4,6 +4,7 @@
 #include <base/file/file.h>
 #include <base/future.h>
 #include <base/path_utils.h>
+#include <base/platform.h>
 #include <base/protobuf_utils.h>
 #include <base/string_utils.h>
 #include <base/temporary_dir.h>
@@ -46,11 +47,9 @@ void MakeOld(const Path& dir) {
 // The time of the start of a compilation - like the daemon takes it. The files,
 // that are modified later, must be modified after a tick of the clock.
 i64 CompilationTime() {
-  struct timespec now;
-  // The file systems take the time from the coarse clock.
-  clock_gettime(CLOCK_REALTIME_COARSE, &now);
+  const i64 now = base::FileSystemTime();
   std::this_thread::sleep_for(std::chrono::milliseconds(20));
-  return i64(now.tv_sec) * 1'000'000'000 + now.tv_nsec;
+  return now;
 }
 
 ui64 GetStat(perf::proto::Metric::Name name) {
@@ -1812,10 +1811,7 @@ TEST(FileHashCacheTest, TimeMacrosAndModificationTime) {
     EXPECT_EQ(expected, time_macros);
     struct stat st;
     ASSERT_EQ(0, stat(path.c_str(), &st));
-    EXPECT_EQ(std::max(i64(st.st_mtim.tv_sec) * 1'000'000'000 +
-                           st.st_mtim.tv_nsec,
-                       i64(st.st_ctim.tv_sec) * 1'000'000'000 +
-                           st.st_ctim.tv_nsec),
+    EXPECT_EQ(std::max(base::ModificationTime(st), base::StatusChangeTime(st)),
               modified);
   }
 }
