@@ -48,6 +48,10 @@ bool SharesStorage(const Path&, const struct stat& st) {
   return st.st_nlink > 1;
 }
 
+String PathKey(const String& path) {
+  return path;
+}
+
 int CreateUniqueFile(char* path_template, int suffix_size) {
   return mkostemps(path_template, suffix_size, O_CLOEXEC);
 }

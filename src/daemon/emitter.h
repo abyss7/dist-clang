@@ -74,6 +74,12 @@ class Emitter : public CompilationDaemon {
 
   bool Initialize() override;
 
+  // Sets the key root of the relocatable compilation: the one of the |roots|,
+  // that contains its input.
+  static void SetKeyRoot(
+      const google::protobuf::RepeatedPtrField<String>& roots,
+      const String& current_dir, base::proto::Flags* flags);
+
  protected:
   bool Check(const Configuration& conf) const override;
   bool Reload(const Configuration& conf) override;

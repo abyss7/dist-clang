@@ -2,6 +2,7 @@
 
 #include <base/file/file.h>
 #include <base/file_utils.h>
+#include <base/platform.h>
 #include <base/temporary_dir.h>
 #include <daemon/common_daemon_test.h>
 #include <test/throw_std.h>
@@ -4507,6 +4508,31 @@ TEST_F(EmitterTest, DontHitDirectCacheFromTwoRelativeSources) {
   // TODO: check that removal of original files doesn't fail cache filling.
   // TODO: check situations about deps file:
   //       - deps file is in cache, but not requested.
+}
+
+TEST(EmitterSourceRootsTest, SetKeyRoot) {
+  google::protobuf::RepeatedPtrField<String> roots;
+  *roots.Add() = "/work/other";
+  *roots.Add() = "/work/Tree/";
+
+  auto KeyRoot = [&](const String& current_dir, const String& input) {
+    base::proto::Flags flags;
+    flags.set_input(input);
+    Emitter::SetKeyRoot(roots, current_dir, &flags);
+    return Pair<String>(flags.key_root(), flags.key_root_relative());
+  };
+
+  EXPECT_EQ((Pair<String>("/work/Tree", "../..")),
+            KeyRoot("/work/Tree/out/Release", "../../src/a.cc"));
+  EXPECT_EQ((Pair<String>("", "")), KeyRoot("/work", "tree2/a.cc"));
+
+  // The root in another case is the same directory on Mac: the paths, that the
+  // compiler sees, keep their spelling.
+  if (base::CurrentPlatform() == base::Platform::MACOSX) {
+    EXPECT_EQ((Pair<String>("/work/tree", ".")), KeyRoot("/work/tree", "a.cc"));
+  } else {
+    EXPECT_EQ((Pair<String>("", "")), KeyRoot("/work/tree", "a.cc"));
+  }
 }
 
 }  // namespace daemon

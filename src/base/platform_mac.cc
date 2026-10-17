@@ -2,6 +2,7 @@
 
 #include <base/c_utils.h>
 
+#include <ctype.h>
 #include <fcntl.h>
 #include <mach-o/dyld.h>
 #include <pthread.h>
@@ -56,6 +57,17 @@ bool SharesStorage(const Path& path, const struct stat& st) {
   return getattrlist(path.c_str(), &attributes, &buffer, sizeof(buffer),
                      FSOPT_ATTR_CMN_EXTENDED) == 0 &&
          buffer.private_size < st.st_size;
+}
+
+String PathKey(const String& path) {
+  // APFS ignores the case by default. A volume, that doesn't, shares the keys
+  // of the paths in different case - it only serializes their work.
+  // TODO: the Unicode normalization, that APFS ignores too.
+  String key = path;
+  for (auto& c : key) {
+    c = tolower(static_cast<unsigned char>(c));
+  }
+  return key;
 }
 
 int CreateUniqueFile(char* path_template, int suffix_size) {

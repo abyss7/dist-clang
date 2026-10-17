@@ -10,6 +10,7 @@ executable("unit_tests") {
     "//src/base/future_test.cc",
     "//src/base/locked_list_test.cc",
     "//src/base/locked_queue_test.cc",
+    "//src/base/platform_test.cc",
     "//src/base/process_test.cc",
     "//src/base/process_test_shell_linux.cc",
     "//src/base/process_test_shell_mac.cc",

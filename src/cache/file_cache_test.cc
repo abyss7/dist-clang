@@ -52,6 +52,15 @@ i64 CompilationTime() {
   return now;
 }
 
+// If the file system of |dir| ignores the case of the names - like the default
+// one on Mac.
+bool IgnoresCase(const Path& dir) {
+  EXPECT_TRUE(base::File::Write(dir / "case", "1"_l));
+  const bool result = base::File::Exists(dir / "CASE");
+  base::File::Delete(dir / "case");
+  return result;
+}
+
 ui64 GetStat(perf::proto::Metric::Name name) {
   perf::proto::Report report;
   base::Singleton<perf::StatService>::Get().DumpAll(&report);
@@ -1656,6 +1665,82 @@ TEST(FileCacheTest, ShadowingPaths) {
   // The header isn't from the search directories.
   EXPECT_EQ(List<Path>(), FileCache::ShadowingPaths("/usr/include/e.h", dirs));
   EXPECT_EQ(List<Path>(), FileCache::ShadowingPaths("/src/dirx.h", {"/src/dir"}));
+}
+
+TEST(FileCacheTest, DirectEntry_ShadowedHeaderInOtherCase) {
+  const base::TemporaryDir temp_dir;
+  if (!IgnoresCase(temp_dir.path())) {
+    GTEST_SKIP() << "The file system doesn't ignore the case";
+  }
+  const Path dir1 = temp_dir.path() / "dir1";
+  const Path dir2 = temp_dir.path() / "dir2";
+  ASSERT_TRUE(base::CreateDirectory(dir1));
+  ASSERT_TRUE(base::CreateDirectory(dir2));
+  const List<Path> search_dirs = {dir1, dir2};
+  const auto header_path = dir2 / "a.h";
+
+  FileCache cache(temp_dir.path() / "cache");
+  ASSERT_TRUE(cache.Run(1));
+
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  const auto hash = FileCache::Hash(HandledSource("int main() { return 0; }"_l),
+                                    {}, cl, version);
+  const UnhandledSource orig_code("int main() {}"_l);
+  FileCache::Entry stored_entry;
+  stored_entry.object = "some object code"_l;
+  stored_entry.deps = "some deps"_l;
+  cache.Store(hash, stored_entry);
+
+  auto FindDirect = [&] {
+    FileCache::Entry entry;
+    return cache.Find(orig_code, {}, cl, version, temp_dir, &entry, String(),
+                      search_dirs);
+  };
+
+  ASSERT_TRUE(base::File::Write(header_path, "#define A"_l));
+  cache.Store(orig_code, {}, cl, version, {header_path}, {}, temp_dir, hash,
+              String(), search_dirs, CompilationTime());
+  EXPECT_TRUE(FindDirect());
+
+  // The compiler finds the new file in another case instead of the header.
+  ASSERT_TRUE(base::File::Write(dir1 / "A.H", "#define B"_l));
+  EXPECT_FALSE(FindDirect());
+}
+
+TEST(FileCacheTest, DirectEntry_HeaderInOtherCase) {
+  const base::TemporaryDir temp_dir;
+  if (!IgnoresCase(temp_dir.path())) {
+    GTEST_SKIP() << "The file system doesn't ignore the case";
+  }
+
+  FileCache cache(temp_dir.path() / "cache");
+  ASSERT_TRUE(cache.Run(1));
+
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  const auto hash = FileCache::Hash(HandledSource("int main() { return 0; }"_l),
+                                    {}, cl, version);
+  const UnhandledSource orig_code("int main() {}"_l);
+  FileCache::Entry stored_entry;
+  stored_entry.object = "some object code"_l;
+  stored_entry.deps = "some deps"_l;
+  cache.Store(hash, stored_entry);
+
+  // The dependency file spells the header like the "#include" - not like its
+  // name.
+  ASSERT_TRUE(base::File::Write(temp_dir.path() / "Header.h", "#define A"_l));
+  cache.Store(orig_code, {}, cl, version, {temp_dir.path() / "header.h"}, {},
+              temp_dir, hash, String(), {}, CompilationTime());
+  {
+    FileCache::Entry entry;
+    EXPECT_TRUE(cache.Find(orig_code, {}, cl, version, temp_dir, &entry));
+  }
+
+  // The modification through the real name is seen.
+  ASSERT_TRUE(base::File::Write(temp_dir.path() / "Header.h", "#define B"_l));
+  FileCache::Entry entry;
+  EXPECT_FALSE(cache.Find(orig_code, {}, cl, version, temp_dir, &entry));
 }
 
 TEST(FileCacheTest, DirectEntry_ShadowedHeader) {

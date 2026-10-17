@@ -37,6 +37,11 @@ bool SharesStorage(const Path& path, const struct stat& st);
 // Replaces the "XXXXXX". Returns the file descriptor, or -1.
 int CreateUniqueFile(char* path_template, int suffix_size);
 
+// The key of the |path| for the comparisons: the same for the spellings of the
+// same file - e.g. in another case on the file systems, that ignore it, like
+// the default one on Mac.
+String PathKey(const String& path);
+
 // The directory of the executable of the current process.
 bool GetSelfPath(String& result, String* error = nullptr);
 

@@ -3,6 +3,7 @@
 #include <base/file/file.h>
 #include <base/file_utils.h>
 #include <base/logging.h>
+#include <base/platform.h>
 #include <base/process.h>
 #include <base/temporary_dir.h>
 #include <daemon/driver_args.h>
@@ -56,7 +57,13 @@ inline String GetOutputPath(const base::proto::Local* WEAK_PTR message) {
 // the sources with the same name are waited for - it's cheap.
 inline String DirectStoreKey(const base::proto::Local* WEAK_PTR message) {
   DCHECK(message);
-  return Path(message->flags().input()).filename().string();
+  return base::PathKey(Path(message->flags().input()).filename().string());
+}
+
+// The key of the lock of the output: the same for its spellings.
+inline String OutputLockKey(const base::proto::Local* WEAK_PTR message) {
+  return base::PathKey(
+      Path(GetOutputPath(message)).lexically_normal().string());
 }
 
 inline String GetDepsPath(const base::proto::Local* WEAK_PTR message) {
@@ -642,23 +649,34 @@ bool Emitter::PrepareFlags(base::proto::Local* message,
 
   // The same sources from different places should share the cache.
   if (flags->relocatable()) {
-    const Path input =
-        (Path(current_dir) / flags->input()).lexically_normal();
-    for (const auto& root : conf()->cache().source_roots()) {
-      String root_path = Path(root).lexically_normal().string();
-      while (root_path.size() > 1 && root_path.back() == '/') {
-        root_path.pop_back();
-      }
-      if (input.string().starts_with(root_path + "/")) {
-        flags->set_key_root(root_path);
-        flags->set_key_root_relative(
-            Path(root_path).lexically_relative(current_dir).string());
-        break;
-      }
-    }
+    SetKeyRoot(conf()->cache().source_roots(), current_dir, flags);
   }
 
   return true;
+}
+
+// static
+void Emitter::SetKeyRoot(
+    const google::protobuf::RepeatedPtrField<String>& roots,
+    const String& current_dir, base::proto::Flags* flags) {
+  const String input =
+      (Path(current_dir) / flags->input()).lexically_normal().string();
+  const String input_key = base::PathKey(input);
+  for (const auto& root : roots) {
+    String root_path = Path(root).lexically_normal().string();
+    while (root_path.size() > 1 && root_path.back() == '/') {
+      root_path.pop_back();
+    }
+    if (input_key.starts_with(base::PathKey(root_path) + "/")) {
+      // The root is replaced in the paths, that the compiler sees - in their
+      // spelling.
+      const String key_root = input.substr(0, root_path.size());
+      flags->set_key_root(key_root);
+      flags->set_key_root_relative(
+          Path(key_root).lexically_relative(current_dir).string());
+      return;
+    }
+  }
 }
 
 void Emitter::SetExtraFiles(const cache::ExtraFiles& extra_files,
@@ -998,7 +1016,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
 
     // Only one task works with the output at a time - until the result is
     // stored into the cache: it's linked from the output.
-    OutputLocks::Lock output_lock(&output_locks_, GetOutputPath(incoming));
+    OutputLocks::Lock output_lock(&output_locks_, OutputLockKey(incoming));
     if (std::get<CONNECTION>(*task)->IsPeerGone()) {
       STAT(TASK_CANCELED);
       continue;
