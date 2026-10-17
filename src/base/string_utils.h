@@ -2,6 +2,7 @@
 
 #include <base/types.h>
 
+#include STL(cstring)
 #include STL(iomanip)
 #include STL(regex)
 #include STL(sstream)

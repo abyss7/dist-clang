@@ -360,7 +360,7 @@ TEST(FileCacheTest, LinkOutputs) {
   // outputs.
   struct stat st;
   ASSERT_EQ(0, stat(entry.object_path.c_str(), &st));
-  EXPECT_NE(0u, st.st_mode & S_IWUSR);
+  EXPECT_TRUE(st.st_mode & S_IWUSR);
 
   // A shared file, modified in place, is detected - even after the link is
   // removed.
