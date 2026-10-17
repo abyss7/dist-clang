@@ -1,13 +1,20 @@
 config("base") {
   defines = [ "OS_MACOSX" ]
 
+  # The names of the architectures for "-arch".
+  if (host_cpu == "arm64") {
+    arch = "arm64"
+  } else {
+    arch = "x86_64"
+  }
+
   cflags = [
     "-arch",
-    "x86_64",
+    arch,
   ]
   ldflags = [
     "-arch",
-    "x86_64",
+    arch,
     "-rpath",
     "@loader_path/.",
 
@@ -17,7 +24,8 @@ config("base") {
   ]
 }
 
+# The oldest macOS on Apple Silicon.
 config("compatibility") {
-  cflags = ["-mmacosx-version-min=10.10"]
-  ldflags = ["-mmacosx-version-min=10.10"]
+  cflags = [ "-mmacosx-version-min=11.0" ]
+  ldflags = [ "-mmacosx-version-min=11.0" ]
 }

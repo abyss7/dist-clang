@@ -1,0 +1,37 @@
+name: macOS
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  macos:
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          # The version is counted from the history of master.
+          fetch-depth: 0
+
+      - name: Install toolchain
+        run: |
+          brew install ninja
+          curl -sSL -o gn.zip \
+            https://chrome-infra-packages.appspot.com/dl/gn/gn/mac-arm64/+/latest
+          unzip -q gn.zip -d "$HOME/gn"
+          echo "$HOME/gn" >> "$GITHUB_PATH"
+          clang --version
+
+      - name: Configure
+        run: build/configure 'clang_cc="clang"' 'clang_cxx="clang++"'
+
+      # All errors at once: the port is in progress.
+      - name: Build
+        run: |
+          ninja -C out/Release -k 0 All
+          ninja -C out/Test -k 0 Tests
+
+      - name: Test
+        run: build/run_all_tests
