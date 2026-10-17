@@ -56,8 +56,8 @@ bool GetSelfPath(String& result, String* error) {
   return true;
 }
 
-void SetThreadName(std::thread& thread, Literal name) {
-  pthread_setname_np(thread.native_handle(), name);
+void SetCurrentThreadName(Literal name) {
+  pthread_setname_np(pthread_self(), name);
 }
 
 void LowerCurrentThreadPriority() {

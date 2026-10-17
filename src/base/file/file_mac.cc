@@ -4,7 +4,10 @@
 
 #include <copyfile.h>
 #include <fcntl.h>
+#include <sys/clonefile.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 namespace dist_clang {
 namespace base {
@@ -37,9 +40,20 @@ bool File::CopyContentsInto(File& dst, ui64, String* error) {
 }
 
 // static
-bool File::CloneContents(const Path&, const Path&) {
-  // Unsupported yet: see |clonefile()|.
-  return false;
+bool File::CloneContents(const Path& src, const Path& dst) {
+  // APFS clones the files without copying.
+  if (clonefile(src.c_str(), dst.c_str(), 0) != 0) {
+    return false;
+  }
+  // The clone is writable - like on other platforms: the compilers refuse to
+  // overwrite the read-only outputs.
+  struct stat st;
+  if (stat(dst.c_str(), &st) != 0 ||
+      chmod(dst.c_str(), (st.st_mode | S_IWUSR) & 0777) != 0) {
+    unlink(dst.c_str());
+    return false;
+  }
+  return true;
 }
 
 }  // namespace base

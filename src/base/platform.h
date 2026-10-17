@@ -3,8 +3,6 @@
 #include <base/const_string.h>
 #include <base/types.h>
 
-#include STL(thread)
-
 struct stat;
 
 namespace dist_clang {
@@ -36,7 +34,7 @@ int CreateUniqueFile(char* path_template, int suffix_size);
 // The directory of the executable of the current process.
 bool GetSelfPath(String& result, String* error = nullptr);
 
-void SetThreadName(std::thread& thread, Literal name);
+void SetCurrentThreadName(Literal name);
 // The current thread works in background: e.g. it shouldn't slow down the
 // compilations.
 void LowerCurrentThreadPriority();

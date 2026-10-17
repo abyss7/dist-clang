@@ -4,6 +4,8 @@
 
 #include <fcntl.h>
 #include <mach-o/dyld.h>
+#include <pthread.h>
+#include <pthread/qos.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <time.h>
@@ -61,13 +63,13 @@ bool GetSelfPath(String& result, String* error) {
   return true;
 }
 
-void SetThreadName(std::thread&, Literal) {
-  // Unsupported: the threads are named only by themselves.
-  // See http://stackoverflow.com/q/31897364/377393
+void SetCurrentThreadName(Literal name) {
+  pthread_setname_np(name);
 }
 
 void LowerCurrentThreadPriority() {
-  // Unsupported yet.
+  // The work, that the user doesn't wait for - on the efficiency cores too.
+  pthread_set_qos_class_self_np(QOS_CLASS_UTILITY, 0);
 }
 
 bool Daemonize(String*) {

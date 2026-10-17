@@ -4,6 +4,7 @@
 #include <base/const_string.h>
 #include <base/platform.h>
 
+#include STL(functional)
 #include STL(thread)
 
 #include <signal.h>
@@ -20,8 +21,13 @@ class Thread {
   template <class F, class... Args>
   explicit Thread(Literal name, F&& f, Args&&... args) {
     auto old_set = BlockSignals();
-    thread_ = std::thread(f, args...);
-    SetThreadName(thread_, name);
+    // Some platforms name only the current thread.
+    thread_ = std::thread(
+        [name, f = std::forward<F>(f),
+         ... args = std::forward<Args>(args)]() mutable {
+          SetCurrentThreadName(name);
+          std::invoke(f, args...);
+        });
     UnblockSignals(old_set);
   }
 
