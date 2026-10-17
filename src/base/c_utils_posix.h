@@ -7,6 +7,7 @@
 
 #include <fcntl.h>
 #include <pwd.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 

@@ -4,6 +4,8 @@ static_library("net") {
   sources = [
     "connection.cc",
     "connection.h",
+    "connection_linux.cc",
+    "connection_mac.cc",
     "connection_forward.h",
     "connection_impl.cc",
     "connection_impl.h",

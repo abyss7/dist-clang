@@ -2,8 +2,6 @@
 
 #include <base/logging.h>
 
-#include <poll.h>
-
 #include <base/using_log.h>
 
 namespace dist_clang {
@@ -31,9 +29,7 @@ bool Connection::IsPeerGone() const {
     return false;
   }
 
-  struct pollfd poll_fd = {fd, POLLRDHUP, 0};
-  return poll(&poll_fd, 1, 0) == 1 &&
-         (poll_fd.revents & (POLLRDHUP | POLLHUP | POLLERR));
+  return IsSocketPeerGone(fd);
 }
 
 // static

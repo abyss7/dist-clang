@@ -39,6 +39,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   // Checks, if the peer has disconnected, without reading anything.
   bool IsPeerGone() const;
+  // Differs between the platforms - in "connection_<os>.cc".
+  static bool IsSocketPeerGone(int fd);
 
   virtual bool ReadAsync(ReadCallback callback) = 0;
   virtual bool ReadSync(Message* message, Status* status = nullptr) = 0;

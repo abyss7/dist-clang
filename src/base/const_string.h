@@ -4,6 +4,8 @@
 #include <base/logging.h>
 #include <base/types.h>
 
+#include <string.h>
+
 namespace dist_clang {
 
 namespace base {
