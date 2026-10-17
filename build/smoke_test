@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Usage: build/smoke_test [compiler]
+#
+# Compiles a source through the daemon of the release build in a scratch
+# environment, until it's found in the direct cache: the real compiler of the
+# platform is used - not the fakes of the unit tests.
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+dc="$PWD/out/Release/dist-clang"
+cxx="${1:-clang++}"
+
+work="$(mktemp -d)"
+export XDG_RUNTIME_DIR="$work/run" XDG_CACHE_HOME="$work/cache" \
+       XDG_CONFIG_HOME="$work/config"
+mkdir -p "$XDG_RUNTIME_DIR" "$XDG_CACHE_HOME" "$XDG_CONFIG_HOME"
+
+# Only the daemon of this environment is stopped.
+stop_daemon() {
+  local pids
+  pids="$(lsof -t "$XDG_RUNTIME_DIR/dist-clang.socket" 2>/dev/null || true)"
+  [ -n "$pids" ] && kill $pids 2>/dev/null || true
+  rm -rf "$work"
+}
+trap stop_daemon EXIT
+
+cd "$work"
+cat > test.cc <<'SOURCE'
+#include <string>
+int main() { return std::string("smoke").size() == 5 ? 0 : 1; }
+SOURCE
+
+compile() {
+  "$dc" "$cxx" -c test.cc -o "test$1.o" -MD -MF "test$1.d"
+}
+
+# The first compilation may run locally, while the daemon starts.
+for i in 1 2 3 4 5; do
+  compile $i
+  hits="$("$dc" --stats --raw 2>/dev/null |
+          awk '$1 == "DIRECT_CACHE_HIT" { print $2 }')"
+  if [ "${hits:-0}" -ge 1 ]; then
+    cmp "test$((i - 1)).o" "test$i.o"
+    "$cxx" test$i.o -o test && ./test
+    echo "The compilation $i is found in the direct cache"
+    exit 0
+  fi
+  sleep 1
+done
+
+"$dc" --stats || true
+echo "No hits of the direct cache" >&2
+exit 1

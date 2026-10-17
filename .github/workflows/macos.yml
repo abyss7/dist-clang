@@ -35,3 +35,6 @@ jobs:
 
       - name: Test
         run: build/run_all_tests
+
+      - name: Smoke test
+        run: build/smoke_test clang++
