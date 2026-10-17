@@ -3187,6 +3187,18 @@ TEST_F(EmitterTest, TagEntries) {
 }
 
 TEST_F(EmitterTest, LimitLinksOfOutputs) {
+  {
+    // The copy-on-write clones are preferred to the hard links.
+    const base::TemporaryDir temp_dir;
+    base::File::CloneMode mode;
+    ASSERT_TRUE(base::File::Write(temp_dir.path() / "a", "a"_l));
+    ASSERT_TRUE(base::File::Clone(temp_dir.path() / "a", temp_dir.path() / "b",
+                                  true, &mode));
+    if (mode == base::File::CloneMode::REFLINK) {
+      GTEST_SKIP() << "The file system clones the files";
+    }
+  }
+
   for (const ui32 max_links : {1u, 0u}) {
     const base::TemporaryDir temp_dir;
     const auto input_path = temp_dir.path() / "test.cc";

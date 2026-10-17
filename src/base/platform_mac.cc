@@ -7,6 +7,7 @@
 #include <pthread.h>
 #include <pthread/qos.h>
 #include <stdlib.h>
+#include <sys/attr.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
@@ -38,6 +39,23 @@ i64 FileSystemTime() {
   struct timespec now;
   clock_gettime(CLOCK_REALTIME, &now);
   return ToNs(now);
+}
+
+bool SharesStorage(const Path& path, const struct stat& st) {
+  if (st.st_nlink > 1) {
+    return true;
+  }
+  // APFS tells the size of the blocks, that aren't shared with the clones.
+  struct attrlist attributes = {};
+  attributes.bitmapcount = ATTR_BIT_MAP_COUNT;
+  attributes.forkattr = ATTR_CMNEXT_PRIVATESIZE;
+  struct {
+    u_int32_t length;
+    off_t private_size;
+  } __attribute__((aligned(4), packed)) buffer;
+  return getattrlist(path.c_str(), &attributes, &buffer, sizeof(buffer),
+                     FSOPT_ATTR_CMN_EXTENDED) == 0 &&
+         buffer.private_size < st.st_size;
 }
 
 int CreateUniqueFile(char* path_template, int suffix_size) {

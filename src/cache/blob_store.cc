@@ -3,6 +3,7 @@
 #include <base/file/file.h>
 #include <base/file_utils.h>
 #include <base/logging.h>
+#include <base/platform.h>
 #include <base/string_utils.h>
 #include <cache/compression.h>
 
@@ -233,10 +234,11 @@ ui32 BlobStore::CompressUnused(ui64 time, ui64 max_size,
       continue;
     }
 
-    // The blob, that is linked with other places, takes no space.
+    // The blob, that shares the storage with other places, takes no space.
     const Path raw_path = RawPath(hash);
     struct stat st;
-    if (stat(raw_path.c_str(), &st) != 0 || st.st_nlink > 1) {
+    if (stat(raw_path.c_str(), &st) != 0 ||
+        base::SharesStorage(raw_path, st)) {
       continue;
     }
 
@@ -270,8 +272,10 @@ ui64 BlobStore::Size(const String& hash) const {
 }
 
 bool BlobStore::IsShared(const String& hash) const {
+  const Path raw_path = RawPath(hash);
   struct stat st;
-  return stat(RawPath(hash).c_str(), &st) == 0 && st.st_nlink > 1;
+  return stat(raw_path.c_str(), &st) == 0 &&
+         base::SharesStorage(raw_path, st);
 }
 
 ui32 BlobStore::Refs(const String& hash) const {
@@ -281,15 +285,18 @@ ui32 BlobStore::Refs(const String& hash) const {
 
 void BlobStore::GetSizes(Sizes* sizes) const {
   for (const auto& [hash, blob] : blobs_) {
+    const Path raw_path = RawPath(hash);
     struct stat st;
     ui64 links = 1;
-    if (stat(RawPath(hash).c_str(), &st) == 0) {
+    bool shared = false;
+    if (stat(raw_path.c_str(), &st) == 0) {
       links = st.st_nlink;
+      shared = base::SharesStorage(raw_path, st);
     } else if (stat(PackedPath(hash).c_str(), &st) != 0) {
       continue;
     }
     const ui64 size = st.st_size;
-    (links > 1 ? sizes->shared : sizes->own) += size;
+    (shared ? sizes->shared : sizes->own) += size;
     sizes->deduplicated += size * (std::max(blob.refs, 1u) - 1);
     // The first link only replaces the copy in the build directory.
     sizes->linked += size * (std::max<ui64>(links, 2) - 2);

@@ -21,10 +21,16 @@ Platform CurrentPlatform();
 i64 ModificationTime(const struct stat& st);
 i64 StatusChangeTime(const struct stat& st);
 
-// The current time in nanoseconds since the epoch - from the clock, that the
-// file systems take the times of the modifications from: the file, modified
-// after this time, has a later time of the modification.
+// The current time in nanoseconds since the epoch - comparable with the times
+// of the modifications of the files: the file, modified after this time - and
+// after a tick of the coarse clock, that some file systems use - has a later
+// time of the modification.
 i64 FileSystemTime();
+
+// The file |path| with the status |st| shares its storage with other files:
+// it has other hard links, or its blocks are shared with copy-on-write clones.
+// Its removal doesn't free the space then.
+bool SharesStorage(const Path& path, const struct stat& st);
 
 // Opens the unique file by the |path_template| with "XXXXXX" before the suffix
 // of |suffix_size| characters, that isn't inherited by the child processes.

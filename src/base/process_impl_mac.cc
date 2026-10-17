@@ -7,19 +7,44 @@
 
 #include <signal.h>
 #include <sys/event.h>
+#include <unistd.h>
 
 namespace dist_clang {
 namespace base {
 
+namespace {
+
+// The duplicate of the descriptor to watch for the disconnection, or for the
+// cancellation.
+class WatchedHandle : public Handle {
+ public:
+  explicit WatchedHandle(int fd) : Handle(fd >= 0 ? dup(fd) : -1) {}
+};
+
+}  // namespace
+
 // static
 int ProcessImpl::CreateCancelEvent() {
-  // Unsupported yet: the running process isn't canceled.
-  return -1;
+  // The own queue with the user event: the queue is readable, when the event
+  // is triggered - and is watched by the queue of the running process.
+  const int queue = kqueue();
+  if (queue == -1) {
+    return -1;
+  }
+  struct kevent event;
+  EV_SET(&event, 0, EVFILT_USER, EV_ADD | EV_CLEAR, 0, 0, nullptr);
+  if (kevent(queue, &event, 1, nullptr, 0, nullptr) == -1) {
+    close(queue);
+    return -1;
+  }
+  return queue;
 }
 
 // static
-void ProcessImpl::SignalCancelEvent(int) {
-  // Unsupported yet.
+void ProcessImpl::SignalCancelEvent(int event) {
+  struct kevent trigger;
+  EV_SET(&trigger, 0, EVFILT_USER, 0, NOTE_TRIGGER, 0, nullptr);
+  kevent(event, &trigger, 1, nullptr, 0, nullptr);
 }
 
 // static
@@ -29,6 +54,14 @@ void ProcessImpl::DieWithParent() {
 
 bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
   CHECK(args_.size() + 1 < MAX_ARGS);
+
+  if (cancel_requested_) {
+    canceled_ = true;
+    if (error) {
+      error->assign("Canceled");
+    }
+    return false;
+  }
 
   Pipe out, err;
   if (!out.IsValid()) {
@@ -62,9 +95,22 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
       return false;
     }
 
+    // The peer has disconnected: the end of the stream is readable.
+    WatchedHandle cancel_socket(cancel_fd_);
+    if (cancel_socket.IsValid() &&
+        !kq.Add(cancel_socket, EVFILT_READ, error)) {
+      ::kill(child_pid, SIGTERM);
+      return false;
+    }
+    WatchedHandle cancel_event(cancel_event_);
+    if (cancel_event.IsValid() && !kq.Add(cancel_event, EVFILT_READ, error)) {
+      ::kill(child_pid, SIGTERM);
+      return false;
+    }
+
     size_t stdout_size = 0, stderr_size = 0;
     Immutable::Rope stdout, stderr;
-    std::array<struct kevent, 2> events;
+    std::array<struct kevent, 4> events;
 
     int exhausted_fds = 0;
     while (exhausted_fds < 2 && !killed_) {
@@ -89,6 +135,32 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
       }
 
       for (int i = 0; i < event_count; ++i) {
+        if (events[i].udata == &cancel_event) {
+          ::kill(-child_pid, SIGKILL);
+          ::kill(child_pid, SIGKILL);
+          canceled_ = killed_ = true;
+          if (error) {
+            error->assign("Canceled");
+          }
+          break;
+        }
+        if (events[i].udata == &cancel_socket) {
+          if (!(events[i].flags & EV_EOF)) {
+            // The peer sends something - it's still here: the data stays
+            // unread, so don't watch it anymore.
+            kq.Delete(cancel_socket);
+            continue;
+          }
+          // The peer is gone - kill the whole process group at once.
+          ::kill(-child_pid, SIGKILL);
+          ::kill(child_pid, SIGKILL);
+          canceled_ = killed_ = true;
+          if (error) {
+            error->assign("Canceled: the peer has disconnected");
+          }
+          break;
+        }
+
         auto* fd = reinterpret_cast<Data*>(events[i].udata);
 
         DCHECK(events[i].filter == EVFILT_READ);

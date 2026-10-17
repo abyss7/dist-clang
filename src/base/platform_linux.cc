@@ -34,10 +34,18 @@ i64 StatusChangeTime(const struct stat& st) {
 }
 
 i64 FileSystemTime() {
-  // The file systems take the time of modifications from the coarse clock.
+  // The file systems take the times of the modifications from the coarse
+  // clock, but the newer kernels make them precise, when they are seen: the
+  // precise time doesn't count the modifications within the current tick
+  // before it, and still counts the ones in the next ticks.
   struct timespec now;
-  clock_gettime(CLOCK_REALTIME_COARSE, &now);
+  clock_gettime(CLOCK_REALTIME, &now);
   return ToNs(now);
+}
+
+bool SharesStorage(const Path&, const struct stat& st) {
+  // TODO: the shared extents of the clones - on Btrfs and XFS.
+  return st.st_nlink > 1;
 }
 
 int CreateUniqueFile(char* path_template, int suffix_size) {
