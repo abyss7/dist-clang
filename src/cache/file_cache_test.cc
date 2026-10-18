@@ -1717,6 +1717,36 @@ TEST(FileCacheTest, ShadowingPaths) {
   EXPECT_EQ(List<Path>(), FileCache::ShadowingPaths("/src/dirx.h", {"/src/dir"}));
 }
 
+TEST(FileCacheTest, DirectEntry_HeadersOfBuildDirectory) {
+  const base::TemporaryDir temp_dir;
+  const String root = (temp_dir.path() / "root").string();
+  const Path build_x = Path(root) / "out" / "x";
+  const Path build_y = Path(root) / "out" / "y";
+  ASSERT_TRUE(base::CreateDirectory(build_x / "gen"));
+  ASSERT_TRUE(base::CreateDirectory(build_y / "gen"));
+  ASSERT_TRUE(base::File::Write(build_x / "gen" / "flags.h", "#define F 1"_l));
+  ASSERT_TRUE(base::File::Write(build_y / "gen" / "flags.h", "#define F 2"_l));
+  ASSERT_TRUE(base::File::Write(Path(root) / "a.h", "#define A"_l));
+
+  FileCache cache(temp_dir.path() / "cache");
+  ASSERT_TRUE(cache.Run(1));
+
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  const UnhandledSource orig_code("int f() { return F; }"_l);
+  const auto hash = FileCache::Hash(HandledSource("x"_l), {}, cl, version);
+  cache.Store(hash, FileCache::Entry{"object of x"_l, "deps"_l});
+
+  // The same command in two build directories of the root - with their own
+  // generated headers.
+  cache.Store(orig_code, {}, cl, version, {"../../a.h", "gen/flags.h"}, {},
+              build_x, hash, root, {}, CompilationTime());
+  FileCache::Entry entry;
+  EXPECT_TRUE(cache.Find(orig_code, {}, cl, version, build_x, &entry, root));
+  FileCache::Entry other;
+  EXPECT_FALSE(cache.Find(orig_code, {}, cl, version, build_y, &other, root));
+}
+
 TEST(FileCacheTest, DirectEntry_SameContentsOtherPaths) {
   const base::TemporaryDir temp_dir;
   const Path dir_a = temp_dir.path() / "a";

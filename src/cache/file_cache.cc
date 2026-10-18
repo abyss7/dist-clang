@@ -34,7 +34,7 @@ namespace {
 
 // Bump to invalidate all direct cache entries, e.g. when the way of collecting
 // the direct-mode command line changes.
-const Literal kDirectKeyVersion = "direct-4"_l;
+const Literal kDirectKeyVersion = "direct-5"_l;
 
 Path ReplaceTildeInPath(const String& path) {
   // FIXME: try to handle |Path| instead of |String|
@@ -66,8 +66,9 @@ namespace {
 
 const char kRootPlaceholder[] = "<ROOT>";
 
-// The path of the header in the manifest: relative to the source root, if the
-// header is under it.
+// The path of the header in the manifest: relative to the build directory, if
+// the header is under it - e.g. a generated one: another build directory has
+// its own; otherwise relative to the source root, if the header is under it.
 String ToManifestPath(const String& header, const Path& current_dir,
                       const String& root) {
   if (root.empty()) {
@@ -77,6 +78,13 @@ String ToManifestPath(const String& header, const Path& current_dir,
       (Path(header).is_absolute() ? Path(header) : current_dir / header)
           .lexically_normal()
           .string();
+  String build_dir = current_dir.lexically_normal().string();
+  while (build_dir.size() > 1 && build_dir.back() == '/') {
+    build_dir.pop_back();
+  }
+  if (path.starts_with(build_dir + "/")) {
+    return path.substr(build_dir.size() + 1);
+  }
   if (path.starts_with(root + "/")) {
     return kRootPlaceholder + path.substr(root.size());
   }
