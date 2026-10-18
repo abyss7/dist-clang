@@ -175,41 +175,56 @@ void VisitShadowingPaths(const String& header, const Vector<String>& prefixes,
   }
 }
 
-// Checks the files, that could shadow the headers. Most of them are in the
-// directories, that don't exist: each directory on the way to a file is
-// checked once - without building the paths of all candidates.
+// Checks the files, that could shadow the headers. Most of them don't exist:
+// the names are looked up in the listings of the directories on the way to a
+// file - each directory is checked once - and only the found ones are checked
+// on the disk.
 class ShadowChecker {
  public:
+  explicit ShadowChecker(DirectoryListings* listings) : listings_(listings) {}
+
   // Returns the path of the file |prefix| + |relative|, if it exists.
   bool IsFile(const String& prefix, std::string_view relative, String* path,
               struct stat* st) {
     path->assign(prefix);
-    size_t start = 0, end;
-    while ((end = relative.find('/', start)) != std::string_view::npos) {
-      path->append(relative.substr(start, end - start));
-      if (!IsDirectory(*path)) {
+    size_t start = 0;
+    while (true) {
+      const size_t end = relative.find('/', start);
+      const std::string_view name =
+          relative.substr(start, end == std::string_view::npos
+                                     ? std::string_view::npos
+                                     : end - start);
+      const auto* listing = Listing(*path);
+      if (!listing || !listing->contains(String(name))) {
         return false;
+      }
+      path->append(name);
+      if (end == std::string_view::npos) {
+        break;
       }
       path->push_back('/');
       start = end + 1;
     }
-    path->append(relative.substr(start));
     return cache::IsFile(*path, st);
   }
 
  private:
-  bool IsDirectory(const String& path) {
-    auto it = dirs_.find(path);
-    if (it == dirs_.end()) {
-      struct stat st;
-      it = dirs_.emplace(path, stat(path.c_str(), &st) == 0 &&
-                                   S_ISDIR(st.st_mode))
-               .first;
+  // The listing of the directory |path| with the trailing separator.
+  const DirectoryListings::Listing* Listing(const String& path) {
+    auto it = listings_of_lookup_.find(path);
+    if (it == listings_of_lookup_.end()) {
+      String dir = path;
+      if (dir.size() > 1) {
+        dir.pop_back();
+      }
+      it = listings_of_lookup_.emplace(path, listings_->Get(dir)).first;
     }
-    return it->second;
+    return it->second.get();
   }
 
-  HashMap<String, bool> dirs_;
+  DirectoryListings* const listings_;
+  HashMap<String, SharedPtr<const DirectoryListings::Listing>>
+      listings_of_lookup_;
 };
 
 }  // namespace
@@ -626,7 +641,7 @@ bool FileCache::IsShadowed(const List<String>& headers,
     return false;
   }
 
-  ShadowChecker checker;
+  ShadowChecker checker(&directory_listings_);
   const auto prefixes = SearchPrefixes(search_dirs);
   bool shadowed = false;
   String path;
@@ -1372,7 +1387,7 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
 
   // The files, that could be found instead of the headers, but weren't, are
   // remembered - the others must not appear later.
-  ShadowChecker checker;
+  ShadowChecker checker(&directory_listings_);
   const auto prefixes = SearchPrefixes(search_dirs);
   auto collect_ignored_paths = [&](const List<String>& headers) {
     bool created = false;

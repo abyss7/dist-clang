@@ -6,6 +6,7 @@
 #include <cache/blob_store.h>
 #include <cache/database_kv.h>
 #include <cache/database_sqlite.h>
+#include <cache/directory_listings.h>
 #include <cache/file_hash_cache.h>
 #include <cache/ghost_index.h>
 #include <cache/manifest.pb.h>
@@ -463,6 +464,7 @@ class FileCache {
   bool store_index_, link_outputs_;
   UniquePtr<SQLiteKV> database_;
   mutable FileHashCache file_hashes_;
+  mutable DirectoryListings directory_listings_;
   UniquePtr<SQLite> entries_;
 
   BlobStore blobs_;

@@ -20,6 +20,8 @@ static_library("file_cache") {
     "database_kv.h",
     "database_sqlite.cc",
     "database_sqlite.h",
+    "directory_listings.cc",
+    "directory_listings.h",
     "file_cache.cc",
     "file_cache.h",
     "file_hash_cache.cc",
