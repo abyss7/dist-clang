@@ -328,9 +328,17 @@ const char kDepsRelativeRootPlaceholder[] = "@DIST_CLANG_RELATIVE_ROOT@";
 Immutable CompilationDaemon::NormalizeDeps(Immutable deps,
                                            const base::proto::Flags& flags) {
   String content = deps.string_copy();
-  const String& target = flags.deps_target();
-  if (!target.empty() && content.starts_with(target + ":")) {
-    content = kDepsTargetPlaceholder + content.substr(target.size());
+  // The targets end with the first colon, that isn't escaped: the compiler
+  // may wrap their line.
+  if (!flags.deps_target().empty()) {
+    size_t colon = 0;
+    while ((colon = content.find(':', colon)) != String::npos && colon > 0 &&
+           content[colon - 1] == '\\') {
+      ++colon;
+    }
+    if (colon != String::npos) {
+      content = kDepsTargetPlaceholder + content.substr(colon);
+    }
   }
   if (flags.has_key_root()) {
     ReplacePathPrefix(content, flags.key_root(), kDepsRootPlaceholder);

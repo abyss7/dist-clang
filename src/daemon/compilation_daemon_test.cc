@@ -257,6 +257,21 @@ TEST(CompilationDaemonTest, DirectKeyKeepsRootInOtherFlags) {
                                                  Flags("/root2", "/root2")));
 }
 
+TEST(CompilationDaemonTest, DepsWithWrappedTargets) {
+  base::proto::Flags flags;
+  flags.set_deps_target(
+      "obj/a/some/long/path/foo.o obj/a/some/long/path/foo.o.stamp");
+  // The compiler wraps the long line of the targets.
+  const auto deps = CompilationDaemon::NormalizeDeps(
+      "obj/a/some/long/path/foo.o \\\n"
+      "  obj/a/some/long/path/foo.o.stamp: a.cc \\\n  a.h\n"_l,
+      flags);
+
+  flags.set_deps_target("obj/b/foo.o");
+  EXPECT_EQ("obj/b/foo.o: a.cc \\\n  a.h\n"_l,
+            CompilationDaemon::RestoreDeps(deps, flags));
+}
+
 TEST(CompilationDaemonTest, DepsOfAnotherRoot) {
   auto Flags = [](const String& root) {
     base::proto::Flags flags;
