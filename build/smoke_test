@@ -98,3 +98,18 @@ if "$dc" "$cxx" -Icompat -c shadowed.cc -o shadowed.o -MD 2>/dev/null; then
 fi
 echo "The headers, that shadow the system ones, are seen"
 
+# A check without the output - into /dev/null - mustn't give the empty object
+# to the real build.
+cat > special.cc <<'SOURCE'
+int main() { return 0; }
+SOURCE
+for i in 1 2; do
+  "$dc" "$cxx" -c special.cc -o /dev/null -MD -MF special_null.d
+done
+"$dc" "$cxx" -c special.cc -o special.o -MD -MF special.d
+if [ ! -s special.o ]; then
+  echo "The output into /dev/null gives the empty object" >&2
+  exit 1
+fi
+echo "The outputs into the special files aren't cached"
+

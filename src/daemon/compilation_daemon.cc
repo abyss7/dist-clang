@@ -357,6 +357,25 @@ String CompilationDaemon::NormalizeLineMarkers(const String& source,
 }
 
 // static
+bool CompilationDaemon::FindSpecialFile(const base::proto::Flags& flags,
+                                        const String& current_dir,
+                                        String* path) {
+  for (const String* file : {&flags.input(), &flags.output(),
+                             &flags.deps_file(), &flags.dwo_file()}) {
+    if (file->empty()) {
+      continue;
+    }
+    const String full_path = GetFullPath(current_dir, *file);
+    struct stat st;
+    if (stat(full_path.c_str(), &st) == 0 && !S_ISREG(st.st_mode)) {
+      path->assign(*file);
+      return true;
+    }
+  }
+  return false;
+}
+
+// static
 List<Path> CompilationDaemon::IncludeSearchDirs(
     const base::proto::Flags& flags, const String& current_dir) {
   // The groups of the directories in the order of the search.

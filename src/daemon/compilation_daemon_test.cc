@@ -94,6 +94,34 @@ TEST(CompilationDaemonTest, IncludeSearchDirs) {
             CompilationDaemon::IncludeSearchDirs(flags, "/build"));
 }
 
+TEST(CompilationDaemonTest, FindSpecialFile) {
+  const base::TemporaryDir temp_dir;
+  ASSERT_TRUE(base::File::Write(temp_dir.path() / "a.cc", "int x;"_l));
+  base::proto::Flags flags;
+  flags.set_input("a.cc");
+  flags.set_output("a.o");
+  String path;
+  // The outputs, that don't exist yet, are fine.
+  EXPECT_FALSE(CompilationDaemon::FindSpecialFile(flags, temp_dir, &path));
+
+  flags.set_output("/dev/null");
+  EXPECT_TRUE(CompilationDaemon::FindSpecialFile(flags, temp_dir, &path));
+  EXPECT_EQ("/dev/null", path);
+
+  flags.set_output("a.o");
+  flags.set_deps_file("/dev/null");
+  EXPECT_TRUE(CompilationDaemon::FindSpecialFile(flags, temp_dir, &path));
+
+  flags.clear_deps_file();
+  flags.set_input("/dev/stdin");
+  EXPECT_TRUE(CompilationDaemon::FindSpecialFile(flags, temp_dir, &path));
+
+  // A directory isn't a regular file either.
+  flags.set_input("a.cc");
+  flags.set_output(".");
+  EXPECT_TRUE(CompilationDaemon::FindSpecialFile(flags, temp_dir, &path));
+}
+
 TEST(CompilationDaemonTest, ParseImplicitIncludeDirs) {
   const String output =
       "clang version 18.1.8\n"

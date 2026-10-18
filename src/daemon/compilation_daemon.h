@@ -40,6 +40,11 @@ class CompilationDaemon : public BaseDaemon {
   static bool InputsUnchangedSince(const base::proto::Local* message,
                                    Immutable deps, i64 time);
 
+  // Finds the input or the output, that exists, but isn't a regular file -
+  // e.g. "/dev/null": such compilations aren't cached. Sets its |path|.
+  static bool FindSpecialFile(const base::proto::Flags& flags,
+                              const String& current_dir, String* path);
+
   // The directories, where the compiler searches the included headers, in the
   // order of the search: the directory of the source, "-iquote", "-I",
   // "-isystem", the implicit directories of the compiler and "-idirafter"

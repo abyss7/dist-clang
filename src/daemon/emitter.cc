@@ -631,6 +631,13 @@ bool Emitter::PrepareFlags(base::proto::Local* message,
     return Unsupported(reason);
   }
 
+  // E.g. the output into "/dev/null" isn't a result to cache, and the input
+  // from "/dev/stdin" is the one of the daemon.
+  String special_path;
+  if (FindSpecialFile(*flags, current_dir, &special_path)) {
+    return Unsupported("not a regular file: " + special_path);
+  }
+
   const String compiler_path =
       CompilerIdentity::Resolve(message->args(0), current_dir, env);
   if (compiler_path.empty()) {
