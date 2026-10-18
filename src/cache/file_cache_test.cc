@@ -1696,6 +1696,40 @@ TEST(FileCacheTest, ShadowingPaths) {
   EXPECT_EQ(List<Path>(), FileCache::ShadowingPaths("/src/dirx.h", {"/src/dir"}));
 }
 
+TEST(FileCacheTest, DirectEntry_SameContentsOtherPaths) {
+  const base::TemporaryDir temp_dir;
+  const Path dir_a = temp_dir.path() / "a";
+  const Path dir_b = temp_dir.path() / "b";
+  ASSERT_TRUE(base::CreateDirectory(dir_a));
+  ASSERT_TRUE(base::CreateDirectory(dir_b));
+
+  FileCache cache(temp_dir.path() / "cache");
+  ASSERT_TRUE(cache.Run(1));
+
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  const UnhandledSource orig_code("int main() {}"_l);
+  const auto hash_a = FileCache::Hash(HandledSource("a"_l), {}, cl, version);
+  const auto hash_b = FileCache::Hash(HandledSource("b"_l), {}, cl, version);
+  cache.Store(hash_a, FileCache::Entry{"object a"_l, "deps a"_l});
+  cache.Store(hash_b, FileCache::Entry{"object b"_l, "deps b"_l});
+
+  // The same header moves between the include directories: the objects and
+  // the dependency files differ by its path.
+  ASSERT_TRUE(base::File::Write(dir_a / "x.h", "#define X"_l));
+  ASSERT_TRUE(base::File::Write(dir_b / "x.h", "#define X"_l));
+  cache.Store(orig_code, {}, cl, version, {dir_a / "x.h"}, {}, temp_dir,
+              hash_a, String(), {}, CompilationTime());
+  cache.Store(orig_code, {}, cl, version, {dir_b / "x.h"}, {}, temp_dir,
+              hash_b, String(), {}, CompilationTime());
+
+  // Only the first header is found - with its own entry.
+  ASSERT_TRUE(base::File::Delete(dir_b / "x.h"));
+  FileCache::Entry entry;
+  ASSERT_TRUE(cache.Find(orig_code, {}, cl, version, temp_dir, &entry));
+  EXPECT_EQ("deps a"_l, entry.deps);
+}
+
 TEST(FileCacheTest, DirectEntry_ShadowedHeaderInOtherCase) {
   const base::TemporaryDir temp_dir;
   if (!IgnoresCase(temp_dir.path())) {

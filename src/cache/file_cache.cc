@@ -34,7 +34,7 @@ namespace {
 
 // Bump to invalidate all direct cache entries, e.g. when the way of collecting
 // the direct-mode command line changes.
-const Literal kDirectKeyVersion = "direct-3"_l;
+const Literal kDirectKeyVersion = "direct-4"_l;
 
 Path ReplaceTildeInPath(const String& path) {
   // FIXME: try to handle |Path| instead of |String|
@@ -643,6 +643,9 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
         hashed = false;
         break;
       }
+      // The paths are a part of the key: the same contents in another place
+      // give another object and another dependency file.
+      hash_rope.push_back(Immutable(header));
       hash_rope.push_back(Immutable(std::move(header_hash)));
     }
     if (!hashed) {
@@ -1307,8 +1310,10 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
         return false;
       }
       header_hash = Immutable(std::move(hash));
+      String manifest_path = ToManifestPath(header, current_dir, root);
+      hash_rope.push_back(Immutable(manifest_path));
       hash_rope.push_back(header_hash);
-      new_variant.headers.push_back(ToManifestPath(header, current_dir, root));
+      new_variant.headers.push_back(std::move(manifest_path));
     }
     return true;
   };
