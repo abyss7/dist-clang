@@ -494,6 +494,7 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
   const String output_path = "test.o";
+  const String second_output_path = "test2.o";
   const String remote_host_name = "remote_host";
   const String coordinator_host = "coordinator_host";
   const ui16 coordinator_port = 4u;
@@ -526,19 +527,28 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
   version->set_version(compiler_version);
   version->set_path(compiler_path);
 
+  // The coordinator is polled all the time: the connections are told apart by
+  // the end points, and the steps are waited for by their own counters.
+  Atomic<ui32> coordinator_connections = {0}, remote_connections = {0},
+               local_connections = {0};
+  bool first_remote_sent = false;
+  ui32 local_replies = 0;
+
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr end_point) {
     // All connection callbacks are on emitter side.
 
-    if (connect_count == 1) {
-      // Connection from emitter to coordinator.
+    const String end_point_string = end_point->Print();
+    if (end_point_string == EndPointString(coordinator_host, coordinator_port)) {
+      // Connection from emitter to coordinator: only the first one updates
+      // the configuration.
+      if (coordinator_connections++) {
+        return true;
+      }
 
-      EXPECT_EQ(EndPointString(coordinator_host, coordinator_port), end_point->Print());
-
-      connection->CallOnSend([this](const net::Connection::Message&) {
+      connection->CallOnSend([&](const net::Connection::Message&) {
+        // The first task is sent to the remote of the old configuration.
         UniqueLock lock(send_mutex);
-        EXPECT_TRUE(send_condition.wait_for(lock, Seconds(1), [this] { return send_count == 2; }));
-        // Send #1: emitter → coordinator (current one).
-        // Send #2: emitter → remote.
+        EXPECT_TRUE(send_condition.wait_for(lock, Seconds(10), [&] { return first_remote_sent; }));
       });
 
       connection->CallOnRead([&](net::Connection::Message* message) {
@@ -554,25 +564,24 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
         emitter->set_total_shards(new_total_shards);
         emitter->set_shard_queue_limit(shard_queue_limit);
       });
-    } else if (connect_count == 2 || connect_count == 3) {
+    } else if (end_point_string == EndPointString(socket_path, 0)) {
       // Connection from local client to emitter. Tasks #1 & #2.
-
-      EXPECT_EQ(EndPointString(socket_path, 0), end_point->Print());
+      ++local_connections;
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
         EXPECT_TRUE(message.has_status());
         const auto& status = message.status();
         EXPECT_EQ(expected_code, status.code()) << status.description();
 
-        // If connect_count == 3:
-        //   Emitter sent result for second task. Resume |DoLocalExecute| for
-        //   first one.
-        // If connect_count == 2:
-        //   Emitter sent result for fist task, so reset emitter now and finish
-        //   the test.
+        // The first reply is for the second task: it resumes |DoLocalExecute|
+        // for the first one. The second reply finishes the test.
+        {
+          UniqueLock lock(send_mutex);
+          ++local_replies;
+        }
         send_condition.notify_all();
       });
-    } else if (connect_count == 4) {
+    } else if (remote_connections++ == 0) {
       // Connection from emitter to remote absorber. Task #1.
 
       connection->CallOnSend([&, end_point](const net::Connection::Message& message) {
@@ -588,6 +597,10 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
                                                        "sending in new configuration, to make sure the second task "
                                                        "will be redistributed.";
 
+        {
+          UniqueLock lock(send_mutex);
+          first_remote_sent = true;
+        }
         send_condition.notify_all();
       });
 
@@ -600,7 +613,7 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
         // Cant wait here as coordinator should join this thread.
         std::this_thread::sleep_for(Seconds(1));
       });
-    } else if (connect_count == 5) {
+    } else {
       // Connection from emitter to remote absorber. Task #2.
 
       DCHECK(emitter);
@@ -628,13 +641,13 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
       EXPECT_EQ((Immutable::Rope{"-E"_l, "-o"_l, "-"_l}), WithoutDepsFile(process));
       process->stdout_ = handled_source;
     } else if (run_count == 3) {
-      EXPECT_EQ((Immutable::Rope{"fake_action"_l, "-o"_l, "test.o"_l}), WithoutDepsFile(process));
+      // Either task may be the first one.
+      const auto args = WithoutDepsFile(process);
+      EXPECT_TRUE(args == (Immutable::Rope{"fake_action"_l, "-o"_l, Immutable(output_path)}) ||
+                  args == (Immutable::Rope{"fake_action"_l, "-o"_l, Immutable(second_output_path)}));
       // Block until emitter sends result for second task.
       UniqueLock lock(send_mutex);
-      EXPECT_TRUE(send_condition.wait_for(lock, Seconds(2), [this] { return send_count >= 5; }));
-      // Send #3: emitter → coordinator.
-      // Send #4: emitter → remote (task #2).
-      // Send #5: emitter → local (task #2).
+      EXPECT_TRUE(send_condition.wait_for(lock, Seconds(10), [&] { return local_replies >= 1; }));
       process->stdout_ = obj_code;
     }
   };
@@ -669,26 +682,22 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
     auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
 
+    // The other output: the first task locks its own while it's compiled.
     auto* flags = extension->mutable_flags();
     flags->mutable_compiler()->set_version(compiler_version);
     flags->set_action(action);
-    flags->set_output(output_path);
+    flags->set_output(second_output_path);
 
     net::proto::Status status;
     status.set_code(net::proto::Status::OK);
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
-    // 1st second: Polling for configuration.
-    // 2nd second: Verifying shard for first task.
-    // 3rd second: Sleeping to apply new configuration.
+    // The remote of the first task sleeps a second to apply the new
+    // configuration: then the second task is sent to the new remote, and the
+    // first one is compiled locally.
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(4), [this] { return send_count >= 6; }));
-    // Send #3: emitter → coordinator.
-    // Send #4: emitter → remote (task #2).
-    // Send #5: emitter → local (task #2).
-    // Send #6: emitter → local (task #1, from |DoLocalExecute|).
-    // Send #7: emitter → coordinator (may absent).
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(20), [&] { return local_replies >= 2; }));
   }
 
   emitter.reset();
@@ -696,8 +705,9 @@ TEST_F(EmitterTest, TasksGetReshardedOnConfigurationUpdate) {
   EXPECT_EQ(3u, run_count);
   EXPECT_EQ(1u, listen_count);
   EXPECT_EQ(connections_created, connect_count);
-  EXPECT_LE(6u, connections_created);
-  EXPECT_GE(7u, connections_created);
+  EXPECT_LE(1u, coordinator_connections);
+  EXPECT_EQ(2u, remote_connections);
+  EXPECT_EQ(2u, local_connections);
   EXPECT_EQ(connections_created, read_count);
   EXPECT_EQ(connections_created, send_count);
   EXPECT_EQ(1, connection1.use_count()) << "Daemon must not store references to the connection";
