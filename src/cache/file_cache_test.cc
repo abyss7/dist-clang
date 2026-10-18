@@ -1,5 +1,7 @@
 #include <cache/file_cache.h>
 
+#include <cache/compression.h>
+
 #include <base/constants.h>
 #include <base/file/file.h>
 #include <base/future.h>
@@ -290,6 +292,30 @@ TEST(FileCacheTest, RestoreSingleEntryWithExtraFile) {
   EXPECT_EQ(expected_object_code, entry2.object);
   EXPECT_EQ(expected_deps, entry2.deps);
   EXPECT_EQ(expected_stderr, entry2.stderr);
+}
+
+TEST(CompressionTest, BrokenFrameSize) {
+  String packed;
+  ASSERT_TRUE(Pack(proto::ZSTD, Immutable(String(1000, 'a')), &packed));
+  String unpacked;
+  ASSERT_TRUE(Unpack(proto::ZSTD, Immutable(String(packed)), &unpacked));
+  EXPECT_EQ(String(1000, 'a'), unpacked);
+
+  // The size of the contents in the header of the frame is broken: it's much
+  // larger than the frame can give. After the magic number goes the
+  // descriptor of the frame, then the window, the dictionary and the size.
+  String broken = packed;
+  const ui8 descriptor = broken[4];
+  const bool single_segment = descriptor & 0x20;
+  const size_t dictionary_sizes[] = {0, 1, 2, 4};
+  const size_t size_sizes[] = {single_segment ? 1u : 0u, 2, 4, 8};
+  const size_t position =
+      5 + (single_segment ? 0 : 1) + dictionary_sizes[descriptor & 3];
+  String size(8, '\0');
+  size[7] = '\x40';
+  broken.replace(position, size_sizes[descriptor >> 6], size);
+  broken[4] = static_cast<char>(descriptor | 0xc0);
+  EXPECT_FALSE(Unpack(proto::ZSTD, Immutable(String(broken)), &unpacked));
 }
 
 TEST(FileCacheTest, RoundTripCompressedEntry) {
