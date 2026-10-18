@@ -72,10 +72,12 @@ TEST(DriverArgsTest, PreprocessorFlags) {
   const List<String> expected = {"-I",  "include", "-Iinclude2",
                                  "-DFOO", "-D",      "BAR=1",
                                  "-isystem", "sys", "-include",
-                                 "pre.h", "-nostdinc++",
-                                 "-fmacro-prefix-map=../="};
+                                 "pre.h", "-nostdinc++"};
   EXPECT_EQ(expected, Values(flags.non_cached()));
-  EXPECT_EQ(List<String>{"-O2"}, Values(flags.other()));
+  // The map changes "__builtin_FILE()" in the compilation too - it's a part of
+  // the key of the simple cache.
+  EXPECT_EQ((List<String>{"-fmacro-prefix-map=../=", "-O2"}),
+            Values(flags.other()));
 }
 
 TEST(DriverArgsTest, ArgumentsKeepOrder) {

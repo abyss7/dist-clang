@@ -130,7 +130,8 @@ const Option kJoined[] = {
     {"-ffile-compilation-dir=", Class::OTHER, Special::COMPILATION_DIR},
     {"-fdebug-prefix-map=", Class::OTHER, Special::DEBUG_PREFIX_MAP},
     {"-ffile-prefix-map=", Class::OTHER, Special::FILE_PREFIX_MAP},
-    {"-fmacro-prefix-map=", Class::NON_CACHED, Special::MACRO_PREFIX_MAP},
+    // Changes "__builtin_FILE()" in the compilation too.
+    {"-fmacro-prefix-map=", Class::OTHER, Special::MACRO_PREFIX_MAP},
     {"-ftime-trace-granularity=", Class::IGNORED},
     {"-ftime-trace=", Class::IGNORED},
     {"-save-stats=", Class::OTHER, Special::UNSUPPORTED},
