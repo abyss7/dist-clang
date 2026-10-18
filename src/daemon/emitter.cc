@@ -716,7 +716,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
 
       // Only one task works with the output at a time. Then a stale task can
       // only touch it before the task of the waiting client.
-      OutputLocks::Lock output_lock(&output_locks_, output_path);
+      OutputLocks::Lock output_lock(&output_locks_, OutputLockKey(incoming));
 
       // Nobody waits for the outputs - don't write them.
       if (std::get<CONNECTION>(*task)->IsPeerGone()) {
@@ -1350,7 +1350,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
       }
       // The client is gone - don't write anything into the build directory:
       // another compilation of the same output may be running already.
-      OutputLocks::Lock output_lock(&output_locks_, output_path);
+      OutputLocks::Lock output_lock(&output_locks_, OutputLockKey(incoming));
       if (std::get<CONNECTION>(*task)->IsPeerGone()) {
         STAT(TASK_CANCELED);
         continue;
