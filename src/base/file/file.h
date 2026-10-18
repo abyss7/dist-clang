@@ -64,8 +64,6 @@ class File final : public Data {
   bool AdviseSequentialRead();
   // Only a hint for the file system.
   void Preallocate(ui64 size);
-  // Returns MAP_FAILED on failure.
-  void* MapForRead(ui64 size);
   bool CopyContentsInto(File& dst, ui64 size, String* error);
   // Makes |dst| a copy-on-write clone of |src| - if the file system can. The
   // |dst| shouldn't exist.

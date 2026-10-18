@@ -5,7 +5,6 @@
 #include <fcntl.h>
 #include <linux/fs.h>
 #include <sys/ioctl.h>
-#include <sys/mman.h>
 #include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -19,11 +18,6 @@ bool File::AdviseSequentialRead() {
 
 void File::Preallocate(ui64 size) {
   posix_fallocate(native(), 0, size);
-}
-
-void* File::MapForRead(ui64 size) {
-  return mmap64(nullptr, size, PROT_READ, MAP_PRIVATE | MAP_POPULATE, native(),
-                0);
 }
 
 bool File::CopyContentsInto(File& dst, ui64 size, String* error) {

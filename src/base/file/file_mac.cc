@@ -5,7 +5,6 @@
 #include <copyfile.h>
 #include <fcntl.h>
 #include <sys/clonefile.h>
-#include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -25,10 +24,6 @@ void File::Preallocate(ui64 size) {
     store.fst_flags = F_ALLOCATEALL;
     fcntl(native(), F_PREALLOCATE, &store);
   }
-}
-
-void* File::MapForRead(ui64 size) {
-  return mmap(nullptr, size, PROT_READ, MAP_PRIVATE, native(), 0);
 }
 
 bool File::CopyContentsInto(File& dst, ui64, String* error) {

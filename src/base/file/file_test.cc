@@ -6,9 +6,30 @@
 #include <gtest/gtest.h>
 
 #include <fcntl.h>
+#include <unistd.h>
 
 namespace dist_clang {
 namespace base {
+
+TEST(FileTest, ReadIsSnapshot) {
+  const TemporaryDir temp_dir;
+  const Path path = temp_dir.path() / "file";
+  ASSERT_TRUE(File::Write(path, "old contents"_l));
+
+  Immutable contents;
+  ASSERT_TRUE(File::Read(path, &contents));
+
+  // E.g. a generator rewrites the header in place, while it's hashed.
+  const int fd = open(path.c_str(), O_WRONLY | O_TRUNC);
+  ASSERT_NE(-1, fd);
+  ASSERT_EQ(12, write(fd, "new contents", 12));
+  close(fd);
+  EXPECT_EQ("old contents"_l, contents);
+
+  // The truncated file mustn't take down the reader either.
+  ASSERT_EQ(0, truncate(path.c_str(), 0));
+  EXPECT_EQ("old contents"_l, contents);
+}
 
 TEST(FileTest, Read) {
   const auto expected_content = "All your base are belong to us"_l;

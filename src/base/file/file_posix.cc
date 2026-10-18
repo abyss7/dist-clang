@@ -6,7 +6,6 @@
 #include <base/string_utils.h>
 
 #include <fcntl.h>
-#include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -96,13 +95,30 @@ bool File::Read(Immutable* output, String* error) {
     return true;
   }
 
-  void* map = MapForRead(size);
-  if (map == MAP_FAILED) {
-    GetLastError(error);
-    return false;
+  // The contents are copied, not mapped: the file may be rewritten in place
+  // or truncated meanwhile - e.g. a header - then the mapping would change, or
+  // the access to it would crash the process.
+  String contents(size, '\0');
+  ui64 total = 0;
+  while (total < size) {
+    const ssize_t bytes = pread(native(), contents.data() + total, size - total,
+                                static_cast<off_t>(total));
+    if (bytes == -1 && errno == EINTR) {
+      continue;
+    }
+    if (bytes == -1) {
+      GetLastError(error);
+      return false;
+    }
+    if (bytes == 0) {
+      // Truncated meanwhile.
+      contents.resize(total);
+      break;
+    }
+    total += bytes;
   }
 
-  output->assign(Immutable(map, size));
+  output->assign(Immutable(std::move(contents)));
 
   return true;
 }
