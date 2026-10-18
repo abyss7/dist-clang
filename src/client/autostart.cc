@@ -4,7 +4,10 @@
 #include <base/file/file.h>
 #include <base/logging.h>
 
+#include STL(iostream)
+
 #include <fcntl.h>
+#include <stdio.h>
 #include <sys/file.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -13,6 +16,39 @@
 
 namespace dist_clang {
 namespace client {
+
+bool AllowStart(int lock_fd, time_t now, bool* warn) {
+  // The lock file has the time of the last start, and if its failure is
+  // reported.
+  char buffer[64] = {};
+  const ssize_t size = pread(lock_fd, buffer, sizeof(buffer) - 1, 0);
+  long long last_start = 0;
+  int warned = 0;
+  if (size > 0) {
+    sscanf(buffer, "%lld %d", &last_start, &warned);
+  }
+
+  auto Write = [lock_fd](long long start, int warned) {
+    const String content =
+        std::to_string(start) + " " + std::to_string(warned) + "\n";
+    if (ftruncate(lock_fd, 0) != 0 ||
+        pwrite(lock_fd, content.data(), content.size(), 0) !=
+            ssize_t(content.size())) {
+      LOG(WARNING) << "Failed to write the lock file of the daemon";
+    }
+  };
+
+  *warn = false;
+  if (last_start && now >= last_start && now - last_start < kAutostartBackoff) {
+    if (!warned) {
+      *warn = true;
+      Write(last_start, 1);
+    }
+    return false;
+  }
+  Write(now, 0);
+  return true;
+}
 
 void StartDaemon(const String& socket_path) {
   String self_path, error;
@@ -37,6 +73,18 @@ void StartDaemon(const String& socket_path) {
   }
   if (flock(lock_fd, LOCK_EX | LOCK_NB) == -1) {
     // The daemon is running already, or is being started by someone else.
+    close(lock_fd);
+    return;
+  }
+
+  // The daemon, that has just been started, has exited already.
+  bool warn = false;
+  if (!AllowStart(lock_fd, time(nullptr), &warn)) {
+    if (warn) {
+      std::cerr << "dist-clang: the daemon fails to start - see the system "
+                   "log; compiling without it"
+                << std::endl;
+    }
     close(lock_fd);
     return;
   }

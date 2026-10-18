@@ -21,6 +21,7 @@ executable("unit_tests") {
     "//src/base/thread_pool_test.cc",
     "//src/base/worker_pool_test.cc",
     "//src/cache/file_cache_test.cc",
+    "//src/client/autostart_test.cc",
     "//src/client/configuration_test.cc",
     "//src/client/driver_name_test.cc",
     "//src/daemon/absorber_test.cc",
