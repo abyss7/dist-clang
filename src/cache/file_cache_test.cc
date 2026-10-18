@@ -608,17 +608,26 @@ TEST(FileCacheTest, DeduplicateOutputs) {
   // The second copy isn't needed - and the copy in the second build
   // directory: the first one only replaces the cache file.
   using M = perf::proto::Metric;
-  cache.ReportSizes();
+  // The sizes are reported by the cleaner only.
+  auto ReportSizes = [&cache] {
+    std::promise<void> done;
+    cache.cleaner_.Push([&] {
+      cache.ReportSizes();
+      done.set_value();
+    });
+    done.get_future().wait();
+  };
+  ReportSizes();
   EXPECT_EQ(object.size(), GetStat(M::DISK_SAVED_BY_DEDUPLICATION));
   EXPECT_EQ(0u, GetStat(M::DISK_SAVED_BY_LINKS));
   ASSERT_TRUE(base::File::Delete(object_path));
   ASSERT_EQ(0, link(blob_path.c_str(), object_path.c_str()));
-  cache.ReportSizes();
+  ReportSizes();
   EXPECT_EQ(0u, GetStat(M::DISK_SAVED_BY_LINKS));
   EXPECT_EQ(object.size(), GetStat(M::CACHE_SHARED_SIZE));
   const Path second_path = temp_dir.path() / "second.o";
   ASSERT_EQ(0, link(blob_path.c_str(), second_path.c_str()));
-  cache.ReportSizes();
+  ReportSizes();
   EXPECT_EQ(object.size(), GetStat(M::DISK_SAVED_BY_DEDUPLICATION));
   EXPECT_EQ(object.size(), GetStat(M::DISK_SAVED_BY_LINKS));
   ASSERT_TRUE(base::File::Delete(second_path));
@@ -2431,7 +2440,13 @@ TEST(FileCacheTest, ReportSizes) {
   EXPECT_EQ(0u, GetStat(M::CACHE_SHARED_SIZE));
 
   EXPECT_TRUE(cache.RemoveEntry(hash1));
-  cache.ReportSizes();
+  // The sizes are reported by the cleaner only.
+  std::promise<void> done;
+  cache.cleaner_.Push([&] {
+    cache.ReportSizes();
+    done.set_value();
+  });
+  done.get_future().wait();
   EXPECT_EQ(1u, GetStat(M::CACHE_ENTRIES));
 }
 
