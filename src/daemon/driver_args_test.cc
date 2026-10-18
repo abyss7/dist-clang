@@ -237,6 +237,18 @@ TEST(DriverArgsTest, RecordsCommandLine) {
   ASSERT_TRUE(Parse({"-c", "test.cc", "-grecord-command-line"}, &flags));
   EXPECT_FALSE(flags.records_command_line());
   EXPECT_TRUE(KeyExtra(flags).empty());
+
+  // The section of the command line - without the debug info too.
+  for (const char* flag : {"-frecord-command-line", "-frecord-gcc-switches"}) {
+    flags.Clear();
+    ASSERT_TRUE(Parse({"-c", "test.cc", flag}, &flags));
+    EXPECT_TRUE(flags.records_command_line()) << flag;
+  }
+  flags.Clear();
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-frecord-command-line",
+                     "-fno-record-command-line"},
+                    &flags));
+  EXPECT_FALSE(flags.records_command_line());
 }
 
 TEST(DriverArgsTest, DiagnosticsFormat) {

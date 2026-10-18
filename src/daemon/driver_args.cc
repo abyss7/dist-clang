@@ -365,6 +365,8 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
        has_macro_prefix_map = false, has_debug_prefix_map = false;
   // The default depends on the build of the compiler.
   bool records_command_line = true;
+  // The own section of the command line - also without the debug info.
+  bool records_command_line_section = false;
   // The remapped prefixes of the paths: for "__FILE__", for the debug info.
   List<String> macro_prefixes, debug_prefixes;
   auto RemappedPrefix = [](const String& map) {
@@ -621,6 +623,13 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
       }
     }
 
+    if (arg == "-frecord-command-line" || arg == "-frecord-gcc-switches") {
+      records_command_line_section = true;
+    } else if (arg == "-fno-record-command-line" ||
+               arg == "-fno-record-gcc-switches") {
+      records_command_line_section = false;
+    }
+
     // By default all other flags affect everything.
     AddArgument(Class::OTHER, index, {arg});
   }
@@ -702,8 +711,9 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
   if ((has_debug_info && !has_compilation_dir) || coverage_has_cwd) {
     flags->add_key_extra("cwd:" + current_dir);
   }
+  flags->set_records_command_line(
+      records_command_line_section || (has_debug_info && records_command_line));
   if (has_debug_info) {
-    flags->set_records_command_line(records_command_line);
     if (has_split_dwarf) {
       flags->set_dwo_file(ReplaceExtension(output, ".dwo"));
       flags->add_key_extra("dwo:" + flags->dwo_file());
