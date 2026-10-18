@@ -172,6 +172,9 @@ class FileCache {
   // of the files after the start.
   void WaitForCleaner();
 
+  // Gives the recent accesses to the cleaner - to apply them to the index.
+  void FlushAccesses() THREAD_SAFE;
+
   // Stops the periodic work, applies the recent accesses to the index, and
   // marks the normal stop: the files aren't checked at the next start.
   void Close();
@@ -501,6 +504,10 @@ class FileCache {
     auto task = [this, list] { Clean(UniquePtr<EntryList>(list)); };
     cleaner_.Push(task);
   };
+  // The recent accesses - the workers append to the current list, and the
+  // cleaner takes it, when the list is replaced.
+  SharedPtr<EntryList> NewEntries() const THREAD_SAFE;
+  mutable Mutex new_entries_mutex_;
   SharedPtr<EntryList> new_entries_;
 
   // Removes the file "running" after the cleaner - at the normal stop.

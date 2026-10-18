@@ -210,8 +210,7 @@ TEST(FileCacheTest, RemoveEntry) {
                                      CommandLine("-c -O2"_l), Version("1"_l));
   cache.Store(hash1, FileCache::Entry{"object"_l, "deps"_l, "stderr"_l});
   cache.Store(hash2, FileCache::Entry{"object"_l, "deps"_l});
-  cache.new_entries_.reset(new FileCache::EntryList,
-                           cache.new_entries_deleter_);
+  cache.FlushAccesses();
   cache.WaitForCleaner();
 
   const auto common_path = cache.CommonPath(hash1);
@@ -249,8 +248,7 @@ TEST(FileCacheTest, RemoveDirectRowsOfRemovedEntries) {
   cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l});
   cache.Store(orig_code, {}, cl, version, {header_path}, {}, temp_dir, hash,
               String(), {}, CompilationTime());
-  cache.new_entries_.reset(new FileCache::EntryList,
-                           cache.new_entries_deleter_);
+  cache.FlushAccesses();
   cache.WaitForCleaner();
   const ui64 rows = cache.database_->Count();
 
@@ -516,8 +514,7 @@ TEST(FileCacheTest, CompressColdEntries) {
 
   // Wait, until the entry gets into the index - and the references to the
   // blobs are counted.
-  cache.new_entries_.reset(new FileCache::EntryList,
-                           cache.new_entries_deleter_);
+  cache.FlushAccesses();
   SQLite::Value value;
   for (int i = 0; i < 300 && !cache.entries_->Get(hash.str, &value); ++i) {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -570,8 +567,7 @@ TEST(FileCacheTest, DeduplicateOutputs) {
                            Version("1"_l));
   };
   auto Index = [&cache](const auto& hash) {
-    cache.new_entries_.reset(new FileCache::EntryList,
-                             cache.new_entries_deleter_);
+    cache.FlushAccesses();
     SQLite::Value value;
     for (int i = 0; i < 300 && !cache.entries_->Get(hash.str, &value); ++i) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -686,8 +682,7 @@ TEST(FileCacheTest, TagStats) {
   const base::TemporaryDir temp_dir;
   // Makes the cleaner process the stored entries and the tags.
   auto FlushToIndex = [](FileCache& cache, const List<HandledHash>& hashes) {
-    cache.new_entries_.reset(new FileCache::EntryList,
-                             cache.new_entries_deleter_);
+    cache.FlushAccesses();
     for (const auto& hash : hashes) {
       SQLite::Value value;
       for (int i = 0; i < 300 && !cache.entries_->Get(hash.str, &value);
@@ -824,12 +819,38 @@ TEST(FileCacheTest, BinaryManifests) {
   EXPECT_FALSE(contents.string_copy().starts_with("version:"));
 }
 
+TEST(FileCacheTest, AccessesWhileFlushed) {
+  // The accesses are appended by the workers, while the cleaner takes them.
+  const base::TemporaryDir temp_dir;
+  FileCache cache(temp_dir);
+  ASSERT_TRUE(cache.Run(3600));
+  const auto hash = TestHash("-c");
+  cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l});
+
+  Atomic<bool> done = false;
+  Vector<std::thread> workers;
+  for (int i = 0; i < 4; ++i) {
+    workers.emplace_back([&] {
+      while (!done) {
+        FileCache::Entry entry;
+        EXPECT_TRUE(cache.Find(hash, &entry));
+      }
+    });
+  }
+  for (int i = 0; i < 2000; ++i) {
+    cache.FlushAccesses();
+  }
+  done = true;
+  for (auto& worker : workers) {
+    worker.join();
+  }
+}
+
 TEST(FileCacheTest, ForgetTag) {
   const base::TemporaryDir temp_dir;
   // Makes the cleaner process the stored entries and the tags.
   auto FlushToIndex = [](FileCache& cache, const List<HandledHash>& hashes) {
-    cache.new_entries_.reset(new FileCache::EntryList,
-                             cache.new_entries_deleter_);
+    cache.FlushAccesses();
     for (const auto& hash : hashes) {
       SQLite::Value value;
       for (int i = 0; i < 300 && !cache.entries_->Get(hash.str, &value);
@@ -2423,8 +2444,7 @@ TEST(FileCacheTest, Ghosts) {
 
   // Makes the cleaner process the stored entries and the tags.
   auto Flush = [&cache] {
-    cache.new_entries_.reset(new FileCache::EntryList,
-                             cache.new_entries_deleter_);
+    cache.FlushAccesses();
     cache.WaitForCleaner();
   };
   auto Store = [&](const char* flags, const char* object, ui64 time) {

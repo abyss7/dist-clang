@@ -237,7 +237,9 @@ FileCache::FileCache(const Path& path)
 
 FileCache::~FileCache() {
   resetter_.reset();
-  new_entries_.reset();
+  SharedPtr<EntryList> old_entries;
+  std::lock_guard<Mutex> lock(new_entries_mutex_);
+  old_entries = std::move(new_entries_);
 }
 
 namespace {
@@ -422,7 +424,7 @@ void FileCache::WaitForCleaner() {
 
 void FileCache::Close() {
   resetter_.reset();
-  new_entries_.reset(new EntryList, new_entries_deleter_);
+  FlushAccesses();
   WaitForCleaner();
   if (!running_marker_.path.empty()) {
     base::File::Delete(running_marker_.path);
@@ -566,14 +568,14 @@ bool FileCache::Run(ui64 clean_period) {
 
   CHECK(clean_period > 0);
 
-  new_entries_.reset(new EntryList, new_entries_deleter_);
+  FlushAccesses();
 
   const ui64 flush_period = std::min(clean_period, flush_period_);
   base::WorkerPool::SimpleWorker worker =
       [this, clean_period, flush_period](const base::WorkerPool& pool) {
         ui64 elapsed = 0;
         while (!pool.WaitUntilShutdown(Seconds(flush_period))) {
-          new_entries_.reset(new EntryList, new_entries_deleter_);
+          FlushAccesses();
           elapsed += flush_period;
           if (elapsed >= clean_period) {
             elapsed = 0;
@@ -748,7 +750,7 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
                     search_dirs) &&
         Find(HandledHash(handled_hash), entry)) {
       utime(manifest_path.c_str(), nullptr);
-      new_entries_->Append({ui64(time(nullptr)), unhandled_hash, true});
+      NewEntries()->Append({ui64(time(nullptr)), unhandled_hash, true});
       return true;
     }
   }
@@ -839,7 +841,7 @@ bool FileCache::Find(HandledHash hash, Entry* found) const {
   }
 
   utime(manifest_path.c_str(), nullptr);
-  new_entries_->Append({ui64(time(nullptr)), hash, true});
+  NewEntries()->Append({ui64(time(nullptr)), hash, true});
   // The strings of the entry are assigned only once - replace it whole.
   std::destroy_at(found);
   std::construct_at(found, std::move(result));
@@ -866,11 +868,26 @@ void FileCache::Store(UnhandledSource code, const ExtraFiles& extra_files,
           start_time);
 }
 
+void FileCache::FlushAccesses() {
+  SharedPtr<EntryList> old_entries;
+  {
+    std::lock_guard<Mutex> lock(new_entries_mutex_);
+    old_entries = std::move(new_entries_);
+    new_entries_.reset(new EntryList, new_entries_deleter_);
+  }
+  // The last owner gives the old list to the cleaner - outside of the lock.
+}
+
+SharedPtr<FileCache::EntryList> FileCache::NewEntries() const {
+  std::lock_guard<Mutex> lock(new_entries_mutex_);
+  return new_entries_;
+}
+
 void FileCache::AddTags(string::HandledHash hash, const Vector<String>& tags) {
   if (tags.empty()) {
     return;
   }
-  new_entries_->Append({ui64(time(nullptr)), hash, true, tags});
+  NewEntries()->Append({ui64(time(nullptr)), hash, true, tags});
 }
 
 void FileCache::ApplyTags(string::Hash hash, const Vector<String>& tags) {
@@ -908,7 +925,7 @@ bool FileCache::GetTagStats(TagStatsCallback callback, NeededFn needed) {
   }
 
   // The recent accesses go first.
-  new_entries_.reset(new EntryList, new_entries_deleter_);
+  FlushAccesses();
   return bool(cleaner_.Push([this] {
     List<Pair<TagStatsCallback, NeededFn>> requests;
     {
@@ -932,7 +949,7 @@ bool FileCache::GetTagStats(TagStatsCallback callback, NeededFn needed) {
 bool FileCache::ForgetTag(const String& tag, bool dry_run,
                           Fn<void(const ForgetResult&)> callback,
                           NeededFn needed) {
-  new_entries_.reset(new EntryList, new_entries_deleter_);
+  FlushAccesses();
   return bool(cleaner_.Push([this, tag, dry_run, callback, needed] {
     // E.g. the user has interrupted it.
     if (!needed()) {
@@ -1255,7 +1272,7 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
   }
 
   utime(manifest_path.c_str(), nullptr);
-  new_entries_->Append({ui64(time(nullptr)), hash, false});
+  NewEntries()->Append({ui64(time(nullptr)), hash, false});
 
   LOG(CACHE_VERBOSE) << "File is cached on path " << CommonPath(hash);
 }
@@ -1497,7 +1514,7 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
   }
 
   utime(manifest_path.c_str(), nullptr);
-  new_entries_->Append({ui64(time(nullptr)), orig_hash, false});
+  NewEntries()->Append({ui64(time(nullptr)), orig_hash, false});
 }
 
 void FileCache::Clean(UniquePtr<EntryList> list) {
