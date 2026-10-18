@@ -1927,6 +1927,13 @@ void FileCache::Evict() {
     if (!entry_own_size) {
       continue;
     }
+    // The direct entries are small: their removal frees almost nothing on the
+    // disk, but the entries, that they lead to, aren't found without the
+    // preprocessing anymore - e.g. the protected ones.
+    if ((max_size_ == UNLIMITED || own_size <= target_size) &&
+        std::get<SQLite::DIRECT>(entry)) {
+      continue;
+    }
 
     const string::Hash hash{Immutable(hash_str)};
     const auto manifest_path =

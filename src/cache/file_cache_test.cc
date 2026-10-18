@@ -1546,6 +1546,44 @@ TEST(FileCacheTest, KeepEntriesLinkedWithBuildDirs) {
   EXPECT_FALSE(cache.Find(Hash(2), &entry3));
 }
 
+TEST(FileCacheTest, KeepDirectEntriesOfLinkedOnes) {
+  // The direct entries of the protected ones aren't removed for the free
+  // space of the disk: they're small, and the protected ones are found by
+  // them without the preprocessing.
+  const base::TemporaryDir temp_dir;
+  const auto object_path = temp_dir.path() / "test.o";
+  const auto header_path = temp_dir.path() / "test.h";
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  const auto hash =
+      FileCache::Hash(HandledSource("int main() { return 0; }"_l), {}, cl,
+                      version);
+  const UnhandledSource orig_code("int main() {}"_l);
+
+  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, proto::NONE,
+                  false, true);
+  cache.SetMinFreePercent(100);
+  ASSERT_TRUE(cache.Run(1));
+
+  ASSERT_TRUE(base::File::Write(object_path, "object"_l));
+  ASSERT_TRUE(base::File::Write(header_path, "#define A"_l));
+  FileCache::Entry linked;
+  linked.object_path = object_path;
+  cache.Store(hash, linked);
+  struct stat st;
+  ASSERT_EQ(0, stat(object_path.c_str(), &st));
+  if (st.st_nlink < 2) {
+    // The filesystem doesn't support hard links - nothing to check.
+    return;
+  }
+  cache.Store(orig_code, {}, cl, version, {header_path}, {}, temp_dir, hash);
+  std::this_thread::sleep_for(Seconds(3));
+
+  FileCache::Entry entry;
+  EXPECT_TRUE(cache.Find(hash, &entry));
+  EXPECT_TRUE(cache.Find(orig_code, {}, cl, version, temp_dir, &entry));
+}
+
 TEST(FileCacheTest, RestoreDirectEntry) {
   const base::TemporaryDir temp_dir;
   const auto object_path = temp_dir.path() / "test.o";
