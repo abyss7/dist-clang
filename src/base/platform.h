@@ -22,9 +22,10 @@ i64 ModificationTime(const struct stat& st);
 i64 StatusChangeTime(const struct stat& st);
 
 // The current time in nanoseconds since the epoch - comparable with the times
-// of the modifications of the files: the file, modified after this time - and
-// after a tick of the coarse clock, that some file systems use - has a later
-// time of the modification.
+// of the modifications of the files: the file, modified after the call, has a
+// later time of the modification - also on the file systems, that take the
+// times from the coarse clock. The files, modified shortly before the call,
+// may have a later time too.
 i64 FileSystemTime();
 
 // The file |path| with the status |st| shares its storage with other files:

@@ -35,12 +35,21 @@ i64 StatusChangeTime(const struct stat& st) {
 
 i64 FileSystemTime() {
   // The file systems take the times of the modifications from the coarse
-  // clock, but the newer kernels make them precise, when they are seen: the
-  // precise time doesn't count the modifications within the current tick
-  // before it, and still counts the ones in the next ticks.
+  // clock - it's behind the precise one up to a tick - but the newer kernels
+  // make them precise, when they are seen. The time a bit earlier counts the
+  // modifications after it in both cases - and the ones shortly before it
+  // too: they only don't let to cache the result.
+  // The coarse clock lags up to about two ticks.
+  static const i64 kMaxLag = [] {
+    struct timespec tick;
+    if (clock_getres(CLOCK_REALTIME_COARSE, &tick) != 0) {
+      return i64(10'000'000);
+    }
+    return 2 * ToNs(tick) + 1'000'000;
+  }();
   struct timespec now;
   clock_gettime(CLOCK_REALTIME, &now);
-  return ToNs(now);
+  return ToNs(now) - kMaxLag;
 }
 
 bool SharesStorage(const Path&, const struct stat& st) {

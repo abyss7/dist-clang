@@ -108,6 +108,16 @@ class EmitterTest : public CommonDaemonTest {
 /*
  * We can connect, and when we connect the emitter waits for message.
  */
+namespace {
+
+// The files, modified shortly before the start of the compilation, look
+// modified during it: the edits of the tests are a bit apart from it.
+void WaitAfterEdit() {
+  std::this_thread::sleep_for(std::chrono::milliseconds(20));
+}
+
+}  // namespace
+
 TEST_F(EmitterTest, IdleConnection) {
   emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
@@ -2540,6 +2550,7 @@ TEST_F(EmitterTest, SkipPreprocessingOfEditedSource) {
 
   // The edited source - compile only.
   ASSERT_TRUE(base::File::Write(input_path, "int main() { return 2; }"_l));
+  WaitAfterEdit();
   runs.clear();
   Compile(2);
   EXPECT_EQ((List<String>{"fake_action"}), runs);
@@ -3028,6 +3039,7 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
   // The compilation ends after the preprocessing: the result is stored for
   // both caches.
   ASSERT_TRUE(base::File::Write(header_path, "#define A 2"_l));
+  WaitAfterEdit();
   preprocessed = "preprocessed 2";
   object = "object 2";
   wait_for_preprocessing = true;
@@ -3043,6 +3055,7 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
   // The changed header gives the same preprocessed source: it's found before
   // the compilation ends. The edited sources aren't preprocessed at all.
   ASSERT_TRUE(base::File::Write(header_path, "#define A 2 "_l));
+  WaitAfterEdit();
   wait_for_preprocessing = false;
   wait_for_cancel = true;
   object = "object 3";
@@ -3060,6 +3073,7 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
   // The compilation ends before the preprocessing - and a new one is stored
   // for the simple cache too.
   ASSERT_TRUE(base::File::Write(header_path, "#define A 4"_l));
+  WaitAfterEdit();
   wait_for_cancel = false;
   preprocessed = "preprocessed 4";
   object = "object 4";
@@ -3073,6 +3087,7 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
   std::this_thread::sleep_for(std::chrono::milliseconds(300));
 
   ASSERT_TRUE(base::File::Write(header_path, "#define A 4 "_l));
+  WaitAfterEdit();
   wait_for_cancel = true;
   object = "object 5";
   Compile(5);
@@ -3525,6 +3540,7 @@ TEST_F(EmitterTest, DontStoreIfInputsChangedDuringCompilation) {
   EXPECT_EQ(1u, compilations);
 
   // The same inputs - the compilation again.
+  WaitAfterEdit();
   Compile(2);
   EXPECT_EQ(2u, compilations);
 

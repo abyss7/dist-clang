@@ -47,8 +47,10 @@ void MakeOld(const Path& dir) {
 }
 
 // The time of the start of a compilation - like the daemon takes it. The files,
-// that are modified later, must be modified after a tick of the clock.
+// that are modified shortly before or after it, look modified during the
+// compilation: the files of the test are modified a bit apart from it.
 i64 CompilationTime() {
+  std::this_thread::sleep_for(std::chrono::milliseconds(20));
   const i64 now = base::FileSystemTime();
   std::this_thread::sleep_for(std::chrono::milliseconds(20));
   return now;

@@ -302,6 +302,27 @@ TEST(CompilationDaemonTest, DepsOfAnotherRoot) {
       CompilationDaemon::RestoreDeps(deps, Flags("root2")));
 }
 
+TEST(CompilationDaemonTest, ModificationRightAfterStart) {
+  const base::TemporaryDir temp_dir;
+  ASSERT_TRUE(base::File::Write(temp_dir.path() / "a.cc", "int a;"_l));
+  base::proto::Local message;
+  message.set_current_dir(temp_dir.path());
+  message.mutable_flags()->set_input("a.cc");
+
+  // The file system may take the time from the coarse clock: the modification
+  // right after the start - within the same tick - is seen too.
+  ui32 missed = 0;
+  for (int i = 0; i < 200; ++i) {
+    const auto start = CompilationDaemon::FileSystemTime();
+    ASSERT_TRUE(base::File::Write(temp_dir.path() / "a.cc",
+                                  Immutable(std::to_string(i))));
+    if (CompilationDaemon::InputsUnchangedSince(&message, Immutable(), start)) {
+      ++missed;
+    }
+  }
+  EXPECT_EQ(0u, missed);
+}
+
 TEST(CompilationDaemonTest, InputsUnchangedSince) {
   const base::TemporaryDir temp_dir;
   ASSERT_TRUE(base::File::Write(temp_dir.path() / "a.cc", "int a;"_l));
@@ -321,6 +342,8 @@ TEST(CompilationDaemonTest, InputsUnchangedSince) {
 
   ASSERT_TRUE(base::File::Write(temp_dir.path() / "a.h", "int c;"_l));
   EXPECT_FALSE(CompilationDaemon::InputsUnchangedSince(&message, deps, start));
+  // The modifications shortly before the start look modified too.
+  std::this_thread::sleep_for(std::chrono::milliseconds(20));
   EXPECT_TRUE(CompilationDaemon::InputsUnchangedSince(
       &message, deps, CompilationDaemon::FileSystemTime()));
 
