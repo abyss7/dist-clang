@@ -111,8 +111,11 @@ class BaseDaemon {
     return true;
   }
 
-  inline bool Check() const { return Check(*conf_); }
-  inline bool Reload() { return Reload(*conf_); }
+  inline bool Check() const THREAD_SAFE { return Check(*conf()); }
+  inline bool Reload() THREAD_SAFE {
+    UniqueLock lock(reload_mutex_);
+    return Reload(*conf());
+  }
 
   UniquePtr<net::EndPointResolver> resolver_;
 
@@ -124,6 +127,10 @@ class BaseDaemon {
   //                   without mutex.
   mutable Mutex conf_mutex_;
   ConfigurationPtr conf_;
+
+  // The internals are reloaded by one thread at a time - in the order of the
+  // configurations.
+  Mutex reload_mutex_;
 
   UniquePtr<net::NetworkService> network_service_;
 };

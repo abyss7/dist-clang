@@ -31,6 +31,7 @@ bool BaseDaemon::Update(const Configuration& conf) {
     return false;
   }
 
+  UniqueLock reload_lock(reload_mutex_);
   if (Reload(conf)) {
     UniqueLock lock(conf_mutex_);
     conf_ = std::make_shared<Configuration>(conf);

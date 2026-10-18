@@ -175,7 +175,7 @@ class Emitter : public CompilationDaemon {
   // the reply: the lookups of them wait for it.
   OutputLocks direct_stores_;
 
-  bool handle_all_tasks_ = true;
+  Atomic<bool> handle_all_tasks_ = {true};
   // Indicates if we force shutdown of the remote workers pool: we shouldn't if
   // there is no coordinators, or if we stopped to poll coordinators.
 
