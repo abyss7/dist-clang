@@ -221,6 +221,124 @@ class ShadowChecker {
       listings_of_lookup_;
 };
 
+// A quoted include is searched in the directory of the including file first
+// - before all search directories. The including files aren't known: the
+// directories of all headers are checked, but only the ones, that have the
+// name of a header.
+class IncluderDirs {
+ public:
+  IncluderDirs(const Vector<String>& header_paths,
+               const Vector<String>& prefixes, DirectoryListings* listings)
+      : search_dirs_(prefixes.begin(), prefixes.end()),
+        headers_(header_paths.begin(), header_paths.end()) {
+    HashSet<String> first_names;
+    for (const auto& header : header_paths) {
+      VisitRelative(header, [&](std::string_view relative) {
+        first_names.insert(FirstName(relative));
+      });
+    }
+    if (first_names.empty()) {
+      return;
+    }
+    HashSet<String> seen;
+    for (const auto& header : header_paths) {
+      const size_t slash = header.rfind('/');
+      if (slash == String::npos || slash == 0) {
+        continue;
+      }
+      String dir = header.substr(0, slash);
+      if (!seen.insert(dir).second) {
+        continue;
+      }
+      const auto listing = listings->Get(dir);
+      if (!listing) {
+        continue;
+      }
+      dir.push_back('/');
+      auto Add = [&](const String& name) {
+        dirs_by_first_name_[name].push_back(dir);
+      };
+      if (listing->size() < first_names.size()) {
+        for (const auto& name : *listing) {
+          if (first_names.contains(name)) {
+            Add(name);
+          }
+        }
+      } else {
+        for (const auto& name : first_names) {
+          if (listing->contains(name)) {
+            Add(name);
+          }
+        }
+      }
+    }
+  }
+
+  // Calls |visit(prefix, relative)| for the paths, where a new file would be
+  // found instead of |header| by a quoted include from another header.
+  template <class Visit>
+  void VisitShadowingPaths(const String& header, Visit visit) const {
+    if (dirs_by_first_name_.empty()) {
+      return;
+    }
+    VisitRelative(header, [&](std::string_view relative) {
+      auto it = dirs_by_first_name_.find(FirstName(relative));
+      if (it == dirs_by_first_name_.end()) {
+        return;
+      }
+      for (const auto& dir : it->second) {
+        // The headers themselves are hashed: they're not new files.
+        const String path = dir + String(relative);
+        if (!headers_.contains(path)) {
+          visit(dir, relative);
+        }
+      }
+    });
+  }
+
+ private:
+  // The header is found by its name in a search directory - e.g. "util.h":
+  // the paths with the directories are rarely included relatively to the
+  // including file, and the checks of them would take much more time.
+  template <class Visit>
+  void VisitRelative(const String& header, Visit visit) const {
+    const size_t slash = header.rfind('/');
+    if (slash == String::npos) {
+      return;
+    }
+    const std::string_view dir(header.c_str(), slash + 1);
+    const std::string_view name(header.c_str() + slash + 1,
+                                header.size() - slash - 1);
+    if (search_dirs_.contains(dir) && !IsSource(name)) {
+      visit(name);
+    }
+  }
+
+  // The dependencies have the compiled source too - it isn't included.
+  static bool IsSource(std::string_view name) {
+    const size_t dot = name.rfind('.');
+    if (dot == std::string_view::npos) {
+      return false;
+    }
+    const auto extension = name.substr(dot + 1);
+    for (const char* source : {"c", "cc", "cpp", "cxx", "c++", "m", "mm", "cu"}) {
+      if (extension == source) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  static String FirstName(std::string_view name) {
+    return base::PathKey(String(name));
+  }
+
+  const HashSet<std::string_view> search_dirs_;
+  // Of |header_paths|, that outlive this object.
+  const HashSet<std::string_view> headers_;
+  HashMap<String, Vector<String>> dirs_by_first_name_;
+};
+
 }  // namespace
 
 FileCache::FileCache(const Path& path, ui64 size,
@@ -673,9 +791,31 @@ bool FileCache::IsShadowed(const List<String>& headers,
     }
   }
 
-  String path;
+  Vector<String> header_paths;
+  header_paths.reserve(headers.size());
   for (const auto& header : headers) {
-    const String header_path = FromManifestPath(header, current_dir, root);
+    header_paths.push_back(FromManifestPath(header, current_dir, root));
+  }
+  const IncluderDirs includer_dirs(header_paths, prefixes,
+                                   &directory_listings_);
+
+  String path;
+  for (const auto& header_path : header_paths) {
+    bool shadowed = false;
+    includer_dirs.VisitShadowingPaths(
+        header_path, [&](const String& prefix, std::string_view relative) {
+          struct stat st;
+          if (!shadowed && checker.IsFile(prefix, relative, &path, &st) &&
+              !ignored_paths.contains(
+                  ToManifestPath(path, current_dir, root))) {
+            LOG(CACHE_INFO) << "Header " << header_path
+                            << " is shadowed by " << path;
+            shadowed = true;
+          }
+        });
+    if (shadowed) {
+      return true;
+    }
     for (size_t dir = 0; dir < prefixes.size(); ++dir) {
       const String& prefix = prefixes[dir];
       if (header_path.size() <= prefix.size() ||
@@ -1487,32 +1627,43 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
   // remembered - the others must not appear later.
   ShadowChecker checker(&directory_listings_);
   const auto prefixes = SearchPrefixes(search_dirs);
+  auto NormalPath = [&](const String& header) {
+    return (Path(header).is_absolute() ? Path(header) : current_dir / header)
+        .lexically_normal()
+        .native();
+  };
+  Vector<String> all_header_paths;
+  if (!prefixes.empty()) {
+    for (const auto* list : {&headers, &preprocessed_headers}) {
+      for (const auto& header : *list) {
+        all_header_paths.push_back(NormalPath(header));
+      }
+    }
+  }
+  const IncluderDirs includer_dirs(all_header_paths, prefixes,
+                                   &directory_listings_);
   auto collect_ignored_paths = [&](const List<String>& headers) {
     bool created = false;
     String path;
+    auto Check = [&](const String& prefix, std::string_view relative) {
+      struct stat st;
+      if (created || !checker.IsFile(prefix, relative, &path, &st)) {
+        return;
+      }
+      // The compiler may have missed the file, that is created during the
+      // compilation.
+      if (start_time && base::StatusChangeTime(st) > start_time) {
+        LOG(CACHE_INFO) << "Not storing direct cache entry - " << path
+                        << " is created during the compilation";
+        created = true;
+        return;
+      }
+      new_variant.ignored_paths.insert(ToManifestPath(path, current_dir, root));
+    };
     for (const auto& header : headers) {
-      const String header_path =
-          (Path(header).is_absolute() ? Path(header) : current_dir / header)
-              .lexically_normal()
-              .native();
-      VisitShadowingPaths(
-          header_path, prefixes,
-          [&](const String& prefix, std::string_view relative) {
-            struct stat st;
-            if (created || !checker.IsFile(prefix, relative, &path, &st)) {
-              return;
-            }
-            // The compiler may have missed the file, that is created during
-            // the compilation.
-            if (start_time && base::StatusChangeTime(st) > start_time) {
-              LOG(CACHE_INFO) << "Not storing direct cache entry - " << path
-                              << " is created during the compilation";
-              created = true;
-              return;
-            }
-            new_variant.ignored_paths.insert(
-                ToManifestPath(path, current_dir, root));
-          });
+      const String header_path = NormalPath(header);
+      VisitShadowingPaths(header_path, prefixes, Check);
+      includer_dirs.VisitShadowingPaths(header_path, Check);
       if (created) {
         return false;
       }

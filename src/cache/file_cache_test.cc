@@ -2226,6 +2226,51 @@ TEST(FileCacheTest, DirectEntry_ShadowedHeader) {
   EXPECT_TRUE(FindDirect());
 }
 
+TEST(FileCacheTest, DirectEntry_ShadowedByIncluderDir) {
+  // A quoted include is searched in the directory of the including file
+  // first: e.g. "lib/a.h" includes "util.h", that is found in "include".
+  const base::TemporaryDir temp_dir;
+  const Path include_dir = temp_dir.path() / "include";
+  const Path lib_dir = temp_dir.path() / "lib";
+  ASSERT_TRUE(base::CreateDirectory(include_dir));
+  ASSERT_TRUE(base::CreateDirectory(lib_dir));
+  const List<Path> search_dirs = {include_dir};
+  const auto includer_path = lib_dir / "a.h";
+  const auto header_path = include_dir / "util.h";
+  // The headers with the same names in both directories are used both.
+  const auto config_path = include_dir / "config.h";
+  const auto lib_config_path = lib_dir / "config.h";
+
+  FileCache cache(temp_dir.path() / "cache");
+  ASSERT_TRUE(cache.Run(1));
+
+  const HandledSource code("int main() { return 0; }"_l);
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  const auto hash = FileCache::Hash(code, {}, cl, version);
+  const UnhandledSource orig_code("int main() {}"_l);
+  cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l});
+
+  auto FindDirect = [&] {
+    FileCache::Entry entry;
+    return cache.Find(orig_code, {}, cl, version, temp_dir, &entry, String(),
+                      search_dirs);
+  };
+
+  for (const auto& path :
+       {includer_path, header_path, config_path, lib_config_path}) {
+    ASSERT_TRUE(base::File::Write(path, "#define A"_l));
+  }
+  cache.Store(orig_code, {}, cl, version,
+              {includer_path, header_path, config_path, lib_config_path}, {},
+              temp_dir, hash, String(), search_dirs, CompilationTime());
+  EXPECT_TRUE(FindDirect());
+
+  // A new file would be found instead of the header.
+  ASSERT_TRUE(base::File::Write(lib_dir / "util.h", "#define B"_l));
+  EXPECT_FALSE(FindDirect());
+}
+
 TEST(FileCacheTest, DirectEntry_DontStoreIfShadowAppearsDuringCompilation) {
   const base::TemporaryDir temp_dir;
   const Path dir1 = temp_dir.path() / "dir1";
