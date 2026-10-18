@@ -35,6 +35,7 @@ executable("unit_tests") {
     "//src/daemon/outputs_test.cc",
     "//src/net/event_loop_linux_test.cc",
     "//src/net/event_loop_mac_test.cc",
+    "//src/net/network_service_impl_linux_test.cc",
     "//src/net/test_connection.cc",
     "//src/net/test_connection.h",
     "//src/net/test_end_point.h",

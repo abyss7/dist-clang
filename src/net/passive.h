@@ -6,6 +6,8 @@
 #include <base/file/handle_win.h>
 #endif
 
+#include <sys/socket.h>
+
 namespace dist_clang {
 namespace net {
 
@@ -13,7 +15,7 @@ class Socket;
 
 class Passive final : public base::Handle {
  public:
-  explicit Passive(Socket&& fd, ui32 backlog = 64);
+  explicit Passive(Socket&& fd, ui32 backlog = SOMAXCONN);
 
   Socket Accept();
 

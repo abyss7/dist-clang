@@ -8,6 +8,8 @@
 #include <net/end_point.h>
 #include <net/socket.h>
 
+#include STL(thread)
+
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -135,7 +137,15 @@ ConnectionPtr NetworkServiceImpl::Connect(EndPointPtr end_point,
     return ConnectionImpl::Create(*event_loop_, std::move(fd), end_point);
   };
 
+  // The backlog of a local socket may be full for a while - e.g. while the
+  // daemon starts: then the connection fails at once, and is tried again.
+  const auto deadline = Clock::now() + Seconds(connect_timeout_secs_);
   Socket::ConnectionStatus status = fd.StartConnecting(end_point, error);
+  while (status == Socket::ConnectionStatus::FAILED && errno == EAGAIN &&
+         Clock::now() < deadline) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    status = fd.StartConnecting(end_point, error);
+  }
   switch (status) {
     case Socket::ConnectionStatus::CONNECTING:
       switch (WaitForConnection(fd, error)) {
