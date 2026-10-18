@@ -298,95 +298,87 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
   version->set_version(compiler_version);
   version->set_path(compiler_path);
 
+  // The coordinator is polled all the time: the connections are told apart by
+  // the end points, and the steps are waited for by their own events.
+  Atomic<ui32> coordinator_connections = {0}, remote_connections = {0},
+               local_connections = {0};
+  bool old_remote_used = false;
+  ui32 local_replies = 0;
+  auto Notify = [&](auto&& change) {
+    {
+      UniqueLock lock(send_mutex);
+      change();
+    }
+    send_condition.notify_all();
+  };
+
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr end_point) {
     // All connection callbacks are on emitter side.
 
-    if (connect_count == 1) {
+    const String end_point_string = end_point->Print();
+    if (end_point_string == EndPointString(coordinator_host, coordinator_port)) {
       // Connection from emitter to coordinator.
+      const ui32 number = ++coordinator_connections;
+      if (number == 1) {
+        connection->CallOnRead([&](net::Connection::Message* message) {
+          auto* emitter = message->mutable_configuration()->mutable_emitter();
+          auto* remote = emitter->add_remotes();
+          remote->set_host(old_remote_host);
+          remote->set_port(old_remote_port);
+          remote->set_shard(1);
+          remote->set_threads(1);
 
-      EXPECT_EQ(EndPointString(coordinator_host, coordinator_port), end_point->Print());
+          emitter->set_total_shards(old_total_shards);
+        });
+      } else if (number == 2) {
+        connection->CallOnSend([&](const net::Connection::Message&) {
+          // Run the task #1 on old remote before the new configuration.
+          UniqueLock lock(send_mutex);
+          EXPECT_TRUE(send_condition.wait_for(lock, Seconds(10), [&] { return old_remote_used; }));
+        });
 
-      connection->CallOnRead([&](net::Connection::Message* message) {
-        auto* emitter = message->mutable_configuration()->mutable_emitter();
-        auto* remote = emitter->add_remotes();
-        remote->set_host(old_remote_host);
-        remote->set_port(old_remote_port);
-        remote->set_shard(1);
-        remote->set_threads(1);
+        connection->CallOnRead([&](net::Connection::Message* message) {
+          auto* emitter = message->mutable_configuration()->mutable_emitter();
+          auto* remote = emitter->add_remotes();
+          remote->set_host(new_remote_host);
+          remote->set_port(new_remote_port);
+          remote->set_shard(1);
+          remote->set_threads(1);
 
-        emitter->set_total_shards(old_total_shards);
-      });
-    } else if (connect_count == 2) {
-      // Connection from emitter to coordinator.
-
-      EXPECT_EQ(EndPointString(coordinator_host, coordinator_port), end_point->Print());
-
-      connection->CallOnSend([this](const net::Connection::Message&) {
-        send_condition.notify_all();
-        // Run the task #1 on old remote before sending anything to coordinator.
-
-        UniqueLock lock(send_mutex);
-        // Wait until emitter sends task to old remote:
-        //  * 1st second - wait for queue to pop in old remote
-        EXPECT_TRUE(send_condition.wait_for(lock, Seconds(2), [this] { return send_count == 3; }));
-        // Send #1: emitter → coordinator.
-        // Send #2: emitter → coordinator (current one).
-        // Send #3: emitter → remote.
-      });
-
-      connection->CallOnRead([&](net::Connection::Message* message) {
-        auto* emitter = message->mutable_configuration()->mutable_emitter();
-        auto* remote = emitter->add_remotes();
-        remote->set_host(new_remote_host);
-        remote->set_port(new_remote_port);
-        remote->set_shard(1);
-        remote->set_threads(1);
-
-        emitter->set_total_shards(new_total_shards);
-      });
-    } else if (connect_count == 3) {
-      // Connection from local client to emitter. Task #1.
-
-      EXPECT_EQ(EndPointString(socket_path, 0), end_point->Print());
+          emitter->set_total_shards(new_total_shards);
+        });
+      }
+      // The next polls follow the updates.
+      Notify([] {});
+    } else if (end_point_string == EndPointString(socket_path, 0)) {
+      // Connection from local client to emitter. Tasks #1 & #2.
+      ++local_connections;
 
       connection->CallOnSend([&](const net::Connection::Message& message) {
         EXPECT_TRUE(message.has_status());
         const auto& status = message.status();
         EXPECT_EQ(expected_code, status.code()) << status.description();
+        Notify([&] { ++local_replies; });
       });
-    } else if (connect_count == 4) {
+    } else if (end_point_string == EndPointString(old_remote_host, old_remote_port)) {
       // Connection from emitter to remote absorber. Task #1.
-
-      EXPECT_EQ(EndPointString(old_remote_host, old_remote_port), end_point->Print());
+      ++remote_connections;
       EXPECT_EQ(old_total_shards, emitter->conf()->emitter().total_shards());
+
+      connection->CallOnSend([&](const net::Connection::Message&) {
+        Notify([&] { old_remote_used = true; });
+      });
 
       connection->CallOnRead([&](net::Connection::Message* message) {
         message->mutable_result()->set_obj(object_code);
-        send_condition.notify_all();
       });
-    } else if (connect_count == 5) {
-      // Connection from emitter to coordinator.
-
-      EXPECT_EQ(EndPointString(coordinator_host, coordinator_port), end_point->Print());
-
-      connection->CallOnSend([this](const net::Connection::Message&) {
-        send_condition.notify_all();
-        // Run the task #2 on new remote before sending anything to coordinator.
-      });
-    } else if (connect_count == 6) {
-      // Connection from local client to emitter. Task #2.
-
-      EXPECT_EQ(EndPointString(socket_path, 0), end_point->Print());
-    } else if (connect_count >= 7 && EndPointString(new_remote_host, new_remote_port) == end_point->Print()) {
+    } else {
       // Connection from emitter to remote absorber. Task #2.
+      ++remote_connections;
+      EXPECT_EQ(EndPointString(new_remote_host, new_remote_port), end_point_string);
 
       DCHECK(emitter);
       EXPECT_EQ(new_total_shards, emitter->conf()->emitter().total_shards());
-
-      connection->CallOnSend([this](const net::Connection::Message&) {
-        send_condition.notify_all();
-        // Now we can reset |emitter|.
-      });
 
       connection->CallOnRead([&](net::Connection::Message* message) {
         message->mutable_result()->set_obj(object_code);
@@ -409,13 +401,9 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
   ASSERT_TRUE(emitter->Initialize());
 
   {
-    // Wait for a second connection to coordinator:
-    //  * 1st second - wait for queue to pop in default remote.
-    //  * 2nd second - wait for coordinator to poll.
+    // The second poll of the coordinator follows the first update.
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(3), [this] { return send_count == 2; }));
-    // Send #1: emitter → coordinator.
-    // Send #2: emitter → coordinator (not complete at this moment).
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(10), [&] { return coordinator_connections >= 2; }));
   }
 
   auto connection1 = test_service->TriggerListen(socket_path);
@@ -436,14 +424,11 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
-    // Wait for a third connection to coordinator:
-    //  * 1st second - wait for queue to pop in old remote.
-    //  * 2nd second - wait for coordinator to poll.
+    // The third poll of the coordinator follows the second update.
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(3), [this] { return send_count == 5; }));
-    // Send #3: emitter → remote.
-    // Send #4: emitter → local.
-    // Send #5: emitter → coordinator (not complete at this moment).
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(10), [&] {
+      return local_replies >= 1 && coordinator_connections >= 3;
+    }));
   }
 
   auto connection2 = test_service->TriggerListen(socket_path);
@@ -464,12 +449,8 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
 
     EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
 
-    // Wait for a connection to remote absorber.
     UniqueLock lock(send_mutex);
-    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(2), [this] { return send_count >= 6; }));
-    // Send #6: emitter → remote.
-    // Send #7 or 8: emitter → local.
-    // Send #7 or 8: emitter → coordinator. (May miss)
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(10), [&] { return local_replies >= 2; }));
   }
 
   emitter.reset();
@@ -477,8 +458,9 @@ TEST_F(EmitterTest, ConfigurationUpdateFromCoordinator) {
   EXPECT_EQ(2u, run_count);
   EXPECT_EQ(1u, listen_count);
   EXPECT_EQ(connections_created, connect_count);
-  EXPECT_LE(7u, connections_created);
-  EXPECT_GE(8u, connections_created);
+  EXPECT_LE(3u, coordinator_connections);
+  EXPECT_EQ(2u, remote_connections);
+  EXPECT_EQ(2u, local_connections);
   EXPECT_EQ(connections_created, read_count);
   EXPECT_EQ(connections_created, send_count);
   EXPECT_EQ(1, connection1.use_count()) << "Daemon must not store references to the connection";
