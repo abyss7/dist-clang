@@ -44,6 +44,8 @@ void StartDaemon(const String& socket_path) {
   LOG(INFO) << "Starting daemon " << daemon_path;
 
   const String lock_fd_arg = "--lock-fd=" + std::to_string(lock_fd);
+  // The lock is of this socket: the daemon must listen there.
+  const String socket_arg = "--socket=" + socket_path;
   pid_t pid = fork();
   if (pid == 0) {
     // Detach from the client's session, so that the daemon survives it.
@@ -56,7 +58,7 @@ void StartDaemon(const String& socket_path) {
         dup2(null_fd, STDERR_FILENO);
       }
       execl(daemon_path.c_str(), daemon_path.c_str(), "--autostart",
-            lock_fd_arg.c_str(), nullptr);
+            lock_fd_arg.c_str(), socket_arg.c_str(), nullptr);
     }
     _exit(0);
   } else if (pid != -1) {

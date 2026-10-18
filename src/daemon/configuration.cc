@@ -17,12 +17,14 @@ namespace {
 
 const char kUsage[] =
     "Usage: dist-clangd [--config=<path>] [--daemon]\n"
-    "       dist-clangd --autostart\n"
+    "       dist-clangd --autostart [--socket=<path>]\n"
     "\n"
     "  --config=<path>  Path to the configuration file\n"
     "  --daemon         Daemonize after start\n"
     "  --autostart      Run the local emitter in background - with the config\n"
     "                   from the default path, if exists, or with defaults\n"
+    "  --socket=<path>  The socket of the emitter instead of the configured\n"
+    "                   one - e.g. the one, that the client has locked\n"
     "  --version        Print version and exit\n";
 
 // The configuration of the local emitter, when there is no config file.
@@ -44,7 +46,7 @@ void SetDefaults(proto::Configuration* config) {
 }  // namespace
 
 Configuration::Configuration(int argc, char* argv[]) {
-  String config_path;
+  String config_path, socket_path;
 
   for (int i = 1; i < argc; ++i) {
     const String arg = argv[i];
@@ -63,6 +65,8 @@ Configuration::Configuration(int argc, char* argv[]) {
       daemonize_ = true;
     } else if (arg.starts_with("--lock-fd=")) {
       lock_fd_ = std::stoi(arg.substr(strlen("--lock-fd=")));
+    } else if (arg.starts_with("--socket=")) {
+      socket_path = arg.substr(strlen("--socket="));
     } else if (arg == "--version") {
       std::cout << VERSION << std::endl;
       exit(0);
@@ -87,6 +91,12 @@ Configuration::Configuration(int argc, char* argv[]) {
       !base::LoadFromFile(config_path, &config_, &error)) {
     LOG(ERROR) << "Failed to read configuration from " << config_path << ": "
                << error;
+  }
+
+  // The socket, that the client has locked: another one would be served by
+  // another daemon.
+  if (!socket_path.empty()) {
+    config_.mutable_emitter()->set_socket_path(socket_path);
   }
 }
 
