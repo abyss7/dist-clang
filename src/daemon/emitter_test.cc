@@ -3,7 +3,10 @@
 #include <base/file/file.h>
 #include <base/file_utils.h>
 #include <base/platform.h>
+#include <base/string_utils.h>
 #include <base/temporary_dir.h>
+#include <cache/blob_store.h>
+#include <cache/compression.h>
 #include <daemon/common_daemon_test.h>
 #include <test/throw_std.h>
 #include <net/test_connection.h>
@@ -3462,6 +3465,90 @@ TEST_F(EmitterTest, LimitLinksOfOutputs) {
     emitter.reset();
     test_service = nullptr;
   }
+}
+
+TEST_F(EmitterTest, RestoreBlobCompressedAfterLookup) {
+  // The blob of the found entry is compressed by the cleaner, before the
+  // output is restored - e.g. during the check of the warnings.
+  const base::TemporaryDir temp_dir;
+  const auto input_path = temp_dir.path() / "test.cc";
+  const auto output_path = temp_dir.path() / "test.o";
+  const auto deps_path = temp_dir.path() / "test.d";
+  const auto cache_path = temp_dir.path() / "cache";
+  const String compiler_version = "fake_compiler_version";
+  ASSERT_TRUE(base::File::Write(input_path, "int main() { return 1; }"_l));
+
+  conf.mutable_emitter()->set_preprocessing(
+      proto::Configuration::Emitter::NEVER);
+  conf.mutable_cache()->set_path(cache_path);
+  conf.mutable_cache()->set_direct(true);
+  conf.mutable_cache()->set_link_outputs(true);
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path("fake_compiler_path");
+
+  const auto object = "object"_l;
+  const cache::BlobStore blobs(cache_path / "blobs", cache::proto::ZSTD, true);
+  const String object_hash = base::Hexify(Immutable(object).Hash());
+  List<String> runs;
+  run_callback = [&](base::TestProcess* process) {
+    if (std::find(process->args_.begin(), process->args_.end(),
+                  "-fsyntax-only"_l) != process->args_.end()) {
+      runs.push_back("check");
+      String packed;
+      EXPECT_TRUE(cache::Pack(cache::proto::ZSTD, object, &packed));
+      EXPECT_TRUE(base::File::Write(blobs.PackedPath(object_hash),
+                                    Immutable(std::move(packed))));
+      EXPECT_TRUE(base::File::Delete(blobs.RawPath(object_hash)));
+      return;
+    }
+    runs.push_back("compile");
+    EXPECT_TRUE(base::File::Write(output_path, object));
+    EXPECT_TRUE(base::File::Write(
+        deps_path, Immutable("test.o: "_l) + Immutable(input_path)));
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto Compile = [&](ui32 expected_send_count, const char* warning) {
+    auto connection = test_service->TriggerListen(socket_path);
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->mutable_local();
+    extension->set_current_dir(temp_dir);
+    auto* flags = extension->mutable_flags();
+    flags->set_input(input_path);
+    flags->set_output(output_path);
+    flags->set_deps_file(deps_path);
+    flags->set_deps_target("test.o");
+    flags->set_recheck_warnings(true);
+    flags->add_warnings()->add_values(warning);
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action("fake_action");
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(5), [&] {
+      return send_count == expected_send_count;
+    }));
+  };
+
+  Compile(1, "-Wall");
+  EXPECT_EQ((List<String>{"compile"}), runs);
+
+  // Other warnings - only the check, and the output from the cache.
+  ASSERT_TRUE(base::File::Delete(output_path));
+  runs.clear();
+  Compile(2, "-Wextra");
+  EXPECT_EQ((List<String>{"check"}), runs);
+  Immutable content;
+  ASSERT_TRUE(base::File::Read(output_path, &content));
+  EXPECT_EQ(object, content);
+
+  emitter.reset();
 }
 
 TEST_F(EmitterTest, RecheckWarnings) {

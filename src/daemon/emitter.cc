@@ -828,21 +828,50 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
           conf->emitter().keep_unchanged_outputs() || RequestsRestat(incoming);
 
       const ui32 max_links = conf->cache().max_output_links();
-      if (!RestoreOutput(entry.object_path, entry.object_hash, entry.object,
-                         output_path, keep_unchanged, max_links, incoming,
-                         &error)) {
-        LOG(ERROR) << "Failed to write file from cache: " << output_path
-                   << " : " << error;
-        return false;
-      }
-
-      if (flags.has_dwo_file() &&
-          (!entry.dwo.empty() || !entry.dwo_path.empty())) {
-        const String dwo_path = GetDwoPath(incoming);
-
-        if (!RestoreOutput(entry.dwo_path, entry.dwo_hash, entry.dwo, dwo_path,
-                           keep_unchanged, max_links, incoming, &error)) {
-          LOG(ERROR) << "Failed to write file from cache: " << dwo_path
+      auto RestoreOutputs = [&](String* failed_path) {
+        if (!RestoreOutput(entry.object_path, entry.object_hash, entry.object,
+                           output_path, keep_unchanged, max_links, incoming,
+                           &error)) {
+          *failed_path = output_path;
+          return false;
+        }
+        if (flags.has_dwo_file() &&
+            (!entry.dwo.empty() || !entry.dwo_path.empty())) {
+          const String dwo_path = GetDwoPath(incoming);
+          if (!RestoreOutput(entry.dwo_path, entry.dwo_hash, entry.dwo,
+                             dwo_path, keep_unchanged, max_links, incoming,
+                             &error)) {
+            *failed_path = dwo_path;
+            return false;
+          }
+        }
+        return true;
+      };
+      // The linked blob may be compressed or removed by the cleaner since the
+      // lookup - then the entry is looked up again, once.
+      auto BlobGone = [&] {
+        return (!entry.object_path.empty() &&
+                !base::File::Exists(entry.object_path)) ||
+               (!entry.dwo_path.empty() &&
+                !base::File::Exists(entry.dwo_path));
+      };
+      String failed_path;
+      if (!RestoreOutputs(&failed_path)) {
+        cache::FileCache::Entry again;
+        const String found_hash = entry.handled_hash;
+        if (!BlobGone() ||
+            !SearchSimpleCache(HandledHash(Immutable(found_hash)), &again)) {
+          LOG(ERROR) << "Failed to write file from cache: " << failed_path
+                     << " : " << error;
+          return false;
+        }
+        // The diagnostics and the dependencies are of the same entry.
+        entry.object = again.object;
+        entry.object_path = again.object_path;
+        entry.dwo = again.dwo;
+        entry.dwo_path = again.dwo_path;
+        if (!RestoreOutputs(&failed_path)) {
+          LOG(ERROR) << "Failed to write file from cache: " << failed_path
                      << " : " << error;
           return false;
         }
