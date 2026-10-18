@@ -44,6 +44,10 @@ class BlobStore {
   // Removes the blob without references.
   void RemoveRef(const String& hash);
 
+  // Removes the compressed versions of the blobs, that are uncompressed again
+  // by |Get()|.
+  void RemoveUncompressed();
+
   // Removes the blobs without references, that are created before |time| -
   // e.g. after a crash. Call after all references are added.
   ui32 RemoveUnreferenced(ui64 time);
@@ -91,6 +95,11 @@ class BlobStore {
   mutable Mutex reused_mutex_;
   mutable HashSet<String> reused_;
   bool track_reused_ = true;
+
+  // The blobs, that are uncompressed by |Get()|, until the cleaner removes
+  // their compressed versions.
+  mutable Mutex unpacked_mutex_;
+  mutable HashSet<String> unpacked_;
 
   HashMap<String, Blob> blobs_;
 };

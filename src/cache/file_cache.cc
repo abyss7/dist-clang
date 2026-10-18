@@ -1601,6 +1601,11 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
   tag_index_->EndTransaction();
   entries_->EndTransaction();
 
+  {
+    std::lock_guard<Mutex> lock(blob_refs_mutex_);
+    blobs_.RemoveUncompressed();
+  }
+
   if (Clock::now() >= next_sizes_report_) {
     ReportSizes();
   }

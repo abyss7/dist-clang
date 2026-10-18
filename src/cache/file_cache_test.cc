@@ -544,14 +544,29 @@ TEST(FileCacheTest, CompressColdEntries) {
   // Already compressed.
   EXPECT_EQ(0u, cache.CompressColdEntries());
 
-  // Restored as contents.
+  // The used entry is uncompressed again - to be linked.
   FileCache::Entry found;
   ASSERT_TRUE(cache.Find(hash, &found));
-  EXPECT_TRUE(found.object_path.empty());
-  EXPECT_TRUE(found.dwo_path.empty());
-  EXPECT_EQ(object, found.object.string_copy());
-  EXPECT_EQ(dwo, found.dwo.string_copy());
+  EXPECT_EQ(cache.blobs_.RawPath(object_hash), found.object_path);
+  EXPECT_EQ(cache.blobs_.RawPath(dwo_hash), found.dwo_path);
+  Immutable object_content, dwo_content;
+  ASSERT_TRUE(base::File::Read(found.object_path, &object_content));
+  EXPECT_EQ(object, object_content.string_copy());
+  ASSERT_TRUE(base::File::Read(found.dwo_path, &dwo_content));
+  EXPECT_EQ(dwo, dwo_content.string_copy());
   EXPECT_EQ("deps"_l, found.deps);
+
+  // The compressed blobs are removed by the cleaner.
+  cache.FlushAccesses();
+  for (int i = 0;
+       i < 300 && base::File::Exists(cache.blobs_.PackedPath(object_hash));
+       ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  EXPECT_FALSE(base::File::Exists(cache.blobs_.PackedPath(object_hash)));
+  EXPECT_FALSE(base::File::Exists(cache.blobs_.PackedPath(dwo_hash)));
+  ASSERT_TRUE(cache.Find(hash, &found));
+  EXPECT_EQ(cache.blobs_.RawPath(object_hash), found.object_path);
 }
 
 TEST(FileCacheTest, DeduplicateOutputs) {

@@ -75,8 +75,8 @@ message Configuration {
     optional uint64 compress_after = 15 [ default = 3600 ];
     // In seconds. With |link_outputs| compress the outputs of the entries,
     // that aren't linked with build directories anymore - e.g. the results
-    // of other branches - and weren't used for this time. They are restored
-    // as copies then. Zero disables it.
+    // of other branches - and weren't used for this time. They are
+    // uncompressed again, when they're used. Zero disables it.
 
     optional uint64 ghosts_ttl = 17 [ default = 2592000 ];
     // In seconds - 30 days by default. Remember the evicted and the forgotten

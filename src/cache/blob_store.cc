@@ -7,7 +7,13 @@
 #include <base/string_utils.h>
 #include <cache/compression.h>
 
+#include STL(sstream)
+#include STL(thread)
+
+#include <stdio.h>
+
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include <base/using_log.h>
 
@@ -150,9 +156,45 @@ bool BlobStore::Get(const String& hash, Immutable* content, Path* path,
   if (!HasHash(data, hash)) {
     return Broken(packed_path, "wrong hash");
   }
+
+  // The blob is used again: it's uncompressed to be linked - otherwise it's
+  // copied at every hit. The compressed one is removed by the cleaner.
+  if (link_ && path) {
+    std::ostringstream temp_path;
+    temp_path << raw_path.string() << ".tmp-" << getpid() << "-"
+              << std::this_thread::get_id();
+    String error;
+    if (base::File::Write(Path(temp_path.str()), data, &error) &&
+        rename(temp_path.str().c_str(), raw_path.c_str()) == 0) {
+      {
+        std::lock_guard<Mutex> lock(unpacked_mutex_);
+        unpacked_.insert(hash);
+      }
+      *path = raw_path;
+      *size += data.size();
+      return true;
+    }
+    LOG(CACHE_WARNING) << "Failed to uncompress " << packed_path << ": "
+                       << error;
+    unlink(temp_path.str().c_str());
+  }
+
   *content = data;
   *size += packed.size();
   return true;
+}
+
+void BlobStore::RemoveUncompressed() {
+  HashSet<String> unpacked;
+  {
+    std::lock_guard<Mutex> lock(unpacked_mutex_);
+    unpacked.swap(unpacked_);
+  }
+  for (const auto& hash : unpacked) {
+    if (base::File::Exists(RawPath(hash))) {
+      base::File::Delete(PackedPath(hash));
+    }
+  }
 }
 
 void BlobStore::AddRef(const String& hash, ui64 access_time) {
