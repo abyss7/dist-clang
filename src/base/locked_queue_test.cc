@@ -167,6 +167,30 @@ TEST(LockedQueueTest, NotStrictSharding) {
   queue.Close();
 }
 
+TEST(LockedQueueTest, PushWhileShardsGrow) {
+  // The shards are added by the poppers under the lock, while the pusher
+  // notifies its shard: the notification must see the consistent shards.
+  using Worker = WorkerPool::SimpleWorker;
+
+  LockedQueue<int, true> queue(Seconds(1));
+  const int number_of_shards = 2000;
+
+  UniquePtr<WorkerPool> workers(new WorkerPool);
+  Worker worker = [&queue](const WorkerPool& pool) {
+    for (int shard = 1; shard < number_of_shards; ++shard) {
+      queue.Pop(pool, 1u, shard, true);
+    }
+  };
+  workers->AddWorker("Test worker"_l, worker);
+
+  for (int task = 0; task < number_of_shards; ++task) {
+    EXPECT_TRUE(queue.Push(task));
+  }
+
+  workers.reset();
+  queue.Close();
+}
+
 TEST(LockedQueueTest, StrictSharding) {
   using Worker = WorkerPool::SimpleWorker;
 

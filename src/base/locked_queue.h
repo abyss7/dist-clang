@@ -64,9 +64,10 @@ class LockedQueue {
         return false;
       }
       index_.Put(queue_.insert(queue_.end(), std::move(obj)), shard);
+      ++size_;
+      // The shards may be added by the poppers - only under the lock.
+      index_.NotifyShard(shard);
     }
-    ++size_;
-    index_.NotifyShard(shard);
 
     // See a comment on |aggregator_condition_| to see why two notifications
     // should be done here.
