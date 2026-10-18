@@ -55,6 +55,7 @@ FORWARD_TEST(EmitterTest, VerifyHits);
 FORWARD_TEST(EmitterTest, TagEntries);
 FORWARD_TEST(EmitterTest, NeverPreprocess);
 FORWARD_TEST(EmitterTest, PreprocessWhenIdle);
+FORWARD_TEST(EmitterTest, PreprocessWhenIdleWithEditedHeader);
 }  // namespace daemon
 
 namespace base {
@@ -165,6 +166,7 @@ class Process
   FRIEND_TEST(daemon::EmitterTest, TagEntries);
   FRIEND_TEST(daemon::EmitterTest, NeverPreprocess);
   FRIEND_TEST(daemon::EmitterTest, PreprocessWhenIdle);
+  FRIEND_TEST(daemon::EmitterTest, PreprocessWhenIdleWithEditedHeader);
 };
 
 }  // namespace base

@@ -956,6 +956,15 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
         if (!preprocessed) {
           continue;
         }
+        // The preprocessing may end after the compilation - and read the
+        // inputs, that are saved since: then the preprocessed source doesn't
+        // match the object.
+        if (!InputsUnchangedSince(incoming,
+                                  std::get<PREPROCESSED_DEPS>(*task),
+                                  std::get<START_TIME>(*task))) {
+          STAT(CACHE_STORE_SKIPPED);
+          continue;
+        }
 
         const auto handled_hash = GenerateHash(
             incoming->flags(), source, std::get<EXTRA_FILES>(*task));

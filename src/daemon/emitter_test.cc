@@ -3116,6 +3116,157 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
   emitter.reset();
 }
 
+TEST_F(EmitterTest, PreprocessWhenIdleWithEditedHeader) {
+  const base::TemporaryDir temp_dir;
+  const auto input_path = temp_dir.path() / "test.cc";
+  const auto header_path = temp_dir.path() / "header.h";
+  const auto output_path = temp_dir.path() / "test.o";
+  const auto deps_path = temp_dir.path() / "test.d";
+  const String compiler_version = "fake_compiler_version";
+
+  ASSERT_TRUE(base::File::Write(input_path, "int main() { return 1; }"_l));
+  ASSERT_TRUE(base::File::Write(header_path, "#define A 1"_l));
+
+  conf.mutable_cache()->set_path(temp_dir.path() / "cache");
+  conf.mutable_cache()->set_direct(true);
+  conf.mutable_cache()->set_clean_period(1);
+  conf.mutable_emitter()->set_preprocessing(
+      proto::Configuration::Emitter::WHEN_IDLE);
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path("fake_compiler_path");
+
+  Atomic<bool> replied = false;
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      const auto& status = message.status();
+      EXPECT_EQ(net::proto::Status::OK, status.code()) << status.description();
+      replied = true;
+      send_condition.notify_all();
+    });
+    return true;
+  };
+
+  auto WaitFor = [](const Fn<bool()>& condition) {
+    for (int i = 0; i < 300 && !condition(); ++i) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return condition();
+  };
+
+  // The preprocessed source and the object, that the compiler gives.
+  Mutex mutex;
+  String preprocessed, object;
+  bool edit_after_reply = false, check_cancel = false;
+  Atomic<bool> preprocessing_done = false;
+  Atomic<ui32> canceled = 0;
+  const auto deps = Immutable("test.o: "_l) + Immutable(input_path) + " "_l +
+                    Immutable(header_path);
+  run_callback = [&](base::TestProcess* process) {
+    if (std::find(process->args_.begin(), process->args_.end(), "-E"_l) !=
+        process->args_.end()) {
+      if (edit_after_reply) {
+        // The header is saved after the compilation is stored - and the
+        // preprocessing reads the new version.
+        EXPECT_TRUE(WaitFor([&] { return bool(replied); }));
+        EXPECT_TRUE(base::File::Write(header_path, "#define A 3"_l));
+      }
+      std::lock_guard<Mutex> lock(mutex);
+      process->stdout_ = Immutable(String(preprocessed));
+      WriteDepsFile(process, deps);
+      preprocessing_done = true;
+      return;
+    }
+
+    if (check_cancel) {
+      // The preprocessed source is looked up in the meantime.
+      EXPECT_TRUE(WaitFor([&] { return bool(preprocessing_done); }));
+      std::this_thread::sleep_for(std::chrono::milliseconds(200));
+      if (process->cancel_requested()) {
+        ++canceled;
+        return;
+      }
+    }
+    std::lock_guard<Mutex> lock(mutex);
+    EXPECT_TRUE(base::File::Write(output_path, Immutable(String(object))));
+    EXPECT_TRUE(base::File::Write(deps_path, deps));
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto Compile = [&](ui32 expected_send_count) {
+    preprocessing_done = false;
+    replied = false;
+    auto connection = test_service->TriggerListen(socket_path);
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->mutable_local();
+    extension->set_current_dir(temp_dir);
+    auto* flags = extension->mutable_flags();
+    flags->set_input(input_path);
+    flags->set_output(output_path);
+    flags->set_deps_file(deps_path);
+    flags->set_deps_target("test.o");
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action("fake_action");
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(5), [&] {
+      return send_count == expected_send_count;
+    }));
+  };
+
+  HashMap<int, ui64> stats;
+  auto Stat = [&stats](perf::proto::Metric::Name name) {
+    perf::proto::Metric metric;
+    metric.set_name(name);
+    base::Singleton<perf::StatService>::Get().Dump(metric);
+    return stats[name] += metric.value();
+  };
+  auto Output = [&] {
+    Immutable content;
+    EXPECT_TRUE(base::File::Read(output_path, &content));
+    return content.string_copy();
+  };
+
+  // The new source isn't preprocessed.
+  preprocessed = "preprocessed 1";
+  object = "object 1";
+  Compile(1);
+  EXPECT_EQ("object 1", Output());
+
+  // The header is saved again during the preprocessing: the preprocessed
+  // source doesn't match the object.
+  ASSERT_TRUE(base::File::Write(header_path, "#define A 2"_l));
+  WaitAfterEdit();
+  preprocessed = "preprocessed 3";
+  object = "object 2";
+  edit_after_reply = true;
+  Compile(2);
+  EXPECT_EQ("object 2", Output());
+  EXPECT_TRUE(WaitFor([&] { return bool(preprocessing_done); }));
+  // The preprocessing ends after the reply.
+  std::this_thread::sleep_for(std::chrono::milliseconds(300));
+  EXPECT_EQ(1u, Stat(perf::proto::Metric::PARALLEL_PREPROCESSING));
+
+  // The new version of the header isn't found with the old object.
+  WaitAfterEdit();
+  edit_after_reply = false;
+  check_cancel = true;
+  object = "object 3";
+  Compile(3);
+  EXPECT_EQ("object 3", Output());
+  EXPECT_EQ(0u, canceled);
+  EXPECT_EQ(0u, Stat(perf::proto::Metric::PARALLEL_PREPROCESSING_HIT));
+  EXPECT_EQ(2u, Stat(perf::proto::Metric::PARALLEL_PREPROCESSING));
+
+  emitter.reset();
+}
+
 TEST_F(EmitterTest, TagEntries) {
   const base::TemporaryDir temp_dir;
   const auto input_path = temp_dir.path() / "test.cc";
