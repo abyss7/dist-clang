@@ -12,6 +12,18 @@
 namespace dist_clang {
 namespace base {
 
+namespace {
+
+// In the same directory - so that the final rename is atomic, and unique for
+// the writers of the same file at the same time.
+String UniqueTempPath(const Path& path) {
+  static Atomic<ui64> counter(0);
+  return path.string() + ".dc-" + std::to_string(getpid()) + "-" +
+         std::to_string(counter++) + ".tmp";
+}
+
+}  // namespace
+
 File::File(const Path& path) : Data(open(path.c_str(), O_RDONLY)) {
   if (!IsValid()) {
     GetLastError(&error_);
@@ -162,13 +174,9 @@ bool File::CopyInto(const Path& dst_path, String* error) {
     return false;
   }
 
+  // The incomplete copy isn't published.
   const bool result = CopyContentsInto(dst, src_size, error);
-
-  if (!dst.Close(error)) {
-    return false;
-  }
-
-  return result;
+  return dst.Close(result ? error : nullptr, result) && result;
 }
 
 // static
@@ -228,21 +236,26 @@ bool File::Write(const Path& path, Immutable input, String* error) {
   }
 
   size_t total_bytes = 0;
-  int size = 0;
   while (total_bytes < input.size()) {
-    size = write(dst.native(), input.data() + total_bytes,
-                 input.size() - total_bytes);
+    const ssize_t size = write(dst.native(), input.data() + total_bytes,
+                               input.size() - total_bytes);
+    if (size < 0 && errno == EINTR) {
+      continue;
+    }
     if (size <= 0) {
-      break;
+      if (size < 0) {
+        GetLastError(error);
+      } else if (error) {
+        error->assign("Short write");
+      }
+      // The truncated file isn't published.
+      dst.Close(nullptr, false);
+      return false;
     }
     total_bytes += size;
   }
 
-  if (!dst.Close(error)) {
-    return false;
-  }
-
-  return total_bytes == input.size();
+  return dst.Close(error);
 }
 
 // static
@@ -280,9 +293,7 @@ bool File::Clone(const Path& src, const Path& dst, bool allow_hardlink,
                  CloneMode* mode, String* error) {
   // Use a unique temporary file in the same directory, so that the final
   // rename is atomic.
-  static Atomic<ui64> counter(0);
-  const Path tmp_path = dst.string() + ".dc-" + std::to_string(getpid()) +
-                        "-" + std::to_string(counter++) + ".tmp";
+  const Path tmp_path = UniqueTempPath(dst);
 
   auto Finish = [&](CloneMode clone_mode) {
     const bool moved = Move(tmp_path, dst, error);
@@ -325,16 +336,19 @@ bool File::Move(const Path& src, const Path& dst, String* error) {
 }
 
 File::File(const Path& path, ui64 size)
-    : Data([=] {
+    : File(path, size, UniqueTempPath(path)) {}
+
+File::File(const Path& path, ui64 size, const String& tmp_path)
+    : Data([&] {
         // We need write-access even on object files after introduction of the
         // "split-dwarf" option, see
         // https://sourceware.org/bugzilla/show_bug.cgi?id=971
         const auto mode = mode_t(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-        const auto flags = O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC;
-        const Path tmp_path = AppendExtension(path, "tmp"_l);
+        const auto flags = O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC;
         return open(tmp_path.c_str(), flags, mode);
       }()),
-      move_on_close_(path) {
+      move_on_close_(path),
+      tmp_path_(tmp_path) {
   if (!IsValid()) {
     GetLastError(&error_);
     return;
@@ -350,16 +364,15 @@ File::File(const Path& path, ui64 size)
   Preallocate(size);
 }
 
-bool File::Close(String* error) {
+bool File::Close(String* error, bool commit) {
   Handle::Close();
 
   if (move_on_close_.empty()) {
     return true;
   }
 
-  const Path tmp_path = AppendExtension(move_on_close_, "tmp"_l);
-  if (!Move(tmp_path, move_on_close_, error)) {
-    Delete(tmp_path);
+  if (!commit || !Move(tmp_path_, move_on_close_, error)) {
+    Delete(tmp_path_);
     return false;
   }
 

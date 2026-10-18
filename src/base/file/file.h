@@ -57,8 +57,11 @@ class File final : public Data {
   static bool Delete(const Path& path, String* error = nullptr);
 
  private:
-  File(const Path& path, ui64 size);  // Open truncated write-only file
-  bool Close(String* error = nullptr);
+  // Opens a new write-only file: it replaces the file at |path| only on the
+  // close with |commit| - atomically.
+  File(const Path& path, ui64 size);
+  File(const Path& path, ui64 size, const String& tmp_path);
+  bool Close(String* error = nullptr, bool commit = true);
 
   // The parts, that differ between the platforms - in "file_<os>.cc".
   bool AdviseSequentialRead();
@@ -71,6 +74,8 @@ class File final : public Data {
 
   String error_;
   String move_on_close_;
+  // Unique - for the writers of the same file at the same time.
+  String tmp_path_;
 };
 
 }  // namespace base

@@ -5,7 +5,11 @@
 
 #include <gtest/gtest.h>
 
+#include STL(thread)
+
 #include <fcntl.h>
+#include <signal.h>
+#include <sys/resource.h>
 #include <unistd.h>
 
 namespace dist_clang {
@@ -77,6 +81,67 @@ TEST(FileTest, Write) {
 
   // Can't write to directory.
   EXPECT_FALSE(File::Write(temp_dir, expected_content));
+}
+
+TEST(FileTest, FailedWriteKeepsOldFile) {
+  // E.g. out of the space on the disk: the truncated file isn't published.
+  const TemporaryDir temp_dir;
+  const auto path = temp_dir.path() / "file";
+  ASSERT_TRUE(File::Write(path, "old contents"_l));
+
+  struct rlimit old_limit;
+  ASSERT_EQ(0, getrlimit(RLIMIT_FSIZE, &old_limit));
+  auto* old_handler = signal(SIGXFSZ, SIG_IGN);
+  struct rlimit limit = old_limit;
+  limit.rlim_cur = 4096;
+  ASSERT_EQ(0, setrlimit(RLIMIT_FSIZE, &limit));
+  String error;
+  const bool written =
+      File::Write(path, Immutable(String(10000, 'n')), &error);
+  ASSERT_EQ(0, setrlimit(RLIMIT_FSIZE, &old_limit));
+  signal(SIGXFSZ, old_handler);
+
+  EXPECT_FALSE(written);
+  EXPECT_FALSE(error.empty());
+  Immutable contents;
+  ASSERT_TRUE(File::Read(path, &contents));
+  EXPECT_EQ("old contents"_l, contents);
+  // No temporary files are left.
+  ui32 files = 0;
+  for (const auto& entry : std::filesystem::directory_iterator(temp_dir.path())) {
+    (void)entry;
+    ++files;
+  }
+  EXPECT_EQ(1u, files);
+}
+
+TEST(FileTest, ParallelWrites) {
+  // The writers of the same file don't spoil each other's contents.
+  const TemporaryDir temp_dir;
+  const auto path = temp_dir.path() / "file";
+  const String first(100000, 'a'), second(50000, 'b');
+
+  Atomic<bool> stop = false, spoiled = false;
+  Vector<std::thread> writers;
+  for (const String* contents : {&first, &second}) {
+    writers.emplace_back([&, contents] {
+      while (!stop) {
+        File::Write(path, Immutable(String(*contents)));
+      }
+    });
+  }
+  for (int i = 0; i < 2000 && !spoiled; ++i) {
+    Immutable read;
+    if (File::Read(path, &read) && read.string_copy() != first &&
+        read.string_copy() != second) {
+      spoiled = true;
+    }
+  }
+  stop = true;
+  for (auto& writer : writers) {
+    writer.join();
+  }
+  EXPECT_FALSE(spoiled);
 }
 
 TEST(FileTest, Size) {
