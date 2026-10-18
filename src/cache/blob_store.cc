@@ -111,9 +111,13 @@ bool BlobStore::Get(const String& hash, Immutable* content, Path* path,
     // someone else. Check the contents always: it's cheap compared to the
     // compilation.
     if (link_ && path) {
+      // The failure to hash - e.g. out of the descriptors - doesn't break
+      // the blob.
       Immutable actual_hash;
-      if (!base::File::Hash(raw_path, &actual_hash) ||
-          actual_hash.string_copy() != hash) {
+      if (!base::File::Hash(raw_path, &actual_hash)) {
+        return false;
+      }
+      if (actual_hash.string_copy() != hash) {
         return Broken(raw_path, "wrong hash");
       }
       *path = raw_path;
