@@ -445,6 +445,14 @@ class FileCache {
   // number of compressed blobs.
   ui32 CompressColdEntries();
 
+  // The lock of the cache directory for the whole life of the daemon: another
+  // daemon would remove the files, that this one hasn't indexed yet. It's the
+  // first member - released after all others.
+  struct DirectoryLock {
+    ~DirectoryLock();
+    int fd = -1;
+  } directory_lock_;
+
   mutable std::mutex locks_mutex_;
   mutable HashMap<String, ui32> read_locks_;
   mutable HashSet<String> write_locks_;

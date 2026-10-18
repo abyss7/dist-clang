@@ -20,6 +20,8 @@ static const char kDaemonVersion[] = VERSION;
 #include STL(set)
 #include STL(thread)
 
+#include <fcntl.h>
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/types.h>
@@ -234,6 +236,7 @@ namespace {
 const char kFormatFile[] = "format";
 // Exists, while the daemon uses the cache: after a crash it's left.
 const char kRunningFile[] = "running";
+const char kLockFile[] = "lock";
 const char kRemovedSuffix[] = ".removed-";
 // The sizes check all blobs - the cleaner spends on it not more than 1% of the
 // time.
@@ -250,7 +253,8 @@ bool IsCacheFile(const String& name) {
       return true;
     }
   }
-  return name == "blobs" || name == kFormatFile || name == kRunningFile;
+  return name == "blobs" || name == kFormatFile || name == kRunningFile ||
+         name == kLockFile;
 }
 
 // The path without the trailing separator - to put another one beside it.
@@ -285,6 +289,12 @@ void RemoveOldCaches(const Path& cache_path) {
 }
 
 }  // namespace
+
+FileCache::DirectoryLock::~DirectoryLock() {
+  if (fd != -1) {
+    close(fd);
+  }
+}
 
 FileCache::RunningMarker::~RunningMarker() {
   if (!path.empty()) {
@@ -366,7 +376,8 @@ ui64 FileCache::MetadataSize() const {
   return database_->SizeOnDisk() + tag_index_->SizeOnDisk() +
          ghosts_->SizeOnDisk() +
          base::File::Size(path_ / kFormatFile) +
-         base::File::Size(path_ / kRunningFile);
+         base::File::Size(path_ / kRunningFile) +
+         base::File::Size(path_ / kLockFile);
 }
 
 namespace {
@@ -484,6 +495,31 @@ bool FileCache::Run(ui64 clean_period) {
     LOG(CACHE_ERROR) << "Failed to create directory " << path_ << " : "
                      << error;
     return false;
+  }
+
+  // Only one daemon works with the cache - before any changes of its files.
+  const Path lock_path = path_ / kLockFile;
+  const int lock_fd =
+      open(lock_path.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0644);
+  if (lock_fd == -1) {
+    base::GetLastError(&error);
+    LOG(CACHE_ERROR) << "Failed to open " << lock_path << ": " << error;
+    return false;
+  }
+  if (flock(lock_fd, LOCK_EX | LOCK_NB) == -1) {
+    Immutable owner;
+    base::File::Read(lock_path, &owner);
+    LOG(CACHE_ERROR) << "The cache " << path_
+                     << " is used by another daemon, pid " << owner
+                     << ": it isn't used";
+    close(lock_fd);
+    return false;
+  }
+  directory_lock_.fd = lock_fd;
+  const String pid = std::to_string(getpid());
+  if (ftruncate(lock_fd, 0) != 0 ||
+      pwrite(lock_fd, pid.data(), pid.size(), 0) != ssize_t(pid.size())) {
+    LOG(CACHE_WARNING) << "Failed to write the pid into " << lock_path;
   }
 
   if (!CheckFormat()) {

@@ -151,6 +151,21 @@ TEST(FileCacheTest, DoubleLocks) {
   }
 }
 
+TEST(FileCacheTest, OneDaemonPerCache) {
+  const base::TemporaryDir temp_dir;
+  // Another daemon - e.g. with another socket - would remove the files of the
+  // entries, that the first one hasn't indexed yet.
+  {
+    FileCache first(temp_dir);
+    ASSERT_TRUE(first.Run(1));
+    FileCache second(temp_dir);
+    EXPECT_FALSE(second.Run(1));
+  }
+  // The cache is free again.
+  FileCache third(temp_dir);
+  EXPECT_TRUE(third.Run(1));
+}
+
 TEST(FileCacheTest, RemoveEntry) {
   const base::TemporaryDir temp_dir;
   FileCache cache(temp_dir, 100000, proto::NONE, false);
@@ -1101,22 +1116,26 @@ TEST(FileCacheTest, RemoveStaleTemporaryFiles) {
     ASSERT_EQ(0, utime(path.c_str(), &times));
   }
 
-  FileCache cache(temp_dir);
-  ASSERT_TRUE(cache.Run(1));
-  ASSERT_TRUE(base::File::Write(fresh_tmp, "garbage"_l));
-  cache.WaitForCleaner();
-  EXPECT_TRUE(base::File::Exists(fresh_tmp));
-
-  EXPECT_FALSE(base::File::Exists(tmp1));
-  EXPECT_FALSE(base::File::Exists(tmp2));
-  EXPECT_FALSE(base::File::Exists(orphan1));
-  EXPECT_FALSE(base::File::Exists(orphan2));
-  EXPECT_TRUE(base::File::Exists(kept));
-
-  // The complete entries are kept.
   const auto hash = FileCache::Hash(HandledSource("int main() {}"_l), {},
                                     CommandLine("-c"_l), Version("1"_l));
-  cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l, "stderr"_l});
+  {
+    FileCache cache(temp_dir);
+    ASSERT_TRUE(cache.Run(1));
+    ASSERT_TRUE(base::File::Write(fresh_tmp, "garbage"_l));
+    cache.WaitForCleaner();
+    EXPECT_TRUE(base::File::Exists(fresh_tmp));
+
+    EXPECT_FALSE(base::File::Exists(tmp1));
+    EXPECT_FALSE(base::File::Exists(tmp2));
+    EXPECT_FALSE(base::File::Exists(orphan1));
+    EXPECT_FALSE(base::File::Exists(orphan2));
+    EXPECT_TRUE(base::File::Exists(kept));
+
+    cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l, "stderr"_l});
+  }
+
+  // The complete entries are kept - after a crash too.
+  ASSERT_TRUE(base::File::Write(temp_dir.path() / "running", "1"_l));
   FileCache cache2(temp_dir);
   ASSERT_TRUE(cache2.Run(1));
   cache2.WaitForCleaner();
