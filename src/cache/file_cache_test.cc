@@ -2388,6 +2388,22 @@ TEST(FileCacheTest, DirectEntry_ChangedExtraFile) {
                           version, temp_dir, &entry));
 }
 
+TEST(FileCacheTest, NoStoresAfterClose) {
+  // The daemon exits right after the close, while the compilations still go
+  // on: the stores after it wouldn't be indexed, and the files wouldn't be
+  // checked at the next start - their blobs would be removed.
+  const base::TemporaryDir temp_dir;
+  FileCache cache(temp_dir, FileCache::UNLIMITED, proto::NONE, true);
+  ASSERT_TRUE(cache.Run(1));
+  cache.Close();
+
+  const auto hash = TestHash("-c");
+  cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l});
+  const auto manifest_path =
+      AppendExtension(cache.CommonPath(hash), base::kExtManifest);
+  EXPECT_FALSE(base::File::Exists(manifest_path));
+}
+
 TEST(FileCacheTest, CheckFilesOnlyAfterCrash) {
   const base::TemporaryDir temp_dir;
   string::Hash hash{Immutable(EntryHashForTest(1))};

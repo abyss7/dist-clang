@@ -423,6 +423,10 @@ void FileCache::WaitForCleaner() {
 }
 
 void FileCache::Close() {
+  {
+    std::unique_lock<std::shared_mutex> stores_lock(stores_mutex_);
+    closed_ = true;
+  }
   resetter_.reset();
   FlushAccesses();
   WaitForCleaner();
@@ -863,6 +867,11 @@ void FileCache::Store(UnhandledSource code, const ExtraFiles& extra_files,
                       const Path& current_dir, string::HandledHash hash,
                       const String& root, const List<Path>& search_dirs,
                       i64 start_time) {
+  std::shared_lock<std::shared_mutex> stores_lock(stores_mutex_);
+  if (closed_) {
+    return;
+  }
+
   // The macros of the time may come with the definitions of other macros.
   for (const auto macro : {"__DATE__"_l, "__TIME__"_l, "__TIMESTAMP__"_l}) {
     if (command_line.str.find(macro) != String::npos) {
@@ -1187,6 +1196,11 @@ bool FileCache::ReplaceLastSource(const String& key, UnhandledHash hash) {
 }
 
 void FileCache::Store(string::HandledHash hash, Entry entry) {
+  std::shared_lock<std::shared_mutex> stores_lock(stores_mutex_);
+  if (closed_) {
+    return;
+  }
+
   const auto manifest_path =
       AppendExtension(CommonPath(hash), base::kExtManifest);
   WriteLock lock(this, manifest_path);

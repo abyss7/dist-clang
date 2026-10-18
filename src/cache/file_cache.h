@@ -14,6 +14,8 @@
 
 #include <base/test_forward.h>
 
+#include STL(shared_mutex)
+
 namespace dist_clang {
 namespace cache {
 
@@ -32,6 +34,7 @@ FORWARD_TEST(FileCacheTest, ForgetTag);
 FORWARD_TEST(FileCacheTest, DeduplicateOutputs);
 FORWARD_TEST(FileCacheTest, RemoveUnreferencedBlobs);
 FORWARD_TEST(FileCacheTest, KeepBlobsOfHitsDuringScan);
+FORWARD_TEST(FileCacheTest, NoStoresAfterClose);
 FORWARD_TEST(FileCacheTest, CompressColdEntries);
 FORWARD_TEST(FileCacheTest, RoundTripCompressedEntry);
 FORWARD_TEST(FileCacheTest, RemoveEntryInBackground);
@@ -317,6 +320,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, DeduplicateOutputs);
   FRIEND_TEST(FileCacheTest, RemoveUnreferencedBlobs);
   FRIEND_TEST(FileCacheTest, KeepBlobsOfHitsDuringScan);
+  FRIEND_TEST(FileCacheTest, NoStoresAfterClose);
   FRIEND_TEST(FileCacheTest, CompressColdEntries);
   FRIEND_TEST(FileCacheTest, RoundTripCompressedEntry);
   FRIEND_TEST(FileCacheTest, RemoveEntryInBackground);
@@ -511,6 +515,12 @@ class FileCache {
   SharedPtr<EntryList> NewEntries() const THREAD_SAFE;
   mutable Mutex new_entries_mutex_;
   SharedPtr<EntryList> new_entries_;
+
+  // The daemon exits right after the close, while the compilations still go
+  // on: their stores wouldn't be indexed - they're refused. The close waits
+  // for the running ones.
+  std::shared_mutex stores_mutex_;
+  bool closed_ = false;
 
   // Removes the file "running" after the cleaner - at the normal stop.
   struct RunningMarker {
