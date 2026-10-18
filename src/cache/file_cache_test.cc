@@ -29,13 +29,12 @@ using namespace string;
 
 namespace {
 
-// A hash of an entry: "<32 hex>-<8 hex>-<8 hex>". It's formed in the code:
-// the literals of this form look like the API keys of Mailgun to the secret
-// scanners.
+// A hash of an entry: "<32 hex>-<16 hex>-<16 hex>". It's formed in the code:
+// the literals of such forms look like the API keys to the secret scanners.
 String EntryHashForTest(ui32 index) {
-  char suffix[9];
-  snprintf(suffix, sizeof(suffix), "%08x", index);
-  return String(32, '1') + "-" + String(8, '2') + "-" + suffix;
+  char suffix[17];
+  snprintf(suffix, sizeof(suffix), "%016x", index);
+  return String(32, '1') + "-" + String(16, '2') + "-" + suffix;
 }
 
 // The cache checks only the files, that are left before its start.
@@ -79,7 +78,9 @@ ui64 GetStat(perf::proto::Metric::Name name) {
 }  // namespace
 
 TEST(FileCacheTest, HashCompliesWithRegex) {
-  std::regex hash_regex("[a-f0-9]{32}-[a-f0-9]{8}-[a-f0-9]{8}");
+  // The command line and the compiler have 64 bits each: with 32 bits the
+  // collisions are likely in a large cache.
+  std::regex hash_regex("[a-f0-9]{32}-[a-f0-9]{16}-[a-f0-9]{16}");
   EXPECT_TRUE(
       std::regex_match(FileCache::Hash(HandledSource("1"_l), {},
                                        CommandLine("3"_l), Version("4"_l))

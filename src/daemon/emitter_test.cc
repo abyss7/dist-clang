@@ -742,7 +742,8 @@ TEST_F(EmitterTest, TasksGetReshardedOnFailedRemote) {
   // emitter to absorber and abort that connection. Than wait for second
   // connection from emitter to another(!) remote and check that remote is from
   // another shard.
-  Atomic<ui32> initial_shard = {77};
+  // The shard of the key of the task.
+  Atomic<ui32> initial_shard = {36};
 
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr end_point) {
     // All connection callbacks are on emitter side.

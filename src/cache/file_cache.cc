@@ -391,13 +391,13 @@ ui64 FileCache::MetadataSize() const {
 
 namespace {
 
-// Checks the name of the files of the entries: "<32 hex>-<8 hex>-<8 hex>".
+// Checks the name of the files of the entries: "<32 hex>-<16 hex>-<16 hex>".
 bool IsEntryHash(const String& name) {
-  if (name.size() != 50 || name[32] != '-' || name[41] != '-') {
+  if (name.size() != 66 || name[32] != '-' || name[49] != '-') {
     return false;
   }
   for (size_t i = 0; i < name.size(); ++i) {
-    if (i != 32 && i != 41 && !isxdigit(name[i])) {
+    if (i != 32 && i != 49 && !isxdigit(name[i])) {
       return false;
     }
   }
@@ -602,8 +602,8 @@ using namespace string;
 HandledHash FileCache::Hash(HandledSource code, const ExtraFiles& extra_files,
                             CommandLine command_line, Version version) {
   return HandledHash(HashCombine(code.str, extra_files) + "-" +
-                     base::Hexify(command_line.str.Hash(4)) + "-" +
-                     base::Hexify(version.str.Hash(4)));
+                     base::Hexify(command_line.str.Hash(8)) + "-" +
+                     base::Hexify(version.str.Hash(8)));
 }
 
 // static
@@ -612,8 +612,8 @@ UnhandledHash FileCache::Hash(UnhandledSource code,
                               CommandLine command_line, Version version) {
   return UnhandledHash(
       HashCombine(code.str, extra_files) + "-" +
-      base::Hexify(command_line.str.Hash(4)) + "-" +
-      base::Hexify((version.str + "\n"_l + kDirectKeyVersion).Hash(4)));
+      base::Hexify(command_line.str.Hash(8)) + "-" +
+      base::Hexify((version.str + "\n"_l + kDirectKeyVersion).Hash(8)));
 }
 
 // static
