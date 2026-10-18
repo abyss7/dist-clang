@@ -25,6 +25,11 @@ class SQLiteKV : public Database<Immutable> {
   }
 
   ui64 SizeOnDisk() const;
+  ui64 Count() const THREAD_SAFE;
+
+  // Removes the rows, that are |dead|. Returns their number.
+  ui64 DeleteIf(const Fn<bool(const String& key, const String& value)>& dead)
+      THREAD_SAFE;
 
  private:
   sqlite3* db_ = nullptr;

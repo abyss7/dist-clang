@@ -133,6 +133,40 @@ bool SQLiteKV::Delete(const String& key) {
   return true;
 }
 
+ui64 SQLiteKV::Count() const {
+  Statement stmt(db_, "SELECT COUNT(*) FROM kv");
+  return stmt && sqlite3_step(stmt) == SQLITE_ROW ? sqlite3_column_int64(stmt, 0)
+                                                  : 0;
+}
+
+ui64 SQLiteKV::DeleteIf(
+    const Fn<bool(const String& key, const String& value)>& dead) {
+  List<String> keys;
+  {
+    Statement stmt(db_, "SELECT key, value FROM kv");
+    if (!stmt) {
+      return 0;
+    }
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+      const String key(
+          reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)),
+          sqlite3_column_bytes(stmt, 0));
+      const String value(
+          reinterpret_cast<const char*>(sqlite3_column_blob(stmt, 1)),
+          sqlite3_column_bytes(stmt, 1));
+      if (dead(key, value)) {
+        keys.push_back(key);
+      }
+    }
+  }
+  sqlite3_exec(db_, "BEGIN TRANSACTION", nullptr, nullptr, nullptr);
+  for (const auto& key : keys) {
+    Delete(key);
+  }
+  sqlite3_exec(db_, "END TRANSACTION", nullptr, nullptr, nullptr);
+  return keys.size();
+}
+
 ui64 SQLiteKV::SizeOnDisk() const {
   ui64 size = 0;
   for (const auto& suffix : {"", "-wal", "-shm"}) {

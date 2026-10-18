@@ -1525,6 +1525,28 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
 }
 
 void FileCache::Maintain() {
+  // The rows of the direct cache, that lead to the removed entries: the
+  // database would only grow. The entries, that aren't indexed yet, have the
+  // manifests.
+  HashSet<String> indexed;
+  for (const auto& [hash, value] : entries_->GetInEvictionOrder()) {
+    indexed.insert(hash);
+  }
+  const ui64 removed_rows = database_->DeleteIf(
+      [this, &indexed](const String& key, const String& value) {
+        if (key.starts_with("seen:") || key.starts_with("source:") ||
+            indexed.contains(value)) {
+          return false;
+        }
+        const string::Hash hash{Immutable(value)};
+        return !base::File::Exists(
+            AppendExtension(CommonPath(hash), base::kExtManifest));
+      });
+  if (removed_rows) {
+    LOG(CACHE_VERBOSE) << "Removed " << removed_rows
+                       << " rows of the direct cache";
+  }
+
   entries_->BeginTransaction();
   tag_index_->BeginTransaction();
   ghosts_->BeginTransaction();

@@ -203,6 +203,38 @@ TEST(FileCacheTest, RemoveEntry) {
   EXPECT_EQ(0u, cache.cache_size_);
 }
 
+TEST(FileCacheTest, RemoveDirectRowsOfRemovedEntries) {
+  const base::TemporaryDir temp_dir;
+  const auto header_path = temp_dir.path() / "test.h";
+  ASSERT_TRUE(base::File::Write(header_path, "#define A"_l));
+  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED,
+                  proto::NONE, true);
+  ASSERT_TRUE(cache.Run(3600));
+
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  const UnhandledSource orig_code("int main() {}"_l);
+  const auto hash = FileCache::Hash(HandledSource("x"_l), {}, cl, version);
+  cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l});
+  cache.Store(orig_code, {}, cl, version, {header_path}, {}, temp_dir, hash,
+              String(), {}, CompilationTime());
+  cache.new_entries_.reset(new FileCache::EntryList,
+                           cache.new_entries_deleter_);
+  cache.WaitForCleaner();
+  const ui64 rows = cache.database_->Count();
+
+  // The rows of the direct cache, that lead to the removed entries, are
+  // removed too - otherwise the database only grows.
+  ASSERT_TRUE(cache.RemoveEntry(hash));
+  std::promise<void> done;
+  cache.cleaner_.Push([&] {
+    cache.Maintain();
+    done.set_value();
+  });
+  done.get_future().wait();
+  EXPECT_EQ(rows - 1, cache.database_->Count());
+}
+
 TEST(FileCacheTest, RestoreSingleEntry) {
   const base::TemporaryDir temp_dir;
   const auto object_path = temp_dir.path() / "test.o";
