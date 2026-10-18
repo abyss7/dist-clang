@@ -1676,6 +1676,27 @@ TEST(FileCacheTest, DirectEntry_TimeMacros) {
   EXPECT_TRUE(FindDirect());
 }
 
+TEST(FileCacheTest, DirectEntry_TimeMacrosInFlags) {
+  const base::TemporaryDir temp_dir;
+  const auto header_path = temp_dir.path() / "test.h";
+  FileCache cache(temp_dir);
+  ASSERT_TRUE(cache.Run(1));
+  const Version version("3.5 (revision 100000)"_l);
+  const UnhandledSource orig_code("const char* t = T;"_l);
+  ASSERT_TRUE(base::File::Write(header_path, "#define A"_l));
+
+  // The macro of the time comes with the definition of another one.
+  for (const auto macro : {"__DATE__"_l, "__TIME__"_l, "__TIMESTAMP__"_l}) {
+    const CommandLine cl(Immutable("-c -DT="_l) + macro);
+    const auto hash = FileCache::Hash(HandledSource("t"_l), {}, cl, version);
+    cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l});
+    cache.Store(orig_code, {}, cl, version, {header_path}, {}, temp_dir, hash);
+    FileCache::Entry entry;
+    EXPECT_FALSE(cache.Find(orig_code, {}, cl, version, temp_dir, &entry))
+        << macro;
+  }
+}
+
 TEST(FileCacheTest, ShadowingPaths) {
   const List<Path> dirs = {"/src/dir", "/src", "/build/gen", "/src/inc"};
 

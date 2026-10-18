@@ -766,6 +766,14 @@ void FileCache::Store(UnhandledSource code, const ExtraFiles& extra_files,
                       const Path& current_dir, string::HandledHash hash,
                       const String& root, const List<Path>& search_dirs,
                       i64 start_time) {
+  // The macros of the time may come with the definitions of other macros.
+  for (const auto macro : {"__DATE__"_l, "__TIME__"_l, "__TIMESTAMP__"_l}) {
+    if (command_line.str.find(macro) != String::npos) {
+      LOG(CACHE_INFO) << "Not storing direct cache entry - the flags use "
+                      << macro;
+      return;
+    }
+  }
   DoStore(Hash(code, extra_files, command_line, version), headers,
           preprocessed_headers, current_dir, hash, root, search_dirs,
           start_time);
