@@ -6,6 +6,8 @@ source_set("client") {
     "autostart.h",
     "clang.cc",
     "clang.h",
+    "driver_name.cc",
+    "driver_name.h",
   ]
 
   deps = [

@@ -5,6 +5,7 @@
 #include <client/autostart.h>
 #include <client/clang.h>
 #include <client/configuration.hh>
+#include <client/driver_name.h>
 
 #include STL(iostream)
 
@@ -150,10 +151,9 @@ int main(int argc, char* argv[]) {
       return 1;
     }
     args.push_back(config.path());
-    // The driver mode depends on the name of the executable.
-    if (self_name.find("++") != String::npos &&
-        BaseName(config.path()).find("++") == String::npos) {
-      args.push_back("--driver-mode=g++");
+    // The compiler derives some flags from the name of its executable.
+    for (auto& arg : client::DriverNameArgs(self_name)) {
+      args.push_back(std::move(arg));
     }
     args.insert(args.end(), argv + 1, argv + argc);
   }
