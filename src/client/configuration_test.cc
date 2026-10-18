@@ -45,7 +45,9 @@ TEST(ClientConfigurationTest, DontFindItself) {
   // A symlink "clang" to the client itself in PATH isn't the real compiler:
   // it would run itself forever.
   const base::TemporaryDir temp_dir;
-  std::filesystem::create_symlink(std::filesystem::canonical("/proc/self/exe"),
+  String self;
+  ASSERT_TRUE(base::GetSelfExecutable(self));
+  std::filesystem::create_symlink(std::filesystem::canonical(self),
                                   temp_dir.path() / "clang");
   const String old_path = String(base::GetEnv("PATH"_l));
   setenv("PATH", (temp_dir.path().string() + ":" + old_path).c_str(), 1);
