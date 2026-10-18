@@ -1225,13 +1225,23 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
   auto* v1 = manifest.mutable_v1();
   ui64 size = 0;
 
+  // The blobs, that are put by this store: nothing refers to them on a
+  // failure.
+  List<String> new_blobs;
+  auto Fail = [&] {
+    RemoveEntry(hash);
+    for (const auto& blob : new_blobs) {
+      blobs_.Discard(blob);
+    }
+  };
+
   v1->set_err(!entry.stderr.empty());
   if (!entry.stderr.empty()) {
     const auto stderr_path =
         AppendExtension(CommonPath(hash), base::kExtStderr);
 
     if (!base::File::Write(stderr_path, entry.stderr, &error)) {
-      RemoveEntry(hash);
+      Fail();
       LOG(CACHE_ERROR) << "Failed to save stderr to " << stderr_path << ": "
                        << error;
       return;
@@ -1245,13 +1255,15 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
   if (v1->obj()) {
     if (!blobs_.Put(entry.object, entry.object_path,
                     v1->mutable_object_hash(), &reused, &error)) {
-      RemoveEntry(hash);
+      Fail();
       LOG(CACHE_ERROR) << "Failed to save object of " << hash.str << ": "
                        << error;
       return;
     }
     if (reused) {
       STAT(CACHE_BLOB_REUSED);
+    } else {
+      new_blobs.push_back(v1->object_hash());
     }
   }
 
@@ -1260,7 +1272,7 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
     const auto deps_path = AppendExtension(CommonPath(hash), base::kExtDeps);
 
     if (!base::File::Write(deps_path, entry.deps, &error)) {
-      RemoveEntry(hash);
+      Fail();
       LOG(CACHE_ERROR) << "Failed to save deps to " << deps_path << ": "
                        << error;
       return;
@@ -1273,13 +1285,15 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
   if (v1->dwo()) {
     if (!blobs_.Put(entry.dwo, entry.dwo_path, v1->mutable_dwo_hash(),
                     &reused, &error)) {
-      RemoveEntry(hash);
+      Fail();
       LOG(CACHE_ERROR) << "Failed to save split DWARF of " << hash.str << ": "
                        << error;
       return;
     }
     if (reused) {
       STAT(CACHE_BLOB_REUSED);
+    } else {
+      new_blobs.push_back(v1->dwo_hash());
     }
   }
 
@@ -1292,7 +1306,7 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
   }
 
   if (!base::SaveBinaryToFile(manifest_path, manifest, &error)) {
-    RemoveEntry(hash);
+    Fail();
     LOG(CACHE_ERROR) << "Failed to save manifest to " << manifest_path << ": "
                      << error;
     return;

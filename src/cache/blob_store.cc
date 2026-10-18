@@ -230,6 +230,14 @@ void BlobStore::Delete(const String& hash) {
   }
 }
 
+void BlobStore::Discard(const String& hash) const {
+  for (const auto& path : {RawPath(hash), PackedPath(hash)}) {
+    if (base::File::Exists(path)) {
+      base::File::Delete(path);
+    }
+  }
+}
+
 void BlobStore::MarkUsed(const String& hash) const {
   std::lock_guard<Mutex> lock(reused_mutex_);
   if (track_reused_) {

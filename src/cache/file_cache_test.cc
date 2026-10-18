@@ -740,6 +740,29 @@ HandledHash TestHash(const char* flags) {
 
 }  // namespace
 
+TEST(FileCacheTest, RemoveBlobsOfFailedStore) {
+  const base::TemporaryDir temp_dir;
+  FileCache cache(temp_dir.path(), FileCache::UNLIMITED, proto::ZSTD, true);
+  ASSERT_TRUE(cache.Run(3600));
+  const auto hash = TestHash("-c");
+  const String object_hash = base::Hexify(Immutable("object"_l).Hash());
+
+  // The dependencies can't be written: nothing refers to the new blob.
+  const auto deps_path = AppendExtension(cache.CommonPath(hash), base::kExtDeps);
+  ASSERT_TRUE(base::CreateDirectory(deps_path));
+  cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l});
+  FileCache::Entry entry;
+  EXPECT_FALSE(cache.Find(hash, &entry));
+  EXPECT_FALSE(base::File::Exists(cache.blobs_.PackedPath(object_hash)));
+
+  // The reused blob stays.
+  const auto other_hash = TestHash("-c -O1");
+  cache.Store(other_hash, FileCache::Entry{"object"_l, "deps"_l});
+  cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l});
+  EXPECT_TRUE(base::File::Exists(cache.blobs_.PackedPath(object_hash)));
+  EXPECT_TRUE(cache.Find(other_hash, &entry));
+}
+
 TEST(FileCacheTest, TagStats) {
   const base::TemporaryDir temp_dir;
   // Makes the cleaner process the stored entries and the tags.
