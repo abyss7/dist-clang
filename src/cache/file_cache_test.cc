@@ -1068,6 +1068,16 @@ TEST(FileCacheTest, Format) {
   WriteFormat(FileCache::kGeneration, FileCache::kRevision);
   EXPECT_TRUE(Found());
 
+  // The unreadable format can't tell anything: the cache isn't used - and
+  // isn't touched.
+  ASSERT_TRUE(base::File::Write(format_path, "broken {"_l));
+  EXPECT_FALSE(Found());
+  Immutable contents;
+  ASSERT_TRUE(base::File::Read(format_path, &contents));
+  EXPECT_EQ("broken {"_l, contents);
+  WriteFormat(FileCache::kGeneration, FileCache::kRevision);
+  EXPECT_TRUE(Found());
+
   // The older generation is removed.
   WriteFormat(FileCache::kGeneration - 1, 0);
   EXPECT_FALSE(Found());

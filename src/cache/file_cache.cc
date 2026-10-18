@@ -320,8 +320,13 @@ bool FileCache::CheckFormat() {
 
   if (base::File::Exists(format_path)) {
     if (!base::LoadFromFile(format_path, &format)) {
-      // Can't tell anything - start anew.
-      format.set_generation(0);
+      // Can't tell anything - e.g. it's written by a newer daemon, or by
+      // hand: the cache isn't removed, but isn't used either.
+      LOG(CACHE_ERROR) << "Can't read the format of the cache " << format_path
+                       << ": the cache isn't used - fix or remove the file";
+      base::Singleton<perf::StatService>::Get().Set(
+          perf::proto::Metric::CACHE_INCOMPATIBLE, 1);
+      return false;
     }
   } else if (base::File::Exists(path_ / "index.sqlite") ||
              base::File::Exists(path_ / "direct.sqlite")) {
