@@ -3,6 +3,7 @@
 #include <base/base.pb.h>
 #include <base/const_string.h>
 #include <base/file/file.h>
+#include <base/file_utils.h>
 #include <base/temporary_dir.h>
 
 #include <gtest/gtest.h>
@@ -402,6 +403,28 @@ TEST(DriverArgsTest, Environment) {
   EXPECT_FALSE(
       ParseEnvironment({"CCC_OVERRIDE_OPTIONS=+-O0"}, &flags, &reason));
   EXPECT_FALSE(reason.empty());
+}
+
+TEST(DriverArgsTest, ApparentCurrentDir) {
+  const base::TemporaryDir temp_dir;
+  const Path real = temp_dir.path() / "real";
+  const Path link = temp_dir.path() / "link";
+  ASSERT_TRUE(base::CreateDirectory(real));
+  std::filesystem::create_directory_symlink(real, link);
+
+  // The compiler writes the directory from PWD into the debug info, if it's
+  // the same directory.
+  base::proto::Flags flags;
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-g"}, &flags, nullptr, real));
+  ASSERT_TRUE(ParseEnvironment({"PWD=" + link.string()}, &flags, nullptr));
+  EXPECT_EQ(List<String>{"cwd:" + link.string()}, KeyExtra(flags));
+
+  // Another directory isn't used.
+  flags.Clear();
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-g"}, &flags, nullptr, real));
+  ASSERT_TRUE(ParseEnvironment({"PWD=" + temp_dir.path().string()}, &flags,
+                               nullptr));
+  EXPECT_EQ(List<String>{"cwd:" + real.string()}, KeyExtra(flags));
 }
 
 TEST(DriverArgsTest, ResponseFiles) {
