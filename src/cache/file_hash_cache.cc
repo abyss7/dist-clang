@@ -18,7 +18,7 @@ const i64 kRacyIntervalNs = 2'000'000'000;
 
 }  // namespace
 
-bool FileHashCache::Hash(const Path& path, String* hash, String* error,
+bool FileHashCache::Hash(const String& path, String* hash, String* error,
                          bool* time_macros, i64* modified) {
   struct stat st;
   if (stat(path.c_str(), &st) == -1) {
@@ -30,7 +30,7 @@ bool FileHashCache::Hash(const Path& path, String* hash, String* error,
     *modified = std::max(base::ModificationTime(st), base::StatusChangeTime(st));
   }
 
-  const String key = path.string();
+  const String& key = path;
   {
     std::lock_guard<Mutex> lock(mutex_);
     auto it = entries_.find(key);

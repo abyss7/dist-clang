@@ -76,14 +76,9 @@ String ToManifestPath(const String& header, const Path& current_dir,
   if (root.empty()) {
     return header;
   }
-  const String path =
-      (Path(header).is_absolute() ? Path(header) : current_dir / header)
-          .lexically_normal()
-          .string();
-  String build_dir = current_dir.lexically_normal().string();
-  while (build_dir.size() > 1 && build_dir.back() == '/') {
-    build_dir.pop_back();
-  }
+  const String& dir = current_dir.native();
+  const String path = base::NormalPath(dir, header);
+  const String build_dir = base::NormalPath(dir, String());
   if (path.starts_with(build_dir + "/")) {
     return path.substr(build_dir.size() + 1);
   }
@@ -93,16 +88,15 @@ String ToManifestPath(const String& header, const Path& current_dir,
   return header;
 }
 
-// The path of the header to read.
-Path FromManifestPath(const String& header, const Path& current_dir,
-                      const String& root) {
+// The normal path of the header to read.
+String FromManifestPath(const String& header, const Path& current_dir,
+                        const String& root) {
   if (header.starts_with(kRootPlaceholder)) {
     // Can't be resolved without the root - the empty path is never read.
-    return root.empty()
-               ? Path()
-               : Path(root + header.substr(strlen(kRootPlaceholder)));
+    return root.empty() ? String()
+                        : root + header.substr(strlen(kRootPlaceholder));
   }
-  return Path(header).is_absolute() ? Path(header) : current_dir / header;
+  return base::NormalPath(current_dir.native(), header);
 }
 
 struct Variant {
@@ -647,7 +641,7 @@ bool FileCache::IsShadowed(const List<String>& headers,
   String path;
   for (const auto& header : headers) {
     const String header_path =
-        FromManifestPath(header, current_dir, root).lexically_normal().native();
+        FromManifestPath(header, current_dir, root);
     VisitShadowingPaths(
         header_path, prefixes,
         [&](const String& prefix, std::string_view relative) {
@@ -697,7 +691,7 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
     bool hashed = true;
     for (const auto& header : variant.headers) {
       String header_hash;
-      const Path header_path = FromManifestPath(header, current_dir, root);
+      const String header_path = FromManifestPath(header, current_dir, root);
       if (header_path.empty() || !file_hashes_.Hash(header_path, &header_hash)) {
         hashed = false;
         break;

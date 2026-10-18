@@ -15,7 +15,7 @@ class FileHashCache {
   // the result of its compilation depends on the time.
   // Sets |modified|, the latest time of the modification of the file (mtime or
   // ctime) in nanoseconds.
-  bool Hash(const Path& path, String* hash, String* error = nullptr,
+  bool Hash(const String& path, String* hash, String* error = nullptr,
             bool* time_macros = nullptr, i64* modified = nullptr) THREAD_SAFE;
 
  private:
