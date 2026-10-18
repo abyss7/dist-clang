@@ -40,6 +40,10 @@ class CompilationDaemon : public BaseDaemon {
   static bool InputsUnchangedSince(const base::proto::Local* message,
                                    Immutable deps, i64 time);
 
+  // The command line in the key of the direct cache.
+  static String DirectCommandLine(const String& current_dir,
+                                  const base::proto::Flags& flags);
+
   // Finds the input or the output, that exists, but isn't a regular file -
   // e.g. "/dev/null": such compilations aren't cached. Sets its |path|.
   static bool FindSpecialFile(const base::proto::Flags& flags,

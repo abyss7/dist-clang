@@ -228,6 +228,35 @@ TEST(CompilationDaemonTest, HashDoesntDependOnSourceRoot) {
             CompilationDaemon::GenerateHash(flags2, source3, {}));
 }
 
+TEST(CompilationDaemonTest, DirectKeyKeepsRootInOtherFlags) {
+  auto Flags = [](const String& root, const String& define) {
+    base::proto::Flags flags;
+    flags.set_input(root + "/src/a.cc");
+    flags.set_key_root(root);
+    flags.set_key_root_relative("..");
+    flags.set_key_root_remapped(true);
+    auto* include = flags.add_non_cached();
+    include->set_index(1);
+    include->add_values("-I");
+    include->add_values(root + "/include");
+    flags.add_non_cached()->add_values("-I" + root + "/gen");
+    flags.add_other()->add_values("-fmacro-prefix-map=" + root + "/=");
+    flags.add_non_cached()->add_values("-DDATA=\"" + define + "/data\"");
+    return flags;
+  };
+
+  // The paths, that the compiler remaps, don't matter.
+  EXPECT_EQ(CompilationDaemon::DirectCommandLine("/build",
+                                                 Flags("/root1", "/data")),
+            CompilationDaemon::DirectCommandLine("/build",
+                                                 Flags("/root2", "/data")));
+  // The definition gets into the object as is.
+  EXPECT_NE(CompilationDaemon::DirectCommandLine("/build",
+                                                 Flags("/root1", "/root1")),
+            CompilationDaemon::DirectCommandLine("/build",
+                                                 Flags("/root2", "/root2")));
+}
+
 TEST(CompilationDaemonTest, InputsUnchangedSince) {
   const base::TemporaryDir temp_dir;
   ASSERT_TRUE(base::File::Write(temp_dir.path() / "a.cc", "int a;"_l));

@@ -103,6 +103,66 @@ void ReplacePathPrefix(String& text, const String& prefix) {
   }
 }
 
+// The arguments with the paths, that the compiler remaps in the result: the
+// include directories and files, the maps and the compilation directories.
+// The other paths - e.g. in the definitions of the macros - get into the result
+// as is.
+bool HasRemappedPaths(const String& name) {
+  static const char* const kPrefixes[] = {
+      "-I",
+      "-isystem",
+      "-iquote",
+      "-idirafter",
+      "-cxx-isystem",
+      "-stdlib++-isystem",
+      "-include",
+      "-imacros",
+      "-F",
+      "-iframework",
+      "-fmacro-prefix-map=",
+      "-ffile-prefix-map=",
+      "-fdebug-prefix-map=",
+      "-fcoverage-prefix-map=",
+      "-fdebug-compilation-dir",
+      "-ffile-compilation-dir=",
+      "-fcoverage-compilation-dir=",
+  };
+  for (const char* prefix : kPrefixes) {
+    if (name.starts_with(prefix)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// The values of the arguments in the key - with the root replaced in the paths,
+// that the compiler remaps.
+template <class... Args>
+inline auto CreateKeyArgumentList(const base::proto::Flags& flags,
+                                  const Args&... args) {
+  MultiMap<ui32, String> map;
+  List<String> list;
+
+  for (const auto& arg_list : {args...}) {
+    for (const auto& arg : arg_list) {
+      const bool remapped =
+          arg.values_size() && HasRemappedPaths(arg.values(0));
+      for (const auto& value : arg.values()) {
+        map.emplace(arg.index(),
+                    remapped ? daemon::CompilationDaemon::NormalizePaths(
+                                   value, flags)
+                             : value);
+      }
+    }
+  }
+
+  for (const auto& arg : map) {
+    list.push_back(arg.second);
+  }
+
+  return list;
+}
+
 // Parts of the cache key that aren't flags.
 inline String KeyExtra(const base::proto::Flags& flags) {
   String result;
@@ -113,27 +173,28 @@ inline String KeyExtra(const base::proto::Flags& flags) {
 }
 
 inline CommandLine CommandLineForSimpleCache(const base::proto::Flags& flags) {
-  auto arg_list = flags.recheck_warnings()
-                      ? CreateArgumentList(flags.other(), flags.cc_only())
-                      : CreateArgumentList(flags.other(), flags.cc_only(),
-                                           flags.warnings());
+  auto arg_list =
+      flags.recheck_warnings()
+          ? CreateKeyArgumentList(flags, flags.other(), flags.cc_only())
+          : CreateKeyArgumentList(flags, flags.other(), flags.cc_only(),
+                                  flags.warnings());
   auto command_line = base::JoinString<' '>(arg_list.begin(), arg_list.end());
   if (flags.has_language()) {
     command_line += " -x " + flags.language();
   }
   command_line += KeyExtra(flags);
 
-  return CommandLine(daemon::CompilationDaemon::NormalizePaths(command_line, flags));
+  return CommandLine(command_line);
 }
 
 inline CommandLine CommandLineForDirectCache(const String& current_dir,
                                              const base::proto::Flags& flags) {
   auto args_list =
       flags.recheck_warnings()
-          ? CreateArgumentList(flags.other(), flags.cc_only(),
-                               flags.non_cached())
-          : CreateArgumentList(flags.other(), flags.cc_only(),
-                               flags.non_cached(), flags.warnings());
+          ? CreateKeyArgumentList(flags, flags.other(), flags.cc_only(),
+                                  flags.non_cached())
+          : CreateKeyArgumentList(flags, flags.other(), flags.cc_only(),
+                                  flags.non_cached(), flags.warnings());
   auto command_line = base::JoinString<' '>(args_list.begin(), args_list.end());
   if (flags.has_language()) {
     command_line += " -x " + flags.language();
@@ -142,16 +203,20 @@ inline CommandLine CommandLineForDirectCache(const String& current_dir,
   // Compiler implicitly appends file's directory as an include path - so do we.
   // FIXME: make sure we did it in a proper order - relative to other include
   //        paths.
+  using daemon::CompilationDaemon;
   String input_path = flags.input().substr(0, flags.input().find_last_of('/'));
-  command_line += " -I" + GetRelativePath(current_dir, input_path);
+  command_line += " " + CompilationDaemon::NormalizePaths(
+                            "-I" + GetRelativePath(current_dir, input_path),
+                            flags);
 
   // The name of the source gets into the result - through "__FILE__" and the
   // debug info: the sources with the same contents aren't interchangeable.
-  command_line += " " + GetRelativePath(current_dir, flags.input());
+  command_line +=
+      " " + CompilationDaemon::NormalizePaths(
+                GetRelativePath(current_dir, flags.input()), flags);
   command_line += KeyExtra(flags);
 
-  return CommandLine(
-      daemon::CompilationDaemon::NormalizePaths(command_line, flags));
+  return CommandLine(command_line);
 }
 
 bool ParseDeps(String deps, List<String>& headers) {
@@ -358,6 +423,12 @@ String CompilationDaemon::NormalizeLineMarkers(const String& source,
     line_start = line_end;
   }
   return result;
+}
+
+// static
+String CompilationDaemon::DirectCommandLine(const String& current_dir,
+                                            const base::proto::Flags& flags) {
+  return CommandLineForDirectCache(current_dir, flags).str.string_copy();
 }
 
 // static
