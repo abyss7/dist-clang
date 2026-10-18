@@ -34,7 +34,7 @@ namespace {
 
 // Bump to invalidate all direct cache entries, e.g. when the way of collecting
 // the direct-mode command line changes.
-const Literal kDirectKeyVersion = "direct-2"_l;
+const Literal kDirectKeyVersion = "direct-3"_l;
 
 Path ReplaceTildeInPath(const String& path) {
   // FIXME: try to handle |Path| instead of |String|

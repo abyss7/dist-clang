@@ -106,6 +106,13 @@ TEST(DriverArgsTest, DefaultDependencyFile) {
   EXPECT_EQ("obj/test.cc.d", flags.deps_file());
 }
 
+TEST(DriverArgsTest, SystemHeadersInDependencyFile) {
+  // The direct cache must see the changes of the system headers too.
+  base::proto::Flags flags;
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-MMD", "-MF", "test.d"}, &flags));
+  EXPECT_EQ((List<String>{"-MD", "-MF", "test.d"}), Values(flags.non_direct()));
+}
+
 TEST(DriverArgsTest, DependencyFileWithoutGeneration) {
   base::proto::Flags flags;
   ASSERT_TRUE(Parse({"-c", "test.cc", "-MF", "test.d"}, &flags));

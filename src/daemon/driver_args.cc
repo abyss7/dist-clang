@@ -489,6 +489,11 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
     if (auto* option = FindExact(kFlags, arg)) {
       if (arg == "-MD" || arg == "-MMD") {
         has_deps = true;
+        // The direct cache needs all headers - also the system ones, that
+        // "-MMD" leaves out: their changes would give the stale objects. The
+        // build system gets them too.
+        AddArgument(option->cls, index, {"-MD"});
+        continue;
       }
       AddArgument(option->cls, index, {arg});
       continue;

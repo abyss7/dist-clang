@@ -8,7 +8,8 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-dc="$PWD/out/Release/dist-clang"
+# The client starts the daemon next to it.
+dc="${DC:-$PWD/out/Release/dist-clang}"
 cxx="${1:-clang++}"
 
 work="$(mktemp -d)"
@@ -35,20 +36,45 @@ compile() {
   "$dc" "$cxx" -c test.cc -o "test$1.o" -MD -MF "test$1.d"
 }
 
+stat_value() {
+  "$dc" --stats --raw 2>/dev/null | awk -v name="$1" '$1 == name { print $2 }'
+}
+
 # The first compilation may run locally, while the daemon starts.
+hit=
 for i in 1 2 3 4 5; do
   compile $i
-  hits="$("$dc" --stats --raw 2>/dev/null |
-          awk '$1 == "DIRECT_CACHE_HIT" { print $2 }')"
-  if [ "${hits:-0}" -ge 1 ]; then
+  if [ "$(stat_value DIRECT_CACHE_HIT)" -ge 1 ] 2>/dev/null; then
     cmp "test$((i - 1)).o" "test$i.o"
     "$cxx" test$i.o -o test && ./test
     echo "The compilation $i is found in the direct cache"
-    exit 0
+    hit=1
+    break
   fi
   sleep 1
 done
+if [ -z "$hit" ]; then
+  "$dc" --stats || true
+  echo "No hits of the direct cache" >&2
+  exit 1
+fi
 
-"$dc" --stats || true
-echo "No hits of the direct cache" >&2
-exit 1
+# A system header changes: "-MMD" leaves it out of the dependency file, but
+# the cache must not return the old object.
+mkdir -p system
+cat > system_header.cc <<'SOURCE'
+#include <value.h>
+int main() { return VALUE; }
+SOURCE
+for value in 1 2 3; do
+  echo "#define VALUE $value" > system/value.h
+  rm -f system_header.o
+  "$dc" "$cxx" -isystem system -c system_header.cc -o system_header.o -MMD
+  "$cxx" system_header.o -o system_header
+  ./system_header && result=0 || result=$?
+  if [ "$result" != "$value" ]; then
+    echo "The system header with the value $value gives $result" >&2
+    exit 1
+  fi
+done
+echo "The changes of the system headers are seen"
