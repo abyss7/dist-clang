@@ -260,12 +260,16 @@ TEST(DriverArgsTest, Warnings) {
   base::proto::Flags flags;
   ASSERT_TRUE(Parse({"-c", "test.cc", "-Wall", "-Werror", "-Wno-unused",
                      "-Werror=format", "-w", "-pedantic", "-Wl,--as-needed",
-                     "-Wa,--noexecstack"},
+                     "-Wa,--noexecstack", "-Wframe-larger-than=1024",
+                     "-Wno-error=unused"},
                     &flags));
-  EXPECT_EQ((List<String>{"-Wall", "-Werror", "-Wno-unused", "-Werror=format",
-                          "-w", "-pedantic"}),
+  EXPECT_EQ((List<String>{"-Wall", "-Wno-unused", "-w", "-pedantic"}),
             Values(flags.warnings()));
-  EXPECT_EQ((List<String>{"-Wl,--as-needed", "-Wa,--noexecstack"}),
+  // The errors of the backend - and the flags, that make them - aren't seen by
+  // the recheck of the warnings: they are a part of the key.
+  EXPECT_EQ((List<String>{"-Werror", "-Werror=format", "-Wl,--as-needed",
+                          "-Wa,--noexecstack", "-Wframe-larger-than=1024",
+                          "-Wno-error=unused"}),
             Values(flags.other()));
 }
 

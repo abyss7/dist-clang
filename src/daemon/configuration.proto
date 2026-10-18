@@ -114,7 +114,9 @@ message Configuration {
     // produced with other warning flags, check the source with "-fsyntax-only"
     // and the current flags, and take the object file from the cache. It saves
     // the code generation, when only warnings change, but misses the warnings
-    // of the backend, e.g. "-Wframe-larger-than".
+    // of the backend - e.g. "-Wattribute-warning" by default. The flags, that
+    // turn the warnings into errors, and "-Wframe-larger-than" stay in the key:
+    // the recheck can't see the errors of the backend.
 
     enum Preprocessing {
       ALWAYS    = 0;

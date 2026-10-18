@@ -584,11 +584,20 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
       continue;
     }
 
-    // Warnings - but not the options for the assembler and the linker.
+    // Warnings - but not the options for the assembler and the linker. The
+    // errors from the warnings, and the warnings of the backend, aren't seen
+    // by the recheck without the code generation: they are a part of the key.
     if ((arg.starts_with("-W") && !arg.starts_with("-Wa,") &&
          !arg.starts_with("-Wl,")) ||
         arg == "-w" || arg == "-pedantic" || arg == "-pedantic-errors") {
-      AddArgument(Class::WARNINGS, index, {arg});
+      const bool affects_backend =
+          arg.starts_with("-Werror") || arg.starts_with("-Wno-error") ||
+          arg.starts_with("-Wframe-larger-than") ||
+          arg.starts_with("-Wno-frame-larger-than") ||
+          arg == "-Wattribute-warning" || arg == "-Wno-attribute-warning" ||
+          arg == "-Wbackend-plugin" || arg == "-Wno-backend-plugin";
+      AddArgument(affects_backend ? Class::OTHER : Class::WARNINGS, index,
+                  {arg});
       continue;
     }
 
