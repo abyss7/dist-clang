@@ -3330,11 +3330,13 @@ TEST_F(EmitterTest, RecheckWarnings) {
   };
 
   List<String> runs;
+  bool fail_check = false;
   run_callback = [&](base::TestProcess* process) {
     auto Has = [&](Literal arg) {
       return std::find(process->args_.begin(), process->args_.end(),
                        Immutable(arg)) != process->args_.end();
     };
+    do_run = !fail_check || !Has("-fsyntax-only"_l);
     const auto deps = Immutable("test.o: "_l) + Immutable(input_path);
     if (Has("-E"_l)) {
       runs.push_back("-E");
@@ -3342,7 +3344,8 @@ TEST_F(EmitterTest, RecheckWarnings) {
       EXPECT_TRUE(base::File::Write(deps_path, deps));
     } else if (Has("-fsyntax-only"_l)) {
       runs.push_back("-fsyntax-only");
-      EXPECT_TRUE(Has("-Wextra"_l) || Has("-fdiagnostics-format=msvc"_l));
+      EXPECT_TRUE(Has("-Wextra"_l) || Has("-fdiagnostics-format=msvc"_l) ||
+                  fail_check);
       EXPECT_FALSE(Has("-o"_l));
       process->stderr_ = Has("-fdiagnostics-format=msvc"_l)
                              ? "msvc warning"_l
@@ -3420,6 +3423,23 @@ TEST_F(EmitterTest, RecheckWarnings) {
   Immutable object;
   EXPECT_TRUE(base::File::Read(output_path, &object));
   EXPECT_EQ("object"_l, object);
+
+  // The check fails - e.g. with "-Werror": it isn't a hit.
+  ResetStatistics();
+  fail_check = true;
+  expected_code = net::proto::Status::EXECUTION;
+  runs.clear();
+  Compile(5, {"-Wall", "-Wunused"});
+  EXPECT_EQ((List<String>{"-fsyntax-only"}), runs);
+  for (const auto name : {perf::proto::Metric::DIRECT_CACHE_HIT,
+                          perf::proto::Metric::SIMPLE_CACHE_HIT,
+                          perf::proto::Metric::TIME_SAVED_BY_DIRECT_HITS,
+                          perf::proto::Metric::TIME_SAVED_BY_SIMPLE_HITS}) {
+    perf::proto::Metric metric;
+    metric.set_name(name);
+    base::Singleton<perf::StatService>::Get().Dump(metric);
+    EXPECT_EQ(0u, metric.value()) << perf::proto::Metric::Name_Name(name);
+  }
 
   emitter.reset();
 }

@@ -750,6 +750,9 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     base::proto::Local* incoming = std::get<MESSAGE>(*task).get();
     cache::FileCache::Entry entry;
 
+    // Returns |true|, if the task is handled - the outputs are restored, or the
+    // client has got the failure, or is gone: only the restored ones are hits.
+    bool restored = false;
     auto RestoreFromCache = [&](const HandledSource& source,
                                 const cache::ExtraFiles& extra_files) {
       String error;
@@ -875,6 +878,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       MaybeVerifyHit(*incoming, entry, std::get<START_TIME>(*task));
       TagEntry(*incoming, HandledHash(Immutable(entry.handled_hash)));
 
+      restored = true;
       return true;
     };
 
@@ -888,8 +892,10 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     if (SearchDirectCache(incoming->flags(), incoming->current_dir(), &entry,
                           &source_edited, &source_seen) &&
         RestoreFromCache(HandledSource(), cache::ExtraFiles{})) {
-      STAT(DIRECT_CACHE_HIT);
-      STAT(TIME_SAVED_BY_DIRECT_HITS, entry.compilation_time);
+      if (restored) {
+        STAT(DIRECT_CACHE_HIT);
+        STAT(TIME_SAVED_BY_DIRECT_HITS, entry.compilation_time);
+      }
       continue;
     }
 
@@ -960,9 +966,11 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
           }
           std::get<HANDLED_HASH>(*task) = handled_hash;
           if (RestoreFromCache(source, std::get<EXTRA_FILES>(*task))) {
-            STAT(SIMPLE_CACHE_HIT);
-            STAT(TIME_SAVED_BY_SIMPLE_HITS, entry.compilation_time);
-            STAT(PARALLEL_PREPROCESSING_HIT);
+            if (restored) {
+              STAT(SIMPLE_CACHE_HIT);
+              STAT(TIME_SAVED_BY_SIMPLE_HITS, entry.compilation_time);
+              STAT(PARALLEL_PREPROCESSING_HIT);
+            }
           } else {
             // The compilation is canceled - compile again.
             failed_tasks_->Push(std::move(*task));
@@ -1006,8 +1014,10 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     handled_hash = GenerateHash(incoming->flags(), source, extra_files);
     if (SearchSimpleCache(handled_hash, &entry) &&
         RestoreFromCache(source, extra_files)) {
-      STAT(SIMPLE_CACHE_HIT);
-      STAT(TIME_SAVED_BY_SIMPLE_HITS, entry.compilation_time);
+      if (restored) {
+        STAT(SIMPLE_CACHE_HIT);
+        STAT(TIME_SAVED_BY_SIMPLE_HITS, entry.compilation_time);
+      }
       continue;
     }
 
