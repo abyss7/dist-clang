@@ -44,3 +44,33 @@ jobs:
 
       - name: Smoke test
         run: build/smoke_test clang++-${{ matrix.clang }}
+
+  # The daemon is concurrent: the races are found only under TSan.
+  tsan:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build zlib1g-dev clang-18 lld-18
+          curl -sSL -o gn.zip \
+            https://chrome-infra-packages.appspot.com/dl/gn/gn/linux-amd64/+/latest
+          unzip -q gn.zip -d "$HOME/gn"
+          echo "$HOME/gn" >> "$GITHUB_PATH"
+          # TSan doesn't support the high entropy of ASLR of the new kernels.
+          sudo sysctl vm.mmap_rnd_bits=28
+
+      - name: Build
+        run: |
+          gn gen --check out/TSan --args='config_for_tests=true use_tsan=true clang_cc="clang-18" clang_cxx="clang++-18"'
+          ninja -C out/TSan unit_tests
+
+      # All the races are reported, and fail the run at the end.
+      - name: Test
+        run: out/TSan/unit_tests
