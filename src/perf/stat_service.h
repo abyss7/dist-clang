@@ -25,7 +25,8 @@ class StatService {
   void DumpAll(proto::Report* report) const;
 
  private:
-  Array<SharedPtr<Atomic<ui64>>, proto::Metric::Name_ARRAYSIZE> values_;
+  // The counters are never replaced: the collector takes them atomically.
+  Array<Atomic<ui64>, proto::Metric::Name_ARRAYSIZE> values_ = {};
 };
 
 }  // namespace perf

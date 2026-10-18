@@ -8,18 +8,14 @@ DEFINE_SINGLETON(perf::StatService)
 
 namespace perf {
 
-StatService::StatService() {
-  for (auto& ptr : values_) {
-    ptr.reset(new Atomic<ui64>(0u));
-  }
-}
+StatService::StatService() = default;
 
 void StatService::Add(proto::Metric::Name name, ui64 value) {
-  values_[name]->fetch_add(value);
+  values_[name].fetch_add(value);
 }
 
 void StatService::Set(proto::Metric::Name name, ui64 value) {
-  values_[name]->store(value);
+  values_[name].store(value);
 }
 
 void StatService::DumpAll(proto::Report* report) const {
@@ -32,18 +28,14 @@ void StatService::DumpAll(proto::Report* report) const {
     }
     auto* metric = report->add_metric();
     metric->set_name(static_cast<proto::Metric::Name>(name));
-    metric->set_value(values_[name]->load());
+    metric->set_value(values_[name].load());
   }
 }
 
 void StatService::Dump(proto::Metric& report) {
   CHECK(report.has_name());
 
-  auto name = report.name();
-  auto old_value = values_[name];
-  values_[name].reset(new Atomic<ui64>(0u));
-
-  report.set_value(*old_value);
+  report.set_value(values_[report.name()].exchange(0u));
 }
 
 }  // namespace perf
