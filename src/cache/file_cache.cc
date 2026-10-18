@@ -814,6 +814,14 @@ bool FileCache::Find(HandledHash hash, Entry* found) const {
     return false;
   }
 
+  // The blobs of the hit may be not counted yet - before they're read.
+  if (v1.obj()) {
+    blobs_.MarkUsed(v1.object_hash());
+  }
+  if (v1.dwo()) {
+    blobs_.MarkUsed(v1.dwo_hash());
+  }
+
   // The blobs aren't a part of the size of the entry.
   ui64 blobs_size = 0;
   if (v1.obj() && !blobs_.Get(v1.object_hash(), &entry->object,

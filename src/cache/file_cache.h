@@ -31,6 +31,7 @@ FORWARD_TEST(FileCacheTest, TagStats);
 FORWARD_TEST(FileCacheTest, ForgetTag);
 FORWARD_TEST(FileCacheTest, DeduplicateOutputs);
 FORWARD_TEST(FileCacheTest, RemoveUnreferencedBlobs);
+FORWARD_TEST(FileCacheTest, KeepBlobsOfHitsDuringScan);
 FORWARD_TEST(FileCacheTest, CompressColdEntries);
 FORWARD_TEST(FileCacheTest, RoundTripCompressedEntry);
 FORWARD_TEST(FileCacheTest, RemoveEntryInBackground);
@@ -315,6 +316,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, ForgetTag);
   FRIEND_TEST(FileCacheTest, DeduplicateOutputs);
   FRIEND_TEST(FileCacheTest, RemoveUnreferencedBlobs);
+  FRIEND_TEST(FileCacheTest, KeepBlobsOfHitsDuringScan);
   FRIEND_TEST(FileCacheTest, CompressColdEntries);
   FRIEND_TEST(FileCacheTest, RoundTripCompressedEntry);
   FRIEND_TEST(FileCacheTest, RemoveEntryInBackground);

@@ -32,6 +32,10 @@ class BlobStore {
   bool Get(const String& hash, Immutable* content, Path* path,
            ui64* size) const THREAD_SAFE;
 
+  // The blob is used by an entry, that may be not counted yet - e.g. by a hit
+  // during the scan after a crash: it isn't removed as unreferenced.
+  void MarkUsed(const String& hash) const THREAD_SAFE;
+
   // The methods below are called only by the cleaner.
 
   // Counts the reference from an entry, that was used at |access_time|.

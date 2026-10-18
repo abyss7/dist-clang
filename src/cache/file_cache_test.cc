@@ -677,6 +677,44 @@ TEST(FileCacheTest, RemoveUnreferencedBlobs) {
   EXPECT_EQ("object"_l, entry.object);
 }
 
+TEST(FileCacheTest, KeepBlobsOfHitsDuringScan) {
+  const base::TemporaryDir temp_dir;
+  const auto hash = FileCache::Hash(HandledSource("int main() {}"_l), {},
+                                    CommandLine("-c"_l), Version("1"_l));
+  Path blob_path;
+  {
+    FileCache cache(temp_dir.path(), FileCache::UNLIMITED, proto::ZSTD, true);
+    ASSERT_TRUE(cache.Run(3600));
+    cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l});
+    blob_path = cache.blobs_.PackedPath(
+        base::Hexify(Immutable("object"_l).Hash()));
+  }
+  ASSERT_TRUE(base::File::Exists(blob_path));
+
+  // The index is lost in a crash: the entry is indexed again by the scan.
+  ASSERT_TRUE(base::File::Delete(temp_dir.path() / "index.sqlite"));
+  ASSERT_TRUE(base::File::Write(temp_dir.path() / "running", "1"_l));
+  std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+
+  // The entry is hit during the scan: the scan skips it, as a new one.
+  FileCache cache(temp_dir.path(), FileCache::UNLIMITED, proto::ZSTD, true);
+  std::promise<void> hit;
+  cache.cleaner_.Push([future = hit.get_future().share()] { future.wait(); });
+  ASSERT_TRUE(cache.Run(3600));
+  FileCache::Entry entry;
+  ASSERT_TRUE(cache.Find(hash, &entry));
+  const auto manifest_path =
+      AppendExtension(cache.CommonPath(hash), base::kExtManifest);
+  const struct utimbuf scan_time = {time(nullptr) + 2, time(nullptr) + 2};
+  ASSERT_EQ(0, utime(manifest_path.c_str(), &scan_time));
+  hit.set_value();
+  cache.WaitForCleaner();
+
+  EXPECT_TRUE(base::File::Exists(blob_path));
+  ASSERT_TRUE(cache.Find(hash, &entry));
+  EXPECT_EQ("object"_l, entry.object);
+}
+
 namespace {
 
 HandledHash TestHash(const char* flags) {

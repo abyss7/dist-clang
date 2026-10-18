@@ -59,10 +59,7 @@ bool BlobStore::Put(Immutable content, const Path& path, String* hash,
     hash->assign(file_hash.string_copy());
     if (Exists(*hash)) {
       *reused = true;
-      std::lock_guard<Mutex> lock(reused_mutex_);
-      if (track_reused_) {
-        reused_.insert(*hash);
-      }
+      MarkUsed(*hash);
       return true;
     }
     return base::CreateDirectory(RawPath(*hash).parent_path(), error) &&
@@ -77,10 +74,7 @@ bool BlobStore::Put(Immutable content, const Path& path, String* hash,
   hash->assign(base::Hexify(data.Hash()));
   if (Exists(*hash)) {
     *reused = true;
-    std::lock_guard<Mutex> lock(reused_mutex_);
-    if (track_reused_) {
-      reused_.insert(*hash);
-    }
+    MarkUsed(*hash);
     return true;
   }
   if (!base::CreateDirectory(RawPath(*hash).parent_path(), error)) {
@@ -190,20 +184,26 @@ void BlobStore::Delete(const String& hash) {
   }
 }
 
-ui32 BlobStore::RemoveUnreferenced(ui64 time) {
-  HashSet<String> reused;
-  {
-    std::lock_guard<Mutex> lock(reused_mutex_);
-    reused.swap(reused_);
-    track_reused_ = false;
+void BlobStore::MarkUsed(const String& hash) const {
+  std::lock_guard<Mutex> lock(reused_mutex_);
+  if (track_reused_) {
+    reused_.insert(hash);
   }
+}
+
+ui32 BlobStore::RemoveUnreferenced(ui64 time) {
   ui32 removed = 0;
   base::WalkDirectory(root_, [&](const Path& path, ui64 mtime, ui64) {
     String hash = path.filename().string();
     if (hash.ends_with(kPackedExtension)) {
       hash.resize(hash.size() - strlen(kPackedExtension));
     }
-    if (hash.size() != 32 || blobs_.contains(hash) || reused.contains(hash)) {
+    if (hash.size() != 32 || blobs_.contains(hash)) {
+      return;
+    }
+    // The blobs, that are used right now, are marked before they're read.
+    std::lock_guard<Mutex> lock(reused_mutex_);
+    if (reused_.contains(hash)) {
       return;
     }
     // The blobs, that are just put, aren't counted yet.
@@ -215,6 +215,9 @@ ui32 BlobStore::RemoveUnreferenced(ui64 time) {
       ++removed;
     }
   });
+  std::lock_guard<Mutex> lock(reused_mutex_);
+  reused_.clear();
+  track_reused_ = false;
   return removed;
 }
 
