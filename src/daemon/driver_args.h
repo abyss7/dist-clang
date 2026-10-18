@@ -29,6 +29,9 @@ bool ExpandResponseFiles(List<String>& args, const String& current_dir,
 
 // Adds to |flags| the cache key parts from the compiler's environment |env|.
 // Returns |false| if the environment makes the command unsupported.
+// If the flag changes only the format of the diagnostics - not the colors.
+bool IsDiagnosticsFormatFlag(const String& arg);
+
 bool ParseEnvironment(const List<String>& env, base::proto::Flags* flags,
                       String* reason);
 

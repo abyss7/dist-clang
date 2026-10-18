@@ -7,6 +7,7 @@
 #include <base/platform.h>
 #include <base/process_impl.h>
 #include <base/string_utils.h>
+#include <daemon/driver_args.h>
 #include <net/connection.h>
 #include <perf/stat_reporter.h>
 
@@ -536,7 +537,14 @@ List<Path> CompilationDaemon::IncludeSearchDirs(
 
 // static
 String CompilationDaemon::WarningsHash(const base::proto::Flags& flags) {
-  auto arg_list = CreateArgumentList(flags.warnings());
+  // The format of the diagnostics isn't a part of the key either.
+  google::protobuf::RepeatedPtrField<base::proto::Argument> format;
+  for (const auto& arg : flags.non_direct()) {
+    if (arg.values_size() && IsDiagnosticsFormatFlag(arg.values(0))) {
+      *format.Add() = arg;
+    }
+  }
+  auto arg_list = CreateArgumentList(flags.warnings(), format);
   return base::Hexify(
       Immutable(base::JoinString<' '>(arg_list.begin(), arg_list.end()))
           .Hash());

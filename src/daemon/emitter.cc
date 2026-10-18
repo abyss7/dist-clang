@@ -774,11 +774,11 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
         return false;
       }
 
-      // The cached diagnostics are produced with other warnings - check the
-      // source again, but without the code generation.
+      // The cached diagnostics are produced with other warnings, or in another
+      // format - check the source again, but without the code generation.
       String diagnostics = entry.stderr.string_copy();
-      if (flags.recheck_warnings() &&
-          entry.warnings_hash != WarningsHash(flags)) {
+      if (entry.warnings_hash != WarningsHash(flags) &&
+          (flags.recheck_warnings() || !entry.stderr.empty())) {
         net::proto::Status setup_status;
         if (!SetupCompiler(incoming->mutable_flags(), &setup_status)) {
           return false;

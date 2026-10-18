@@ -704,6 +704,11 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
   return true;
 }
 
+bool IsDiagnosticsFormatFlag(const String& arg) {
+  return MatchesAny(kDiagnosticsFormat, arg) ||
+         MatchesAnyPrefix(kDiagnosticsFormatPrefixes, arg);
+}
+
 bool ParseEnvironment(const List<String>& env, base::proto::Flags* flags,
                       String* reason) {
   DCHECK(flags);

@@ -155,6 +155,15 @@ TEST(CompilationDaemonTest, WarningsHash) {
   flags2.add_warnings()->add_values("-Werror");
   EXPECT_NE(CompilationDaemon::WarningsHash(flags1),
             CompilationDaemon::WarningsHash(flags2));
+
+  // The format of the diagnostics too - but not the other flags.
+  base::proto::Flags flags3 = flags1;
+  flags3.add_non_direct()->add_values("-MD");
+  EXPECT_EQ(CompilationDaemon::WarningsHash(flags1),
+            CompilationDaemon::WarningsHash(flags3));
+  flags3.add_non_direct()->add_values("-fdiagnostics-format=msvc");
+  EXPECT_NE(CompilationDaemon::WarningsHash(flags1),
+            CompilationDaemon::WarningsHash(flags3));
 }
 
 TEST(CompilationDaemonTest, NormalizePaths) {

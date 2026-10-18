@@ -3331,9 +3331,11 @@ TEST_F(EmitterTest, RecheckWarnings) {
       EXPECT_TRUE(base::File::Write(deps_path, deps));
     } else if (Has("-fsyntax-only"_l)) {
       runs.push_back("-fsyntax-only");
-      EXPECT_TRUE(Has("-Wextra"_l));
+      EXPECT_TRUE(Has("-Wextra"_l) || Has("-fdiagnostics-format=msvc"_l));
       EXPECT_FALSE(Has("-o"_l));
-      process->stderr_ = "new warning"_l;
+      process->stderr_ = Has("-fdiagnostics-format=msvc"_l)
+                             ? "msvc warning"_l
+                             : "new warning"_l;
     } else {
       runs.push_back("compile");
       process->stderr_ = "old warning"_l;
@@ -3345,7 +3347,8 @@ TEST_F(EmitterTest, RecheckWarnings) {
   emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
-  auto Compile = [&](ui32 expected_send_count, const List<String>& warnings) {
+  auto Compile = [&](ui32 expected_send_count, const List<String>& warnings,
+                     const String& format = String()) {
     auto connection = test_service->TriggerListen(socket_path);
     SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
@@ -3361,6 +3364,9 @@ TEST_F(EmitterTest, RecheckWarnings) {
     flags->set_recheck_warnings(true);
     for (const auto& warning : warnings) {
       flags->add_warnings()->add_values(warning);
+    }
+    if (!format.empty()) {
+      flags->add_non_direct()->add_values(format);
     }
     flags->mutable_compiler()->set_version(compiler_version);
     flags->set_action("-c");
@@ -3392,6 +3398,13 @@ TEST_F(EmitterTest, RecheckWarnings) {
   Compile(3, {"-Wall", "-Wextra"});
   EXPECT_EQ((List<String>{"-fsyntax-only"}), runs);
   EXPECT_EQ("new warning", last_description);
+
+  // The same warnings in another format - the check too.
+  ASSERT_TRUE(base::File::Delete(output_path));
+  runs.clear();
+  Compile(4, {"-Wall"}, "-fdiagnostics-format=msvc");
+  EXPECT_EQ((List<String>{"-fsyntax-only"}), runs);
+  EXPECT_EQ("msvc warning", last_description);
 
   Immutable object;
   EXPECT_TRUE(base::File::Read(output_path, &object));
