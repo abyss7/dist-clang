@@ -78,3 +78,23 @@ for value in 1 2 3; do
   fi
 done
 echo "The changes of the system headers are seen"
+
+# A new file in an include directory shadows a system header from the
+# implicit directories of the compiler: the cache must not return the old
+# object.
+mkdir -p compat
+cat > shadowed.cc <<'SOURCE'
+#include <stdio.h>
+int main() { return 0; }
+SOURCE
+for i in 1 2; do
+  rm -f shadowed.o
+  "$dc" "$cxx" -Icompat -c shadowed.cc -o shadowed.o -MD
+done
+echo '#error The shadowing header is used' > compat/stdio.h
+if "$dc" "$cxx" -Icompat -c shadowed.cc -o shadowed.o -MD 2>/dev/null; then
+  echo "The header, that shadows a system one, isn't seen" >&2
+  exit 1
+fi
+echo "The headers, that shadow the system ones, are seen"
+

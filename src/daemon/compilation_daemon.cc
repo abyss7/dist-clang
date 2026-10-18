@@ -394,6 +394,11 @@ List<Path> CompilationDaemon::IncludeSearchDirs(
     }
   }
 
+  // The compiler searches its own directories after the system ones.
+  groups[SYSTEM].insert(groups[SYSTEM].end(),
+                        flags.implicit_include_dirs().begin(),
+                        flags.implicit_include_dirs().end());
+
   // The compiler skips the duplicates.
   List<Path> result;
   HashSet<String> seen;

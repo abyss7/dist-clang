@@ -1,5 +1,6 @@
 #include <daemon/compilation_daemon.h>
 
+#include <daemon/compiler_identity.h>
 #include <daemon/driver_args.h>
 
 #include <base/file/file.h>
@@ -83,6 +84,29 @@ TEST(CompilationDaemonTest, IncludeSearchDirs) {
                         "/build/inc", "/sys", "/build/after",
                         "/build/after2"}),
             CompilationDaemon::IncludeSearchDirs(flags, "/build"));
+
+  // The implicit directories of the compiler go after the system ones.
+  flags.add_implicit_include_dirs("/usr/lib/../include/c++/10");
+  flags.add_implicit_include_dirs("/usr/include");
+  EXPECT_EQ((List<Path>{"/build/dir", "/build/quote", "/src", "/build/gen",
+                        "/build/inc", "/sys", "/usr/include/c++/10",
+                        "/usr/include", "/build/after", "/build/after2"}),
+            CompilationDaemon::IncludeSearchDirs(flags, "/build"));
+}
+
+TEST(CompilationDaemonTest, ParseImplicitIncludeDirs) {
+  const String output =
+      "clang version 18.1.8\n"
+      "#include \"...\" search starts here:\n"
+      "#include <...> search starts here:\n"
+      " /usr/bin/../include/c++/10\n"
+      " /usr/include\n"
+      " /Library/Frameworks (framework directory)\n"
+      "End of search list.\n";
+  EXPECT_EQ((List<String>{"/usr/bin/../include/c++/10", "/usr/include",
+                          "/Library/Frameworks"}),
+            CompilerIdentity::ParseIncludeDirs(output));
+  EXPECT_TRUE(CompilerIdentity::ParseIncludeDirs("error").empty());
 }
 
 TEST(CompilationDaemonTest, StripColors) {

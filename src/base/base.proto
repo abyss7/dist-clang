@@ -107,6 +107,11 @@ message Flags {
   // replaced with a placeholder in the cache key, so that the same sources
   // from different locations have the same key.
 
+  repeated string implicit_include_dirs = 27;
+  // the include directories, that the compiler searches by itself - after the
+  // system ones: e.g. of the standard library. Only to check, if a new file
+  // would be found instead of a header.
+
   repeated string key_extra          = 18;
   // parts of the cache key that aren't flags: the environment, the current
   // directory for the debug info, etc.

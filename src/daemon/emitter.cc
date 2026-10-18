@@ -645,6 +645,18 @@ bool Emitter::PrepareFlags(base::proto::Local* message,
 
   flags->mutable_compiler()->set_path(compiler_path);
   flags->mutable_compiler()->set_version(identity);
+
+  // A new file in an include directory may shadow a header from the own
+  // directories of the compiler too.
+  List<String> include_dirs;
+  if (compiler_identity_.GetIncludeDirs(compiler_path, identity, *flags,
+                                        &include_dirs, &error)) {
+    for (auto& dir : include_dirs) {
+      flags->add_implicit_include_dirs(std::move(dir));
+    }
+  } else {
+    LOG(WARNING) << error;
+  }
   flags->set_recheck_warnings(conf()->emitter().recheck_warnings());
 
   // The same sources from different places should share the cache.

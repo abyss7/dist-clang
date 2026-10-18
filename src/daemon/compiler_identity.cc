@@ -68,6 +68,126 @@ bool CompilerIdentity::Get(const String& path, String* identity,
   return true;
 }
 
+namespace {
+
+// The flags, that change the include directories of the compiler.
+const char* const kIncludeDirsFlags[] = {
+    "-stdlib",    "--sysroot",   "-isysroot",       "-target",
+    "--target",   "-nostdinc",   "-nostdlibinc",    "-nobuiltininc",
+    "--gcc-toolchain", "--gcc-install-dir", "-resource-dir", "-arch",
+    "-m32",       "-m64",        "-mx32",
+};
+
+// The language of the source for "-x".
+String SourceLanguage(const base::proto::Flags& flags) {
+  if (!flags.language().empty()) {
+    return flags.language();
+  }
+  const String extension = Path(flags.input()).extension().string();
+  if (extension == ".c") {
+    return "c";
+  }
+  if (extension == ".m") {
+    return "objective-c";
+  }
+  if (extension == ".mm") {
+    return "objective-c++";
+  }
+  return "c++";
+}
+
+}  // namespace
+
+bool CompilerIdentity::GetIncludeDirs(const String& path,
+                                      const String& identity,
+                                      const base::proto::Flags& flags,
+                                      List<String>* dirs, String* error) {
+  DCHECK(dirs);
+
+  List<String> args = {"-x", SourceLanguage(flags)};
+  for (const auto* list :
+       {&flags.other(), &flags.non_cached(), &flags.cc_only()}) {
+    for (const auto& arg : *list) {
+      if (!arg.values_size()) {
+        continue;
+      }
+      for (const char* prefix : kIncludeDirsFlags) {
+        if (arg.values(0).starts_with(prefix)) {
+          args.insert(args.end(), arg.values().begin(), arg.values().end());
+          break;
+        }
+      }
+    }
+  }
+
+  String key = identity;
+  for (const auto& arg : args) {
+    key += "\n" + arg;
+  }
+  {
+    std::lock_guard<Mutex> lock(mutex_);
+    auto it = include_dirs_.find(key);
+    if (it != include_dirs_.end()) {
+      *dirs = it->second;
+      return true;
+    }
+  }
+
+  // The verbose preprocessing of nothing shows the search list.
+  auto process = base::Process::Create(path, Path("/"), base::Process::SAME_UID);
+  for (const auto& arg : args) {
+    process->AppendArg(Immutable(arg));
+  }
+  process->AppendArg("-E"_l)
+      .AppendArg("-v"_l)
+      .AppendArg("-o"_l)
+      .AppendArg("/dev/null"_l)
+      .AppendArg("/dev/null"_l);
+  if (!process->Run(60, error)) {
+    if (error && error->empty()) {
+      error->assign("Can't get the include directories of " + path + ": " +
+                    process->stderr().string_copy());
+    }
+    return false;
+  }
+
+  *dirs = ParseIncludeDirs(process->stderr().string_copy());
+  std::lock_guard<Mutex> lock(mutex_);
+  include_dirs_.emplace(key, *dirs);
+  return true;
+}
+
+// static
+List<String> CompilerIdentity::ParseIncludeDirs(const String& output) {
+  List<String> lines, dirs;
+  base::SplitString<'\n'>(output, lines);
+  bool in_list = false;
+  for (auto& line : lines) {
+    if (line.starts_with("#include <...> search starts here:")) {
+      in_list = true;
+      continue;
+    }
+    if (!in_list) {
+      continue;
+    }
+    if (line.starts_with("End of search list.")) {
+      break;
+    }
+    // " /usr/include", " /Library/Frameworks (framework directory)".
+    const auto start = line.find_first_not_of(' ');
+    if (start == String::npos) {
+      continue;
+    }
+    String dir = line.substr(start);
+    const String kFramework = " (framework directory)";
+    if (dir.ends_with(kFramework)) {
+      dir.resize(dir.size() - kFramework.size());
+    }
+    dirs.push_back(std::move(dir));
+  }
+  return dirs;
+}
+
 // static
 String CompilerIdentity::Resolve(const String& name, const String& current_dir,
                                  const List<String>& env) {

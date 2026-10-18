@@ -42,8 +42,8 @@ class CompilationDaemon : public BaseDaemon {
 
   // The directories, where the compiler searches the included headers, in the
   // order of the search: the directory of the source, "-iquote", "-I",
-  // "-isystem" and "-idirafter" ones - as absolute normal paths. The implicit
-  // directories of the compiler aren't known.
+  // "-isystem", the implicit directories of the compiler and "-idirafter"
+  // ones - as absolute normal paths.
   static List<Path> IncludeSearchDirs(const base::proto::Flags& flags,
                                       const String& current_dir);
 
