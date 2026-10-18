@@ -43,6 +43,7 @@ const char kUsage[] =
     "dist-clang.\n";
 
 [[noreturn]] void ExecuteLocally(const List<String>& args) {
+  client::RemoveOutputs(args);
   Vector<const char*> argv;
   for (const auto& arg : args) {
     argv.push_back(arg.c_str());
