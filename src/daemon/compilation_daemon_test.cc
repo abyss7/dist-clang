@@ -163,6 +163,8 @@ TEST(CompilationDaemonTest, NormalizePaths) {
 
   flags.set_key_root("/home/user/src");
   flags.set_key_root_relative("../src");
+  flags.set_key_root_remapped(true);
+  flags.set_key_root_relative_remapped(true);
   EXPECT_EQ(
       "-I<ROOT>/a -I<ROOT> -I<ROOT>/b -I../src.old/c \"<ROOT>\" "
       "-isystem <ROOT>/d /other/home/user/src/e x/../src/f "
@@ -172,12 +174,20 @@ TEST(CompilationDaemonTest, NormalizePaths) {
           "\"../src\" -isystem /home/user/src/d /other/home/user/src/e "
           "x/../src/f -fmacro-prefix-map=../src/=",
           flags));
+
+  // The form of the root, that the compiler doesn't remap, stays.
+  flags.set_key_root_remapped(false);
+  EXPECT_EQ("-I/home/user/src/a -I<ROOT>/b",
+            CompilationDaemon::NormalizePaths(
+                "-I/home/user/src/a -I../src/b", flags));
 }
 
 TEST(CompilationDaemonTest, NormalizeLineMarkers) {
   base::proto::Flags flags;
   flags.set_key_root("/root1");
   flags.set_key_root_relative("../root1");
+  flags.set_key_root_remapped(true);
+  flags.set_key_root_relative_remapped(true);
 
   EXPECT_EQ(
       "# 1 \"<ROOT>/a.cc\"\nconst char* f = \"/root1/a.cc\";\n"
@@ -199,9 +209,11 @@ TEST(CompilationDaemonTest, HashDoesntDependOnSourceRoot) {
   flags1.add_other()->add_values("-fmacro-prefix-map=../../root1/=");
   flags1.set_key_root("/home/root1");
   flags1.set_key_root_relative("../../root1");
+  flags1.set_key_root_relative_remapped(true);
   flags2.add_other()->add_values("-fmacro-prefix-map=../../root2/=");
   flags2.set_key_root("/home/root2");
   flags2.set_key_root_relative("../../root2");
+  flags2.set_key_root_relative_remapped(true);
 
   const HandledSource source1(
       "# 1 \"../../root1/a.cc\"\nint main() {}\n"_l);

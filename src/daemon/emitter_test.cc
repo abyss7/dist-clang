@@ -4515,9 +4515,13 @@ TEST(EmitterSourceRootsTest, SetKeyRoot) {
   *roots.Add() = "/work/other";
   *roots.Add() = "/work/Tree/";
 
-  auto KeyRoot = [&](const String& current_dir, const String& input) {
+  auto KeyRoot = [&](const String& current_dir, const String& input,
+                     const List<String>& remapped = {"../.."}) {
     base::proto::Flags flags;
     flags.set_input(input);
+    for (const auto& prefix : remapped) {
+      flags.add_remapped_prefixes(prefix);
+    }
     Emitter::SetKeyRoot(roots, current_dir, &flags);
     return Pair<String>(flags.key_root(), flags.key_root_relative());
   };
@@ -4533,6 +4537,41 @@ TEST(EmitterSourceRootsTest, SetKeyRoot) {
   } else {
     EXPECT_EQ((Pair<String>("", "")), KeyRoot("/work/tree", "a.cc"));
   }
+}
+
+TEST(EmitterSourceRootsTest, KeyRootIsRemapped) {
+  google::protobuf::RepeatedPtrField<String> roots;
+  *roots.Add() = "/work/tree";
+
+  auto Flags = [&](const String& current_dir, const String& input,
+                   const List<String>& remapped) {
+    base::proto::Flags flags;
+    flags.set_input(input);
+    for (const auto& prefix : remapped) {
+      flags.add_remapped_prefixes(prefix);
+    }
+    Emitter::SetKeyRoot(roots, current_dir, &flags);
+    return flags;
+  };
+
+  // The maps don't remove the root from the paths, that the compiler sees.
+  auto flags = Flags("/work/tree/out", "/work/tree/a.cc", {"/nonexistent"});
+  EXPECT_FALSE(flags.has_key_root());
+
+  // The build directory at another depth: the relative paths keep a part of
+  // the root.
+  flags = Flags("/work/tree/out/x/y", "../../../a.cc", {"../.."});
+  EXPECT_FALSE(flags.has_key_root());
+
+  // Only the remapped forms of the root are replaced in the key.
+  flags = Flags("/work/tree/out/x", "../../a.cc", {"../.."});
+  EXPECT_EQ("/work/tree", flags.key_root());
+  EXPECT_FALSE(flags.key_root_remapped());
+  EXPECT_TRUE(flags.key_root_relative_remapped());
+
+  flags = Flags("/work/tree/out/x", "/work/tree/a.cc", {"/work/tree", "../.."});
+  EXPECT_TRUE(flags.key_root_remapped());
+  EXPECT_TRUE(flags.key_root_relative_remapped());
 }
 
 }  // namespace daemon

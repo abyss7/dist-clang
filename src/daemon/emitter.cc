@@ -690,9 +690,32 @@ void Emitter::SetKeyRoot(
       // The root is replaced in the paths, that the compiler sees - in their
       // spelling.
       const String key_root = input.substr(0, root_path.size());
+      const String key_root_relative =
+          Path(key_root).lexically_relative(current_dir).string();
+      // Only the forms of the root, that the compiler removes from the paths
+      // of the result, may be replaced in the key: otherwise the objects of
+      // different roots - or of the build directories at different depths -
+      // would be mixed.
+      auto Remapped = [&flags](const String& path) {
+        for (const auto& prefix : flags->remapped_prefixes()) {
+          if (base::PathKey(prefix) == base::PathKey(path)) {
+            return true;
+          }
+        }
+        return false;
+      };
+      const bool remapped = Remapped(key_root);
+      // The paths relative to the root itself don't contain it.
+      const bool relative_remapped =
+          key_root_relative == "." || Remapped(key_root_relative);
+      if (!remapped && !relative_remapped) {
+        return;
+      }
       flags->set_key_root(key_root);
-      flags->set_key_root_relative(
-          Path(key_root).lexically_relative(current_dir).string());
+      flags->set_key_root_relative(key_root_relative);
+      flags->set_key_root_remapped(remapped);
+      flags->set_key_root_relative_remapped(relative_remapped &&
+                                            key_root_relative != ".");
       return;
     }
   }

@@ -107,6 +107,16 @@ message Flags {
   // replaced with a placeholder in the cache key, so that the same sources
   // from different locations have the same key.
 
+  optional bool key_root_remapped          = 29;
+  optional bool key_root_relative_remapped = 30;
+  // if the compiler removes the root, or its relative path, from the paths in
+  // the result - only then they are replaced in the key.
+
+  repeated string remapped_prefixes  = 28;
+  // the prefixes of the paths, that the compiler replaces in all paths of the
+  // result: in "__FILE__" and in the debug info, if any - without the
+  // trailing separators.
+
   repeated string implicit_include_dirs = 27;
   // the include directories, that the compiler searches by itself - after the
   // system ones: e.g. of the standard library. Only to check, if a new file

@@ -363,6 +363,16 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
        has_macro_prefix_map = false, has_debug_prefix_map = false;
   // The default depends on the build of the compiler.
   bool records_command_line = true;
+  // The remapped prefixes of the paths: for "__FILE__", for the debug info.
+  List<String> macro_prefixes, debug_prefixes;
+  auto RemappedPrefix = [](const String& map) {
+    String prefix =
+        Path(map.substr(0, map.find('='))).lexically_normal().string();
+    while (prefix.size() > 1 && prefix.back() == '/') {
+      prefix.pop_back();
+    }
+    return prefix;
+  };
   bool next_xclang_is_pch = false;
 
   auto AddArgument = [flags](Class cls, ui32 index,
@@ -442,13 +452,17 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
         return true;
       case Special::MACRO_PREFIX_MAP:
         has_macro_prefix_map = true;
+        macro_prefixes.push_back(RemappedPrefix(value));
         return true;
       case Special::DEBUG_PREFIX_MAP:
         has_debug_prefix_map = true;
+        debug_prefixes.push_back(RemappedPrefix(value));
         return true;
       case Special::FILE_PREFIX_MAP:
         has_macro_prefix_map = true;
         has_debug_prefix_map = true;
+        macro_prefixes.push_back(RemappedPrefix(value));
+        debug_prefixes.push_back(RemappedPrefix(value));
         return true;
     }
 
@@ -648,6 +662,16 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
   flags->set_relocatable(has_macro_prefix_map &&
                          (!has_debug_info ||
                           (has_compilation_dir && has_debug_prefix_map)));
+  // The prefixes, that are removed from all paths of the result.
+  HashSet<String> seen;
+  for (const auto& prefix : macro_prefixes) {
+    if ((!has_debug_info ||
+         std::find(debug_prefixes.begin(), debug_prefixes.end(), prefix) !=
+             debug_prefixes.end()) &&
+        seen.insert(prefix).second) {
+      flags->add_remapped_prefixes(prefix);
+    }
+  }
 
   if (has_debug_info) {
     flags->set_records_command_line(records_command_line);

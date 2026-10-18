@@ -257,6 +257,26 @@ TEST(DriverArgsTest, Relocatable) {
   EXPECT_TRUE(flags.relocatable());
 }
 
+TEST(DriverArgsTest, RemappedPrefixes) {
+  auto Prefixes = [](const List<String>& args) {
+    base::proto::Flags flags;
+    EXPECT_TRUE(Parse(args, &flags));
+    return List<String>(flags.remapped_prefixes().begin(),
+                        flags.remapped_prefixes().end());
+  };
+
+  EXPECT_EQ((List<String>{"../.."}),
+            Prefixes({"-c", "test.cc", "-fmacro-prefix-map=../../="}));
+  EXPECT_EQ((List<String>{"/src", "/other"}),
+            Prefixes({"-c", "test.cc", "-fmacro-prefix-map=/src/=",
+                      "-ffile-prefix-map=/other=x"}));
+  // The debug info needs the maps for it too.
+  EXPECT_EQ((List<String>{"/src"}),
+            Prefixes({"-c", "test.cc", "-g", "-fmacro-prefix-map=/a=",
+                      "-fdebug-prefix-map=/b=", "-ffile-prefix-map=/src=.",
+                      "-fdebug-compilation-dir=."}));
+}
+
 TEST(DriverArgsTest, Language) {
   base::proto::Flags flags;
   ASSERT_TRUE(Parse({"-x", "c++", "-c", "test.inc"}, &flags));

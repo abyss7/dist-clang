@@ -324,8 +324,12 @@ String CompilationDaemon::NormalizePaths(const String& text,
     return text;
   }
   String result = text;
-  ReplacePathPrefix(result, flags.key_root());
-  ReplacePathPrefix(result, flags.key_root_relative());
+  if (flags.key_root_remapped()) {
+    ReplacePathPrefix(result, flags.key_root());
+  }
+  if (flags.key_root_relative_remapped()) {
+    ReplacePathPrefix(result, flags.key_root_relative());
+  }
   return result;
 }
 
