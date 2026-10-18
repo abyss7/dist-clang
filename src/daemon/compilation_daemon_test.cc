@@ -257,6 +257,27 @@ TEST(CompilationDaemonTest, DirectKeyKeepsRootInOtherFlags) {
                                                  Flags("/root2", "/root2")));
 }
 
+TEST(CompilationDaemonTest, DepsOfAnotherRoot) {
+  auto Flags = [](const String& root) {
+    base::proto::Flags flags;
+    flags.set_deps_target("obj/a.o");
+    flags.set_key_root("/home/" + root);
+    flags.set_key_root_relative("../../" + root);
+    return flags;
+  };
+
+  // The paths of the dependency file are the ones of its root - after the hit
+  // from another root too.
+  const auto deps = CompilationDaemon::NormalizeDeps(
+      "obj/a.o: ../../root1/a.cc /home/root1/inc/b.h /usr/include/c.h \\\n"
+      " gen/d.h\n"_l,
+      Flags("root1"));
+  EXPECT_EQ(
+      "obj/a.o: ../../root2/a.cc /home/root2/inc/b.h /usr/include/c.h \\\n"
+      " gen/d.h\n"_l,
+      CompilationDaemon::RestoreDeps(deps, Flags("root2")));
+}
+
 TEST(CompilationDaemonTest, InputsUnchangedSince) {
   const base::TemporaryDir temp_dir;
   ASSERT_TRUE(base::File::Write(temp_dir.path() / "a.cc", "int a;"_l));

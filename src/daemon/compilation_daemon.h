@@ -69,8 +69,11 @@ class CompilationDaemon : public BaseDaemon {
 
   // The target of the dependency rule depends on the output path, which isn't
   // a part of the cache key - so it's replaced with a placeholder in the cache.
-  static Immutable NormalizeDeps(Immutable deps, const String& target);
-  static Immutable RestoreDeps(Immutable deps, const String& target);
+  // The same for the source root: the entry may be found from another one.
+  static Immutable NormalizeDeps(Immutable deps,
+                                 const base::proto::Flags& flags);
+  static Immutable RestoreDeps(Immutable deps,
+                               const base::proto::Flags& flags);
 
  protected:
   explicit CompilationDaemon(const Configuration& conf);
@@ -112,10 +115,10 @@ class CompilationDaemon : public BaseDaemon {
 
   // |start_time| is the time of the start of the compilation - see
   // |FileSystemTime()|.
+  // The |deps| are the ones of the build directory - see |RestoreDeps()|.
   void UpdateDirectCache(const base::proto::Local* message,
                          const cache::string::HandledHash& hash,
-                         const cache::ExtraFiles& extra_files,
-                         const cache::FileCache::Entry& entry,
+                         const cache::ExtraFiles& extra_files, Immutable deps,
                          i64 start_time);
 
   bool Check(const Configuration& conf) const override;

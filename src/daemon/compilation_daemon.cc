@@ -85,7 +85,8 @@ bool IsPathStart(const String& text, size_t pos) {
 }
 
 // Replaces |prefix| with the placeholder, where it's a whole prefix of a path.
-void ReplacePathPrefix(String& text, const String& prefix) {
+void ReplacePathPrefix(String& text, const String& prefix,
+                       const char* placeholder = kRootPlaceholder) {
   if (prefix.empty() || prefix == ".") {
     return;
   }
@@ -95,8 +96,8 @@ void ReplacePathPrefix(String& text, const String& prefix) {
     if ((end == text.size() || text[end] == '/' || text[end] == '"' ||
          text[end] == ' ' || text[end] == '\n') &&
         IsPathStart(text, pos)) {
-      text.replace(pos, prefix.size(), kRootPlaceholder);
-      pos += strlen(kRootPlaceholder);
+      text.replace(pos, prefix.size(), placeholder);
+      pos += strlen(placeholder);
     } else {
       pos = end;
     }
@@ -318,27 +319,40 @@ CompilationDaemon::CompilationDaemon(const Configuration& conf)
 namespace {
 
 const char kDepsTargetPlaceholder[] = "@DIST_CLANG_TARGET@";
+const char kDepsRootPlaceholder[] = "@DIST_CLANG_ROOT@";
+const char kDepsRelativeRootPlaceholder[] = "@DIST_CLANG_RELATIVE_ROOT@";
 
 }  // namespace
 
 // static
 Immutable CompilationDaemon::NormalizeDeps(Immutable deps,
-                                           const String& target) {
+                                           const base::proto::Flags& flags) {
   String content = deps.string_copy();
-  if (target.empty() || !content.starts_with(target + ":")) {
-    return deps;
+  const String& target = flags.deps_target();
+  if (!target.empty() && content.starts_with(target + ":")) {
+    content = kDepsTargetPlaceholder + content.substr(target.size());
   }
-  return Immutable(kDepsTargetPlaceholder + content.substr(target.size()));
+  if (flags.has_key_root()) {
+    ReplacePathPrefix(content, flags.key_root(), kDepsRootPlaceholder);
+    ReplacePathPrefix(content, flags.key_root_relative(),
+                      kDepsRelativeRootPlaceholder);
+  }
+  return Immutable(std::move(content));
 }
 
 // static
 Immutable CompilationDaemon::RestoreDeps(Immutable deps,
-                                         const String& target) {
+                                         const base::proto::Flags& flags) {
   String content = deps.string_copy();
-  if (!content.starts_with(kDepsTargetPlaceholder)) {
-    return deps;
+  if (content.starts_with(kDepsTargetPlaceholder)) {
+    content = flags.deps_target() +
+              content.substr(strlen(kDepsTargetPlaceholder));
   }
-  return Immutable(target + content.substr(strlen(kDepsTargetPlaceholder)));
+  // The paths of the other root become the ones of the current one.
+  base::Replace(content, kDepsRootPlaceholder, flags.key_root().c_str());
+  base::Replace(content, kDepsRelativeRootPlaceholder,
+                flags.key_root_relative().c_str());
+  return Immutable(std::move(content));
 }
 
 // static
@@ -830,7 +844,7 @@ void CompilationDaemon::RemoveFromCache(const HandledHash& hash) {
 
 void CompilationDaemon::UpdateDirectCache(
     const base::proto::Local* message, const HandledHash& hash,
-    const ExtraFiles& extra_files, const cache::FileCache::Entry& entry,
+    const ExtraFiles& extra_files, Immutable deps,
     i64 start_time) {
   auto conf = this->conf();
   DCHECK(conf->has_emitter() && !conf->has_absorber());
@@ -842,7 +856,7 @@ void CompilationDaemon::UpdateDirectCache(
   const auto& flags = message->flags();
   DCHECK(flags.has_input());
 
-  if (entry.deps.empty()) {
+  if (deps.empty()) {
     LOG(CACHE_WARNING) << "Can't update direct cache without deps : "
                        << flags.input();
     return;
@@ -856,7 +870,7 @@ void CompilationDaemon::UpdateDirectCache(
   List<String> headers;
   UnhandledSource original_code;
 
-  if (ParseDeps(entry.deps, headers) &&
+  if (ParseDeps(deps, headers) &&
       base::File::Read(input_path, &original_code.str)) {
     List<String> preprocessed_headers(message->flags().included_files().begin(),
                                       message->flags().included_files().end());

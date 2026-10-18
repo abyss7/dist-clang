@@ -845,12 +845,12 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
         }
       }
 
+      // The dependency file of the build directory - maybe from another root.
+      const Immutable deps = RestoreDeps(entry.deps, flags);
       if (flags.has_deps_file()) {
         const String deps_path = GetDepsPath(incoming);
 
-        if (!base::File::Write(deps_path,
-                               RestoreDeps(entry.deps, flags.deps_target()),
-                               &error)) {
+        if (!base::File::Write(deps_path, deps, &error)) {
           LOG(ERROR) << "Failed to write file from cache: " << deps_path
                      << " : " << error;
           return false;
@@ -858,10 +858,9 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       }
 
       if (!source.str.empty() &&
-          InputsUnchangedSince(incoming, entry.deps,
-                               std::get<START_TIME>(*task))) {
+          InputsUnchangedSince(incoming, deps, std::get<START_TIME>(*task))) {
         UpdateDirectCache(incoming, std::get<HANDLED_HASH>(*task), extra_files,
-                          entry, std::get<START_TIME>(*task));
+                          deps, std::get<START_TIME>(*task));
       }
 
       net::proto::Status status;
@@ -1165,7 +1164,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
         if (base::File::Exists(entry.object_path) &&
             (!flags.has_deps_file() ||
              base::File::Read(GetDepsPath(incoming), &deps))) {
-          entry.deps = NormalizeDeps(deps, flags.deps_target());
+          entry.deps = NormalizeDeps(deps, flags);
           entry.stderr = process->stderr();
           entry.warnings_hash = WarningsHash(flags);
           entry.compilation_time = compilation_time;
@@ -1204,7 +1203,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
 
     if (stored) {
       UpdateDirectCache(incoming, std::get<HANDLED_HASH>(*task),
-                        std::get<EXTRA_FILES>(*task), *entry_to_store,
+                        std::get<EXTRA_FILES>(*task), deps,
                         std::get<START_TIME>(*task));
     }
     direct_store.reset();
@@ -1433,7 +1432,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
                                << incoming->flags().input();
             return false;
           }
-          entry.deps = NormalizeDeps(deps, incoming->flags().deps_target());
+          entry.deps = NormalizeDeps(deps, incoming->flags());
           entry.stderr = Immutable(status.description());
           entry.warnings_hash = WarningsHash(incoming->flags());
 
@@ -1444,7 +1443,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
         if (GenerateEntry() &&
             InputsUnchangedSince(incoming, deps, std::get<START_TIME>(*task))) {
           UpdateSimpleCache(handled_hash, entry);
-          UpdateDirectCache(incoming, handled_hash, extra_files, entry,
+          UpdateDirectCache(incoming, handled_hash, extra_files, deps,
                             std::get<START_TIME>(*task));
           TagEntry(*incoming, handled_hash);
         }
