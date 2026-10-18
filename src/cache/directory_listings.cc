@@ -39,7 +39,9 @@ SharedPtr<const DirectoryListings::Listing> DirectoryListings::Get(
   }
   auto listing = std::make_shared<Listing>();
   while (auto* entry = readdir(dir)) {
-    listing->emplace(entry->d_name);
+    // The names are compared like the file system does - e.g. ignoring the
+    // case on Mac.
+    listing->emplace(base::PathKey(entry->d_name));
   }
   closedir(dir);
 

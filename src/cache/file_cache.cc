@@ -189,7 +189,7 @@ class ShadowChecker {
                                      ? std::string_view::npos
                                      : end - start);
       const auto* listing = Listing(*path);
-      if (!listing || !listing->contains(String(name))) {
+      if (!listing || !listing->contains(base::PathKey(String(name)))) {
         return false;
       }
       path->append(name);
@@ -673,7 +673,9 @@ bool FileCache::IsShadowed(const List<String>& headers,
       }
       const std::string_view relative(header_path.c_str() + prefix.size(),
                                       header_path.size() - prefix.size());
-      auto it = first_dirs.find(relative.substr(0, relative.find('/')));
+      const String first_name =
+          base::PathKey(String(relative.substr(0, relative.find('/'))));
+      auto it = first_dirs.find(first_name);
       if (it == first_dirs.end()) {
         continue;
       }

@@ -2,6 +2,7 @@
 
 #include <base/file/file.h>
 #include <base/file_utils.h>
+#include <base/platform.h>
 #include <base/temporary_dir.h>
 
 #include <gtest/gtest.h>
@@ -20,8 +21,8 @@ TEST(DirectoryListingsTest, NamesOfDirectory) {
   DirectoryListings listings;
   auto listing = listings.Get(dir.string());
   ASSERT_TRUE(listing);
-  EXPECT_TRUE(listing->contains("a.h"));
-  EXPECT_FALSE(listing->contains("b.h"));
+  EXPECT_TRUE(listing->contains(base::PathKey("a.h")));
+  EXPECT_FALSE(listing->contains(base::PathKey("b.h")));
   // The missing directories have no names.
   EXPECT_FALSE(listings.Get((temp_dir.path() / "missing").string()));
 }
@@ -36,15 +37,15 @@ TEST(DirectoryListingsTest, NewNamesAreSeen) {
   // The directory, modified long ago, is remembered - until it's modified.
   struct utimbuf old_time = {time(nullptr) - 10, time(nullptr) - 10};
   ASSERT_EQ(0, utime(dir.c_str(), &old_time));
-  EXPECT_FALSE(listings.Get(dir.string())->contains("b.h"));
+  EXPECT_FALSE(listings.Get(dir.string())->contains(base::PathKey("b.h")));
   ASSERT_TRUE(base::File::Write(dir / "b.h", "b"_l));
-  EXPECT_TRUE(listings.Get(dir.string())->contains("b.h"));
+  EXPECT_TRUE(listings.Get(dir.string())->contains(base::PathKey("b.h")));
 
   // The directory, modified just now, may change within the same tick of the
   // clock of the file system: it's read again every time.
-  EXPECT_FALSE(listings.Get(dir.string())->contains("c.h"));
+  EXPECT_FALSE(listings.Get(dir.string())->contains(base::PathKey("c.h")));
   ASSERT_TRUE(base::File::Write(dir / "c.h", "c"_l));
-  EXPECT_TRUE(listings.Get(dir.string())->contains("c.h"));
+  EXPECT_TRUE(listings.Get(dir.string())->contains(base::PathKey("c.h")));
 }
 
 }  // namespace cache

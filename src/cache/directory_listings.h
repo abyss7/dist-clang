@@ -16,8 +16,8 @@ class DirectoryListings {
  public:
   using Listing = HashSet<String>;
 
-  // Returns the names in the directory |path|, or null, if it isn't a
-  // directory.
+  // Returns the keys of the names in the directory |path| - see
+  // |base::PathKey()| - or null, if it isn't a directory.
   SharedPtr<const Listing> Get(const String& path) THREAD_SAFE;
 
  private:
