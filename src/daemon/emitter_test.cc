@@ -3332,13 +3332,20 @@ TEST_F(EmitterTest, RecheckWarnings) {
   version->set_version(compiler_version);
   version->set_path(compiler_path);
 
+  // The sends are counted before the callback: the description is taken,
+  // when it's written.
   String last_description;
+  ui32 descriptions = 0;
   connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
     connection->CallOnSend([&](const net::Connection::Message& message) {
       EXPECT_TRUE(message.has_status());
       const auto& status = message.status();
       EXPECT_EQ(expected_code, status.code()) << status.description();
-      last_description = status.description();
+      {
+        UniqueLock lock(send_mutex);
+        last_description = status.description();
+        ++descriptions;
+      }
 
       send_condition.notify_all();
     });
@@ -3407,7 +3414,7 @@ TEST_F(EmitterTest, RecheckWarnings) {
 
     UniqueLock lock(send_mutex);
     EXPECT_TRUE(send_condition.wait_for(lock, Seconds(1), [&] {
-      return send_count == expected_send_count;
+      return descriptions == expected_send_count;
     }));
   };
 
