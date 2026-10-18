@@ -637,25 +637,50 @@ bool FileCache::IsShadowed(const List<String>& headers,
 
   ShadowChecker checker(&directory_listings_);
   const auto prefixes = SearchPrefixes(search_dirs);
-  bool shadowed = false;
+
+  // The first directory, that has a name: only the paths, that start with
+  // such a name before the directory of the header, are checked.
+  HashMap<std::string_view, size_t> first_dirs;
+  Vector<SharedPtr<const DirectoryListings::Listing>> listings;
+  for (size_t dir = 0; dir < prefixes.size(); ++dir) {
+    String path = prefixes[dir];
+    if (path.size() > 1) {
+      path.pop_back();
+    }
+    listings.push_back(directory_listings_.Get(path));
+    if (listings.back()) {
+      for (const auto& name : *listings.back()) {
+        first_dirs.emplace(name, dir);
+      }
+    }
+  }
+
   String path;
   for (const auto& header : headers) {
-    const String header_path =
-        FromManifestPath(header, current_dir, root);
-    VisitShadowingPaths(
-        header_path, prefixes,
-        [&](const String& prefix, std::string_view relative) {
-          struct stat st;
-          if (!shadowed && checker.IsFile(prefix, relative, &path, &st) &&
-              !ignored_paths.contains(
-                  ToManifestPath(path, current_dir, root))) {
-            LOG(CACHE_INFO) << "Header " << header_path << " is shadowed by "
-                            << path;
-            shadowed = true;
-          }
-        });
-    if (shadowed) {
-      return true;
+    const String header_path = FromManifestPath(header, current_dir, root);
+    for (size_t dir = 0; dir < prefixes.size(); ++dir) {
+      const String& prefix = prefixes[dir];
+      if (header_path.size() <= prefix.size() ||
+          header_path.compare(0, prefix.size(), prefix) != 0) {
+        continue;
+      }
+      const std::string_view relative(header_path.c_str() + prefix.size(),
+                                      header_path.size() - prefix.size());
+      auto it = first_dirs.find(relative.substr(0, relative.find('/')));
+      if (it == first_dirs.end()) {
+        continue;
+      }
+      // The header is found in this directory - then a file with the same
+      // relative path in any previous directory is found instead.
+      for (size_t other_dir = it->second; other_dir < dir; ++other_dir) {
+        struct stat st;
+        if (checker.IsFile(prefixes[other_dir], relative, &path, &st) &&
+            !ignored_paths.contains(ToManifestPath(path, current_dir, root))) {
+          LOG(CACHE_INFO) << "Header " << header_path << " is shadowed by "
+                          << path;
+          return true;
+        }
+      }
     }
   }
 
