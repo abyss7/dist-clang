@@ -22,5 +22,12 @@ bool LoadFromFile(const Path& path, google::protobuf::Message* message,
 bool SaveToFile(const Path& path, const google::protobuf::Message& message,
                 String* error = nullptr);
 
+// The same in the binary format - faster, but not for people.
+bool LoadBinaryFromFile(const Path& path, google::protobuf::Message* message,
+                        String* error = nullptr);
+bool SaveBinaryToFile(const Path& path,
+                      const google::protobuf::Message& message,
+                      String* error = nullptr);
+
 }  // namespace base
 }  // namespace dist_clang

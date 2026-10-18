@@ -47,5 +47,24 @@ bool SaveToFile(const Path& path, const google::protobuf::Message& message,
   return true;
 }
 
+bool LoadBinaryFromFile(const Path& path, google::protobuf::Message* message,
+                        String* error) {
+  Immutable contents;
+  if (!File::Read(path, &contents, error) ||
+      !message->ParseFromArray(contents.data(), contents.size())) {
+    message->Clear();
+    return false;
+  }
+  return true;
+}
+
+bool SaveBinaryToFile(const Path& path,
+                      const google::protobuf::Message& message,
+                      String* error) {
+  String output;
+  return message.SerializeToString(&output) &&
+         File::Write(path, Immutable(std::move(output)), error);
+}
+
 }  // namespace base
 }  // namespace dist_clang

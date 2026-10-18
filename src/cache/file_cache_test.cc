@@ -776,6 +776,24 @@ TEST(FileCacheTest, FindDoesntKeepOldFields) {
   EXPECT_TRUE(failed.stderr.empty());
 }
 
+TEST(FileCacheTest, BinaryManifests) {
+  // The manifests are read on every lookup: the text format takes much more
+  // time to parse.
+  const base::TemporaryDir temp_dir;
+  FileCache cache(temp_dir);
+  ASSERT_TRUE(cache.Run(1));
+  const auto hash = TestHash("-c");
+  cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l});
+
+  Immutable contents;
+  ASSERT_TRUE(base::File::Read(
+      AppendExtension(cache.CommonPath(hash), base::kExtManifest), &contents));
+  proto::Manifest manifest;
+  EXPECT_TRUE(manifest.ParseFromString(contents.string_copy()));
+  EXPECT_TRUE(manifest.has_v1());
+  EXPECT_FALSE(contents.string_copy().starts_with("version:"));
+}
+
 TEST(FileCacheTest, ForgetTag) {
   const base::TemporaryDir temp_dir;
   // Makes the cleaner process the stored entries and the tags.
@@ -1119,9 +1137,9 @@ TEST(FileCacheTest, EntryWithoutHashes) {
   // E.g. a manifest, written partially before a crash of the system.
   const auto manifest_path = cache.CommonPath(hash).string() + ".manifest";
   proto::Manifest manifest;
-  ASSERT_TRUE(base::LoadFromFile(manifest_path, &manifest));
+  ASSERT_TRUE(base::LoadBinaryFromFile(manifest_path, &manifest));
   manifest.mutable_v1()->clear_object_hash();
-  ASSERT_TRUE(base::SaveToFile(manifest_path, manifest));
+  ASSERT_TRUE(base::SaveBinaryToFile(manifest_path, manifest));
 
   FileCache::Entry entry;
   EXPECT_FALSE(cache.Find(hash, &entry));
@@ -2287,7 +2305,7 @@ TEST(FileCacheTest, CheckFilesOnlyAfterCrash) {
     proto::Manifest manifest;
     manifest.set_version(1);
     manifest.mutable_v1()->set_size(0);
-    ASSERT_TRUE(base::SaveToFile(old_entry, manifest));
+    ASSERT_TRUE(base::SaveBinaryToFile(old_entry, manifest));
     MakeOld(temp_dir);
     // The new index - the files are checked.
     EXPECT_TRUE(cache.Run(1));

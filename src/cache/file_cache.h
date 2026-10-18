@@ -38,6 +38,7 @@ FORWARD_TEST(FileCacheTest, RestoreEntryWithMissingFile);
 FORWARD_TEST(FileCacheTest, CheckFilesOnlyAfterCrash);
 FORWARD_TEST(FileCacheTest, ReportSizes);
 FORWARD_TEST(FileCacheTest, Ghosts);
+FORWARD_TEST(FileCacheTest, BinaryManifests);
 FORWARD_TEST(FileCacheTest, RemoveDirectRowsOfRemovedEntries);
 FORWARD_TEST(FileCacheTest, FindDoesntKeepOldFields);
 
@@ -313,6 +314,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, CheckFilesOnlyAfterCrash);
   FRIEND_TEST(FileCacheTest, ReportSizes);
   FRIEND_TEST(FileCacheTest, Ghosts);
+  FRIEND_TEST(FileCacheTest, BinaryManifests);
   FRIEND_TEST(FileCacheTest, RemoveDirectRowsOfRemovedEntries);
   FRIEND_TEST(FileCacheTest, FindDoesntKeepOldFields);
 

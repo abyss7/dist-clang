@@ -704,7 +704,7 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
   }
 
   proto::Manifest manifest;
-  if (!base::LoadFromFile(manifest_path, &manifest) || !manifest.has_direct() ||
+  if (!base::LoadBinaryFromFile(manifest_path, &manifest) || !manifest.has_direct() ||
       manifest.version() != kManifestVersion) {
     return false;
   }
@@ -785,7 +785,7 @@ bool FileCache::Find(HandledHash hash, Entry* found) const {
   }
 
   proto::Manifest manifest;
-  if (!base::LoadFromFile(manifest_path, &manifest) || !manifest.has_v1() ||
+  if (!base::LoadBinaryFromFile(manifest_path, &manifest) || !manifest.has_v1() ||
       manifest.version() != kManifestVersion) {
     return false;
   }
@@ -1238,7 +1238,7 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
     v1->set_compilation_time(entry.compilation_time);
   }
 
-  if (!base::SaveToFile(manifest_path, manifest, &error)) {
+  if (!base::SaveBinaryToFile(manifest_path, manifest, &error)) {
     RemoveEntry(hash);
     LOG(CACHE_ERROR) << "Failed to save manifest to " << manifest_path << ": "
                      << error;
@@ -1352,7 +1352,7 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
   proto::Manifest old_manifest;
   List<Variant> variants;
   if (base::File::Exists(manifest_path) &&
-      base::LoadFromFile(manifest_path, &old_manifest) &&
+      base::LoadBinaryFromFile(manifest_path, &old_manifest) &&
       old_manifest.has_direct() &&
       old_manifest.version() == kManifestVersion) {
     variants = DirectVariants(old_manifest.direct());
@@ -1480,7 +1480,7 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
   }
 
   String error;
-  if (!base::SaveToFile(manifest_path, manifest, &error)) {
+  if (!base::SaveBinaryToFile(manifest_path, manifest, &error)) {
     RemoveEntry(orig_hash);
     LOG(CACHE_ERROR) << "Failed to save manifest to " << manifest_path << ": "
                      << error;
@@ -1703,7 +1703,7 @@ bool FileCache::LoadEntryInfo(string::Hash hash, EntryInfo* info) const {
   const auto manifest_path =
       AppendExtension(CommonPath(hash), base::kExtManifest);
   proto::Manifest manifest;
-  if (!base::LoadFromFile(manifest_path, &manifest) ||
+  if (!base::LoadBinaryFromFile(manifest_path, &manifest) ||
       manifest.version() != kManifestVersion ||
       (!manifest.has_v1() && !manifest.has_direct())) {
     return false;
