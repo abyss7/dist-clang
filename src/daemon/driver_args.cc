@@ -657,9 +657,24 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
     }
   }
 
+  // The coverage mapping has the current directory too - without the debug
+  // info, and with "-fdebug-compilation-dir".
+  bool has_coverage_mapping = false, has_coverage_dir = false;
+  for (const auto& arg : args) {
+    if (arg == "-fcoverage-mapping") {
+      has_coverage_mapping = true;
+    } else if (arg == "-fno-coverage-mapping") {
+      has_coverage_mapping = false;
+    } else if (arg.starts_with("-ffile-compilation-dir=") ||
+               arg.starts_with("-fcoverage-compilation-dir=")) {
+      has_coverage_dir = true;
+    }
+  }
+  const bool coverage_has_cwd = has_coverage_mapping && !has_coverage_dir;
+
   // The paths of the sources get into the result through the "__FILE__" macro
   // and the debug info - unless they are remapped.
-  flags->set_relocatable(has_macro_prefix_map &&
+  flags->set_relocatable(has_macro_prefix_map && !coverage_has_cwd &&
                          (!has_debug_info ||
                           (has_compilation_dir && has_debug_prefix_map)));
   // The prefixes, that are removed from all paths of the result.
@@ -673,11 +688,11 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
     }
   }
 
+  if ((has_debug_info && !has_compilation_dir) || coverage_has_cwd) {
+    flags->add_key_extra("cwd:" + current_dir);
+  }
   if (has_debug_info) {
     flags->set_records_command_line(records_command_line);
-    if (!has_compilation_dir) {
-      flags->add_key_extra("cwd:" + current_dir);
-    }
     if (has_split_dwarf) {
       flags->set_dwo_file(ReplaceExtension(output, ".dwo"));
       flags->add_key_extra("dwo:" + flags->dwo_file());

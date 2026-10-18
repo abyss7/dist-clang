@@ -160,6 +160,39 @@ TEST(DriverArgsTest, DebugInfoDependsOnCurrentDir) {
   EXPECT_TRUE(KeyExtra(flags).empty());
 }
 
+TEST(DriverArgsTest, CoverageDependsOnCurrentDir) {
+  // The coverage mapping has the current directory - without the debug info
+  // too.
+  base::proto::Flags flags;
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-fprofile-instr-generate",
+                     "-fcoverage-mapping"},
+                    &flags));
+  EXPECT_EQ(List<String>{"cwd:/tmp"}, KeyExtra(flags));
+  EXPECT_FALSE(flags.relocatable());
+
+  flags.Clear();
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-fprofile-instr-generate",
+                     "-fcoverage-mapping", "-fno-coverage-mapping"},
+                    &flags));
+  EXPECT_TRUE(KeyExtra(flags).empty());
+
+  for (const char* dir :
+       {"-ffile-compilation-dir=.", "-fcoverage-compilation-dir=."}) {
+    flags.Clear();
+    ASSERT_TRUE(Parse({"-c", "test.cc", "-fprofile-instr-generate",
+                       "-fcoverage-mapping", dir},
+                      &flags));
+    EXPECT_TRUE(KeyExtra(flags).empty()) << dir;
+  }
+
+  // With the debug info the directory is in the key once.
+  flags.Clear();
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-g", "-fprofile-instr-generate",
+                     "-fcoverage-mapping"},
+                    &flags));
+  EXPECT_EQ(List<String>{"cwd:/tmp"}, KeyExtra(flags));
+}
+
 TEST(DriverArgsTest, SplitDwarf) {
   base::proto::Flags flags;
   ASSERT_TRUE(Parse({"-c", "test.cc", "-o", "obj/test.o", "-g",
