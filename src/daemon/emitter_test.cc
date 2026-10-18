@@ -3034,6 +3034,13 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
     base::Singleton<perf::StatService>::Get().Dump(metric);
     return stats[name] += metric.value();
   };
+  // The hit is counted after the reply.
+  auto WaitForStat = [&Stat](perf::proto::Metric::Name name, ui64 value) {
+    for (int i = 0; i < 300 && Stat(name) < value; ++i) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return Stat(name);
+  };
   auto Output = [&] {
     Immutable content;
     EXPECT_TRUE(base::File::Read(output_path, &content));
@@ -3074,7 +3081,7 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
   ASSERT_EQ(0, utime(output_path.c_str(), &old_time));
   Compile(3);
   EXPECT_EQ("object 2", Output());
-  EXPECT_EQ(1u, Stat(perf::proto::Metric::PARALLEL_PREPROCESSING_HIT));
+  EXPECT_EQ(1u, WaitForStat(perf::proto::Metric::PARALLEL_PREPROCESSING_HIT, 1u));
   EXPECT_GE(1u, canceled);
   // The output is the same - it keeps its time.
   struct stat st;
@@ -3103,7 +3110,7 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
   object = "object 5";
   Compile(5);
   EXPECT_EQ("object 4", Output());
-  EXPECT_EQ(2u, Stat(perf::proto::Metric::PARALLEL_PREPROCESSING_HIT));
+  EXPECT_EQ(2u, WaitForStat(perf::proto::Metric::PARALLEL_PREPROCESSING_HIT, 2u));
   EXPECT_EQ(4u, Stat(perf::proto::Metric::PARALLEL_PREPROCESSING));
 
   emitter.reset();
