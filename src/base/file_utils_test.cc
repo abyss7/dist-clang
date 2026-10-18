@@ -46,6 +46,47 @@ TEST(FileUtilsTest, CalculateDirectorySize) {
       << error;
 }
 
+TEST(FileUtilsTest, WalkDirectoryWithVanishedFiles) {
+  // The files vanish during the walk - like the temporary files of the cache:
+  // the rest of the directory is walked anyway.
+  const TemporaryDir temp_dir;
+  const int count = 20;
+  auto Name = [](const char* prefix, int i) {
+    return prefix + std::to_string(i);
+  };
+  for (int i = 0; i < count; ++i) {
+    ASSERT_TRUE(File::Write(temp_dir.path() / Name("file", i), "a"_l));
+    const auto dir = temp_dir.path() / Name("dir", i);
+    ASSERT_NE(-1, mkdir(dir.c_str(), 0777));
+    ASSERT_TRUE(File::Write(dir / "nested", "b"_l));
+  }
+  // Not followed.
+  ASSERT_EQ(0, symlink("missing", (temp_dir.path() / "link").c_str()));
+
+  ui32 files = 0, nested = 0;
+  String error;
+  WalkDirectory(
+      temp_dir,
+      [&](const Path& path, ui64, ui64) {
+        if (path.filename() == "nested") {
+          ++nested;
+          return;
+        }
+        if (files++ == 0) {
+          for (int i = 0; i < count; ++i) {
+            const auto other = temp_dir.path() / Name("file", i);
+            if (other != path) {
+              File::Delete(other);
+            }
+          }
+        }
+      },
+      &error);
+  EXPECT_EQ(1u, files);
+  EXPECT_EQ(ui32(count), nested);
+  EXPECT_TRUE(error.empty()) << error;
+}
+
 TEST(FileUtilsTest, TempFile) {
   String error;
   const String temp_file = CreateTempFile(&error);

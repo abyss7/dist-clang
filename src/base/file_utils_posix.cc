@@ -9,6 +9,7 @@
 #include STL(regex)
 
 #include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -36,24 +37,25 @@ void WalkDirectory(
         const Path new_path = path / entry_name;
 
         if (entry_name != "." && entry_name != "..") {
+          // The symlinks aren't followed - out of the walked directory.
           struct stat buffer;
-          if (!stat(new_path.c_str(), &buffer)) {
+          if (!lstat(new_path.c_str(), &buffer)) {
             if (S_ISDIR(buffer.st_mode)) {
               paths.push_back(new_path);
             } else if (S_ISREG(buffer.st_mode)) {
               visitor(new_path, ModificationTime(buffer) / 1'000'000'000,
                       buffer.st_size);
             }
-          } else {
+          } else if (errno != ENOENT) {
+            // The vanished files are skipped silently, the others - with the
+            // error: the rest of the directory is walked anyway.
             GetLastError(error);
-            break;
           }
         }
       }
       closedir(dir);
-    } else {
+    } else if (errno != ENOENT) {
       GetLastError(error);
-      break;
     }
 
     paths.pop_front();
