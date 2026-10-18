@@ -42,7 +42,8 @@ int CreateUniqueFile(char* path_template, int suffix_size);
 // the default one on Mac.
 String PathKey(const String& path);
 
-// The directory of the executable of the current process.
+// The executable of the current process, and its directory.
+bool GetSelfExecutable(String& result, String* error = nullptr);
 bool GetSelfPath(String& result, String* error = nullptr);
 
 void SetCurrentThreadName(Literal name);

@@ -1,5 +1,6 @@
 #include <client/configuration.hh>
 
+#include <base/c_utils.h>
 #include <base/file_utils.h>
 #include <base/protobuf_utils.h>
 #include <base/temporary_dir.h>
@@ -38,6 +39,24 @@ TEST(ClientConfigurationTest, ConfigFileInParentDir) {
   EXPECT_EQ('/', configuration.config().plugins(0).path()[0])
       << configuration.config().plugins(0).path();
   base::ChangeCurrentDir(old_cwd);
+}
+
+TEST(ClientConfigurationTest, DontFindItself) {
+  // A symlink "clang" to the client itself in PATH isn't the real compiler:
+  // it would run itself forever.
+  const base::TemporaryDir temp_dir;
+  std::filesystem::create_symlink(std::filesystem::canonical("/proc/self/exe"),
+                                  temp_dir.path() / "clang");
+  const String old_path = String(base::GetEnv("PATH"_l));
+  setenv("PATH", (temp_dir.path().string() + ":" + old_path).c_str(), 1);
+  unsetenv("DC_CLANG_PATH");
+
+  const auto old_cwd = base::GetCurrentDir();
+  ASSERT_TRUE(base::ChangeCurrentDir(temp_dir));
+  Configuration configuration;
+  EXPECT_NE(temp_dir.path() / "clang", Path(configuration.config().path()));
+  base::ChangeCurrentDir(old_cwd);
+  setenv("PATH", old_path.c_str(), 1);
 }
 
 }  // namespace client

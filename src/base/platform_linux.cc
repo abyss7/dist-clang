@@ -56,7 +56,7 @@ int CreateUniqueFile(char* path_template, int suffix_size) {
   return mkostemps(path_template, suffix_size, O_CLOEXEC);
 }
 
-bool GetSelfPath(String& result, String* error) {
+bool GetSelfExecutable(String& result, String* error) {
   char path[PATH_MAX];
   const ssize_t size = readlink("/proc/self/exe", path, sizeof(path) - 1);
   if (size == -1) {
@@ -64,6 +64,13 @@ bool GetSelfPath(String& result, String* error) {
     return false;
   }
   result.assign(path, size);
+  return true;
+}
+
+bool GetSelfPath(String& result, String* error) {
+  if (!GetSelfExecutable(result, error)) {
+    return false;
+  }
   result = result.substr(0, result.find_last_of('/'));
   return true;
 }

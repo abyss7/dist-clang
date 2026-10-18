@@ -88,20 +88,35 @@ Configuration::Configuration() {
     config_.set_disabled(true);
   }
 
+  // The real compiler mustn't be the client itself - e.g. its symlink: it
+  // would run itself forever.
+  String self;
+  if (!base::GetSelfExecutable(self, nullptr)) {
+    LOG(FATAL) << "Can't reliably detect myself in $PATH";
+  }
+  std::error_code ec;
+  const auto self_path = std::filesystem::canonical(self, ec);
+  auto IsSelf = [&](const String& path) {
+    std::error_code ec;
+    const auto real_path = std::filesystem::canonical(path, ec);
+    return !ec && real_path == self_path;
+  };
+
+  if (!config_.path().empty() && IsSelf(config_.path())) {
+    LOG(ERROR) << "The real compiler " << config_.path()
+               << " is dist-clang itself";
+    config_.clear_path();
+  }
+
   if (config_.path().empty()) {
     Immutable path = base::GetEnv("PATH"_l);
     List<String> path_dirs;
     base::SplitString<':'>(path, path_dirs);
 
-    String self_path;
-    if (!base::GetSelfPath(self_path, nullptr)) {
-      LOG(FATAL) << "Can't reliably detect myself in $PATH";
-    }
-
     for (const auto& dir : path_dirs) {
-      // TODO: convert |dir + "/clang"| to canonical path.
-      if (base::File::IsExecutable(dir + "/clang") && dir != self_path) {
-        config_.set_path(dir + "/clang");
+      const String candidate = dir + "/clang";
+      if (base::File::IsExecutable(candidate) && !IsSelf(candidate)) {
+        config_.set_path(candidate);
         break;
       }
     }

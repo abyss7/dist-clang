@@ -78,7 +78,7 @@ int CreateUniqueFile(char* path_template, int suffix_size) {
   return fd;
 }
 
-bool GetSelfPath(String& result, String* error) {
+bool GetSelfExecutable(String& result, String* error) {
   char path[PATH_MAX];
   ui32 size = sizeof(path);
   if (_NSGetExecutablePath(path, &size) == -1) {
@@ -87,8 +87,15 @@ bool GetSelfPath(String& result, String* error) {
     }
     return false;
   }
-  // FIXME: convert path to absolute with |realpath()|.
-  result = String(path);
+  char real_path[PATH_MAX];
+  result = String(realpath(path, real_path) ? real_path : path);
+  return true;
+}
+
+bool GetSelfPath(String& result, String* error) {
+  if (!GetSelfExecutable(result, error)) {
+    return false;
+  }
   result = result.substr(0, result.find_last_of('/'));
   return true;
 }
