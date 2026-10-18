@@ -4,6 +4,8 @@
 #include <base/file/pipe.h>
 #include <base/file_utils.h>
 
+#include STL(thread)
+
 #include <signal.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -117,7 +119,22 @@ bool ProcessImpl::WaitPid(int pid, ui64 sec_timeout, String* error) {
   // TODO: implement killing child on timeout.
 
   int status;
-  int result = waitpid(pid, &status, 0);
+  int result = 0;
+  if (terminated_) {
+    // The terminated process has a second to exit.
+    const auto deadline = Clock::now() + std::chrono::seconds(1);
+    while ((result = waitpid(pid, &status, WNOHANG)) == 0 &&
+           Clock::now() < deadline) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    if (result == 0) {
+      ::kill(-pid, SIGKILL);
+      ::kill(pid, SIGKILL);
+    }
+  }
+  if (result == 0) {
+    result = waitpid(pid, &status, 0);
+  }
   if (result == -1) {
     GetLastError(error);
     return false;
@@ -144,6 +161,12 @@ bool ProcessImpl::WaitPid(int pid, ui64 sec_timeout, String* error) {
 void ProcessImpl::kill(int pid) {
   ::kill(pid, SIGTERM);
   killed_ = true;
+}
+
+void ProcessImpl::Terminate(int pid) {
+  ::kill(-pid, SIGTERM);
+  ::kill(pid, SIGTERM);
+  terminated_ = true;
 }
 
 }  // namespace base

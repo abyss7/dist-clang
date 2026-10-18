@@ -34,8 +34,12 @@ class ProcessImpl : public Process {
   static void DieWithParent();
   bool WaitPid(int pid, ui64 sec_timeout, String* error = nullptr);
   void kill(int pid);
+  // Terminates the whole group of the canceled process: it may remove its
+  // temporary files - and is killed, if it doesn't exit soon.
+  void Terminate(int pid);
 
   bool killed_;
+  bool terminated_ = false;
   // Signals |Cancel()| to the running process.
   int cancel_event_ = -1;
 };

@@ -133,8 +133,7 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
 
       for (int i = 0; i < event_count; ++i) {
         if (events[i].data.ptr == &cancel_event) {
-          ::kill(-child_pid, SIGKILL);
-          ::kill(child_pid, SIGKILL);
+          Terminate(child_pid);
           canceled_ = killed_ = true;
           if (error) {
             error->assign("Canceled");
@@ -142,9 +141,8 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
           break;
         }
         if (events[i].data.ptr == &cancel_socket) {
-          // The peer is gone - kill the whole process group at once.
-          ::kill(-child_pid, SIGKILL);
-          ::kill(child_pid, SIGKILL);
+          // The peer is gone - terminate the whole process group.
+          Terminate(child_pid);
           canceled_ = killed_ = true;
           if (error) {
             error->assign("Canceled: the peer has disconnected");

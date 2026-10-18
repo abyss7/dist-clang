@@ -1,7 +1,9 @@
 #include <base/process_impl.h>
 
+#include <base/file/file.h>
 #include <base/file_utils.h>
 #include <base/string_utils.h>
+#include <base/temporary_dir.h>
 
 #include <test/throw_std.h>
 
@@ -148,6 +150,44 @@ TEST_F(ProcessTest, CancelFromAnotherThread) {
   EXPECT_TRUE(process->canceled());
   EXPECT_LT(std::chrono::steady_clock::now() - start, std::chrono::seconds(10));
   EXPECT_TRUE(process->stdout().empty());
+}
+
+TEST_F(ProcessTest, CancelLetsCleanUp) {
+  const TemporaryDir temp_dir;
+  const Path temporary = temp_dir.path() / "output.tmp";
+
+  // E.g. the compiler removes its temporary outputs on the termination.
+  ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+  process->AppendArg("-c"_l)
+      .AppendArg(Immutable("trap 'rm -f " + temporary.string() +
+                           "; exit 1' TERM; touch " + temporary.string() +
+                           "; sleep 30 & wait"));
+
+  std::thread cancel([&] {
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    process->Cancel();
+  });
+  EXPECT_FALSE(process->Run(Process::UNLIMITED));
+  cancel.join();
+
+  EXPECT_TRUE(process->canceled());
+  EXPECT_FALSE(base::File::Exists(temporary));
+}
+
+TEST_F(ProcessTest, CancelKillsProcessIgnoringTermination) {
+  ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+  process->AppendArg("-c"_l).AppendArg("trap '' TERM; sleep 30"_l);
+
+  std::thread cancel([&] {
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    process->Cancel();
+  });
+  const auto start = std::chrono::steady_clock::now();
+  EXPECT_FALSE(process->Run(Process::UNLIMITED));
+  cancel.join();
+
+  EXPECT_TRUE(process->canceled());
+  EXPECT_LT(std::chrono::steady_clock::now() - start, std::chrono::seconds(5));
 }
 
 TEST_F(ProcessTest, CancelBeforeRun) {
