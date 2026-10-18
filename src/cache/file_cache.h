@@ -113,8 +113,10 @@ class FileCache {
   // The format of the cache on disk - see |proto::Format|. Bump the generation
   // for the changes, that the older daemons can't work with, or that may give
   // wrong results with them: the layout of the files, the semantics of the
-  // manifests and of the databases. Bump the revision for the compatible
-  // changes, e.g. new optional fields, that the older daemons ignore.
+  // manifests and of the databases, the keys of the entries - otherwise the
+  // older entries would stay unreachable, with their sizes. Bump the revision
+  // for the compatible changes, e.g. new optional fields, that the older
+  // daemons ignore.
   //
   // Nothing is migrated: the entries of other versions are just removed.
   //
@@ -122,7 +124,10 @@ class FileCache {
   //               the old manifests, and the outputs beside the manifests.
   // Generation 2: the outputs only in the blob store, the blobs of the
   //               entries in the index, no Snappy.
-  enum : ui32 { kGeneration = 2, kRevision = 3 };
+  // Generation 3: the binary manifests, the 64-bit parts of the keys, and the
+  //               new keys of the direct cache: with the system headers and
+  //               the paths of the headers.
+  enum : ui32 { kGeneration = 3, kRevision = 0 };
 
   // Maximal number of the header sets per one source in the direct cache.
   enum : size_t { kMaxDirectVariants = 8 };

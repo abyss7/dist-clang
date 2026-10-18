@@ -34,9 +34,9 @@ namespace dist_clang {
 
 namespace {
 
-// Bump to invalidate all direct cache entries, e.g. when the way of collecting
-// the direct-mode command line changes.
-const Literal kDirectKeyVersion = "direct-5"_l;
+// The keys of the direct cache differ from the ones of the simple cache with
+// the same text. Any change of the keys raises the generation of the cache.
+const Literal kDirectKeyMarker = "direct"_l;
 
 Path ReplaceTildeInPath(const String& path) {
   // FIXME: try to handle |Path| instead of |String|
@@ -314,6 +314,7 @@ FileCache::RunningMarker::~RunningMarker() {
 bool FileCache::CheckFormat() {
   const Path format_path = path_ / kFormatFile;
   proto::Format format;
+  bool save = false;
 
   if (base::File::Exists(format_path)) {
     if (!base::LoadFromFile(format_path, &format)) {
@@ -327,7 +328,8 @@ bool FileCache::CheckFormat() {
     format.set_revision(0);
   } else {
     format.set_generation(kGeneration);
-    format.set_revision(0);
+    format.set_revision(kRevision);
+    save = true;
   }
 
   if (format.generation() > kGeneration) {
@@ -364,13 +366,17 @@ bool FileCache::CheckFormat() {
     }
     format.Clear();
     format.set_generation(kGeneration);
-    format.set_revision(0);
+    format.set_revision(kRevision);
+    save = true;
   }
 
   // The newer revisions of the same generation stay: their daemons may still
   // be used.
   if (format.revision() < kRevision) {
     format.set_revision(kRevision);
+    save = true;
+  }
+  if (save) {
     format.set_written_by(kDaemonVersion);
     String error;
     if (!base::SaveToFile(format_path, format, &error)) {
@@ -614,7 +620,7 @@ UnhandledHash FileCache::Hash(UnhandledSource code,
   return UnhandledHash(
       HashCombine(code.str, extra_files) + "-" +
       base::Hexify(command_line.str.Hash(8)) + "-" +
-      base::Hexify((version.str + "\n"_l + kDirectKeyVersion).Hash(8)));
+      base::Hexify((version.str + "\n"_l + kDirectKeyMarker).Hash(8)));
 }
 
 // static

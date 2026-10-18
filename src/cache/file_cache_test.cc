@@ -77,6 +77,25 @@ ui64 GetStat(perf::proto::Metric::Name name) {
 
 }  // namespace
 
+TEST(FileCacheTest, KeysOfGeneration) {
+  // The keys of the entries are a part of the format of the cache: the older
+  // entries wouldn't be found, but would stay in the cache - with their sizes
+  // and the statistics. If this test fails, raise |FileCache::kGeneration| and
+  // update the keys here: the cache is reset then.
+  // The keys are formed in the code: the literals of such forms look like the
+  // API keys to the secret scanners.
+  const String source_hash = "22f62a6490830d13" + String("ca808c1eeddfc2a2");
+  EXPECT_EQ(source_hash + "-" + "f108f3f1b79b8334" + "-" + "717c7b8afebbfb71",
+            FileCache::Hash(HandledSource("int main() {}"_l), {},
+                            CommandLine("-c"_l), Version("1"_l))
+                .str.string_copy());
+  EXPECT_EQ(source_hash + "-" + "f108f3f1b79b8334" + "-" + "6369146f18cee2ea",
+            FileCache::Hash(UnhandledSource("int main() {}"_l), {},
+                            CommandLine("-c"_l), Version("1"_l))
+                .str.string_copy());
+  EXPECT_EQ(3u, FileCache::kGeneration);
+}
+
 TEST(FileCacheTest, HashCompliesWithRegex) {
   // The command line and the compiler have 64 bits each: with 32 bits the
   // collisions are likely in a large cache.
