@@ -1320,17 +1320,29 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
 
 void FileCache::Remove(string::HandledHash hash) {
   // The index is updated only by the cleaner.
-  cleaner_.Push([this, hash] {
-    const auto manifest_path =
-        AppendExtension(CommonPath(hash), base::kExtManifest);
-    WriteLock lock(this, manifest_path);
-    if (!lock || !base::File::Exists(manifest_path)) {
+  cleaner_.Push([this, hash] { DoRemove(hash, kRemoveAttempts); });
+}
+
+void FileCache::DoRemove(string::HandledHash hash, ui32 attempts) {
+  const auto manifest_path =
+      AppendExtension(CommonPath(hash), base::kExtManifest);
+  if (!base::File::Exists(manifest_path)) {
+    return;
+  }
+  WriteLock lock(this, manifest_path);
+  if (!lock) {
+    // The entry is being read or written right now - for milliseconds.
+    if (!--attempts) {
+      LOG(CACHE_ERROR) << "Failed to remove the locked entry " << hash.str;
       return;
     }
-    entries_->BeginTransaction();
-    RemoveEntry(hash);
-    entries_->EndTransaction();
-  });
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    cleaner_.Push([this, hash, attempts] { DoRemove(hash, attempts); });
+    return;
+  }
+  entries_->BeginTransaction();
+  RemoveEntry(hash);
+  entries_->EndTransaction();
 }
 
 bool FileCache::RemoveEntry(string::Hash hash) {

@@ -763,6 +763,29 @@ TEST(FileCacheTest, RemoveBlobsOfFailedStore) {
   EXPECT_TRUE(cache.Find(other_hash, &entry));
 }
 
+TEST(FileCacheTest, RemoveLockedEntry) {
+  // The wrong entry is removed, though it's being read at the moment.
+  const base::TemporaryDir temp_dir;
+  FileCache cache(temp_dir.path(), FileCache::UNLIMITED, proto::ZSTD, true);
+  ASSERT_TRUE(cache.Run(3600));
+  const auto hash = TestHash("-c");
+  cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l});
+  const auto manifest_path =
+      AppendExtension(cache.CommonPath(hash), base::kExtManifest);
+
+  {
+    FileCache::ReadLock lock(&cache, manifest_path);
+    ASSERT_TRUE(lock);
+    cache.Remove(hash);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  for (int i = 0; i < 300 && base::File::Exists(manifest_path); ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  FileCache::Entry entry;
+  EXPECT_FALSE(cache.Find(hash, &entry));
+}
+
 TEST(FileCacheTest, TagStats) {
   const base::TemporaryDir temp_dir;
   // Makes the cleaner process the stored entries and the tags.

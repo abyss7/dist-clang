@@ -34,6 +34,7 @@ FORWARD_TEST(FileCacheTest, ForgetTag);
 FORWARD_TEST(FileCacheTest, DeduplicateOutputs);
 FORWARD_TEST(FileCacheTest, RemoveUnreferencedBlobs);
 FORWARD_TEST(FileCacheTest, KeepBlobsOfHitsDuringScan);
+FORWARD_TEST(FileCacheTest, RemoveLockedEntry);
 FORWARD_TEST(FileCacheTest, RemoveBlobsOfFailedStore);
 FORWARD_TEST(FileCacheTest, NoStoresAfterClose);
 FORWARD_TEST(FileCacheTest, CompressColdEntries);
@@ -321,6 +322,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, DeduplicateOutputs);
   FRIEND_TEST(FileCacheTest, RemoveUnreferencedBlobs);
   FRIEND_TEST(FileCacheTest, KeepBlobsOfHitsDuringScan);
+  FRIEND_TEST(FileCacheTest, RemoveLockedEntry);
   FRIEND_TEST(FileCacheTest, RemoveBlobsOfFailedStore);
   FRIEND_TEST(FileCacheTest, NoStoresAfterClose);
   FRIEND_TEST(FileCacheTest, CompressColdEntries);
@@ -375,6 +377,11 @@ class FileCache {
   inline Path CommonPath(string::Hash hash) const {
     return SecondPath(hash) / hash.str.string_copy();
   }
+
+  // Removes the entry in the cleaner - waits for the lock of the entry for
+  // the |attempts|.
+  void DoRemove(string::HandledHash hash, ui32 attempts);
+  enum : ui32 { kRemoveAttempts = 100 };
 
   void DoStore(string::UnhandledHash orig_hash, const List<String>& headers,
                const List<String>& preprocessed_headers,
