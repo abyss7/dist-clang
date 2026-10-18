@@ -671,6 +671,35 @@ TEST(FileCacheTest, TagStats) {
   EXPECT_EQ(1u, new_overlaps.size());
 }
 
+TEST(FileCacheTest, FindDoesntKeepOldFields) {
+  const base::TemporaryDir temp_dir;
+  FileCache cache(temp_dir, FileCache::UNLIMITED, proto::ZSTD, false);
+  ASSERT_TRUE(cache.Run(1));
+
+  const auto hash1 = TestHash("-c");
+  const auto hash2 = TestHash("-c -O2");
+  cache.Store(hash1, FileCache::Entry{"object 1"_l, "deps 1"_l, "stderr 1"_l});
+  cache.Store(hash2, FileCache::Entry{"object 2"_l, "deps 2"_l});
+
+  // E.g. a failed lookup of another entry - in the direct cache - has filled
+  // some fields: the compressed object comes without a path.
+  FileCache::Entry entry;
+  entry.object_path = temp_dir.path() / "other.o";
+  entry.stderr = "other stderr"_l;
+  ASSERT_TRUE(cache.Find(hash2, &entry));
+  EXPECT_EQ("object 2"_l, entry.object);
+  EXPECT_TRUE(entry.object_path.empty());
+  EXPECT_TRUE(entry.stderr.empty());
+
+  // A failed lookup leaves the entry untouched.
+  ASSERT_TRUE(base::File::Delete(
+      AppendExtension(cache.CommonPath(hash1), base::kExtDeps)));
+  FileCache::Entry failed;
+  EXPECT_FALSE(cache.Find(hash1, &failed));
+  EXPECT_TRUE(failed.object.empty());
+  EXPECT_TRUE(failed.stderr.empty());
+}
+
 TEST(FileCacheTest, ForgetTag) {
   const base::TemporaryDir temp_dir;
   // Makes the cleaner process the stored entries and the tags.

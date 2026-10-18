@@ -692,8 +692,8 @@ bool FileCache::FindFile(const Path& cache_path, const String& expected_hash,
   return true;
 }
 
-bool FileCache::Find(HandledHash hash, Entry* entry) const {
-  DCHECK(entry);
+bool FileCache::Find(HandledHash hash, Entry* found) const {
+  DCHECK(found);
 
   const auto manifest_path =
       AppendExtension(CommonPath(hash), base::kExtManifest);
@@ -711,6 +711,10 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
 
   const auto& v1 = manifest.v1();
   ui64 size = 0;
+  // The fields of the previous lookups mustn't stay: e.g. the compressed
+  // object comes without a path. The entry is set only on success.
+  Entry result;
+  Entry* entry = &result;
 
   if (v1.err() &&
       !FindFile(AppendExtension(CommonPath(hash), base::kExtStderr),
@@ -746,6 +750,9 @@ bool FileCache::Find(HandledHash hash, Entry* entry) const {
 
   utime(manifest_path.c_str(), nullptr);
   new_entries_->Append({ui64(time(nullptr)), hash, true});
+  // The strings of the entry are assigned only once - replace it whole.
+  std::destroy_at(found);
+  std::construct_at(found, std::move(result));
   return true;
 }
 
