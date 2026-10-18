@@ -1113,9 +1113,9 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
         previous_dwo->Save();
       }
     } else {
-      base::File::Delete(GetOutputPath(incoming));
+      previous_output.Delete();
       if (previous_dwo) {
-        base::File::Delete(GetDwoPath(incoming));
+        previous_dwo->Delete();
       }
     }
 

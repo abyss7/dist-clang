@@ -46,7 +46,16 @@ PreviousOutput::~PreviousOutput() {
 }
 
 void PreviousOutput::Save() {
+  // The rename replaces the stale one.
   saved_ = rename(path_.c_str(), saved_path_.c_str()) == 0;
+  if (!saved_) {
+    unlink(saved_path_.c_str());
+  }
+}
+
+void PreviousOutput::Delete() {
+  unlink(path_.c_str());
+  unlink(saved_path_.c_str());
 }
 
 void PreviousOutput::Restore() {

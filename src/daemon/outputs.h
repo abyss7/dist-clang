@@ -22,8 +22,13 @@ class PreviousOutput {
   explicit PreviousOutput(const Path& path);
   ~PreviousOutput();
 
-  // Moves the output aside, if it exists.
+  // Moves the output aside, if it exists. The output, that is left aside by a
+  // previous daemon, is removed anyway.
   void Save();
+
+  // Removes the output - without keeping it aside, and the one, that is left
+  // aside by a previous daemon.
+  void Delete();
 
   // Puts the previous output back, if the new one has the same contents.
   // Returns |true| if it did.

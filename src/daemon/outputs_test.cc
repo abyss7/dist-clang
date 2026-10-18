@@ -107,5 +107,32 @@ TEST(OutputsTest, NoNewOutput) {
   EXPECT_FALSE(previous.RestoreIfSame());
 }
 
+TEST(OutputsTest, RemoveStalePreviousOutput) {
+  // The daemon exits during the compilation, and leaves the previous output
+  // aside: it pins the blob of the cache, that it's linked with.
+  const base::TemporaryDir temp_dir;
+  const auto output = temp_dir.path() / "test.o";
+  const auto stale = Path(output.string() + ".dc-prev");
+
+  // The output is removed since.
+  ASSERT_TRUE(base::File::Write(stale, "object"_l));
+  {
+    PreviousOutput previous(output);
+    previous.Save();
+    EXPECT_FALSE(base::File::Exists(stale));
+    EXPECT_FALSE(previous.RestoreIfSame());
+  }
+
+  // The unchanged outputs aren't kept.
+  ASSERT_TRUE(base::File::Write(stale, "object"_l));
+  ASSERT_TRUE(base::File::Write(output, "object"_l));
+  {
+    PreviousOutput previous(output);
+    previous.Delete();
+    EXPECT_FALSE(base::File::Exists(output));
+    EXPECT_FALSE(base::File::Exists(stale));
+  }
+}
+
 }  // namespace daemon
 }  // namespace dist_clang
