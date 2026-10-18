@@ -406,6 +406,28 @@ TEST(DriverArgsTest, InputFiles) {
             Values(flags.other()));
 }
 
+TEST(DriverArgsTest, ProfilesAndListsAreTracked) {
+  const base::TemporaryDir temp_dir;
+  ASSERT_TRUE(base::File::Write(temp_dir.path() / "input", "data"_l));
+
+  // The files, that the compiler reads, are a part of the key.
+  for (const char* prefix :
+       {"-fauto-profile=", "-fmemory-profile-use=",
+        "-fbasic-block-sections=list="}) {
+    base::proto::Flags flags;
+    ASSERT_TRUE(Parse({"-c", "test.cc", String(prefix) + "input"}, &flags,
+                      nullptr, temp_dir.path()))
+        << prefix;
+    EXPECT_EQ(List<String>{"input"},
+              List<String>(flags.key_files().begin(), flags.key_files().end()))
+        << prefix;
+  }
+
+  // The default profile in the current directory can't be tracked.
+  base::proto::Flags flags;
+  EXPECT_FALSE(Parse({"-c", "test.cc", "-fprofile-instr-use"}, &flags));
+}
+
 TEST(DriverArgsTest, Environment) {
   base::proto::Flags flags;
   ASSERT_TRUE(ParseEnvironment(

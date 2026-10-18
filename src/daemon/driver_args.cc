@@ -155,6 +155,8 @@ const char* const kUnsupported[] = {
     "-S",
     "-emit-ast",
     "-fprofile-arcs",
+    // The default profiles in the current directory aren't tracked.
+    "-fprofile-instr-use",
     "-fprofile-use",
     "-fstack-usage",
     "-fsyntax-only",
@@ -175,6 +177,9 @@ const char* const kUnsupportedPrefixes[] = {
 
 // Options with a path to a file, which contents affect the result.
 const char* const kInputFilePrefixes[] = {
+    "-fauto-profile=",
+    "-fbasic-block-sections=list=",
+    "-fmemory-profile-use=",
     "-fpass-plugin=",
     "-fplugin=",
     "-fprofile-instr-use=",
