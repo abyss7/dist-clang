@@ -49,6 +49,12 @@ void PreviousOutput::Save() {
   saved_ = rename(path_.c_str(), saved_path_.c_str()) == 0;
 }
 
+void PreviousOutput::Restore() {
+  if (saved_ && rename(saved_path_.c_str(), path_.c_str()) == 0) {
+    saved_ = false;
+  }
+}
+
 bool PreviousOutput::RestoreIfSame() {
   if (!saved_) {
     return false;

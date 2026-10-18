@@ -1080,6 +1080,14 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
     if (incoming->flags().has_dwo_file()) {
       previous_dwo.emplace(GetDwoPath(incoming));
     }
+    // The canceled compilation leaves the previous outputs: the result from the
+    // cache may be the same.
+    auto RestorePreviousOutputs = [&] {
+      previous_output.Restore();
+      if (previous_dwo) {
+        previous_dwo->Restore();
+      }
+    };
     if (keep_unchanged) {
       previous_output.Save();
       if (previous_dwo) {
@@ -1099,6 +1107,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
     // outputs - they may be produced by another compilation already.
     process->CancelOnDisconnect(std::get<CONNECTION>(*task)->NativeHandle());
     if (speculation && !speculation->StartCompilation(process.get())) {
+      RestorePreviousOutputs();
       continue;
     }
     ++running_processes_;
@@ -1112,6 +1121,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
     // The result is restored from the cache instead - by the other thread.
     if (speculation && !speculation->FinishCompilation()) {
       counter.ReportOnDestroy(false);
+      RestorePreviousOutputs();
       continue;
     }
     std::optional<cache::FileCache::Entry> entry_to_store;
@@ -1121,6 +1131,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
         LOG(INFO) << "Compilation is canceled: " << incoming->flags().input();
         STAT(TASK_CANCELED);
         counter.ReportOnDestroy(false);
+        RestorePreviousOutputs();
         continue;
       }
       status.set_code(net::proto::Status::EXECUTION);

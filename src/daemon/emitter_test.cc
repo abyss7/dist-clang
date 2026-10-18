@@ -11,6 +11,9 @@
 
 #include STL(thread)
 
+#include <sys/stat.h>
+#include <utime.h>
+
 namespace dist_clang {
 namespace daemon {
 
@@ -2921,6 +2924,8 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
   conf.mutable_cache()->set_clean_period(1);
   conf.mutable_emitter()->set_preprocessing(
       proto::Configuration::Emitter::WHEN_IDLE);
+  // The unchanged outputs keep their time - like for Ninja with "restat".
+  conf.mutable_emitter()->set_keep_unchanged_outputs(true);
   auto* version = conf.add_versions();
   version->set_version(compiler_version);
   version->set_path("fake_compiler_path");
@@ -3041,10 +3046,16 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
   wait_for_preprocessing = false;
   wait_for_cancel = true;
   object = "object 3";
+  struct utimbuf old_time = {time(nullptr) - 100, time(nullptr) - 100};
+  ASSERT_EQ(0, utime(output_path.c_str(), &old_time));
   Compile(3);
   EXPECT_EQ("object 2", Output());
   EXPECT_EQ(1u, Stat(perf::proto::Metric::PARALLEL_PREPROCESSING_HIT));
   EXPECT_GE(1u, canceled);
+  // The output is the same - it keeps its time.
+  struct stat st;
+  ASSERT_EQ(0, stat(output_path.c_str(), &st));
+  EXPECT_EQ(old_time.modtime, st.st_mtime);
 
   // The compilation ends before the preprocessing - and a new one is stored
   // for the simple cache too.

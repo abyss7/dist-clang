@@ -29,6 +29,10 @@ class PreviousOutput {
   // Returns |true| if it did.
   bool RestoreIfSame();
 
+  // Puts the previous output back - e.g. the compilation is canceled: the
+  // output of the cache may be the same.
+  void Restore();
+
  private:
   const Path path_, saved_path_;
   bool saved_ = false;
