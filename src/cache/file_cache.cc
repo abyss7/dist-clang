@@ -354,7 +354,8 @@ bool FileCache::CheckFormat() {
     const bool moved = base::CreateDirectory(removed_path, &error);
     for (const auto& entry : std::filesystem::directory_iterator(path_, ec)) {
       const String name = entry.path().filename().string();
-      if (!IsCacheFile(name)) {
+      // The lock of this daemon stays.
+      if (!IsCacheFile(name) || name == kLockFile) {
         continue;
       }
       if (!moved || !base::File::Move(entry.path(), removed_path / name)) {

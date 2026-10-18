@@ -165,8 +165,19 @@ TEST(FileCacheTest, OneDaemonPerCache) {
     EXPECT_FALSE(second.Run(1));
   }
   // The cache is free again.
-  FileCache third(temp_dir);
-  EXPECT_TRUE(third.Run(1));
+  {
+    FileCache third(temp_dir);
+    EXPECT_TRUE(third.Run(1));
+  }
+
+  // The reset of the cache of an old generation keeps the lock.
+  proto::Format format;
+  format.set_generation(1);
+  ASSERT_TRUE(base::SaveToFile(temp_dir.path() / "format", format));
+  FileCache fourth(temp_dir);
+  ASSERT_TRUE(fourth.Run(1));
+  FileCache fifth(temp_dir);
+  EXPECT_FALSE(fifth.Run(1));
 }
 
 TEST(FileCacheTest, RemoveEntry) {
