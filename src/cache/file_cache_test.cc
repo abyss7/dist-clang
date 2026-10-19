@@ -763,6 +763,103 @@ TEST(FileCacheTest, RemoveBlobsOfFailedStore) {
   EXPECT_TRUE(cache.Find(other_hash, &entry));
 }
 
+TEST(FileCacheTest, TimeTraces) {
+  using M = perf::proto::Metric;
+  const base::TemporaryDir temp_dir;
+  const auto hash = TestHash("-c");
+  const auto other_hash = TestHash("-c -O1");
+  const String trace_hash = base::Hexify(Immutable("trace"_l).Hash());
+  auto Open = [&](bool store_time_traces) {
+    auto cache = std::make_unique<FileCache>(
+        temp_dir.path(), FileCache::UNLIMITED, proto::ZSTD, true, true);
+    cache->SetStoreTimeTraces(store_time_traces);
+    EXPECT_TRUE(cache->Run(3600));
+    cache->WaitForCleaner();
+    return cache;
+  };
+  // The outputs are linked.
+  auto Object = [](const FileCache::Entry& entry) {
+    Immutable object;
+    EXPECT_TRUE(base::File::Read(entry.object_path, &object));
+    return object;
+  };
+  auto BlobExists = [](const FileCache& cache, const String& hash) {
+    return base::File::Exists(cache.blobs_.RawPath(hash)) ||
+           base::File::Exists(cache.blobs_.PackedPath(hash));
+  };
+
+  {
+    auto cache = Open(true);
+    FileCache::Entry stored{"object"_l, "deps"_l};
+    stored.time_trace = "trace"_l;
+    stored.time_trace_options = "options";
+    cache->Store(hash, stored);
+    cache->Store(other_hash, FileCache::Entry{"object2"_l, "deps"_l});
+
+    // Only the hash of the trace: it's read, if it's needed.
+    FileCache::Entry entry;
+    ASSERT_TRUE(cache->Find(hash, &entry));
+    EXPECT_TRUE(entry.time_trace.empty());
+    EXPECT_EQ(trace_hash, entry.time_trace_hash);
+    EXPECT_EQ("options", entry.time_trace_options);
+    Immutable trace;
+    ASSERT_TRUE(cache->FindTimeTrace(entry.time_trace_hash, &trace));
+    EXPECT_EQ("trace"_l, trace);
+
+    ASSERT_TRUE(cache->Find(other_hash, &entry));
+    EXPECT_TRUE(entry.time_trace_hash.empty());
+    EXPECT_TRUE(entry.time_trace_options.empty());
+    cache->FlushAccesses();
+    cache->WaitForCleaner();
+  }
+
+  // The size of the traces is known after the start - from the index.
+  {
+    auto cache = Open(true);
+    EXPECT_EQ("trace"_l.size(), GetStat(M::CACHE_TIME_TRACES_SIZE));
+    FileCache::Entry entry;
+    ASSERT_TRUE(cache->Find(hash, &entry));
+    EXPECT_EQ(trace_hash, entry.time_trace_hash);
+  }
+
+  // Without the option the traces aren't stored, and the stored ones are
+  // removed - the entries stay.
+  {
+    auto cache = Open(false);
+    EXPECT_FALSE(BlobExists(*cache, trace_hash));
+    EXPECT_EQ(0u, GetStat(M::CACHE_TIME_TRACES_SIZE));
+    FileCache::Entry entry;
+    ASSERT_TRUE(cache->Find(hash, &entry));
+    EXPECT_EQ("object"_l, Object(entry));
+    EXPECT_TRUE(entry.time_trace_hash.empty());
+
+    FileCache::Entry stored{"object2"_l, "deps"_l};
+    stored.time_trace = "trace"_l;
+    stored.time_trace_options = "options";
+    cache->Store(other_hash, stored);
+    ASSERT_TRUE(cache->Find(other_hash, &entry));
+    EXPECT_TRUE(entry.time_trace_hash.empty());
+    EXPECT_FALSE(BlobExists(*cache, trace_hash));
+  }
+
+  // The lost trace doesn't lose the entry - e.g. after an older daemon, that
+  // doesn't count the references to the traces.
+  {
+    auto cache = Open(true);
+    FileCache::Entry stored{"object"_l, "deps"_l};
+    stored.time_trace = "trace"_l;
+    cache->Store(hash, stored);
+    ASSERT_TRUE(BlobExists(*cache, trace_hash));
+    base::File::Delete(cache->blobs_.RawPath(trace_hash));
+    base::File::Delete(cache->blobs_.PackedPath(trace_hash));
+    FileCache::Entry entry;
+    ASSERT_TRUE(cache->Find(hash, &entry));
+    EXPECT_EQ("object"_l, Object(entry));
+    Immutable trace;
+    EXPECT_FALSE(cache->FindTimeTrace(entry.time_trace_hash, &trace));
+  }
+}
+
 TEST(FileCacheTest, RemoveLockedEntry) {
   // The wrong entry is removed, though it's being read at the moment.
   const base::TemporaryDir temp_dir;

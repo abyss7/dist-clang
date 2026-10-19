@@ -47,6 +47,7 @@ FORWARD_TEST(FileCacheTest, Ghosts);
 FORWARD_TEST(FileCacheTest, BinaryManifests);
 FORWARD_TEST(FileCacheTest, RemoveDirectRowsOfRemovedEntries);
 FORWARD_TEST(FileCacheTest, FindDoesntKeepOldFields);
+FORWARD_TEST(FileCacheTest, TimeTraces);
 
 enum ExtraFileType {
   SANITIZE_BLACKLIST = 0,
@@ -133,7 +134,8 @@ class FileCache {
   // Generation 3: the binary manifests, the 64-bit parts of the keys, and the
   //               new keys of the direct cache: with the system headers and
   //               the paths of the headers.
-  enum : ui32 { kGeneration = 3, kRevision = 0 };
+  //   Revision 1: the traces of the time - see |SetStoreTimeTraces()|.
+  enum : ui32 { kGeneration = 3, kRevision = 1 };
 
   // Maximal number of the header sets per one source in the direct cache.
   enum : size_t { kMaxDirectVariants = 8 };
@@ -162,6 +164,13 @@ class FileCache {
 
     // The key of the found entry - from |Find()|.
     String handled_hash;
+
+    // The trace of the time of the compilation - see "-ftime-trace" - with
+    // the hash of the options, that change it. |Find()| gives only the hash
+    // of the trace: see |FindTimeTrace()|.
+    Immutable time_trace;
+    String time_trace_hash;
+    String time_trace_options;
   };
 
   // With |link_outputs| the outputs are stored uncompressed, and are linked
@@ -193,6 +202,10 @@ class FileCache {
   // directories anymore, and weren't used for |seconds|. Zero disables it.
   inline void SetCompressAfter(ui64 seconds) { compress_after_ = seconds; }
 
+  // Stores the traces of the time of the compilations. Otherwise they're
+  // ignored, and the stored ones are removed in background after the start.
+  inline void SetStoreTimeTraces(bool store) { store_time_traces_ = store; }
+
   // Remembers the evicted and the forgotten entries for |seconds| - to count
   // the ones, that are needed again. Zero disables it.
   inline void SetGhostsTtl(ui64 seconds) { ghosts_ttl_ = seconds; }
@@ -221,6 +234,9 @@ class FileCache {
             const List<Path>& search_dirs = List<Path>()) const;
 
   bool Find(string::HandledHash hash, Entry* entry) const;
+
+  // Reads the trace of the time of the found entry by its |hash|.
+  bool FindTimeTrace(const String& hash, Immutable* trace) const;
 
   // The files in |search_dirs|, that could be found instead of the headers,
   // mustn't be created after |start_time| - the start of the compilation in
@@ -330,6 +346,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, RemoveEntryInBackground);
   FRIEND_TEST(FileCacheTest, RestoreEntryWithMissingFile);
   FRIEND_TEST(FileCacheTest, CheckFilesOnlyAfterCrash);
+  FRIEND_TEST(FileCacheTest, TimeTraces);
   FRIEND_TEST(FileCacheTest, ReportSizes);
   FRIEND_TEST(FileCacheTest, Ghosts);
   FRIEND_TEST(FileCacheTest, BinaryManifests);
@@ -417,6 +434,7 @@ class FileCache {
     // Only from the manifest.
     String object;  // The hash of the object file.
     ui64 compilation_time = 0;
+    String time_trace;  // The hash of the trace - one of |blobs|.
   };
   // Returns |false| for a broken entry, or of another version.
   bool LoadEntryInfo(string::Hash hash, EntryInfo* info) const;
@@ -432,6 +450,10 @@ class FileCache {
 
   // Counts the references of all entries - after the start.
   void CountBlobRefs(ui64 start_time);
+
+  // Removes the stored traces of the time, if they aren't stored anymore -
+  // after the start.
+  void RemoveTimeTraces();
 
   // The work with the tags - in the cleaner.
   void ApplyTags(string::Hash hash, const Vector<String>& tags);
@@ -496,6 +518,8 @@ class FileCache {
   // The blobs of the entries. Used by the cleaner - and by the failed stores.
   Mutex blob_refs_mutex_;
   HashMap<String, Vector<String>> entry_blobs_;
+  // The blobs of the traces of the time - some may be removed already.
+  HashSet<String> time_trace_blobs_;
   // The manifests of the direct cache - they aren't tagged.
   HashSet<String> direct_entries_;
   // The tags of the entries - sorted. Used by the cleaner too.
@@ -515,6 +539,7 @@ class FileCache {
   ui64 flush_period_ = 10;
   ui32 min_free_percent_ = 0;
   ui64 compress_after_ = 0;
+  bool store_time_traces_ = false;
   const EntryListDeleter new_entries_deleter_ = [this](EntryList* list) {
     auto task = [this, list] { Clean(UniquePtr<EntryList>(list)); };
     cleaner_.Push(task);

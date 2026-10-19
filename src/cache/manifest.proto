@@ -61,6 +61,13 @@ message Simple_Version1 {
 
   optional uint64 compilation_time = 110;
   // in milliseconds - the time, that the hits save. Since the revision 2.
+
+  optional string time_trace_hash    = 111;
+  // The trace of the time of the compilation - in the blob store. Since the
+  // revision 1 of the generation 3.
+
+  optional string time_trace_options = 112;
+  // Hash of the options, that change the trace.
 }
 
 message Manifest {

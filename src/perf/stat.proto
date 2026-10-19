@@ -68,6 +68,12 @@ message Metric {
     CACHE_MAX_SIZE              = 55;
     // in bytes - the limit of the own size of the cache, 0 if unlimited.
 
+    CACHE_TIME_TRACES_SIZE      = 57;
+    // in bytes - the part of the own size, that the traces of the time take.
+
+    TIME_TRACES_RESTORED        = 58;
+    // Hits with the traces of the time.
+
     PARALLEL_PREPROCESSING      = 38;
     PARALLEL_PREPROCESSING_HIT  = 39;
     // Preprocessings at the same time with the compilations, and the ones,

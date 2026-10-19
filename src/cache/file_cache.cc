@@ -114,19 +114,32 @@ List<Variant> DirectVariants(const proto::Direct& direct) {
   return variants;
 }
 
-// The blobs of the entry in the index.
-String JoinBlobs(const Vector<String>& blobs) {
+// The prefix of the trace of the time among the blobs of the entry in the
+// index: the size of the traces is shown apart.
+const char kTimeTracePrefix[] = "trace:";
+
+// The blobs of the entry in the index - one of them may be the |time_trace|.
+String JoinBlobs(const Vector<String>& blobs, const String& time_trace) {
   String result;
   for (const auto& blob : blobs) {
-    result += (result.empty() ? "" : "\n") + blob;
+    result += (result.empty() ? "" : "\n") +
+              (blob == time_trace ? kTimeTracePrefix + blob : blob);
   }
   return result;
 }
 
-Vector<String> SplitBlobs(const String& blobs) {
+Vector<String> SplitBlobs(const String& blobs, String* time_trace) {
   List<String> list;
   base::SplitString<'\n'>(blobs, list);
-  return Vector<String>(list.begin(), list.end());
+  Vector<String> result;
+  for (auto& blob : list) {
+    if (blob.starts_with(kTimeTracePrefix)) {
+      blob.erase(0, strlen(kTimeTracePrefix));
+      *time_trace = blob;
+    }
+    result.push_back(blob);
+  }
+  return result;
 }
 
 // Only regular files and links to them are found by the compiler.
@@ -618,7 +631,7 @@ void FileCache::ScanEntries(ui64 start_time) {
     }
     if (!entries_->Set(hash.str,
                        std::make_tuple(mtime, info.size, kManifestVersion, 0u,
-                                       info.direct, JoinBlobs(info.blobs)))) {
+                                       info.direct, JoinBlobs(info.blobs, info.time_trace)))) {
       LOG(CACHE_ERROR) << "Failed to add to the index " << hash.str;
     }
   });
@@ -726,6 +739,9 @@ bool FileCache::Run(ui64 clean_period) {
       ScanEntries(start_time);
     }
     CountBlobRefs(start_time);
+    if (!store_time_traces_) {
+      RemoveTimeTraces();
+    }
   });
   cleaner_.Run();
 
@@ -989,6 +1005,12 @@ bool FileCache::Find(HandledHash hash, Entry* found) const {
     return false;
   }
   entry->dwo_hash = v1.dwo_hash();
+  // The lost trace doesn't break the entry: it's read only, if it's needed.
+  if (v1.has_time_trace_hash()) {
+    blobs_.MarkUsed(v1.time_trace_hash());
+    entry->time_trace_hash = v1.time_trace_hash();
+    entry->time_trace_options = v1.time_trace_options();
+  }
   entry->warnings_hash = v1.warnings_hash();
   entry->compilation_time = v1.compilation_time();
   entry->handled_hash = hash.str.string_copy();
@@ -1003,6 +1025,11 @@ bool FileCache::Find(HandledHash hash, Entry* found) const {
   std::destroy_at(found);
   std::construct_at(found, std::move(result));
   return true;
+}
+
+bool FileCache::FindTimeTrace(const String& hash, Immutable* trace) const {
+  ui64 size = 0;
+  return !hash.empty() && blobs_.Get(hash, trace, nullptr, &size);
 }
 
 void FileCache::Store(UnhandledSource code, const ExtraFiles& extra_files,
@@ -1437,6 +1464,22 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
     }
   }
 
+  if (store_time_traces_ && !entry.time_trace.empty()) {
+    if (!blobs_.Put(entry.time_trace, Path(), v1->mutable_time_trace_hash(),
+                    &reused, &error)) {
+      Fail();
+      LOG(CACHE_ERROR) << "Failed to save the time trace of " << hash.str
+                       << ": " << error;
+      return;
+    }
+    if (reused) {
+      STAT(CACHE_BLOB_REUSED);
+    } else {
+      new_blobs.push_back(v1->time_trace_hash());
+    }
+    v1->set_time_trace_options(entry.time_trace_options);
+  }
+
   v1->set_size(size);
   if (!entry.warnings_hash.empty()) {
     v1->set_warnings_hash(entry.warnings_hash);
@@ -1764,7 +1807,7 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
               hash.str,
               std::make_tuple(access->time, info.size, kManifestVersion,
                               exists ? std::get<SQLite::HITS>(entry) : 0u,
-                              ui32(info.direct), JoinBlobs(info.blobs)))) {
+                              ui32(info.direct), JoinBlobs(info.blobs, info.time_trace)))) {
         LOG(CACHE_ERROR) << "Failed to update the index for " << hash.str;
       }
       cache_size_ += info.size;
@@ -1884,6 +1927,20 @@ void FileCache::ReportSizes() {
   stats.Set(M::DISK_SAVED_BY_DEDUPLICATION, sizes.deduplicated);
   stats.Set(M::DISK_SAVED_BY_LINKS, sizes.linked);
 
+  ui64 time_traces_size = 0;
+  {
+    std::lock_guard<Mutex> lock(blob_refs_mutex_);
+    for (auto it = time_trace_blobs_.begin(); it != time_trace_blobs_.end();) {
+      if (!blobs_.Refs(*it)) {
+        it = time_trace_blobs_.erase(it);
+        continue;
+      }
+      time_traces_size += blobs_.Size(*it);
+      ++it;
+    }
+  }
+  stats.Set(M::CACHE_TIME_TRACES_SIZE, time_traces_size);
+
   // The removed entries, that are needed again.
   ui64 evicted = 0, evicted_time = 0, forgotten = 0, forgotten_time = 0;
   Vector<ui64> extra_sizes;
@@ -1954,6 +2011,10 @@ bool FileCache::LoadEntryInfo(string::Hash hash, EntryInfo* info) const {
   if (manifest.v1().dwo()) {
     info->blobs.push_back(manifest.v1().dwo_hash());
   }
+  if (manifest.v1().has_time_trace_hash()) {
+    info->time_trace = manifest.v1().time_trace_hash();
+    info->blobs.push_back(info->time_trace);
+  }
   return true;
 }
 
@@ -1966,6 +2027,9 @@ void FileCache::AddBlobRefs(string::Hash hash, const EntryInfo& info,
   // The new references go first: the blobs may be the same.
   for (const auto& blob : info.blobs) {
     blobs_.AddRef(blob, access_time);
+  }
+  if (!info.time_trace.empty()) {
+    time_trace_blobs_.insert(info.time_trace);
   }
   const String key = hash.str.string_copy();
   auto it = entry_blobs_.find(key);
@@ -1996,7 +2060,7 @@ void FileCache::CountBlobRefs(ui64 start_time) {
   for (const auto& [hash, entry] : entries_->GetInEvictionOrder()) {
     EntryInfo info;
     info.direct = std::get<SQLite::DIRECT>(entry);
-    info.blobs = SplitBlobs(std::get<SQLite::BLOBS>(entry));
+    info.blobs = SplitBlobs(std::get<SQLite::BLOBS>(entry), &info.time_trace);
     AddBlobRefs(string::Hash(Immutable(hash)), info,
                 std::get<SQLite::MTIME>(entry));
     cache_size_ += std::get<SQLite::SIZE>(entry);
@@ -2024,6 +2088,62 @@ void FileCache::CountBlobRefs(ui64 start_time) {
     std::lock_guard<Mutex> lock(blob_refs_mutex_);
     blobs_.RemoveUnreferenced(start_time);
   }
+
+  ReportSizes();
+}
+
+void FileCache::RemoveTimeTraces() {
+  {
+    std::lock_guard<Mutex> lock(blob_refs_mutex_);
+    if (time_trace_blobs_.empty()) {
+      return;
+    }
+  }
+
+  LOG(CACHE_INFO) << "Removing the time traces from the cache " << path_;
+  entries_->BeginTransaction();
+  for (auto [hash_str, value] : entries_->GetInEvictionOrder()) {
+    String time_trace;
+    SplitBlobs(std::get<SQLite::BLOBS>(value), &time_trace);
+    if (time_trace.empty()) {
+      continue;
+    }
+
+    const string::Hash hash{Immutable(hash_str)};
+    const auto manifest_path =
+        AppendExtension(CommonPath(hash), base::kExtManifest);
+    // The entry is being written right now - the next start removes its
+    // trace.
+    WriteLock lock(this, manifest_path);
+    proto::Manifest manifest;
+    if (!lock || !base::LoadBinaryFromFile(manifest_path, &manifest) ||
+        !manifest.has_v1()) {
+      continue;
+    }
+    manifest.mutable_v1()->clear_time_trace_hash();
+    manifest.mutable_v1()->clear_time_trace_options();
+    String error;
+    if (!base::SaveBinaryToFile(manifest_path, manifest, &error)) {
+      LOG(CACHE_ERROR) << "Failed to save manifest to " << manifest_path
+                       << ": " << error;
+      continue;
+    }
+
+    EntryInfo info;
+    if (!LoadEntryInfo(hash, &info)) {
+      continue;
+    }
+    // The trace is removed with its last reference.
+    AddBlobRefs(hash, info, std::get<SQLite::MTIME>(value));
+    cache_size_ += info.size;
+    cache_size_ -= std::get<SQLite::SIZE>(value);
+    std::get<SQLite::SIZE>(value) = info.size;
+    std::get<SQLite::BLOBS>(value) = JoinBlobs(info.blobs, info.time_trace);
+    if (!entries_->Set(hash_str, value)) {
+      LOG(CACHE_ERROR) << "Failed to update the index for " << hash_str;
+    }
+  }
+  entries_->EndTransaction();
 
   ReportSizes();
 }
