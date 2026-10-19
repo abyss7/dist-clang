@@ -113,3 +113,29 @@ if [ ! -s special.o ]; then
 fi
 echo "The outputs into the special files aren't cached"
 
+# The trace of the time is given only by the compilation itself: the cache
+# isn't looked up, but the result is stored for the builds without the trace.
+cat > traced.cc <<'SOURCE'
+int main() { return 0; }
+SOURCE
+for i in 1 2; do
+  rm -f traced.o traced.json
+  "$dc" "$cxx" -ftime-trace -c traced.cc -o traced.o -MD
+  if [ ! -s traced.json ]; then
+    echo "The compilation $i with -ftime-trace gives no trace" >&2
+    exit 1
+  fi
+done
+hits="$(stat_value DIRECT_CACHE_HIT)"
+rm -f traced.o
+"$dc" "$cxx" -c traced.cc -o traced.o -MD
+# The hit is counted after the reply.
+for i in 1 2 3 4 5; do
+  [ "$(stat_value DIRECT_CACHE_HIT)" -gt "$hits" ] && break
+  sleep 0.2
+done
+if [ "$(stat_value DIRECT_CACHE_HIT)" -le "$hits" ]; then
+  echo "The result of the compilation with -ftime-trace isn't stored" >&2
+  exit 1
+fi
+echo "The time traces are produced, and the results are stored"

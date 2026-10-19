@@ -41,6 +41,7 @@ enum class Special {
   MACRO_PREFIX_MAP,
   DEBUG_PREFIX_MAP,
   FILE_PREFIX_MAP,
+  TIME_TRACE,
   UNSUPPORTED,
 };
 
@@ -113,7 +114,7 @@ const Option kFlags[] = {
     {"-MD", Class::NON_DIRECT},
     {"-MMD", Class::NON_DIRECT},
     {"-MP", Class::NON_DIRECT},
-    {"-ftime-trace", Class::IGNORED},
+    {"-ftime-trace", Class::IGNORED, Special::TIME_TRACE},
     {"-ftime-trace-verbose", Class::IGNORED},
     {"-nobuiltininc", Class::NON_CACHED},
     {"-nostdinc", Class::NON_CACHED},
@@ -135,7 +136,7 @@ const Option kJoined[] = {
     // Changes "__builtin_FILE()" in the compilation too.
     {"-fmacro-prefix-map=", Class::OTHER, Special::MACRO_PREFIX_MAP},
     {"-ftime-trace-granularity=", Class::IGNORED},
-    {"-ftime-trace=", Class::IGNORED},
+    {"-ftime-trace=", Class::IGNORED, Special::TIME_TRACE},
     {"-save-stats=", Class::OTHER, Special::UNSUPPORTED},
     {"-save-temps=", Class::OTHER, Special::UNSUPPORTED},
     {"-working-directory=", Class::OTHER, Special::UNSUPPORTED},
@@ -473,6 +474,9 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
         macro_prefixes.push_back(RemappedPrefix(value));
         debug_prefixes.push_back(RemappedPrefix(value));
         return true;
+      case Special::TIME_TRACE:
+        flags->set_time_trace(true);
+        return true;
     }
 
     NOTREACHED();
@@ -518,6 +522,9 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
         // build system gets them too.
         AddArgument(option->cls, index, {"-MD"});
         continue;
+      }
+      if (option->special == Special::TIME_TRACE) {
+        flags->set_time_trace(true);
       }
       AddArgument(option->cls, index, {arg});
       continue;

@@ -81,6 +81,12 @@ inline bool RequestsRestat(const base::proto::Local* WEAK_PTR message) {
                    "DC_RESTAT=1") != message->env().end();
 }
 
+// Checks if the result is needed from the compilation itself: the cache is
+// only updated.
+inline bool SkipsLookup(const base::proto::Local* WEAK_PTR message) {
+  return message->flags().time_trace();
+}
+
 // The number of the links of the cache file outside of the cache, except the
 // |path|, if it's one of them.
 ui64 OtherLinks(const Path& cache_file, const Path& path) {
@@ -910,6 +916,25 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       restored = true;
       return true;
     };
+
+    // The trace of the time is given only by the compilation itself - and the
+    // time should be the same as without the cache: neither the lookups, nor
+    // the preprocessing. The result is stored only for the direct cache.
+    if (SkipsLookup(incoming)) {
+      STAT(CACHE_LOOKUP_SKIPPED);
+      net::proto::Status status;
+      if (!SetupCompiler(incoming->mutable_flags(), &status)) {
+        std::get<CONNECTION>(*task)->ReportStatus(status);
+        continue;
+      }
+      if (incoming->flags().has_deps_file() &&
+          ReadExtraFiles(incoming->flags(), incoming->current_dir(),
+                         &std::get<EXTRA_FILES>(*task))) {
+        std::get<HANDLED_HASH>(*task) = GenerateUniqueHash(incoming->flags());
+      }
+      failed_tasks_->Push(std::move(*task));
+      continue;
+    }
 
     // The result of the previous compilation of the same source - maybe from
     // another checkout - may be being stored right now.

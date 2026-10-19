@@ -2915,6 +2915,99 @@ TEST_F(EmitterTest, NeverPreprocess) {
   emitter.reset();
 }
 
+TEST_F(EmitterTest, TimeTraceSkipsLookup) {
+  const base::TemporaryDir temp_dir;
+  const auto input_path = temp_dir.path() / "test.cc";
+  const auto output_path = temp_dir.path() / "test.o";
+  const auto deps_path = temp_dir.path() / "test.d";
+  const String compiler_version = "fake_compiler_version";
+
+  ASSERT_TRUE(base::File::Write(input_path, "int main() { return 1; }"_l));
+  WaitAfterEdit();
+
+  conf.mutable_cache()->set_path(temp_dir.path() / "cache");
+  conf.mutable_cache()->set_direct(true);
+  conf.mutable_cache()->set_clean_period(1);
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path("fake_compiler_path");
+
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      const auto& status = message.status();
+      EXPECT_EQ(net::proto::Status::OK, status.code()) << status.description();
+      send_condition.notify_all();
+    });
+    return true;
+  };
+
+  List<String> runs;
+  bool traced = false;
+  run_callback = [&](base::TestProcess* process) {
+    if (std::find(process->args_.begin(), process->args_.end(), "-E"_l) !=
+        process->args_.end()) {
+      runs.push_back("-E");
+      process->stdout_ = "preprocessed"_l;
+      return;
+    }
+    runs.push_back("compile");
+    traced = std::find(process->args_.begin(), process->args_.end(),
+                       "-ftime-trace"_l) != process->args_.end();
+    EXPECT_TRUE(base::File::Write(output_path, "object"_l));
+    EXPECT_TRUE(base::File::Write(
+        deps_path, Immutable("test.o: "_l) + Immutable(input_path)));
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto Compile = [&](bool time_trace, ui32 expected_send_count) {
+    auto connection = test_service->TriggerListen(socket_path);
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->mutable_local();
+    extension->set_current_dir(temp_dir);
+    auto* flags = extension->mutable_flags();
+    flags->set_input(input_path);
+    flags->set_output(output_path);
+    flags->set_deps_file(deps_path);
+    flags->set_deps_target("test.o");
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action("fake_action");
+    if (time_trace) {
+      flags->add_ignored()->add_values("-ftime-trace");
+      flags->set_time_trace(true);
+    }
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(1), [&] {
+      return send_count == expected_send_count;
+    }));
+  };
+
+  // Neither the preprocessing, nor the hit: the trace is produced only by the
+  // compilation.
+  Compile(true, 1);
+  EXPECT_EQ((List<String>{"compile"}), runs);
+  EXPECT_TRUE(traced);
+
+  runs.clear();
+  Compile(true, 2);
+  EXPECT_EQ((List<String>{"compile"}), runs);
+
+  // But the result is stored - for the compilations without the trace.
+  runs.clear();
+  ASSERT_TRUE(base::File::Delete(output_path));
+  Compile(false, 3);
+  EXPECT_TRUE(runs.empty());
+  EXPECT_TRUE(base::File::Exists(output_path));
+
+  emitter.reset();
+}
+
 TEST_F(EmitterTest, PreprocessWhenIdle) {
   const base::TemporaryDir temp_dir;
   const auto input_path = temp_dir.path() / "test.cc";

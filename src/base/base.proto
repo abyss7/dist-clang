@@ -69,6 +69,10 @@ message Flags {
   // flags for compilation only, that don't affect the result
   // (e.g. -ftime-trace).
 
+  optional bool time_trace           = 31;
+  // if the compiler writes the trace of its time: only the compilation itself
+  // gives it, so the cache isn't looked up - only updated.
+
   repeated string env                = 15;
   // environment of the compiler: "NAME=value".
 

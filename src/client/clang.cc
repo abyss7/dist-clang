@@ -199,7 +199,7 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
   const ui64 compilations =
       std::max(values[M::DIRECT_CACHE_HIT] + values[M::DIRECT_CACHE_MISS],
                values[M::SIMPLE_CACHE_HIT] + values[M::SIMPLE_CACHE_MISS]) +
-      values[M::UNSUPPORTED_COMMAND];
+      values[M::UNSUPPORTED_COMMAND] + values[M::CACHE_LOOKUP_SKIPPED];
   const String cache_title = "Cache (" + FormatCount(compilations) +
                              " compilations since the start of the daemon)";
   // The own size counts against the limit.
@@ -243,6 +243,8 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
            {M::DIRECT_CACHE_MISS, "Direct cache misses"},
            {M::SIMPLE_CACHE_HIT, "Simple cache hits"},
            {M::SIMPLE_CACHE_MISS, "Simple cache misses"},
+           {M::CACHE_LOOKUP_SKIPPED, "Not looked up (time trace)",
+            Unit::COUNT, true},
            {M::PARALLEL_PREPROCESSING_HIT, "Hits by parallel preprocessing",
             Unit::COUNT, true},
            {M::REMOTE_CACHE_HIT, "Hits in the cache of remotes", Unit::COUNT,

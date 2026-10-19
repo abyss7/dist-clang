@@ -144,6 +144,17 @@ TEST(DriverArgsTest, TimeTraceIsIgnored) {
                           "-ftime-trace=out.json"}),
             Values(flags.ignored()));
   EXPECT_TRUE(Values(flags.other()).empty());
+  EXPECT_TRUE(flags.time_trace());
+
+  flags.Clear();
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-ftime-trace=out.json"}, &flags));
+  EXPECT_TRUE(flags.time_trace());
+
+  // Without the trace itself.
+  flags.Clear();
+  ASSERT_TRUE(
+      Parse({"-c", "test.cc", "-ftime-trace-granularity=500"}, &flags));
+  EXPECT_FALSE(flags.time_trace());
 }
 
 TEST(DriverArgsTest, DebugInfoDependsOnCurrentDir) {
