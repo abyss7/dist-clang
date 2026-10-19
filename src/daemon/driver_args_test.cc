@@ -157,6 +157,48 @@ TEST(DriverArgsTest, TimeTraceIsIgnored) {
   EXPECT_FALSE(flags.time_trace());
 }
 
+TEST(DriverArgsTest, TimeTraceFile) {
+  base::proto::Flags flags;
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-o", "obj/test.o", "-ftime-trace"},
+                    &flags));
+  EXPECT_EQ("obj/test.json", flags.time_trace_file());
+
+  flags.Clear();
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-ftime-trace"}, &flags));
+  EXPECT_EQ("test.json", flags.time_trace_file());
+
+  flags.Clear();
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-o", "obj/test.o",
+                     "-ftime-trace=trace.json"},
+                    &flags));
+  EXPECT_EQ("trace.json", flags.time_trace_file());
+
+  // Into the directory - with the name of the output.
+  const base::TemporaryDir temp_dir;
+  flags.Clear();
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-o", "obj/test.o",
+                     "-ftime-trace=traces"},
+                    &flags, nullptr, temp_dir.path()));
+  EXPECT_EQ("traces", flags.time_trace_file());
+  ASSERT_TRUE(base::CreateDirectory(temp_dir.path() / "traces"));
+  flags.Clear();
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-o", "obj/test.o",
+                     "-ftime-trace=traces"},
+                    &flags, nullptr, temp_dir.path()));
+  EXPECT_EQ("traces/test.json", flags.time_trace_file());
+
+  // The last one counts.
+  flags.Clear();
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-o", "obj/test.o",
+                     "-ftime-trace=trace.json", "-ftime-trace"},
+                    &flags));
+  EXPECT_EQ("obj/test.json", flags.time_trace_file());
+
+  flags.Clear();
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-ftime-trace-granularity=1"}, &flags));
+  EXPECT_FALSE(flags.has_time_trace_file());
+}
+
 TEST(DriverArgsTest, DebugInfoDependsOnCurrentDir) {
   base::proto::Flags flags;
   ASSERT_TRUE(Parse({"-c", "test.cc", "-g"}, &flags));

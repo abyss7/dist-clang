@@ -3023,6 +3023,146 @@ TEST_F(EmitterTest, UpdateCacheWithoutLookup) {
   emitter.reset();
 }
 
+TEST_F(EmitterTest, StoreTimeTraces) {
+  const base::TemporaryDir temp_dir;
+  const auto input_path = temp_dir.path() / "test.cc";
+  const auto output_path = temp_dir.path() / "test.o";
+  const auto deps_path = temp_dir.path() / "test.d";
+  const auto trace_path = temp_dir.path() / "test.json";
+  const String compiler_version = "fake_compiler_version";
+
+  ASSERT_TRUE(base::File::Write(input_path, "int main() { return 1; }"_l));
+  WaitAfterEdit();
+
+  conf.mutable_cache()->set_path(temp_dir.path() / "cache");
+  conf.mutable_cache()->set_direct(true);
+  conf.mutable_cache()->set_clean_period(1);
+  conf.mutable_cache()->set_store_time_traces(true);
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path("fake_compiler_path");
+
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      const auto& status = message.status();
+      EXPECT_EQ(net::proto::Status::OK, status.code()) << status.description();
+      send_condition.notify_all();
+    });
+    return true;
+  };
+
+  List<String> runs;
+  ui32 compilations = 0;
+  bool writes_trace = true;
+  run_callback = [&](base::TestProcess* process) {
+    if (std::find(process->args_.begin(), process->args_.end(), "-E"_l) !=
+        process->args_.end()) {
+      runs.push_back("-E");
+      process->stdout_ = "preprocessed"_l;
+      return;
+    }
+    runs.push_back("compile");
+    EXPECT_TRUE(base::File::Write(output_path, "object"_l));
+    EXPECT_TRUE(base::File::Write(
+        deps_path, Immutable("test.o: "_l) + Immutable(input_path)));
+    if (writes_trace &&
+        std::find(process->args_.begin(), process->args_.end(),
+                  "-ftime-trace"_l) != process->args_.end()) {
+      EXPECT_TRUE(base::File::Write(
+          trace_path, Immutable("trace " + std::to_string(++compilations))));
+    }
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  ui32 send_count_expected = 0;
+  auto Compile = [&](const char* granularity) {
+    auto connection = test_service->TriggerListen(socket_path);
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->mutable_local();
+    extension->set_current_dir(temp_dir);
+    auto* flags = extension->mutable_flags();
+    flags->set_input(input_path);
+    flags->set_output(output_path);
+    flags->set_deps_file(deps_path);
+    flags->set_deps_target("test.o");
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action("fake_action");
+    if (granularity) {
+      flags->add_ignored()->add_values("-ftime-trace");
+      if (*granularity) {
+        flags->add_ignored()->add_values(granularity);
+      }
+      flags->set_time_trace(true);
+      flags->set_time_trace_file("test.json");
+    }
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+    UniqueLock lock(send_mutex);
+    ++send_count_expected;
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(1), [&] {
+      return send_count == send_count_expected;
+    }));
+  };
+  auto Trace = [&] {
+    Immutable trace;
+    base::File::Read(trace_path, &trace);
+    return trace.string_copy();
+  };
+  auto Clear = [&] {
+    runs.clear();
+    base::File::Delete(output_path);
+    base::File::Delete(trace_path);
+  };
+
+  // The entry without the trace isn't found by the compilation with it.
+  Compile(nullptr);
+  EXPECT_EQ((List<String>{"-E", "compile"}), runs);
+  Clear();
+  Compile("");
+  EXPECT_EQ((List<String>{"compile"}), runs);
+  EXPECT_EQ("trace 1", Trace());
+
+  // The trace is restored with the object.
+  Clear();
+  Compile("");
+  EXPECT_TRUE(runs.empty());
+  EXPECT_TRUE(base::File::Exists(output_path));
+  EXPECT_EQ("trace 1", Trace());
+
+  // But not the one with other options.
+  Clear();
+  Compile("-ftime-trace-granularity=100");
+  EXPECT_EQ((List<String>{"compile"}), runs);
+  EXPECT_EQ("trace 2", Trace());
+
+  // The compilation without the trace doesn't need it.
+  Clear();
+  Compile(nullptr);
+  EXPECT_TRUE(runs.empty());
+  EXPECT_TRUE(base::File::Exists(output_path));
+  EXPECT_FALSE(base::File::Exists(trace_path));
+
+  // The stale trace isn't taken for the one of the compilation.
+  Clear();
+  writes_trace = false;
+  ASSERT_TRUE(base::File::Write(trace_path, "stale"_l));
+  Compile("-ftime-trace-granularity=200");
+  EXPECT_EQ((List<String>{"compile"}), runs);
+  EXPECT_FALSE(base::File::Exists(trace_path));
+  writes_trace = true;
+  Clear();
+  Compile("-ftime-trace-granularity=200");
+  EXPECT_EQ((List<String>{"compile"}), runs);
+  EXPECT_EQ("trace 3", Trace());
+
+  emitter.reset();
+}
+
 TEST_F(EmitterTest, PreprocessWhenIdle) {
   const base::TemporaryDir temp_dir;
   const auto input_path = temp_dir.path() / "test.cc";

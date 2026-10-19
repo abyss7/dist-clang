@@ -302,6 +302,50 @@ TEST(CompilationDaemonTest, DepsOfAnotherRoot) {
       CompilationDaemon::RestoreDeps(deps, Flags("root2")));
 }
 
+TEST(CompilationDaemonTest, TimeTraceOfAnotherRoot) {
+  auto Flags = [](const String& root) {
+    base::proto::Flags flags;
+    flags.set_deps_target("obj/a.o");
+    flags.set_key_root("/home/" + root);
+    flags.set_key_root_relative("../../" + root);
+    return flags;
+  };
+
+  // The paths of the trace are the ones of its root - after the hit from
+  // another root too.
+  const auto trace = CompilationDaemon::NormalizeTimeTrace(
+      R"({"traceEvents":[{"name":"Source","args":{"detail":"/home/root1/a.h"}},)"
+      R"({"name":"Source","args":{"detail":"../../root1/b.h"}},)"
+      R"({"name":"Source","args":{"detail":"/usr/include/c.h"}}]})"_l,
+      Flags("root1"));
+  EXPECT_EQ(
+      R"({"traceEvents":[{"name":"Source","args":{"detail":"/home/root2/a.h"}},)"
+      R"({"name":"Source","args":{"detail":"../../root2/b.h"}},)"
+      R"({"name":"Source","args":{"detail":"/usr/include/c.h"}}]})"_l,
+      CompilationDaemon::RestoreTimeTrace(trace, Flags("root2")));
+}
+
+TEST(CompilationDaemonTest, TimeTraceOptions) {
+  auto Flags = [](std::initializer_list<const char*> args) {
+    base::proto::Flags flags;
+    for (const char* arg : args) {
+      flags.add_ignored()->add_values(arg);
+    }
+    return flags;
+  };
+
+  // The place of the trace doesn't change it.
+  EXPECT_EQ(CompilationDaemon::TimeTraceOptions(Flags({"-ftime-trace"})),
+            CompilationDaemon::TimeTraceOptions(
+                Flags({"-ftime-trace=a.json"})));
+  EXPECT_NE(CompilationDaemon::TimeTraceOptions(Flags({"-ftime-trace"})),
+            CompilationDaemon::TimeTraceOptions(Flags(
+                {"-ftime-trace", "-ftime-trace-granularity=100"})));
+  EXPECT_NE(CompilationDaemon::TimeTraceOptions(Flags({"-ftime-trace"})),
+            CompilationDaemon::TimeTraceOptions(
+                Flags({"-ftime-trace", "-ftime-trace-verbose"})));
+}
+
 TEST(CompilationDaemonTest, ModificationRightAfterStart) {
   const base::TemporaryDir temp_dir;
   ASSERT_TRUE(base::File::Write(temp_dir.path() / "a.cc", "int a;"_l));

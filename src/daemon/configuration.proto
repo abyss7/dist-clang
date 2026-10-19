@@ -83,6 +83,14 @@ message Configuration {
     // entries for this time: the statistics show the ones, that are compiled
     // again - the losses. Zero disables it.
 
+    optional bool store_time_traces = 18 [ default = false ];
+    // Store the traces of the time of the compilations with "-ftime-trace", and
+    // restore them with the hits - e.g. to look for the expensive headers
+    // after the incremental builds: the trace is of the compilation, that
+    // produced the object. Otherwise such compilations don't look up the
+    // cache - the traces are only produced by them - and the stored traces
+    // are removed after the start.
+
     optional uint32 min_free_percent = 12 [ default = 5 ];
     // Remove entries, while the disk has less free space - even if the cache
     // isn't full. Entries, that are linked with build directories, are kept.

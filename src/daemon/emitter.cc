@@ -81,12 +81,29 @@ inline bool RequestsRestat(const base::proto::Local* WEAK_PTR message) {
                    "DC_RESTAT=1") != message->env().end();
 }
 
+// Checks if the trace of the time is given with the result - from the cache
+// too.
+inline bool RestoresTimeTrace(const base::proto::Local* WEAK_PTR message,
+                              const daemon::proto::Configuration& conf) {
+  return message->flags().time_trace() && conf.cache().store_time_traces();
+}
+
 // Checks if the result is needed from the compilation itself: the cache is
 // only updated. The client asks for it e.g. to measure the build.
-inline bool SkipsLookup(const base::proto::Local* WEAK_PTR message) {
-  return message->flags().time_trace() ||
+inline bool SkipsLookup(const base::proto::Local* WEAK_PTR message,
+                        const daemon::proto::Configuration& conf) {
+  return (message->flags().time_trace() && !RestoresTimeTrace(message, conf)) ||
          std::find(message->env().begin(), message->env().end(),
                    "DC_RECACHE=1") != message->env().end();
+}
+
+inline String GetTimeTracePath(const base::proto::Local* WEAK_PTR message) {
+  DCHECK(message);
+  if (message->flags().time_trace_file()[0] == '/') {
+    return message->flags().time_trace_file();
+  } else {
+    return message->current_dir() + "/" + message->flags().time_trace_file();
+  }
 }
 
 // The number of the links of the cache file outside of the cache, except the
@@ -785,6 +802,15 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
         return false;
       }
 
+      // Only the entry with the trace of the same options gives it.
+      Immutable time_trace;
+      if (RestoresTimeTrace(incoming, *conf) &&
+          (entry.time_trace_options != TimeTraceOptions(flags) ||
+           !SearchTimeTrace(entry, &time_trace))) {
+        LOG(CACHE_INFO) << "Cache entry has no time trace: " << flags.input();
+        return false;
+      }
+
       // The cached diagnostics are produced with other warnings, or in another
       // format - check the source again, but without the code generation.
       String diagnostics = entry.stderr.string_copy();
@@ -897,6 +923,17 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
         }
       }
 
+      if (!time_trace.empty()) {
+        const String trace_path = GetTimeTracePath(incoming);
+        if (!base::File::Write(trace_path, RestoreTimeTrace(time_trace, flags),
+                               &error)) {
+          LOG(ERROR) << "Failed to write file from cache: " << trace_path
+                     << " : " << error;
+          return false;
+        }
+        STAT(TIME_TRACES_RESTORED);
+      }
+
       if (!source.str.empty() &&
           InputsUnchangedSince(incoming, deps, std::get<START_TIME>(*task))) {
         UpdateDirectCache(incoming, std::get<HANDLED_HASH>(*task), extra_files,
@@ -919,23 +956,29 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       return true;
     };
 
-    // The trace of the time is given only by the compilation itself - and the
-    // time should be the same as without the cache: neither the lookups, nor
-    // the preprocessing. The result is stored only for the direct cache. The
-    // same for the measurements of the whole build.
-    if (SkipsLookup(incoming)) {
-      STAT(CACHE_LOOKUP_SKIPPED);
-      net::proto::Status status;
-      if (!SetupCompiler(incoming->mutable_flags(), &status)) {
-        std::get<CONNECTION>(*task)->ReportStatus(status);
-        continue;
-      }
+    // Compiles at once, without the preprocessing: the result is stored only
+    // for the direct cache.
+    auto CompileWithoutPreprocessing = [&] {
       if (incoming->flags().has_deps_file() &&
           ReadExtraFiles(incoming->flags(), incoming->current_dir(),
                          &std::get<EXTRA_FILES>(*task))) {
         std::get<HANDLED_HASH>(*task) = GenerateUniqueHash(incoming->flags());
       }
       failed_tasks_->Push(std::move(*task));
+    };
+
+    // The trace of the time is given only by the compilation itself, unless
+    // the cache stores the traces - and the time should be the same as
+    // without the cache: neither the lookups, nor the preprocessing. The same
+    // for the measurements of the whole build.
+    if (SkipsLookup(incoming, *conf)) {
+      STAT(CACHE_LOOKUP_SKIPPED);
+      net::proto::Status status;
+      if (!SetupCompiler(incoming->mutable_flags(), &status)) {
+        std::get<CONNECTION>(*task)->ReportStatus(status);
+        continue;
+      }
+      CompileWithoutPreprocessing();
       continue;
     }
 
@@ -962,6 +1005,13 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     net::proto::Status status;
     if (!SetupCompiler(incoming->mutable_flags(), &status)) {
       std::get<CONNECTION>(*task)->ReportStatus(status);
+      continue;
+    }
+
+    // The preprocessing at the same time would change the times in the traces
+    // of the other compilations.
+    if (incoming->flags().time_trace()) {
+      CompileWithoutPreprocessing();
       continue;
     }
 
@@ -1176,6 +1226,11 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
       }
     }
 
+    // The stale trace isn't stored, if the compiler doesn't write it.
+    if (RestoresTimeTrace(incoming, *conf)) {
+      base::File::Delete(GetTimeTracePath(incoming));
+    }
+
     Counter<> counter(Metric::LOCAL_COMPILATION_TIME);
     base::ProcessPtr process =
         CreateProcess(incoming->flags(), uid, Path(incoming->current_dir()));
@@ -1255,6 +1310,12 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
           entry.stderr = process->stderr();
           entry.warnings_hash = WarningsHash(flags);
           entry.compilation_time = compilation_time;
+          Immutable time_trace;
+          if (RestoresTimeTrace(incoming, *conf) &&
+              base::File::Read(GetTimeTracePath(incoming), &time_trace)) {
+            entry.time_trace = NormalizeTimeTrace(time_trace, flags);
+            entry.time_trace_options = TimeTraceOptions(flags);
+          }
           auto& handled_hash = std::get<HANDLED_HASH>(*task);
           if (handled_hash.str.empty()) {
             handled_hash = GenerateHash(incoming->flags(), source, extra_files);

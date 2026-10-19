@@ -266,6 +266,7 @@ bool CompilationDaemon::Initialize() {
     cache_->SetMinFreePercent(conf->cache().min_free_percent());
     cache_->SetCompressAfter(conf->cache().compress_after());
     cache_->SetGhostsTtl(conf->cache().ghosts_ttl());
+    cache_->SetStoreTimeTraces(conf->cache().store_time_traces());
     if (!cache_->Run(conf->cache().clean_period())) {
       cache_.reset();
     }
@@ -362,6 +363,44 @@ Immutable CompilationDaemon::RestoreDeps(Immutable deps,
   base::Replace(content, kDepsRelativeRootPlaceholder,
                 flags.key_root_relative().c_str());
   return Immutable(std::move(content));
+}
+
+// static
+Immutable CompilationDaemon::NormalizeTimeTrace(
+    Immutable trace, const base::proto::Flags& flags) {
+  if (!flags.has_key_root()) {
+    return trace;
+  }
+  String content = trace.string_copy();
+  ReplacePathPrefix(content, flags.key_root(), kDepsRootPlaceholder);
+  ReplacePathPrefix(content, flags.key_root_relative(),
+                    kDepsRelativeRootPlaceholder);
+  return Immutable(std::move(content));
+}
+
+// static
+Immutable CompilationDaemon::RestoreTimeTrace(Immutable trace,
+                                              const base::proto::Flags& flags) {
+  String content = trace.string_copy();
+  base::Replace(content, kDepsRootPlaceholder, flags.key_root().c_str());
+  base::Replace(content, kDepsRelativeRootPlaceholder,
+                flags.key_root_relative().c_str());
+  return Immutable(std::move(content));
+}
+
+// static
+String CompilationDaemon::TimeTraceOptions(const base::proto::Flags& flags) {
+  google::protobuf::RepeatedPtrField<base::proto::Argument> options;
+  for (const auto& arg : flags.ignored()) {
+    if (arg.values_size() && arg.values(0) != "-ftime-trace" &&
+        !arg.values(0).starts_with("-ftime-trace=")) {
+      *options.Add() = arg;
+    }
+  }
+  auto arg_list = CreateArgumentList(options);
+  return base::Hexify(
+      Immutable(base::JoinString<' '>(arg_list.begin(), arg_list.end()))
+          .Hash());
 }
 
 // static
@@ -699,6 +738,11 @@ bool CompilationDaemon::SearchSimpleCache(
   }
   Counter counter(Metric::SIMPLE_CACHE_LOOKUP_TIME);
   return cache_->Find(hash, entry);
+}
+
+bool CompilationDaemon::SearchTimeTrace(const cache::FileCache::Entry& entry,
+                                        Immutable* trace) const {
+  return cache_ && cache_->FindTimeTrace(entry.time_trace_hash, trace);
 }
 
 bool CompilationDaemon::SearchDirectCache(

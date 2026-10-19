@@ -75,6 +75,16 @@ class CompilationDaemon : public BaseDaemon {
   static Immutable RestoreDeps(Immutable deps,
                                const base::proto::Flags& flags);
 
+  // The same for the paths of the sources in the trace of the time.
+  static Immutable NormalizeTimeTrace(Immutable trace,
+                                      const base::proto::Flags& flags);
+  static Immutable RestoreTimeTrace(Immutable trace,
+                                    const base::proto::Flags& flags);
+
+  // Hash of the options, that change the trace of the time - but not its
+  // place.
+  static String TimeTraceOptions(const base::proto::Flags& flags);
+
  protected:
   explicit CompilationDaemon(const Configuration& conf);
 
@@ -87,6 +97,10 @@ class CompilationDaemon : public BaseDaemon {
 
   bool SearchSimpleCache(const cache::string::HandledHash& hash,
                          cache::FileCache::Entry* entry) const;
+
+  // Reads the trace of the time of the found entry.
+  bool SearchTimeTrace(const cache::FileCache::Entry& entry,
+                       Immutable* trace) const;
 
   // On a miss sets |source_edited|, if another version of the same source
   // was compiled with the same flags before, and |source_seen|, if the same

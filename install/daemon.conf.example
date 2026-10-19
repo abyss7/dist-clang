@@ -17,6 +17,7 @@ cache {
   min_free_percent: 5
   direct: true
   threads: 64
+  # store_time_traces: true  # Restore the traces of -ftime-trace with hits.
 }
 
 verbosity {

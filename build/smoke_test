@@ -18,10 +18,18 @@ export XDG_RUNTIME_DIR="$work/run" XDG_CACHE_HOME="$work/cache" \
 mkdir -p "$XDG_RUNTIME_DIR" "$XDG_CACHE_HOME" "$XDG_CONFIG_HOME"
 
 # Only the daemon of this environment is stopped.
-stop_daemon() {
+kill_daemon() {
   local pids
   pids="$(lsof -t "$XDG_RUNTIME_DIR/dist-clang.socket" 2>/dev/null || true)"
   [ -n "$pids" ] && kill $pids 2>/dev/null || true
+  for i in $(seq 50); do
+    [ -z "$pids" ] && break
+    kill -0 $pids 2>/dev/null || break
+    sleep 0.1
+  done
+}
+stop_daemon() {
+  kill_daemon
   rm -rf "$work"
 }
 trap stop_daemon EXIT
@@ -155,3 +163,54 @@ for recache in "--recache" "DC_RECACHE=1"; do
   fi
 done
 echo "The compilations with --recache aren't looked up"
+
+# With the stored traces the hits restore them: for the analysis of the
+# incremental builds.
+kill_daemon
+# The client doesn't start the daemon again so soon after the last start.
+rm -f "$XDG_RUNTIME_DIR/dist-clang.socket.lock"
+mkdir -p "$XDG_CONFIG_HOME/dist-clang"
+cat > "$XDG_CONFIG_HOME/dist-clang/daemon.conf" <<CONF
+emitter { socket_path: "$XDG_RUNTIME_DIR/dist-clang.socket" }
+cache {
+  path: "$XDG_CACHE_HOME/dist-clang"
+  direct: true
+  store_time_traces: true
+}
+CONF
+cat > stored.cc <<'SOURCE'
+int main() { return 0; }
+SOURCE
+# The first compilation may run locally, while the daemon starts.
+restored=
+for i in 1 2 3 4 5; do
+  rm -f stored.o stored.json
+  "$dc" "$cxx" -ftime-trace -c stored.cc -o stored.o -MD
+  if [ ! -s stored.json ]; then
+    echo "The compilation $i with -ftime-trace gives no trace" >&2
+    exit 1
+  fi
+  if [ "$(stat_value TIME_TRACES_RESTORED)" -ge 1 ] 2>/dev/null; then
+    cmp "stored$((i - 1)).json" stored.json
+    restored=1
+    break
+  fi
+  cp stored.json "stored$i.json"
+  sleep 1
+done
+if [ -z "$restored" ]; then
+  "$dc" --stats || true
+  echo "No time traces restored" >&2
+  exit 1
+fi
+# The new entries are applied to the statistics every 10 seconds.
+for i in $(seq 150); do
+  [ "$(stat_value CACHE_TIME_TRACES_SIZE)" -ge "$(wc -c < stored.json)" ] &&
+    break
+  sleep 0.1
+done
+if [ "$(stat_value CACHE_TIME_TRACES_SIZE)" -lt "$(wc -c < stored.json)" ]; then
+  echo "The size of the stored traces isn't shown" >&2
+  exit 1
+fi
+echo "The time traces are restored with the hits"

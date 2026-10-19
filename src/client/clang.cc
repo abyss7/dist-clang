@@ -276,6 +276,8 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
        {
            {M::CACHE_OUTPUT_LINKED, "Restored as links (hard or reflink)"},
            {M::CACHE_OUTPUT_COPIED, "Restored as copies"},
+           {M::TIME_TRACES_RESTORED, "Time traces restored", Unit::COUNT,
+            true},
            {M::CACHE_OUTPUT_UNCHANGED, "Unchanged after a hit (kept)"},
            {M::LOCAL_OUTPUT_UNCHANGED, "Unchanged after compiling (kept)"},
            {M::CACHE_BLOB_REUSED, "Stored once for several entries"},
@@ -291,6 +293,8 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
            {M::CACHE_OWN_SIZE, "Own size", Unit::BYTES},
            {M::CACHE_SHARED_SIZE, "Linked with build directories (free)",
             Unit::BYTES},
+           {M::CACHE_TIME_TRACES_SIZE, "Time traces (of the own size)",
+            Unit::BYTES, true},
            // The outputs of several entries - e.g. after the changes of the
            // headers, that don't change the objects.
            {M::DISK_SAVED_BY_DEDUPLICATION, "Stored once for several entries",

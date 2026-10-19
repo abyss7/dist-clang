@@ -373,6 +373,8 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
   bool records_command_line = true;
   // The own section of the command line - also without the debug info.
   bool records_command_line_section = false;
+  // The value of "-ftime-trace=": the file or the directory of the trace.
+  String time_trace_value;
   // The remapped prefixes of the paths: for "__FILE__", for the debug info.
   List<String> macro_prefixes, debug_prefixes;
   auto RemappedPrefix = [](const String& map) {
@@ -476,6 +478,7 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
         return true;
       case Special::TIME_TRACE:
         flags->set_time_trace(true);
+        time_trace_value = value;
         return true;
     }
 
@@ -525,6 +528,7 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
       }
       if (option->special == Special::TIME_TRACE) {
         flags->set_time_trace(true);
+        time_trace_value.clear();
       }
       AddArgument(option->cls, index, {arg});
       continue;
@@ -730,6 +734,23 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
       flags->set_dwo_file(ReplaceExtension(output, ".dwo"));
       flags->add_key_extra("dwo:" + flags->dwo_file());
     }
+  }
+
+  // Like the driver: next to the output, or into the given file - or into the
+  // given directory with the name of the output.
+  if (flags->time_trace()) {
+    String trace_file = ReplaceExtension(output, ".json");
+    if (!time_trace_value.empty()) {
+      std::error_code ec;
+      if (std::filesystem::is_directory(
+              GetFullPath(current_dir, time_trace_value), ec)) {
+        trace_file =
+            (Path(time_trace_value) / Path(trace_file).filename()).string();
+      } else {
+        trace_file = time_trace_value;
+      }
+    }
+    flags->set_time_trace_file(trace_file);
   }
 
   return true;
