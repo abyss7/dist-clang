@@ -82,9 +82,11 @@ inline bool RequestsRestat(const base::proto::Local* WEAK_PTR message) {
 }
 
 // Checks if the result is needed from the compilation itself: the cache is
-// only updated.
+// only updated. The client asks for it e.g. to measure the build.
 inline bool SkipsLookup(const base::proto::Local* WEAK_PTR message) {
-  return message->flags().time_trace();
+  return message->flags().time_trace() ||
+         std::find(message->env().begin(), message->env().end(),
+                   "DC_RECACHE=1") != message->env().end();
 }
 
 // The number of the links of the cache file outside of the cache, except the
@@ -919,7 +921,8 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
 
     // The trace of the time is given only by the compilation itself - and the
     // time should be the same as without the cache: neither the lookups, nor
-    // the preprocessing. The result is stored only for the direct cache.
+    // the preprocessing. The result is stored only for the direct cache. The
+    // same for the measurements of the whole build.
     if (SkipsLookup(incoming)) {
       STAT(CACHE_LOOKUP_SKIPPED);
       net::proto::Status status;

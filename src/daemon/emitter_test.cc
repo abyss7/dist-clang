@@ -2915,7 +2915,7 @@ TEST_F(EmitterTest, NeverPreprocess) {
   emitter.reset();
 }
 
-TEST_F(EmitterTest, TimeTraceSkipsLookup) {
+TEST_F(EmitterTest, UpdateCacheWithoutLookup) {
   const base::TemporaryDir temp_dir;
   const auto input_path = temp_dir.path() / "test.cc";
   const auto output_path = temp_dir.path() / "test.o";
@@ -2961,7 +2961,8 @@ TEST_F(EmitterTest, TimeTraceSkipsLookup) {
   emitter = std::make_unique<Emitter>(conf);
   ASSERT_TRUE(emitter->Initialize());
 
-  auto Compile = [&](bool time_trace, ui32 expected_send_count) {
+  enum class Mode { NORMAL, TIME_TRACE, RECACHE };
+  auto Compile = [&](Mode mode, ui32 expected_send_count) {
     auto connection = test_service->TriggerListen(socket_path);
     SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
@@ -2975,9 +2976,12 @@ TEST_F(EmitterTest, TimeTraceSkipsLookup) {
     flags->set_deps_target("test.o");
     flags->mutable_compiler()->set_version(compiler_version);
     flags->set_action("fake_action");
-    if (time_trace) {
+    if (mode == Mode::TIME_TRACE) {
       flags->add_ignored()->add_values("-ftime-trace");
       flags->set_time_trace(true);
+    }
+    if (mode == Mode::RECACHE) {
+      extension->add_env("DC_RECACHE=1");
     }
     net::proto::Status status;
     status.set_code(net::proto::Status::OK);
@@ -2990,18 +2994,29 @@ TEST_F(EmitterTest, TimeTraceSkipsLookup) {
 
   // Neither the preprocessing, nor the hit: the trace is produced only by the
   // compilation.
-  Compile(true, 1);
+  Compile(Mode::TIME_TRACE, 1);
   EXPECT_EQ((List<String>{"compile"}), runs);
   EXPECT_TRUE(traced);
 
   runs.clear();
-  Compile(true, 2);
+  Compile(Mode::TIME_TRACE, 2);
   EXPECT_EQ((List<String>{"compile"}), runs);
 
   // But the result is stored - for the compilations without the trace.
   runs.clear();
   ASSERT_TRUE(base::File::Delete(output_path));
-  Compile(false, 3);
+  Compile(Mode::NORMAL, 3);
+  EXPECT_TRUE(runs.empty());
+  EXPECT_TRUE(base::File::Exists(output_path));
+
+  // The same on the request of the client - e.g. to measure the build.
+  Compile(Mode::RECACHE, 4);
+  EXPECT_EQ((List<String>{"compile"}), runs);
+  EXPECT_FALSE(traced);
+
+  runs.clear();
+  ASSERT_TRUE(base::File::Delete(output_path));
+  Compile(Mode::NORMAL, 5);
   EXPECT_TRUE(runs.empty());
   EXPECT_TRUE(base::File::Exists(output_path));
 

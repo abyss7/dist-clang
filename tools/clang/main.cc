@@ -18,7 +18,8 @@ namespace dist_clang {
 namespace {
 
 const char kUsage[] =
-    "Usage: dist-clang [--restat] [--tag=<tag>...] <compiler> [args...]\n"
+    "Usage: dist-clang [--restat] [--recache] [--tag=<tag>...] <compiler>\n"
+    "                  [args...]\n"
     "       dist-clang --stats [--raw]\n"
     "       dist-clang --tag-stats\n"
     "       dist-clang --forget-tag=<tag> [--force]\n"
@@ -28,6 +29,10 @@ const char kUsage[] =
     "  --restat      Don't touch outputs, that don't change: for build\n"
     "                systems, that re-stat outputs, like Ninja with\n"
     "                \"restat = 1\".\n"
+    "  --recache     Compile without the lookups in the cache, but store\n"
+    "                the result: to measure the build, as without the\n"
+    "                cache. The same with DC_RECACHE=1 in the environment,\n"
+    "                and for the compilations with -ftime-trace.\n"
     "  --stats       Show the statistics of the daemon; --raw prints them\n"
     "                as \"NAME value\" lines - for scripts.\n"
     "  --tag         Tag the used cache entries, e.g. with the branch of the\n"
@@ -127,6 +132,8 @@ int main(int argc, char* argv[]) {
       const String arg = argv[first_arg];
       if (arg == "--restat") {
         setenv("DC_RESTAT", "1", 1);
+      } else if (arg == "--recache") {
+        setenv("DC_RECACHE", "1", 1);
       } else if (arg.starts_with(kTag)) {
         // E.g. "$(git branch --show-current)" may give nothing.
         const String tag = arg.substr(kTag.size());

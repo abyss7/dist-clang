@@ -38,6 +38,8 @@ Commands, which can't be cached (linking, preprocessing, unknown inputs, etc.), 
 
 If the build system re-stats outputs after commands - like Ninja with `restat = 1` for the compilation rules - use `dist-clang --restat clang++ ...`: then the outputs, that don't change after a cache hit or a compilation, are kept untouched with their old modification time, and the dependent targets aren't relinked. E.g. touching a header, or changing a comment in it, doesn't relink anything. Don't use it without re-stating: the build system would consider such outputs as outdated forever.
 
+To measure a build as without the cache, but still fill it, run it with `DC_RECACHE=1` in the environment - e.g. `DC_RECACHE=1 ninja`, nothing to regenerate - or with `dist-clang --recache clang++ ...`: the compilations don't look up the cache, and don't preprocess the sources, but their results are stored for the next builds. The same for the compilations with `-ftime-trace`: only the compilation itself gives the trace, while the flag doesn't get into the key.
+
 Show the statistics of the daemon - grouped, or with `--raw` as `NAME value` lines for scripts:
 
     dist-clang --stats [--raw]

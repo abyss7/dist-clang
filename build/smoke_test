@@ -139,3 +139,19 @@ if [ "$(stat_value DIRECT_CACHE_HIT)" -le "$hits" ]; then
   exit 1
 fi
 echo "The time traces are produced, and the results are stored"
+
+# The same on the request of the client: to measure the build.
+for recache in "--recache" "DC_RECACHE=1"; do
+  compiled="$(stat_value LOCAL_TASK_DONE)"
+  rm -f traced.o
+  if [ "$recache" = "--recache" ]; then
+    "$dc" --recache "$cxx" -c traced.cc -o traced.o -MD
+  else
+    env "$recache" "$dc" "$cxx" -c traced.cc -o traced.o -MD
+  fi
+  if [ "$(stat_value LOCAL_TASK_DONE)" -le "$compiled" ]; then
+    echo "The compilation with $recache is found in the cache" >&2
+    exit 1
+  fi
+done
+echo "The compilations with --recache aren't looked up"

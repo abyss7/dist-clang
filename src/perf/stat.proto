@@ -133,7 +133,8 @@ message Metric {
     // Edited sources, compiled without preprocessing.
 
     CACHE_LOOKUP_SKIPPED        = 56;
-    // Compilations, that only update the cache: with the trace of the time.
+    // Compilations, that only update the cache: with the trace of the time,
+    // or with "--recache".
 
     CACHE_OUTPUT_UNCHANGED      = 29;
     LOCAL_OUTPUT_UNCHANGED      = 30;
