@@ -48,6 +48,7 @@ FORWARD_TEST(FileCacheTest, BinaryManifests);
 FORWARD_TEST(FileCacheTest, RemoveDirectRowsOfRemovedEntries);
 FORWARD_TEST(FileCacheTest, FindDoesntKeepOldFields);
 FORWARD_TEST(FileCacheTest, TimeTraces);
+FORWARD_TEST(FileCacheTest, DirectEntriesOfTags);
 FORWARD_TEST(FileCacheTest, RemoveDirectEntriesOfRemovedEntries);
 
 enum ExtraFileType {
@@ -351,6 +352,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, RestoreEntryWithMissingFile);
   FRIEND_TEST(FileCacheTest, CheckFilesOnlyAfterCrash);
   FRIEND_TEST(FileCacheTest, TimeTraces);
+  FRIEND_TEST(FileCacheTest, DirectEntriesOfTags);
   FRIEND_TEST(FileCacheTest, RemoveDirectEntriesOfRemovedEntries);
   FRIEND_TEST(FileCacheTest, ReportSizes);
   FRIEND_TEST(FileCacheTest, Ghosts);

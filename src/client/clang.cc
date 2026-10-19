@@ -523,6 +523,9 @@ bool PrintTagStats(const String& socket_path,
   }
 
   std::cout << std::endl
+            << "size      - with the manifests of the direct cache, that lead"
+            << std::endl
+            << "            to the entries of the tag;" << std::endl
             << "in builds - linked with build directories: takes no space in"
             << std::endl
             << "            the cache, and isn't removed with the tag;"

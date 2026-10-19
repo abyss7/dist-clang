@@ -1187,24 +1187,58 @@ void FileCache::ComputeTagStats(List<TagStats>* stats,
   std::map<String, TagStats> tag_stats;
   std::map<Pair<String, String>, ui64> overlap_sizes;
 
-  for (const auto& [hash, value] : entries_->GetInEvictionOrder()) {
-    if (direct_entries_.contains(hash)) {
-      continue;
+  // The direct entries count for the tags of the entries, that they lead to.
+  HashSet<String> indexed;
+  const auto entries = entries_->GetInEvictionOrder();
+  for (const auto& [hash, value] : entries) {
+    if (!direct_entries_.contains(hash)) {
+      indexed.insert(hash);
     }
+  }
+  for (const auto& [hash, value] : entries) {
+    Vector<String> direct_tags;
+    if (auto direct_it = direct_entries_.find(hash);
+        direct_it != direct_entries_.end()) {
+      std::set<String> all_tags;
+      bool reachable = false;
+      for (const auto& target : direct_it->second) {
+        if (!indexed.contains(target)) {
+          continue;
+        }
+        reachable = true;
+        auto tags_it = entry_tags_.find(target);
+        if (tags_it == entry_tags_.end() || tags_it->second.empty()) {
+          all_tags.insert(String());
+        } else {
+          all_tags.insert(tags_it->second.begin(), tags_it->second.end());
+        }
+      }
+      // It's removed by the maintenance.
+      if (!reachable) {
+        continue;
+      }
+      direct_tags.assign(all_tags.begin(), all_tags.end());
+    }
+    const bool direct = !direct_tags.empty();
     auto tags_it = entry_tags_.find(hash);
     const auto& tags =
-        tags_it == entry_tags_.end() || tags_it->second.empty()
+        direct ? direct_tags
+        : tags_it == entry_tags_.end() || tags_it->second.empty()
             ? kNoTags
             : tags_it->second;
     const ui64 size = std::get<SQLite::SIZE>(value);
     for (const auto& tag : tags) {
       auto& stat = tag_stats[tag];
       stat.tag = tag;
-      ++stat.entries;
       stat.size += size;
+      if (!direct) {
+        ++stat.entries;
+      }
       if (tags.size() == 1) {
-        ++stat.exclusive_entries;
         stat.exclusive_size += size;
+        if (!direct) {
+          ++stat.exclusive_entries;
+        }
       }
     }
     for (auto first = tags.begin(); first != tags.end(); ++first) {
@@ -1330,8 +1364,51 @@ FileCache::ForgetResult FileCache::DoForgetTag(const String& tag,
   }
   result.removed_entries = removed.size();
 
+  // The direct entries, that lead only to the removed entries, find nothing.
+  List<String> removed_direct;
+  {
+    const HashSet<String> removed_set(removed.begin(), removed.end());
+    HashSet<String> indexed;
+    const auto entries = entries_->GetInEvictionOrder();
+    for (const auto& [entry, value] : entries) {
+      if (!std::get<SQLite::DIRECT>(value)) {
+        indexed.insert(entry);
+      }
+    }
+    std::lock_guard<Mutex> lock(blob_refs_mutex_);
+    for (const auto& [entry, targets] : direct_entries_) {
+      bool leads_to_removed = false, leads_to_others = false;
+      for (const auto& target : targets) {
+        if (removed_set.contains(target)) {
+          leads_to_removed = true;
+        } else if (indexed.contains(target)) {
+          leads_to_others = true;
+        }
+      }
+      if (leads_to_removed && !leads_to_others) {
+        removed_direct.push_back(entry);
+      }
+    }
+    for (const auto& entry : removed_direct) {
+      SQLite::Value value;
+      if (entries_->Get(entry, &value)) {
+        result.freed_size += std::get<SQLite::SIZE>(value);
+      }
+    }
+  }
+
   if (dry_run) {
     return result;
+  }
+
+  // The direct entries aren't remembered as the removed ones: they aren't
+  // compilations.
+  for (const auto& entry : removed_direct) {
+    const string::Hash hash{Immutable(entry)};
+    WriteLock lock(this, AppendExtension(CommonPath(hash), base::kExtManifest));
+    if (lock) {
+      RemoveEntry(hash);
+    }
   }
 
   for (const auto& entry : removed) {

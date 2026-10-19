@@ -353,6 +353,71 @@ TEST(FileCacheTest, RemoveDirectEntriesOfRemovedEntries) {
   EXPECT_TRUE(cache->Find(hash1, &entry));
 }
 
+TEST(FileCacheTest, DirectEntriesOfTags) {
+  const base::TemporaryDir temp_dir;
+  const auto header_path = temp_dir.path() / "test.h";
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  const UnhandledSource code1("int main() {}"_l), code2("int main();"_l);
+  const auto hash1 = FileCache::Hash(HandledSource("1"_l), {}, cl, version);
+  const auto hash2 = FileCache::Hash(HandledSource("2"_l), {}, cl, version);
+  const auto direct1 = FileCache::Hash(code1, {}, cl, version);
+  const auto direct2 = FileCache::Hash(code2, {}, cl, version);
+  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, proto::NONE,
+                  true);
+  ASSERT_TRUE(cache.Run(3600));
+
+  // The first source leads to the entry of the first tag, the second one - to
+  // the entries of both tags.
+  ASSERT_TRUE(base::File::Write(header_path, "#define A"_l));
+  cache.Store(hash1, FileCache::Entry{"object 1"_l, "deps"_l});
+  cache.Store(hash2, FileCache::Entry{"object 2"_l, "deps"_l});
+  cache.Store(code1, {}, cl, version, {header_path}, {}, temp_dir, hash1,
+              String(), {}, CompilationTime());
+  cache.Store(code2, {}, cl, version, {header_path}, {}, temp_dir, hash1,
+              String(), {}, CompilationTime());
+  ASSERT_TRUE(base::File::Write(header_path, "#define B"_l));
+  cache.Store(code2, {}, cl, version, {header_path}, {}, temp_dir, hash2,
+              String(), {}, CompilationTime());
+  cache.AddTags(hash1, {"a"});
+  cache.AddTags(hash2, {"b"});
+  cache.FlushAccesses();
+  cache.WaitForCleaner();
+
+  auto EntrySize = [&](const Hash& hash) {
+    SQLite::Value value;
+    EXPECT_TRUE(cache.entries_->Get(hash.str, &value));
+    return std::get<SQLite::SIZE>(value);
+  };
+  auto BlobSize = [&](const char* content) {
+    return cache.blobs_.Size(base::Hexify(Immutable(String(content)).Hash()));
+  };
+  const ui64 size1 = EntrySize(hash1) + BlobSize("object 1");
+  const ui64 direct_size1 = EntrySize(direct1), direct_size2 = EntrySize(direct2);
+
+  // The direct entries count for the tags of their entries.
+  List<FileCache::TagStats> stats;
+  List<FileCache::TagOverlap> overlaps;
+  cache.ComputeTagStats(&stats, &overlaps);
+  ASSERT_EQ(2u, stats.size());
+  EXPECT_EQ("a", stats.front().tag);
+  EXPECT_EQ(1u, stats.front().entries);
+  EXPECT_EQ(size1 + direct_size1 + direct_size2, stats.front().size);
+  EXPECT_EQ(size1 + direct_size1, stats.front().exclusive_size);
+  EXPECT_EQ(size1 + direct_size1, stats.front().freeable_size);
+  ASSERT_EQ(1u, overlaps.size());
+  EXPECT_EQ(direct_size2, overlaps.front().size);
+
+  // And are removed with them at once.
+  const auto result = cache.DoForgetTag("a", false);
+  EXPECT_EQ(1u, result.removed_entries);
+  EXPECT_EQ(size1 + direct_size1, result.freed_size);
+  EXPECT_FALSE(base::File::Exists(
+      AppendExtension(cache.CommonPath(direct1), base::kExtManifest)));
+  EXPECT_TRUE(base::File::Exists(
+      AppendExtension(cache.CommonPath(direct2), base::kExtManifest)));
+}
+
 TEST(FileCacheTest, RestoreSingleEntry) {
   const base::TemporaryDir temp_dir;
   const auto object_path = temp_dir.path() / "test.o";
