@@ -264,6 +264,95 @@ TEST(FileCacheTest, RemoveDirectRowsOfRemovedEntries) {
   EXPECT_EQ(rows - 1, cache.database_->Count());
 }
 
+TEST(FileCacheTest, RemoveDirectEntriesOfRemovedEntries) {
+  const base::TemporaryDir temp_dir;
+  const Path cache_path = temp_dir.path() / "cache";
+  const auto header_path = temp_dir.path() / "test.h";
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  const UnhandledSource code1("int main() {}"_l), code2("int main();"_l);
+  const auto hash1 = FileCache::Hash(HandledSource("1"_l), {}, cl, version);
+  const auto hash2 = FileCache::Hash(HandledSource("2"_l), {}, cl, version);
+  const auto direct1 = FileCache::Hash(code1, {}, cl, version);
+  const auto direct2 = FileCache::Hash(code2, {}, cl, version);
+
+  auto cache = std::make_unique<FileCache>(cache_path, FileCache::UNLIMITED,
+                                           proto::NONE, true);
+  ASSERT_TRUE(cache->Run(3600));
+  auto Maintain = [&] {
+    cache->FlushAccesses();
+    cache->WaitForCleaner();
+    std::promise<void> done;
+    cache->cleaner_.Push([&] {
+      cache->Maintain();
+      done.set_value();
+    });
+    done.get_future().wait();
+  };
+  auto Exists = [&](const UnhandledHash& hash) {
+    return base::File::Exists(
+        AppendExtension(cache->CommonPath(hash), base::kExtManifest));
+  };
+
+  // The first source leads to the first entry, the second one - to both:
+  // with different headers.
+  ASSERT_TRUE(base::File::Write(header_path, "#define A"_l));
+  cache->Store(hash1, FileCache::Entry{"object 1"_l, "deps"_l});
+  cache->Store(hash2, FileCache::Entry{"object 2"_l, "deps"_l});
+  cache->Store(code1, {}, cl, version, {header_path}, {}, temp_dir, hash1,
+               String(), {}, CompilationTime());
+  cache->Store(code2, {}, cl, version, {header_path}, {}, temp_dir, hash1,
+               String(), {}, CompilationTime());
+  ASSERT_TRUE(base::File::Write(header_path, "#define B"_l));
+  cache->Store(code2, {}, cl, version, {header_path}, {}, temp_dir, hash2,
+               String(), {}, CompilationTime());
+  Maintain();
+  ASSERT_TRUE(Exists(direct1));
+  ASSERT_TRUE(Exists(direct2));
+
+  // The direct entry, that leads to no entry, finds nothing - it's removed.
+  ASSERT_TRUE(cache->RemoveEntry(hash1));
+  Maintain();
+  EXPECT_FALSE(Exists(direct1));
+  EXPECT_TRUE(Exists(direct2));
+  FileCache::Entry entry;
+  EXPECT_TRUE(cache->Find(code2, {}, cl, version, temp_dir, &entry));
+
+  ASSERT_TRUE(cache->RemoveEntry(hash2));
+  Maintain();
+  EXPECT_FALSE(Exists(direct2));
+  cache.reset();
+
+  // The direct entries of the older revisions don't know their entries: they
+  // are removed after the start.
+  cache = std::make_unique<FileCache>(cache_path, FileCache::UNLIMITED,
+                                      proto::NONE, true);
+  ASSERT_TRUE(cache->Run(3600));
+  cache->Store(hash1, FileCache::Entry{"object 1"_l, "deps"_l});
+  cache->Store(code1, {}, cl, version, {header_path}, {}, temp_dir, hash1,
+               String(), {}, CompilationTime());
+  cache->FlushAccesses();
+  cache->WaitForCleaner();
+  cache.reset();
+  const Path manifest_path = AppendExtension(
+      FileCache(cache_path).CommonPath(direct1), base::kExtManifest);
+  proto::Manifest manifest;
+  ASSERT_TRUE(base::LoadBinaryFromFile(manifest_path, &manifest));
+  ASSERT_EQ(1, manifest.direct().entries_size());
+  manifest.mutable_direct()->clear_entries();
+  ASSERT_TRUE(base::SaveBinaryToFile(manifest_path, manifest));
+  // The index is rebuilt from the manifests.
+  ASSERT_TRUE(base::File::Delete(cache_path / "index.sqlite"));
+  MakeOld(cache_path);
+
+  cache = std::make_unique<FileCache>(cache_path, FileCache::UNLIMITED,
+                                      proto::NONE, true);
+  ASSERT_TRUE(cache->Run(3600));
+  cache->WaitForCleaner();
+  EXPECT_FALSE(Exists(direct1));
+  EXPECT_TRUE(cache->Find(hash1, &entry));
+}
+
 TEST(FileCacheTest, RestoreSingleEntry) {
   const base::TemporaryDir temp_dir;
   const auto object_path = temp_dir.path() / "test.o";

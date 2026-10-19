@@ -118,21 +118,37 @@ List<Variant> DirectVariants(const proto::Direct& direct) {
 // index: the size of the traces is shown apart.
 const char kTimeTracePrefix[] = "trace:";
 
-// The blobs of the entry in the index - one of them may be the |time_trace|.
-String JoinBlobs(const Vector<String>& blobs, const String& time_trace) {
+// The prefix of the entries, that the direct entry leads to - in the same
+// column of the index.
+const char kTargetPrefix[] = "entry:";
+
+// The blobs of the entry in the index - one of them may be the |time_trace| -
+// and the |targets| of the direct entry.
+String JoinBlobs(const Vector<String>& blobs, const String& time_trace,
+                 const Vector<String>& targets = {}) {
   String result;
   for (const auto& blob : blobs) {
     result += (result.empty() ? "" : "\n") +
               (blob == time_trace ? kTimeTracePrefix + blob : blob);
   }
+  for (const auto& target : targets) {
+    result += (result.empty() ? "" : "\n") + (kTargetPrefix + target);
+  }
   return result;
 }
 
-Vector<String> SplitBlobs(const String& blobs, String* time_trace) {
+Vector<String> SplitBlobs(const String& blobs, String* time_trace,
+                          Vector<String>* targets = nullptr) {
   List<String> list;
   base::SplitString<'\n'>(blobs, list);
   Vector<String> result;
   for (auto& blob : list) {
+    if (blob.starts_with(kTargetPrefix)) {
+      if (targets) {
+        targets->push_back(blob.substr(strlen(kTargetPrefix)));
+      }
+      continue;
+    }
     if (blob.starts_with(kTimeTracePrefix)) {
       blob.erase(0, strlen(kTimeTracePrefix));
       *time_trace = blob;
@@ -631,7 +647,7 @@ void FileCache::ScanEntries(ui64 start_time) {
     }
     if (!entries_->Set(hash.str,
                        std::make_tuple(mtime, info.size, kManifestVersion, 0u,
-                                       info.direct, JoinBlobs(info.blobs, info.time_trace)))) {
+                                       info.direct, JoinBlobs(info.blobs, info.time_trace, info.targets)))) {
       LOG(CACHE_ERROR) << "Failed to add to the index " << hash.str;
     }
   });
@@ -742,6 +758,11 @@ bool FileCache::Run(ui64 clean_period) {
     if (!store_time_traces_) {
       RemoveTimeTraces();
     }
+    entries_->BeginTransaction();
+    tag_index_->BeginTransaction();
+    RemoveUnreachableDirectEntries();
+    tag_index_->EndTransaction();
+    entries_->EndTransaction();
   });
   cleaner_.Run();
 
@@ -1610,14 +1631,17 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
 
   Immutable::Rope hash_rope = {orig_hash};
 
-  // Keep the previous variants of headers.
+  // Keep the previous variants of headers, and the entries they lead to.
   proto::Manifest old_manifest;
   List<Variant> variants;
+  List<String> old_entries;
   if (base::File::Exists(manifest_path) &&
       base::LoadBinaryFromFile(manifest_path, &old_manifest) &&
       old_manifest.has_direct() &&
       old_manifest.version() == kManifestVersion) {
     variants = DirectVariants(old_manifest.direct());
+    old_entries.assign(old_manifest.direct().entries().begin(),
+                       old_manifest.direct().entries().end());
   }
 
   proto::Manifest manifest;
@@ -1751,6 +1775,20 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
       new_variant->add_ignored_paths(path);
     }
   }
+  // The removed entries are dropped.
+  auto* direct = manifest.mutable_direct();
+  direct->add_entries(hash.str.string_copy());
+  for (const auto& entry : old_entries) {
+    if (direct->entries_size() >= int(kMaxDirectEntries)) {
+      break;
+    }
+    if (entry != hash.str.string_copy() &&
+        base::File::Exists(AppendExtension(
+            CommonPath(string::Hash(Immutable(String(entry)))),
+            base::kExtManifest))) {
+      direct->add_entries(entry);
+    }
+  }
 
   String error;
   if (!base::SaveBinaryToFile(manifest_path, manifest, &error)) {
@@ -1807,7 +1845,7 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
               hash.str,
               std::make_tuple(access->time, info.size, kManifestVersion,
                               exists ? std::get<SQLite::HITS>(entry) : 0u,
-                              ui32(info.direct), JoinBlobs(info.blobs, info.time_trace)))) {
+                              ui32(info.direct), JoinBlobs(info.blobs, info.time_trace, info.targets)))) {
         LOG(CACHE_ERROR) << "Failed to update the index for " << hash.str;
       }
       cache_size_ += info.size;
@@ -1863,6 +1901,7 @@ void FileCache::Maintain() {
   tag_index_->BeginTransaction();
   ghosts_->BeginTransaction();
   Evict();
+  RemoveUnreachableDirectEntries();
   CompressColdEntries();
   const ui64 now = time(nullptr);
   ghosts_->RemoveOlderThan(ghosts_ttl_ ? now - std::min(now, ghosts_ttl_)
@@ -2002,6 +2041,8 @@ bool FileCache::LoadEntryInfo(string::Hash hash, EntryInfo* info) const {
   }
 
   info->direct = manifest.has_direct();
+  info->targets.assign(manifest.direct().entries().begin(),
+                       manifest.direct().entries().end());
   info->size = manifest.v1().size() + base::File::Size(manifest_path);
   if (manifest.v1().obj()) {
     info->blobs.push_back(manifest.v1().object_hash());
@@ -2022,7 +2063,7 @@ void FileCache::AddBlobRefs(string::Hash hash, const EntryInfo& info,
                             ui64 access_time) {
   std::lock_guard<Mutex> lock(blob_refs_mutex_);
   if (info.direct) {
-    direct_entries_.insert(hash.str.string_copy());
+    direct_entries_[hash.str.string_copy()] = info.targets;
   }
   // The new references go first: the blobs may be the same.
   for (const auto& blob : info.blobs) {
@@ -2060,7 +2101,8 @@ void FileCache::CountBlobRefs(ui64 start_time) {
   for (const auto& [hash, entry] : entries_->GetInEvictionOrder()) {
     EntryInfo info;
     info.direct = std::get<SQLite::DIRECT>(entry);
-    info.blobs = SplitBlobs(std::get<SQLite::BLOBS>(entry), &info.time_trace);
+    info.blobs = SplitBlobs(std::get<SQLite::BLOBS>(entry), &info.time_trace,
+                            &info.targets);
     AddBlobRefs(string::Hash(Immutable(hash)), info,
                 std::get<SQLite::MTIME>(entry));
     cache_size_ += std::get<SQLite::SIZE>(entry);
@@ -2138,7 +2180,7 @@ void FileCache::RemoveTimeTraces() {
     cache_size_ += info.size;
     cache_size_ -= std::get<SQLite::SIZE>(value);
     std::get<SQLite::SIZE>(value) = info.size;
-    std::get<SQLite::BLOBS>(value) = JoinBlobs(info.blobs, info.time_trace);
+    std::get<SQLite::BLOBS>(value) = JoinBlobs(info.blobs, info.time_trace, info.targets);
     if (!entries_->Set(hash_str, value)) {
       LOG(CACHE_ERROR) << "Failed to update the index for " << hash_str;
     }
@@ -2146,6 +2188,56 @@ void FileCache::RemoveTimeTraces() {
   entries_->EndTransaction();
 
   ReportSizes();
+}
+
+void FileCache::RemoveUnreachableDirectEntries() {
+  HashSet<String> indexed;
+  for (const auto& [hash, value] : entries_->GetInEvictionOrder()) {
+    if (!std::get<SQLite::DIRECT>(value)) {
+      indexed.insert(hash);
+    }
+  }
+  // The entries, that aren't indexed yet, have the manifests.
+  auto Reachable = [&](const Vector<String>& targets) {
+    for (const auto& target : targets) {
+      if (indexed.contains(target) ||
+          base::File::Exists(
+              AppendExtension(CommonPath(string::Hash(Immutable(target))),
+                              base::kExtManifest))) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  List<String> unreachable;
+  {
+    std::lock_guard<Mutex> lock(blob_refs_mutex_);
+    for (const auto& [hash, targets] : direct_entries_) {
+      if (!Reachable(targets)) {
+        unreachable.push_back(hash);
+      }
+    }
+  }
+  if (unreachable.empty()) {
+    return;
+  }
+
+  ui32 removed = 0;
+  for (const auto& hash_str : unreachable) {
+    const string::Hash hash{Immutable(hash_str)};
+    WriteLock lock(this,
+                   AppendExtension(CommonPath(hash), base::kExtManifest));
+    // The manifest may lead to a new entry already - not applied to the
+    // index yet.
+    EntryInfo info;
+    if (lock && (!LoadEntryInfo(hash, &info) || !Reachable(info.targets))) {
+      RemoveEntry(hash);
+      ++removed;
+    }
+  }
+  LOG(CACHE_INFO) << "Removed " << removed
+                  << " direct entries, that lead to no entries";
 }
 
 bool FileCache::HasSharedBlobs(string::Hash hash) {

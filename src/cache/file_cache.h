@@ -48,6 +48,7 @@ FORWARD_TEST(FileCacheTest, BinaryManifests);
 FORWARD_TEST(FileCacheTest, RemoveDirectRowsOfRemovedEntries);
 FORWARD_TEST(FileCacheTest, FindDoesntKeepOldFields);
 FORWARD_TEST(FileCacheTest, TimeTraces);
+FORWARD_TEST(FileCacheTest, RemoveDirectEntriesOfRemovedEntries);
 
 enum ExtraFileType {
   SANITIZE_BLACKLIST = 0,
@@ -135,10 +136,13 @@ class FileCache {
   //               new keys of the direct cache: with the system headers and
   //               the paths of the headers.
   //   Revision 1: the traces of the time - see |SetStoreTimeTraces()|.
-  enum : ui32 { kGeneration = 3, kRevision = 1 };
+  //   Revision 2: the entries, that the direct entries lead to: the older
+  //               direct entries are removed.
+  enum : ui32 { kGeneration = 3, kRevision = 2 };
 
-  // Maximal number of the header sets per one source in the direct cache.
-  enum : size_t { kMaxDirectVariants = 8 };
+  // Maximal number of the header sets per one source in the direct cache, and
+  // of the entries, that they lead to - e.g. after the changes of the headers.
+  enum : size_t { kMaxDirectVariants = 8, kMaxDirectEntries = 32 };
 
   struct Entry {
     Immutable object;
@@ -347,6 +351,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, RestoreEntryWithMissingFile);
   FRIEND_TEST(FileCacheTest, CheckFilesOnlyAfterCrash);
   FRIEND_TEST(FileCacheTest, TimeTraces);
+  FRIEND_TEST(FileCacheTest, RemoveDirectEntriesOfRemovedEntries);
   FRIEND_TEST(FileCacheTest, ReportSizes);
   FRIEND_TEST(FileCacheTest, Ghosts);
   FRIEND_TEST(FileCacheTest, BinaryManifests);
@@ -435,6 +440,8 @@ class FileCache {
     String object;  // The hash of the object file.
     ui64 compilation_time = 0;
     String time_trace;  // The hash of the trace - one of |blobs|.
+    // Of the direct entry: the entries, that it leads to.
+    Vector<String> targets;
   };
   // Returns |false| for a broken entry, or of another version.
   bool LoadEntryInfo(string::Hash hash, EntryInfo* info) const;
@@ -454,6 +461,11 @@ class FileCache {
   // Removes the stored traces of the time, if they aren't stored anymore -
   // after the start.
   void RemoveTimeTraces();
+
+  // Removes the direct entries, that lead to no entries anymore - they find
+  // nothing - and the ones, that don't know their entries. In the transactions
+  // of the index and of the tags.
+  void RemoveUnreachableDirectEntries();
 
   // The work with the tags - in the cleaner.
   void ApplyTags(string::Hash hash, const Vector<String>& tags);
@@ -520,8 +532,9 @@ class FileCache {
   HashMap<String, Vector<String>> entry_blobs_;
   // The blobs of the traces of the time - some may be removed already.
   HashSet<String> time_trace_blobs_;
-  // The manifests of the direct cache - they aren't tagged.
-  HashSet<String> direct_entries_;
+  // The manifests of the direct cache - they aren't tagged - with the entries,
+  // that they lead to.
+  HashMap<String, Vector<String>> direct_entries_;
   // The tags of the entries - sorted. Used by the cleaner too.
   UniquePtr<TagIndex> tag_index_;
   // The removed entries - used only by the cleaner.

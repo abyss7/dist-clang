@@ -35,6 +35,11 @@ message Direct {
   repeated Variant variants = 2;
   // Different sets of headers of the same source, e.g. from different branches.
   // The most recently stored variant goes first.
+
+  repeated string entries = 3;
+  // The entries, that the variants lead to - the most recently stored first:
+  // the direct entry is removed with all of them. Since the revision 2 of the
+  // generation 3.
 }
 
 // The result of a compilation. The object and split DWARF files are in the
