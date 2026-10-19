@@ -22,8 +22,9 @@ class BlobStore {
 
   // Puts the |content|, or the file |path|, if the |content| is empty. Sets
   // the |hash| of the contents. Reuses the existing blob with the same hash.
+  // The blobs, that aren't |linkable| - only read - are compressed at once.
   bool Put(Immutable content, const Path& path, String* hash, bool* reused,
-           String* error) const THREAD_SAFE;
+           String* error, bool linkable = true) const THREAD_SAFE;
 
   // Finds the blob: sets |path| to the uncompressed file, if it can be linked
   // - and |path| isn't null - or reads the |content| otherwise. Checks the

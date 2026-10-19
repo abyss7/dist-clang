@@ -1466,7 +1466,7 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
 
   if (store_time_traces_ && !entry.time_trace.empty()) {
     if (!blobs_.Put(entry.time_trace, Path(), v1->mutable_time_trace_hash(),
-                    &reused, &error)) {
+                    &reused, &error, false)) {
       Fail();
       LOG(CACHE_ERROR) << "Failed to save the time trace of " << hash.str
                        << ": " << error;

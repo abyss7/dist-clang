@@ -205,11 +205,10 @@ if [ -z "$restored" ]; then
 fi
 # The new entries are applied to the statistics every 10 seconds.
 for i in $(seq 150); do
-  [ "$(stat_value CACHE_TIME_TRACES_SIZE)" -ge "$(wc -c < stored.json)" ] &&
-    break
+  [ "$(stat_value CACHE_TIME_TRACES_SIZE)" -gt 0 ] && break
   sleep 0.1
 done
-if [ "$(stat_value CACHE_TIME_TRACES_SIZE)" -lt "$(wc -c < stored.json)" ]; then
+if ! [ "$(stat_value CACHE_TIME_TRACES_SIZE)" -gt 0 ]; then
   echo "The size of the stored traces isn't shown" >&2
   exit 1
 fi

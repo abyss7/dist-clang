@@ -796,6 +796,10 @@ TEST(FileCacheTest, TimeTraces) {
     cache->Store(hash, stored);
     cache->Store(other_hash, FileCache::Entry{"object2"_l, "deps"_l});
 
+    // The trace is never linked: it's compressed at once.
+    EXPECT_TRUE(base::File::Exists(cache->blobs_.PackedPath(trace_hash)));
+    EXPECT_FALSE(base::File::Exists(cache->blobs_.RawPath(trace_hash)));
+
     // Only the hash of the trace: it's read, if it's needed.
     FileCache::Entry entry;
     ASSERT_TRUE(cache->Find(hash, &entry));
@@ -816,7 +820,9 @@ TEST(FileCacheTest, TimeTraces) {
   // The size of the traces is known after the start - from the index.
   {
     auto cache = Open(true);
-    EXPECT_EQ("trace"_l.size(), GetStat(M::CACHE_TIME_TRACES_SIZE));
+    EXPECT_LT(0u, GetStat(M::CACHE_TIME_TRACES_SIZE));
+    EXPECT_EQ(cache->blobs_.Size(trace_hash),
+              GetStat(M::CACHE_TIME_TRACES_SIZE));
     FileCache::Entry entry;
     ASSERT_TRUE(cache->Find(hash, &entry));
     EXPECT_EQ(trace_hash, entry.time_trace_hash);

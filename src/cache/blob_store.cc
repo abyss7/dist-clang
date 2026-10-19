@@ -48,7 +48,7 @@ Path BlobStore::PackedPath(const String& hash) const {
 }
 
 bool BlobStore::Put(Immutable content, const Path& path, String* hash,
-                    bool* reused, String* error) const {
+                    bool* reused, String* error, bool linkable) const {
   *reused = false;
 
   auto Exists = [this](const String& hash) {
@@ -57,7 +57,7 @@ bool BlobStore::Put(Immutable content, const Path& path, String* hash,
   };
 
   // Link the produced file.
-  if (link_ && content.empty() && !path.empty()) {
+  if (link_ && linkable && content.empty() && !path.empty()) {
     Immutable file_hash;
     if (!base::File::Hash(path, &file_hash, {}, error)) {
       return false;
@@ -88,7 +88,7 @@ bool BlobStore::Put(Immutable content, const Path& path, String* hash,
   }
 
   // The linked blobs aren't compressed, until they're unused.
-  if (link_ || compression_ == proto::NONE) {
+  if ((link_ && linkable) || compression_ == proto::NONE) {
     return base::File::Write(RawPath(*hash), data, error);
   }
   String packed;
