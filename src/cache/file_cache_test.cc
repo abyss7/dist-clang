@@ -2165,6 +2165,57 @@ TEST(FileCacheTest, DirectEntry_IsolatedTags) {
   EXPECT_EQ(hash1.str.string_copy(), entry.handled_hash);
 }
 
+TEST(FileCacheTest, DirectEntry_IsolatedTagsKeepVariants) {
+  const base::TemporaryDir temp_dir;
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  const UnhandledSource code("#include \"test.h\""_l);
+  const auto direct = FileCache::Hash(code, {}, cl, version);
+  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, proto::NONE,
+                  true);
+  cache.SetIsolatedTags({"bench"});
+  ASSERT_TRUE(cache.Run(3600));
+
+  auto Store = [&](const String& header, const String& content,
+                   const String& scope) {
+    const auto header_path = temp_dir.path() / header;
+    ASSERT_TRUE(base::File::Write(header_path, Immutable(content)));
+    const auto hash = FileCache::Hash(HandledSource(Immutable(content)), {},
+                                      cl, version);
+    cache.Store(hash, FileCache::Entry{Immutable(content), "deps"_l});
+    if (!scope.empty()) {
+      cache.AddTags(hash, {scope});
+    }
+    cache.Store(code, {}, cl, version, {header_path}, {}, temp_dir, hash,
+                String(), {}, CompilationTime(), scope);
+  };
+
+  // The variant and the entry of the isolated tag stay after many variants
+  // and entries of others - and don't take their places.
+  Store("bench.h", "bench", "bench");
+  for (ui32 i = 0; i < FileCache::kMaxDirectVariants; ++i) {
+    Store("other" + std::to_string(i) + ".h", "variant " + std::to_string(i),
+          String());
+  }
+  for (ui32 i = 0; i < FileCache::kMaxDirectEntries; ++i) {
+    Store("other0.h", "entry " + std::to_string(i), String());
+  }
+
+  FileCache::Entry entry;
+  ASSERT_TRUE(cache.Find(code, {}, cl, version, temp_dir, &entry, String(), {},
+                         "bench"));
+  EXPECT_EQ("bench", entry.object.string_copy());
+
+  proto::Manifest manifest;
+  ASSERT_TRUE(base::LoadBinaryFromFile(
+      AppendExtension(cache.CommonPath(direct), base::kExtManifest),
+      &manifest));
+  EXPECT_EQ(int(FileCache::kMaxDirectVariants) + 1,
+            manifest.direct().variants_size());
+  EXPECT_EQ(int(FileCache::kMaxDirectEntries) + 1,
+            manifest.direct().entries_size());
+}
+
 TEST(FileCacheTest, DirectEntry_LimitedHeaderSets) {
   const base::TemporaryDir temp_dir;
   FileCache cache(temp_dir);

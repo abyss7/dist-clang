@@ -51,6 +51,7 @@ FORWARD_TEST(FileCacheTest, TimeTraces);
 FORWARD_TEST(FileCacheTest, DirectEntriesOfTags);
 FORWARD_TEST(FileCacheTest, RemoveDirectEntriesOfRemovedEntries);
 FORWARD_TEST(FileCacheTest, IsolatedTags);
+FORWARD_TEST(FileCacheTest, DirectEntry_IsolatedTagsKeepVariants);
 
 enum ExtraFileType {
   SANITIZE_BLACKLIST = 0,
@@ -147,6 +148,8 @@ class FileCache {
 
   // Maximal number of the header sets per one source in the direct cache, and
   // of the entries, that they lead to - e.g. after the changes of the headers.
+  // Every isolated tag has its own header sets, and its entries aren't
+  // limited.
   enum : size_t { kMaxDirectVariants = 8, kMaxDirectEntries = 32 };
 
   struct Entry {
@@ -373,6 +376,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, DirectEntriesOfTags);
   FRIEND_TEST(FileCacheTest, RemoveDirectEntriesOfRemovedEntries);
   FRIEND_TEST(FileCacheTest, IsolatedTags);
+  FRIEND_TEST(FileCacheTest, DirectEntry_IsolatedTagsKeepVariants);
   FRIEND_TEST(FileCacheTest, ReportSizes);
   FRIEND_TEST(FileCacheTest, Ghosts);
   FRIEND_TEST(FileCacheTest, BinaryManifests);
@@ -569,6 +573,8 @@ class FileCache {
   mutable std::shared_mutex scopes_mutex_;
   HashMap<String, HashSet<String>> scopes_;
   bool InScope(const String& entry, const String& scope) const;
+  // If the entry has any isolated tag.
+  bool IsIsolated(const String& entry) const;
   // Puts the entries, that have the |tag|, into its scope - and removes
   // others from it, unless |keep_others|.
   void UpdateScope(const String& tag, bool keep_others);

@@ -1125,6 +1125,16 @@ void FileCache::AddTags(string::HandledHash hash, const Vector<String>& tags) {
   }
 }
 
+bool FileCache::IsIsolated(const String& entry) const {
+  std::shared_lock<std::shared_mutex> lock(scopes_mutex_);
+  for (const auto& [tag, entries] : scopes_) {
+    if (entries.contains(entry)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool FileCache::InScope(const String& entry, const String& scope) const {
   std::shared_lock<std::shared_mutex> lock(scopes_mutex_);
   auto it = scopes_.find(scope);
@@ -1786,6 +1796,12 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
       old_manifest.has_direct() &&
       old_manifest.version() == kManifestVersion) {
     variants = DirectVariants(old_manifest.direct());
+    // E.g. the tag isn't isolated anymore.
+    for (auto& variant : variants) {
+      std::erase_if(variant.scopes, [this](const String& variant_scope) {
+        return !isolated_tags_.contains(variant_scope);
+      });
+    }
     old_entries.assign(old_manifest.direct().entries().begin(),
                        old_manifest.direct().entries().end());
   }
@@ -1907,21 +1923,30 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
   if (!scope.empty()) {
     new_variant.scopes.insert(scope);
   }
-  variants.remove_if([this, &new_variant](const Variant& variant) {
+  variants.remove_if([&new_variant](const Variant& variant) {
     if (variant.headers != new_variant.headers) {
       return false;
     }
-    for (const auto& old_scope : variant.scopes) {
-      if (isolated_tags_.contains(old_scope)) {
-        new_variant.scopes.insert(old_scope);
-      }
-    }
+    new_variant.scopes.insert(variant.scopes.begin(), variant.scopes.end());
     return true;
   });
   variants.push_front(std::move(new_variant));
-  while (variants.size() > kMaxDirectVariants) {
-    variants.pop_back();
-  }
+  // Others and every isolated tag keep their own recent variants.
+  size_t kept_variants = 0;
+  HashMap<String, size_t> kept_scoped_variants;
+  variants.remove_if([&](const Variant& variant) {
+    bool keep = variant.scopes.empty() && kept_variants < kMaxDirectVariants;
+    for (const auto& variant_scope : variant.scopes) {
+      keep |= kept_scoped_variants[variant_scope] < kMaxDirectVariants;
+    }
+    if (keep) {
+      kept_variants += variant.scopes.empty();
+      for (const auto& variant_scope : variant.scopes) {
+        ++kept_scoped_variants[variant_scope];
+      }
+    }
+    return !keep;
+  });
   for (const auto& variant : variants) {
     auto* new_variant = manifest.mutable_direct()->add_variants();
     for (const auto& header : variant.headers) {
@@ -1938,18 +1963,23 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
       new_variant->add_scopes(variant_scope);
     }
   }
-  // The removed entries are dropped.
+  // The removed entries are dropped. The entries of the isolated tags stay:
+  // the direct entry would be removed without others.
   auto* direct = manifest.mutable_direct();
   direct->add_entries(hash.str.string_copy());
+  size_t kept_entries = 1;
   for (const auto& entry : old_entries) {
-    if (direct->entries_size() >= int(kMaxDirectEntries)) {
-      break;
-    }
-    if (entry != hash.str.string_copy() &&
-        base::File::Exists(AppendExtension(
+    if (entry == hash.str.string_copy() ||
+        !base::File::Exists(AppendExtension(
             CommonPath(string::Hash(Immutable(String(entry)))),
             base::kExtManifest))) {
+      continue;
+    }
+    if (IsIsolated(entry)) {
       direct->add_entries(entry);
+    } else if (kept_entries < kMaxDirectEntries) {
+      direct->add_entries(entry);
+      ++kept_entries;
     }
   }
 
