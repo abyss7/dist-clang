@@ -1011,6 +1011,10 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
         direct_store.emplace(&direct_stores_, DirectStoreKey(incoming));
       }
 
+      // Before the reply: the client may ask for the stats of the tags at
+      // once.
+      TagEntry(*incoming, HandledHash(Immutable(entry.handled_hash)));
+
       net::proto::Status status;
       status.set_code(net::proto::Status::OK);
       // The colors aren't a part of the key.
@@ -1028,7 +1032,6 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       direct_store.reset();
 
       MaybeVerifyHit(*incoming, entry, std::get<START_TIME>(*task));
-      TagEntry(*incoming, HandledHash(Immutable(entry.handled_hash)));
 
       restored = true;
       return true;

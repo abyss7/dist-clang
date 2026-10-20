@@ -4518,6 +4518,126 @@ TEST_F(EmitterTest, ReplyToSimpleHitBeforeDirectStore) {
   emitter.reset();
 }
 
+TEST_F(EmitterTest, TagSimpleHitBeforeReply) {
+  // After the reply the client may ask for the stats of the tags at once.
+  const base::TemporaryDir temp_dir;
+  const auto input1_path = temp_dir.path() / "test1.cc";
+  const auto input2_path = temp_dir.path() / "test2.cc";
+  const auto header_path = temp_dir.path() / "test.h";
+  const String compiler_version = "fake_compiler_version";
+  Mutex replies_mutex;
+  List<net::Connection::Message> replies;
+
+  ASSERT_TRUE(base::File::Write(input1_path, "#include \"test.h\""_l));
+  ASSERT_TRUE(base::File::Write(input2_path, "#include \"test.h\""_l));
+  ASSERT_TRUE(base::File::Write(header_path, "int a;"_l));
+
+  conf.mutable_cache()->set_path(temp_dir.path() / "cache");
+  conf.mutable_cache()->set_direct(true);
+  conf.mutable_cache()->set_clean_period(1);
+  conf.mutable_emitter()->set_preprocessing(
+      proto::Configuration::Emitter::ALWAYS);
+
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path("fake_compiler_path");
+
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      std::lock_guard<Mutex> lock(replies_mutex);
+      replies.push_back(message);
+      send_condition.notify_all();
+    });
+    return true;
+  };
+
+  ui32 compilations = 0;
+  run_callback = [&](base::TestProcess* process) {
+    const bool preprocessing =
+        std::find(process->args_.begin(), process->args_.end(), "-E"_l) !=
+        process->args_.end();
+    const auto deps = Immutable("test.o: "_l) + Immutable(header_path);
+    WriteDepsFile(process, deps);
+    if (preprocessing) {
+      process->stdout_ = "preprocessed"_l;
+    } else {
+      ++compilations;
+      EXPECT_TRUE(
+          base::File::Write(temp_dir.path() / "test1.o", "object"_l));
+      EXPECT_TRUE(base::File::Write(temp_dir.path() / "test1.d", deps));
+    }
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto Send = [&](net::Connection::ScopedMessage message,
+                  ui32 expected_send_count) {
+    auto connection = test_service->TriggerListen(socket_path);
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    UniqueLock lock(send_mutex);
+    return send_condition.wait_for(lock, Seconds(1), [&] {
+      return send_count == expected_send_count;
+    });
+  };
+  auto Compile = [&](const Path& input, const String& tag,
+                     ui32 expected_send_count) {
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->mutable_local();
+    extension->set_current_dir(temp_dir);
+    extension->add_env("DC_TAGS=" + tag);
+    auto* flags = extension->mutable_flags();
+    const auto name = input.stem().string();
+    flags->set_input(input);
+    flags->set_output(name + ".o");
+    flags->set_deps_file(name + ".d");
+    flags->set_deps_target(name + ".o");
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action("-c");
+    return Send(std::move(message), expected_send_count);
+  };
+
+  EXPECT_TRUE(Compile(input1_path, "a", 1));
+  EXPECT_EQ(1u, compilations);
+  // The direct store of the first source ends.
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+  // The header can't be read for the direct store of the other source, until
+  // it's written.
+  ASSERT_TRUE(base::File::Delete(header_path));
+  ASSERT_EQ(0, mkfifo(header_path.c_str(), 0600));
+  WaitAfterEdit();
+
+  // The direct store of the simple hit waits for the header.
+  EXPECT_TRUE(Compile(input2_path, "b", 2));
+  EXPECT_EQ(1u, compilations);
+
+  net::Connection::ScopedMessage request(new net::Connection::Message);
+  request->mutable_tags_request();
+  EXPECT_TRUE(Send(std::move(request), 3));
+  base::proto::TagsReport report;
+  {
+    std::lock_guard<Mutex> lock(replies_mutex);
+    report = replies.back().tags_report();
+  }
+
+  {
+    std::ofstream header(header_path);
+    header << "int a;";
+  }
+
+  ASSERT_EQ(2, report.tags_size());
+  EXPECT_EQ("a", report.tags(0).name());
+  EXPECT_EQ("b", report.tags(1).name());
+
+  emitter.reset();
+}
+
 TEST_F(EmitterTest, StoreDirectCacheForLocalResult) {
   // Prepare environment.
   const base::TemporaryDir temp_dir;

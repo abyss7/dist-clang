@@ -53,6 +53,7 @@ FORWARD_TEST(EmitterTest, RestoreBlobCompressedAfterLookup);
 FORWARD_TEST(EmitterTest, DontStoreIfInputsChangedDuringCompilation);
 FORWARD_TEST(EmitterTest, LocalCompilationNotStarted);
 FORWARD_TEST(EmitterTest, ReplyToSimpleHitBeforeDirectStore);
+FORWARD_TEST(EmitterTest, TagSimpleHitBeforeReply);
 FORWARD_TEST(EmitterTest, VerifyHitsWithoutDeps);
 FORWARD_TEST(EmitterTest,
              DontStoreIfHeadersChangedDuringCompilationWithoutDeps);
@@ -180,6 +181,7 @@ class Process
   FRIEND_TEST(daemon::EmitterTest, DontStoreIfInputsChangedDuringCompilation);
   FRIEND_TEST(daemon::EmitterTest, LocalCompilationNotStarted);
   FRIEND_TEST(daemon::EmitterTest, ReplyToSimpleHitBeforeDirectStore);
+  FRIEND_TEST(daemon::EmitterTest, TagSimpleHitBeforeReply);
   FRIEND_TEST(daemon::EmitterTest, VerifyHitsWithoutDeps);
   FRIEND_TEST(daemon::EmitterTest,
               DontStoreIfHeadersChangedDuringCompilationWithoutDeps);
