@@ -100,7 +100,15 @@ message Configuration {
       // e.g. for the reference measurements of the incremental builds. Their
       // lookups find only the entries with the tag, other builds find these
       // entries too. The outputs of the entries aren't compressed: the hits
-      // don't get slower with the time.
+      // don't get slower with the time. The entries follow the common rules
+      // of the eviction, unless the tag has its own size.
+
+      optional uint64 quota = 3;
+      // The own size of the tag in bytes, 0 - unlimited. The entries of the
+      // tag don't count in the size of the cache, and others don't evict
+      // them: the oldest ones by the uses of the tag lose it, when the tag
+      // doesn't fit - and follow the rules of their other tags then. Without
+      // it, the entries follow the common rules.
     }
     repeated Tag tags = 19;
     // The tags with their own rules - others follow the common ones.

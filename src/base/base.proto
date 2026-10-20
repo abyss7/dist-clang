@@ -192,6 +192,10 @@ message TagsReport {
     optional uint64 lost_time         = 9;
     // The removed entries of the tag, that are compiled again - and the time
     // of these compilations in milliseconds.
+
+    optional bool isolated            = 10;
+    optional uint64 quota             = 11;
+    // The own rules of the tag - see the configuration of the daemon.
   }
   repeated Tag tags = 1;
 

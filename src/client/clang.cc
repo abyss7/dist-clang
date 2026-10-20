@@ -501,8 +501,20 @@ bool PrintTagStats(const String& socket_path,
             << std::setw(9) << "entries" << std::setw(12) << "size"
             << std::setw(12) << "in builds" << std::setw(12) << "exclusive"
             << std::setw(12) << "freeable" << std::setw(7) << "lost"
-            << std::setw(14) << "lost time" << std::endl;
+            << std::setw(14) << "lost time" << "  rules" << std::endl;
   for (const auto& tag : report.tags()) {
+    Vector<String> rules;
+    if (tag.isolated()) {
+      rules.push_back("isolated");
+    }
+    if (tag.has_quota()) {
+      rules.push_back("own size " +
+                      (tag.quota() ? HumanSize(tag.quota()) : "unlimited"));
+    }
+    String joined_rules;
+    for (const auto& rule : rules) {
+      joined_rules += (joined_rules.empty() ? "  " : ", ") + rule;
+    }
     std::cout << std::left << std::setw(width) << TagName(tag.name())
               << std::right << std::setw(9) << tag.entries() << std::setw(12)
               << HumanSize(tag.size()) << std::setw(12)
@@ -510,7 +522,7 @@ bool PrintTagStats(const String& socket_path,
               << HumanSize(tag.exclusive_size()) << std::setw(12)
               << HumanSize(tag.freeable_size()) << std::setw(7)
               << tag.lost_entries() << std::setw(14)
-              << FormatTime(tag.lost_time()) << std::endl;
+              << FormatTime(tag.lost_time()) << joined_rules << std::endl;
   }
 
   if (report.overlaps_size()) {
@@ -534,7 +546,10 @@ bool PrintTagStats(const String& socket_path,
             << "freeable  - removed by --forget-tag now;" << std::endl
             << "lost      - removed entries, that were compiled again, and"
             << std::endl
-            << "            the time of these compilations." << std::endl;
+            << "            the time of these compilations;" << std::endl
+            << "rules     - the own rules of the tag in the configuration"
+            << std::endl
+            << "            of the daemon." << std::endl;
 
   return true;
 }

@@ -1404,7 +1404,14 @@ void FileCache::ComputeTagStats(List<TagStats>* stats,
     }
   }
 
+  for (const auto& [tag, quota] : tag_quotas_) {
+    tag_stats[tag].tag = tag;
+  }
   for (auto& [tag, stat] : tag_stats) {
+    stat.isolated = isolated_tags_.contains(tag);
+    if (auto it = tag_quotas_.find(tag); it != tag_quotas_.end()) {
+      stat.quota = it->second;
+    }
     stat.freeable_size = DoForgetTag(tag, true).freed_size;
     stats->push_back(std::move(stat));
   }

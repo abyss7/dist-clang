@@ -1252,6 +1252,38 @@ TEST(FileCacheTest, RemoveLockedEntry) {
   EXPECT_FALSE(cache.Find(hash, &entry));
 }
 
+TEST(FileCacheTest, TagStatsOfOwnRules) {
+  const base::TemporaryDir temp_dir;
+  FileCache cache(temp_dir, FileCache::UNLIMITED, proto::NONE, true);
+  cache.SetIsolatedTags({"a"});
+  cache.SetTagQuotas({{"a", 1000}, {"c", 0}});
+  ASSERT_TRUE(cache.Run(3600));
+
+  const auto hash = TestHash("-c");
+  cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l});
+  cache.AddTags(hash, {"a", "b"});
+  cache.FlushAccesses();
+  cache.WaitForCleaner();
+
+  List<FileCache::TagStats> stats;
+  List<FileCache::TagOverlap> overlaps;
+  cache.ComputeTagStats(&stats, &overlaps);
+  // The tags with own sizes are shown without entries too.
+  ASSERT_EQ(3u, stats.size());
+  auto it = stats.begin();
+  EXPECT_EQ("a", it->tag);
+  EXPECT_TRUE(it->isolated);
+  EXPECT_EQ(std::optional<ui64>(1000), it->quota);
+  ++it;
+  EXPECT_EQ("b", it->tag);
+  EXPECT_FALSE(it->isolated);
+  EXPECT_FALSE(it->quota);
+  ++it;
+  EXPECT_EQ("c", it->tag);
+  EXPECT_EQ(0u, it->entries);
+  EXPECT_EQ(std::optional<ui64>(0), it->quota);
+}
+
 TEST(FileCacheTest, TagStats) {
   const base::TemporaryDir temp_dir;
   // Makes the cleaner process the stored entries and the tags.

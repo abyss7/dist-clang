@@ -268,12 +268,17 @@ bool CompilationDaemon::Initialize() {
     cache_->SetGhostsTtl(conf->cache().ghosts_ttl());
     cache_->SetStoreTimeTraces(conf->cache().store_time_traces());
     Vector<String> isolated_tags;
+    HashMap<String, ui64> tag_quotas;
     for (const auto& tag : conf->cache().tags()) {
       if (tag.isolated()) {
         isolated_tags.push_back(tag.name());
       }
+      if (tag.has_quota()) {
+        tag_quotas[tag.name()] = tag.quota();
+      }
     }
     cache_->SetIsolatedTags(isolated_tags);
+    cache_->SetTagQuotas(tag_quotas);
     if (!cache_->Run(conf->cache().clean_period())) {
       cache_.reset();
     }
@@ -916,6 +921,10 @@ bool CompilationDaemon::HandleTagsRequest(
           tag->set_freeable_size(stat.freeable_size);
           tag->set_lost_entries(stat.lost_entries);
           tag->set_lost_time(stat.lost_time);
+          tag->set_isolated(stat.isolated);
+          if (stat.quota) {
+            tag->set_quota(*stat.quota);
+          }
         }
         for (const auto& overlap : overlaps) {
           auto* new_overlap = report->add_overlaps();

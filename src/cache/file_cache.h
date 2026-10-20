@@ -14,6 +14,7 @@
 
 #include <base/test_forward.h>
 
+#include STL(optional)
 #include STL(shared_mutex)
 
 namespace dist_clang {
@@ -52,6 +53,7 @@ FORWARD_TEST(FileCacheTest, DirectEntriesOfTags);
 FORWARD_TEST(FileCacheTest, RemoveDirectEntriesOfRemovedEntries);
 FORWARD_TEST(FileCacheTest, IsolatedTags);
 FORWARD_TEST(FileCacheTest, TagQuotas);
+FORWARD_TEST(FileCacheTest, TagStatsOfOwnRules);
 FORWARD_TEST(FileCacheTest, HoldEntriesOfTagsWithOwnSizes);
 FORWARD_TEST(FileCacheTest, TagAccessTimes);
 FORWARD_TEST(FileCacheTest, KeepEntriesOfIsolatedTags);
@@ -326,6 +328,9 @@ class FileCache {
     ui64 exclusive_entries = 0, exclusive_size = 0;
     // The size, that |ForgetTag()| frees now.
     ui64 freeable_size = 0;
+    // The own rules of the tag - see |SetIsolatedTags()|, |SetTagQuotas()|.
+    bool isolated = false;
+    std::optional<ui64> quota;
   };
   struct TagOverlap {
     String first, second;
@@ -398,6 +403,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, RemoveDirectEntriesOfRemovedEntries);
   FRIEND_TEST(FileCacheTest, IsolatedTags);
   FRIEND_TEST(FileCacheTest, TagQuotas);
+  FRIEND_TEST(FileCacheTest, TagStatsOfOwnRules);
   FRIEND_TEST(FileCacheTest, HoldEntriesOfTagsWithOwnSizes);
   FRIEND_TEST(FileCacheTest, TagAccessTimes);
   FRIEND_TEST(FileCacheTest, KeepEntriesOfIsolatedTags);
