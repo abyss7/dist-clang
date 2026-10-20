@@ -140,7 +140,10 @@ class FileCache {
   //   Revision 1: the traces of the time - see |SetStoreTimeTraces()|.
   //   Revision 2: the entries, that the direct entries lead to: the older
   //               direct entries are removed.
-  enum : ui32 { kGeneration = 3, kRevision = 2 };
+  //   Revision 3: the isolated tags of the variants of the direct entries,
+  //               and their rows in the direct cache - see
+  //               |SetIsolatedTags()|.
+  enum : ui32 { kGeneration = 3, kRevision = 3 };
 
   // Maximal number of the header sets per one source in the direct cache, and
   // of the entries, that they lead to - e.g. after the changes of the headers.
@@ -240,11 +243,15 @@ class FileCache {
   // compiler searches the headers, in the order of the search. The entry isn't
   // found, if a new file appears in them, that would be found instead of one
   // of the headers.
+  //
+  // A non-empty |scope| - an isolated tag - finds only the direct entries,
+  // that are stored in it, and only the entries with the tag.
   bool Find(string::UnhandledSource code, const ExtraFiles& extra_files,
             string::CommandLine command_line, string::Version version,
             const Path& current_dir, Entry* entry,
             const String& root = String(),
-            const List<Path>& search_dirs = List<Path>()) const;
+            const List<Path>& search_dirs = List<Path>(),
+            const String& scope = String()) const;
 
   // A non-empty |scope| - an isolated tag - finds only the entries with it.
   bool Find(string::HandledHash hash, Entry* entry,
@@ -255,14 +262,15 @@ class FileCache {
 
   // The files in |search_dirs|, that could be found instead of the headers,
   // mustn't be created after |start_time| - the start of the compilation in
-  // nanoseconds: the compiler may have missed them.
+  // nanoseconds: the compiler may have missed them. The direct entry, stored
+  // in the |scope|, is found in it too.
   void Store(string::UnhandledSource code, const ExtraFiles& extra_files,
              string::CommandLine command_line, string::Version version,
              const List<String>& headers,
              const List<String>& preprocessed_headers, const Path& current_dir,
              string::HandledHash hash, const String& root = String(),
              const List<Path>& search_dirs = List<Path>(),
-             i64 start_time = 0);
+             i64 start_time = 0, const String& scope = String());
 
   void Store(string::HandledHash hash, Entry entry);
 
@@ -422,7 +430,7 @@ class FileCache {
                const List<String>& preprocessed_headers,
                const Path& current_dir, const string::HandledHash& hash,
                const String& root, const List<Path>& search_dirs,
-               i64 start_time);
+               i64 start_time, const String& scope);
 
   // Checks, that no new files appeared in the search directories, which would
   // be found instead of the |headers|.

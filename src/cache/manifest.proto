@@ -30,6 +30,11 @@ message Direct {
     // directories before them, which existed during the compilation, but
     // weren't used - e.g. because of "#include_next". The other such paths
     // must not exist: a new file there would be found instead of the header.
+
+    repeated string scopes = 3;
+    // The isolated tags, that stored the variant - sorted: the lookups in
+    // their scopes try only their variants. Since the revision 3 of the
+    // generation 3.
   }
 
   repeated Variant variants = 2;

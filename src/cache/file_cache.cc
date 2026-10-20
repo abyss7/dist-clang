@@ -102,6 +102,7 @@ String FromManifestPath(const String& header, const Path& current_dir,
 struct Variant {
   List<String> headers;
   HashSet<String> ignored_paths;
+  std::set<String> scopes;  // Sorted - for the stable manifest.
 };
 
 List<Variant> DirectVariants(const proto::Direct& direct) {
@@ -109,9 +110,15 @@ List<Variant> DirectVariants(const proto::Direct& direct) {
   for (const auto& variant : direct.variants()) {
     variants.push_back(
         {{variant.headers().begin(), variant.headers().end()},
-         {variant.ignored_paths().begin(), variant.ignored_paths().end()}});
+         {variant.ignored_paths().begin(), variant.ignored_paths().end()},
+         {variant.scopes().begin(), variant.scopes().end()}});
   }
   return variants;
+}
+
+// The row of the direct cache, that only the lookups in the |scope| see.
+String ScopedRow(const String& scope, const String& direct_hash) {
+  return "scope:" + scope + ":" + direct_hash;
 }
 
 // The prefix of the trace of the time among the blobs of the entry in the
@@ -887,8 +894,8 @@ bool FileCache::IsShadowed(const List<String>& headers,
 bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
                      CommandLine command_line, Version version,
                      const Path& current_dir, Entry* entry,
-                     const String& root,
-                     const List<Path>& search_dirs) const {
+                     const String& root, const List<Path>& search_dirs,
+                     const String& scope) const {
   DCHECK(entry);
 
   auto unhandled_hash = Hash(code, extra_files, command_line, version);
@@ -909,6 +916,9 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
   // Try all known sets of headers: the same source may include different
   // headers, e.g. on different branches.
   for (const auto& variant : DirectVariants(manifest.direct())) {
+    if (!scope.empty() && !variant.scopes.contains(scope)) {
+      continue;
+    }
     Immutable::Rope hash_rope = {unhandled_hash};
     bool hashed = true;
     for (const auto& header : variant.headers) {
@@ -927,14 +937,17 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
       continue;
     }
 
-    Immutable hash_with_headers = base::Hexify(Immutable(hash_rope).Hash());
+    const String hash_with_headers =
+        base::Hexify(Immutable(hash_rope).Hash());
     Immutable handled_hash;
 
     DCHECK(database_);
-    if (database_->Get(hash_with_headers, &handled_hash) &&
+    if (database_->Get(scope.empty() ? hash_with_headers
+                                     : ScopedRow(scope, hash_with_headers),
+                       &handled_hash) &&
         !IsShadowed(variant.headers, variant.ignored_paths, current_dir, root,
                     search_dirs) &&
-        Find(HandledHash(handled_hash), entry)) {
+        Find(HandledHash(handled_hash), entry, scope)) {
       utime(manifest_path.c_str(), nullptr);
       NewEntries()->Append({ui64(time(nullptr)), unhandled_hash, true});
       return true;
@@ -1064,7 +1077,7 @@ void FileCache::Store(UnhandledSource code, const ExtraFiles& extra_files,
                       const List<String>& preprocessed_headers,
                       const Path& current_dir, string::HandledHash hash,
                       const String& root, const List<Path>& search_dirs,
-                      i64 start_time) {
+                      i64 start_time, const String& scope) {
   std::shared_lock<std::shared_mutex> stores_lock(stores_mutex_);
   if (closed_) {
     return;
@@ -1080,7 +1093,7 @@ void FileCache::Store(UnhandledSource code, const ExtraFiles& extra_files,
   }
   DoStore(Hash(code, extra_files, command_line, version), headers,
           preprocessed_headers, current_dir, hash, root, search_dirs,
-          start_time);
+          start_time, scope);
 }
 
 void FileCache::FlushAccesses() {
@@ -1742,7 +1755,7 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
                         const List<String>& preprocessed_headers,
                         const Path& current_dir, const HandledHash& hash,
                         const String& root, const List<Path>& search_dirs,
-                        i64 start_time) {
+                        i64 start_time, const String& scope) {
   // We have to store manifest on the path based only on the hash of unhandled
   // source code. Otherwise, we won't be able to get list of the dependent
   // headers, while checking the direct cache. Such approach has a little
@@ -1881,15 +1894,29 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
     return;
   }
 
-  auto direct_hash = base::Hexify(Immutable(hash_rope).Hash());
+  const String direct_hash = base::Hexify(Immutable(hash_rope).Hash());
   DCHECK(database_);
-  if (!database_->Set(direct_hash, hash)) {
+  if (!database_->Set(direct_hash, hash) ||
+      (!scope.empty() &&
+       !database_->Set(ScopedRow(scope, direct_hash), hash))) {
     return;
   }
 
-  // The most recent variant goes first, the oldest ones are dropped.
-  variants.remove_if([&new_variant](const Variant& variant) {
-    return variant.headers == new_variant.headers;
+  // The most recent variant goes first, the oldest ones are dropped. The
+  // variant keeps the isolated tags, that stored it before.
+  if (!scope.empty()) {
+    new_variant.scopes.insert(scope);
+  }
+  variants.remove_if([this, &new_variant](const Variant& variant) {
+    if (variant.headers != new_variant.headers) {
+      return false;
+    }
+    for (const auto& old_scope : variant.scopes) {
+      if (isolated_tags_.contains(old_scope)) {
+        new_variant.scopes.insert(old_scope);
+      }
+    }
+    return true;
   });
   variants.push_front(std::move(new_variant));
   while (variants.size() > kMaxDirectVariants) {
@@ -1906,6 +1933,9 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
     std::sort(ignored_paths.begin(), ignored_paths.end());
     for (const auto& path : ignored_paths) {
       new_variant->add_ignored_paths(path);
+    }
+    for (const auto& variant_scope : variant.scopes) {
+      new_variant->add_scopes(variant_scope);
     }
   }
   // The removed entries are dropped.

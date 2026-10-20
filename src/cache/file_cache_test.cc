@@ -2115,6 +2115,56 @@ TEST(FileCacheTest, DirectEntry_SeveralHeaderSets) {
   EXPECT_FALSE(cache.Find(orig_code, {}, cl, version, temp_dir, &entry3));
 }
 
+TEST(FileCacheTest, DirectEntry_IsolatedTags) {
+  const base::TemporaryDir temp_dir;
+  const auto header_path = temp_dir.path() / "test.h";
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  const UnhandledSource code("#include \"test.h\""_l);
+  const auto hash1 = FileCache::Hash(HandledSource("1"_l), {}, cl, version);
+  const auto hash2 = FileCache::Hash(HandledSource("2"_l), {}, cl, version);
+  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, proto::NONE,
+                  true);
+  cache.SetIsolatedTags({"bench"});
+  ASSERT_TRUE(cache.Run(3600));
+  FileCache::Entry entry;
+
+  // The entry of the isolated tag - e.g. its simple hit - is found by the
+  // direct entry of others only outside of the scope.
+  ASSERT_TRUE(base::File::Write(header_path, "#define A"_l));
+  cache.Store(hash1, FileCache::Entry{"object 1"_l, "deps"_l});
+  cache.AddTags(hash1, {"bench"});
+  cache.Store(code, {}, cl, version, {header_path}, {}, temp_dir, hash1,
+              String(), {}, CompilationTime());
+  EXPECT_FALSE(cache.Find(code, {}, cl, version, temp_dir, &entry, String(),
+                          {}, "bench"));
+  EXPECT_TRUE(cache.Find(code, {}, cl, version, temp_dir, &entry));
+
+  // Its own direct entry is found in the scope.
+  cache.Store(code, {}, cl, version, {header_path}, {}, temp_dir, hash1,
+              String(), {}, CompilationTime(), "bench");
+  ASSERT_TRUE(cache.Find(code, {}, cl, version, temp_dir, &entry, String(),
+                         {}, "bench"));
+  EXPECT_EQ(hash1.str.string_copy(), entry.handled_hash);
+
+  // The same headers with other contents - stored by others - lead to the
+  // entry of others: not in the scope. The variant of the headers stays in it.
+  ASSERT_TRUE(base::File::Write(header_path, "#define B"_l));
+  cache.Store(hash2, FileCache::Entry{"object 2"_l, "deps"_l});
+  cache.AddTags(hash2, {"bench"});
+  cache.Store(code, {}, cl, version, {header_path}, {}, temp_dir, hash2,
+              String(), {}, CompilationTime());
+  EXPECT_FALSE(cache.Find(code, {}, cl, version, temp_dir, &entry, String(),
+                          {}, "bench"));
+  ASSERT_TRUE(cache.Find(code, {}, cl, version, temp_dir, &entry));
+  EXPECT_EQ(hash2.str.string_copy(), entry.handled_hash);
+
+  ASSERT_TRUE(base::File::Write(header_path, "#define A"_l));
+  ASSERT_TRUE(cache.Find(code, {}, cl, version, temp_dir, &entry, String(),
+                         {}, "bench"));
+  EXPECT_EQ(hash1.str.string_copy(), entry.handled_hash);
+}
+
 TEST(FileCacheTest, DirectEntry_LimitedHeaderSets) {
   const base::TemporaryDir temp_dir;
   FileCache cache(temp_dir);
