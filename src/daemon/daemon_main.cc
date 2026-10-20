@@ -86,6 +86,16 @@ int main(int argc, char* argv[]) {
   sigaddset(&signal_mask, SIGINT);
   pthread_sigmask(SIG_BLOCK, &signal_mask, nullptr);
 
+  // Every running compiler takes several descriptors of the daemon, and every
+  // waiting client - one more: the soft limit of the client, e.g. 1024, fails
+  // the big builds.
+  {
+    String error;
+    if (!base::RaiseOpenFilesLimit(&error)) {
+      LOG(WARNING) << "Can't raise the limit of the open files: " << error;
+    }
+  }
+
   daemon::Configuration configuration(argc, argv);
   UniquePtr<daemon::BaseDaemon> daemon, collector, coordinator;
 

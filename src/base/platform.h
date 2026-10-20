@@ -52,6 +52,9 @@ void SetCurrentThreadName(Literal name);
 // compilations.
 void LowerCurrentThreadPriority();
 
+// Raises the soft limit of the open files of the process to the maximum.
+bool RaiseOpenFilesLimit(String* error = nullptr);
+
 // Detaches the process from the terminal, and works further in background.
 bool Daemonize(String* error = nullptr);
 

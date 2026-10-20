@@ -92,6 +92,24 @@ void LowerCurrentThreadPriority() {
   setpriority(PRIO_PROCESS, syscall(SYS_gettid), 10);
 }
 
+bool RaiseOpenFilesLimit(String* error) {
+  struct rlimit limit;
+  if (getrlimit(RLIMIT_NOFILE, &limit) == -1) {
+    GetLastError(error);
+    return false;
+  }
+  const rlim_t wanted = limit.rlim_max;
+  if (limit.rlim_cur >= wanted) {
+    return true;
+  }
+  limit.rlim_cur = wanted;
+  if (setrlimit(RLIMIT_NOFILE, &limit) == -1) {
+    GetLastError(error);
+    return false;
+  }
+  return true;
+}
+
 bool Daemonize(String* error) {
   if (::daemon(0, 1) != 0) {
     GetLastError(error);

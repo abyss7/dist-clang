@@ -2,6 +2,8 @@
 
 #include <base/c_utils.h>
 
+#include STL(algorithm)
+
 #include <ctype.h>
 #include <fcntl.h>
 #include <mach-o/dyld.h>
@@ -9,6 +11,8 @@
 #include <pthread/qos.h>
 #include <stdlib.h>
 #include <sys/attr.h>
+#include <sys/resource.h>
+#include <sys/syslimits.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
@@ -107,6 +111,25 @@ void SetCurrentThreadName(Literal name) {
 void LowerCurrentThreadPriority() {
   // The work, that the user doesn't wait for - on the efficiency cores too.
   pthread_set_qos_class_self_np(QOS_CLASS_UTILITY, 0);
+}
+
+bool RaiseOpenFilesLimit(String* error) {
+  struct rlimit limit;
+  if (getrlimit(RLIMIT_NOFILE, &limit) == -1) {
+    GetLastError(error);
+    return false;
+  }
+  // The limit above OPEN_MAX isn't accepted, even if the maximum is higher.
+  const rlim_t wanted = std::min<rlim_t>(limit.rlim_max, OPEN_MAX);
+  if (limit.rlim_cur >= wanted) {
+    return true;
+  }
+  limit.rlim_cur = wanted;
+  if (setrlimit(RLIMIT_NOFILE, &limit) == -1) {
+    GetLastError(error);
+    return false;
+  }
+  return true;
 }
 
 bool Daemonize(String*) {
