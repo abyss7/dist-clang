@@ -11,6 +11,11 @@ namespace daemon {
 // Identifies compilers by their binaries and by their default configuration.
 class CompilerIdentity {
  public:
+  // The identity is taken again after |ttl|.
+  explicit CompilerIdentity(
+      std::chrono::milliseconds ttl = std::chrono::minutes(1))
+      : ttl_(ttl) {}
+
   // Returns the identity of the compiler that is run as |path|: the name of
   // the executable matters, since it may set the driver mode, e.g. "clang++".
   bool Get(const String& path, String* identity,
@@ -32,10 +37,21 @@ class CompilerIdentity {
                         const List<String>& env);
 
  private:
+  struct Identity {
+    String identity;
+    TimePoint time;
+    bool updating = false;
+  };
+
+  // The identity by the dry runs of the compiler.
+  bool Take(const String& path, const String& binary_hash, String* identity,
+            String* error);
+
+  const std::chrono::milliseconds ttl_;
   cache::FileHashCache binaries_;
 
   Mutex mutex_;
-  HashMap<String /* path + binary hash */, String /* identity */> identities_;
+  HashMap<String /* path + binary hash */, Identity> identities_;
   HashMap<String /* identity + language + flags */, List<String>>
       include_dirs_;
 };

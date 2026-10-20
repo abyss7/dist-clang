@@ -164,6 +164,34 @@ TEST(CompilationDaemonTest, CompilerIdentityOfDriverMode) {
   EXPECT_EQ(c_identity, identity);
 }
 
+TEST(CompilationDaemonTest, CompilerIdentityIsRechecked) {
+  // The other tests may leave the fake processes.
+  base::Process::SetFactory<base::Process::DefaultFactory>();
+  const base::TemporaryDir temp_dir;
+  // The defaults of the fake driver depend on another file - like the include
+  // directories of clang depend on the installed GCC.
+  const auto driver = temp_dir.path() / "clang";
+  const auto toolchain = temp_dir.path() / "toolchain";
+  ASSERT_TRUE(base::File::Write(
+      driver, "#!/bin/sh\ncat \"$(dirname \"$0\")/toolchain\" >&2\n"_l));
+  std::filesystem::permissions(driver, std::filesystem::perms::owner_all);
+  ASSERT_TRUE(base::File::Write(toolchain, "gcc-13"_l));
+
+  CompilerIdentity identities(std::chrono::milliseconds(200));
+  String old_identity, identity, error;
+  ASSERT_TRUE(identities.Get(driver, &old_identity, &error)) << error;
+
+  // The identity is remembered for a while.
+  ASSERT_TRUE(base::File::Write(toolchain, "gcc-14"_l));
+  ASSERT_TRUE(identities.Get(driver, &identity, &error)) << error;
+  EXPECT_EQ(old_identity, identity);
+
+  // And then is taken again.
+  std::this_thread::sleep_for(std::chrono::milliseconds(300));
+  ASSERT_TRUE(identities.Get(driver, &identity, &error)) << error;
+  EXPECT_NE(old_identity, identity);
+}
+
 TEST(CompilationDaemonTest, ParseImplicitIncludeDirs) {
   const String output =
       "clang version 18.1.8\n"

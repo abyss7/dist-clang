@@ -30,16 +30,52 @@ bool CompilerIdentity::Get(const String& path, String* identity,
     return false;
   }
 
+  // The defaults of the compiler may change without the binary - e.g. with a
+  // new GCC or a configuration file: they are taken again from time to time.
+  // Meanwhile the other compilations use the old identity.
   const String key = path + "\n" + binary_hash;
+  bool known = false;
   {
     std::lock_guard<Mutex> lock(mutex_);
     auto it = identities_.find(key);
     if (it != identities_.end()) {
-      *identity = it->second;
-      return true;
+      auto& memo = it->second;
+      if (memo.updating || Clock::now() - memo.time < ttl_) {
+        *identity = memo.identity;
+        return true;
+      }
+      memo.updating = true;
+      known = true;
     }
   }
 
+  String new_identity, new_error;
+  const bool taken = Take(path, binary_hash, &new_identity, &new_error);
+
+  std::lock_guard<Mutex> lock(mutex_);
+  auto& memo = identities_[key];
+  memo.updating = false;
+  if (!taken) {
+    if (known) {
+      LOG(WARNING) << "Using the old identity of compiler " << path << ": "
+                   << new_error;
+      *identity = memo.identity;
+      return true;
+    }
+    identities_.erase(key);
+    if (error) {
+      *error = new_error;
+    }
+    return false;
+  }
+  memo.identity = new_identity;
+  memo.time = Clock::now();
+  *identity = new_identity;
+  return true;
+}
+
+bool CompilerIdentity::Take(const String& path, const String& binary_hash,
+                            String* identity, String* error) {
   // The dry run shows the effective defaults of the compiler: version, target,
   // include paths, configuration files, etc.
   String output = binary_hash;
@@ -78,6 +114,7 @@ bool CompilerIdentity::Get(const String& path, String* identity,
   }
   String c_output = output.substr(c_output_start);
   output.resize(c_output_start);
+  std::error_code ec;
   for (const String& dir :
        {std::filesystem::canonical(temp_dir.path(), ec).string(),
         temp_dir.path().string()}) {
@@ -90,9 +127,6 @@ bool CompilerIdentity::Get(const String& path, String* identity,
   *identity = base::Hexify(Immutable(output).Hash());
 
   LOG(VERBOSE) << "Identity of compiler " << path << " is " << *identity;
-
-  std::lock_guard<Mutex> lock(mutex_);
-  identities_.emplace(key, *identity);
   return true;
 }
 
