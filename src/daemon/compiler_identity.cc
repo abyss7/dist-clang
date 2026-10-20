@@ -35,26 +35,38 @@ bool CompilerIdentity::Get(const String& path, String* identity,
   // Meanwhile the other compilations use the old identity.
   const String key = path + "\n" + binary_hash;
   bool known = false;
-  {
-    std::lock_guard<Mutex> lock(mutex_);
+  UniqueLock lock(mutex_);
+  for (;;) {
     auto it = identities_.find(key);
-    if (it != identities_.end()) {
-      auto& memo = it->second;
-      if (memo.updating || Clock::now() - memo.time < ttl_) {
-        *identity = memo.identity;
-        return true;
-      }
-      memo.updating = true;
-      known = true;
+    if (it == identities_.end()) {
+      identities_[key].taking = true;
+      break;
     }
+    auto& memo = it->second;
+    if (memo.taking) {
+      // The compilations of a build start at once: only one takes the
+      // identity. If it fails, the next one tries.
+      taken_.wait(lock);
+      continue;
+    }
+    if (memo.updating || Clock::now() - memo.time < ttl_) {
+      *identity = memo.identity;
+      return true;
+    }
+    memo.updating = true;
+    known = true;
+    break;
   }
+  lock.unlock();
 
   String new_identity, new_error;
   const bool taken = Take(path, binary_hash, &new_identity, &new_error);
 
-  std::lock_guard<Mutex> lock(mutex_);
+  lock.lock();
+  taken_.notify_all();
   auto& memo = identities_[key];
   memo.updating = false;
+  memo.taking = false;
   if (!taken) {
     if (known) {
       LOG(WARNING) << "Using the old identity of compiler " << path << ": "

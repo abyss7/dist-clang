@@ -5,6 +5,8 @@
 #include <base/types.h>
 #include <cache/file_hash_cache.h>
 
+#include STL(condition_variable)
+
 namespace dist_clang {
 namespace daemon {
 
@@ -41,6 +43,8 @@ class CompilerIdentity {
     String identity;
     TimePoint time;
     bool updating = false;
+    // Taken for the first time - the other compilations wait for it.
+    bool taking = false;
   };
 
   // The identity by the dry runs of the compiler.
@@ -51,6 +55,7 @@ class CompilerIdentity {
   cache::FileHashCache binaries_;
 
   Mutex mutex_;
+  std::condition_variable taken_;
   HashMap<String /* path + binary hash */, Identity> identities_;
   HashMap<String /* identity + language + flags */, List<String>>
       include_dirs_;

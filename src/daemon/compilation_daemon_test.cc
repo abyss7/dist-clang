@@ -233,6 +233,41 @@ TEST(CompilationDaemonTest, CompilerIdentityIsRechecked) {
   EXPECT_NE(old_identity, identity);
 }
 
+TEST(CompilationDaemonTest, CompilerIdentityIsTakenOnce) {
+  // The other tests may leave the fake processes.
+  base::Process::SetFactory<base::Process::DefaultFactory>();
+  const base::TemporaryDir temp_dir;
+  // The slow fake driver counts its runs.
+  const auto driver = temp_dir.path() / "clang";
+  const auto runs = temp_dir.path() / "runs";
+  ASSERT_TRUE(base::File::Write(
+      driver, Immutable(String("#!/bin/sh\necho run >> ") + runs.string() +
+                        "\nsleep 0.3\necho -cc1 >&2\n")));
+  std::filesystem::permissions(driver, std::filesystem::perms::owner_all);
+
+  // The compilations of a build start at once - the identity of the compiler
+  // is taken only once for all of them.
+  CompilerIdentity identities;
+  Vector<String> results(8);
+  List<std::thread> threads;
+  for (auto& result : results) {
+    threads.emplace_back([&] {
+      String error;
+      EXPECT_TRUE(identities.Get(driver, &result, &error)) << error;
+    });
+  }
+  for (auto& thread : threads) {
+    thread.join();
+  }
+  for (const auto& result : results) {
+    EXPECT_EQ(results.front(), result);
+  }
+  Immutable contents;
+  ASSERT_TRUE(base::File::Read(runs, &contents));
+  // Two dry runs: of C++ and of C.
+  EXPECT_EQ("run\nrun\n", contents.string_copy());
+}
+
 TEST(CompilationDaemonTest, CompilerGetsOnlyEnvironmentOfClient) {
   // The other tests may leave the fake processes.
   base::Process::SetFactory<base::Process::DefaultFactory>();
