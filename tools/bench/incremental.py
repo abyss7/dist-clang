@@ -15,6 +15,9 @@ Each scenario changes the source tree, rebuilds and restores the tree:
                    change, that can't be cached;
   edit-comment   - append a comment line to the given files.
 
+The statistics of the daemon are global: the other builds through the same
+daemon distort them.
+
 Example:
   incremental.py --build-dir ~/b/gn --target ydbd \\
       --scenario touch-headers ydb/core/base/blobstorage.h \\
@@ -58,29 +61,36 @@ def apply_scenario(kind, files):
     """Changes the files, returns a function to restore them."""
     saved = []
     for path in files:
-        st = os.stat(path)
         with open(path, "rb") as f:
-            saved.append((path, f.read(), st.st_atime_ns, st.st_mtime_ns))
+            saved.append((path, f.read()))
 
     now = time.time_ns()
-    for path, content, _, _ in saved:
+    for path, content in saved:
         if kind == "edit-source":
             with open(path, "ab") as f:
                 f.write(b"\nextern int dist_clang_bench_%d;\n" % now)
         elif kind == "edit-comment":
+            # A new comment every time: the edited version of a previous run
+            # may be in the cache already.
             with open(path, "ab") as f:
-                f.write(b"\n// dist-clang benchmark\n")
+                f.write(b"// dist-clang benchmark %d\n" % now)
         else:
             os.utime(path, ns=(now, now))
 
     def restore():
         # Restore the content with a fresh mtime - the outputs have to be
         # rebuilt anyway after an edit.
-        for path, content, _, _ in saved:
+        for path, content in saved:
             if kind.startswith("edit-"):
                 with open(path, "wb") as f:
                     f.write(content)
     return restore
+
+
+def misses(before, after):
+    """The compilations of the daemon: a miss of the direct cache isn't always
+    a lookup of the simple one - e.g. the preprocessing is skipped."""
+    return after.get("LOCAL_TASK_DONE", 0) - before.get("LOCAL_TASK_DONE", 0)
 
 
 def main():
@@ -130,7 +140,7 @@ def main():
 
             print("%-14s %-9s %9.1f %9d %8d %8d %8d" %
                   (kind, mode, elapsed, compiles, delta("DIRECT_CACHE_HIT"),
-                   delta("SIMPLE_CACHE_HIT"), delta("SIMPLE_CACHE_MISS")),
+                   delta("SIMPLE_CACHE_HIT"), misses(before, after)),
                   flush=True)
 
             # Rebuild the restored tree - not measured.
