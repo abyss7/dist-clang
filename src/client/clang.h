@@ -16,6 +16,11 @@ enum class Result {
   RUN_LOCALLY,
 };
 
+// The daemon gets the whole environment of the client: only the daemon of the
+// same user, or of root, is trusted - not the one, that took the socket path
+// of another user, e.g. in "/tmp".
+bool IsTrustedDaemon(ui32 client_uid, ui32 daemon_uid);
+
 // Sends the compilation to the local daemon and prints its diagnostics.
 // |args| is the command line: the compiler followed by its arguments.
 Result DoMain(const List<String>& args, const String& socket_path,

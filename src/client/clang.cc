@@ -21,6 +21,10 @@ extern char** environ;
 namespace dist_clang {
 namespace client {
 
+bool IsTrustedDaemon(ui32 client_uid, ui32 daemon_uid) {
+  return daemon_uid == client_uid || daemon_uid == 0;
+}
+
 namespace {
 
 net::ConnectionPtr Connect(const String& socket_path,
@@ -35,6 +39,19 @@ net::ConnectionPtr Connect(const String& socket_path,
       (*service)->Connect(net::EndPoint::UnixSocket(socket_path), &error);
   if (!connection) {
     LOG(VERBOSE) << "Failed to connect to daemon: " << error;
+    return connection;
+  }
+
+  ui32 daemon_uid = 0;
+  if (!net::Connection::SocketPeerUid(connection->NativeHandle(),
+                                      &daemon_uid)) {
+    LOG(WARNING) << "Can't get the user of the daemon on " << socket_path;
+    return nullptr;
+  }
+  if (!IsTrustedDaemon(getuid(), daemon_uid)) {
+    LOG(WARNING) << "The daemon on " << socket_path << " is of the user "
+                 << daemon_uid << " - it isn't trusted";
+    return nullptr;
   }
   return connection;
 }
