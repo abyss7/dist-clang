@@ -18,7 +18,8 @@ message Plugin {
 }
 
 message Configuration {
-  required string path            = 1;
+  // The real compiler - found in PATH, if empty.
+  optional string path            = 1;
   optional string version         = 2;
 
   optional uint32 connect_timeout = 3 [ default = 10 ];

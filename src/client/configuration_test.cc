@@ -1,6 +1,7 @@
 #include <client/configuration.hh>
 
 #include <base/c_utils.h>
+#include <base/file/file.h>
 #include <base/file_utils.h>
 #include <base/protobuf_utils.h>
 #include <base/temporary_dir.h>
@@ -38,6 +39,20 @@ TEST(ClientConfigurationTest, ConfigFileInParentDir) {
   EXPECT_EQ(1, configuration.config().plugins_size());
   EXPECT_EQ('/', configuration.config().plugins(0).path()[0])
       << configuration.config().plugins(0).path();
+  base::ChangeCurrentDir(old_cwd);
+}
+
+TEST(ClientConfigurationTest, ConfigFileWithoutPath) {
+  // The config may only disable the client - the compiler is found in PATH.
+  const base::TemporaryDir temp_dir;
+  ASSERT_TRUE(base::File::Write(temp_dir.path() / ".distclang",
+                                "disabled: true"_l));
+  unsetenv("DC_DISABLED");
+
+  const auto old_cwd = base::GetCurrentDir();
+  ASSERT_TRUE(base::ChangeCurrentDir(temp_dir));
+  Configuration configuration;
+  EXPECT_TRUE(configuration.config().disabled());
   base::ChangeCurrentDir(old_cwd);
 }
 

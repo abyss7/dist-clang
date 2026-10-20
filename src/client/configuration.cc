@@ -19,10 +19,13 @@ Configuration::Configuration() {
   do {
     const auto config_path = current_dir / ".distclang";
     if (base::LoadFromFile(config_path, &config_)) {
-      if (!Path(config_.path()).is_absolute()) {
-        config_.set_path(current_dir / config_.path());
+      if (config_.has_path()) {
+        if (!Path(config_.path()).is_absolute()) {
+          config_.set_path(current_dir / config_.path());
+        }
+        LOG(VERBOSE) << "Took compiler path from " << config_path << " : "
+                     << config_.path();
       }
-      LOG(VERBOSE) << "Took compiler path from " << config_path << " : " << config_.path();
 
       if (config_.has_version()) {
         LOG(VERBOSE) << "Took version from " << config_path << " : " << config_.version();
