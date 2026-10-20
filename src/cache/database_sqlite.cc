@@ -189,11 +189,12 @@ List<Pair<String, SQLite::Value>> SQLite::GetInEvictionOrder() const {
 }
 
 bool SQLite::BeginTransaction() {
-  char* error;
+  char* error = nullptr;
   auto result =
       sqlite3_exec(db_, "BEGIN TRANSACTION", nullptr, nullptr, &error);
   if (result != SQLITE_OK) {
     LOG(DB_ERROR) << sqlite3_errstr(result) << ": " << error;
+    sqlite3_free(error);
     return false;
   }
 
@@ -201,10 +202,11 @@ bool SQLite::BeginTransaction() {
 }
 
 bool SQLite::EndTransaction() {
-  char* error;
+  char* error = nullptr;
   auto result = sqlite3_exec(db_, "END TRANSACTION", nullptr, nullptr, &error);
   if (result != SQLITE_OK) {
     LOG(DB_ERROR) << sqlite3_errstr(result) << ": " << error;
+    sqlite3_free(error);
     return false;
   }
 

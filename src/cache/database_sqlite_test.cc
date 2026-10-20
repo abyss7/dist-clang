@@ -33,6 +33,17 @@ TEST(SQLiteTest, OldHitsDontKeepEntries) {
   EXPECT_EQ((List<String>{"old", "old_hit", "fresh", "recent_hit"}), order);
 }
 
+TEST(SQLiteTest, FailedTransactions) {
+  const base::TemporaryDir temp_dir;
+  SQLite database(temp_dir.path(), "index");
+
+  // The messages of the errors are freed - the leak sanitizer checks.
+  ASSERT_TRUE(database.BeginTransaction());
+  EXPECT_FALSE(database.BeginTransaction());
+  ASSERT_TRUE(database.EndTransaction());
+  EXPECT_FALSE(database.EndTransaction());
+}
+
 TEST(SQLiteTest, FullCheckOnlyOnDemand) {
   const base::TemporaryDir temp_dir;
   const String path = temp_dir.path() / "test.sqlite";
