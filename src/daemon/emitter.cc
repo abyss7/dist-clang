@@ -909,6 +909,10 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
             std::get<CONNECTION>(*task)->NativeHandle());
         STAT(WARNINGS_RECHECKED);
         if (!process->Run(base::Process::UNLIMITED, &error)) {
+          // The check itself has failed - the compilation does it instead.
+          if (!process->exited()) {
+            return false;
+          }
           // The same errors, as the compilation would report - e.g. with
           // "-Werror".
           net::proto::Status status;
@@ -1337,7 +1341,10 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
         RestorePreviousOutputs();
         continue;
       }
-      status.set_code(net::proto::Status::EXECUTION);
+      // The compiler hasn't failed - e.g. it can't be started, when
+      // "fork()" fails under the load: the client compiles by itself.
+      status.set_code(process->exited() ? net::proto::Status::EXECUTION
+                                        : net::proto::Status::OVERLOAD);
       if (!process->stderr().empty()) {
         status.set_description(process->stderr());
       } else if (!error.empty()) {

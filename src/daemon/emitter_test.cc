@@ -1778,6 +1778,54 @@ TEST_F(EmitterTest, LocalFailedCompilation) {
   EXPECT_EQ(1, connection.use_count()) << "Daemon must not store references to the connection";
 }
 
+TEST_F(EmitterTest, LocalCompilationNotStarted) {
+  // The client compiles by itself: the compiler hasn't failed.
+  expected_code = net::proto::Status::OVERLOAD;
+
+  const String compiler_version = "fake_compiler_version";
+
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path("fake_compiler_path");
+
+  // E.g. "fork()" fails.
+  do_run = false;
+  run_callback = [](base::TestProcess* process) { process->exited_ = false; };
+
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_TRUE(message.has_status());
+      EXPECT_EQ(expected_code, message.status().code());
+    });
+    return true;
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto connection = test_service->TriggerListen(socket_path);
+  {
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->mutable_local();
+    extension->set_current_dir("fake_current_dir");
+    extension->mutable_flags()->mutable_compiler()->set_version(
+        compiler_version);
+    extension->mutable_flags()->set_action("fake_action");
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+  }
+
+  emitter.reset();
+
+  EXPECT_EQ(1u, run_count);
+  EXPECT_EQ(1u, send_count);
+}
+
 /*
  * 1. Store new entry in the cache after a local compilation.
  * 2. Try to compile the same preprocessed source locally.

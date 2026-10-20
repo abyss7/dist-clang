@@ -143,6 +143,7 @@ bool ProcessImpl::WaitPid(int pid, ui64 sec_timeout, String* error) {
   CHECK(result == pid);
 
   if (WIFEXITED(status)) {
+    exited_ = !killed_ && !terminated_;
     return !WEXITSTATUS(status);
   } else if (WIFSIGNALED(status)) {
     if (error) {

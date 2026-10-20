@@ -36,6 +36,27 @@ TEST_F(ProcessTest, CheckExitCode) {
   ASSERT_FALSE(process->Run(1));
 }
 
+TEST_F(ProcessTest, ExitedByItself) {
+  // The failure of the process itself.
+  ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+  process->AppendArg("-c"_l).AppendArg("exit 1"_l);
+  ASSERT_FALSE(process->Run(1));
+  EXPECT_TRUE(process->exited());
+
+  // The process is killed.
+  process = Process::Create(sh, String(), Process::SAME_UID);
+  process->AppendArg("-c"_l).AppendArg("kill -9 $$"_l);
+  ASSERT_FALSE(process->Run(1));
+  EXPECT_FALSE(process->exited());
+
+  // The process doesn't run at all.
+  process = Process::Create(sh, String(), Process::SAME_UID);
+  process->AppendArg("-c"_l).AppendArg("exit 0"_l);
+  process->Cancel();
+  ASSERT_FALSE(process->Run(1));
+  EXPECT_FALSE(process->exited());
+}
+
 TEST_F(ProcessTest, ChangeCurrentDir) {
   const auto dir = Path("/usr");
   ASSERT_NE(dir, GetCurrentDir()) << "Don't run this test from " << dir;

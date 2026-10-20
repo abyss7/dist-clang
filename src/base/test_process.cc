@@ -19,6 +19,8 @@ bool TestProcess::Run(ui16 sec_timeout, String* error) {
     (*run_attempts_)++;
   }
 
+  // The fake process exits by itself, unless the callback tells otherwise.
+  exited_ = true;
   // The callback may wait for the cancellation.
   const bool result = !cancel_requested_ && on_run_(sec_timeout, String(), error);
   if (cancel_requested_) {

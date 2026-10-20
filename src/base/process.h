@@ -51,6 +51,7 @@ FORWARD_TEST(EmitterTest, SkipPreprocessingOfEditedSource);
 FORWARD_TEST(EmitterTest, RecheckWarnings);
 FORWARD_TEST(EmitterTest, RestoreBlobCompressedAfterLookup);
 FORWARD_TEST(EmitterTest, DontStoreIfInputsChangedDuringCompilation);
+FORWARD_TEST(EmitterTest, LocalCompilationNotStarted);
 FORWARD_TEST(EmitterTest, ReplyToSimpleHitBeforeDirectStore);
 FORWARD_TEST(EmitterTest, VerifyHitsWithoutDeps);
 FORWARD_TEST(EmitterTest,
@@ -101,6 +102,9 @@ class Process
   inline void SetNice(int nice) { nice_ = nice; }
   inline const List<Immutable>& args() const { return args_; }
   inline bool canceled() const { return canceled_; }
+  // The process has run and exited by itself - with any code: its failure is
+  // not of the start, of a signal or of the timeout.
+  inline bool exited() const { return exited_; }
 
   // Kills the running process from another thread, or makes |Run()| fail at
   // once, if it doesn't run yet. Then |canceled()| is |true|.
@@ -131,6 +135,7 @@ class Process
   bool only_added_env_ = false;
   Atomic<bool> cancel_requested_ = false;
   bool canceled_ = false;
+  bool exited_ = false;
 
  private:
   FRIEND_TEST(client::ClientTest, NoInputFile);
@@ -173,6 +178,7 @@ class Process
   FRIEND_TEST(daemon::EmitterTest, RecheckWarnings);
   FRIEND_TEST(daemon::EmitterTest, RestoreBlobCompressedAfterLookup);
   FRIEND_TEST(daemon::EmitterTest, DontStoreIfInputsChangedDuringCompilation);
+  FRIEND_TEST(daemon::EmitterTest, LocalCompilationNotStarted);
   FRIEND_TEST(daemon::EmitterTest, ReplyToSimpleHitBeforeDirectStore);
   FRIEND_TEST(daemon::EmitterTest, VerifyHitsWithoutDeps);
   FRIEND_TEST(daemon::EmitterTest,
