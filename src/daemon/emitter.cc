@@ -931,19 +931,30 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
           conf->emitter().keep_unchanged_outputs() || RequestsRestat(incoming);
 
       const ui32 max_links = conf->cache().max_output_links();
+      // The hard link and the touch of the linked file change its times: the
+      // cache keeps the check of its contents then.
+      auto Restore = [&](const Path& cache_file, const String& cache_hash,
+                         Immutable content, const String& path) {
+        const bool verified = !cache_file.empty() && IsVerified(cache_hash);
+        if (!RestoreOutput(cache_file, cache_hash, content, path,
+                           keep_unchanged, max_links, incoming, &error)) {
+          return false;
+        }
+        if (verified) {
+          Restored(cache_hash);
+        }
+        return true;
+      };
       auto RestoreOutputs = [&](String* failed_path) {
-        if (!RestoreOutput(entry.object_path, entry.object_hash, entry.object,
-                           output_path, keep_unchanged, max_links, incoming,
-                           &error)) {
+        if (!Restore(entry.object_path, entry.object_hash, entry.object,
+                     output_path)) {
           *failed_path = output_path;
           return false;
         }
         if (flags.has_dwo_file() &&
             (!entry.dwo.empty() || !entry.dwo_path.empty())) {
           const String dwo_path = GetDwoPath(incoming);
-          if (!RestoreOutput(entry.dwo_path, entry.dwo_hash, entry.dwo,
-                             dwo_path, keep_unchanged, max_links, incoming,
-                             &error)) {
+          if (!Restore(entry.dwo_path, entry.dwo_hash, entry.dwo, dwo_path)) {
             *failed_path = dwo_path;
             return false;
           }

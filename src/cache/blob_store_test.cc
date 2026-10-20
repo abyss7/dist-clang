@@ -7,6 +7,7 @@
 
 #include <fcntl.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include STL(thread)
 
@@ -90,6 +91,41 @@ TEST(BlobStoreTest, VerifyLinkedBlobOnce) {
   }
   EXPECT_FALSE(store.Get(hash, &content, &path, &size));
   EXPECT_FALSE(base::File::Exists(store.RawPath(hash)));
+}
+
+TEST(BlobStoreTest, KeepCheckOfRestoredBlob) {
+  // The restore of the blob by the daemon itself - with a hard link and a
+  // touch - changes its times, but not its contents. The same for the removal
+  // of the link.
+  const base::TemporaryDir temp_dir;
+  const BlobStore store(temp_dir.path(), proto::NONE, true);
+  const auto output = temp_dir.path() / "test.o";
+  const auto restored = temp_dir.path() / "restored.o";
+  ASSERT_TRUE(base::File::Write(output, "object"_l));
+  String hash, error;
+  bool reused = false;
+  ASSERT_TRUE(store.Put(Immutable(), output, &hash, &reused, &error)) << error;
+  ASSERT_TRUE(base::File::Delete(output));
+  std::this_thread::sleep_for(std::chrono::milliseconds(2100));
+
+  Immutable content;
+  Path path;
+  ui64 size = 0;
+  ASSERT_TRUE(store.Get(hash, &content, &path, &size));
+  ASSERT_TRUE(store.IsVerified(hash));
+  base::File::CloneMode mode;
+  ASSERT_TRUE(base::File::Clone(path, restored, true, &mode));
+  ASSERT_EQ(0, utimensat(AT_FDCWD, restored.c_str(), nullptr, 0));
+  EXPECT_EQ(mode != base::File::CloneMode::HARDLINK, store.IsVerified(hash));
+  store.Restored(hash);
+  EXPECT_TRUE(store.IsVerified(hash));
+  // The build directory drops the link, e.g. at the rebuild.
+  ASSERT_TRUE(base::File::Delete(restored));
+  EXPECT_TRUE(store.IsVerified(hash));
+
+  bool found = false;
+  WithoutDescriptors([&] { found = store.Get(hash, &content, &path, &size); });
+  EXPECT_TRUE(found);
 }
 
 }  // namespace cache

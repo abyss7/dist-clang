@@ -132,6 +132,10 @@ class CompilationDaemon : public BaseDaemon {
   // Removes the wrong result from the cache.
   void RemoveFromCache(const cache::string::HandledHash& hash);
 
+  // See |cache::FileCache::IsVerified()| and |Restored()|.
+  bool IsVerified(const String& blob_hash) const;
+  void Restored(const String& blob_hash) const;
+
   // Tags the entry with the tags of the client - see |base::kEnvTags|.
   void TagEntry(const base::proto::Local& message,
                 const cache::string::HandledHash& hash);

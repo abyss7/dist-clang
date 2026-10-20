@@ -35,6 +35,12 @@ class BlobStore {
   bool Get(const String& hash, Immutable* content, Path* path,
            ui64* size) const THREAD_SAFE;
 
+  // If the file of the linked blob is the same, as at its last check.
+  bool IsVerified(const String& hash) const THREAD_SAFE;
+  // The blob is restored by the daemon itself - its links and times are
+  // changed, but not the contents. Call, if it |IsVerified()| just before.
+  void Restored(const String& hash) const THREAD_SAFE;
+
   // Removes the new blob of a failed store: nothing refers to it.
   void Discard(const String& hash) const THREAD_SAFE;
 
@@ -92,15 +98,17 @@ class BlobStore {
   };
 
   // The file of a linked blob, as it was, when its contents were checked: the
-  // modification through any link changes it.
+  // modification through any link changes it. Not the time of the change of
+  // the status: the build directories add and remove the links to the blob
+  // all the time.
   struct Stamp {
     ui64 device, inode, size;
-    i64 mtime_ns, ctime_ns;
+    i64 mtime_ns;
     bool operator==(const Stamp&) const = default;
   };
   static Stamp StampOf(const struct stat& st);
   // Remembers the checked contents of the file with the stat |st|.
-  void Verified(const String& hash, const struct stat& st) const;
+  void Remember(const String& hash, const struct stat& st) const;
 
   void Delete(const String& hash);
 

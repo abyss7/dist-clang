@@ -1012,6 +1012,16 @@ void CompilationDaemon::RemoveFromCache(const HandledHash& hash) {
   }
 }
 
+bool CompilationDaemon::IsVerified(const String& blob_hash) const {
+  return cache_ && cache_->IsVerified(blob_hash);
+}
+
+void CompilationDaemon::Restored(const String& blob_hash) const {
+  if (cache_) {
+    cache_->Restored(blob_hash);
+  }
+}
+
 void CompilationDaemon::UpdateDirectCache(
     const base::proto::Local* message, const HandledHash& hash,
     const ExtraFiles& extra_files, Immutable deps,

@@ -113,18 +113,40 @@ const i64 kRacyIntervalNs = 2'000'000'000;
 // static
 BlobStore::Stamp BlobStore::StampOf(const struct stat& st) {
   return {ui64(st.st_dev), ui64(st.st_ino), ui64(st.st_size),
-          base::ModificationTime(st), base::StatusChangeTime(st)};
+          base::ModificationTime(st)};
 }
 
-void BlobStore::Verified(const String& hash, const struct stat& st) const {
+void BlobStore::Remember(const String& hash, const struct stat& st) const {
   const Stamp stamp = StampOf(st);
   const i64 now = base::FileSystemTime();
   std::lock_guard<Mutex> lock(verified_mutex_);
-  if (now - stamp.mtime_ns > kRacyIntervalNs &&
-      now - stamp.ctime_ns > kRacyIntervalNs) {
+  if (now - stamp.mtime_ns > kRacyIntervalNs) {
     verified_[hash] = stamp;
   } else {
     verified_.erase(hash);
+  }
+}
+
+bool BlobStore::IsVerified(const String& hash) const {
+  struct stat st;
+  if (!link_ || stat(RawPath(hash).c_str(), &st) != 0) {
+    return false;
+  }
+  std::lock_guard<Mutex> lock(verified_mutex_);
+  auto it = verified_.find(hash);
+  return it != verified_.end() && it->second == StampOf(st);
+}
+
+void BlobStore::Restored(const String& hash) const {
+  if (!link_) {
+    return;
+  }
+  // The contents are checked already: the new times are trusted, even the
+  // recent ones.
+  struct stat st;
+  if (stat(RawPath(hash).c_str(), &st) == 0) {
+    std::lock_guard<Mutex> lock(verified_mutex_);
+    verified_[hash] = StampOf(st);
   }
 }
 
@@ -163,7 +185,7 @@ bool BlobStore::Get(const String& hash, Immutable* content, Path* path,
           }
           return Broken(raw_path, "wrong hash");
         }
-        Verified(hash, st);
+        Remember(hash, st);
       }
       *path = raw_path;
       *size += st.st_size;

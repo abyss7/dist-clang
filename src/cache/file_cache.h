@@ -286,6 +286,13 @@ class FileCache {
   // Reads the trace of the time of the found entry by its |hash|.
   bool FindTimeTrace(const String& hash, Immutable* trace) const;
 
+  // The linked file of the found entry by its hash - |Entry::object_hash| or
+  // |Entry::dwo_hash| - is restored to a build directory by the daemon: its
+  // links and times change, but not the checked contents. Call |IsVerified()|
+  // just before the restore, and |Restored()| after it, if it was true.
+  bool IsVerified(const String& blob_hash) const THREAD_SAFE;
+  void Restored(const String& blob_hash) const THREAD_SAFE;
+
   // The files in |search_dirs|, that could be found instead of the headers,
   // mustn't be created after |start_time| - the start of the compilation in
   // nanoseconds: the compiler may have missed them. The direct entry, stored

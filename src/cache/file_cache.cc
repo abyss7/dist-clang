@@ -1069,6 +1069,14 @@ bool FileCache::Find(HandledHash hash, Entry* found,
   return true;
 }
 
+bool FileCache::IsVerified(const String& blob_hash) const {
+  return blobs_.IsVerified(blob_hash);
+}
+
+void FileCache::Restored(const String& blob_hash) const {
+  blobs_.Restored(blob_hash);
+}
+
 bool FileCache::FindTimeTrace(const String& hash, Immutable* trace) const {
   ui64 size = 0;
   return !hash.empty() && blobs_.Get(hash, trace, nullptr, &size);
