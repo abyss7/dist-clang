@@ -1234,7 +1234,6 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
           continue;
         }
 
-        STAT(SIMPLE_CACHE_MISS);
         if (speculation->SetHandledHash(handled_hash)) {
           // The compilation has ended already - store its result for the
           // simple cache too.
@@ -1244,6 +1243,8 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
             TagEntry(*incoming, handled_hash);
           }
         }
+        // After the store - the tests wait for it.
+        STAT(SIMPLE_CACHE_MISS);
         continue;
       }
     }
@@ -1516,7 +1517,6 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
                         std::get<EXTRA_FILES>(*task), deps,
                         std::get<START_TIME>(*task));
     }
-    direct_store.reset();
 
     if (speculation && stored) {
       // The result is stored - only then the preprocessing at the same time
@@ -1529,6 +1529,8 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
         TagEntry(*incoming, preprocessed_hash);
       }
     }
+    // The next lookups of the same source find the result in both caches.
+    direct_store.reset();
   }
 }
 

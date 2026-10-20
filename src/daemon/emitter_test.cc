@@ -3407,11 +3407,17 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
   // The preprocessed source and the object, that the compiler gives.
   Mutex mutex;
   String preprocessed, object;
-  bool wait_for_preprocessing = false, wait_for_cancel = false;
+  Atomic<bool> wait_for_preprocessing = false, wait_for_cancel = false;
   Atomic<bool> preprocessing_done = false;
   Atomic<ui32> compilations = 0, canceled = 0;
   const auto deps = Immutable("test.o: "_l) + Immutable(input_path) + " "_l +
                     Immutable(header_path);
+  auto WaitFor = [](const Fn<bool()>& condition) {
+    for (int i = 0; i < 300 && !condition(); ++i) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return condition();
+  };
   run_callback = [&](base::TestProcess* process) {
     if (std::find(process->args_.begin(), process->args_.end(), "-E"_l) !=
         process->args_.end()) {
@@ -3423,12 +3429,6 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
     }
 
     ++compilations;
-    auto WaitFor = [](const Fn<bool()>& condition) {
-      for (int i = 0; i < 300 && !condition(); ++i) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-      }
-      return condition();
-    };
     if (wait_for_cancel) {
       // A long compilation - canceled by the hit of the simple cache.
       EXPECT_TRUE(WaitFor([&] { return process->cancel_requested(); }));
@@ -3484,6 +3484,11 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
     }
     return Stat(name);
   };
+  auto Set = [&](const String& new_preprocessed, const String& new_object) {
+    std::lock_guard<Mutex> lock(mutex);
+    preprocessed = new_preprocessed;
+    object = new_object;
+  };
   auto Output = [&] {
     Immutable content;
     EXPECT_TRUE(base::File::Read(output_path, &content));
@@ -3491,8 +3496,7 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
   };
 
   // The new source isn't preprocessed: nothing can be found.
-  preprocessed = "preprocessed 1";
-  object = "object 1";
+  Set("preprocessed 1", "object 1");
   Compile(1);
   EXPECT_EQ("object 1", Output());
   EXPECT_EQ(0u, Stat(perf::proto::Metric::PARALLEL_PREPROCESSING));
@@ -3501,17 +3505,12 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
   // both caches.
   ASSERT_TRUE(base::File::Write(header_path, "#define A 2"_l));
   WaitAfterEdit();
-  preprocessed = "preprocessed 2";
-  object = "object 2";
+  Set("preprocessed 2", "object 2");
   wait_for_preprocessing = true;
   Compile(2);
   EXPECT_EQ("object 2", Output());
   EXPECT_EQ(2u, compilations);
-  for (int i = 0; i < 300 && Stat(perf::proto::Metric::SIMPLE_CACHE_MISS) < 1;
-       ++i) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
-  std::this_thread::sleep_for(std::chrono::milliseconds(300));
+  // The next lookups of the same source wait for the stores.
 
   // The changed header gives the same preprocessed source: it's found before
   // the compilation ends. The edited sources aren't preprocessed at all.
@@ -3519,13 +3518,13 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
   WaitAfterEdit();
   wait_for_preprocessing = false;
   wait_for_cancel = true;
-  object = "object 3";
+  Set("preprocessed 2", "object 3");
   struct utimbuf old_time = {time(nullptr) - 100, time(nullptr) - 100};
   ASSERT_EQ(0, utime(output_path.c_str(), &old_time));
   Compile(3);
   EXPECT_EQ("object 2", Output());
   EXPECT_EQ(1u, WaitForStat(perf::proto::Metric::PARALLEL_PREPROCESSING_HIT, 1u));
-  EXPECT_GE(1u, canceled);
+  EXPECT_TRUE(WaitFor([&] { return canceled == 1; }));
   // The output is the same - it keeps its time.
   struct stat st;
   ASSERT_EQ(0, stat(output_path.c_str(), &st));
@@ -3536,21 +3535,17 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
   ASSERT_TRUE(base::File::Write(header_path, "#define A 4"_l));
   WaitAfterEdit();
   wait_for_cancel = false;
-  preprocessed = "preprocessed 4";
-  object = "object 4";
+  Set("preprocessed 4", "object 4");
   Compile(4);
   EXPECT_EQ("object 4", Output());
-  // The preprocessing may end after the reply - and store the result then.
-  for (int i = 0; i < 300 && Stat(perf::proto::Metric::SIMPLE_CACHE_MISS) < 2;
-       ++i) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
-  std::this_thread::sleep_for(std::chrono::milliseconds(300));
+  // The preprocessing may end after the reply - and store the result then:
+  // the miss is counted after the store.
+  EXPECT_EQ(2u, WaitForStat(perf::proto::Metric::SIMPLE_CACHE_MISS, 2u));
 
   ASSERT_TRUE(base::File::Write(header_path, "#define A 4 "_l));
   WaitAfterEdit();
   wait_for_cancel = true;
-  object = "object 5";
+  Set("preprocessed 4", "object 5");
   Compile(5);
   EXPECT_EQ("object 4", Output());
   EXPECT_EQ(2u, WaitForStat(perf::proto::Metric::PARALLEL_PREPROCESSING_HIT, 2u));
