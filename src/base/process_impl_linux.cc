@@ -41,8 +41,7 @@ void ProcessImpl::SignalCancelEvent(int event) {
 }
 
 // static
-void ProcessImpl::DieWithParent() {
-  const pid_t parent = getppid();
+void ProcessImpl::DieWithParent(pid_t parent) {
   prctl(PR_SET_PDEATHSIG, SIGKILL);
   // The parent may be gone already.
   if (getppid() != parent) {

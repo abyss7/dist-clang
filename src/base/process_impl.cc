@@ -83,7 +83,7 @@ bool ProcessImpl::RunChild(Pipe& out, Pipe& err, Pipe* in) {
   // Don't let the compiler outlive the daemon: otherwise it may write the
   // outputs after the client has given up, and has started another
   // compilation of the same file.
-  DieWithParent();
+  DieWithParent(parent_pid_);
 
   const char* argv[MAX_ARGS];
   argv[0] = exec_path_.c_str();

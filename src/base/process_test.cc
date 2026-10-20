@@ -2,6 +2,7 @@
 
 #include <base/file/file.h>
 #include <base/file_utils.h>
+#include <base/platform.h>
 #include <base/string_utils.h>
 #include <base/temporary_dir.h>
 
@@ -9,6 +10,7 @@
 
 #include <fcntl.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include STL(thread)
@@ -87,6 +89,34 @@ TEST_F(ProcessTest, WatchedSocketNotInherited) {
   watching.join();
   close(sockets[0]);
   close(sockets[1]);
+}
+
+TEST_F(ProcessTest, DieWithGoneParent) {
+  if (CurrentPlatform() != Platform::LINUX) {
+    GTEST_SKIP() << "The child outlives the parent";
+  }
+
+  // The parent, that has started the child, is gone before the check: the
+  // child has another parent then.
+  pid_t child = fork();
+  if (child == 0) {
+    ProcessImpl::DieWithParent(1);
+    _exit(0);
+  }
+  int status;
+  ASSERT_EQ(child, waitpid(child, &status, 0));
+  ASSERT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(1, WEXITSTATUS(status));
+
+  const pid_t parent = getpid();
+  child = fork();
+  if (child == 0) {
+    ProcessImpl::DieWithParent(parent);
+    _exit(0);
+  }
+  ASSERT_EQ(child, waitpid(child, &status, 0));
+  ASSERT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(0, WEXITSTATUS(status));
 }
 
 TEST_F(ProcessTest, ChangeCurrentDir) {

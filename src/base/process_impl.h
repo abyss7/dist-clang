@@ -2,10 +2,13 @@
 
 #include <base/process.h>
 
+#include <unistd.h>
+
 namespace dist_clang {
 namespace base {
 
 class Pipe;
+FORWARD_TEST(ProcessTest, DieWithGoneParent);
 
 class ProcessImpl : public Process {
  public:
@@ -29,15 +32,20 @@ class ProcessImpl : public Process {
   // platform can't.
   static int CreateCancelEvent();
   static void SignalCancelEvent(int event);
-  // Kills the child with the parent - called in the child: only the
-  // async-signal-safe functions.
-  static void DieWithParent();
+  // Kills the child with the |parent|, that has started it - called in the
+  // child: only the async-signal-safe functions.
+  static void DieWithParent(pid_t parent);
   bool WaitPid(int pid, ui64 sec_timeout, String* error = nullptr);
   void kill(int pid);
   // Terminates the whole group of the canceled process: it may remove its
   // temporary files - and is killed, if it doesn't exit soon.
   void Terminate(int pid);
 
+  FRIEND_TEST(ProcessTest, DieWithGoneParent);
+
+  // The child may start, when this process is gone already: it isn't its
+  // parent then.
+  const pid_t parent_pid_ = getpid();
   bool killed_;
   bool terminated_ = false;
   // Signals |Cancel()| to the running process.

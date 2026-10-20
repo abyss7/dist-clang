@@ -51,7 +51,7 @@ void ProcessImpl::SignalCancelEvent(int event) {
 }
 
 // static
-void ProcessImpl::DieWithParent() {
+void ProcessImpl::DieWithParent(pid_t) {
   // Unsupported yet: the child outlives the parent.
 }
 
