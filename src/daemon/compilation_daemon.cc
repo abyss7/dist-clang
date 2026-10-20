@@ -37,7 +37,9 @@ inline String GetRelativePath(const String& current_dir, const String& input) {
   } else if (input.size() == current_dir.size()) {
     return input == current_dir ? String(".") : input;
   }
-  return input.substr(0, current_dir.size()) == current_dir
+  // "/p/out1" isn't inside "/p/out".
+  return input.compare(0, current_dir.size(), current_dir) == 0 &&
+                 input[current_dir.size()] == '/'
              ? input.substr(current_dir.size() + 1)
              : input;
 }

@@ -360,6 +360,26 @@ TEST(CompilationDaemonTest, DirectKeyKeepsRootInOtherFlags) {
                                                  Flags("/root2", "/root2")));
 }
 
+TEST(CompilationDaemonTest, DirectCommandLineOfSourcesNextToCurrentDir) {
+  auto Flags = [](const String& input) {
+    base::proto::Flags flags;
+    flags.set_input(input);
+    return flags;
+  };
+
+  // The directories with the same prefix as the current one aren't inside it.
+  EXPECT_NE(CompilationDaemon::DirectCommandLine("/p/out",
+                                                 Flags("/p/out1/gen.cc")),
+            CompilationDaemon::DirectCommandLine("/p/out",
+                                                 Flags("/p/out2/gen.cc")));
+  EXPECT_NE(CompilationDaemon::DirectCommandLine("/p/out",
+                                                 Flags("/p/out_a/gen.cc")),
+            CompilationDaemon::DirectCommandLine("/p/out", Flags("a/gen.cc")));
+  EXPECT_EQ(CompilationDaemon::DirectCommandLine("/p/out",
+                                                 Flags("/p/out/a/gen.cc")),
+            CompilationDaemon::DirectCommandLine("/p/out", Flags("a/gen.cc")));
+}
+
 TEST(CompilationDaemonTest, DepsWithWrappedTargets) {
   base::proto::Flags flags;
   flags.set_deps_target(
