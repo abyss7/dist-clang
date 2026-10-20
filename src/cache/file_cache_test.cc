@@ -771,6 +771,39 @@ TEST(CompressionTest, BrokenFrameSize) {
   EXPECT_FALSE(Unpack(proto::ZSTD, Immutable(String(broken)), &unpacked));
 }
 
+TEST(CompressionTest, BrokenFrames) {
+  const String contents(100000, 'a');
+  String packed;
+  ASSERT_TRUE(Pack(proto::ZSTD, Immutable(String(contents)), &packed));
+  String unpacked;
+
+  EXPECT_FALSE(Unpack(proto::ZSTD, Immutable(String()), &unpacked));
+  EXPECT_FALSE(Unpack(proto::ZSTD, Immutable(packed.substr(0, 3)), &unpacked));
+
+  // The frame ends early - at any point.
+  for (size_t size = 4; size < packed.size(); ++size) {
+    EXPECT_FALSE(
+        Unpack(proto::ZSTD, Immutable(packed.substr(0, size)), &unpacked))
+        << size;
+  }
+
+  // The size in the header is smaller than the contents.
+  String smaller;
+  ASSERT_TRUE(Pack(proto::ZSTD, Immutable(String(1000, 'a')), &smaller));
+  const ui8 descriptor = smaller[4];
+  ASSERT_EQ(0x20, descriptor & 0x20) << "a single segment is expected";
+  ASSERT_EQ(1, descriptor >> 6) << "the size of two bytes is expected";
+  const size_t position = 5 + (descriptor & 3 ? 1 << ((descriptor & 3) - 1)
+                                              : 0);
+  // The sizes of two bytes are stored minus 256.
+  smaller[position] = 0;
+  smaller[position + 1] = 0;
+  EXPECT_FALSE(Unpack(proto::ZSTD, Immutable(String(smaller)), &unpacked));
+
+  ASSERT_TRUE(Unpack(proto::ZSTD, Immutable(String(packed)), &unpacked));
+  EXPECT_EQ(contents, unpacked);
+}
+
 TEST(FileCacheTest, RoundTripCompressedEntry) {
   for (const auto compression : {proto::ZSTD}) {
   const base::TemporaryDir temp_dir;
