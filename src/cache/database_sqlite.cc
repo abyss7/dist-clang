@@ -7,6 +7,8 @@
 #include <cache/sqlite3.h>
 #include <cache/sqlite_utils.h>
 
+#include <time.h>
+
 #include <base/using_log.h>
 
 namespace dist_clang {
@@ -165,10 +167,12 @@ List<Pair<String, SQLite::Value>> SQLite::GetInEvictionOrder() const {
 
   Statement stmt(db_,
                  "SELECT hash, mtime, size, version, hits, direct, blobs "
-                 "FROM entries ORDER BY hits > 0, mtime ASC");
+                 "FROM entries ORDER BY hits > 0 AND mtime >= ?, mtime ASC");
   if (!stmt) {
     return entries;
   }
+  const i64 now = time(nullptr);
+  sqlite3_bind_int64(stmt, 1, now - kHitsTtl);
 
   int result;
   while ((result = sqlite3_step(stmt)) == SQLITE_ROW) {

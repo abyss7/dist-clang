@@ -44,8 +44,13 @@ class SQLite
   // If the index is new: it didn't exist, or was broken.
   inline bool created() const { return created_; }
 
-  // All entries in the order of eviction: never hit entries go first, then
-  // the least recently used ones.
+  // The hits keep an entry only for this time since its last use - otherwise
+  // the entries of the abandoned branches, hit once, would outlive the fresh
+  // ones.
+  enum : size_t { kHitsTtl = 7 * 24 * 60 * 60 };
+
+  // All entries in the order of eviction: never hit entries, and the ones not
+  // used for |kHitsTtl|, go first, then the least recently used ones.
   List<Pair<String, Value>> GetInEvictionOrder() const;
 
   bool BeginTransaction();
