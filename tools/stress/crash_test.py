@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Checks, that crashes never put wrong outputs into a build.
 
-Only the processes with the same XDG_RUNTIME_DIR are killed: run it with a
-separate runtime directory, so that the daemon of the user isn't touched.
+The test runs its own daemon - with its own runtime directory, cache and
+config in a temporary directory: the daemon of the user isn't touched, and
+only the processes of the test are killed.
 
 Two build directories of the same ninja project are needed: one compiles
 through dist-clang, the other - with the plain compiler. Their objects must be
@@ -31,12 +32,41 @@ import argparse
 import filecmp
 import os
 import random
+import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 
 VICTIMS = ["daemon", "compiler", "client", "ninja"]
+
+
+def isolate_environment():
+    """Points the runtime directory, the cache and the config of the daemon
+    into a new temporary directory - for this process and its children.
+    Returns the directory."""
+    # Short: the paths of the unix sockets are limited.
+    root = tempfile.mkdtemp(prefix="dc-crash-", dir="/tmp")
+    for name, subdir in (("XDG_RUNTIME_DIR", "run"),
+                         ("XDG_CACHE_HOME", "cache"),
+                         ("XDG_CONFIG_HOME", "config")):
+        path = os.path.join(root, subdir)
+        os.mkdir(path, 0o700)
+        os.environ[name] = path
+    return root
+
+
+def remove_environment(root):
+    """Stops the daemon of the test, and removes its directory."""
+    daemons = pids("^[^ ]*dist-clangd ")
+    for pid in daemons:
+        os.kill(pid, signal.SIGTERM)
+    for _ in range(100):
+        if not any(os.path.exists("/proc/%d" % pid) for pid in daemons):
+            break
+        time.sleep(0.1)
+    shutil.rmtree(root, ignore_errors=True)
 
 
 def build(build_dir, target, env=None, check=True):
@@ -135,6 +165,8 @@ def main():
     os.chdir(args.source_dir)
     originals = {path: open(path, "rb").read() for path in args.files}
     failures = 0
+    root = isolate_environment()
+    print("The daemon of the test works in " + root, flush=True)
 
     try:
         build(args.cache_build_dir, args.target)
@@ -199,6 +231,7 @@ def main():
         for path, content in originals.items():
             with open(path, "wb") as f:
                 f.write(content)
+        remove_environment(root)
 
     print("%d of %d iterations with wrong objects" %
           (failures, args.iterations))
