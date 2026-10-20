@@ -10,6 +10,11 @@ namespace cache {
 // size, mtime and ctime stay the same.
 class FileHashCache {
  public:
+  // At most |max_entries| hashes are memoized - the paths of the removed files,
+  // of the old checkouts and so on shouldn't grow the daemon forever.
+  explicit FileHashCache(size_t max_entries = 1'000'000)
+      : max_entries_(max_entries) {}
+
   // Returns the hex-encoded hash of the contents of |path|. Sets
   // |time_macros|, if the file uses "__DATE__", "__TIME__" or "__TIMESTAMP__":
   // the result of its compilation depends on the time.
@@ -17,6 +22,9 @@ class FileHashCache {
   // ctime) in nanoseconds.
   bool Hash(const String& path, String* hash, String* error = nullptr,
             bool* time_macros = nullptr, i64* modified = nullptr) THREAD_SAFE;
+
+  // The number of the memoized hashes.
+  size_t size() const THREAD_SAFE;
 
  private:
   struct Entry {
@@ -26,7 +34,8 @@ class FileHashCache {
     bool time_macros;
   };
 
-  Mutex mutex_;
+  const size_t max_entries_;
+  mutable Mutex mutex_;
   HashMap<String, Entry> entries_;
 };
 

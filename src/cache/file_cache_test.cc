@@ -3082,6 +3082,35 @@ TEST(FileHashCacheTest, TimeMacrosAndModificationTime) {
   }
 }
 
+TEST(FileHashCacheTest, Bounded) {
+  const base::TemporaryDir temp_dir;
+  FileHashCache hashes(2);
+  const Path paths[] = {temp_dir.path() / "1.h", temp_dir.path() / "2.h",
+                        temp_dir.path() / "3.h"};
+  for (const auto& path : paths) {
+    ASSERT_TRUE(base::File::Write(path, Immutable(path.string())));
+  }
+  // The hashes of the recently modified files aren't memoized.
+  std::this_thread::sleep_for(std::chrono::milliseconds(2100));
+
+  String hash;
+  ASSERT_TRUE(hashes.Hash(paths[0], &hash));
+  ASSERT_TRUE(hashes.Hash(paths[1], &hash));
+  EXPECT_EQ(2u, hashes.size());
+  ASSERT_TRUE(hashes.Hash(paths[2], &hash));
+  EXPECT_GE(2u, hashes.size());
+  EXPECT_LT(0u, hashes.size());
+
+  // The removed files are forgotten.
+  FileHashCache other_hashes;
+  ASSERT_TRUE(other_hashes.Hash(paths[0], &hash));
+  ASSERT_TRUE(other_hashes.Hash(paths[1], &hash));
+  ASSERT_EQ(2u, other_hashes.size());
+  ASSERT_TRUE(base::File::Delete(paths[0]));
+  EXPECT_FALSE(other_hashes.Hash(paths[0], &hash));
+  EXPECT_EQ(1u, other_hashes.size());
+}
+
 TEST(FileCacheTest, DirectEntry_ChangedPreprocessedHeaderContents) {
   const base::TemporaryDir temp_dir;
   const auto object_path = temp_dir.path() / "test.o";

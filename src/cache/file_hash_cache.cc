@@ -23,6 +23,8 @@ bool FileHashCache::Hash(const String& path, String* hash, String* error,
   struct stat st;
   if (stat(path.c_str(), &st) == -1) {
     base::GetLastError(error);
+    std::lock_guard<Mutex> lock(mutex_);
+    entries_.erase(path);
     return false;
   }
 
@@ -74,12 +76,22 @@ bool FileHashCache::Hash(const String& path, String* hash, String* error,
   if (now - base::ModificationTime(st) > kRacyIntervalNs &&
       now - base::StatusChangeTime(st) > kRacyIntervalNs) {
     std::lock_guard<Mutex> lock(mutex_);
+    // Simpler than LRU, and the overflow is rare: only the hashes of the
+    // current builds are computed again.
+    if (entries_.size() >= max_entries_ && !entries_.contains(key)) {
+      entries_.clear();
+    }
     entries_[key] = {static_cast<ui64>(st.st_ino),
                      static_cast<ui64>(st.st_size), base::ModificationTime(st),
                      base::StatusChangeTime(st), *hash, has_time_macros};
   }
 
   return true;
+}
+
+size_t FileHashCache::size() const {
+  std::lock_guard<Mutex> lock(mutex_);
+  return entries_.size();
 }
 
 }  // namespace cache
