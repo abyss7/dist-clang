@@ -102,7 +102,7 @@ bool ProcessImpl::RunChild(Pipe& out, Pipe& err, Pipe* in) {
   DCHECK(env_it == envs_.end());
   env[envs_.size()] = nullptr;
 
-  if ((envs_.size() &&
+  if (((envs_.size() || only_added_env_) &&
        execve(exec_path_.c_str(), const_cast<char* const*>(argv),
               const_cast<char* const*>(env)) == -1) ||
       execv(exec_path_.c_str(), const_cast<char* const*>(argv)) == -1) {

@@ -1106,6 +1106,9 @@ base::ProcessPtr CompilationDaemon::CreateProcess(
     process->AppendArg(Immutable(flags.input()));
   }
 
+  // The environment of the daemon - e.g. of the first client, that has
+  // started it - isn't in the key of the cache.
+  process->UseOnlyAddedEnv();
   for (const auto& variable : flags.env()) {
     const auto pos = variable.find('=');
     process->AddEnv(variable.substr(0, pos).c_str(),

@@ -87,6 +87,9 @@ class Process
   }
   Process& AppendArg(Immutable arg);
   Process& AddEnv(const char* name, const char* value);
+  // The process gets only the variables from |AddEnv()|, even if there are
+  // none - not the environment of this process.
+  inline void UseOnlyAddedEnv() { only_added_env_ = true; }
 
   // Kills the process, if the peer of the socket |fd| disconnects - e.g. the
   // client, that waits for the process, is gone. Then |Run()| fails, and
@@ -123,6 +126,7 @@ class Process
   const ui32 uid_;
   int cancel_fd_ = -1;
   int nice_ = 0;
+  bool only_added_env_ = false;
   Atomic<bool> cancel_requested_ = false;
   bool canceled_ = false;
 

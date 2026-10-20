@@ -192,6 +192,30 @@ TEST(CompilationDaemonTest, CompilerIdentityIsRechecked) {
   EXPECT_NE(old_identity, identity);
 }
 
+TEST(CompilationDaemonTest, CompilerGetsOnlyEnvironmentOfClient) {
+  // The other tests may leave the fake processes.
+  base::Process::SetFactory<base::Process::DefaultFactory>();
+  setenv("DC_TEST_DAEMON_VARIABLE", "1", 1);
+
+  // The fake compiler shows its environment.
+  base::proto::Flags flags;
+  flags.mutable_compiler()->set_path("/usr/bin/env");
+  flags.set_action("-0");
+
+  // The environment of the daemon isn't in the key: the compiler doesn't get
+  // it, even if the client has no variables at all.
+  auto process = CompilationDaemon::CreateProcess(flags, Path("/"));
+  String error;
+  ASSERT_TRUE(process->Run(10, &error)) << error;
+  EXPECT_EQ(""_l, process->stdout());
+
+  flags.add_env("A=1");
+  process = CompilationDaemon::CreateProcess(flags, Path("/"));
+  ASSERT_TRUE(process->Run(10, &error)) << error;
+  EXPECT_EQ(Immutable(String("A=1\0", 4)), process->stdout());
+  unsetenv("DC_TEST_DAEMON_VARIABLE");
+}
+
 TEST(CompilationDaemonTest, ParseImplicitIncludeDirs) {
   const String output =
       "clang version 18.1.8\n"
