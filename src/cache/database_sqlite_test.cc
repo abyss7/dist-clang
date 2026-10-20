@@ -44,6 +44,24 @@ TEST(SQLiteTest, FailedTransactions) {
   EXPECT_FALSE(database.EndTransaction());
 }
 
+TEST(SQLiteTest, WriteAheadLog) {
+  const base::TemporaryDir temp_dir;
+  SQLite database(temp_dir.path(), "index");
+
+  // The index is written on every flush - without the rollback journal and
+  // the syncs of each transaction, like the other databases.
+  sqlite3* db = OpenDatabase(temp_dir.path() / "index.sqlite");
+  ASSERT_TRUE(db);
+  sqlite3_stmt* stmt = nullptr;
+  ASSERT_EQ(SQLITE_OK,
+            sqlite3_prepare_v2(db, "PRAGMA journal_mode", -1, &stmt, nullptr));
+  ASSERT_EQ(SQLITE_ROW, sqlite3_step(stmt));
+  EXPECT_EQ("wal", String(reinterpret_cast<const char*>(
+                       sqlite3_column_text(stmt, 0))));
+  sqlite3_finalize(stmt);
+  sqlite3_close(db);
+}
+
 TEST(SQLiteTest, FullCheckOnlyOnDemand) {
   const base::TemporaryDir temp_dir;
   const String path = temp_dir.path() / "test.sqlite";

@@ -67,6 +67,19 @@ SQLite::SQLite() : path_(":memory:") {
 SQLite::SQLite(const String& path, const String& name, bool full_check)
     : path_(path + "/" + name + ".sqlite") {
   db_ = OpenDatabase(path_, &created_, full_check);
+  // A crash of the daemon loses nothing; a crash of the system may lose the
+  // last transactions, but not the integrity - and the files are scanned
+  // after any crash anyway.
+  char* error = nullptr;
+  auto result = sqlite3_exec(db_,
+                             "PRAGMA journal_mode=WAL;"
+                             "PRAGMA synchronous=NORMAL;",
+                             nullptr, nullptr, &error);
+  if (result != SQLITE_OK) {
+    LOG(DB_ERROR) << "Failed to set up the journal of " << path_ << ": "
+                  << sqlite3_errstr(result) << ": " << error;
+    sqlite3_free(error);
+  }
   CreateTable();
   LOG(DB_INFO) << "SQLite database is opened on path " << path_;
 }
