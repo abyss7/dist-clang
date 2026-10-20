@@ -1135,18 +1135,41 @@ bool FileCache::IsIsolated(const String& entry) const {
   return false;
 }
 
-bool FileCache::LeadsToIsolated(const String& direct_entry) {
-  Vector<String> targets;
-  {
-    std::lock_guard<Mutex> lock(blob_refs_mutex_);
-    auto it = direct_entries_.find(direct_entry);
-    if (it == direct_entries_.end()) {
-      return false;
-    }
-    targets = it->second;
+bool FileCache::IsHeld(const String& entry) {
+  std::lock_guard<Mutex> lock(blob_refs_mutex_);
+  auto it = entry_tags_.find(entry);
+  return it != entry_tags_.end() &&
+         std::any_of(it->second.begin(), it->second.end(),
+                     [this](const String& tag) {
+                       return tag_quotas_.contains(tag);
+                     });
+}
+
+HashSet<String> FileCache::HeldEntries() {
+  HashSet<String> held;
+  if (tag_quotas_.empty()) {
+    return held;
   }
-  return std::any_of(targets.begin(), targets.end(),
-                     [this](const String& target) { return IsIsolated(target); });
+  std::lock_guard<Mutex> lock(blob_refs_mutex_);
+  for (const auto& [entry, tags] : entry_tags_) {
+    for (const auto& tag : tags) {
+      if (tag_quotas_.contains(tag)) {
+        held.insert(entry);
+        break;
+      }
+    }
+  }
+  Vector<String> direct;
+  for (const auto& [entry, targets] : direct_entries_) {
+    if (std::any_of(targets.begin(), targets.end(),
+                    [&held](const String& target) {
+                      return held.contains(target);
+                    })) {
+      direct.push_back(entry);
+    }
+  }
+  held.insert(direct.begin(), direct.end());
+  return held;
 }
 
 bool FileCache::InScope(const String& entry, const String& scope) const {
@@ -1990,8 +2013,9 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
       new_variant->add_scopes(variant_scope);
     }
   }
-  // The removed entries are dropped. The entries of the isolated tags stay:
-  // the direct entry would be removed without others.
+  // The removed entries are dropped. The entries of the isolated tags and of
+  // the tags with own sizes stay: the direct entry would be removed without
+  // others.
   auto* direct = manifest.mutable_direct();
   direct->add_entries(hash.str.string_copy());
   size_t kept_entries = 1;
@@ -2002,7 +2026,7 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
             base::kExtManifest))) {
       continue;
     }
-    if (IsIsolated(entry)) {
+    if (IsIsolated(entry) || IsHeld(entry)) {
       direct->add_entries(entry);
     } else if (kept_entries < kMaxDirectEntries) {
       direct->add_entries(entry);
@@ -2630,13 +2654,20 @@ void FileCache::Evict() {
   // The entries, which outputs are shared with build directories, are free:
   // their removal doesn't free the disk space. They are likely to be used
   // soon, so they are never removed.
+  // The entries of the tags with own sizes are held: they don't count in the
+  // size of the cache, and they aren't removed.
   auto entries = entries_->GetInEvictionOrder();
+  const HashSet<String> held = HeldEntries();
   ui64 own_size = 0;
   Vector<ui64> own_sizes;
   own_sizes.reserve(entries.size());
   for (const auto& [hash_str, entry] : entries) {
     const string::Hash hash{Immutable(hash_str)};
     const ui64 size = std::get<SQLite::SIZE>(entry);
+    if (held.contains(hash_str)) {
+      own_sizes.push_back(0);
+      continue;
+    }
     own_sizes.push_back(HasSharedBlobs(hash) ? 0 : size);
     own_size += size;
   }
@@ -2645,6 +2676,18 @@ void FileCache::Evict() {
     std::lock_guard<Mutex> lock(blob_refs_mutex_);
     BlobStore::Sizes sizes;
     blobs_.GetSizes(&sizes);
+    HashSet<String> held_blobs;
+    for (const auto& entry : held) {
+      auto it = entry_blobs_.find(entry);
+      if (it != entry_blobs_.end()) {
+        held_blobs.insert(it->second.begin(), it->second.end());
+      }
+    }
+    for (const auto& blob : held_blobs) {
+      if (!blobs_.IsShared(blob)) {
+        sizes.own -= std::min(sizes.own, blobs_.Size(blob));
+      }
+    }
     own_size += sizes.own;
   }
 
@@ -2676,8 +2719,7 @@ void FileCache::Evict() {
         freed >= need_to_free) {
       break;
     }
-    if (!entry_own_size || IsIsolated(hash_str) ||
-        (std::get<SQLite::DIRECT>(entry) && LeadsToIsolated(hash_str))) {
+    if (!entry_own_size) {
       continue;
     }
     // The direct entries are small: their removal frees almost nothing on the

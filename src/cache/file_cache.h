@@ -52,6 +52,7 @@ FORWARD_TEST(FileCacheTest, DirectEntriesOfTags);
 FORWARD_TEST(FileCacheTest, RemoveDirectEntriesOfRemovedEntries);
 FORWARD_TEST(FileCacheTest, IsolatedTags);
 FORWARD_TEST(FileCacheTest, TagQuotas);
+FORWARD_TEST(FileCacheTest, HoldEntriesOfTagsWithOwnSizes);
 FORWARD_TEST(FileCacheTest, TagAccessTimes);
 FORWARD_TEST(FileCacheTest, KeepEntriesOfIsolatedTags);
 FORWARD_TEST(FileCacheTest, DirectEntry_IsolatedTagsKeepVariants);
@@ -231,7 +232,8 @@ class FileCache {
   // The tags of the builds, that see only their own entries - e.g. for the
   // reference measurements: the lookups in the scope of such tag find only
   // the entries with it. Other lookups find them too. Such entries aren't
-  // evicted and compressed - only forgotten with the tag. Set before |Run()|.
+  // compressed, and they follow the common rules of the eviction, unless the
+  // tag has its own size. Set before |Run()|.
   inline void SetIsolatedTags(const Vector<String>& tags) {
     isolated_tags_ = HashSet<String>(tags.begin(), tags.end());
   }
@@ -239,7 +241,7 @@ class FileCache {
   // such tag, that fit into its size, don't count in the size of the cache,
   // and aren't evicted by others: the oldest ones by the uses of the tag lose
   // it, when the tag doesn't fit. The entries of other tags follow the common
-  // rules - and the entries, that lose all tags, too.
+  // rules - and the entries, that lose all tags, too. Set before |Run()|.
   inline void SetTagQuotas(const HashMap<String, ui64>& quotas) {
     tag_quotas_ = quotas;
   }
@@ -396,6 +398,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, RemoveDirectEntriesOfRemovedEntries);
   FRIEND_TEST(FileCacheTest, IsolatedTags);
   FRIEND_TEST(FileCacheTest, TagQuotas);
+  FRIEND_TEST(FileCacheTest, HoldEntriesOfTagsWithOwnSizes);
   FRIEND_TEST(FileCacheTest, TagAccessTimes);
   FRIEND_TEST(FileCacheTest, KeepEntriesOfIsolatedTags);
   FRIEND_TEST(FileCacheTest, DirectEntry_IsolatedTagsKeepVariants);
@@ -599,14 +602,18 @@ class FileCache {
   // The entries of the isolated tags - the lookups in their scopes see them
   // at once, before the cleaner applies the tags.
   HashSet<String> isolated_tags_;
+  // The tags with own sizes - the cleaner reads them.
   HashMap<String, ui64> tag_quotas_;
   mutable std::shared_mutex scopes_mutex_;
   HashMap<String, HashSet<String>> scopes_;
   bool InScope(const String& entry, const String& scope) const;
   // If the entry has any isolated tag.
   bool IsIsolated(const String& entry) const;
-  // If the direct entry leads to any entry with an isolated tag.
-  bool LeadsToIsolated(const String& direct_entry);
+  // If the entry has any tag with own size.
+  bool IsHeld(const String& entry);
+  // The entries with the tags with own sizes, and the direct entries, that
+  // lead to them.
+  HashSet<String> HeldEntries();
   // Puts the entries, that have the |tag|, into its scope - and removes
   // others from it, unless |keep_others|.
   void UpdateScope(const String& tag, bool keep_others);

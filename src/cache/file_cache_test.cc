@@ -2080,8 +2080,9 @@ TEST(FileCacheTest, KeepEntriesOfIsolatedTags) {
   EXPECT_TRUE(base::File::Exists(cache.blobs_.RawPath(bench_blob)));
   EXPECT_FALSE(base::File::Exists(cache.blobs_.RawPath(other_blob)));
 
-  // Only the entries of others are evicted - the direct entry of the isolated
-  // tag stays too.
+  // Only the entries of others are evicted, if the isolated tag has its own
+  // size - the direct entry of the isolated tag stays too.
+  cache.SetTagQuotas({{"bench", 0}});
   cache.max_size_ = 1;
   cache.Maintain();
   FileCache::Entry entry;
@@ -2089,6 +2090,60 @@ TEST(FileCacheTest, KeepEntriesOfIsolatedTags) {
   EXPECT_TRUE(cache.Find(bench_hash, &entry, "bench"));
   EXPECT_TRUE(cache.Find(code, {}, cl, version, temp_dir, &entry, String(), {},
                          "bench"));
+}
+
+TEST(FileCacheTest, HoldEntriesOfTagsWithOwnSizes) {
+  const base::TemporaryDir temp_dir;
+  const auto header_path = temp_dir.path() / "test.h";
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  const UnhandledSource code("#include \"test.h\""_l);
+  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, proto::NONE,
+                  true, true);
+  cache.SetIsolatedTags({"iso"});
+  cache.SetTagQuotas({{"held", 0}});
+  ASSERT_TRUE(cache.Run(3600));
+
+  // The outputs aren't linked with the build directory anymore.
+  auto Store = [&](const String& content) {
+    const auto object_path = temp_dir.path() / "test.o";
+    EXPECT_TRUE(base::File::Write(object_path, Immutable(content)));
+    const auto hash = FileCache::Hash(HandledSource(Immutable(content)), {},
+                                      cl, version);
+    FileCache::Entry entry;
+    entry.object_path = object_path;
+    entry.deps = "deps"_l;
+    cache.Store(hash, entry);
+    EXPECT_TRUE(base::File::Delete(object_path));
+    return hash;
+  };
+  const auto held_hash = Store(String(1000000, 'h'));
+  const auto iso_hash = Store(String(1000, 'i'));
+  const auto other_hash = Store(String(1000, 'o'));
+  cache.AddTags(held_hash, {"held"});
+  cache.AddTags(iso_hash, {"iso"});
+  ASSERT_TRUE(base::File::Write(header_path, "#define A"_l));
+  cache.Store(code, {}, cl, version, {header_path}, {}, temp_dir, held_hash);
+  // The held entry goes last in the order of the eviction.
+  FileCache::Entry entry;
+  EXPECT_TRUE(cache.Find(held_hash, &entry));
+  cache.FlushAccesses();
+  cache.WaitForCleaner();
+
+  // The held entries don't count in the size of the cache.
+  cache.max_size_ = 100000;
+  cache.Maintain();
+  EXPECT_TRUE(cache.Find(other_hash, &entry));
+  EXPECT_TRUE(cache.Find(iso_hash, &entry, "iso"));
+
+  // The held entries aren't evicted - with their direct entries. The isolated
+  // ones without own sizes follow the common rules.
+  cache.max_size_ = 1;
+  cache.Maintain();
+  EXPECT_FALSE(cache.Find(other_hash, &entry));
+  EXPECT_FALSE(cache.Find(iso_hash, &entry, "iso"));
+  EXPECT_TRUE(cache.Find(held_hash, &entry));
+  EXPECT_TRUE(cache.Find(code, {}, cl, version, temp_dir, &entry));
 }
 
 TEST(FileCacheTest, KeepEntriesLinkedWithBuildDirs) {
