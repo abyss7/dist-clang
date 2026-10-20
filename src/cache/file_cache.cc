@@ -1738,7 +1738,9 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
 }
 
 void FileCache::Remove(string::HandledHash hash) {
-  // The index is updated only by the cleaner.
+  // The index is updated only by the cleaner. A recent store is indexed first:
+  // otherwise its blobs have no references yet, and stay forever.
+  FlushAccesses();
   cleaner_.Push([this, hash] { DoRemove(hash, kRemoveAttempts); });
 }
 

@@ -690,7 +690,19 @@ TEST(FileCacheTest, RemoveEntryInBackground) {
   }
   EXPECT_FALSE(found);
   EXPECT_FALSE(base::File::Exists(
-      AppendExtension(cache.CommonPath(hash), base::kExtObject)));
+      AppendExtension(cache.CommonPath(hash), base::kExtManifest)));
+
+  // The blob without references is removed too - by the cleaner.
+  const String blob = base::Hexify(entry.object.Hash());
+  bool removed = false;
+  for (int i = 0; i < 100 && !removed; ++i) {
+    removed = !base::File::Exists(cache.blobs_.RawPath(blob)) &&
+              !base::File::Exists(cache.blobs_.PackedPath(blob));
+    if (!removed) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+  }
+  EXPECT_TRUE(removed);
 }
 
 TEST(FileCacheTest, RestoreSingleEntryWithExtraFile) {
@@ -789,10 +801,12 @@ TEST(FileCacheTest, RoundTripCompressedEntry) {
   EXPECT_EQ("deps", entry.deps.string_copy());
   EXPECT_EQ("stderr", entry.stderr.string_copy());
 
-  // The files are really compressed.
+  // The blobs are really compressed.
+  const String blob = base::Hexify(Immutable(String(object)).Hash());
+  EXPECT_FALSE(base::File::Exists(cache.blobs_.RawPath(blob)));
+  ASSERT_TRUE(base::File::Exists(cache.blobs_.PackedPath(blob)));
   EXPECT_GT(object.size() / 4,
-            base::File::Size(AppendExtension(cache.CommonPath(hash),
-                                             base::kExtObject)))
+            base::File::Size(cache.blobs_.PackedPath(blob)))
       << compression;
   }
 }
