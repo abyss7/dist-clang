@@ -367,6 +367,31 @@ TEST(CompilationDaemonTest, ModificationRightAfterStart) {
   EXPECT_EQ(0u, missed);
 }
 
+TEST(CompilationDaemonTest, PreprocessedInputs) {
+  List<String> inputs;
+  EXPECT_TRUE(CompilationDaemon::PreprocessedInputs(
+      "# 1 \"a.cc\"\n"
+      "# 1 \"<built-in>\" 1\n"
+      "# 1 \"<command line>\" 1\n"
+      "# 1 \"a.cc\" 2\n"
+      "#pragma once\n"
+      "# 1 \"dir with space/b\\\"c.h\" 1 3\n"
+      "int b;\n"
+      "# 2 \"a.cc\" 2\n"
+      "# 1 \"d\\\\e.h\" 1\n"
+      "# 1 \"f\\303\\251.h\" 1\n"
+      "  # 5 \"g.h\"\n"
+      "# 3 \"a.cc\" 2"_l,
+      inputs));
+  EXPECT_EQ((List<String>{"a.cc", "dir with space/b\"c.h", "d\\e.h",
+                          "f\xc3\xa9.h"}),
+            inputs);
+
+  // Without the line markers, e.g. with "-P", the inputs are unknown.
+  inputs.clear();
+  EXPECT_FALSE(CompilationDaemon::PreprocessedInputs("int a;\n"_l, inputs));
+}
+
 TEST(CompilationDaemonTest, InputsUnchangedSince) {
   const base::TemporaryDir temp_dir;
   ASSERT_TRUE(base::File::Write(temp_dir.path() / "a.cc", "int a;"_l));

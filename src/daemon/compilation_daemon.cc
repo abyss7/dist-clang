@@ -421,10 +421,77 @@ i64 CompilationDaemon::FileSystemTime() {
 }
 
 // static
+bool CompilationDaemon::PreprocessedInputs(Immutable source,
+                                           List<String>& inputs) {
+  const std::string_view text(source.data(), source.size());
+  HashSet<String> seen;
+  bool found = false;
+  for (size_t line_start = 0; line_start < text.size();) {
+    size_t line_end = text.find('\n', line_start);
+    if (line_end == std::string_view::npos) {
+      line_end = text.size();
+    }
+    const auto line = text.substr(line_start, line_end - line_start);
+    line_start = line_end + 1;
+
+    // Line markers look like: # 123 "path/to/file.h" 1 3
+    if (line.size() < 3 || line[0] != '#' || line[1] != ' ' ||
+        !isdigit(line[2])) {
+      continue;
+    }
+    const size_t quote = line.find('"');
+    if (quote == std::string_view::npos) {
+      continue;
+    }
+    // The compiler escapes backslashes, quotes and unprintable characters - the
+    // latter as octal codes.
+    String name;
+    bool closed = false;
+    for (size_t i = quote + 1; i < line.size() && !closed; ++i) {
+      char c = line[i];
+      if (c == '"') {
+        closed = true;
+        continue;
+      }
+      if (c == '\\' && i + 1 < line.size()) {
+        c = line[++i];
+        if (c >= '0' && c <= '7') {
+          int code = c - '0';
+          for (int digits = 1; digits < 3 && i + 1 < line.size() &&
+                               line[i + 1] >= '0' && line[i + 1] <= '7';
+               ++digits) {
+            code = code * 8 + (line[++i] - '0');
+          }
+          c = static_cast<char>(code);
+        } else if (c == 'n') {
+          c = '\n';
+        } else if (c == 't') {
+          c = '\t';
+        }
+      }
+      name += c;
+    }
+    if (!closed) {
+      continue;
+    }
+    found = true;
+    // Not files: "<built-in>", "<command line>".
+    if (name.empty() || name[0] == '<') {
+      continue;
+    }
+    if (seen.insert(name).second) {
+      inputs.push_back(std::move(name));
+    }
+  }
+  return found;
+}
+
+// static
 bool CompilationDaemon::InputsUnchangedSince(const base::proto::Local* message,
-                                             Immutable deps, i64 time) {
+                                             Immutable deps, i64 time,
+                                             const List<String>& more_inputs) {
   const auto& flags = message->flags();
-  List<String> inputs;
+  List<String> inputs = more_inputs;
   if (!deps.empty() && !ParseDeps(deps.string_copy(), inputs)) {
     return false;
   }

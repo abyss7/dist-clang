@@ -51,6 +51,8 @@ FORWARD_TEST(EmitterTest, SkipPreprocessingOfEditedSource);
 FORWARD_TEST(EmitterTest, RecheckWarnings);
 FORWARD_TEST(EmitterTest, RestoreBlobCompressedAfterLookup);
 FORWARD_TEST(EmitterTest, DontStoreIfInputsChangedDuringCompilation);
+FORWARD_TEST(EmitterTest,
+             DontStoreIfHeadersChangedDuringCompilationWithoutDeps);
 FORWARD_TEST(EmitterTest, DontHitDirectCacheForSameContentsOfAnotherSource);
 FORWARD_TEST(EmitterTest, VerifyHits);
 FORWARD_TEST(EmitterTest, TagEntries);
@@ -165,6 +167,8 @@ class Process
   FRIEND_TEST(daemon::EmitterTest, RecheckWarnings);
   FRIEND_TEST(daemon::EmitterTest, RestoreBlobCompressedAfterLookup);
   FRIEND_TEST(daemon::EmitterTest, DontStoreIfInputsChangedDuringCompilation);
+  FRIEND_TEST(daemon::EmitterTest,
+              DontStoreIfHeadersChangedDuringCompilationWithoutDeps);
   FRIEND_TEST(daemon::EmitterTest,
               DontHitDirectCacheForSameContentsOfAnotherSource);
   FRIEND_TEST(daemon::EmitterTest, VerifyHits);

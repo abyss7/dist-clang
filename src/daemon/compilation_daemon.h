@@ -34,11 +34,18 @@ class CompilationDaemon : public BaseDaemon {
   // The current time of file modifications - in nanoseconds.
   static i64 FileSystemTime();
 
-  // Checks, that the source, the included files from |deps| and other inputs
-  // weren't modified since |time|. Otherwise the result of the compilation
-  // may not match the inputs, that are read now - and mustn't be cached.
+  // Gives the files, that the preprocessed |source| is made of - by its line
+  // markers, without duplicates. Fails without the line markers - e.g. with
+  // "-P": then the files are unknown.
+  static bool PreprocessedInputs(Immutable source, List<String>& inputs);
+
+  // Checks, that the source, the included files from |deps|, |more_inputs|
+  // and other inputs weren't modified since |time|. Otherwise the result of
+  // the compilation may not match the inputs, that are read now - and mustn't
+  // be cached.
   static bool InputsUnchangedSince(const base::proto::Local* message,
-                                   Immutable deps, i64 time);
+                                   Immutable deps, i64 time,
+                                   const List<String>& more_inputs = {});
 
   // The command line in the key of the direct cache.
   static String DirectCommandLine(const String& current_dir,

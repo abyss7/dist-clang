@@ -1759,7 +1759,8 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
   const auto object_code = "fake_object_code"_l;
-  const auto source = "fake_source"_l;
+  // The preprocessed source has the line markers - of the files to check.
+  const auto source = "# 1 \"test1.cc\"\nfake_source"_l;
   const auto language = "fake_language"_l;
   const auto action = "fake_action"_l;
   const auto input_path1 = "test1.cc"_l;
@@ -4109,6 +4110,97 @@ TEST_F(EmitterTest, DontStoreIfInputsChangedDuringCompilation) {
   EXPECT_EQ(1u, compilations);
 
   // The same inputs - the compilation again.
+  WaitAfterEdit();
+  Compile(2);
+  EXPECT_EQ(2u, compilations);
+
+  // Now it's cached.
+  Compile(3);
+  EXPECT_EQ(2u, compilations);
+
+  emitter.reset();
+}
+
+TEST_F(EmitterTest, DontStoreIfHeadersChangedDuringCompilationWithoutDeps) {
+  const base::TemporaryDir temp_dir;
+  const auto input_path = temp_dir.path() / "test.cc";
+  const auto header_path = temp_dir.path() / "test.h";
+  const auto output_path = temp_dir.path() / "test.o";
+  const String compiler_version = "fake_compiler_version";
+
+  ASSERT_TRUE(base::File::Write(input_path, "#include \"test.h\""_l));
+  ASSERT_TRUE(base::File::Write(header_path, "int a;"_l));
+
+  conf.mutable_cache()->set_path(temp_dir.path() / "cache");
+  conf.mutable_cache()->set_clean_period(1);
+
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path("fake_compiler_path");
+
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      send_condition.notify_all();
+    });
+    return true;
+  };
+
+  // Without the dependency file the headers are known only from the line
+  // markers of the preprocessed source.
+  ui32 compilations = 0;
+  run_callback = [&](base::TestProcess* process) {
+    const bool preprocessing =
+        std::find(process->args_.begin(), process->args_.end(), "-E"_l) !=
+        process->args_.end();
+    if (preprocessing) {
+      const Immutable input(input_path), header(header_path);
+      process->stdout_ = Immutable("# 1 \""_l) + input + "\"\n# 1 \""_l +
+                         header + "\" 1\nint a;\n# 2 \""_l + input +
+                         "\" 2\n"_l;
+    } else {
+      ++compilations;
+      // The header is edited during the first compilation - after the
+      // preprocessing.
+      if (compilations == 1) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        EXPECT_TRUE(base::File::Write(header_path, "int b;"_l));
+      }
+      EXPECT_TRUE(base::File::Write(output_path, "object"_l));
+    }
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto Compile = [&](ui32 expected_send_count) {
+    auto connection = test_service->TriggerListen(socket_path);
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->mutable_local();
+    extension->set_current_dir(temp_dir);
+    auto* flags = extension->mutable_flags();
+    flags->set_input(input_path);
+    flags->set_output(output_path);
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action("-c");
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(1), [&] {
+      return send_count == expected_send_count;
+    }));
+  };
+
+  // The result isn't stored: it may be compiled from the new header, but
+  // under the hash of the old one.
+  Compile(1);
+  EXPECT_EQ(1u, compilations);
+
   WaitAfterEdit();
   Compile(2);
   EXPECT_EQ(2u, compilations);

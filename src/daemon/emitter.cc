@@ -1334,7 +1334,15 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
     // may remove them after it.
     bool stored = false;
     if (entry_to_store) {
-      if (InputsUnchangedSince(incoming, deps, std::get<START_TIME>(*task))) {
+      // Without the dependency file the headers are known only from the
+      // preprocessed source: they may be edited after the preprocessing too.
+      List<String> headers;
+      const bool headers_known =
+          incoming->flags().has_deps_file() ||
+          PreprocessedInputs(std::get<SOURCE>(*task).str, headers);
+      if (headers_known && InputsUnchangedSince(incoming, deps,
+                                                std::get<START_TIME>(*task),
+                                                headers)) {
         UpdateSimpleCache(std::get<HANDLED_HASH>(*task), *entry_to_store);
         TagEntry(*incoming, std::get<HANDLED_HASH>(*task));
         stored = true;
