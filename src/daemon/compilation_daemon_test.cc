@@ -5,6 +5,7 @@
 
 #include <base/file/file.h>
 #include <base/process.h>
+#include <base/process_impl.h>
 #include <base/temporary_dir.h>
 
 #include <gtest/gtest.h>
@@ -120,6 +121,47 @@ TEST(CompilationDaemonTest, FindSpecialFile) {
   flags.set_input("a.cc");
   flags.set_output(".");
   EXPECT_TRUE(CompilationDaemon::FindSpecialFile(flags, temp_dir, &path));
+}
+
+TEST(CompilationDaemonTest, CompilerIdentityOfDriverMode) {
+  // The other tests may leave the fake processes.
+  base::Process::SetFactory<base::Process::DefaultFactory>();
+  const base::TemporaryDir temp_dir;
+  // The fake driver takes the language of ".c" sources from its name, like
+  // clang does, and shows its current directory.
+  const auto driver = temp_dir.path() / "driver";
+  ASSERT_TRUE(base::File::Write(driver,
+                                "#!/bin/sh\n"
+                                "lang=\n"
+                                "while [ $# -gt 0 ]; do\n"
+                                "  case \"$1\" in\n"
+                                "    -x) lang=$2; shift;;\n"
+                                "    *.c) case \"$0\" in\n"
+                                "           *++) lang=${lang:-c++};;\n"
+                                "           *) lang=${lang:-c};;\n"
+                                "         esac;;\n"
+                                "  esac\n"
+                                "  shift\n"
+                                "done\n"
+                                "echo \"-cc1 -fdebug-compilation-dir=$(pwd) "
+                                "-x $lang\" >&2\n"_l));
+  std::filesystem::permissions(driver, std::filesystem::perms::owner_all);
+  const auto c_driver = temp_dir.path() / "clang";
+  const auto cxx_driver = temp_dir.path() / "clang++";
+  std::filesystem::create_symlink(driver, c_driver);
+  std::filesystem::create_symlink(driver, cxx_driver);
+
+  CompilerIdentity identities;
+  String c_identity, cxx_identity, error;
+  ASSERT_TRUE(identities.Get(c_driver, &c_identity, &error)) << error;
+  ASSERT_TRUE(identities.Get(cxx_driver, &cxx_identity, &error)) << error;
+  EXPECT_NE(c_identity, cxx_identity);
+
+  // The identity is the same after the restart of the daemon.
+  CompilerIdentity other_identities;
+  String identity;
+  ASSERT_TRUE(other_identities.Get(c_driver, &identity, &error)) << error;
+  EXPECT_EQ(c_identity, identity);
 }
 
 TEST(CompilationDaemonTest, ParseImplicitIncludeDirs) {

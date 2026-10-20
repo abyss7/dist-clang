@@ -5,6 +5,7 @@
 #include <base/logging.h>
 #include <base/process_impl.h>
 #include <base/string_utils.h>
+#include <base/temporary_dir.h>
 
 #include <base/using_log.h>
 
@@ -41,25 +42,52 @@ bool CompilerIdentity::Get(const String& path, String* identity,
 
   // The dry run shows the effective defaults of the compiler: version, target,
   // include paths, configuration files, etc.
-  auto process = base::Process::Create(path, Path("/"), base::Process::SAME_UID);
-  process->AppendArg("-###"_l)
-      .AppendArg("-c"_l)
-      .AppendArg("-x"_l)
-      .AppendArg("c++"_l)
-      .AppendArg("/dev/null"_l)
-      .AppendArg("-o"_l)
-      .AppendArg("/dev/null"_l);
-  if (!process->Run(60, error)) {
-    if (error && error->empty()) {
-      error->assign("Dry run of " + path + " failed: " +
-                    process->stderr().string_copy());
+  String output = binary_hash;
+  auto DryRun = [&](const Path& dir, const List<Literal>& args) {
+    auto process = base::Process::Create(path, dir, base::Process::SAME_UID);
+    process->AppendArg("-###"_l).AppendArg("-c"_l);
+    for (const auto& arg : args) {
+      process->AppendArg(arg);
     }
+    process->AppendArg("-o"_l).AppendArg("/dev/null"_l);
+    if (!process->Run(60, error)) {
+      if (error && error->empty()) {
+        error->assign("Dry run of " + path + " failed: " +
+                      process->stderr().string_copy());
+      }
+      return false;
+    }
+    output += "\n" + process->stdout().string_copy() + "\n" +
+              process->stderr().string_copy();
+    return true;
+  };
+  if (!DryRun(Path("/"), {"-x"_l, "c++"_l, "/dev/null"_l})) {
     return false;
   }
 
-  Immutable::Rope rope = {Immutable(binary_hash), process->stdout(),
-                          process->stderr()};
-  *identity = base::Hexify(Immutable(rope).Hash());
+  // The language of a C source depends on the driver mode, that may be set by
+  // the name of the executable: e.g. "clang++" compiles it as C++. The source
+  // must exist, but the temporary directory mustn't change the identity.
+  const base::TemporaryDir temp_dir;
+  if (!base::File::Write(temp_dir.path() / "x.c", Immutable(), error)) {
+    return false;
+  }
+  const size_t c_output_start = output.size();
+  if (!DryRun(temp_dir.path(), {"x.c"_l})) {
+    return false;
+  }
+  String c_output = output.substr(c_output_start);
+  output.resize(c_output_start);
+  for (const String& dir :
+       {std::filesystem::canonical(temp_dir.path(), ec).string(),
+        temp_dir.path().string()}) {
+    if (!dir.empty()) {
+      base::Replace(c_output, dir.c_str(), "<dir>");
+    }
+  }
+  output += c_output;
+
+  *identity = base::Hexify(Immutable(output).Hash());
 
   LOG(VERBOSE) << "Identity of compiler " << path << " is " << *identity;
 
