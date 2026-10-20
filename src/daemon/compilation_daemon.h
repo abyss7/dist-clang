@@ -47,6 +47,13 @@ class CompilationDaemon : public BaseDaemon {
                                    Immutable deps, i64 time,
                                    const List<String>& more_inputs = {});
 
+  // The daemon serves only the clients of its own user: otherwise they could
+  // run any program as this user - the compiler is the client's. The daemon
+  // of root serves anyone, but compiles only as the user of the client, and
+  // removes the tags only for root. Sets the |reason| of the refusal.
+  static bool MayServe(ui32 daemon_uid, ui32 peer_uid,
+                       const net::proto::Universal& message, String* reason);
+
   // The command line in the key of the direct cache.
   static String DirectCommandLine(const String& current_dir,
                                   const base::proto::Flags& flags);

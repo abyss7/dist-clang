@@ -642,6 +642,20 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
     return connection->ReportStatus(status);
   }
 
+  // The socket may be reachable by other users - e.g. in "/tmp".
+  if (const int fd = connection->NativeHandle(); fd != -1) {
+    ui32 peer_uid = 0;
+    String reason = "Can't get the user of the client";
+    if (!net::Connection::SocketPeerUid(fd, &peer_uid) ||
+        !MayServe(getuid(), peer_uid, *message, &reason)) {
+      LOG(WARNING) << reason;
+      net::proto::Status status;
+      status.set_code(net::proto::Status::BAD_MESSAGE);
+      status.set_description(reason);
+      return connection->ReportStatus(status);
+    }
+  }
+
   if (message->has_local()) {
     Message execute(message->release_local());
 

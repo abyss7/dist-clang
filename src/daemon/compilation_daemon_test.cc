@@ -15,6 +15,47 @@
 namespace dist_clang {
 namespace daemon {
 
+TEST(CompilationDaemonTest, ServeOnlyOwnUser) {
+  net::proto::Universal compile, stats, tags, dry_run, forget, ghosts;
+  compile.mutable_local()->set_user_id(1000);
+  compile.mutable_local()->set_current_dir("/");
+  stats.mutable_report();
+  tags.mutable_tags_request();
+  dry_run.mutable_tags_request()->set_forget("branch");
+  forget.mutable_tags_request()->set_forget("branch");
+  forget.mutable_tags_request()->set_dry_run(false);
+  ghosts.mutable_tags_request()->set_forget_ghosts(true);
+  const List<const net::proto::Universal*> all = {
+      &compile, &stats, &tags, &dry_run, &forget, &ghosts};
+
+  String reason;
+  for (const auto* message : all) {
+    // The own user.
+    EXPECT_TRUE(CompilationDaemon::MayServe(1000, 1000, *message, &reason));
+    // Another user.
+    EXPECT_FALSE(CompilationDaemon::MayServe(1000, 1001, *message, &reason));
+    EXPECT_FALSE(reason.empty());
+    reason.clear();
+    // Root is trusted anyway.
+    EXPECT_TRUE(CompilationDaemon::MayServe(1000, 0, *message, &reason));
+  }
+
+  // The daemon of root compiles only as the user of the client.
+  EXPECT_TRUE(CompilationDaemon::MayServe(0, 1000, compile, &reason));
+  EXPECT_FALSE(CompilationDaemon::MayServe(0, 1001, compile, &reason));
+  net::proto::Universal no_user;
+  no_user.mutable_local()->set_current_dir("/");
+  EXPECT_FALSE(CompilationDaemon::MayServe(0, 1000, no_user, &reason));
+  EXPECT_TRUE(CompilationDaemon::MayServe(0, 0, no_user, &reason));
+  // And removes the tags only for root.
+  EXPECT_TRUE(CompilationDaemon::MayServe(0, 1000, stats, &reason));
+  EXPECT_TRUE(CompilationDaemon::MayServe(0, 1000, tags, &reason));
+  EXPECT_TRUE(CompilationDaemon::MayServe(0, 1000, dry_run, &reason));
+  EXPECT_FALSE(CompilationDaemon::MayServe(0, 1000, forget, &reason));
+  EXPECT_FALSE(CompilationDaemon::MayServe(0, 1000, ghosts, &reason));
+  EXPECT_TRUE(CompilationDaemon::MayServe(0, 0, forget, &reason));
+}
+
 TEST(CompilationDaemonTest, CreateProcessFromFlags) {
   const List<Literal> expected_args = {
       "-cc1"_l,

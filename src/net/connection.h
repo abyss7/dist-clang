@@ -42,6 +42,9 @@ class Connection : public std::enable_shared_from_this<Connection> {
   // Differs between the platforms - in "connection_<os>.cc".
   static bool IsSocketPeerGone(int fd);
 
+  // The user of the process on the other end of the unix socket.
+  static bool SocketPeerUid(int fd, ui32* uid);
+
   virtual bool ReadAsync(ReadCallback callback) = 0;
   virtual bool ReadSync(Message* message, Status* status = nullptr) = 0;
 

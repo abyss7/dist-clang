@@ -37,6 +37,7 @@ executable("unit_tests") {
     "//src/daemon/driver_args_test.cc",
     "//src/daemon/emitter_test.cc",
     "//src/daemon/outputs_test.cc",
+    "//src/net/connection_test.cc",
     "//src/net/event_loop_linux_test.cc",
     "//src/net/event_loop_mac_test.cc",
     "//src/net/network_service_impl_linux_test.cc",

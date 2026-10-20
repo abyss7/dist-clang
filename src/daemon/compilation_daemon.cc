@@ -1006,6 +1006,37 @@ bool CompilationDaemon::HandleTagsRequest(
       needed);
 }
 
+// static
+bool CompilationDaemon::MayServe(ui32 daemon_uid, ui32 peer_uid,
+                                 const net::proto::Universal& message,
+                                 String* reason) {
+  if (peer_uid == daemon_uid || peer_uid == 0) {
+    return true;
+  }
+  if (daemon_uid != 0) {
+    reason->assign("The client of the user " + std::to_string(peer_uid) +
+                   " isn't served by the daemon of the user " +
+                   std::to_string(daemon_uid));
+    return false;
+  }
+
+  if (message.has_local() && (!message.local().has_user_id() ||
+                              message.local().user_id() != peer_uid)) {
+    reason->assign("The client of the user " + std::to_string(peer_uid) +
+                   " can't compile as another user");
+    return false;
+  }
+  if (message.has_tags_request()) {
+    const auto& request = message.tags_request();
+    if (request.forget_ghosts() ||
+        (request.has_forget() && !request.dry_run())) {
+      reason->assign("Only root removes the tags of the shared cache");
+      return false;
+    }
+  }
+  return true;
+}
+
 void CompilationDaemon::RemoveFromCache(const HandledHash& hash) {
   if (cache_) {
     cache_->Remove(hash);
