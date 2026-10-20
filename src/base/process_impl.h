@@ -25,6 +25,9 @@ class ProcessImpl : public Process {
   explicit ProcessImpl(const Path& exec_path, const Path& cwd_path = Path(),
                        ui32 uid = SAME_UID);
 
+  // Checks before |fork()| that the arguments and the environment fit into
+  // the arrays of |RunChild()|.
+  bool CheckLimits(String* error) const;
   bool RunChild(Pipe& out, Pipe& err, Pipe* in);
 
   // The parts, that differ between the platforms - in "process_impl_<os>.cc".

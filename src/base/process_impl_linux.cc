@@ -50,7 +50,9 @@ void ProcessImpl::DieWithParent(pid_t parent) {
 }
 
 bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
-  CHECK(args_.size() + 1 < MAX_ARGS);
+  if (!CheckLimits(error)) {
+    return false;
+  }
 
   if (cancel_requested_) {
     canceled_ = true;
@@ -194,7 +196,9 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
 }
 
 bool ProcessImpl::Run(ui16 sec_timeout, Immutable input, String* error) {
-  CHECK(args_.size() + 1 < MAX_ARGS);
+  if (!CheckLimits(error)) {
+    return false;
+  }
 
   Pipe in, out, err;
   if (!in.IsValid()) {

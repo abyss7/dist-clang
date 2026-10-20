@@ -189,6 +189,26 @@ TEST_F(ProcessTest, TooManyArgs) {
   ASSERT_THROW_STD(process->Run(1), "Assertion failed: .* < MAX_ARGS");
 }
 
+TEST_F(ProcessTest, TooManyEnvs) {
+  // The environment comes from the client - the daemon mustn't crash on it.
+  auto create = [] {
+    ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+    process->AppendArg("-c"_l).AppendArg("true"_l);
+    for (auto i = 0u; i < ProcessImpl::MAX_ARGS + 2; ++i) {
+      process->AddEnv(("VAR" + std::to_string(i)).c_str(), "value");
+    }
+    return process;
+  };
+
+  String error;
+  EXPECT_FALSE(create()->Run(1, &error));
+  EXPECT_EQ("Too many environment variables", error);
+
+  error.clear();
+  EXPECT_FALSE(create()->Run(1, "input"_l, &error));
+  EXPECT_EQ("Too many environment variables", error);
+}
+
 TEST_F(ProcessTest, CancelOnDisconnect) {
   int sockets[2];
   ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM, 0, sockets));

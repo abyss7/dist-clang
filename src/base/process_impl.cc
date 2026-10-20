@@ -31,6 +31,19 @@ void ProcessImpl::Cancel() {
   }
 }
 
+bool ProcessImpl::CheckLimits(String* error) const {
+  CHECK(args_.size() + 1 < MAX_ARGS);
+
+  if (envs_.size() >= MAX_ARGS) {
+    if (error) {
+      error->assign("Too many environment variables");
+    }
+    return false;
+  }
+
+  return true;
+}
+
 // This method contains code between |fork()| and |exec()|. Since we're in a
 // multi-threaded program, we have to obey the POSIX recommendations about
 // calling only async-signal-safe functions ( see http://goo.gl/kfGvPV ). Also,
