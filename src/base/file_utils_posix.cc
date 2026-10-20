@@ -20,6 +20,17 @@
 namespace dist_clang {
 namespace base {
 
+String FileVersion(const String& path) {
+  struct stat st;
+  if (stat(path.c_str(), &st) == -1) {
+    return String();
+  }
+  return std::to_string(st.st_dev) + ":" + std::to_string(st.st_ino) + ":" +
+         std::to_string(st.st_size) + ":" +
+         std::to_string(ModificationTime(st)) + ":" +
+         std::to_string(StatusChangeTime(st));
+}
+
 void WalkDirectory(
     const Path& path,
     Fn<void(const Path& file_path, ui64 mtime, ui64 size)> visitor,

@@ -87,6 +87,21 @@ TEST(FileUtilsTest, WalkDirectoryWithVanishedFiles) {
   EXPECT_TRUE(error.empty()) << error;
 }
 
+TEST(FileUtilsTest, FileVersion) {
+  const TemporaryDir temp_dir;
+  const String path = temp_dir.path() / "dist-clangd";
+  EXPECT_TRUE(FileVersion(path).empty());
+
+  ASSERT_TRUE(File::Write(path, "old"_l));
+  const String old_version = FileVersion(path);
+  EXPECT_FALSE(old_version.empty());
+  EXPECT_EQ(old_version, FileVersion(path));
+
+  // The new version is installed - with the same size.
+  ASSERT_TRUE(File::Write(path, "new"_l));
+  EXPECT_NE(old_version, FileVersion(path));
+}
+
 TEST(FileUtilsTest, TempFile) {
   String error;
   const String temp_file = CreateTempFile(&error);

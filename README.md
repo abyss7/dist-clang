@@ -25,7 +25,7 @@ Run the compiler through the client:
 
     dist-clang clang++ -c foo.cc -o foo.o
 
-The first invocation starts the daemon in background. For build systems:
+The first invocation starts the daemon in background. It exits within seconds after its executable is replaced, e.g. by a new version: the next invocation starts the new one. For build systems:
 
 - GN: use the client as a prefix of the compiler in the toolchain, e.g. `cxx = "dist-clang clang++"`.
 - CMake: `-DCMAKE_C_COMPILER_LAUNCHER=dist-clang -DCMAKE_CXX_COMPILER_LAUNCHER=dist-clang`.

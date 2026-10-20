@@ -1,4 +1,5 @@
 #include <base/c_utils.h>
+#include <base/file_utils.h>
 #include <base/logging.h>
 #include <base/platform.h>
 #include <daemon/absorber.h>
@@ -8,6 +9,7 @@
 #include <daemon/emitter.h>
 
 #include STL(iostream)
+#include STL(thread)
 
 #include <fcntl.h>
 #include <signal.h>
@@ -43,6 +45,31 @@ bool LockSocket(const daemon::Configuration& configuration) {
     LOG(FATAL) << "Can't open lock file " << lock_path << ": " << error;
   }
   return flock(fd, LOCK_EX | LOCK_NB) == 0;
+}
+
+// The autostarted daemon exits, when its executable is replaced - e.g. by a
+// new version: the next client starts the new one. Otherwise the old version
+// would work until the user stops it.
+void ExitOnUpdate() {
+  String path, error;
+  if (!base::GetSelfExecutable(path, &error)) {
+    LOG(WARNING) << "Can't watch the executable for updates: " << error;
+    return;
+  }
+  const String version = base::FileVersion(path);
+  std::thread([path, version] {
+    base::SetCurrentThreadName("Update Watcher"_l);
+    while (true) {
+      std::this_thread::sleep_for(std::chrono::seconds(10));
+      // The executable may be missing for a while during the installation.
+      const String current = base::FileVersion(path);
+      if (!current.empty() && current != version) {
+        LOG(INFO) << "The executable " << path << " is updated - exiting";
+        kill(getpid(), SIGTERM);
+        return;
+      }
+    }
+  }).detach();
 }
 
 }  // namespace
@@ -122,6 +149,10 @@ int main(int argc, char* argv[]) {
 
   if (!daemon->Initialize()) {
     LOG(FATAL) << "Daemon failed to initialize.";
+  }
+
+  if (configuration.autostart()) {
+    ExitOnUpdate();
   }
 
   int sig;
