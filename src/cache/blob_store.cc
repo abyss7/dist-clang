@@ -276,7 +276,8 @@ ui32 BlobStore::RemoveUnreferenced(ui64 time) {
 }
 
 ui32 BlobStore::CompressUnused(ui64 time, ui64 max_size,
-                               Clock::time_point deadline) {
+                               Clock::time_point deadline,
+                               const HashSet<String>& kept) {
   if (compression_ == proto::NONE) {
     return 0;
   }
@@ -287,7 +288,7 @@ ui32 BlobStore::CompressUnused(ui64 time, ui64 max_size,
     if (compressed_size >= max_size || Clock::now() >= deadline) {
       break;
     }
-    if (blob.access_time > time) {
+    if (blob.access_time > time || kept.contains(hash)) {
       continue;
     }
 

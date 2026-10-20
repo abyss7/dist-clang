@@ -57,10 +57,11 @@ class BlobStore {
   ui32 RemoveUnreferenced(ui64 time);
 
   // Compresses the blobs, that aren't linked with other places, and weren't
-  // used since |time|. Stops after |max_size| bytes, or at |deadline|.
-  // Returns the number of the compressed blobs.
+  // used since |time| - except the |kept| ones. Stops after |max_size| bytes,
+  // or at |deadline|. Returns the number of the compressed blobs.
   ui32 CompressUnused(ui64 time, ui64 max_size,
-                      Clock::time_point deadline = Clock::time_point::max());
+                      Clock::time_point deadline = Clock::time_point::max(),
+                      const HashSet<String>& kept = HashSet<String>());
 
   // The size on the disk, and if the blob is linked with other places - e.g.
   // with build directories, so its removal doesn't free the space.

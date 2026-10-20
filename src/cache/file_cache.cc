@@ -1135,6 +1135,20 @@ bool FileCache::IsIsolated(const String& entry) const {
   return false;
 }
 
+bool FileCache::LeadsToIsolated(const String& direct_entry) {
+  Vector<String> targets;
+  {
+    std::lock_guard<Mutex> lock(blob_refs_mutex_);
+    auto it = direct_entries_.find(direct_entry);
+    if (it == direct_entries_.end()) {
+      return false;
+    }
+    targets = it->second;
+  }
+  return std::any_of(targets.begin(), targets.end(),
+                     [this](const String& target) { return IsIsolated(target); });
+}
+
 bool FileCache::InScope(const String& entry, const String& scope) const {
   std::shared_lock<std::shared_mutex> lock(scopes_mutex_);
   auto it = scopes_.find(scope);
@@ -2218,9 +2232,23 @@ ui32 FileCache::CompressColdEntries() {
   const auto kMaxTimePerPass = std::chrono::seconds(2);
   const ui64 now = time(nullptr);
   std::lock_guard<Mutex> lock(blob_refs_mutex_);
+  // The hits of the isolated tags shouldn't depend on the time since their
+  // last use: they never uncompress.
+  HashSet<String> kept;
+  {
+    std::shared_lock<std::shared_mutex> scopes_lock(scopes_mutex_);
+    for (const auto& [tag, entries] : scopes_) {
+      for (const auto& entry : entries) {
+        auto it = entry_blobs_.find(entry);
+        if (it != entry_blobs_.end()) {
+          kept.insert(it->second.begin(), it->second.end());
+        }
+      }
+    }
+  }
   return blobs_.CompressUnused(now - std::min(now, compress_after_),
                                kMaxCompressedSizePerPass,
-                               Clock::now() + kMaxTimePerPass);
+                               Clock::now() + kMaxTimePerPass, kept);
 }
 
 bool FileCache::LoadEntryInfo(string::Hash hash, EntryInfo* info) const {
@@ -2520,7 +2548,8 @@ void FileCache::Evict() {
         freed >= need_to_free) {
       break;
     }
-    if (!entry_own_size) {
+    if (!entry_own_size || IsIsolated(hash_str) ||
+        (std::get<SQLite::DIRECT>(entry) && LeadsToIsolated(hash_str))) {
       continue;
     }
     // The direct entries are small: their removal frees almost nothing on the

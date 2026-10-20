@@ -51,6 +51,7 @@ FORWARD_TEST(FileCacheTest, TimeTraces);
 FORWARD_TEST(FileCacheTest, DirectEntriesOfTags);
 FORWARD_TEST(FileCacheTest, RemoveDirectEntriesOfRemovedEntries);
 FORWARD_TEST(FileCacheTest, IsolatedTags);
+FORWARD_TEST(FileCacheTest, KeepEntriesOfIsolatedTags);
 FORWARD_TEST(FileCacheTest, DirectEntry_IsolatedTagsKeepVariants);
 
 enum ExtraFileType {
@@ -211,7 +212,8 @@ class FileCache {
   inline void SetMinFreePercent(ui32 percent) { min_free_percent_ = percent; }
 
   // With linked outputs: compresses the outputs, that aren't linked with build
-  // directories anymore, and weren't used for |seconds|. Zero disables it.
+  // directories anymore, and weren't used for |seconds| - except the outputs of
+  // the isolated tags. Zero disables it.
   inline void SetCompressAfter(ui64 seconds) { compress_after_ = seconds; }
 
   // Stores the traces of the time of the compilations. Otherwise they're
@@ -224,7 +226,8 @@ class FileCache {
 
   // The tags of the builds, that see only their own entries - e.g. for the
   // reference measurements: the lookups in the scope of such tag find only
-  // the entries with it. Other lookups find them too. Set before |Run()|.
+  // the entries with it. Other lookups find them too. Such entries aren't
+  // evicted and compressed - only forgotten with the tag. Set before |Run()|.
   inline void SetIsolatedTags(const Vector<String>& tags) {
     isolated_tags_ = HashSet<String>(tags.begin(), tags.end());
   }
@@ -376,6 +379,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, DirectEntriesOfTags);
   FRIEND_TEST(FileCacheTest, RemoveDirectEntriesOfRemovedEntries);
   FRIEND_TEST(FileCacheTest, IsolatedTags);
+  FRIEND_TEST(FileCacheTest, KeepEntriesOfIsolatedTags);
   FRIEND_TEST(FileCacheTest, DirectEntry_IsolatedTagsKeepVariants);
   FRIEND_TEST(FileCacheTest, ReportSizes);
   FRIEND_TEST(FileCacheTest, Ghosts);
@@ -520,7 +524,8 @@ class FileCache {
   // Remembers the removed entry, that freed |size| - before the removal.
   void AddGhost(string::Hash hash, ui64 size, GhostIndex::Reason reason);
 
-  // Removes entries, if the cache is too large, or the disk is too full.
+  // Removes entries, if the cache is too large, or the disk is too full. The
+  // entries of the isolated tags count, but stay - with their direct entries.
   void Evict();
 
   // If any blob of the entry is hard-linked with other places.
@@ -575,6 +580,8 @@ class FileCache {
   bool InScope(const String& entry, const String& scope) const;
   // If the entry has any isolated tag.
   bool IsIsolated(const String& entry) const;
+  // If the direct entry leads to any entry with an isolated tag.
+  bool LeadsToIsolated(const String& direct_entry);
   // Puts the entries, that have the |tag|, into its scope - and removes
   // others from it, unless |keep_others|.
   void UpdateScope(const String& tag, bool keep_others);

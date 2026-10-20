@@ -1897,6 +1897,60 @@ TEST(FileCacheTest, EvictNeverHitEntriesFirst) {
   EXPECT_TRUE(cache.Find(Hash(2), &entry3));
 }
 
+TEST(FileCacheTest, KeepEntriesOfIsolatedTags) {
+  const base::TemporaryDir temp_dir;
+  const auto header_path = temp_dir.path() / "test.h";
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  const UnhandledSource code("#include \"test.h\""_l);
+  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, proto::ZSTD,
+                  true, true);
+  cache.SetIsolatedTags({"bench"});
+  cache.SetCompressAfter(1);
+  ASSERT_TRUE(cache.Run(3600));
+
+  // The outputs aren't linked with the build directory anymore.
+  auto Store = [&](const String& content) {
+    const auto object_path = temp_dir.path() / "test.o";
+    EXPECT_TRUE(base::File::Write(object_path, Immutable(content)));
+    const auto hash = FileCache::Hash(HandledSource(Immutable(content)), {},
+                                      cl, version);
+    FileCache::Entry entry;
+    entry.object_path = object_path;
+    entry.deps = "deps"_l;
+    cache.Store(hash, entry);
+    EXPECT_TRUE(base::File::Delete(object_path));
+    return hash;
+  };
+  const String bench_object(100000, 'b'), other_object(100000, 'o');
+  const auto bench_hash = Store(bench_object);
+  const auto other_hash = Store(other_object);
+  cache.AddTags(bench_hash, {"bench"});
+  ASSERT_TRUE(base::File::Write(header_path, "#define A"_l));
+  cache.Store(code, {}, cl, version, {header_path}, {}, temp_dir, bench_hash,
+              String(), {}, CompilationTime(), "bench");
+  cache.FlushAccesses();
+  cache.WaitForCleaner();
+  std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+
+  // Only the outputs of others are compressed.
+  const String bench_blob = base::Hexify(Immutable(String(bench_object)).Hash());
+  const String other_blob = base::Hexify(Immutable(String(other_object)).Hash());
+  EXPECT_EQ(1u, cache.CompressColdEntries());
+  EXPECT_TRUE(base::File::Exists(cache.blobs_.RawPath(bench_blob)));
+  EXPECT_FALSE(base::File::Exists(cache.blobs_.RawPath(other_blob)));
+
+  // Only the entries of others are evicted - the direct entry of the isolated
+  // tag stays too.
+  cache.max_size_ = 1;
+  cache.Maintain();
+  FileCache::Entry entry;
+  EXPECT_FALSE(cache.Find(other_hash, &entry));
+  EXPECT_TRUE(cache.Find(bench_hash, &entry, "bench"));
+  EXPECT_TRUE(cache.Find(code, {}, cl, version, temp_dir, &entry, String(), {},
+                         "bench"));
+}
+
 TEST(FileCacheTest, KeepEntriesLinkedWithBuildDirs) {
   const base::TemporaryDir temp_dir;
   const auto object_path = temp_dir.path() / "test.o";
