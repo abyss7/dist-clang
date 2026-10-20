@@ -2820,6 +2820,10 @@ TEST_F(EmitterTest, VerifyHits) {
   Compile(3);
   EXPECT_EQ(1u, WaitForStat(perf::proto::Metric::HIT_VERIFICATION_FAILED, 1));
   EXPECT_EQ((List<String>{"verify"}), Runs());
+  // The wrong result in the build directory is replaced with the right one.
+  Immutable verified_content;
+  ASSERT_TRUE(base::File::Read(output_path, &verified_content));
+  EXPECT_EQ("another object"_l, verified_content);
 
   // The wrong entry is removed - in background.
   std::this_thread::sleep_for(std::chrono::milliseconds(200));

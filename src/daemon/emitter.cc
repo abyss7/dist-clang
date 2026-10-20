@@ -495,7 +495,12 @@ void Emitter::VerifyHit(base::proto::Local message, const String& handled_hash,
     return;
   }
 
-  // Nothing is written into the build directory.
+  // Nothing is written into the build directory - unless the restored result
+  // is wrong.
+  const String restored_output = GetOutputPath(&message);
+  const String restored_dwo =
+      flags->has_dwo_file() ? GetDwoPath(&message) : String();
+  const String output_lock_key = OutputLockKey(&message);
   const base::TemporaryDir temp_dir;
   const Path output_path = temp_dir.path() / "output.o";
   const Path dwo_path = temp_dir.path() / "output.dwo";
@@ -556,6 +561,33 @@ void Emitter::VerifyHit(base::proto::Local message, const String& handled_hash,
   LOG(ERROR) << "The cached result differs from the compilation of "
              << flags->input() << " in " << message.current_dir()
              << " - the cache entry " << handled_hash << " is removed";
+
+  // The build system takes the restored result for the right one - until the
+  // source is edited: it's replaced with the verified one, unless it's
+  // changed since. The new file doesn't change the linked copy in the cache.
+  {
+    OutputLocks::Lock output_lock(&output_locks_, output_lock_key);
+    auto Replace = [&](const Path& from, const String& to,
+                       const String& restored_hash) {
+      Immutable content;
+      String error;
+      if (!SameHash(to, restored_hash) || !base::File::Read(from, &content) ||
+          !base::File::Write(to, content, &error) ||
+          (message.has_user_id() &&
+           !base::ChangeOwner(to, message.user_id(), &error))) {
+        if (!error.empty()) {
+          LOG(WARNING) << "Failed to replace the wrong result " << to << ": "
+                       << error;
+        }
+        return false;
+      }
+      return true;
+    };
+    if (Replace(output_path, restored_output, object_hash) && has_dwo) {
+      Replace(dwo_path, restored_dwo, dwo_hash);
+    }
+  }
+
   STAT(HIT_VERIFICATION_FAILED);
   RemoveFromCache(cache::string::HandledHash(Immutable(handled_hash)));
 }
