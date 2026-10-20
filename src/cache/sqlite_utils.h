@@ -11,7 +11,10 @@ namespace cache {
 // database is removed and created anew: it's only an index of the cache, and
 // the missing entries are just cache misses.
 // Sets |created|, if the database is new: it didn't exist, or was broken.
-sqlite3* OpenDatabase(const String& path, bool* created = nullptr);
+// The |full_check| reads the whole database - for the starts after a crash.
+// Otherwise only the header is checked.
+sqlite3* OpenDatabase(const String& path, bool* created = nullptr,
+                      bool full_check = true);
 
 }  // namespace cache
 }  // namespace dist_clang

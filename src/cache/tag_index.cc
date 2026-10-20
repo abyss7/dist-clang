@@ -36,9 +36,9 @@ bool Exec(sqlite3* db, const char* sql) {
 
 }  // namespace
 
-TagIndex::TagIndex(const String& path, const String& name)
+TagIndex::TagIndex(const String& path, const String& name, bool full_check)
     : path_(path + "/" + name + ".sqlite") {
-  db_ = OpenDatabase(path_);
+  db_ = OpenDatabase(path_, nullptr, full_check);
   CHECK(Exec(db_,
              "PRAGMA journal_mode=WAL;"
              "PRAGMA synchronous=NORMAL;"

@@ -1,6 +1,10 @@
 #include <cache/database_sqlite.h>
 
+#include <base/const_string.h>
+#include <base/file/file.h>
 #include <base/temporary_dir.h>
+#include <cache/sqlite3.h>
+#include <cache/sqlite_utils.h>
 
 #include <gtest/gtest.h>
 
@@ -27,6 +31,44 @@ TEST(SQLiteTest, OldHitsDontKeepEntries) {
     order.push_back(hash);
   }
   EXPECT_EQ((List<String>{"old", "old_hit", "fresh", "recent_hit"}), order);
+}
+
+TEST(SQLiteTest, FullCheckOnlyOnDemand) {
+  const base::TemporaryDir temp_dir;
+  const String path = temp_dir.path() / "test.sqlite";
+
+  // Many pages - the damage in the middle is found only by the full check.
+  {
+    sqlite3* db = OpenDatabase(path);
+    ASSERT_EQ(SQLITE_OK,
+              sqlite3_exec(db,
+                           "CREATE TABLE t(v TEXT);"
+                           "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL "
+                           "SELECT i + 1 FROM n WHERE i < 2000) "
+                           "INSERT INTO t SELECT printf('%0200d', i) FROM n;",
+                           nullptr, nullptr, nullptr));
+    sqlite3_close(db);
+  }
+  Immutable contents;
+  ASSERT_TRUE(base::File::Read(path, &contents));
+  ASSERT_LT(20 * 4096u, contents.size());
+  String damaged = contents.string_copy();
+  damaged.replace(10 * 4096, 4096, String(4096, '\xff'));
+  ASSERT_TRUE(base::File::Write(path, Immutable(String(damaged))));
+
+  // The quick start: the database stays.
+  bool created = true;
+  sqlite3_close(OpenDatabase(path, &created, false));
+  EXPECT_FALSE(created);
+
+  // E.g. after a crash.
+  sqlite3_close(OpenDatabase(path, &created, true));
+  EXPECT_TRUE(created);
+
+  // Not a database at all - recreated even without the full check.
+  ASSERT_TRUE(base::File::Write(path, Immutable(String(8192, 'x'))));
+  sqlite3_close(OpenDatabase(path, &created, false));
+  EXPECT_TRUE(created);
 }
 
 }  // namespace cache

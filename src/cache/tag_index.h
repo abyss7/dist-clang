@@ -10,7 +10,8 @@ namespace cache {
 // Persistent tags of the cache entries - e.g. the branches, that used them.
 class TagIndex {
  public:
-  TagIndex(const String& path, const String& name);
+  // The |full_check| of the database - see |OpenDatabase()|.
+  TagIndex(const String& path, const String& name, bool full_check = true);
   ~TagIndex();
 
   // Replaces the tags of the |entry|.

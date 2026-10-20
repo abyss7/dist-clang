@@ -64,9 +64,9 @@ SQLite::SQLite() : path_(":memory:") {
   LOG(DB_INFO) << "SQLite database is created in-memory";
 }
 
-SQLite::SQLite(const String& path, const String& name)
+SQLite::SQLite(const String& path, const String& name, bool full_check)
     : path_(path + "/" + name + ".sqlite") {
-  db_ = OpenDatabase(path_, &created_);
+  db_ = OpenDatabase(path_, &created_, full_check);
   CreateTable();
   LOG(DB_INFO) << "SQLite database is opened on path " << path_;
 }

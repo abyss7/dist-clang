@@ -709,20 +709,22 @@ bool FileCache::Run(ui64 clean_period) {
   }
   RemoveOldCaches(path_);
 
-  database_.reset(new SQLiteKV(path_, "direct"));
-  tag_index_.reset(new TagIndex(path_, "tags"));
-  ghosts_.reset(new GhostIndex(path_, "ghosts"));
+  // The databases are read whole only after a crash: otherwise it takes
+  // seconds at every start of the big cache.
+  const Path running_path = path_ / kRunningFile;
+  const bool crashed = base::File::Exists(running_path);
+  database_.reset(new SQLiteKV(path_, "direct", crashed));
+  tag_index_.reset(new TagIndex(path_, "tags", crashed));
+  ghosts_.reset(new GhostIndex(path_, "ghosts", crashed));
   if (store_index_) {
-    entries_.reset(new SQLite(path_, "index"));
+    entries_.reset(new SQLite(path_, "index", crashed));
   } else {
     entries_.reset(new SQLite);
   }
 
   // The files are checked only after a crash, or with a new index: otherwise
   // the index has all entries.
-  const Path running_path = path_ / kRunningFile;
-  const bool check_files = entries_->created() ||
-                           base::File::Exists(running_path);
+  const bool check_files = entries_->created() || crashed;
   if (!base::File::Write(running_path, Immutable(std::to_string(getpid())),
                          &error)) {
     LOG(CACHE_ERROR) << "Failed to write " << running_path << ": " << error;

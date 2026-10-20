@@ -32,7 +32,8 @@ class SQLite
   };
 
   SQLite();
-  SQLite(const String& path, const String& name);
+  // The |full_check| of the database - see |OpenDatabase()|.
+  SQLite(const String& path, const String& name, bool full_check = true);
   ~SQLite() override;
 
   bool Get(const String& key, Value* value) const override;

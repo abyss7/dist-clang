@@ -12,7 +12,8 @@ namespace cache {
 // Simple persistent key-value storage on top of SQLite.
 class SQLiteKV : public Database<Immutable> {
  public:
-  SQLiteKV(const String& path, const String& name);
+  // The |full_check| of the database - see |OpenDatabase()|.
+  SQLiteKV(const String& path, const String& name, bool full_check = true);
   ~SQLiteKV() override;
 
   bool Set(const String& key, const Immutable& value) override THREAD_SAFE;

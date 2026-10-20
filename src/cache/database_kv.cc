@@ -40,9 +40,9 @@ class Statement {
 
 }  // namespace
 
-SQLiteKV::SQLiteKV(const String& path, const String& name)
+SQLiteKV::SQLiteKV(const String& path, const String& name, bool full_check)
     : path_(path + "/" + name + ".sqlite") {
-  db_ = OpenDatabase(path_);
+  db_ = OpenDatabase(path_, nullptr, full_check);
 
   char* error = nullptr;
   auto result = sqlite3_exec(db_,

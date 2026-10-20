@@ -38,7 +38,8 @@ class GhostIndex {
     Vector<String> tags;
   };
 
-  GhostIndex(const String& path, const String& name);
+  // The |full_check| of the database - see |OpenDatabase()|.
+  GhostIndex(const String& path, const String& name, bool full_check = true);
   ~GhostIndex();
 
   // The entry is removed at |time|.

@@ -13,23 +13,26 @@ namespace cache {
 
 namespace {
 
-bool IsIntact(sqlite3* db) {
+// The full check reads the whole database - seconds for the big ones. The
+// quick one reads only the header: e.g. it isn't a database at all.
+bool IsIntact(sqlite3* db, bool full_check) {
   sqlite3_stmt* stmt = nullptr;
-  if (sqlite3_prepare_v2(db, "PRAGMA quick_check", -1, &stmt, nullptr) !=
-      SQLITE_OK) {
+  if (sqlite3_prepare_v2(
+          db, full_check ? "PRAGMA quick_check" : "PRAGMA schema_version", -1,
+          &stmt, nullptr) != SQLITE_OK) {
     return false;
   }
 
   bool intact = sqlite3_step(stmt) == SQLITE_ROW &&
-                String(reinterpret_cast<const char*>(
-                    sqlite3_column_text(stmt, 0))) == "ok";
+                (!full_check || String(reinterpret_cast<const char*>(
+                                    sqlite3_column_text(stmt, 0))) == "ok");
   sqlite3_finalize(stmt);
   return intact;
 }
 
 }  // namespace
 
-sqlite3* OpenDatabase(const String& path, bool* created) {
+sqlite3* OpenDatabase(const String& path, bool* created, bool full_check) {
   if (created) {
     *created = access(path.c_str(), F_OK) != 0;
   }
@@ -38,7 +41,7 @@ sqlite3* OpenDatabase(const String& path, bool* created) {
       path.c_str(), &db,
       SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX,
       nullptr);
-  if (result == SQLITE_OK && IsIntact(db)) {
+  if (result == SQLITE_OK && IsIntact(db, full_check)) {
     return db;
   }
 
