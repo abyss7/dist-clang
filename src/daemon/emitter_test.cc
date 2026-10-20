@@ -2832,6 +2832,133 @@ TEST_F(EmitterTest, VerifyHits) {
   emitter.reset();
 }
 
+TEST_F(EmitterTest, VerifyHitsWithoutDeps) {
+  const base::TemporaryDir temp_dir;
+  const auto input_path = temp_dir.path() / "test.cc";
+  const auto header_path = temp_dir.path() / "test.h";
+  const auto output_path = temp_dir.path() / "test.o";
+  const String compiler_version = "fake_compiler_version";
+
+  ASSERT_TRUE(base::File::Write(input_path, "#include \"test.h\""_l));
+  ASSERT_TRUE(base::File::Write(header_path, "int a;"_l));
+
+  conf.mutable_cache()->set_path(temp_dir.path() / "cache");
+  conf.mutable_cache()->set_clean_period(1);
+  conf.mutable_emitter()->set_verify_hits_percent(100);
+
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path("fake_compiler_path");
+
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      send_condition.notify_all();
+    });
+    return true;
+  };
+
+  Mutex runs_mutex;
+  List<String> runs;
+  run_callback = [&](base::TestProcess* process) {
+    const Vector<String> args(process->args_.begin(), process->args_.end());
+    const Immutable input(input_path), header(header_path);
+    std::lock_guard<Mutex> lock(runs_mutex);
+    if (std::find(args.begin(), args.end(), "-E") != args.end()) {
+      process->stdout_ = Immutable("# 1 \""_l) + input + "\"\n# 1 \""_l +
+                         header + "\" 1\nint a;\n# 2 \""_l + input +
+                         "\" 2\n"_l;
+      runs.push_back("-E");
+      return;
+    }
+
+    String output;
+    for (size_t i = 0; i + 1 < args.size(); ++i) {
+      if (args[i] == "-o") {
+        output = args[i + 1];
+      }
+    }
+    const bool verification = output != String(output_path);
+    runs.push_back(verification ? "verify" : "compile");
+    // The header is edited after the hit - before the first verification.
+    const bool edited =
+        verification && std::count(runs.begin(), runs.end(), "verify") == 1;
+    if (edited) {
+      EXPECT_TRUE(base::File::Write(header_path, "int b;"_l));
+    }
+    EXPECT_TRUE(
+        base::File::Write(output, edited ? "another object"_l : "object"_l));
+    WriteDepsFile(process, Immutable("test.o: "_l) + input + " "_l + header);
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto Compile = [&](ui32 expected_send_count) {
+    auto connection = test_service->TriggerListen(socket_path);
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->mutable_local();
+    extension->set_current_dir(temp_dir);
+    auto* flags = extension->mutable_flags();
+    flags->set_input(input_path);
+    flags->set_output(output_path);
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action("-c");
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(1), [&] {
+      return send_count == expected_send_count;
+    }));
+  };
+
+  // The dump resets the metric.
+  HashMap<int, ui64> stats;
+  auto Stat = [&stats](perf::proto::Metric::Name name) {
+    perf::proto::Metric metric;
+    metric.set_name(name);
+    base::Singleton<perf::StatService>::Get().Dump(metric);
+    return stats[name] += metric.value();
+  };
+  auto WaitForStat = [&](perf::proto::Metric::Name name, ui64 value) {
+    for (int i = 0; i < 200 && Stat(name) < value; ++i) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return Stat(name);
+  };
+  auto Runs = [&] {
+    std::lock_guard<Mutex> lock(runs_mutex);
+    auto result = runs;
+    return result;
+  };
+
+  Compile(1);
+  EXPECT_EQ((List<String>{"-E", "compile"}), Runs());
+
+  // The header is edited before the verification: the different result
+  // doesn't mean, that the entry is wrong.
+  Compile(2);
+  for (int i = 0; i < 200 && Runs().size() < 4; ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  EXPECT_EQ(0u, Stat(perf::proto::Metric::HIT_VERIFICATION_FAILED));
+  EXPECT_EQ(0u, Stat(perf::proto::Metric::HIT_VERIFIED));
+
+  // The entry is kept.
+  Compile(3);
+  EXPECT_EQ(1u, WaitForStat(perf::proto::Metric::HIT_VERIFIED, 1));
+  EXPECT_EQ((List<String>{"-E", "compile", "-E", "verify", "-E", "verify"}),
+            Runs());
+
+  emitter.reset();
+}
+
 TEST_F(EmitterTest, NeverPreprocess) {
   const base::TemporaryDir temp_dir;
   const auto input_path = temp_dir.path() / "test.cc";

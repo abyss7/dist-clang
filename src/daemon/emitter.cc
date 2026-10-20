@@ -502,9 +502,14 @@ void Emitter::VerifyHit(base::proto::Local message, const String& handled_hash,
   const Path deps_path = temp_dir.path() / "deps.d";
   flags->clear_ignored();
   flags->set_output(output_path.string());
-  if (flags->has_deps_file()) {
-    RedirectDepsFile(flags, deps_path);
+  // The headers are known from the dependency file: their edits after the hit
+  // give another result too.
+  if (!flags->has_deps_file()) {
+    auto* arg = flags->add_non_direct();
+    arg->set_index(0);
+    arg->add_values("-MD");
   }
+  RedirectDepsFile(flags, deps_path);
   if (flags->has_dwo_file()) {
     // The object refers to the split DWARF file by its original name.
     auto* arg = flags->add_other();
@@ -531,10 +536,8 @@ void Emitter::VerifyHit(base::proto::Local message, const String& handled_hash,
 
   // The inputs, changed since the hit, give another result.
   Immutable deps;
-  if (flags->has_deps_file() && !base::File::Read(deps_path, &deps)) {
-    return;
-  }
-  if (!InputsUnchangedSince(&message, deps, hit_time)) {
+  if (!base::File::Read(deps_path, &deps) ||
+      !InputsUnchangedSince(&message, deps, hit_time)) {
     return;
   }
 
