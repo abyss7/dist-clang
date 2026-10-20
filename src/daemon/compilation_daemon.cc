@@ -96,8 +96,8 @@ void ReplacePathPrefix(String& text, const String& prefix,
   size_t pos = 0;
   while ((pos = text.find(prefix, pos)) != String::npos) {
     const size_t end = pos + prefix.size();
-    if ((end == text.size() || text[end] == '/' || text[end] == '"' ||
-         text[end] == ' ' || text[end] == '\n') &&
+    // The prefix maps have the old prefix before "=": "-ffile-prefix-map=/a=.".
+    if ((end == text.size() || strchr("/\" \n=,", text[end])) &&
         IsPathStart(text, pos)) {
       text.replace(pos, prefix.size(), placeholder);
       pos += strlen(placeholder);

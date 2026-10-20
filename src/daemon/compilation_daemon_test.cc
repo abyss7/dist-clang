@@ -331,6 +331,23 @@ TEST(CompilationDaemonTest, HashDoesntDependOnSourceRoot) {
             CompilationDaemon::GenerateHash(flags2, source3, {}));
 }
 
+TEST(CompilationDaemonTest, DirectKeyWithoutRootInPrefixMaps) {
+  auto Flags = [](const String& root) {
+    base::proto::Flags flags;
+    flags.set_input(root + "/src/a.cc");
+    flags.set_key_root(root);
+    flags.set_key_root_relative("..");
+    flags.set_key_root_remapped(true);
+    flags.add_other()->add_values("-ffile-prefix-map=" + root + "=.");
+    flags.add_other()->add_values("-fdebug-prefix-map=" + root + "=");
+    return flags;
+  };
+
+  // The root is mapped by the compiler as a whole, without a slash.
+  EXPECT_EQ(CompilationDaemon::DirectCommandLine("/build", Flags("/root1")),
+            CompilationDaemon::DirectCommandLine("/build", Flags("/root2")));
+}
+
 TEST(CompilationDaemonTest, DirectKeyKeepsRootInOtherFlags) {
   auto Flags = [](const String& root, const String& define) {
     base::proto::Flags flags;
