@@ -41,6 +41,13 @@ TEST(OutputsTest, HasSameContents) {
   EXPECT_FALSE(HasSameContents(output, cache_file, hash.string_copy()));
   EXPECT_FALSE(HasSameContents(output, "object"_l));
 
+  // The different sizes differ without hashing: the hash of the output
+  // doesn't matter then.
+  ASSERT_TRUE(base::File::Write(output, "objects"_l));
+  Immutable output_hash;
+  ASSERT_TRUE(base::File::Hash(output, &output_hash));
+  EXPECT_FALSE(HasSameContents(output, cache_file, output_hash.string_copy()));
+
   // The same file is the same without hashing.
   ASSERT_TRUE(base::File::Clone(cache_file, output, true));
   if (Inode(output) == Inode(cache_file)) {

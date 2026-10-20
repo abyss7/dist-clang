@@ -15,9 +15,14 @@ bool HasSameContents(const Path& path, const Path& cache_file,
   if (stat(path.c_str(), &st) == -1) {
     return false;
   }
-  if (!cache_file.empty() && stat(cache_file.c_str(), &cache_st) == 0 &&
-      st.st_dev == cache_st.st_dev && st.st_ino == cache_st.st_ino) {
-    return true;
+  if (!cache_file.empty() && stat(cache_file.c_str(), &cache_st) == 0) {
+    if (st.st_dev == cache_st.st_dev && st.st_ino == cache_st.st_ino) {
+      return true;
+    }
+    // The cache file isn't compressed - the sizes of the same contents match.
+    if (st.st_size != cache_st.st_size) {
+      return false;
+    }
   }
   if (cache_hash.empty()) {
     return false;
