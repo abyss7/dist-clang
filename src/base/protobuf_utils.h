@@ -19,6 +19,10 @@ Log& Log::operator<<(const google::protobuf::Message& info);
 
 bool LoadFromFile(const Path& path, google::protobuf::Message* message,
                   String* error = nullptr);
+// Sets only the fields from the file - the others stay. The message isn't
+// changed, if the file can't be read or parsed.
+bool MergeFromFile(const Path& path, google::protobuf::Message* message,
+                   String* error = nullptr);
 bool SaveToFile(const Path& path, const google::protobuf::Message& message,
                 String* error = nullptr);
 

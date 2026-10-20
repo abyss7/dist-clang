@@ -36,6 +36,25 @@ bool LoadFromFile(const Path& path, google::protobuf::Message* message,
   return true;
 }
 
+bool MergeFromFile(const Path& path, google::protobuf::Message* message,
+                   String* error) {
+  Immutable contents;
+  if (!File::Read(path, &contents, error)) {
+    return false;
+  }
+  UniquePtr<google::protobuf::Message> merged(message->New());
+  merged->CopyFrom(*message);
+  if (!google::protobuf::TextFormat::MergeFromString(contents.string_copy(),
+                                                     merged.get())) {
+    if (error) {
+      error->assign("Can't parse the file");
+    }
+    return false;
+  }
+  message->CopyFrom(*merged);
+  return true;
+}
+
 bool SaveToFile(const Path& path, const google::protobuf::Message& message,
                 String* error) {
   String output;

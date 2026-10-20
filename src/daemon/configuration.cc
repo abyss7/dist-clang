@@ -21,13 +21,14 @@ const char kUsage[] =
     "\n"
     "  --config=<path>  Path to the configuration file\n"
     "  --daemon         Daemonize after start\n"
-    "  --autostart      Run the local emitter in background - with the config\n"
-    "                   from the default path, if exists, or with defaults\n"
+    "  --autostart      Run the local emitter in background - with defaults,\n"
+    "                   changed by the config from the default path\n"
     "  --socket=<path>  The socket of the emitter instead of the configured\n"
     "                   one - e.g. the one, that the client has locked\n"
     "  --version        Print version and exit\n";
 
-// The configuration of the local emitter, when there is no config file.
+// The configuration of the autostarted local emitter - without the config file
+// or under it.
 void SetDefaults(proto::Configuration* config) {
   const ui32 threads = std::max(1u, std::thread::hardware_concurrency());
 
@@ -78,17 +79,23 @@ Configuration::Configuration(int argc, char* argv[]) {
     }
   }
 
-  if (autostart_ && config_path.empty()) {
-    config_path = base::DefaultDaemonConfigPath();
-    if (!base::File::Exists(config_path)) {
-      config_path.clear();
-      SetDefaults(&config_);
+  // The config of the autostarted daemon changes only some of the defaults:
+  // e.g. the size of the cache. If the config is broken, the defaults stay -
+  // the builds go on.
+  if (autostart_) {
+    SetDefaults(&config_);
+    if (config_path.empty()) {
+      config_path = base::DefaultDaemonConfigPath();
+      if (!base::File::Exists(config_path)) {
+        config_path.clear();
+      }
     }
   }
 
   String error;
   if (!config_path.empty() &&
-      !base::LoadFromFile(config_path, &config_, &error)) {
+      !(autostart_ ? base::MergeFromFile(config_path, &config_, &error)
+                   : base::LoadFromFile(config_path, &config_, &error))) {
     LOG(ERROR) << "Failed to read configuration from " << config_path << ": "
                << error;
   }
