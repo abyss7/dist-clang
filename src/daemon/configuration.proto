@@ -91,6 +91,13 @@ message Configuration {
     // cache - the traces are only produced by them - and the stored traces
     // are removed after the start.
 
+    repeated string isolated_tags = 19;
+    // The tags of the builds - see "dist-clang --tag" - that see only their
+    // own results in the cache: e.g. for the reference measurements of the
+    // incremental builds. Their lookups find only the entries with the tag,
+    // other builds find these entries too. The entries aren't evicted and
+    // compressed - only removed with "dist-clang --forget-tag".
+
     optional uint32 min_free_percent = 12 [ default = 5 ];
     // Remove entries, while the disk has less free space - even if the cache
     // isn't full. Entries, that are linked with build directories, are kept.

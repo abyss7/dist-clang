@@ -774,6 +774,8 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
 
     base::proto::Local* incoming = std::get<MESSAGE>(*task).get();
     cache::FileCache::Entry entry;
+    // The build of an isolated tag finds only its own entries.
+    const String scope = IsolatedTag(*incoming);
 
     // Returns |true|, if the task is handled - the outputs are restored, or the
     // client has got the failure, or is gone: only the restored ones are hits.
@@ -894,7 +896,8 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
         cache::FileCache::Entry again;
         const String found_hash = entry.handled_hash;
         if (!BlobGone() ||
-            !SearchSimpleCache(HandledHash(Immutable(found_hash)), &again)) {
+            !SearchSimpleCache(HandledHash(Immutable(found_hash)), &again,
+                               scope)) {
           LOG(ERROR) << "Failed to write file from cache: " << failed_path
                      << " : " << error;
           return false;
@@ -990,7 +993,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
 
     bool source_edited = false, source_seen = false;
     if (SearchDirectCache(incoming->flags(), incoming->current_dir(), &entry,
-                          &source_edited, &source_seen) &&
+                          scope, &source_edited, &source_seen) &&
         RestoreFromCache(HandledSource(), cache::ExtraFiles{})) {
       if (restored) {
         STAT(DIRECT_CACHE_HIT);
@@ -1075,7 +1078,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
 
         const auto handled_hash = GenerateHash(
             incoming->flags(), source, std::get<EXTRA_FILES>(*task));
-        if (SearchSimpleCache(handled_hash, &entry)) {
+        if (SearchSimpleCache(handled_hash, &entry, scope)) {
           if (!speculation->Cancel()) {
             // The compilation has ended already.
             continue;
@@ -1128,7 +1131,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
 
     auto& handled_hash = std::get<HANDLED_HASH>(*task);
     handled_hash = GenerateHash(incoming->flags(), source, extra_files);
-    if (SearchSimpleCache(handled_hash, &entry) &&
+    if (SearchSimpleCache(handled_hash, &entry, scope) &&
         RestoreFromCache(source, extra_files)) {
       if (restored) {
         STAT(SIMPLE_CACHE_HIT);

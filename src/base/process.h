@@ -54,6 +54,7 @@ FORWARD_TEST(EmitterTest, DontStoreIfInputsChangedDuringCompilation);
 FORWARD_TEST(EmitterTest, DontHitDirectCacheForSameContentsOfAnotherSource);
 FORWARD_TEST(EmitterTest, VerifyHits);
 FORWARD_TEST(EmitterTest, TagEntries);
+FORWARD_TEST(EmitterTest, IsolatedTags);
 FORWARD_TEST(EmitterTest, NeverPreprocess);
 FORWARD_TEST(EmitterTest, UpdateCacheWithoutLookup);
 FORWARD_TEST(EmitterTest, StoreTimeTraces);
@@ -168,6 +169,7 @@ class Process
               DontHitDirectCacheForSameContentsOfAnotherSource);
   FRIEND_TEST(daemon::EmitterTest, VerifyHits);
   FRIEND_TEST(daemon::EmitterTest, TagEntries);
+  FRIEND_TEST(daemon::EmitterTest, IsolatedTags);
   FRIEND_TEST(daemon::EmitterTest, NeverPreprocess);
   FRIEND_TEST(daemon::EmitterTest, UpdateCacheWithoutLookup);
   FRIEND_TEST(daemon::EmitterTest, StoreTimeTraces);

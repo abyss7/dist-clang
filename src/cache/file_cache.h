@@ -231,6 +231,9 @@ class FileCache {
   inline void SetIsolatedTags(const Vector<String>& tags) {
     isolated_tags_ = HashSet<String>(tags.begin(), tags.end());
   }
+  inline bool IsIsolatedTag(const String& tag) const {
+    return isolated_tags_.contains(tag);
+  }
 
   static string::HandledHash Hash(string::HandledSource code,
                                   const ExtraFiles& extra_files,

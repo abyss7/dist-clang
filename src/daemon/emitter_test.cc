@@ -3615,6 +3615,80 @@ TEST_F(EmitterTest, TagEntries) {
   emitter.reset();
 }
 
+TEST_F(EmitterTest, IsolatedTags) {
+  const base::TemporaryDir temp_dir;
+  const auto input_path = temp_dir.path() / "test.cc";
+  const auto output_path = temp_dir.path() / "test.o";
+  const auto deps_path = temp_dir.path() / "test.d";
+  const String compiler_version = "fake_compiler_version";
+
+  ASSERT_TRUE(base::File::Write(input_path, "int main() { return 1; }"_l));
+
+  conf.mutable_cache()->set_path(temp_dir.path() / "cache");
+  conf.mutable_cache()->set_direct(true);
+  conf.mutable_cache()->set_clean_period(3600);
+  conf.mutable_cache()->add_isolated_tags("bench");
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path("fake_compiler_path");
+
+  Atomic<ui32> compilations = {0};
+  run_callback = [&](base::TestProcess* process) {
+    if (std::find(process->args_.begin(), process->args_.end(), "-E"_l) !=
+        process->args_.end()) {
+      process->stdout_ = "preprocessed"_l;
+      return;
+    }
+    ++compilations;
+    EXPECT_TRUE(base::File::Write(output_path, "object"_l));
+    EXPECT_TRUE(base::File::Write(
+        deps_path, Immutable("test.o: "_l) + Immutable(input_path)));
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto Compile = [&](const String& tags, ui32 expected_send_count) {
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->mutable_local();
+    extension->set_current_dir(temp_dir);
+    extension->add_env("DC_TAGS=" + tags);
+    auto* flags = extension->mutable_flags();
+    flags->set_input(input_path);
+    flags->set_output(output_path);
+    flags->set_deps_file(deps_path);
+    flags->set_deps_target("test.o");
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action("fake_action");
+
+    auto connection = test_service->TriggerListen(socket_path);
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(5), [&] {
+      return send_count == expected_send_count;
+    }));
+  };
+
+  // The build of the isolated tag doesn't find the entry of others - and
+  // finds its own one. Others find it too.
+  Compile("other", 1);
+  EXPECT_EQ(1u, compilations);
+  Compile("bench", 2);
+  EXPECT_EQ(2u, compilations);
+  Compile("bench", 3);
+  EXPECT_EQ(2u, compilations);
+  Compile("other\nbench", 4);
+  EXPECT_EQ(2u, compilations);
+  Compile("other", 5);
+  EXPECT_EQ(2u, compilations);
+
+  emitter.reset();
+}
+
 TEST_F(EmitterTest, LimitLinksOfOutputs) {
   {
     // The copy-on-write clones are preferred to the hard links.

@@ -267,6 +267,8 @@ bool CompilationDaemon::Initialize() {
     cache_->SetCompressAfter(conf->cache().compress_after());
     cache_->SetGhostsTtl(conf->cache().ghosts_ttl());
     cache_->SetStoreTimeTraces(conf->cache().store_time_traces());
+    cache_->SetIsolatedTags(Vector<String>(conf->cache().isolated_tags().begin(),
+                                           conf->cache().isolated_tags().end()));
     if (!cache_->Run(conf->cache().clean_period())) {
       cache_.reset();
     }
@@ -731,13 +733,43 @@ bool CompilationDaemon::ReadExtraFiles(const base::proto::Flags& flags,
   return true;
 }
 
-bool CompilationDaemon::SearchSimpleCache(
-    const HandledHash& hash, cache::FileCache::Entry* entry) const {
+bool CompilationDaemon::SearchSimpleCache(const HandledHash& hash,
+                                          cache::FileCache::Entry* entry,
+                                          const String& scope) const {
   if (!cache_) {
     return false;
   }
   Counter counter(Metric::SIMPLE_CACHE_LOOKUP_TIME);
-  return cache_->Find(hash, entry);
+  return cache_->Find(hash, entry, scope);
+}
+
+namespace {
+
+Vector<String> TagsOf(const base::proto::Local& message) {
+  const String prefix = String(base::kEnvTags) + "=";
+  for (const auto& variable : message.env()) {
+    if (variable.starts_with(prefix)) {
+      List<String> tags;
+      base::SplitString<'\n'>(variable.substr(prefix.size()), tags);
+      return Vector<String>(tags.begin(), tags.end());
+    }
+  }
+  return {};
+}
+
+}  // namespace
+
+String CompilationDaemon::IsolatedTag(
+    const base::proto::Local& message) const {
+  if (!cache_) {
+    return String();
+  }
+  for (const auto& tag : TagsOf(message)) {
+    if (cache_->IsIsolatedTag(tag)) {
+      return tag;
+    }
+  }
+  return String();
 }
 
 bool CompilationDaemon::SearchTimeTrace(const cache::FileCache::Entry& entry,
@@ -747,7 +779,7 @@ bool CompilationDaemon::SearchTimeTrace(const cache::FileCache::Entry& entry,
 
 bool CompilationDaemon::SearchDirectCache(
     const base::proto::Flags& flags, const String& current_dir,
-    cache::FileCache::Entry* entry, bool* source_edited,
+    cache::FileCache::Entry* entry, const String& scope, bool* source_edited,
     bool* source_seen) const {
   auto conf = this->conf();
 
@@ -777,10 +809,13 @@ bool CompilationDaemon::SearchDirectCache(
 
   const bool found = cache_->Find(code, extra_files, command_line, version,
                                  current_dir, entry, flags.key_root(),
-                                 IncludeSearchDirs(flags, current_dir));
+                                 IncludeSearchDirs(flags, current_dir), scope);
 
-  // The same source with the same flags - regardless of the headers.
+  // The same source with the same flags - regardless of the headers. The
+  // build of an isolated tag knows only its own sources.
+  const String scope_prefix = scope.empty() ? String() : scope + ":";
   const String source_key =
+      scope_prefix +
       base::Hexify((Immutable(input) + "\n"_l + command_line.str + "\n"_l +
                     version.str)
                        .Hash());
@@ -795,7 +830,7 @@ bool CompilationDaemon::SearchDirectCache(
       *source_edited = edited;
     }
     if (source_seen) {
-      const String seen_key = base::Hexify(
+      const String seen_key = scope_prefix + base::Hexify(
           (Immutable(input) + "\n"_l +
            CommandLineForSimpleCache(flags).str + "\n"_l + version.str)
               .Hash());
@@ -822,15 +857,7 @@ void CompilationDaemon::TagEntry(const base::proto::Local& message,
   if (!cache_ || hash.str.empty()) {
     return;
   }
-  const String prefix = String(base::kEnvTags) + "=";
-  for (const auto& variable : message.env()) {
-    if (variable.starts_with(prefix)) {
-      List<String> tags;
-      base::SplitString<'\n'>(variable.substr(prefix.size()), tags);
-      cache_->AddTags(hash, Vector<String>(tags.begin(), tags.end()));
-      return;
-    }
-  }
+  cache_->AddTags(hash, TagsOf(message));
 }
 
 bool CompilationDaemon::HandleTagsRequest(
@@ -938,7 +965,7 @@ void CompilationDaemon::UpdateDirectCache(
                   preprocessed_headers, message->current_dir(), hash,
                   flags.key_root(),
                   IncludeSearchDirs(flags, message->current_dir()),
-                  start_time);
+                  start_time, IsolatedTag(*message));
   } else {
     LOG(CACHE_ERROR) << "Failed to parse deps or read input " << input_path;
   }

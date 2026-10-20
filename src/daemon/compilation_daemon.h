@@ -95,8 +95,14 @@ class CompilationDaemon : public BaseDaemon {
                       const String& current_dir,
                       cache::ExtraFiles* extra_files) const;
 
+  // A non-empty |scope| - see |IsolatedTag()| - finds only the entries of
+  // the isolated tag.
   bool SearchSimpleCache(const cache::string::HandledHash& hash,
-                         cache::FileCache::Entry* entry) const;
+                         cache::FileCache::Entry* entry,
+                         const String& scope = String()) const;
+
+  // The isolated tag of the client - the scope of its lookups - or empty.
+  String IsolatedTag(const base::proto::Local& message) const;
 
   // Reads the trace of the time of the found entry.
   bool SearchTimeTrace(const cache::FileCache::Entry& entry,
@@ -109,6 +115,7 @@ class CompilationDaemon : public BaseDaemon {
   bool SearchDirectCache(const base::proto::Flags& flags,
                          const String& current_dir,
                          cache::FileCache::Entry* entry,
+                         const String& scope = String(),
                          bool* source_edited = nullptr,
                          bool* source_seen = nullptr) const;
 
