@@ -18,7 +18,10 @@ cache {
   direct: true
   threads: 64
   # store_time_traces: true  # Restore the traces of -ftime-trace with hits.
-  # isolated_tags: "bench"  # Builds with --tag=bench find only their entries.
+  # tags {  # Builds with --tag=bench find only their entries.
+  #   name: "bench"
+  #   isolated: true
+  # }
 }
 
 verbosity {

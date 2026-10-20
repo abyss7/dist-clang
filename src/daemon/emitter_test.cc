@@ -3627,7 +3627,9 @@ TEST_F(EmitterTest, IsolatedTags) {
   conf.mutable_cache()->set_path(temp_dir.path() / "cache");
   conf.mutable_cache()->set_direct(true);
   conf.mutable_cache()->set_clean_period(3600);
-  conf.mutable_cache()->add_isolated_tags("bench");
+  auto* tag = conf.mutable_cache()->add_tags();
+  tag->set_name("bench");
+  tag->set_isolated(true);
   auto* version = conf.add_versions();
   version->set_version(compiler_version);
   version->set_path("fake_compiler_path");

@@ -68,7 +68,7 @@ The same for the entries without tags - e.g. stored before the tags were used:
 
 The objects, that weren't recompiled after a branch switch, keep only the tags of the previous branches - so a finished branch may be removed only after the other branches are built.
 
-A tag may be isolated - e.g. for the reference measurements of the incremental build, with the cache, that only this build uses and fills. List it in `isolated_tags` of the cache configuration, and pass it to the build with `--tag=<tag>` - with other tags too, if needed. The lookups of such build find only the entries with the tag - also through the direct cache - while other builds find them too: the outputs are stored once. The entries of the isolated tag aren't evicted and compressed: they stay, until `--forget-tag` removes them - and count in the size of the cache.
+A tag may be isolated - e.g. for the reference measurements of the incremental build, with the cache, that only this build uses and fills. Describe it in the cache configuration - `tags { name: "<tag>" isolated: true }` - and pass it to the build with `--tag=<tag>` - with other tags too, if needed. The lookups of such build find only the entries with the tag - also through the direct cache - while other builds find them too: the outputs are stored once. The entries of the isolated tag aren't evicted and compressed: they stay, until `--forget-tag` removes them - and count in the size of the cache.
 
 ## Environment variables
 

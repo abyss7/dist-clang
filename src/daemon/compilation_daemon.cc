@@ -267,8 +267,13 @@ bool CompilationDaemon::Initialize() {
     cache_->SetCompressAfter(conf->cache().compress_after());
     cache_->SetGhostsTtl(conf->cache().ghosts_ttl());
     cache_->SetStoreTimeTraces(conf->cache().store_time_traces());
-    cache_->SetIsolatedTags(Vector<String>(conf->cache().isolated_tags().begin(),
-                                           conf->cache().isolated_tags().end()));
+    Vector<String> isolated_tags;
+    for (const auto& tag : conf->cache().tags()) {
+      if (tag.isolated()) {
+        isolated_tags.push_back(tag.name());
+      }
+    }
+    cache_->SetIsolatedTags(isolated_tags);
     if (!cache_->Run(conf->cache().clean_period())) {
       cache_.reset();
     }
