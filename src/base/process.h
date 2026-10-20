@@ -68,6 +68,7 @@ FORWARD_TEST(EmitterTest, PreprocessWhenIdle);
 FORWARD_TEST(EmitterTest, PreprocessWhenIdleWithEditedHeader);
 FORWARD_TEST(EmitterTest, PreprocessAfterReply);
 FORWARD_TEST(EmitterTest, SkipTaskWithClosedConnection);
+FORWARD_TEST(EmitterTest, KeepUnchangedOutputsOnRestat);
 }  // namespace daemon
 
 namespace base {
@@ -199,6 +200,7 @@ class Process
   FRIEND_TEST(daemon::EmitterTest, PreprocessWhenIdleWithEditedHeader);
   FRIEND_TEST(daemon::EmitterTest, PreprocessAfterReply);
   FRIEND_TEST(daemon::EmitterTest, SkipTaskWithClosedConnection);
+  FRIEND_TEST(daemon::EmitterTest, KeepUnchangedOutputsOnRestat);
 };
 
 }  // namespace base

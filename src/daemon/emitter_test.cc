@@ -5327,6 +5327,112 @@ TEST_F(EmitterTest, DISABLED_UpdateDirectCacheFromLocalCache) {
   //         miss, but there is hit in normal cache.
 }
 
+TEST_F(EmitterTest, KeepUnchangedOutputsOnRestat) {
+  const base::TemporaryDir temp_dir;
+  const auto input_path = temp_dir.path() / "test.cc";
+  const auto output_path = temp_dir.path() / "test.o";
+  const String compiler_version = "fake_compiler_version";
+  ASSERT_TRUE(base::File::Write(input_path, "int main() { return 1; }"_l));
+
+  conf.mutable_cache()->set_path(temp_dir.path() / "cache");
+  conf.mutable_emitter()->set_preprocessing(
+      proto::Configuration::Emitter::ALWAYS);
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path("fake_compiler_path");
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend(
+        [&](const net::Connection::Message&) { send_condition.notify_all(); });
+    return true;
+  };
+
+  Mutex mutex;
+  String preprocessed;
+  Atomic<ui32> compilations = 0;
+  run_callback = [&](base::TestProcess* process) {
+    if (std::find(process->args_.begin(), process->args_.end(), "-E"_l) !=
+        process->args_.end()) {
+      std::lock_guard<Mutex> lock(mutex);
+      // The inputs are known from the markers.
+      process->stdout_ =
+          Immutable("# 1 \""_l) + Immutable(input_path) + "\"\n"_l +
+          Immutable(String(preprocessed));
+      return;
+    }
+    ++compilations;
+    EXPECT_TRUE(base::File::Write(output_path, "object"_l));
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  // Ninja with "restat" sets DC_RESTAT=1 for the rules, that may keep the
+  // outputs.
+  auto Compile = [&](ui32 expected_send_count, bool restat) {
+    auto connection = test_service->TriggerListen(socket_path);
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->mutable_local();
+    extension->set_current_dir(temp_dir);
+    if (restat) {
+      extension->add_env("DC_RESTAT=1");
+    }
+    auto* flags = extension->mutable_flags();
+    flags->set_input(input_path);
+    flags->set_output(output_path);
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action("fake_action");
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(5), [&] {
+      return send_count == expected_send_count;
+    }));
+  };
+  const time_t old_time = time(nullptr) - 100;
+  auto MakeOld = [&] {
+    struct utimbuf times = {old_time, old_time};
+    ASSERT_EQ(0, utime(output_path.c_str(), &times));
+  };
+  auto IsOld = [&] {
+    struct stat st;
+    EXPECT_EQ(0, stat(output_path.c_str(), &st));
+    return st.st_mtime == old_time;
+  };
+
+  {
+    std::lock_guard<Mutex> lock(mutex);
+    preprocessed = "preprocessed 1";
+  }
+  Compile(1, true);
+  EXPECT_EQ(1u, compilations);
+
+  // The same object from the cache.
+  MakeOld();
+  Compile(2, true);
+  EXPECT_EQ(1u, compilations);
+  EXPECT_TRUE(IsOld());
+
+  // Without "restat" the output is always new.
+  Compile(3, false);
+  EXPECT_EQ(1u, compilations);
+  EXPECT_FALSE(IsOld());
+
+  // The same object from the compiler.
+  {
+    std::lock_guard<Mutex> lock(mutex);
+    preprocessed = "preprocessed 2";
+  }
+  MakeOld();
+  Compile(4, true);
+  EXPECT_EQ(2u, compilations);
+  EXPECT_TRUE(IsOld());
+
+  emitter.reset();
+}
+
 TEST_F(EmitterTest, SkipTaskWithClosedConnection) {
   const base::TemporaryDir temp_dir;
   const auto input_path = temp_dir.path() / "test.cc";
