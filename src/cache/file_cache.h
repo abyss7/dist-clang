@@ -51,6 +51,7 @@ FORWARD_TEST(FileCacheTest, TimeTraces);
 FORWARD_TEST(FileCacheTest, DirectEntriesOfTags);
 FORWARD_TEST(FileCacheTest, RemoveDirectEntriesOfRemovedEntries);
 FORWARD_TEST(FileCacheTest, IsolatedTags);
+FORWARD_TEST(FileCacheTest, TagQuotas);
 FORWARD_TEST(FileCacheTest, TagAccessTimes);
 FORWARD_TEST(FileCacheTest, KeepEntriesOfIsolatedTags);
 FORWARD_TEST(FileCacheTest, DirectEntry_IsolatedTagsKeepVariants);
@@ -234,6 +235,15 @@ class FileCache {
   inline void SetIsolatedTags(const Vector<String>& tags) {
     isolated_tags_ = HashSet<String>(tags.begin(), tags.end());
   }
+  // The own sizes of the tags in bytes - zero is unlimited. The entries of
+  // such tag, that fit into its size, don't count in the size of the cache,
+  // and aren't evicted by others: the oldest ones by the uses of the tag lose
+  // it, when the tag doesn't fit. The entries of other tags follow the common
+  // rules - and the entries, that lose all tags, too.
+  inline void SetTagQuotas(const HashMap<String, ui64>& quotas) {
+    tag_quotas_ = quotas;
+  }
+
   inline bool IsIsolatedTag(const String& tag) const {
     return isolated_tags_.contains(tag);
   }
@@ -385,6 +395,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, DirectEntriesOfTags);
   FRIEND_TEST(FileCacheTest, RemoveDirectEntriesOfRemovedEntries);
   FRIEND_TEST(FileCacheTest, IsolatedTags);
+  FRIEND_TEST(FileCacheTest, TagQuotas);
   FRIEND_TEST(FileCacheTest, TagAccessTimes);
   FRIEND_TEST(FileCacheTest, KeepEntriesOfIsolatedTags);
   FRIEND_TEST(FileCacheTest, DirectEntry_IsolatedTagsKeepVariants);
@@ -503,6 +514,10 @@ class FileCache {
   // of the index and of the tags.
   void RemoveUnreachableDirectEntries();
 
+  // Removes the tags from their oldest entries, while they don't fit into
+  // their own sizes - see |SetTagQuotas()|.
+  void TrimQuotas();
+
   // The work with the tags - in the cleaner.
   void ApplyTags(string::Hash hash, const Vector<String>& tags, ui64 time);
   void ComputeTagStats(List<TagStats>* stats, List<TagOverlap>* overlaps);
@@ -584,6 +599,7 @@ class FileCache {
   // The entries of the isolated tags - the lookups in their scopes see them
   // at once, before the cleaner applies the tags.
   HashSet<String> isolated_tags_;
+  HashMap<String, ui64> tag_quotas_;
   mutable std::shared_mutex scopes_mutex_;
   HashMap<String, HashSet<String>> scopes_;
   bool InScope(const String& entry, const String& scope) const;

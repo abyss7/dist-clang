@@ -2120,6 +2120,7 @@ void FileCache::Maintain() {
   entries_->BeginTransaction();
   tag_index_->BeginTransaction();
   ghosts_->BeginTransaction();
+  TrimQuotas();
   Evict();
   RemoveUnreachableDirectEntries();
   CompressColdEntries();
@@ -2525,6 +2526,100 @@ ui64 FileCache::GetOwnBlobsSize(string::Hash hash) {
     }
   }
   return size;
+}
+
+void FileCache::TrimQuotas() {
+  if (tag_quotas_.empty()) {
+    return;
+  }
+  HashMap<String, ui64> sizes;
+  for (const auto& [hash, value] : entries_->GetInEvictionOrder()) {
+    sizes.emplace(hash, std::get<SQLite::SIZE>(value));
+  }
+
+  std::lock_guard<Mutex> lock(blob_refs_mutex_);
+  // The direct entries count for the tags of the entries, that they lead to.
+  HashMap<String, Vector<String>> leading;
+  for (const auto& [entry, targets] : direct_entries_) {
+    if (sizes.contains(entry)) {
+      for (const auto& target : targets) {
+        leading[target].push_back(entry);
+      }
+    }
+  }
+
+  for (const auto& [tag, quota] : tag_quotas_) {
+    if (!quota) {
+      continue;
+    }
+
+    // The entries of the tag - from the oldest use by the tag.
+    Vector<Pair<ui64, String>> tagged;
+    const auto& times = tag_times_[tag];
+    for (const auto& [entry, tags] : entry_tags_) {
+      if (sizes.contains(entry) &&
+          std::binary_search(tags.begin(), tags.end(), tag)) {
+        auto it = times.find(entry);
+        tagged.emplace_back(it == times.end() ? 0 : it->second, entry);
+      }
+    }
+    std::sort(tagged.begin(), tagged.end());
+
+    // Every blob and every direct entry counts once.
+    ui64 usage = 0;
+    HashMap<String, ui32> blob_refs, direct_refs;
+    auto Count = [&](const String& entry, bool add) {
+      const auto Change = [&](ui64 size) {
+        usage = add ? usage + size : usage - std::min(usage, size);
+      };
+      Change(sizes[entry]);
+      if (auto it = entry_blobs_.find(entry); it != entry_blobs_.end()) {
+        for (const auto& blob : it->second) {
+          auto& refs = blob_refs[blob];
+          if (add ? !refs++ : !--refs) {
+            Change(blobs_.Size(blob));
+          }
+        }
+      }
+      if (auto it = leading.find(entry); it != leading.end()) {
+        for (const auto& direct : it->second) {
+          auto& refs = direct_refs[direct];
+          if (add ? !refs++ : !--refs) {
+            Change(sizes[direct]);
+          }
+        }
+      }
+    };
+    for (const auto& [time, entry] : tagged) {
+      Count(entry, true);
+    }
+
+    // The entries keep their other tags.
+    ui32 untagged = 0;
+    for (auto it = tagged.begin(); it != tagged.end() && usage > quota;
+         ++it, ++untagged) {
+      const String& entry = it->second;
+      Count(entry, false);
+      auto& tags = entry_tags_[entry];
+      tags.erase(std::lower_bound(tags.begin(), tags.end(), tag));
+      if (tags.empty()) {
+        entry_tags_.erase(entry);
+        tag_index_->Delete(entry);
+      } else {
+        tag_index_->Set(entry, tags);
+        tag_index_->DeleteTime(entry, tag);
+      }
+      tag_times_[tag].erase(entry);
+      if (isolated_tags_.contains(tag)) {
+        std::unique_lock<std::shared_mutex> scopes_lock(scopes_mutex_);
+        scopes_[tag].erase(entry);
+      }
+    }
+    if (untagged) {
+      LOG(CACHE_INFO) << "The tag " << tag << " left " << untagged
+                      << " entries to fit into " << quota << " bytes";
+    }
+  }
 }
 
 void FileCache::Evict() {

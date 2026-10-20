@@ -540,6 +540,93 @@ TEST(FileCacheTest, TagAccessTimes) {
   EXPECT_FALSE(TagIndex(cache_path, "tags").GetAllTimes()["a"].contains(key));
 }
 
+TEST(FileCacheTest, TagQuotas) {
+  const base::TemporaryDir temp_dir;
+  const auto header_path = temp_dir.path() / "test.h";
+  const CommandLine cl("-c"_l);
+  const Version version("1"_l);
+  const UnhandledSource code("#include \"test.h\""_l);
+  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, proto::NONE,
+                  true);
+  cache.SetIsolatedTags({"q"});
+  ASSERT_TRUE(cache.Run(3600));
+
+  Vector<HandledHash> hashes;
+  for (int i = 0; i < 3; ++i) {
+    hashes.push_back(FileCache::Hash(HandledSource(Immutable(std::to_string(i))),
+                                     {}, cl, version));
+    cache.Store(hashes[i], FileCache::Entry{Immutable(String(1000, '0' + i)),
+                                            "deps"_l});
+    cache.AddTags(hashes[i], {"q"});
+  }
+  cache.AddTags(hashes[0], {"other"});
+  ASSERT_TRUE(base::File::Write(header_path, "#define A"_l));
+  cache.Store(code, {}, cl, version, {header_path}, {}, temp_dir, hashes[2],
+              String(), {}, CompilationTime(), "q");
+  cache.FlushAccesses();
+  cache.WaitForCleaner();
+
+  auto Key = [&](int i) { return hashes[i].str.string_copy(); };
+  auto IndexSize = [&](const String& key) {
+    SQLite::Value value;
+    EXPECT_TRUE(cache.entries_->Get(key, &value));
+    return std::get<SQLite::SIZE>(value);
+  };
+  // The entries have the same sizes - with their objects.
+  const ui64 size = IndexSize(Key(0)) + 1000;
+  const ui64 direct_size =
+      IndexSize(FileCache::Hash(code, {}, cl, version).str.string_copy());
+  auto HasTag = [&](int i) {
+    auto it = cache.entry_tags_.find(Key(i));
+    return it != cache.entry_tags_.end() &&
+           std::find(it->second.begin(), it->second.end(), "q") !=
+               it->second.end();
+  };
+
+  // The oldest entries by the uses of the tag lose it - the hits of others
+  // don't count. The entry stays for others.
+  cache.tag_times_["q"][Key(0)] = 100;
+  cache.tag_times_["q"][Key(1)] = 200;
+  cache.tag_times_["q"][Key(2)] = 300;
+  FileCache::Entry entry;
+  ASSERT_TRUE(cache.Find(hashes[0], &entry));
+  cache.SetTagQuotas({{"q", size * 2 + size / 2}});
+  cache.TrimQuotas();
+  EXPECT_FALSE(HasTag(0));
+  EXPECT_TRUE(HasTag(1));
+  EXPECT_TRUE(HasTag(2));
+  EXPECT_FALSE(cache.tag_times_["q"].contains(Key(0)));
+  EXPECT_FALSE(cache.Find(hashes[0], &entry, "q"));
+  EXPECT_TRUE(cache.Find(hashes[0], &entry));
+
+  // The direct entries of the tag count too. The entry without tags stays
+  // for the common rules.
+  cache.SetTagQuotas({{"q", size * 2 + direct_size - 1}});
+  cache.TrimQuotas();
+  EXPECT_FALSE(HasTag(1));
+  EXPECT_TRUE(HasTag(2));
+  EXPECT_FALSE(cache.entry_tags_.contains(Key(1)));
+  EXPECT_TRUE(cache.Find(hashes[1], &entry));
+  EXPECT_TRUE(cache.Find(code, {}, cl, version, temp_dir, &entry, String(), {},
+                         "q"));
+
+  // The index remembers it.
+  const auto tags = cache.tag_index_->GetAll();
+  EXPECT_EQ(Vector<String>{"other"}, tags.at(Key(0)));
+  EXPECT_FALSE(tags.contains(Key(1)));
+  EXPECT_EQ(Vector<String>{"q"}, tags.at(Key(2)));
+  auto times = cache.tag_index_->GetAllTimes();
+  EXPECT_FALSE(times["q"].contains(Key(0)));
+  EXPECT_FALSE(times["q"].contains(Key(1)));
+  EXPECT_TRUE(times["q"].contains(Key(2)));
+  EXPECT_TRUE(times["other"].contains(Key(0)));
+
+  // The unlimited quota.
+  cache.SetTagQuotas({{"q", 0}});
+  cache.TrimQuotas();
+  EXPECT_TRUE(HasTag(2));
+}
+
 TEST(FileCacheTest, RestoreSingleEntry) {
   const base::TemporaryDir temp_dir;
   const auto object_path = temp_dir.path() / "test.o";
