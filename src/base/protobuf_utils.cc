@@ -21,10 +21,12 @@ Log& Log::operator<<(const google::protobuf::Message& info) {
 }
 
 bool LoadFromFile(const Path& path, google::protobuf::Message* message,
-                  String* error) {
+                  String* error, bool skip_unknown) {
   Immutable contents;
+  google::protobuf::TextFormat::Parser parser;
+  parser.AllowUnknownField(skip_unknown);
   if (!File::Read(path, &contents, error) ||
-      !google::protobuf::TextFormat::ParseFromString(contents, message)) {
+      !parser.ParseFromString(contents, message)) {
     message->Clear();
 
     if (!contents.empty()) {

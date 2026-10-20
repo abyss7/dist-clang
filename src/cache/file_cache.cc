@@ -473,7 +473,8 @@ bool FileCache::CheckFormat() {
   bool save = false;
 
   if (base::File::Exists(format_path)) {
-    if (!base::LoadFromFile(format_path, &format)) {
+    // The newer revisions may add the fields.
+    if (!base::LoadFromFile(format_path, &format, nullptr, true)) {
       // Can't tell anything - e.g. it's written by a newer daemon, or by
       // hand: the cache isn't removed, but isn't used either.
       LOG(CACHE_ERROR) << "Can't read the format of the cache " << format_path

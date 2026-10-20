@@ -1605,6 +1605,15 @@ TEST(FileCacheTest, Format) {
   EXPECT_TRUE(Found());
   EXPECT_EQ(FileCache::kRevision + 1, ReadFormat().revision());
 
+  // The newer revision may add the fields, that this daemon doesn't know.
+  ASSERT_TRUE(base::File::Write(
+      format_path, Immutable(String("generation: ") +
+                             std::to_string(FileCache::kGeneration) +
+                             "\nrevision: " +
+                             std::to_string(FileCache::kRevision + 1) +
+                             "\nfuture_field: 1\nfuture_message { a: 1 }\n")));
+  EXPECT_TRUE(Found());
+
   // The newer generation isn't used - and isn't touched.
   WriteFormat(FileCache::kGeneration + 1, 0);
   EXPECT_FALSE(Found());
