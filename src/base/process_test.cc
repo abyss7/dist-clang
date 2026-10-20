@@ -9,6 +9,7 @@
 #include <test/throw_std.h>
 
 #include <fcntl.h>
+#include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -291,6 +292,56 @@ TEST_F(ProcessTest, CancelKillsProcessIgnoringTermination) {
 
   EXPECT_TRUE(process->canceled());
   EXPECT_LT(std::chrono::steady_clock::now() - start, std::chrono::seconds(5));
+}
+
+TEST_F(ProcessTest, CancelKillsWholeGroup) {
+  // E.g. the driver of the compiler runs "cc1" - it mustn't stay.
+  const TemporaryDir temp_dir;
+  const Path pid_path = temp_dir.path() / "pid";
+  ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+  process->AppendArg("-c"_l).AppendArg(
+      Immutable("sleep 30 & echo $! > " + pid_path.string() + "; wait"));
+
+  std::thread cancel([&] {
+    for (int i = 0; i < 100 && !base::File::Exists(pid_path); ++i) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    process->Cancel();
+  });
+  EXPECT_FALSE(process->Run(Process::UNLIMITED));
+  cancel.join();
+  EXPECT_TRUE(process->canceled());
+
+  Immutable pid_string;
+  ASSERT_TRUE(base::File::Read(pid_path, &pid_string));
+  const pid_t pid = std::stoi(pid_string.string_copy());
+  ASSERT_LT(0, pid);
+  // The orphan is reaped by another process - soon.
+  bool gone = false;
+  for (int i = 0; i < 250 && !gone; ++i) {
+    gone = kill(pid, 0) == -1 && errno == ESRCH;
+    if (!gone) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+  }
+  EXPECT_TRUE(gone);
+  if (!gone) {
+    kill(pid, SIGKILL);
+  }
+}
+
+TEST_F(ProcessTest, Nice) {
+  errno = 0;
+  const int base_nice = getpriority(PRIO_PROCESS, 0);
+  ASSERT_EQ(0, errno);
+
+  ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+  process->AppendArg("-c"_l).AppendArg("ps -o nice= -p $$"_l);
+  process->SetNice(5);
+  ASSERT_TRUE(process->Run(5));
+  EXPECT_EQ(std::min(base_nice + 5, 19),
+            std::stoi(process->stdout().string_copy()));
 }
 
 TEST_F(ProcessTest, CancelBeforeRun) {
