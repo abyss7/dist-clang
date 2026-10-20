@@ -19,6 +19,12 @@ class TagIndex {
 
   HashMap<String, Vector<String>> GetAll() const;
 
+  // The time of the last use of the entry by the tag - in seconds.
+  bool SetTime(const String& entry, const String& tag, ui64 time);
+  bool DeleteTime(const String& entry, const String& tag);
+  // Tag -> entry -> time.
+  HashMap<String, HashMap<String, ui64>> GetAllTimes() const;
+
   bool BeginTransaction();
   bool EndTransaction();
 

@@ -1176,7 +1176,8 @@ void FileCache::UpdateScope(const String& tag, bool keep_others) {
   }
 }
 
-void FileCache::ApplyTags(string::Hash hash, const Vector<String>& tags) {
+void FileCache::ApplyTags(string::Hash hash, const Vector<String>& tags,
+                          ui64 time) {
   // The entry may be removed already.
   SQLite::Value value;
   if (!entries_->Get(hash.str, &value)) {
@@ -1196,6 +1197,13 @@ void FileCache::ApplyTags(string::Hash hash, const Vector<String>& tags) {
   }
   if (changed) {
     tag_index_->Set(key, entry_tags);
+  }
+  for (const auto& tag : tags) {
+    auto& tag_time = tag_times_[tag][key];
+    if (time > tag_time) {
+      tag_time = time;
+      tag_index_->SetTime(key, tag, time);
+    }
   }
   // Again - e.g. after the scopes are updated, while the tag was on the way.
   for (const auto& tag : tags) {
@@ -1519,6 +1527,8 @@ FileCache::ForgetResult FileCache::DoForgetTag(const String& tag,
       if (it != tags.end() && *it == tag && tags.size() > 1) {
         tags.erase(it);
         tag_index_->Set(entry, tags);
+        tag_times_[tag].erase(entry);
+        tag_index_->DeleteTime(entry, tag);
       }
     }
   }
@@ -1734,6 +1744,9 @@ bool FileCache::RemoveEntry(string::Hash hash) {
     std::lock_guard<Mutex> lock(blob_refs_mutex_);
     if (entry_tags_.erase(hash.str.string_copy())) {
       tag_index_->Delete(hash.str.string_copy());
+    }
+    for (auto& [tag, times] : tag_times_) {
+      times.erase(hash.str.string_copy());
     }
     direct_entries_.erase(hash.str.string_copy());
   }
@@ -2016,7 +2029,7 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
   while (auto access = list->Pop()) {
     const auto& hash = access->hash;
     if (!access->tags.empty()) {
-      ApplyTags(hash, access->tags);
+      ApplyTags(hash, access->tags, access->time);
       continue;
     }
     SQLite::Value entry;
@@ -2330,17 +2343,37 @@ void FileCache::CountBlobRefs(ui64 start_time) {
     ++entry_count_;
   }
 
-  // The tags of the removed entries may stay after a crash.
+  // The tags of the removed entries may stay after a crash. The tags of the
+  // older revisions - or of the older daemons - have no times: they get the
+  // times of the entries.
   {
     auto all_tags = tag_index_->GetAll();
+    auto all_times = tag_index_->GetAllTimes();
     tag_index_->BeginTransaction();
     std::lock_guard<Mutex> lock(blob_refs_mutex_);
     for (auto& [entry, tags] : all_tags) {
       SQLite::Value value;
-      if (entries_->Get(entry, &value)) {
-        entry_tags_[entry] = std::move(tags);
-      } else {
+      if (!entries_->Get(entry, &value)) {
         tag_index_->Delete(entry);
+        continue;
+      }
+      for (const auto& tag : tags) {
+        auto& time = tag_times_[tag][entry];
+        auto times_it = all_times.find(tag);
+        if (times_it != all_times.end() && times_it->second.contains(entry)) {
+          time = times_it->second[entry];
+          times_it->second.erase(entry);
+        } else {
+          time = std::get<SQLite::MTIME>(value);
+          tag_index_->SetTime(entry, tag, time);
+        }
+      }
+      entry_tags_[entry] = std::move(tags);
+    }
+    // The times of the tags, that the entries don't have anymore.
+    for (const auto& [tag, times] : all_times) {
+      for (const auto& [entry, time] : times) {
+        tag_index_->DeleteTime(entry, tag);
       }
     }
     tag_index_->EndTransaction();

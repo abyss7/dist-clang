@@ -51,6 +51,7 @@ FORWARD_TEST(FileCacheTest, TimeTraces);
 FORWARD_TEST(FileCacheTest, DirectEntriesOfTags);
 FORWARD_TEST(FileCacheTest, RemoveDirectEntriesOfRemovedEntries);
 FORWARD_TEST(FileCacheTest, IsolatedTags);
+FORWARD_TEST(FileCacheTest, TagAccessTimes);
 FORWARD_TEST(FileCacheTest, KeepEntriesOfIsolatedTags);
 FORWARD_TEST(FileCacheTest, DirectEntry_IsolatedTagsKeepVariants);
 
@@ -145,7 +146,9 @@ class FileCache {
   //   Revision 3: the isolated tags of the variants of the direct entries,
   //               and their rows in the direct cache - see
   //               |SetIsolatedTags()|.
-  enum : ui32 { kGeneration = 3, kRevision = 3 };
+  //   Revision 4: the times of the last use of the entries by every tag: the
+  //               older tags get the times of the entries.
+  enum : ui32 { kGeneration = 3, kRevision = 4 };
 
   // Maximal number of the header sets per one source in the direct cache, and
   // of the entries, that they lead to - e.g. after the changes of the headers.
@@ -382,6 +385,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, DirectEntriesOfTags);
   FRIEND_TEST(FileCacheTest, RemoveDirectEntriesOfRemovedEntries);
   FRIEND_TEST(FileCacheTest, IsolatedTags);
+  FRIEND_TEST(FileCacheTest, TagAccessTimes);
   FRIEND_TEST(FileCacheTest, KeepEntriesOfIsolatedTags);
   FRIEND_TEST(FileCacheTest, DirectEntry_IsolatedTagsKeepVariants);
   FRIEND_TEST(FileCacheTest, ReportSizes);
@@ -500,7 +504,7 @@ class FileCache {
   void RemoveUnreachableDirectEntries();
 
   // The work with the tags - in the cleaner.
-  void ApplyTags(string::Hash hash, const Vector<String>& tags);
+  void ApplyTags(string::Hash hash, const Vector<String>& tags, ui64 time);
   void ComputeTagStats(List<TagStats>* stats, List<TagOverlap>* overlaps);
   ForgetResult DoForgetTag(const String& tag, bool dry_run);
 
@@ -574,6 +578,8 @@ class FileCache {
   UniquePtr<GhostIndex> ghosts_;
   ui64 ghosts_ttl_ = 30 * 24 * 3600;
   HashMap<String, Vector<String>> entry_tags_;
+  // The time of the last use of the entry by the tag: tag -> entry -> time.
+  HashMap<String, HashMap<String, ui64>> tag_times_;
 
   // The entries of the isolated tags - the lookups in their scopes see them
   // at once, before the cleaner applies the tags.

@@ -487,6 +487,59 @@ TEST(FileCacheTest, IsolatedTags) {
   EXPECT_FALSE(cache.Find(hash1, &entry, "bench"));
 }
 
+TEST(FileCacheTest, TagAccessTimes) {
+  const base::TemporaryDir temp_dir;
+  const auto cache_path = temp_dir.path() / "cache";
+  const auto hash = FileCache::Hash(HandledSource("1"_l), {},
+                                    CommandLine("-c"_l), Version("1"_l));
+  const String key = hash.str.string_copy();
+  ui64 time_a = 0, time_b = 0;
+
+  {
+    FileCache cache(cache_path, FileCache::UNLIMITED, proto::NONE, true);
+    ASSERT_TRUE(cache.Run(3600));
+    cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l});
+    cache.AddTags(hash, {"a"});
+    cache.FlushAccesses();
+    cache.WaitForCleaner();
+    time_a = cache.tag_times_["a"][key];
+    EXPECT_NE(0u, time_a);
+
+    // Every tag has its own time of the last use of the entry.
+    std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+    FileCache::Entry entry;
+    ASSERT_TRUE(cache.Find(hash, &entry));
+    cache.AddTags(hash, {"b"});
+    cache.FlushAccesses();
+    cache.WaitForCleaner();
+    EXPECT_EQ(time_a, cache.tag_times_["a"][key]);
+    time_b = cache.tag_times_["b"][key];
+    EXPECT_LT(time_a, time_b);
+    cache.Close();
+  }
+
+  // The tags of the older revisions have no times: they get the time of the
+  // last use of the entry.
+  {
+    TagIndex index(cache_path, "tags");
+    ASSERT_TRUE(index.DeleteTime(key, "a"));
+  }
+  FileCache cache(cache_path, FileCache::UNLIMITED, proto::NONE, true);
+  ASSERT_TRUE(cache.Run(3600));
+  cache.WaitForCleaner();
+  SQLite::Value value;
+  ASSERT_TRUE(cache.entries_->Get(key, &value));
+  EXPECT_EQ(std::get<SQLite::MTIME>(value), cache.tag_times_["a"][key]);
+  EXPECT_EQ(time_b, cache.tag_times_["b"][key]);
+  EXPECT_EQ(time_b, TagIndex(cache_path, "tags").GetAllTimes()["b"][key]);
+
+  // The forgotten tag forgets its times.
+  ASSERT_TRUE(cache.ForgetTag("a", false, [](const auto&) {}));
+  cache.WaitForCleaner();
+  EXPECT_FALSE(cache.tag_times_["a"].contains(key));
+  EXPECT_FALSE(TagIndex(cache_path, "tags").GetAllTimes()["a"].contains(key));
+}
+
 TEST(FileCacheTest, RestoreSingleEntry) {
   const base::TemporaryDir temp_dir;
   const auto object_path = temp_dir.path() / "test.o";
