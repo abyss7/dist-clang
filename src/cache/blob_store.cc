@@ -102,6 +102,32 @@ bool BlobStore::Put(Immutable content, const Path& path, String* hash,
                            error);
 }
 
+namespace {
+
+// Files modified so recently may still be modified within the same timestamp
+// granularity - their checks aren't remembered.
+const i64 kRacyIntervalNs = 2'000'000'000;
+
+}  // namespace
+
+// static
+BlobStore::Stamp BlobStore::StampOf(const struct stat& st) {
+  return {ui64(st.st_dev), ui64(st.st_ino), ui64(st.st_size),
+          base::ModificationTime(st), base::StatusChangeTime(st)};
+}
+
+void BlobStore::Verified(const String& hash, const struct stat& st) const {
+  const Stamp stamp = StampOf(st);
+  const i64 now = base::FileSystemTime();
+  std::lock_guard<Mutex> lock(verified_mutex_);
+  if (now - stamp.mtime_ns > kRacyIntervalNs &&
+      now - stamp.ctime_ns > kRacyIntervalNs) {
+    verified_[hash] = stamp;
+  } else {
+    verified_.erase(hash);
+  }
+}
+
 bool BlobStore::Get(const String& hash, Immutable* content, Path* path,
                     ui64* size) const {
   auto Broken = [](const Path& path, const char* reason) {
@@ -114,17 +140,30 @@ bool BlobStore::Get(const String& hash, Immutable* content, Path* path,
   struct stat st;
   if (stat(raw_path.c_str(), &st) == 0) {
     // The file may be shared through a hard link - and modified in place by
-    // someone else. Check the contents always: it's cheap compared to the
-    // compilation.
+    // someone else. Check the contents, unless the file is the same, as at
+    // the last check.
     if (link_ && path) {
-      // The failure to hash - e.g. out of the descriptors - doesn't break
-      // the blob.
-      Immutable actual_hash;
-      if (!base::File::Hash(raw_path, &actual_hash)) {
-        return false;
+      bool verified = false;
+      {
+        std::lock_guard<Mutex> lock(verified_mutex_);
+        auto it = verified_.find(hash);
+        verified = it != verified_.end() && it->second == StampOf(st);
       }
-      if (actual_hash.string_copy() != hash) {
-        return Broken(raw_path, "wrong hash");
+      if (!verified) {
+        // The failure to hash - e.g. out of the descriptors - doesn't break
+        // the blob.
+        Immutable actual_hash;
+        if (!base::File::Hash(raw_path, &actual_hash)) {
+          return false;
+        }
+        if (actual_hash.string_copy() != hash) {
+          {
+            std::lock_guard<Mutex> lock(verified_mutex_);
+            verified_.erase(hash);
+          }
+          return Broken(raw_path, "wrong hash");
+        }
+        Verified(hash, st);
       }
       *path = raw_path;
       *size += st.st_size;
@@ -223,6 +262,10 @@ void BlobStore::RemoveRef(const String& hash) {
 }
 
 void BlobStore::Delete(const String& hash) {
+  {
+    std::lock_guard<Mutex> lock(verified_mutex_);
+    verified_.erase(hash);
+  }
   for (const auto& path : {RawPath(hash), PackedPath(hash)}) {
     if (base::File::Exists(path)) {
       base::File::Delete(path);
@@ -313,6 +356,10 @@ ui32 BlobStore::CompressUnused(ui64 time, ui64 max_size,
       continue;
     }
     base::File::Delete(raw_path);
+    {
+      std::lock_guard<Mutex> lock(verified_mutex_);
+      verified_.erase(hash);
+    }
     compressed_size += data.size();
     ++compressed;
   }

@@ -4,6 +4,8 @@
 #include <base/types.h>
 #include <cache/manifest.pb.h>
 
+struct stat;
+
 namespace dist_clang {
 namespace cache {
 
@@ -89,6 +91,17 @@ class BlobStore {
     ui64 access_time = 0;
   };
 
+  // The file of a linked blob, as it was, when its contents were checked: the
+  // modification through any link changes it.
+  struct Stamp {
+    ui64 device, inode, size;
+    i64 mtime_ns, ctime_ns;
+    bool operator==(const Stamp&) const = default;
+  };
+  static Stamp StampOf(const struct stat& st);
+  // Remembers the checked contents of the file with the stat |st|.
+  void Verified(const String& hash, const struct stat& st) const;
+
   void Delete(const String& hash);
 
   const Path root_;
@@ -107,6 +120,11 @@ class BlobStore {
   mutable HashSet<String> unpacked_;
 
   HashMap<String, Blob> blobs_;
+
+  // The linked blobs, which contents are checked already: hashing them at
+  // every hit would read tens of megabytes of the debug info.
+  mutable Mutex verified_mutex_;
+  mutable HashMap<String, Stamp> verified_;
 };
 
 }  // namespace cache
