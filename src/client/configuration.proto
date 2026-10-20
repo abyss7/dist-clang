@@ -4,6 +4,7 @@ import "base/base.proto";
 
 package dist_clang.client.proto;
 
+// Unsupported - only reported.
 message Plugin {
   enum Platform {
     UNKNOWN = 0;
@@ -20,7 +21,7 @@ message Plugin {
 message Configuration {
   // The real compiler - found in PATH, if empty.
   optional string path            = 1;
-  optional string version         = 2;
+  optional string version         = 2;  // Unsupported - only reported.
 
   optional uint32 connect_timeout = 3 [ default = 10 ];
   // in seconds. Zero means default.
@@ -34,12 +35,10 @@ message Configuration {
   optional uint32 read_minimum    = 6 [ default = 32 ];
   // in bytes.
 
-  repeated Plugin plugins         = 7;
+  repeated Plugin plugins         = 7;  // Unsupported - only reported.
   optional bool disabled          = 8 [ default = false ];
   optional base.proto.Verbosity verbosity = 9;
 
   optional bool rewrite_includes  = 10 [ default = false ];
-  // Use -frewrite-includes flag while preprocessing source code to make macros
-  // uses remain in code to prevent possible failures on remote hosts due to
-  // different treating of expanded source code by clang.
+  // Unsupported - only reported.
 }

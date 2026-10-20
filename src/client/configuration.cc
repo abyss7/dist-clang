@@ -27,26 +27,12 @@ Configuration::Configuration() {
                      << config_.path();
       }
 
-      if (config_.has_version()) {
-        LOG(VERBOSE) << "Took version from " << config_path << " : " << config_.version();
-      }
-
-      for (int i = 0; i < config_.plugins_size(); ++i) {
-        auto* plugin = config_.mutable_plugins(i);
-        const auto os = base::CurrentPlatform() == base::Platform::MACOSX
-                            ? client::proto::Plugin::MACOSX
-                            : client::proto::Plugin::LINUX;
-        if (plugin->os() != os) {
-          config_.mutable_plugins()->SwapElements(i--, config_.plugins_size() - 1);
-          config_.mutable_plugins()->RemoveLast();
-          continue;
-        }
-
-        if (!Path(plugin->path()).is_absolute()) {
-          plugin->set_path(current_dir / plugin->path());
-        }
-
-        LOG(VERBOSE) << "Took plugin from " << config_path << " : " << plugin->name() << ", " << plugin->path();
+      const String unsupported = UnsupportedOptions(config_);
+      if (!unsupported.empty()) {
+        warnings_.push_back(config_path.string() +
+                            ": the options aren't supported anymore and are "
+                            "ignored: " +
+                            unsupported);
       }
 
       break;
@@ -74,11 +60,6 @@ Configuration::Configuration() {
   Immutable error_mark = base::GetEnv(base::kEnvLogErrorMark);
   if (!error_mark.empty()) {
     config_.mutable_verbosity()->set_error_mark(base::StringTo<ui32>(error_mark));
-  }
-
-  Immutable version = base::GetEnv(base::kEnvClangVersion);
-  if (!version.empty()) {
-    config_.set_version(version);
   }
 
   Immutable clang_path = base::GetEnv(base::kEnvClangPath);
@@ -127,6 +108,19 @@ Configuration::Configuration() {
 
   CHECK(config_.read_timeout());
   CHECK(config_.send_timeout());
+}
+
+String UnsupportedOptions(const proto::Configuration& config) {
+  String options;
+  for (const auto& [option, used] :
+       {Pair<const char*, bool>{"plugins", config.plugins_size() > 0},
+        {"version", config.has_version()},
+        {"rewrite_includes", config.rewrite_includes()}}) {
+    if (used) {
+      options += (options.empty() ? "" : ", ") + String(option);
+    }
+  }
+  return options;
 }
 
 }  // namespace dist_clang::client

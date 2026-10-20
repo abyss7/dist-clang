@@ -8,7 +8,6 @@ namespace base {
 
 Literal kEnvClangPath = "DC_CLANG_PATH"_l;
 Literal kEnvTags = "DC_TAGS"_l;
-Literal kEnvClangVersion = "DC_CLANG_VERSION"_l;
 Literal kEnvDisabled = "DC_DISABLED"_l;
 Literal kEnvLogLevels = "DC_LOG_LEVELS"_l;
 Literal kEnvLogErrorMark = "DC_LOG_ERROR_MARK"_l;

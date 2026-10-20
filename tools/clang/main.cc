@@ -75,6 +75,9 @@ int main(int argc, char* argv[]) {
 
   client::Configuration configuration;
   const auto& config = configuration.config();
+  for (const auto& warning : configuration.warnings()) {
+    std::cerr << "dist-clang: warning: " << warning << std::endl;
+  }
 
   // It's safe to use |base::Log|, since its internal static objects don't need
   // special destruction on |exec|.

@@ -14,32 +14,57 @@ namespace client {
 TEST(ClientConfigurationTest, ConfigFileInParentDir) {
   const base::TemporaryDir temp_dir;
   const auto child_dir = temp_dir.path() / "1";
-  const auto config_path = temp_dir.path() / ".distclang";
-
   ASSERT_TRUE(base::CreateDirectory(child_dir));
 
+  // The relative path is relative to the directory of the config.
   proto::Configuration config;
-  config.set_path("/usr/bin/clang");
-
-  auto* plugin = config.add_plugins();
-  plugin->set_name("test_plugin");
-  plugin->set_path("test_path");
-  plugin->set_os(proto::Plugin::LINUX);
-
-  plugin = config.add_plugins();
-  plugin->set_name("test_plugin2");
-  plugin->set_path("test_path2");
-  plugin->set_os(proto::Plugin::MACOSX);
-
-  ASSERT_TRUE(base::SaveToFile(config_path, config));
+  config.set_path("bin/clang");
+  ASSERT_TRUE(base::SaveToFile(temp_dir.path() / ".distclang", config));
+  unsetenv("DC_CLANG_PATH");
 
   const auto old_cwd = base::GetCurrentDir();
   ASSERT_TRUE(base::ChangeCurrentDir(child_dir));
-  Configuration configuration;
-  EXPECT_EQ(1, configuration.config().plugins_size());
-  EXPECT_EQ('/', configuration.config().plugins(0).path()[0])
-      << configuration.config().plugins(0).path();
+  {
+    Configuration configuration;
+    EXPECT_EQ(temp_dir.path() / "bin" / "clang",
+              Path(configuration.config().path()));
+  }
+
+  // The environment prevails.
+  setenv("DC_CLANG_PATH", "/usr/bin/clang", 1);
+  {
+    Configuration configuration;
+    EXPECT_EQ("/usr/bin/clang", configuration.config().path());
+  }
+  unsetenv("DC_CLANG_PATH");
   base::ChangeCurrentDir(old_cwd);
+}
+
+TEST(ClientConfigurationTest, UnsupportedOptions) {
+  proto::Configuration config;
+  config.set_path("/usr/bin/clang");
+  config.set_disabled(true);
+  EXPECT_EQ("", UnsupportedOptions(config));
+
+  // The old configs still parse, but these options do nothing now.
+  auto* plugin = config.add_plugins();
+  plugin->set_name("test_plugin");
+  plugin->set_path("test_path");
+  config.set_version("3.5");
+  config.set_rewrite_includes(true);
+  EXPECT_EQ("plugins, version, rewrite_includes", UnsupportedOptions(config));
+
+  // The user is warned.
+  const base::TemporaryDir temp_dir;
+  ASSERT_TRUE(base::SaveToFile(temp_dir.path() / ".distclang", config));
+  const auto old_cwd = base::GetCurrentDir();
+  ASSERT_TRUE(base::ChangeCurrentDir(temp_dir));
+  Configuration configuration;
+  base::ChangeCurrentDir(old_cwd);
+  ASSERT_EQ(1u, configuration.warnings().size());
+  EXPECT_NE(String::npos, configuration.warnings().front().find(
+                              "ignored: plugins, version, rewrite_includes"))
+      << configuration.warnings().front();
 }
 
 TEST(ClientConfigurationTest, ConfigFileWithoutPath) {
@@ -53,6 +78,7 @@ TEST(ClientConfigurationTest, ConfigFileWithoutPath) {
   ASSERT_TRUE(base::ChangeCurrentDir(temp_dir));
   Configuration configuration;
   EXPECT_TRUE(configuration.config().disabled());
+  EXPECT_TRUE(configuration.warnings().empty());
   base::ChangeCurrentDir(old_cwd);
 }
 

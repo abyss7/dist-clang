@@ -7,7 +7,6 @@ namespace base {
 
 extern Literal kEnvClangPath;
 extern Literal kEnvTags;
-extern Literal kEnvClangVersion;
 extern Literal kEnvDisabled;
 extern Literal kEnvLogLevels;
 extern Literal kEnvLogErrorMark;
