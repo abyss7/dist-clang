@@ -5327,11 +5327,115 @@ TEST_F(EmitterTest, DISABLED_UpdateDirectCacheFromLocalCache) {
   //         miss, but there is hit in normal cache.
 }
 
-TEST_F(EmitterTest, DISABLED_SkipTaskWithClosedConnection) {
-  // TODO: implement this test.
-  //       - Tasks should be skipped before any execution or sending attempt.
-  //       - Tasks should be skipped during the cache check, local and remote
-  //         executions.
+TEST_F(EmitterTest, SkipTaskWithClosedConnection) {
+  const base::TemporaryDir temp_dir;
+  const auto input_path = temp_dir.path() / "test.cc";
+  const auto output_path = temp_dir.path() / "test.o";
+  const String compiler_version = "fake_compiler_version";
+  ASSERT_TRUE(base::File::Write(input_path, "int main() { return 1; }"_l));
+
+  conf.mutable_cache()->set_path(temp_dir.path() / "cache");
+  conf.mutable_cache()->set_direct(true);
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path("fake_compiler_path");
+
+  // The real sockets of the clients: they are gone, when the other end is
+  // closed.
+  int fds[2] = {-1, -1};
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->SetNativeHandle(fds[0]);
+    connection->CallOnSend(
+        [&](const net::Connection::Message&) { send_condition.notify_all(); });
+    return true;
+  };
+  bool client_leaves = false;
+  Atomic<int> cancel_fd = -2;
+  run_callback = [&](base::TestProcess* process) {
+    if (std::find(process->args_.begin(), process->args_.end(), "-E"_l) !=
+        process->args_.end()) {
+      process->stdout_ = "preprocessed"_l;
+      return;
+    }
+    cancel_fd = process->cancel_fd_;
+    if (client_leaves) {
+      // The build is interrupted: the compiler is killed with the client.
+      close(fds[1]);
+      process->Cancel();
+      return;
+    }
+    EXPECT_TRUE(base::File::Write(output_path, "new object"_l));
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  HashMap<int, ui64> stats;
+  auto Stat = [&stats](perf::proto::Metric::Name name) {
+    perf::proto::Metric metric;
+    metric.set_name(name);
+    base::Singleton<perf::StatService>::Get().Dump(metric);
+    return stats[name] += metric.value();
+  };
+  auto WaitForStat = [&Stat](perf::proto::Metric::Name name, ui64 value) {
+    for (int i = 0; i < 300 && Stat(name) < value; ++i) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return Stat(name);
+  };
+  auto Compile = [&] {
+    ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM, 0, fds));
+    auto connection = test_service->TriggerListen(socket_path);
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->mutable_local();
+    extension->set_current_dir(temp_dir);
+    auto* flags = extension->mutable_flags();
+    flags->set_input(input_path);
+    flags->set_output(output_path);
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action("fake_action");
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+  };
+
+  // The client is gone before the task is taken: nothing is run.
+  ASSERT_TRUE(base::File::Write(output_path, "old object"_l));
+  Compile();
+  close(fds[1]);
+  EXPECT_EQ(1u, WaitForStat(perf::proto::Metric::TASK_CANCELED, 1u));
+  EXPECT_EQ(0u, run_count);
+  close(fds[0]);
+
+  // The client is gone during the compilation: the compiler is killed with
+  // it - before it writes the outputs, that the build may have produced
+  // meanwhile. Nothing is stored.
+  client_leaves = true;
+  Compile();
+  EXPECT_EQ(2u, WaitForStat(perf::proto::Metric::TASK_CANCELED, 2u));
+  EXPECT_EQ(fds[0], cancel_fd);
+  close(fds[0]);
+
+  // The next compilation isn't found in the cache.
+  client_leaves = false;
+  const ui32 runs = run_count;
+  Compile();
+  {
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(5),
+                                        [&] { return send_count == 1; }));
+  }
+  emitter.reset();
+  EXPECT_LT(runs, run_count);
+  Immutable output;
+  ASSERT_TRUE(base::File::Read(output_path, &output));
+  EXPECT_EQ("new object"_l, output);
+  // Only the last client gets the reply.
+  EXPECT_EQ(1u, send_count);
+  close(fds[0]);
+  close(fds[1]);
 }
 
 /*
