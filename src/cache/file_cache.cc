@@ -970,8 +970,13 @@ bool FileCache::FindFile(const Path& cache_path, const String& expected_hash,
   return true;
 }
 
-bool FileCache::Find(HandledHash hash, Entry* found) const {
+bool FileCache::Find(HandledHash hash, Entry* found,
+                     const String& scope) const {
   DCHECK(found);
+
+  if (!scope.empty() && !InScope(hash.str.string_copy(), scope)) {
+    return false;
+  }
 
   const auto manifest_path =
       AppendExtension(CommonPath(hash), base::kExtManifest);
@@ -1098,6 +1103,40 @@ void FileCache::AddTags(string::HandledHash hash, const Vector<String>& tags) {
     return;
   }
   NewEntries()->Append({ui64(time(nullptr)), hash, true, tags});
+
+  for (const auto& tag : tags) {
+    if (isolated_tags_.contains(tag)) {
+      std::unique_lock<std::shared_mutex> lock(scopes_mutex_);
+      scopes_[tag].insert(hash.str.string_copy());
+    }
+  }
+}
+
+bool FileCache::InScope(const String& entry, const String& scope) const {
+  std::shared_lock<std::shared_mutex> lock(scopes_mutex_);
+  auto it = scopes_.find(scope);
+  return it != scopes_.end() && it->second.contains(entry);
+}
+
+void FileCache::UpdateScope(const String& tag, bool keep_others) {
+  if (!isolated_tags_.contains(tag)) {
+    return;
+  }
+  HashSet<String> scope;
+  {
+    std::lock_guard<Mutex> lock(blob_refs_mutex_);
+    for (const auto& [entry, tags] : entry_tags_) {
+      if (std::binary_search(tags.begin(), tags.end(), tag)) {
+        scope.insert(entry);
+      }
+    }
+  }
+  std::unique_lock<std::shared_mutex> lock(scopes_mutex_);
+  if (keep_others) {
+    scopes_[tag].merge(scope);
+  } else {
+    scopes_[tag] = std::move(scope);
+  }
 }
 
 void FileCache::ApplyTags(string::Hash hash, const Vector<String>& tags) {
@@ -1120,6 +1159,13 @@ void FileCache::ApplyTags(string::Hash hash, const Vector<String>& tags) {
   }
   if (changed) {
     tag_index_->Set(key, entry_tags);
+  }
+  // Again - e.g. after the scopes are updated, while the tag was on the way.
+  for (const auto& tag : tags) {
+    if (isolated_tags_.contains(tag)) {
+      std::unique_lock<std::shared_mutex> lock(scopes_mutex_);
+      scopes_[tag].insert(key);
+    }
   }
 }
 
@@ -1429,14 +1475,18 @@ FileCache::ForgetResult FileCache::DoForgetTag(const String& tag,
   }
 
   // The other entries keep their other tags.
-  std::lock_guard<Mutex> lock(blob_refs_mutex_);
-  for (auto& [entry, tags] : entry_tags_) {
-    auto it = std::lower_bound(tags.begin(), tags.end(), tag);
-    if (it != tags.end() && *it == tag && tags.size() > 1) {
-      tags.erase(it);
-      tag_index_->Set(entry, tags);
+  {
+    std::lock_guard<Mutex> lock(blob_refs_mutex_);
+    for (auto& [entry, tags] : entry_tags_) {
+      auto it = std::lower_bound(tags.begin(), tags.end(), tag);
+      if (it != tags.end() && *it == tag && tags.size() > 1) {
+        tags.erase(it);
+        tag_index_->Set(entry, tags);
+      }
     }
   }
+  // The linked entries keep the tag.
+  UpdateScope(tag, false);
 
   return result;
 }
@@ -1649,6 +1699,12 @@ bool FileCache::RemoveEntry(string::Hash hash) {
       tag_index_->Delete(hash.str.string_copy());
     }
     direct_entries_.erase(hash.str.string_copy());
+  }
+  if (!isolated_tags_.empty()) {
+    std::unique_lock<std::shared_mutex> lock(scopes_mutex_);
+    for (auto& [tag, entries] : scopes_) {
+      entries.erase(hash.str.string_copy());
+    }
   }
 
   if (base::File::Exists(deps_path)) {
@@ -2200,6 +2256,10 @@ void FileCache::CountBlobRefs(ui64 start_time) {
       }
     }
     tag_index_->EndTransaction();
+  }
+  // The tags, that are added since the start, stay.
+  for (const auto& tag : isolated_tags_) {
+    UpdateScope(tag, true);
   }
 
   // E.g. the blobs of the entries, that weren't stored because of a crash.

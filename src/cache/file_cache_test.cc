@@ -418,6 +418,75 @@ TEST(FileCacheTest, DirectEntriesOfTags) {
       AppendExtension(cache.CommonPath(direct2), base::kExtManifest)));
 }
 
+TEST(FileCacheTest, IsolatedTags) {
+  const base::TemporaryDir temp_dir;
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  const auto hash1 = FileCache::Hash(HandledSource("1"_l), {}, cl, version);
+  const auto hash2 = FileCache::Hash(HandledSource("2"_l), {}, cl, version);
+  const auto hash3 = FileCache::Hash(HandledSource("3"_l), {}, cl, version);
+  const auto cache_path = temp_dir.path() / "cache";
+  FileCache::Entry entry;
+
+  {
+    FileCache cache(cache_path, FileCache::UNLIMITED, proto::NONE, true);
+    cache.SetIsolatedTags({"bench"});
+    ASSERT_TRUE(cache.Run(3600));
+    cache.Store(hash1, FileCache::Entry{"object 1"_l, "deps"_l});
+    cache.Store(hash2, FileCache::Entry{"object 2"_l, "deps"_l});
+    cache.Store(hash3, FileCache::Entry{"object 3"_l, "deps"_l});
+    cache.AddTags(hash2, {"other"});
+
+    // The entries of others are found only outside of the scope of the
+    // isolated tag.
+    EXPECT_FALSE(cache.Find(hash1, &entry, "bench"));
+    EXPECT_FALSE(cache.Find(hash2, &entry, "bench"));
+    EXPECT_TRUE(cache.Find(hash1, &entry));
+
+    // The tag counts at once - before the cleaner applies it.
+    cache.AddTags(hash1, {"bench", "other"});
+    cache.AddTags(hash3, {"bench"});
+    EXPECT_TRUE(cache.Find(hash1, &entry, "bench"));
+    EXPECT_TRUE(cache.Find(hash3, &entry, "bench"));
+    EXPECT_FALSE(cache.Find(hash2, &entry, "bench"));
+
+    // The forgotten tag leaves the scope empty: the shared entry stays for
+    // others.
+    cache.FlushAccesses();
+    cache.WaitForCleaner();
+    ASSERT_TRUE(cache.ForgetTag("bench", false, [](const auto&) {}));
+    cache.WaitForCleaner();
+    EXPECT_FALSE(cache.Find(hash1, &entry, "bench"));
+    EXPECT_FALSE(cache.Find(hash3, &entry, "bench"));
+    EXPECT_TRUE(cache.Find(hash1, &entry));
+
+    cache.AddTags(hash1, {"bench"});
+    cache.Close();
+  }
+
+  // The scope stays after the restart - restored by the cleaner, with the
+  // tags, that come before it.
+  FileCache cache(cache_path, FileCache::UNLIMITED, proto::NONE, true);
+  cache.SetIsolatedTags({"bench"});
+  std::promise<void> release;
+  std::shared_future<void> released = release.get_future().share();
+  cache.cleaner_.Push([released] { released.wait(); });
+  ASSERT_TRUE(cache.Run(3600));
+  cache.AddTags(hash2, {"bench"});
+  release.set_value();
+  cache.WaitForCleaner();
+  EXPECT_TRUE(cache.Find(hash1, &entry, "bench"));
+  EXPECT_TRUE(cache.Find(hash2, &entry, "bench"));
+
+  // The removed entry leaves it - the same one, stored again by others, isn't
+  // in the scope.
+  cache.Remove(hash1);
+  cache.WaitForCleaner();
+  cache.Store(hash1, FileCache::Entry{"object 1"_l, "deps"_l});
+  EXPECT_TRUE(cache.Find(hash1, &entry));
+  EXPECT_FALSE(cache.Find(hash1, &entry, "bench"));
+}
+
 TEST(FileCacheTest, RestoreSingleEntry) {
   const base::TemporaryDir temp_dir;
   const auto object_path = temp_dir.path() / "test.o";

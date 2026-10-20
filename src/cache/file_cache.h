@@ -50,6 +50,7 @@ FORWARD_TEST(FileCacheTest, FindDoesntKeepOldFields);
 FORWARD_TEST(FileCacheTest, TimeTraces);
 FORWARD_TEST(FileCacheTest, DirectEntriesOfTags);
 FORWARD_TEST(FileCacheTest, RemoveDirectEntriesOfRemovedEntries);
+FORWARD_TEST(FileCacheTest, IsolatedTags);
 
 enum ExtraFileType {
   SANITIZE_BLACKLIST = 0,
@@ -215,6 +216,13 @@ class FileCache {
   // the ones, that are needed again. Zero disables it.
   inline void SetGhostsTtl(ui64 seconds) { ghosts_ttl_ = seconds; }
 
+  // The tags of the builds, that see only their own entries - e.g. for the
+  // reference measurements: the lookups in the scope of such tag find only
+  // the entries with it. Other lookups find them too. Set before |Run()|.
+  inline void SetIsolatedTags(const Vector<String>& tags) {
+    isolated_tags_ = HashSet<String>(tags.begin(), tags.end());
+  }
+
   static string::HandledHash Hash(string::HandledSource code,
                                   const ExtraFiles& extra_files,
                                   string::CommandLine command_line,
@@ -238,7 +246,9 @@ class FileCache {
             const String& root = String(),
             const List<Path>& search_dirs = List<Path>()) const;
 
-  bool Find(string::HandledHash hash, Entry* entry) const;
+  // A non-empty |scope| - an isolated tag - finds only the entries with it.
+  bool Find(string::HandledHash hash, Entry* entry,
+            const String& scope = String()) const;
 
   // Reads the trace of the time of the found entry by its |hash|.
   bool FindTimeTrace(const String& hash, Immutable* trace) const;
@@ -354,6 +364,7 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, TimeTraces);
   FRIEND_TEST(FileCacheTest, DirectEntriesOfTags);
   FRIEND_TEST(FileCacheTest, RemoveDirectEntriesOfRemovedEntries);
+  FRIEND_TEST(FileCacheTest, IsolatedTags);
   FRIEND_TEST(FileCacheTest, ReportSizes);
   FRIEND_TEST(FileCacheTest, Ghosts);
   FRIEND_TEST(FileCacheTest, BinaryManifests);
@@ -543,6 +554,16 @@ class FileCache {
   UniquePtr<GhostIndex> ghosts_;
   ui64 ghosts_ttl_ = 30 * 24 * 3600;
   HashMap<String, Vector<String>> entry_tags_;
+
+  // The entries of the isolated tags - the lookups in their scopes see them
+  // at once, before the cleaner applies the tags.
+  HashSet<String> isolated_tags_;
+  mutable std::shared_mutex scopes_mutex_;
+  HashMap<String, HashSet<String>> scopes_;
+  bool InScope(const String& entry, const String& scope) const;
+  // Puts the entries, that have the |tag|, into its scope - and removes
+  // others from it, unless |keep_others|.
+  void UpdateScope(const String& tag, bool keep_others);
 
   ui64 max_size_;
   // The size of the entries without the blobs, and their number - the failed
