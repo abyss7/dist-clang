@@ -10,14 +10,6 @@
 namespace dist_clang {
 namespace cache {
 
-namespace {
-
-// Files modified so recently may still be modified within the same timestamp
-// granularity - don't memoize their hashes.
-const i64 kRacyIntervalNs = 2'000'000'000;
-
-}  // namespace
-
 bool FileHashCache::Hash(const String& path, String* hash, String* error,
                          bool* time_macros, i64* modified) {
   struct stat st;
@@ -73,8 +65,8 @@ bool FileHashCache::Hash(const String& path, String* hash, String* error,
   }
 
   const i64 now = base::FileSystemTime();
-  if (now - base::ModificationTime(st) > kRacyIntervalNs &&
-      now - base::StatusChangeTime(st) > kRacyIntervalNs) {
+  if (now - base::ModificationTime(st) > racy_interval_ns_ &&
+      now - base::StatusChangeTime(st) > racy_interval_ns_) {
     std::lock_guard<Mutex> lock(mutex_);
     // Simpler than LRU, and the overflow is rare: only the hashes of the
     // current builds are computed again.

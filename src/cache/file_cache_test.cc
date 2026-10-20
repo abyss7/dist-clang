@@ -2,6 +2,7 @@
 
 #include <cache/compression.h>
 
+#include <base/c_utils.h>
 #include <base/constants.h>
 #include <base/file/file.h>
 #include <base/future.h>
@@ -16,7 +17,9 @@
 #include <gtest/gtest.h>
 #include <perf/stat_service.h>
 
+#include <fcntl.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <utime.h>
 #include STL(regex)
 #include STL(future)
@@ -3156,6 +3159,64 @@ TEST(FileHashCacheTest, Bounded) {
   ASSERT_TRUE(base::File::Delete(paths[0]));
   EXPECT_FALSE(other_hashes.Hash(paths[0], &hash));
   EXPECT_EQ(1u, other_hashes.size());
+}
+
+TEST(FileHashCacheTest, Memoized) {
+  const base::TemporaryDir temp_dir;
+  const auto path = temp_dir.path() / "test.h";
+  ASSERT_TRUE(base::File::Write(path, "first"_l));
+
+  // The recently modified files aren't memoized.
+  FileHashCache racy_hashes;
+  String hash;
+  ASSERT_TRUE(racy_hashes.Hash(path, &hash));
+  EXPECT_EQ(0u, racy_hashes.size());
+
+  // Any file is old enough.
+  FileHashCache hashes(1'000'000, -1'000'000'000'000);
+  ASSERT_TRUE(hashes.Hash(path, &hash));
+  EXPECT_EQ(base::Hexify(Immutable("first"_l).Hash()), hash);
+  EXPECT_EQ(1u, hashes.size());
+
+  // The memoized hash is reused.
+  hashes.entries_[path].hash = "memoized";
+  hashes.entries_[path].time_macros = true;
+  bool time_macros = false;
+  ASSERT_TRUE(hashes.Hash(path, &hash, nullptr, &time_macros));
+  EXPECT_EQ("memoized", hash);
+  EXPECT_TRUE(time_macros);
+
+  struct stat st;
+  ASSERT_EQ(0, stat(path.c_str(), &st));
+  const i64 mtime = base::ModificationTime(st);
+  const i64 second = 1'000'000'000;
+  const struct timespec times[] = {{0, UTIME_OMIT},
+                                   {mtime / second, mtime % second}};
+  // The times of the files come from the coarse clock: the next changes get
+  // another time after its tick. The racy interval is about the same.
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+  // Modified in place with the same size and the restored mtime: the ctime
+  // differs.
+  {
+    // Not through a temporary file - the inode stays the same.
+    const int fd = open(path.c_str(), O_WRONLY);
+    ASSERT_NE(-1, fd);
+    EXPECT_EQ(5, write(fd, "other", 5));
+    close(fd);
+  }
+  ASSERT_EQ(0, utimensat(AT_FDCWD, path.c_str(), times, 0));
+  ASSERT_TRUE(hashes.Hash(path, &hash));
+  EXPECT_EQ(base::Hexify(Immutable("other"_l).Hash()), hash);
+
+  // Replaced by another file with the same size and mtime: the inode
+  // differs.
+  const auto other_path = temp_dir.path() / "other.h";
+  ASSERT_TRUE(base::File::Write(other_path, "third"_l));
+  ASSERT_EQ(0, utimensat(AT_FDCWD, other_path.c_str(), times, 0));
+  ASSERT_TRUE(base::File::Move(other_path, path));
+  ASSERT_TRUE(hashes.Hash(path, &hash));
+  EXPECT_EQ(base::Hexify(Immutable("third"_l).Hash()), hash);
 }
 
 TEST(FileCacheTest, DirectEntry_ChangedPreprocessedHeaderContents) {
