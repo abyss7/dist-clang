@@ -8,6 +8,9 @@
 
 #include <base/test_forward.h>
 
+#include STL(condition_variable)
+#include STL(set)
+
 namespace dist_clang {
 namespace daemon {
 FORWARD_TEST(EmitterTest, TasksGetReshardedOnConfigurationUpdate);
@@ -32,6 +35,33 @@ class OutputLocks {
 
   Mutex mutex_;
   HashMap<String, Pair<SharedPtr<Mutex>, ui32 /* users */>> locks_;
+};
+
+// The stores of the direct cache, that the lookups of the same key wait for.
+// The stores don't wait for each other, and a lookup waits only for the stores,
+// that have begun before it.
+class PendingStores {
+ public:
+  class Store {
+   public:
+    Store(PendingStores* stores, const String& key);
+    ~Store();
+
+   private:
+    PendingStores* stores_;
+    const String key_;
+    ui64 id_;
+  };
+
+  void WaitFor(const String& key) THREAD_SAFE;
+
+ private:
+  friend class Store;
+
+  Mutex mutex_;
+  std::condition_variable condition_;
+  ui64 next_id_ = 0;
+  HashMap<String, std::set<ui64>> stores_;
 };
 
 // The compilation, that runs at the same time with the preprocessing: if the
@@ -173,7 +203,7 @@ class Emitter : public CompilationDaemon {
   OutputLocks output_locks_;
   // The sources, which results are being stored into the direct cache after
   // the reply: the lookups of them wait for it.
-  OutputLocks direct_stores_;
+  PendingStores direct_stores_;
 
   Atomic<bool> handle_all_tasks_ = {true};
   // Indicates if we force shutdown of the remote workers pool: we shouldn't if

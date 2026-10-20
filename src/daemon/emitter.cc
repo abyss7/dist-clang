@@ -363,6 +363,34 @@ OutputLocks::Lock::~Lock() {
   }
 }
 
+PendingStores::Store::Store(PendingStores* stores, const String& key)
+    : stores_(stores), key_(key) {
+  std::lock_guard<Mutex> guard(stores_->mutex_);
+  id_ = stores_->next_id_++;
+  stores_->stores_[key_].insert(id_);
+}
+
+PendingStores::Store::~Store() {
+  {
+    std::lock_guard<Mutex> guard(stores_->mutex_);
+    auto it = stores_->stores_.find(key_);
+    it->second.erase(id_);
+    if (it->second.empty()) {
+      stores_->stores_.erase(it);
+    }
+  }
+  stores_->condition_.notify_all();
+}
+
+void PendingStores::WaitFor(const String& key) {
+  UniqueLock lock(mutex_);
+  const ui64 id = next_id_;
+  condition_.wait(lock, [&] {
+    auto it = stores_.find(key);
+    return it == stores_.end() || *it->second.begin() >= id;
+  });
+}
+
 const ui32 Emitter::max_total_shards = 1024u;
 
 Emitter::Emitter(const proto::Configuration& conf) : CompilationDaemon(conf) {
@@ -972,10 +1000,11 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
         STAT(TIME_TRACES_RESTORED);
       }
 
-      if (!source.str.empty() &&
-          InputsUnchangedSince(incoming, deps, std::get<START_TIME>(*task))) {
-        UpdateDirectCache(incoming, std::get<HANDLED_HASH>(*task), extra_files,
-                          deps, std::get<START_TIME>(*task));
+      // The client doesn't wait for the direct cache, that hashes all
+      // headers: it's updated after the reply, like after the compilation.
+      std::optional<PendingStores::Store> direct_store;
+      if (!source.str.empty()) {
+        direct_store.emplace(&direct_stores_, DirectStoreKey(incoming));
       }
 
       net::proto::Status status;
@@ -986,6 +1015,13 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
                                  : StripColors(diagnostics));
       std::get<CONNECTION>(*task)->ReportStatus(status);
       LOG(INFO) << "Cache hit: " << incoming->flags().input();
+
+      if (direct_store &&
+          InputsUnchangedSince(incoming, deps, std::get<START_TIME>(*task))) {
+        UpdateDirectCache(incoming, std::get<HANDLED_HASH>(*task), extra_files,
+                          deps, std::get<START_TIME>(*task));
+      }
+      direct_store.reset();
 
       MaybeVerifyHit(*incoming, entry, std::get<START_TIME>(*task));
       TagEntry(*incoming, HandledHash(Immutable(entry.handled_hash)));
@@ -1022,9 +1058,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
 
     // The result of the previous compilation of the same source - maybe from
     // another checkout - may be being stored right now.
-    {
-      OutputLocks::Lock wait(&direct_stores_, DirectStoreKey(incoming));
-    }
+    direct_stores_.WaitFor(DirectStoreKey(incoming));
 
     bool source_edited = false, source_seen = false;
     if (SearchDirectCache(incoming->flags(), incoming->current_dir(), &entry,
@@ -1389,7 +1423,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
     // The client doesn't wait for the direct cache, that hashes all headers:
     // it's updated after the reply. The next lookups of the same source wait
     // for it.
-    std::optional<OutputLocks::Lock> direct_store;
+    std::optional<PendingStores::Store> direct_store;
     if (stored) {
       direct_store.emplace(&direct_stores_, DirectStoreKey(incoming));
     }

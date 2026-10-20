@@ -12,6 +12,7 @@
 #include <net/test_connection.h>
 #include <perf/stat_service.h>
 
+#include STL(fstream)
 #include STL(thread)
 
 #include <sys/stat.h>
@@ -47,6 +48,34 @@ void WriteDepsFile(const base::Process* process, Immutable content) {
   }
 }
 
+
+TEST(PendingStoresTest, WaitForEarlierStores) {
+  PendingStores stores;
+  std::optional<PendingStores::Store> earlier(std::in_place, &stores, "a.cc");
+  // The stores of the same key don't wait for each other.
+  std::optional<PendingStores::Store> same(std::in_place, &stores, "a.cc");
+  same.reset();
+  // The other keys aren't waited for.
+  stores.WaitFor("b.cc");
+
+  std::atomic<bool> waited = false;
+  std::thread lookup([&] {
+    stores.WaitFor("a.cc");
+    waited = true;
+  });
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  EXPECT_FALSE(waited);
+
+  // The lookup doesn't wait for the stores, that begin after it.
+  std::optional<PendingStores::Store> later(std::in_place, &stores, "a.cc");
+  earlier.reset();
+  for (int i = 0; i < 100 && !waited; ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  EXPECT_TRUE(waited);
+  later.reset();
+  lookup.join();
+}
 
 TEST(EmitterConfigurationTest, NoEmitterSection) {
   ASSERT_ANY_THROW((Emitter((proto::Configuration()))));
@@ -4339,6 +4368,104 @@ TEST_F(EmitterTest, DontStoreIfHeadersChangedDuringCompilationWithoutDeps) {
   // Now it's cached.
   Compile(3);
   EXPECT_EQ(2u, compilations);
+
+  emitter.reset();
+}
+
+TEST_F(EmitterTest, ReplyToSimpleHitBeforeDirectStore) {
+  const base::TemporaryDir temp_dir;
+  const auto input1_path = temp_dir.path() / "test1.cc";
+  const auto input2_path = temp_dir.path() / "test2.cc";
+  const auto header_path = temp_dir.path() / "test.h";
+  const String compiler_version = "fake_compiler_version";
+
+  ASSERT_TRUE(base::File::Write(input1_path, "#include \"test.h\""_l));
+  ASSERT_TRUE(base::File::Write(input2_path, "#include \"test.h\""_l));
+  ASSERT_TRUE(base::File::Write(header_path, "int a;"_l));
+
+  conf.mutable_cache()->set_path(temp_dir.path() / "cache");
+  conf.mutable_cache()->set_direct(true);
+  conf.mutable_cache()->set_clean_period(1);
+  conf.mutable_emitter()->set_preprocessing(
+      proto::Configuration::Emitter::ALWAYS);
+
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path("fake_compiler_path");
+
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      send_condition.notify_all();
+    });
+    return true;
+  };
+
+  ui32 compilations = 0;
+  run_callback = [&](base::TestProcess* process) {
+    const bool preprocessing =
+        std::find(process->args_.begin(), process->args_.end(), "-E"_l) !=
+        process->args_.end();
+    const auto deps = Immutable("test.o: "_l) + Immutable(header_path);
+    WriteDepsFile(process, deps);
+    if (preprocessing) {
+      process->stdout_ = "preprocessed"_l;
+    } else {
+      ++compilations;
+      EXPECT_TRUE(
+          base::File::Write(temp_dir.path() / "test1.o", "object"_l));
+      EXPECT_TRUE(base::File::Write(temp_dir.path() / "test1.d", deps));
+    }
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto Compile = [&](const Path& input, ui32 expected_send_count) {
+    auto connection = test_service->TriggerListen(socket_path);
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->mutable_local();
+    extension->set_current_dir(temp_dir);
+    auto* flags = extension->mutable_flags();
+    const auto name = input.stem().string();
+    flags->set_input(input);
+    flags->set_output(name + ".o");
+    flags->set_deps_file(name + ".d");
+    flags->set_deps_target(name + ".o");
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action("-c");
+
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+
+    UniqueLock lock(send_mutex);
+    return send_condition.wait_for(lock, Seconds(1), [&] {
+      return send_count == expected_send_count;
+    });
+  };
+
+  EXPECT_TRUE(Compile(input1_path, 1));
+  EXPECT_EQ(1u, compilations);
+  // The direct store of the first source ends.
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+  // The header can't be read for the direct store of the other source, until
+  // it's written.
+  ASSERT_TRUE(base::File::Delete(header_path));
+  ASSERT_EQ(0, mkfifo(header_path.c_str(), 0600));
+  WaitAfterEdit();
+
+  // The simple hit doesn't wait for the direct store.
+  EXPECT_TRUE(Compile(input2_path, 2));
+  EXPECT_EQ(1u, compilations);
+
+  {
+    std::ofstream header(header_path);
+    header << "int a;";
+  }
 
   emitter.reset();
 }
