@@ -57,6 +57,38 @@ TEST_F(ProcessTest, ExitedByItself) {
   EXPECT_FALSE(process->exited());
 }
 
+TEST_F(ProcessTest, WatchedSocketNotInherited) {
+  // The descriptors of a process - but of "ls" itself.
+  auto CountDescriptors = [] {
+    ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+    process->AppendArg("-c"_l).AppendArg("ls /dev/fd/ | wc -l"_l);
+    EXPECT_TRUE(process->Run(10));
+    return process->stdout().string_copy();
+  };
+  const String alone = CountDescriptors();
+
+  int sockets[2];
+  ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM, 0, sockets));
+  fcntl(sockets[0], F_SETFD, FD_CLOEXEC);
+  fcntl(sockets[1], F_SETFD, FD_CLOEXEC);
+
+  // The process, that watches the socket of its client, runs.
+  std::thread watching([&] {
+    ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
+    process->AppendArg("-c"_l).AppendArg("sleep 1"_l);
+    process->CancelOnDisconnect(sockets[0]);
+    EXPECT_TRUE(process->Run(10));
+  });
+  std::this_thread::sleep_for(std::chrono::milliseconds(300));
+
+  // The other process, that starts meanwhile, doesn't get the socket.
+  EXPECT_EQ(alone, CountDescriptors());
+
+  watching.join();
+  close(sockets[0]);
+  close(sockets[1]);
+}
+
 TEST_F(ProcessTest, ChangeCurrentDir) {
   const auto dir = Path("/usr");
   ASSERT_NE(dir, GetCurrentDir()) << "Don't run this test from " << dir;

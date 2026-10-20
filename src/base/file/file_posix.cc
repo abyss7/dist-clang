@@ -24,7 +24,8 @@ String UniqueTempPath(const Path& path) {
 
 }  // namespace
 
-File::File(const Path& path) : Data(open(path.c_str(), O_RDONLY)) {
+File::File(const Path& path)
+    : Data(open(path.c_str(), O_RDONLY | O_CLOEXEC)) {
   if (!IsValid()) {
     GetLastError(&error_);
     return;

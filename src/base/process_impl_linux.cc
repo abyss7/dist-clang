@@ -6,6 +6,7 @@
 #include <base/file/pipe.h>
 #include <base/logging.h>
 
+#include <fcntl.h>
 #include <signal.h>
 #include <sys/eventfd.h>
 #include <sys/prctl.h>
@@ -21,7 +22,9 @@ namespace {
 // The duplicate of the socket to watch for the disconnection.
 class WatchedSocket : public Handle {
  public:
-  explicit WatchedSocket(int fd) : Handle(fd >= 0 ? dup(fd) : -1) {}
+  // It isn't inherited by the compilers, that the other threads start.
+  explicit WatchedSocket(int fd)
+      : Handle(fd >= 0 ? fcntl(fd, F_DUPFD_CLOEXEC, 0) : -1) {}
 };
 
 }  // namespace

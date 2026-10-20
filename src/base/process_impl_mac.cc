@@ -5,6 +5,7 @@
 #include <base/file/kqueue_mac.h>
 #include <base/file/pipe.h>
 
+#include <fcntl.h>
 #include <signal.h>
 #include <sys/event.h>
 #include <unistd.h>
@@ -18,7 +19,9 @@ namespace {
 // cancellation.
 class WatchedHandle : public Handle {
  public:
-  explicit WatchedHandle(int fd) : Handle(fd >= 0 ? dup(fd) : -1) {}
+  // It isn't inherited by the compilers, that the other threads start.
+  explicit WatchedHandle(int fd)
+      : Handle(fd >= 0 ? fcntl(fd, F_DUPFD_CLOEXEC, 0) : -1) {}
 };
 
 }  // namespace

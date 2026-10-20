@@ -15,6 +15,17 @@
 namespace dist_clang {
 namespace base {
 
+TEST(FileTest, NotInheritedByChildren) {
+  const TemporaryDir temp_dir;
+  const Path path = temp_dir.path() / "file";
+  ASSERT_TRUE(File::Write(path, "content"_l));
+
+  // The other threads start the compilers at the same time.
+  const File file(path);
+  ASSERT_TRUE(file.IsValid());
+  EXPECT_TRUE(fcntl(file.native(), F_GETFD) & FD_CLOEXEC);
+}
+
 TEST(FileTest, ReadIsSnapshot) {
   const TemporaryDir temp_dir;
   const Path path = temp_dir.path() / "file";
