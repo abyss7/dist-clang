@@ -66,6 +66,7 @@ FORWARD_TEST(EmitterTest, UpdateCacheWithoutLookup);
 FORWARD_TEST(EmitterTest, StoreTimeTraces);
 FORWARD_TEST(EmitterTest, PreprocessWhenIdle);
 FORWARD_TEST(EmitterTest, PreprocessWhenIdleWithEditedHeader);
+FORWARD_TEST(EmitterTest, PreprocessAfterReply);
 }  // namespace daemon
 
 namespace base {
@@ -195,6 +196,7 @@ class Process
   FRIEND_TEST(daemon::EmitterTest, StoreTimeTraces);
   FRIEND_TEST(daemon::EmitterTest, PreprocessWhenIdle);
   FRIEND_TEST(daemon::EmitterTest, PreprocessWhenIdleWithEditedHeader);
+  FRIEND_TEST(daemon::EmitterTest, PreprocessAfterReply);
 };
 
 }  // namespace base

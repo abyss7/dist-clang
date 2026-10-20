@@ -88,12 +88,22 @@ class Speculation {
 
   bool canceled() const THREAD_SAFE;
 
+  // The preprocessing starts - returns |false| if it's abandoned already. It
+  // isn't canceled, when the client disconnects: it may end after the reply.
+  bool StartPreprocessing(base::Process* process) THREAD_SAFE;
+  void FinishPreprocessing() THREAD_SAFE;
+  // The result of the compilation isn't stored: cancels the preprocessing -
+  // it's useless.
+  void Abandon() THREAD_SAFE;
+
  private:
   enum State { COMPILING, COMPILED, STORED, CANCELED };
 
   mutable Mutex mutex_;
   State state_ = COMPILING;
   base::Process* process_ = nullptr;
+  base::Process* preprocessing_ = nullptr;
+  bool abandoned_ = false;
   cache::string::HandledHash handled_hash_;
 };
 

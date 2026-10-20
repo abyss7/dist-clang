@@ -15,6 +15,7 @@
 #include STL(fstream)
 #include STL(thread)
 
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <utime.h>
 
@@ -3556,6 +3557,169 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
   EXPECT_EQ(4u, Stat(perf::proto::Metric::PARALLEL_PREPROCESSING));
 
   emitter.reset();
+}
+
+TEST_F(EmitterTest, PreprocessAfterReply) {
+  const base::TemporaryDir temp_dir;
+  const auto input_path = temp_dir.path() / "test.cc";
+  const auto header_path = temp_dir.path() / "header.h";
+  const auto output_path = temp_dir.path() / "test.o";
+  const auto deps_path = temp_dir.path() / "test.d";
+  const String compiler_version = "fake_compiler_version";
+
+  ASSERT_TRUE(base::File::Write(input_path, "int main() { return 1; }"_l));
+  ASSERT_TRUE(base::File::Write(header_path, "#define A 1"_l));
+
+  conf.mutable_cache()->set_path(temp_dir.path() / "cache");
+  conf.mutable_cache()->set_direct(true);
+  conf.mutable_cache()->set_clean_period(1);
+  conf.mutable_emitter()->set_preprocessing(
+      proto::Configuration::Emitter::WHEN_IDLE);
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path("fake_compiler_path");
+
+  // The real socket of the client: the processes may be canceled, when it's
+  // closed - and it's closed after the reply.
+  int fds[2];
+  ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM, 0, fds));
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->SetNativeHandle(fds[0]);
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      send_condition.notify_all();
+    });
+    return true;
+  };
+
+  auto WaitFor = [](const Fn<bool()>& condition) {
+    for (int i = 0; i < 300 && !condition(); ++i) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return condition();
+  };
+  Mutex mutex;
+  String preprocessed, object;
+  // The preprocessing ends after this reply - or is canceled.
+  Atomic<ui32> preprocessing_until_reply = 0;
+  bool cancel_compilation = false, wait_for_cancel = false;
+  Atomic<bool> preprocessing_started = false, preprocessing_canceled = false;
+  Atomic<int> preprocessing_cancel_fd = -2, compilation_cancel_fd = -2;
+  const auto deps = Immutable("test.o: "_l) + Immutable(input_path) + " "_l +
+                    Immutable(header_path);
+  run_callback = [&](base::TestProcess* process) {
+    if (std::find(process->args_.begin(), process->args_.end(), "-E"_l) !=
+        process->args_.end()) {
+      preprocessing_cancel_fd = process->cancel_fd_;
+      preprocessing_started = true;
+      EXPECT_TRUE(WaitFor([&] {
+        return send_count >= preprocessing_until_reply ||
+               process->cancel_requested();
+      }));
+      preprocessing_canceled = bool(process->cancel_requested());
+      std::lock_guard<Mutex> lock(mutex);
+      process->stdout_ = Immutable(String(preprocessed));
+      WriteDepsFile(process, deps);
+      return;
+    }
+
+    compilation_cancel_fd = process->cancel_fd_;
+    if (cancel_compilation) {
+      // The client is gone.
+      EXPECT_TRUE(WaitFor([&] { return bool(preprocessing_started); }));
+      process->Cancel();
+      return;
+    }
+    if (wait_for_cancel) {
+      // Canceled by the hit of the simple cache.
+      EXPECT_TRUE(WaitFor([&] { return process->cancel_requested(); }));
+      return;
+    }
+    std::lock_guard<Mutex> lock(mutex);
+    EXPECT_TRUE(base::File::Write(output_path, Immutable(String(object))));
+    EXPECT_TRUE(base::File::Write(deps_path, deps));
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto Compile = [&](ui32 expected_send_count,
+                     std::chrono::milliseconds timeout = Seconds(5)) {
+    preprocessing_started = false;
+    auto connection = test_service->TriggerListen(socket_path);
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->mutable_local();
+    extension->set_current_dir(temp_dir);
+    auto* flags = extension->mutable_flags();
+    flags->set_input(input_path);
+    flags->set_output(output_path);
+    flags->set_deps_file(deps_path);
+    flags->set_deps_target("test.o");
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action("fake_action");
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+    UniqueLock lock(send_mutex);
+    return send_condition.wait_for(lock, timeout, [&] {
+      return send_count == expected_send_count;
+    });
+  };
+
+  HashMap<int, ui64> stats;
+  auto Stat = [&stats](perf::proto::Metric::Name name) {
+    perf::proto::Metric metric;
+    metric.set_name(name);
+    base::Singleton<perf::StatService>::Get().Dump(metric);
+    return stats[name] += metric.value();
+  };
+
+  // The new source isn't preprocessed.
+  preprocessed = "preprocessed 1";
+  object = "object 1";
+  ASSERT_TRUE(Compile(1));
+
+  // The preprocessing ends after the reply: it isn't canceled by the closed
+  // socket, and stores the result for the simple cache.
+  ASSERT_TRUE(base::File::Write(header_path, "#define A 2"_l));
+  WaitAfterEdit();
+  preprocessed = "preprocessed 2";
+  object = "object 2";
+  preprocessing_until_reply = 2;
+  ASSERT_TRUE(Compile(2));
+  EXPECT_TRUE(WaitFor([&] { return bool(preprocessing_started); }));
+  EXPECT_EQ(fds[0], compilation_cancel_fd);
+  EXPECT_EQ(-1, preprocessing_cancel_fd);
+  EXPECT_TRUE(WaitFor(
+      [&] { return Stat(perf::proto::Metric::SIMPLE_CACHE_MISS) >= 1; }));
+  EXPECT_FALSE(preprocessing_canceled);
+
+  // The same preprocessed source is found.
+  ASSERT_TRUE(base::File::Write(header_path, "#define A 2 "_l));
+  WaitAfterEdit();
+  object = "object 3";
+  preprocessing_until_reply = 0;
+  wait_for_cancel = true;
+  ASSERT_TRUE(Compile(3));
+  EXPECT_TRUE(WaitFor([&] {
+    return Stat(perf::proto::Metric::PARALLEL_PREPROCESSING_HIT) >= 1;
+  }));
+
+  // The compilation is canceled: the preprocessing is useless, and canceled
+  // too.
+  ASSERT_TRUE(base::File::Write(header_path, "#define A 4"_l));
+  WaitAfterEdit();
+  preprocessed = "preprocessed 4";
+  preprocessing_until_reply = 100;
+  wait_for_cancel = false;
+  cancel_compilation = true;
+  EXPECT_FALSE(Compile(4, std::chrono::milliseconds(500)));
+  EXPECT_TRUE(WaitFor([&] { return bool(preprocessing_canceled); }));
+
+  emitter.reset();
+  close(fds[0]);
+  close(fds[1]);
 }
 
 TEST_F(EmitterTest, PreprocessWhenIdleWithEditedHeader) {

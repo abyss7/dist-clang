@@ -13,6 +13,11 @@ class TestConnection : public Connection {
 
   inline bool IsClosed() const override { return false; }
 
+  // E.g. of a socket pair - for the processes, that are canceled on the
+  // disconnect.
+  inline int NativeHandle() const override { return native_handle_; }
+  inline void SetNativeHandle(int fd) { native_handle_ = fd; }
+
   bool ReadAsync(ReadCallback callback) override;
   bool ReadSync(Message* message, Status* status) override;
 
@@ -43,6 +48,7 @@ class TestConnection : public Connection {
   Fn<void(const Message&)> on_send_;
   Fn<void(Message*)> on_read_;
   ReadCallback read_callback_;
+  int native_handle_ = -1;
 };
 
 }  // namespace net

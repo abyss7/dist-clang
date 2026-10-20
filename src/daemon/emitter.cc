@@ -232,7 +232,8 @@ void RedirectDepsFile(base::proto::Flags* flags, const Path& path) {
 inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
                            const net::ConnectionPtr& connection,
                            cache::string::HandledSource* source,
-                           Immutable* deps) {
+                           Immutable* deps,
+                           daemon::Speculation* speculation = nullptr) {
   Counter<> preprocess_time_counter(Metric::PREPROCESS_TIME);
   STAT(PREPROCESSINGS);
   base::proto::Flags pp_flags;
@@ -272,9 +273,17 @@ inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
     process = daemon::CompilationDaemon::CreateProcess(
         pp_flags, Path(message->current_dir()));
   }
-  process->CancelOnDisconnect(connection->NativeHandle());
+  if (!speculation) {
+    process->CancelOnDisconnect(connection->NativeHandle());
+  } else if (!speculation->StartPreprocessing(process.get())) {
+    return false;
+  }
 
-  if (!process->Run(base::Process::UNLIMITED)) {
+  const bool preprocessed = process->Run(base::Process::UNLIMITED);
+  if (speculation) {
+    speculation->FinishPreprocessing();
+  }
+  if (!preprocessed) {
     return false;
   }
 
@@ -338,6 +347,32 @@ bool Speculation::SetHandledHash(const cache::string::HandledHash& hash) {
 bool Speculation::canceled() const {
   std::lock_guard<Mutex> lock(mutex_);
   return state_ == CANCELED;
+}
+
+bool Speculation::StartPreprocessing(base::Process* process) {
+  std::lock_guard<Mutex> lock(mutex_);
+  if (abandoned_) {
+    return false;
+  }
+  preprocessing_ = process;
+  return true;
+}
+
+void Speculation::FinishPreprocessing() {
+  std::lock_guard<Mutex> lock(mutex_);
+  preprocessing_ = nullptr;
+}
+
+void Speculation::Abandon() {
+  std::lock_guard<Mutex> lock(mutex_);
+  // The result is stored, or found by the preprocessing.
+  if (state_ == STORED || state_ == CANCELED) {
+    return;
+  }
+  abandoned_ = true;
+  if (preprocessing_) {
+    preprocessing_->Cancel();
+  }
 }
 
 OutputLocks::Lock::Lock(OutputLocks* locks, const String& path)
@@ -1162,7 +1197,8 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
         auto& source = std::get<SOURCE>(*task);
         const bool preprocessed =
             GenerateSource(incoming, std::get<CONNECTION>(*task), &source,
-                           &std::get<PREPROCESSED_DEPS>(*task));
+                           &std::get<PREPROCESSED_DEPS>(*task),
+                           speculation.get());
         --running_processes_;
         if (!preprocessed) {
           continue;
@@ -1265,6 +1301,17 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
     if (!task) {
       break;
     }
+
+    // The preprocessing at the same time is useless, if the result isn't
+    // stored.
+    struct Abandon {
+      ~Abandon() {
+        if (speculation) {
+          speculation->Abandon();
+        }
+      }
+      SharedPtr<Speculation> speculation;
+    } abandon{std::get<SPECULATION>(*task)};
 
     if (std::get<CONNECTION>(*task)->IsPeerGone()) {
       STAT(TASK_CANCELED);
@@ -1471,13 +1518,13 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
     }
     direct_store.reset();
 
-    if (speculation) {
+    if (speculation && stored) {
       // The result is stored - only then the preprocessing at the same time
       // may store it for the simple cache.
       cache::string::HandledHash preprocessed_hash;
       speculation->FinishStore(&preprocessed_hash);
       // The preprocessing has missed the cache already.
-      if (stored && !preprocessed_hash.str.empty()) {
+      if (!preprocessed_hash.str.empty()) {
         UpdateSimpleCache(preprocessed_hash, *entry_to_store);
         TagEntry(*incoming, preprocessed_hash);
       }
