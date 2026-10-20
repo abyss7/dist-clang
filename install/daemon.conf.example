@@ -18,9 +18,10 @@ cache {
   direct: true
   threads: 64
   # store_time_traces: true  # Restore the traces of -ftime-trace with hits.
-  # tags {  # Builds with --tag=bench find only their entries.
+  # tags {
   #   name: "bench"
-  #   isolated: true
+  #   isolated: true  # Builds with --tag=bench find only their entries.
+  #   quota: 21474836480  # 20 GiB of own size - 0 is unlimited.
   # }
 }
 
