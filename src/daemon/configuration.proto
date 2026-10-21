@@ -55,8 +55,8 @@ message Configuration {
 
     optional bool link_outputs   = 11 [ default = true ];
     // Store outputs uncompressed, and link them into and out of the cache
-    // without copying: as copy-on-write clones or as read-only hard links.
-    // Only for emitters; overrides |compression|.
+    // without copying: as copy-on-write clones, or as hard links - see
+    // |max_output_links|. Only for emitters; overrides |compression|.
 
     optional uint32 max_output_links = 16 [ default = 1 ];
     // With |link_outputs|: to how many places outside of the cache a cache
