@@ -310,6 +310,21 @@ const char* MatchesAnyPrefix(const char* const (&prefixes)[N],
   return nullptr;
 }
 
+// Checked with "clang++-18 -###": they tune the debug info, but don't turn it
+// on - unlike all other "-g" flags.
+const char* const kDebugInfoTunings[] = {
+    "-gz",
+    "-gcolumn-info",
+    "-gpubnames",
+    "-ggnu-pubnames",
+    "-gsimple-template-names",
+    "-gembed-source",
+    "-gstrict-dwarf",
+    "-gbtf",
+    "-gcodeview",
+    "-gdwarf-aranges",
+};
+
 String GetFullPath(const String& current_dir, const String& path) {
   return Path(path).is_absolute() ? path : current_dir + "/" + path;
 }
@@ -622,7 +637,7 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
     // The debug info contains the current directory, and the name of the split
     // DWARF file.
     if (arg.starts_with("-g")) {
-      if (arg == "-g0") {
+      if (arg == "-g0" || arg == "-ggdb0") {
         has_debug_info = false;
       } else if (arg == "-gsplit-dwarf" || arg == "-gsplit-dwarf=split") {
         has_split_dwarf = true;
@@ -634,7 +649,8 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
       } else if (arg == "-gno-record-command-line" ||
                  arg == "-gno-record-gcc-switches") {
         records_command_line = false;
-      } else if (!arg.starts_with("-gno-")) {
+      } else if (!arg.starts_with("-gno-") &&
+                 !MatchesAnyPrefix(kDebugInfoTunings, arg)) {
         has_debug_info = true;
       }
     }

@@ -214,6 +214,34 @@ TEST(DriverArgsTest, DebugInfoDependsOnCurrentDir) {
   EXPECT_TRUE(KeyExtra(flags).empty());
 }
 
+TEST(DriverArgsTest, FlagsOfDebugInfo) {
+  // Checked with "clang++-18 -###": these flags tune the debug info, but don't
+  // turn it on.
+  for (const char* arg :
+       {"-gz", "-gz=zlib", "-gcolumn-info", "-gpubnames", "-ggnu-pubnames",
+        "-gsimple-template-names", "-gembed-source", "-gstrict-dwarf", "-gbtf",
+        "-gcodeview", "-gcodeview-ghash", "-gdwarf-aranges", "-ggdb0"}) {
+    base::proto::Flags flags;
+    ASSERT_TRUE(Parse({"-c", "test.cc", arg}, &flags)) << arg;
+    EXPECT_TRUE(KeyExtra(flags).empty()) << arg;
+    EXPECT_FALSE(flags.records_command_line()) << arg;
+  }
+
+  // These turn it on - even after "-g0".
+  for (const char* arg :
+       {"-gdwarf64", "-gdwarf-5", "-gmodules", "-gfull", "-gused", "-glldb",
+        "-gsce", "-gdbx", "-g1", "-ggdb", "-gline-tables-only"}) {
+    base::proto::Flags flags;
+    ASSERT_TRUE(Parse({"-c", "test.cc", "-g0", arg}, &flags)) << arg;
+    EXPECT_EQ(List<String>{"cwd:/tmp"}, KeyExtra(flags)) << arg;
+  }
+
+  // Like "-g0".
+  base::proto::Flags flags;
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-g", "-ggdb0"}, &flags));
+  EXPECT_TRUE(KeyExtra(flags).empty());
+}
+
 TEST(DriverArgsTest, CoverageDependsOnCurrentDir) {
   // The coverage mapping has the current directory - without the debug info
   // too.
