@@ -2,10 +2,12 @@
 #include <base/c_utils.h>
 #include <base/constants.h>
 #include <base/logging.h>
+#include <base/string_utils.h>
 #include <client/autostart.h>
 #include <client/clang.h>
 #include <client/configuration.hh>
 #include <client/driver_name.h>
+#include <client/invocation.h>
 
 #include STL(iostream)
 
@@ -61,10 +63,6 @@ const char kUsage[] =
   exit(1);
 }
 
-String BaseName(const String& path) {
-  return path.substr(path.find_last_of('/') + 1);
-}
-
 }  // namespace
 }  // namespace dist_clang
 
@@ -94,80 +92,43 @@ int main(int argc, char* argv[]) {
   const String socket_path =
       socket_env.empty() ? base::DefaultSocketPath() : socket_env;
 
-  // There are two modes:
-  //   - as a launcher: "dist-clang clang++ <args>";
-  //   - as the compiler itself: through a symlink "clang++" -> "dist-clang".
-  List<String> args;
-  const String self_name = BaseName(argv[0]);
-  if (self_name == "dist-clang") {
-    if (argc < 2 || argv[1] == String("--help")) {
+  const auto invocation =
+      client::ParseInvocation(List<String>(argv, argv + argc), config.path());
+  switch (invocation.action) {
+    case client::Invocation::USAGE:
       std::cerr << kUsage;
       return 1;
-    }
-    if (argv[1] == String("--stats")) {
-      const bool raw = argc > 2 && argv[2] == String("--raw");
-      return client::PrintStats(socket_path, config, raw) ? 0 : 1;
-    }
-    if (argv[1] == String("--tag-stats")) {
+    case client::Invocation::ERROR:
+      std::cerr << "dist-clang: " << invocation.error << std::endl;
+      return 1;
+    case client::Invocation::STATS:
+      return client::PrintStats(socket_path, config, invocation.raw) ? 0 : 1;
+    case client::Invocation::TAG_STATS:
       return client::PrintTagStats(socket_path, config) ? 0 : 1;
-    }
-    if (argv[1] == String("--forget-removed") && argc == 2) {
+    case client::Invocation::FORGET_REMOVED:
       return client::ForgetGhosts(socket_path, config) ? 0 : 1;
-    }
-    const String kForgetTag = "--forget-tag=";
-    const bool untagged = argv[1] == String("--forget-untagged");
-    if (String(argv[1]).starts_with(kForgetTag) || untagged) {
-      const String tag =
-          untagged ? String() : String(argv[1]).substr(kForgetTag.size());
-      const bool force = argc > 2 && argv[2] == String("--force");
-      if ((tag.empty() && !untagged) || argc > (force ? 3 : 2)) {
-        std::cerr << kUsage;
-        return 1;
-      }
-      return client::ForgetTag(socket_path, config, tag, force) ? 0 : 1;
-    }
-
-    // The daemon gets the options with the environment.
-    int first_arg = 1;
-    const String kTag = "--tag=";
-    String tags;
-    for (; first_arg < argc; ++first_arg) {
-      const String arg = argv[first_arg];
-      if (arg == "--restat") {
-        setenv("DC_RESTAT", "1", 1);
-      } else if (arg == "--recache") {
-        setenv("DC_RECACHE", "1", 1);
-      } else if (arg.starts_with(kTag)) {
-        // E.g. "$(git branch --show-current)" may give nothing.
-        const String tag = arg.substr(kTag.size());
-        if (!tag.empty() && tag.find('\n') == String::npos) {
-          tags += (tags.empty() ? "" : "\n") + tag;
-        }
-      } else {
-        break;
-      }
-    }
-    if (!tags.empty()) {
-      setenv(String(base::kEnvTags).c_str(), tags.c_str(), 1);
-    }
-    if (first_arg == argc) {
-      std::cerr << kUsage;
-      return 1;
-    }
-    args.assign(argv + first_arg, argv + argc);
-  } else {
-    if (config.path().empty()) {
-      std::cerr << "dist-clang: provide the real compiler via "
-                << base::kEnvClangPath << std::endl;
-      return 1;
-    }
-    args.push_back(config.path());
-    // The compiler derives some flags from the name of its executable.
-    for (auto& arg : client::DriverNameArgs(self_name)) {
-      args.push_back(std::move(arg));
-    }
-    args.insert(args.end(), argv + 1, argv + argc);
+    case client::Invocation::FORGET_TAG:
+      return client::ForgetTag(socket_path, config, invocation.tag,
+                               invocation.force)
+                 ? 0
+                 : 1;
+    case client::Invocation::COMPILE:
+      break;
   }
+
+  // The daemon gets the options with the environment.
+  if (invocation.restat) {
+    setenv("DC_RESTAT", "1", 1);
+  }
+  if (invocation.recache) {
+    setenv("DC_RECACHE", "1", 1);
+  }
+  if (!invocation.tags.empty()) {
+    const String tags =
+        base::JoinString<'\n'>(invocation.tags.begin(), invocation.tags.end());
+    setenv(String(base::kEnvTags).c_str(), tags.c_str(), 1);
+  }
+  const auto& args = invocation.args;
 
   if (config.disabled()) {
     ExecuteLocally(args);
