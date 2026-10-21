@@ -12,13 +12,14 @@ objects (e.g. no debug info, or with the paths remapped), and both directories
 should be at the same depth relative to the sources.
 
 Every iteration:
-  1. changes the code of random sources;
+  1. changes the code of random files - the headers in --files check the
+     direct cache too;
   2. starts the build through dist-clang, and kills with SIGKILL a random
      victim at a random moment: the daemon, a compiler, a client or ninja;
   3. sometimes reverts the sources - while the killed compilations may still
      be running, and the reverted versions are restored from the cache;
   4. completes the build through dist-clang, and builds the reference;
-  5. compares all objects of both builds.
+  5. compares all objects, split DWARF and dependency files of both builds.
 
 The sources are restored at the end.
 
@@ -29,7 +30,6 @@ Example:
 """
 
 import argparse
-import filecmp
 import os
 import random
 import shutil
@@ -159,21 +159,43 @@ def write_file(path, content):
     os.replace(temp, path)
 
 
+def changed_content(original, index, iteration, value):
+    """A real change of the code - that fits a header too: it may be included
+    into many sources."""
+    return original + b"\nstatic inline int %s%d_%d() { return %d; }\n" % (
+        MARKER, index, iteration, value)
+
+
+OUTPUTS = (".o", ".dwo", ".d")
+
+
+def read_output(path, build_dir):
+    with open(path, "rb") as f:
+        content = f.read()
+    # The dependency files may have the absolute paths of the build directory.
+    if path.endswith(".d"):
+        content = content.replace(os.path.abspath(build_dir).encode(),
+                                  b"<build>")
+    return content
+
+
 def compare_objects(cache_dir, reference_dir):
+    """Compares the objects, the split DWARF and the dependency files."""
     mismatches = []
     checked = 0
     for root, _, files in os.walk(reference_dir):
-        for name in files:
-            if not name.endswith(".o"):
+        for name in sorted(files):
+            if not name.endswith(OUTPUTS):
                 continue
             reference = os.path.join(root, name)
-            cached = os.path.join(cache_dir,
-                                  os.path.relpath(reference, reference_dir))
+            relative = os.path.relpath(reference, reference_dir)
+            cached = os.path.join(cache_dir, relative)
             checked += 1
             if not os.path.exists(cached) or \
-                    not filecmp.cmp(cached, reference, shallow=False):
-                mismatches.append(os.path.relpath(reference, reference_dir))
-    return checked, mismatches
+                    read_output(cached, cache_dir) != \
+                    read_output(reference, reference_dir):
+                mismatches.append(relative)
+    return checked, sorted(mismatches)
 
 
 def main():
@@ -216,10 +238,9 @@ def main():
                 if random.random() < 0.3:
                     content = originals[path]
                 else:
-                    content = originals[path] + (
-                        b"\nint %s%d_%d() { return %d; }\n" %
-                        (MARKER, args.files.index(path), iteration,
-                         random.randint(0, 1000)))
+                    content = changed_content(
+                        originals[path], args.files.index(path), iteration,
+                        random.randint(0, 1000))
                 write_file(path, content)
 
             victim = random.choice(VICTIMS)
@@ -256,7 +277,7 @@ def main():
             checked, mismatches = compare_objects(args.cache_build_dir,
                                                   args.reference_build_dir)
             status = "OK" if not mismatches else "MISMATCH"
-            print("%3d: killed %-8s %-8s after %.1fs, %d objects: %s %s" %
+            print("%3d: killed %-8s %-8s after %.1fs, %d outputs: %s %s" %
                   (iteration, victim, killed or "-", delay, checked, status,
                    " ".join(mismatches[:5])), flush=True)
             if mismatches:

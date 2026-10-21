@@ -94,5 +94,51 @@ class SignalsTest(unittest.TestCase):
                     signal.signal(s, handler)
 
 
+class CompareOutputsTest(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.cache = os.path.join(self.dir.name, "cache")
+        self.reference = os.path.join(self.dir.name, "reference")
+
+    def tearDown(self):
+        self.dir.cleanup()
+
+    def write(self, build_dir, name, content):
+        path = os.path.join(build_dir, name)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "wb") as f:
+            f.write(content)
+
+    def test_all_outputs(self):
+        for build_dir in (self.cache, self.reference):
+            self.write(build_dir, "obj/a.o", b"object")
+            self.write(build_dir, "obj/a.dwo", b"dwarf")
+            # The absolute paths of the build directories differ.
+            self.write(build_dir, "obj/a.o.d",
+                       b"obj/a.o: ../../a.cc %s/gen/a.h\n" %
+                       build_dir.encode())
+            self.write(build_dir, "build.ninja", b"rules of " +
+                       build_dir.encode())
+        self.assertEqual((3, []), crash_test.compare_objects(self.cache,
+                                                             self.reference))
+
+        self.write(self.cache, "obj/a.dwo", b"stale dwarf")
+        self.write(self.cache, "obj/a.o.d", b"obj/a.o: ../../a.cc\n")
+        self.assertEqual((3, ["obj/a.dwo", "obj/a.o.d"]),
+                         crash_test.compare_objects(self.cache,
+                                                    self.reference))
+
+
+class ChangeTest(unittest.TestCase):
+    def test_fits_headers(self):
+        # A header is included into many sources: the function mustn't be
+        # defined twice.
+        content = crash_test.changed_content(b"int a;\n", 1, 2, 3)
+        self.assertTrue(content.startswith(b"int a;\n"))
+        self.assertIn(b"static inline int dist_clang_crash_test_1_2()",
+                      content)
+        self.assertIn(b"return 3;", content)
+
+
 if __name__ == "__main__":
     unittest.main()
