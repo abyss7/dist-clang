@@ -749,7 +749,7 @@ bool FileCache::Run(ui64 clean_period) {
           }
         }
       };
-  resetter_->AddWorker("Cache Resetter Worker"_l, worker);
+  resetter_->AddWorker("Cache Resetter"_l, worker);
 
   // The cleaner works in background - it shouldn't slow down the
   // compilations.

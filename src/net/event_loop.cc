@@ -25,7 +25,7 @@ bool EventLoop::Run() {
   pool_.reset(new base::WorkerPool(true));
   pool_->AddWorker("Listen Worker"_l,
                    std::bind(&EventLoop::DoListenWork, this, _1, _2));
-  pool_->AddWorker("Network IO Worker"_l,
+  pool_->AddWorker("Network IO"_l,
                    std::bind(&EventLoop::DoIOWork, this, _1, _2), concurrency_);
 
   return true;

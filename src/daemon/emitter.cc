@@ -448,7 +448,7 @@ Emitter::Emitter(const proto::Configuration& conf) : CompilationDaemon(conf) {
 
   {
     Worker worker = std::bind(&Emitter::DoLocalExecute, this, _1);
-    workers_->AddWorker("Local Execute Worker"_l, worker,
+    workers_->AddWorker("Local Execute"_l, worker,
                         conf.emitter().threads());
   }
 
@@ -484,7 +484,7 @@ Emitter::Emitter(const proto::Configuration& conf) : CompilationDaemon(conf) {
     if (!resolvers.empty()) {
       handle_all_tasks_ = false;
       Worker worker = std::bind(&Emitter::DoPoll, this, _1, resolvers);
-      coordinator_workers_->AddWorker("Coordinator Poll Worker"_l, worker);
+      coordinator_workers_->AddWorker("Coordinator"_l, worker);
     }
   }
 }
@@ -1939,7 +1939,7 @@ bool Emitter::Reload(const proto::Configuration& conf) {
     ui32 shard = remote.has_shard() ? remote.shard() : Queue::DEFAULT_SHARD;
     Worker worker =
         std::bind(&Emitter::DoRemoteExecute, this, _1, resolver, shard);
-    new_pool->AddWorker("Remote Execute Worker"_l, worker, remote.threads());
+    new_pool->AddWorker("Remote Execute"_l, worker, remote.threads());
   }
   std::swap(new_pool, remote_workers_);
 

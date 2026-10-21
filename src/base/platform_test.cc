@@ -2,6 +2,9 @@
 
 #include <gtest/gtest.h>
 
+#include STL(thread)
+
+#include <pthread.h>
 #include <sys/resource.h>
 
 namespace dist_clang {
@@ -24,6 +27,20 @@ TEST(PlatformTest, RaiseOpenFilesLimit) {
   }
 
   ASSERT_EQ(0, setrlimit(RLIMIT_NOFILE, &original));
+}
+
+TEST(PlatformTest, LongThreadName) {
+  // Linux takes at most 15 bytes - the longer names are cut, not ignored.
+  String name;
+  std::thread thread([&name] {
+    SetCurrentThreadName("Local Execute Worker"_l);
+    char buffer[64] = {};
+    pthread_getname_np(pthread_self(), buffer, sizeof(buffer));
+    name = buffer;
+  });
+  thread.join();
+  EXPECT_TRUE(String("Local Execute Worker").starts_with(name)) << name;
+  EXPECT_LE(15u, name.size());
 }
 
 TEST(PlatformTest, PathKey) {

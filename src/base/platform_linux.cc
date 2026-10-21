@@ -85,7 +85,9 @@ bool GetSelfPath(String& result, String* error) {
 }
 
 void SetCurrentThreadName(Literal name) {
-  pthread_setname_np(pthread_self(), name);
+  // The longer names are refused: the limit is 16 bytes with the terminator.
+  const String short_name = String(name).substr(0, 15);
+  pthread_setname_np(pthread_self(), short_name.c_str());
 }
 
 void LowerCurrentThreadPriority() {

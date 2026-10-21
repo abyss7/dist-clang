@@ -86,7 +86,7 @@ class Promise {
     DCHECK(state_);
     UniqueLock lock(state_->mutex);
     if (!state_->fulfilled && state_->async_id == Thread::id()) {
-      Thread("Promise Set Value"_l, [fn](StatePtr state) {
+      Thread("Promise"_l, [fn](StatePtr state) {
         SetStateValue(state, fn());
       }, state_).swap(*async_);
       state_->async_id = async_->get_id();
