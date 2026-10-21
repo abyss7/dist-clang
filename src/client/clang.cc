@@ -34,9 +34,12 @@ net::ConnectionPtr Connect(const String& socket_path,
       config.connect_timeout(), config.read_timeout(), config.send_timeout(),
       config.read_minimum());
 
+  auto end_point = net::EndPoint::UnixSocket(socket_path);
+  if (!end_point) {
+    return nullptr;
+  }
   String error;
-  auto connection =
-      (*service)->Connect(net::EndPoint::UnixSocket(socket_path), &error);
+  auto connection = (*service)->Connect(end_point, &error);
   if (!connection) {
     LOG(VERBOSE) << "Failed to connect to daemon: " << error;
     return connection;

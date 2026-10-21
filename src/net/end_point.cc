@@ -99,12 +99,28 @@ EndPointPtr EndPoint::LocalHost(const String& host, ui16 port, bool ipv6) {
 
 // static
 EndPointPtr EndPoint::UnixSocket(const String& path) {
+  if (!UnixSocketError(path).empty()) {
+    return EndPointPtr();
+  }
   EndPointPtr end_point(new EndPoint);
   sockaddr_un* address = reinterpret_cast<sockaddr_un*>(&end_point->address_);
   address->sun_family = AF_UNIX;
   strncpy(address->sun_path, path.c_str(), sizeof(address->sun_path) - 1);
   end_point->size_ = sizeof(*address);
   return end_point;
+}
+
+// static
+String EndPoint::UnixSocketError(const String& path) {
+  // With the terminating zero.
+  const size_t limit = sizeof(sockaddr_un::sun_path) - 1;
+  if (path.size() <= limit) {
+    return String();
+  }
+  return "the path of the socket is too long - " +
+         std::to_string(path.size()) + " bytes, the limit is " +
+         std::to_string(limit) + ": " + path +
+         " - set DC_SOCKET_PATH or XDG_RUNTIME_DIR to a shorter one";
 }
 
 String EndPoint::Print() const {

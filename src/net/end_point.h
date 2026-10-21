@@ -14,7 +14,10 @@ class EndPoint : public std::enable_shared_from_this<EndPoint> {
  public:
   static EndPointPtr TcpHost(const String& host, ui16 port, bool ipv6);
   static EndPointPtr LocalHost(const String& host, ui16 port, bool ipv6);
+  // Null, if the path doesn't fit - see |UnixSocketError()|.
   static EndPointPtr UnixSocket(const String& path);
+  // Why the path can't be the one of a socket - empty, if it can.
+  static String UnixSocketError(const String& path);
 
   virtual ~EndPoint() {}
 

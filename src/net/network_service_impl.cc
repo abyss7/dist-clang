@@ -35,6 +35,9 @@ bool NetworkServiceImpl::Listen(const String& path, ListenCallback callback,
                                 String* error) {
   auto peer = EndPoint::UnixSocket(path);
   if (!peer) {
+    if (error) {
+      *error = EndPoint::UnixSocketError(path);
+    }
     return false;
   }
   unlink(path.c_str());

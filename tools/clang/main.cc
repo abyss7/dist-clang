@@ -9,6 +9,7 @@
 #include <client/driver_name.h>
 #include <client/invocation.h>
 #include <daemon/config_help.h>
+#include <net/end_point.h>
 
 #include STL(iostream)
 
@@ -97,8 +98,23 @@ int main(int argc, char* argv[]) {
   const String socket_path =
       socket_env.empty() ? base::DefaultSocketPath() : socket_env;
 
+  // Without the check the daemon and the client don't find each other, and
+  // the builds go on without the cache silently.
+  const String socket_error = net::EndPoint::UnixSocketError(socket_path);
+
   const auto invocation =
       client::ParseInvocation(List<String>(argv, argv + argc), config.path());
+  if (!socket_error.empty() && invocation.action != client::Invocation::USAGE &&
+      invocation.action != client::Invocation::HELP_CONFIG &&
+      invocation.action != client::Invocation::ERROR) {
+    if (invocation.action != client::Invocation::COMPILE) {
+      std::cerr << "dist-clang: " << socket_error << std::endl;
+      return 1;
+    }
+    std::cerr << "dist-clang: warning: " << socket_error
+              << " - compiling without the daemon" << std::endl;
+    ExecuteLocally(invocation.args);
+  }
   switch (invocation.action) {
     case client::Invocation::USAGE:
       std::cerr << kUsage;

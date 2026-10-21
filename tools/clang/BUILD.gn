@@ -7,5 +7,6 @@ executable("dist-clang") {
     "//src/client",
     "//src/client:configuration",
     "//src/daemon:config_help",
+    "//src/net:net",
   ]
 }
