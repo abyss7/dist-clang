@@ -2009,8 +2009,30 @@ TEST(FileCacheTest, ExceedCacheSize) {
   // Two first entries fit, but not with the third one.
   FileCache cache(cache_path, entry_size[0] + entry_size[1], proto::NONE, false);
 
-  ASSERT_TRUE(cache.Run(1));
+  ASSERT_TRUE(cache.Run(3600));
   auto db_size = cache.MetadataSize();
+  auto Flush = [&cache] {
+    cache.FlushAccesses();
+    cache.WaitForCleaner();
+  };
+  auto Maintain = [&cache] {
+    cache.FlushAccesses();
+    cache.cleaner_.Push([&cache] { cache.Maintain(); });
+    cache.WaitForCleaner();
+  };
+  // The times of the accesses are in seconds - the order is set explicitly.
+  auto SetTime = [&](int i, ui64 time) {
+    const String hash =
+        FileCache::Hash(code[i], {}, cl, version).str.string_copy();
+    cache.cleaner_.Push([&cache, hash, time] {
+      SQLite::Value value;
+      ASSERT_TRUE(cache.entries_->Get(hash, &value));
+      std::get<SQLite::MTIME>(value) = time;
+      ASSERT_TRUE(cache.entries_->Set(hash, value));
+    });
+    cache.WaitForCleaner();
+  };
+  const ui64 now = time(nullptr);
 
   {
     FileCache::Entry entry{obj_content[0], String(), String()};
@@ -2019,21 +2041,20 @@ TEST(FileCacheTest, ExceedCacheSize) {
               base::CalculateDirectorySize(cache_path) - db_size);
   }
 
-  std::this_thread::sleep_for(Seconds(1));
-
   {
     FileCache::Entry entry{obj_content[1], String(), String()};
     cache.Store(FileCache::Hash(code[1], {}, cl, version), entry);
     EXPECT_EQ(entry_size[0] + entry_size[1],
               base::CalculateDirectorySize(cache_path) - db_size);
   }
-
-  std::this_thread::sleep_for(Seconds(1));
+  Flush();
+  SetTime(0, now - 30);
+  SetTime(1, now - 20);
 
   {
     FileCache::Entry entry{obj_content[2], String(), String()};
     cache.Store(FileCache::Hash(code[2], {}, cl, version), entry);
-    std::this_thread::sleep_for(Seconds(3));
+    Maintain();
     // The records of the evicted entries are added.
     EXPECT_EQ(entry_size[2],
               base::CalculateDirectorySize(cache_path) - cache.MetadataSize());
@@ -2072,19 +2093,40 @@ TEST(FileCacheTest, EvictNeverHitEntriesFirst) {
 
   // Only one entry doesn't fit.
   FileCache cache(cache_path, total_size - 1, proto::NONE, false);
-  ASSERT_TRUE(cache.Run(1));
+  ASSERT_TRUE(cache.Run(3600));
+  auto Flush = [&cache] {
+    cache.FlushAccesses();
+    cache.WaitForCleaner();
+  };
+  auto Maintain = [&cache] {
+    cache.FlushAccesses();
+    cache.cleaner_.Push([&cache] { cache.Maintain(); });
+    cache.WaitForCleaner();
+  };
+  // The times of the accesses are in seconds - the order is set explicitly.
+  auto SetTime = [&](int i, ui64 time) {
+    const String hash = Hash(i).str.string_copy();
+    cache.cleaner_.Push([&cache, hash, time] {
+      SQLite::Value value;
+      ASSERT_TRUE(cache.entries_->Get(hash, &value));
+      std::get<SQLite::MTIME>(value) = time;
+      ASSERT_TRUE(cache.entries_->Set(hash, value));
+    });
+    cache.WaitForCleaner();
+  };
+  const ui64 now = time(nullptr);
 
   // The first entry is used again - the second one is removed, though it's
   // newer.
   cache.Store(Hash(0), FileCache::Entry{obj_content[0], String(), String()});
-  std::this_thread::sleep_for(std::chrono::milliseconds(1100));
   cache.Store(Hash(1), FileCache::Entry{obj_content[1], String(), String()});
-  std::this_thread::sleep_for(std::chrono::milliseconds(1100));
   FileCache::Entry entry0;
   ASSERT_TRUE(cache.Find(Hash(0), &entry0));
-  std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+  Flush();
+  SetTime(0, now - 30);
+  SetTime(1, now - 20);
   cache.Store(Hash(2), FileCache::Entry{obj_content[2], String(), String()});
-  std::this_thread::sleep_for(Seconds(3));
+  Maintain();
 
   FileCache::Entry entry1, entry2, entry3;
   EXPECT_TRUE(cache.Find(Hash(0), &entry1));
@@ -2216,7 +2258,12 @@ TEST(FileCacheTest, KeepEntriesLinkedWithBuildDirs) {
   FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, proto::NONE,
                   false, true);
   cache.SetMinFreePercent(100);
-  ASSERT_TRUE(cache.Run(1));
+  ASSERT_TRUE(cache.Run(3600));
+  auto Maintain = [&cache] {
+    cache.FlushAccesses();
+    cache.cleaner_.Push([&cache] { cache.Maintain(); });
+    cache.WaitForCleaner();
+  };
 
   ASSERT_TRUE(base::File::Write(object_path, "object"_l));
   FileCache::Entry linked;
@@ -2231,7 +2278,7 @@ TEST(FileCacheTest, KeepEntriesLinkedWithBuildDirs) {
   }
 
   cache.Store(Hash(1), FileCache::Entry{"object1"_l, String(), String()});
-  std::this_thread::sleep_for(Seconds(3));
+  Maintain();
 
   FileCache::Entry entry0, entry1;
   EXPECT_TRUE(cache.Find(Hash(0), &entry0));
@@ -2240,7 +2287,7 @@ TEST(FileCacheTest, KeepEntriesLinkedWithBuildDirs) {
   // The link is gone - the entry isn't protected anymore.
   ASSERT_TRUE(base::File::Delete(object_path));
   cache.Store(Hash(2), FileCache::Entry{"object2"_l, String(), String()});
-  std::this_thread::sleep_for(Seconds(3));
+  Maintain();
 
   FileCache::Entry entry2, entry3;
   EXPECT_FALSE(cache.Find(Hash(0), &entry2));
@@ -2264,7 +2311,7 @@ TEST(FileCacheTest, KeepDirectEntriesOfLinkedOnes) {
   FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, proto::NONE,
                   false, true);
   cache.SetMinFreePercent(100);
-  ASSERT_TRUE(cache.Run(1));
+  ASSERT_TRUE(cache.Run(3600));
 
   ASSERT_TRUE(base::File::Write(object_path, "object"_l));
   ASSERT_TRUE(base::File::Write(header_path, "#define A"_l));
@@ -2278,7 +2325,9 @@ TEST(FileCacheTest, KeepDirectEntriesOfLinkedOnes) {
     return;
   }
   cache.Store(orig_code, {}, cl, version, {header_path}, {}, temp_dir, hash);
-  std::this_thread::sleep_for(Seconds(3));
+  cache.FlushAccesses();
+  cache.cleaner_.Push([&cache] { cache.Maintain(); });
+  cache.WaitForCleaner();
 
   FileCache::Entry entry;
   EXPECT_TRUE(cache.Find(hash, &entry));
