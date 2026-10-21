@@ -5,6 +5,13 @@
 namespace dist_clang {
 namespace cache {
 
+namespace {
+
+// The fastest level: the compression is on the way of the compilation.
+const int kZstdLevel = 1;
+
+}  // namespace
+
 bool Pack(proto::Compression compression, Immutable data, String* packed) {
   switch (compression) {
     case proto::NONE:
@@ -13,7 +20,7 @@ bool Pack(proto::Compression compression, Immutable data, String* packed) {
     case proto::ZSTD: {
       packed->resize(ZSTD_compressBound(data.size()));
       const size_t size = ZSTD_compress(packed->data(), packed->size(),
-                                        data.data(), data.size(), 1);
+                                        data.data(), data.size(), kZstdLevel);
       if (ZSTD_isError(size)) {
         return false;
       }

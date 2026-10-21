@@ -93,7 +93,7 @@ SQLite::~SQLite() {
 
 void SQLite::CreateTable() {
   char* error = nullptr;
-  // FIXME: 50 is a magical constant - it's the length of the hash string.
+  // SQLite doesn't limit the length of the text: "CHAR(50)" is only its type.
   auto result = sqlite3_exec(db_,
                              "CREATE TABLE IF NOT EXISTS entries("
                              "    hash CHAR(50) PRIMARY KEY NOT NULL,"

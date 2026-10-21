@@ -25,11 +25,6 @@ namespace {
 
 const char kPackedExtension[] = ".zst";
 
-// Snappy is only for the old entries.
-proto::Compression BlobCompression(proto::Compression compression) {
-  return compression == proto::NONE ? proto::NONE : proto::ZSTD;
-}
-
 bool HasHash(Immutable content, const String& hash) {
   return base::Hexify(content.Hash()) == hash;
 }
@@ -47,7 +42,7 @@ bool IsBlobHash(const String& hash) {
 
 BlobStore::BlobStore(const Path& root, proto::Compression compression,
                      bool link)
-    : root_(root), compression_(BlobCompression(compression)), link_(link) {}
+    : root_(root), compression_(compression), link_(link) {}
 
 Path BlobStore::RawPath(const String& hash) const {
   return root_ / hash.substr(0, 2) / hash;
