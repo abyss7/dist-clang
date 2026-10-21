@@ -1035,10 +1035,8 @@ bool FileCache::Find(HandledHash hash, Entry* found,
     blobs_.MarkUsed(v1.dwo_hash());
   }
 
-  // The blobs aren't a part of the size of the entry.
-  ui64 blobs_size = 0;
-  if (v1.obj() && !blobs_.Get(v1.object_hash(), &entry->object,
-                              &entry->object_path, &blobs_size)) {
+  if (v1.obj() &&
+      !blobs_.Get(v1.object_hash(), &entry->object, &entry->object_path)) {
     return false;
   }
   entry->object_hash = v1.object_hash();
@@ -1049,7 +1047,7 @@ bool FileCache::Find(HandledHash hash, Entry* found,
   }
 
   if (v1.dwo() &&
-      !blobs_.Get(v1.dwo_hash(), &entry->dwo, &entry->dwo_path, &blobs_size)) {
+      !blobs_.Get(v1.dwo_hash(), &entry->dwo, &entry->dwo_path)) {
     return false;
   }
   entry->dwo_hash = v1.dwo_hash();
@@ -1084,8 +1082,7 @@ void FileCache::Restored(const String& blob_hash) const {
 }
 
 bool FileCache::FindTimeTrace(const String& hash, Immutable* trace) const {
-  ui64 size = 0;
-  return !hash.empty() && blobs_.Get(hash, trace, nullptr, &size);
+  return !hash.empty() && blobs_.Get(hash, trace, nullptr);
 }
 
 void FileCache::Store(UnhandledSource code, const ExtraFiles& extra_files,

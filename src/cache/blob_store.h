@@ -34,10 +34,9 @@ class BlobStore {
 
   // Finds the blob: sets |path| to the uncompressed file, if it can be linked
   // - and |path| isn't null - or reads the |content| otherwise. Checks the
-  // hash of the contents: the broken blob is removed. Adds the size of the
-  // file to |size|.
-  bool Get(const String& hash, Immutable* content, Path* path,
-           ui64* size) const THREAD_SAFE;
+  // hash of the contents: the broken blob is removed.
+  bool Get(const String& hash, Immutable* content,
+           Path* path) const THREAD_SAFE;
 
   // If the file of the linked blob is the same, as at its last check.
   bool IsVerified(const String& hash) const THREAD_SAFE;

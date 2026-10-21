@@ -51,13 +51,12 @@ TEST(BlobStoreTest, KeepBlobOnFailedHash) {
 
   Immutable content;
   Path path;
-  ui64 size = 0;
   bool found = true;
-  WithoutDescriptors([&] { found = store.Get(hash, &content, &path, &size); });
+  WithoutDescriptors([&] { found = store.Get(hash, &content, &path); });
 
   EXPECT_FALSE(found);
   EXPECT_TRUE(base::File::Exists(store.RawPath(hash)));
-  EXPECT_TRUE(store.Get(hash, &content, &path, &size));
+  EXPECT_TRUE(store.Get(hash, &content, &path));
 }
 
 TEST(BlobStoreTest, IgnoreWrongHashes) {
@@ -71,8 +70,7 @@ TEST(BlobStoreTest, IgnoreWrongHashes) {
   ASSERT_TRUE(base::File::Write(victim, "not a blob"_l));
 
   Immutable content;
-  ui64 size = 0;
-  EXPECT_FALSE(store.Get("../victim", &content, nullptr, &size));
+  EXPECT_FALSE(store.Get("../victim", &content, nullptr));
   EXPECT_TRUE(base::File::Exists(victim));
 
   store.Discard("../victim");
@@ -98,12 +96,11 @@ TEST(BlobStoreTest, VerifyLinkedBlobOnce) {
 
   Immutable content;
   Path path;
-  ui64 size = 0;
-  ASSERT_TRUE(store.Get(hash, &content, &path, &size));
+  ASSERT_TRUE(store.Get(hash, &content, &path));
 
   // Isn't read again.
   bool found = false;
-  WithoutDescriptors([&] { found = store.Get(hash, &content, &path, &size); });
+  WithoutDescriptors([&] { found = store.Get(hash, &content, &path); });
   EXPECT_TRUE(found);
 
   // The modified blob is read again - and is broken.
@@ -113,7 +110,7 @@ TEST(BlobStoreTest, VerifyLinkedBlobOnce) {
     ASSERT_EQ(6, pwrite(fd, "OBJECT", 6, 0));
     close(fd);
   }
-  EXPECT_FALSE(store.Get(hash, &content, &path, &size));
+  EXPECT_FALSE(store.Get(hash, &content, &path));
   EXPECT_FALSE(base::File::Exists(store.RawPath(hash)));
 }
 
@@ -134,8 +131,7 @@ TEST(BlobStoreTest, KeepCheckOfRestoredBlob) {
 
   Immutable content;
   Path path;
-  ui64 size = 0;
-  ASSERT_TRUE(store.Get(hash, &content, &path, &size));
+  ASSERT_TRUE(store.Get(hash, &content, &path));
   ASSERT_TRUE(store.IsVerified(hash));
   base::File::CloneMode mode;
   ASSERT_TRUE(base::File::Clone(path, restored, true, &mode));
@@ -148,7 +144,7 @@ TEST(BlobStoreTest, KeepCheckOfRestoredBlob) {
   EXPECT_TRUE(store.IsVerified(hash));
 
   bool found = false;
-  WithoutDescriptors([&] { found = store.Get(hash, &content, &path, &size); });
+  WithoutDescriptors([&] { found = store.Get(hash, &content, &path); });
   EXPECT_TRUE(found);
 }
 

@@ -155,8 +155,7 @@ void BlobStore::Restored(const String& hash) const {
   }
 }
 
-bool BlobStore::Get(const String& hash, Immutable* content, Path* path,
-                    ui64* size) const {
+bool BlobStore::Get(const String& hash, Immutable* content, Path* path) const {
   if (!IsBlobHash(hash)) {
     LOG(CACHE_WARNING) << "Wrong hash of a blob: " << hash;
     return false;
@@ -197,7 +196,6 @@ bool BlobStore::Get(const String& hash, Immutable* content, Path* path,
         Remember(hash, st);
       }
       *path = raw_path;
-      *size += st.st_size;
       return true;
     }
 
@@ -209,7 +207,6 @@ bool BlobStore::Get(const String& hash, Immutable* content, Path* path,
       return Broken(raw_path, "wrong hash");
     }
     *content = data;
-    *size += data.size();
     return true;
   }
 
@@ -241,7 +238,6 @@ bool BlobStore::Get(const String& hash, Immutable* content, Path* path,
         unpacked_.insert(hash);
       }
       *path = raw_path;
-      *size += data.size();
       return true;
     }
     LOG(CACHE_WARNING) << "Failed to uncompress " << packed_path << ": "
@@ -250,7 +246,6 @@ bool BlobStore::Get(const String& hash, Immutable* content, Path* path,
   }
 
   *content = data;
-  *size += packed.size();
   return true;
 }
 
