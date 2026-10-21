@@ -8,6 +8,7 @@
 #include <client/configuration.hh>
 #include <client/driver_name.h>
 #include <client/invocation.h>
+#include <daemon/config_help.h>
 
 #include STL(iostream)
 
@@ -27,6 +28,7 @@ const char kUsage[] =
     "       dist-clang --forget-tag=<tag> [--force]\n"
     "       dist-clang --forget-untagged [--force]\n"
     "       dist-clang --forget-removed\n"
+    "       dist-clang --help-config\n"
     "\n"
     "  --restat      Don't touch outputs, that don't change: for build\n"
     "                systems, that re-stat outputs, like Ninja with\n"
@@ -45,6 +47,7 @@ const char kUsage[] =
     "  --forget-untagged  The same for the entries without tags.\n"
     "  --forget-removed  Forget the records of the removed entries, that\n"
     "                count the losses - see \"ghosts_ttl\" in the config.\n"
+    "  --help-config  Describe the configuration of the daemon.\n"
     "\n"
     "Or make a symlink named like the compiler, e.g. \"clang++\", to "
     "dist-clang.\n";
@@ -98,6 +101,9 @@ int main(int argc, char* argv[]) {
     case client::Invocation::USAGE:
       std::cerr << kUsage;
       return 1;
+    case client::Invocation::HELP_CONFIG:
+      std::cout << daemon::kConfigHelp;
+      return 0;
     case client::Invocation::ERROR:
       std::cerr << "dist-clang: " << invocation.error << std::endl;
       return 1;

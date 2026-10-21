@@ -65,6 +65,18 @@ source_set("configuration") {
   ]
 }
 
+# The reference of the configuration - from the comments of the protos.
+action("config_help") {
+  script = "//build/config_help.py"
+  sources = [
+    "configuration.proto",
+    "//src/base/base.proto",
+  ]
+  outputs = [ "$target_gen_dir/config_help.h" ]
+  args = [ rebase_path(outputs[0], root_build_dir) ] +
+         rebase_path(sources, root_build_dir)
+}
+
 protobuf("config_proto") {
   deps = [ "//src/base:base_proto" ]
   sources = [ "configuration.proto" ]

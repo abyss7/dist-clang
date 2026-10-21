@@ -9,6 +9,7 @@ namespace client {
 struct Invocation {
   enum Action {
     USAGE,  // The command line is wrong - or "--help".
+    HELP_CONFIG,
     ERROR,  // E.g. the real compiler isn't known: see |error|.
     STATS,
     TAG_STATS,

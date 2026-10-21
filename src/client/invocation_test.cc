@@ -52,7 +52,12 @@ TEST(InvocationTest, Symlink) {
 }
 
 TEST(InvocationTest, Commands) {
-  auto invocation = ParseInvocation({"dist-clang", "--stats"}, "");
+  auto invocation = ParseInvocation({"dist-clang", "--help-config"}, "");
+  EXPECT_EQ(Invocation::HELP_CONFIG, invocation.action);
+  invocation = ParseInvocation({"dist-clang", "--help-config", "x"}, "");
+  EXPECT_EQ(Invocation::USAGE, invocation.action);
+
+  invocation = ParseInvocation({"dist-clang", "--stats"}, "");
   EXPECT_EQ(Invocation::STATS, invocation.action);
   EXPECT_FALSE(invocation.raw);
   invocation = ParseInvocation({"dist-clang", "--stats", "--raw"}, "");

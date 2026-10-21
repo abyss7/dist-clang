@@ -6,5 +6,6 @@ executable("dist-clang") {
     "//src/base:logging",
     "//src/client",
     "//src/client:configuration",
+    "//src/daemon:config_help",
   ]
 }

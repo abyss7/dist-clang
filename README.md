@@ -119,7 +119,7 @@ The cache key includes the paths from the flags and from the preprocessed source
 
 # How to configure the daemon
 
-Without a configuration the daemon uses the defaults: the cache in `~/.cache/dist-clang` of 20 GiB. To change them, copy `install/daemon.conf.example` to `~/.config/dist-clang/daemon.conf`: the fields of the file replace only the same defaults. The format is the text protobuf, see `src/daemon/configuration.proto`.
+Without a configuration the daemon uses the defaults: the cache in `~/.cache/dist-clang` of 20 GiB. To change them, copy `install/daemon.conf.example` to `~/.config/dist-clang/daemon.conf`: the fields of the file replace only the same defaults. The format is the text protobuf: `dist-clang --help-config` describes all fields.
 
 # Benchmarks
 

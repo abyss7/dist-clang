@@ -1,5 +1,5 @@
 # Configuration of the local daemon - copy to ~/.config/dist-clang/daemon.conf
-# The format is the text protobuf: see src/daemon/configuration.proto
+# The format is the text protobuf: see "dist-clang --help-config"
 #
 # The file changes only the given fields of the defaults of the autostarted
 # daemon: the socket in $XDG_RUNTIME_DIR, the cache of 20 GiB in
