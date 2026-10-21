@@ -272,6 +272,13 @@ const char* const kExtensions[] = {
     ".m", ".mm",
 };
 
+// The output and the input language are rendered separately - to modify them
+// for the preprocessing.
+bool RenderedSeparately(const Option& option) {
+  return option.special == Special::OUTPUT ||
+         option.special == Special::LANGUAGE;
+}
+
 template <class T, size_t N>
 const Option* FindExact(const T (&options)[N], const String& arg) {
   for (const auto& option : options) {
@@ -567,10 +574,7 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
       if (!HandleValue(*option, value)) {
         return false;
       }
-      // The output and the input language are rendered separately - to
-      // modify them for the preprocessing.
-      if (option->special != Special::OUTPUT &&
-          option->special != Special::LANGUAGE) {
+      if (!RenderedSeparately(*option)) {
         AddArgument(option->cls, index, {arg, value});
       }
       continue;
@@ -596,8 +600,7 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
       if (!HandleValue(*option, value)) {
         return false;
       }
-      if (option->special != Special::OUTPUT &&
-          option->special != Special::LANGUAGE) {
+      if (!RenderedSeparately(*option)) {
         AddArgument(option->cls, index, {arg});
       }
       continue;
