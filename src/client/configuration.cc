@@ -14,9 +14,9 @@
 namespace dist_clang::client {
 
 Configuration::Configuration() {
-  // Try to load config file first.
-  auto current_dir = base::GetCurrentDir();
-  do {
+  // Try to load config file first - from the current directory up to the root.
+  for (auto current_dir = base::GetCurrentDir();;
+       current_dir = current_dir.parent_path()) {
     const auto config_path = current_dir / ".distclang";
     if (base::LoadFromFile(config_path, &config_)) {
       if (config_.has_path()) {
@@ -38,8 +38,10 @@ Configuration::Configuration() {
       break;
     }
 
-    current_dir = current_dir.parent_path();
-  } while (current_dir != current_dir.root_path());
+    if (current_dir == current_dir.root_path() || current_dir.empty()) {
+      break;
+    }
+  }
 
   // Environment variables prevail over config file.
   Immutable log_levels = base::GetEnv(base::kEnvLogLevels);
