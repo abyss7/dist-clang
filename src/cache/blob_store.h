@@ -14,7 +14,8 @@ namespace cache {
 //
 // A blob is either uncompressed - and may be linked with build directories -
 // or compressed with zstd. The blobs are put and got from any thread; the
-// references from the entries are counted only by one thread - the cleaner.
+// references from the entries are counted under the lock of the owner - see
+// |FileCache::blob_refs_mutex_|: by the cleaner, and by the failed stores.
 class BlobStore {
  public:
   // With |link| the files are put and got by linking, where possible, and
@@ -48,7 +49,8 @@ class BlobStore {
   // during the scan after a crash: it isn't removed as unreferenced.
   void MarkUsed(const String& hash) const THREAD_SAFE;
 
-  // The methods below are called only by the cleaner.
+  // The methods below aren't thread-safe: the caller holds the lock of the
+  // references - see |FileCache::blob_refs_mutex_|.
 
   // Counts the reference from an entry, that was used at |access_time|.
   void AddRef(const String& hash, ui64 access_time);
