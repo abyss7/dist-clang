@@ -27,6 +27,8 @@ Example:
 import argparse
 import os
 import re
+import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -57,23 +59,46 @@ def read_stats(dist_clang):
     return stats
 
 
+MARKERS = (b"dist_clang_bench_", b"dist-clang benchmark")
+
+
+def exit_on_signals():
+    """The tree is restored in "finally" - on SIGTERM and SIGHUP too."""
+    def handler(signum, frame):
+        sys.exit(128 + signum)
+    for signum in (signal.SIGTERM, signal.SIGHUP):
+        signal.signal(signum, handler)
+
+
+def write_file(path, content):
+    """Replaces the file at once: an interrupted write mustn't leave it
+    half-written."""
+    temp = "%s.dist-clang-%d" % (path, os.getpid())
+    with open(temp, "wb") as f:
+        f.write(content)
+    shutil.copymode(path, temp)
+    os.replace(temp, path)
+
+
 def apply_scenario(kind, files):
     """Changes the files, returns a function to restore them."""
     saved = []
     for path in files:
         with open(path, "rb") as f:
             saved.append((path, f.read()))
+        if any(marker in saved[-1][1] for marker in MARKERS):
+            sys.exit("%s is changed by an interrupted run - restore it first" %
+                     path)
 
     now = time.time_ns()
     for path, content in saved:
         if kind == "edit-source":
-            with open(path, "ab") as f:
-                f.write(b"\nextern int dist_clang_bench_%d;\n" % now)
+            write_file(path, content +
+                       b"\nextern int %s%d;\n" % (MARKERS[0], now))
         elif kind == "edit-comment":
             # A new comment every time: the edited version of a previous run
             # may be in the cache already.
-            with open(path, "ab") as f:
-                f.write(b"// dist-clang benchmark %d\n" % now)
+            write_file(path, content + b"// %s %d\n" % (MARKERS[1], now))
         else:
             os.utime(path, ns=(now, now))
 
@@ -82,8 +107,7 @@ def apply_scenario(kind, files):
         # rebuilt anyway after an edit.
         for path, content in saved:
             if kind.startswith("edit-"):
-                with open(path, "wb") as f:
-                    f.write(content)
+                write_file(path, content)
     return restore
 
 
@@ -109,7 +133,12 @@ def main():
                         help="comma-separated: baseline, cache")
     args = parser.parse_args()
 
+    # The paths may be relative to the current directory.
+    args.build_dir = os.path.abspath(args.build_dir)
+    if "/" in args.dist_clang:
+        args.dist_clang = os.path.abspath(args.dist_clang)
     os.chdir(args.source_dir)
+    exit_on_signals()
 
     # Start from the up-to-date build, and warm up the cache.
     print("Bringing the build up to date...", flush=True)

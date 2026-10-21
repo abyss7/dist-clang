@@ -127,6 +127,38 @@ def kill_random(victim):
     return None
 
 
+MARKER = b"dist_clang_crash_test_"
+
+
+def exit_on_signals():
+    """The sources are restored in "finally" - on SIGTERM and SIGHUP too."""
+    def handler(signum, frame):
+        sys.exit(128 + signum)
+    for signum in (signal.SIGTERM, signal.SIGHUP):
+        signal.signal(signum, handler)
+
+
+def read_originals(paths):
+    originals = {}
+    for path in paths:
+        with open(path, "rb") as f:
+            originals[path] = f.read()
+        if MARKER in originals[path]:
+            sys.exit("%s is changed by an interrupted run - restore it first" %
+                     path)
+    return originals
+
+
+def write_file(path, content):
+    """Replaces the file at once: an interrupted write mustn't leave it
+    half-written."""
+    temp = "%s.dist-clang-%d" % (path, os.getpid())
+    with open(temp, "wb") as f:
+        f.write(content)
+    shutil.copymode(path, temp)
+    os.replace(temp, path)
+
+
 def compare_objects(cache_dir, reference_dir):
     mismatches = []
     checked = 0
@@ -162,8 +194,12 @@ def main():
     args = parser.parse_args()
 
     random.seed(args.seed)
+    # The build directories may be relative to the current one.
+    args.cache_build_dir = os.path.abspath(args.cache_build_dir)
+    args.reference_build_dir = os.path.abspath(args.reference_build_dir)
     os.chdir(args.source_dir)
-    originals = {path: open(path, "rb").read() for path in args.files}
+    originals = read_originals(args.files)
+    exit_on_signals()
     failures = 0
     root = isolate_environment()
     print("The daemon of the test works in " + root, flush=True)
@@ -181,11 +217,10 @@ def main():
                     content = originals[path]
                 else:
                     content = originals[path] + (
-                        b"\nint dist_clang_crash_test_%d_%d() { return %d; }\n" %
-                        (args.files.index(path), iteration,
+                        b"\nint %s%d_%d() { return %d; }\n" %
+                        (MARKER, args.files.index(path), iteration,
                          random.randint(0, 1000)))
-                with open(path, "wb") as f:
-                    f.write(content)
+                write_file(path, content)
 
             victim = random.choice(VICTIMS)
             delay = random.uniform(0.1, args.max_delay)
@@ -210,8 +245,7 @@ def main():
             # compilations mustn't get into the build.
             if killed and random.random() < 0.5:
                 for path, content in originals.items():
-                    with open(path, "wb") as f:
-                        f.write(content)
+                    write_file(path, content)
 
             # The build must complete after any crash.
             build(args.cache_build_dir, args.target)
@@ -229,8 +263,7 @@ def main():
                 failures += 1
     finally:
         for path, content in originals.items():
-            with open(path, "wb") as f:
-                f.write(content)
+            write_file(path, content)
         remove_environment(root)
 
     print("%d of %d iterations with wrong objects" %
