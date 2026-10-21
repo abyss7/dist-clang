@@ -129,6 +129,36 @@ TEST(DriverArgsTest, DependencyTargets) {
   EXPECT_EQ("a b c\\ d$$", flags.deps_target());
 }
 
+TEST(DriverArgsTest, FlagsOfDependencyFile) {
+  // The emitter tells the flags of the dependency file from the other flags
+  // without the effect on the result - e.g. the diagnostics - by the prefix
+  // "-M": these flags are all of them.
+  base::proto::Flags flags;
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-MD", "-MMD", "-MP", "-MFa.d", "-MTb",
+                     "-MQc", "-MF", "d.d", "-MT", "e", "-MQ", "f",
+                     "-fcolor-diagnostics", "-fno-color-diagnostics",
+                     "-fdiagnostics-absolute-paths",
+                     "-fdiagnostics-format=clang"},
+                    &flags));
+  EXPECT_EQ("b c e f", flags.deps_target());
+  List<String> deps_flags;
+  for (const auto& arg : flags.non_direct()) {
+    if (arg.values(0).starts_with("-M")) {
+      deps_flags.insert(deps_flags.end(), arg.values().begin(),
+                        arg.values().end());
+    }
+  }
+  EXPECT_EQ((List<String>{"-MD", "-MD", "-MP", "-MFa.d", "-MTb", "-MQc", "-MF",
+                          "d.d", "-MT", "e", "-MQ", "f"}),
+            deps_flags);
+  EXPECT_EQ(12u + 4u, Values(flags.non_direct()).size());
+
+  // The flags, that change the result, aren't there.
+  flags.Clear();
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-MG", "-MV"}, &flags));
+  EXPECT_TRUE(Values(flags.non_direct()).empty());
+}
+
 TEST(DriverArgsTest, QuoteMakeTarget) {
   EXPECT_EQ("a\\ b", QuoteMakeTarget("a b"));
   EXPECT_EQ("a\\\\\\ b", QuoteMakeTarget("a\\ b"));

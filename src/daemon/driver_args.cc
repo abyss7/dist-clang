@@ -22,6 +22,8 @@ enum class Class {
   OTHER,
   NON_CACHED,
   CC_ONLY,
+  // Only the flags of the dependency file start with "-M" here: the emitter
+  // tells them by the prefix - to redirect or to drop them.
   NON_DIRECT,
   IGNORED,
   WARNINGS,
@@ -565,8 +567,8 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
       if (!HandleValue(*option, value)) {
         return false;
       }
-      // Output, input language and the dependency file are rendered
-      // separately - to modify them for the preprocessing.
+      // The output and the input language are rendered separately - to
+      // modify them for the preprocessing.
       if (option->special != Special::OUTPUT &&
           option->special != Special::LANGUAGE) {
         AddArgument(option->cls, index, {arg, value});
