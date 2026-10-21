@@ -3408,7 +3408,7 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
   Mutex mutex;
   String preprocessed, object;
   Atomic<bool> wait_for_preprocessing = false, wait_for_cancel = false;
-  Atomic<bool> preprocessing_done = false;
+  Atomic<bool> preprocessing_done = false, compiling = false;
   Atomic<ui32> compilations = 0, canceled = 0;
   const auto deps = Immutable("test.o: "_l) + Immutable(input_path) + " "_l +
                     Immutable(header_path);
@@ -3421,6 +3421,10 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
   run_callback = [&](base::TestProcess* process) {
     if (std::find(process->args_.begin(), process->args_.end(), "-E"_l) !=
         process->args_.end()) {
+      if (wait_for_cancel) {
+        // The hit cancels the compilation, that runs already.
+        EXPECT_TRUE(WaitFor([&] { return bool(compiling); }));
+      }
       std::lock_guard<Mutex> lock(mutex);
       process->stdout_ = Immutable(String(preprocessed));
       WriteDepsFile(process, deps);
@@ -3429,6 +3433,7 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
     }
 
     ++compilations;
+    compiling = true;
     if (wait_for_cancel) {
       // A long compilation - canceled by the hit of the simple cache.
       EXPECT_TRUE(WaitFor([&] { return process->cancel_requested(); }));
@@ -3448,6 +3453,7 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
 
   auto Compile = [&](ui32 expected_send_count) {
     preprocessing_done = false;
+    compiling = false;
     auto connection = test_service->TriggerListen(socket_path);
     SharedPtr<net::TestConnection> test_connection =
         std::static_pointer_cast<net::TestConnection>(connection);
@@ -3524,6 +3530,7 @@ TEST_F(EmitterTest, PreprocessWhenIdle) {
   Compile(3);
   EXPECT_EQ("object 2", Output());
   EXPECT_EQ(1u, WaitForStat(perf::proto::Metric::PARALLEL_PREPROCESSING_HIT, 1u));
+  EXPECT_EQ(3u, compilations);
   EXPECT_TRUE(WaitFor([&] { return canceled == 1; }));
   // The output is the same - it keeps its time.
   struct stat st;
