@@ -48,7 +48,8 @@ Path ReplaceTildeInPath(const String& path) {
 }
 
 String HashCombine(const Immutable& source, const cache::ExtraFiles& files) {
-  if (files.empty()) {  // we want hash to be compatible with previous versions
+  // Without the extra files it's the hash of the source alone.
+  if (files.empty()) {
     return base::Hexify(source.Hash());
   }
   Immutable::Rope hashes_string{source.Hash()};
@@ -612,7 +613,9 @@ void FileCache::ScanEntries(ui64 start_time) {
     }
 
     const Path path(file_path);
-    const String extension = path.extension().string();
+    // Without the dot.
+    const String extension = path.extension().string().substr(
+        path.has_extension() ? 1 : 0);
     const String hash_str = path.stem().string();
     if (!IsEntryHash(hash_str)) {
       return;
@@ -621,15 +624,16 @@ void FileCache::ScanEntries(ui64 start_time) {
     // The files of an entry without the manifest are left by a crash in the
     // middle of storing: nothing refers to them. The new entries are being
     // stored right now.
-    if (extension == ".d" || extension == ".stderr") {
+    if (extension == base::kExtDeps || extension == base::kExtStderr) {
       if (mtime < start_time &&
-          !base::File::Exists(Path(file_path).replace_extension(".manifest"))) {
+          !base::File::Exists(
+              Path(file_path).replace_extension(base::kExtManifest))) {
         LOG(CACHE_INFO) << "Removing file of incomplete entry " << file_path;
         base::File::Delete(file_path);
       }
       return;
     }
-    if (extension != ".manifest") {
+    if (extension != base::kExtManifest) {
       return;
     }
 
@@ -1734,8 +1738,9 @@ void FileCache::Store(string::HandledHash hash, Entry entry) {
 }
 
 void FileCache::Remove(string::HandledHash hash) {
-  // The index is updated only by the cleaner. A recent store is indexed first:
-  // otherwise its blobs have no references yet, and stay forever.
+  // The removal waits for the cleaner, that indexes the stores. A recent store
+  // is indexed first: otherwise its blobs have no references yet, and stay
+  // forever.
   FlushAccesses();
   cleaner_.Push([this, hash] { DoRemove(hash, kRemoveAttempts); });
 }
@@ -1766,9 +1771,10 @@ bool FileCache::RemoveEntry(string::Hash hash) {
   SQLite::Value entry;
   bool has_entry = entries_->Get(hash.str, &entry);
   const String common_path = CommonPath(hash);
-  const String manifest_path = common_path + ".manifest";
-  const String deps_path = common_path + ".d";
-  const String stderr_path = common_path + ".stderr";
+  const String manifest_path =
+      AppendExtension(common_path, base::kExtManifest);
+  const String deps_path = AppendExtension(common_path, base::kExtDeps);
+  const String stderr_path = AppendExtension(common_path, base::kExtStderr);
   bool result = true;
   auto entry_size = has_entry ? std::get<SQLite::SIZE>(entry) : 0u;
 
@@ -1831,11 +1837,9 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
                         const Path& current_dir, const HandledHash& hash,
                         const String& root, const List<Path>& search_dirs,
                         i64 start_time, const String& scope) {
-  // We have to store manifest on the path based only on the hash of unhandled
-  // source code. Otherwise, we won't be able to get list of the dependent
-  // headers, while checking the direct cache. Such approach has a little
-  // drawback, because the changes in the dependent headers will make a
-  // false-positive direct cache hit, followed by true cache miss.
+  // The manifest is stored by the hash of the source and the flags - without
+  // the headers: it lists the known sets of the headers, and the lookup tries
+  // them with the current contents of the headers.
   const auto manifest_path =
       AppendExtension(CommonPath(orig_hash), base::kExtManifest);
   WriteLock lock(this, manifest_path);
