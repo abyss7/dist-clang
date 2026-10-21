@@ -13,6 +13,7 @@ static const char kDaemonVersion[] = VERSION;
 #include <base/protobuf_utils.h>
 #include <base/string_utils.h>
 #include <cache/compression.h>
+#include <cache/sqlite_utils.h>
 #include <perf/stat_service.h>
 
 #include STL(future)
@@ -597,7 +598,7 @@ void FileCache::Close() {
 }
 
 void FileCache::ScanEntries(ui64 start_time) {
-  entries_->BeginTransaction();
+  const Transaction transaction(entries_.get());
   base::WalkDirectory(path_, [this, start_time](const String& file_path,
                                                 ui64 mtime, ui64) {
     // The temporary files are left by crashes - but the new ones are written
@@ -668,7 +669,6 @@ void FileCache::ScanEntries(ui64 start_time) {
       entries_->Delete(hash);
     }
   }
-  entries_->EndTransaction();
 }
 
 bool FileCache::Run(ui64 clean_period) {
@@ -768,11 +768,8 @@ bool FileCache::Run(ui64 clean_period) {
     if (!store_time_traces_) {
       RemoveTimeTraces();
     }
-    entries_->BeginTransaction();
-    tag_index_->BeginTransaction();
+    const Transaction transaction(entries_.get(), tag_index_.get());
     RemoveUnreachableDirectEntries();
-    tag_index_->EndTransaction();
-    entries_->EndTransaction();
   });
   cleaner_.Run();
 
@@ -1290,13 +1287,12 @@ bool FileCache::ForgetTag(const String& tag, bool dry_run,
     if (!needed()) {
       return;
     }
-    entries_->BeginTransaction();
-    tag_index_->BeginTransaction();
-    ghosts_->BeginTransaction();
-    const auto result = DoForgetTag(tag, dry_run);
-    ghosts_->EndTransaction();
-    tag_index_->EndTransaction();
-    entries_->EndTransaction();
+    ForgetResult result;
+    {
+      const Transaction transaction(entries_.get(), tag_index_.get(),
+                                    ghosts_.get());
+      result = DoForgetTag(tag, dry_run);
+    }
     callback(result);
   }));
 }
@@ -1761,9 +1757,8 @@ void FileCache::DoRemove(string::HandledHash hash, ui32 attempts) {
     cleaner_.Push([this, hash, attempts] { DoRemove(hash, attempts); });
     return;
   }
-  entries_->BeginTransaction();
+  const Transaction transaction(entries_.get());
   RemoveEntry(hash);
-  entries_->EndTransaction();
 }
 
 bool FileCache::RemoveEntry(string::Hash hash) {
@@ -2067,66 +2062,65 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
 }
 
 void FileCache::Clean(UniquePtr<EntryList> list) {
-  entries_->BeginTransaction();
-  tag_index_->BeginTransaction();
-  ghosts_->BeginTransaction();
-  while (auto access = list->Pop()) {
-    const auto& hash = access->hash;
-    if (!access->tags.empty()) {
-      ApplyTags(hash, access->tags, access->time);
-      continue;
-    }
-    SQLite::Value entry;
-    if (entries_->Get(hash.str, &entry) && access->hit) {
-      // Update the access time and the hits of an existing entry.
-      std::get<SQLite::MTIME>(entry) = access->time;
-      std::get<SQLite::HITS>(entry) += 1;
-      if (!entries_->Set(hash.str, entry)) {
-        LOG(CACHE_ERROR) << "Failed to update the index for " << hash.str;
-      }
-      std::lock_guard<Mutex> lock(blob_refs_mutex_);
-      auto it = entry_blobs_.find(hash.str.string_copy());
-      if (it != entry_blobs_.end()) {
-        for (const auto& blob : it->second) {
-          blobs_.Touch(blob, access->time);
-        }
-      }
-    } else {
-      // The entry may be removed already.
-      EntryInfo info;
-      if (!LoadEntryInfo(hash, &info)) {
+  {
+    const Transaction transaction(entries_.get(), tag_index_.get(),
+                                  ghosts_.get());
+    while (auto access = list->Pop()) {
+      const auto& hash = access->hash;
+      if (!access->tags.empty()) {
+        ApplyTags(hash, access->tags, access->time);
         continue;
       }
-      AddBlobRefs(hash, info, access->time);
-      // Insert a new entry, or replace the stored again one.
-      const bool exists = entries_->Get(hash.str, &entry);
-      if (exists) {
-        cache_size_ -= std::get<SQLite::SIZE>(entry);
+      SQLite::Value entry;
+      if (entries_->Get(hash.str, &entry) && access->hit) {
+        // Update the access time and the hits of an existing entry.
+        std::get<SQLite::MTIME>(entry) = access->time;
+        std::get<SQLite::HITS>(entry) += 1;
+        if (!entries_->Set(hash.str, entry)) {
+          LOG(CACHE_ERROR) << "Failed to update the index for " << hash.str;
+        }
+        std::lock_guard<Mutex> lock(blob_refs_mutex_);
+        auto it = entry_blobs_.find(hash.str.string_copy());
+        if (it != entry_blobs_.end()) {
+          for (const auto& blob : it->second) {
+            blobs_.Touch(blob, access->time);
+          }
+        }
       } else {
-        ++entry_count_;
-      }
-      if (!entries_->Set(
-              hash.str,
-              std::make_tuple(access->time, info.size, kManifestVersion,
-                              exists ? std::get<SQLite::HITS>(entry) : 0u,
-                              ui32(info.direct), JoinBlobs(info.blobs, info.time_trace, info.targets)))) {
-        LOG(CACHE_ERROR) << "Failed to update the index for " << hash.str;
-      }
-      cache_size_ += info.size;
-      STAT(CACHE_SIZE_ADDED, info.size);
-      // The removed entry would have been a hit.
-      if (!exists && ghosts_ttl_ && !info.object.empty() &&
-          ghosts_->Resurrect(info.object, info.compilation_time,
-                             access->time)) {
-        LOG(CACHE_VERBOSE) << "The removed entry is needed again: "
-                           << hash.str;
+        // The entry may be removed already.
+        EntryInfo info;
+        if (!LoadEntryInfo(hash, &info)) {
+          continue;
+        }
+        AddBlobRefs(hash, info, access->time);
+        // Insert a new entry, or replace the stored again one.
+        const bool exists = entries_->Get(hash.str, &entry);
+        if (exists) {
+          cache_size_ -= std::get<SQLite::SIZE>(entry);
+        } else {
+          ++entry_count_;
+        }
+        if (!entries_->Set(
+                hash.str,
+                std::make_tuple(access->time, info.size, kManifestVersion,
+                                exists ? std::get<SQLite::HITS>(entry) : 0u,
+                                ui32(info.direct),
+                                JoinBlobs(info.blobs, info.time_trace,
+                                          info.targets)))) {
+          LOG(CACHE_ERROR) << "Failed to update the index for " << hash.str;
+        }
+        cache_size_ += info.size;
+        STAT(CACHE_SIZE_ADDED, info.size);
+        // The removed entry would have been a hit.
+        if (!exists && ghosts_ttl_ && !info.object.empty() &&
+            ghosts_->Resurrect(info.object, info.compilation_time,
+                               access->time)) {
+          LOG(CACHE_VERBOSE) << "The removed entry is needed again: "
+                             << hash.str;
+        }
       }
     }
   }
-
-  ghosts_->EndTransaction();
-  tag_index_->EndTransaction();
-  entries_->EndTransaction();
 
   {
     std::lock_guard<Mutex> lock(blob_refs_mutex_);
@@ -2161,19 +2155,17 @@ void FileCache::Maintain() {
                        << " rows of the direct cache";
   }
 
-  entries_->BeginTransaction();
-  tag_index_->BeginTransaction();
-  ghosts_->BeginTransaction();
-  TrimQuotas();
-  Evict();
-  RemoveUnreachableDirectEntries();
-  CompressColdEntries();
-  const ui64 now = time(nullptr);
-  ghosts_->RemoveOlderThan(ghosts_ttl_ ? now - std::min(now, ghosts_ttl_)
-                                       : now + 1);
-  ghosts_->EndTransaction();
-  tag_index_->EndTransaction();
-  entries_->EndTransaction();
+  {
+    const Transaction transaction(entries_.get(), tag_index_.get(),
+                                  ghosts_.get());
+    TrimQuotas();
+    Evict();
+    RemoveUnreachableDirectEntries();
+    CompressColdEntries();
+    const ui64 now = time(nullptr);
+    ghosts_->RemoveOlderThan(ghosts_ttl_ ? now - std::min(now, ghosts_ttl_)
+                                         : now + 1);
+  }
   ReportSizes();
 }
 
@@ -2394,7 +2386,7 @@ void FileCache::CountBlobRefs(ui64 start_time) {
   {
     auto all_tags = tag_index_->GetAll();
     auto all_times = tag_index_->GetAllTimes();
-    tag_index_->BeginTransaction();
+    const Transaction transaction(tag_index_.get());
     std::lock_guard<Mutex> lock(blob_refs_mutex_);
     for (auto& [entry, tags] : all_tags) {
       SQLite::Value value;
@@ -2421,7 +2413,6 @@ void FileCache::CountBlobRefs(ui64 start_time) {
         tag_index_->DeleteTime(entry, tag);
       }
     }
-    tag_index_->EndTransaction();
   }
   // The tags, that are added since the start, stay.
   for (const auto& tag : isolated_tags_) {
@@ -2446,49 +2437,51 @@ void FileCache::RemoveTimeTraces() {
   }
 
   LOG(CACHE_INFO) << "Removing the time traces from the cache " << path_;
-  entries_->BeginTransaction();
-  for (auto [hash_str, value] : entries_->GetInEvictionOrder()) {
-    String time_trace;
-    SplitBlobs(std::get<SQLite::BLOBS>(value), &time_trace);
-    if (time_trace.empty()) {
-      continue;
-    }
+  {
+    const Transaction transaction(entries_.get());
+    for (auto [hash_str, value] : entries_->GetInEvictionOrder()) {
+      String time_trace;
+      SplitBlobs(std::get<SQLite::BLOBS>(value), &time_trace);
+      if (time_trace.empty()) {
+        continue;
+      }
 
-    const string::Hash hash{Immutable(hash_str)};
-    const auto manifest_path =
-        AppendExtension(CommonPath(hash), base::kExtManifest);
-    // The entry is being written right now - the next start removes its
-    // trace.
-    WriteLock lock(this, manifest_path);
-    proto::Manifest manifest;
-    if (!lock || !base::LoadBinaryFromFile(manifest_path, &manifest) ||
-        !manifest.has_v1()) {
-      continue;
-    }
-    manifest.mutable_v1()->clear_time_trace_hash();
-    manifest.mutable_v1()->clear_time_trace_options();
-    String error;
-    if (!base::SaveBinaryToFile(manifest_path, manifest, &error)) {
-      LOG(CACHE_ERROR) << "Failed to save manifest to " << manifest_path
-                       << ": " << error;
-      continue;
-    }
+      const string::Hash hash{Immutable(hash_str)};
+      const auto manifest_path =
+          AppendExtension(CommonPath(hash), base::kExtManifest);
+      // The entry is being written right now - the next start removes its
+      // trace.
+      WriteLock lock(this, manifest_path);
+      proto::Manifest manifest;
+      if (!lock || !base::LoadBinaryFromFile(manifest_path, &manifest) ||
+          !manifest.has_v1()) {
+        continue;
+      }
+      manifest.mutable_v1()->clear_time_trace_hash();
+      manifest.mutable_v1()->clear_time_trace_options();
+      String error;
+      if (!base::SaveBinaryToFile(manifest_path, manifest, &error)) {
+        LOG(CACHE_ERROR) << "Failed to save manifest to " << manifest_path
+                         << ": " << error;
+        continue;
+      }
 
-    EntryInfo info;
-    if (!LoadEntryInfo(hash, &info)) {
-      continue;
-    }
-    // The trace is removed with its last reference.
-    AddBlobRefs(hash, info, std::get<SQLite::MTIME>(value));
-    cache_size_ += info.size;
-    cache_size_ -= std::get<SQLite::SIZE>(value);
-    std::get<SQLite::SIZE>(value) = info.size;
-    std::get<SQLite::BLOBS>(value) = JoinBlobs(info.blobs, info.time_trace, info.targets);
-    if (!entries_->Set(hash_str, value)) {
-      LOG(CACHE_ERROR) << "Failed to update the index for " << hash_str;
+      EntryInfo info;
+      if (!LoadEntryInfo(hash, &info)) {
+        continue;
+      }
+      // The trace is removed with its last reference.
+      AddBlobRefs(hash, info, std::get<SQLite::MTIME>(value));
+      cache_size_ += info.size;
+      cache_size_ -= std::get<SQLite::SIZE>(value);
+      std::get<SQLite::SIZE>(value) = info.size;
+      std::get<SQLite::BLOBS>(value) =
+          JoinBlobs(info.blobs, info.time_trace, info.targets);
+      if (!entries_->Set(hash_str, value)) {
+        LOG(CACHE_ERROR) << "Failed to update the index for " << hash_str;
+      }
     }
   }
-  entries_->EndTransaction();
 
   ReportSizes();
 }

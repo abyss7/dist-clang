@@ -44,6 +44,21 @@ TEST(SQLiteTest, FailedTransactions) {
   EXPECT_FALSE(database.EndTransaction());
 }
 
+TEST(SQLiteTest, Transaction) {
+  const base::TemporaryDir temp_dir;
+  SQLite first(temp_dir.path(), "first"), second(temp_dir.path(), "second");
+
+  {
+    const Transaction transaction(&first, &second);
+    // Both are begun already.
+    EXPECT_FALSE(first.BeginTransaction());
+    EXPECT_FALSE(second.BeginTransaction());
+  }
+  // Both are ended.
+  EXPECT_FALSE(first.EndTransaction());
+  EXPECT_FALSE(second.EndTransaction());
+}
+
 TEST(SQLiteTest, WriteAheadLog) {
   const base::TemporaryDir temp_dir;
   SQLite database(temp_dir.path(), "index");

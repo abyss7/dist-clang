@@ -2,6 +2,8 @@
 
 #include <base/types.h>
 
+#include STL(tuple)
+
 struct sqlite3;
 
 namespace dist_clang {
@@ -15,6 +17,31 @@ namespace cache {
 // Otherwise only the header is checked.
 sqlite3* OpenDatabase(const String& path, bool* created = nullptr,
                       bool full_check = true);
+
+// Keeps the transactions of the |databases| open in the scope, and ends them in
+// the reverse order.
+template <class... Databases>
+class Transaction {
+ public:
+  explicit Transaction(Databases*... databases) : databases_(databases...) {
+    (databases->BeginTransaction(), ...);
+  }
+  ~Transaction() { End<sizeof...(Databases)>(); }
+
+  Transaction(const Transaction&) = delete;
+  Transaction& operator=(const Transaction&) = delete;
+
+ private:
+  template <size_t N>
+  void End() {
+    if constexpr (N > 0) {
+      std::get<N - 1>(databases_)->EndTransaction();
+      End<N - 1>();
+    }
+  }
+
+  std::tuple<Databases*...> databases_;
+};
 
 }  // namespace cache
 }  // namespace dist_clang
