@@ -35,24 +35,26 @@ daemon reads the file at the start: stop it to apply the changes - the client
 starts it again.
 
 The fields below: "= value" is the default, "[repeated]" fields may be given
-several times, "{ ... }" fields are groups of other fields, "<Name>" groups
-are described at the end. The absorber, the collector, the coordinator and
-the remotes of the emitter are for the distributed compilation.
+several times, "{ ... }" fields are groups of other fields. The fields of the
+distributed compilation are described at the end.
 """
 
 
 class Field:
-    def __init__(self, label, type_name, name, default):
+    def __init__(self, label, type_name, name, options):
+        options = Options(options)
         self.label = label
         self.type_name = type_name
         self.name = name
-        self.default = default
+        self.default = options.get("default")
+        self.deprecated = options.get("deprecated") == "true"
         self.comment = []
 
 
 class EnumValue:
-    def __init__(self, name):
+    def __init__(self, name, options):
         self.name = name
+        self.deprecated = Options(options).get("deprecated") == "true"
         self.comment = []
 
 
@@ -67,8 +69,18 @@ class Scope:
 
 DECL_RE = re.compile(
     r"^(required|optional|repeated)\s+([\w.]+)\s+(\w+)\s*=\s*\d+\s*"
-    r"(?:\[\s*default\s*=\s*([^\]]+?)\s*\])?\s*;$")
-VALUE_RE = re.compile(r"^(\w+)\s*=\s*-?\d+\s*;$")
+    r"(?:\[([^\]]*)\])?\s*;$")
+VALUE_RE = re.compile(r"^(\w+)\s*=\s*-?\d+\s*(?:\[([^\]]*)\])?\s*;$")
+
+
+def Options(text):
+    # E.g. "default = 1, deprecated = true".
+    options = {}
+    for option in (text or "").split(","):
+        if option.strip():
+            name, value = option.split("=", 1)
+            options[name.strip()] = value.strip()
+    return options
 OPEN_RE = re.compile(r"^(message|enum)\s+(\w+)\s*\{$")
 
 
@@ -102,7 +114,7 @@ def Parse(path):
             continue
         match = VALUE_RE.match(line)
         if match and scope.kind == "enum":
-            last = EnumValue(match.group(1))
+            last = EnumValue(match.group(1), match.group(2))
             scope.items.append(last)
             continue
         raise SystemExit("%s:%d: can't parse: %s" % (path, number, line))
@@ -136,6 +148,32 @@ def Wrap(text, indent, hanging=None):
                          break_on_hyphens=False)
 
 
+# The fields of the distributed compilation - described after the ones of the
+# local daemon, as "<message>.<field>".
+DISTRIBUTED = {
+    "Configuration.absorber",
+    "Configuration.collector",
+    "Configuration.coordinator",
+    "Configuration.pool_capacity",
+    "Configuration.versions",
+    "Emitter.coordinators",
+    "Emitter.only_failed",
+    "Emitter.poll_interval",
+    "Emitter.pop_timeout",
+    "Emitter.remotes",
+    "Emitter.shard_queue_limit",
+    "Emitter.total_shards",
+}
+
+# The fields of the local daemon, that go first - in this order.
+FIRST = ["cache", "emitter", "verbosity"]
+
+DISTRIBUTED_TITLE = """\
+The distributed compilation: the daemons, that compile for others, and the
+fields of the emitter, that sends the compilations to them.
+"""
+
+
 class Writer:
     def __init__(self, files):
         self.files = files
@@ -143,25 +181,58 @@ class Writer:
         self.shared = []  # Messages, that several fields use.
         self.order = []  # Messages in the order of the first use.
 
+    def Target(self, message, field):
+        return Resolve(message, field.type_name, self.files)
+
     def CountUses(self, message, uses, seen):
         if message in seen:
             return
         seen.add(message)
         for field in message.items:
-            target = Resolve(message, field.type_name, self.files)
-            if target and target.kind == "message":
-                if target not in uses:
-                    uses[target] = 0
-                    self.order.append(target)
-                uses[target] += 1
-                self.CountUses(target, uses, seen)
+            target = self.Target(message, field)
+            if field.deprecated or not target or target.kind != "message":
+                continue
+            if target not in uses:
+                uses[target] = 0
+                self.order.append(target)
+            uses[target] += 1
+            self.CountUses(target, uses, seen)
 
-    def Message(self, message, indent):
+    def IsDistributed(self, message, field):
+        return "%s.%s" % (message.name, field.name) in DISTRIBUTED
+
+    def HasDistributed(self, message):
         for field in message.items:
-            self.Field(message, field, indent)
+            target = self.Target(message, field)
+            if self.IsDistributed(message, field) or (
+                    target and target.kind == "message" and
+                    target not in self.shared and self.HasDistributed(target)):
+                return True
+        return False
 
-    def Field(self, message, field, indent):
-        target = Resolve(message, field.type_name, self.files)
+    def Shown(self, message, field, part):
+        # |part| is "local", "distributed" or "all".
+        if field.deprecated:
+            return False
+        if part == "all":
+            return True
+        if self.IsDistributed(message, field):
+            return part == "distributed"
+        target = self.Target(message, field)
+        if (part == "distributed" and target and target.kind == "message" and
+                target not in self.shared):
+            return self.HasDistributed(target)
+        return part == "local"
+
+    def Message(self, message, indent, part="all", first=()):
+        fields = [f for f in message.items if self.Shown(message, f, part)]
+        fields.sort(key=lambda f: first.index(f.name) if f.name in first
+                    else len(first))
+        for field in fields:
+            self.Field(message, field, indent, part)
+
+    def Field(self, message, field, indent, part):
+        target = self.Target(message, field)
         label = "  [%s]" % field.label if field.label != "optional" else ""
         comment = Text(field.comment)
         if target and target.kind == "message":
@@ -175,15 +246,19 @@ class Writer:
             if target not in self.shared:
                 if comment:
                     self.lines.append("")
-                self.Message(target, indent + "  ")
+                if self.IsDistributed(message, field):
+                    part = "all"
+                self.Message(target, indent + "  ", part)
                 while not self.lines[-1]:
                     self.lines.pop()
                 self.lines.append(indent + "}")
             self.lines.append("")
             return
 
+        values = []
         if target and target.kind == "enum":
-            type_name = " | ".join(value.name for value in target.items)
+            values = [value for value in target.items if not value.deprecated]
+            type_name = " | ".join(value.name for value in values)
         else:
             type_name = field.type_name
         head = "%s%s: %s" % (indent, field.name, type_name)
@@ -192,14 +267,12 @@ class Writer:
         self.lines.append(head + label)
         if comment:
             self.lines.extend(Wrap(comment, indent + "    "))
-        if target and target.kind == "enum":
-            for value in target.items:
-                text = Text(value.comment)
-                if text:
-                    first = "%s    %s - " % (indent, value.name)
-                    self.lines.extend(
-                        Wrap(text, first, " " * len(first)))
-        if comment or (target and target.kind == "enum"):
+        for value in values:
+            text = Text(value.comment)
+            if text:
+                first = "%s    %s - " % (indent, value.name)
+                self.lines.extend(Wrap(text, first, " " * len(first)))
+        if comment or values:
             self.lines.append("")
 
     def Write(self, root_message):
@@ -208,7 +281,11 @@ class Writer:
         self.shared = [m for m in self.order if uses[m] > 1]
         self.lines.extend(INTRO.splitlines())
         self.lines.append("")
-        self.Message(root_message, "")
+        self.Message(root_message, "", "local", FIRST)
+        self.lines.append("")
+        self.lines.extend(DISTRIBUTED_TITLE.splitlines())
+        self.lines.append("")
+        self.Message(root_message, "", "distributed")
         for message in self.shared:
             self.lines.append("<%s>:" % message.name)
             self.Message(message, "  ")

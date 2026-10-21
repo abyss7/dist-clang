@@ -257,10 +257,13 @@ bool CompilationDaemon::Initialize() {
         conf->cache().compression() == proto::Configuration::Cache::NONE
             ? cache::proto::NONE
             : cache::proto::ZSTD;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     if (!conf->cache().has_compression() && conf->cache().has_snappy() &&
         !conf->cache().snappy()) {
       compression = cache::proto::NONE;
     }
+#pragma clang diagnostic pop
     cache_ = std::make_unique<cache::FileCache>(
         conf->cache().path(), conf->cache().size(), compression,
         conf->cache().store_index(),

@@ -2,6 +2,7 @@
 
 #include <base/types.h>
 #include <daemon/configuration.pb.h>
+#include <google/protobuf/descriptor.pb.h>
 
 #include <gtest/gtest.h>
 
@@ -39,6 +40,13 @@ TEST(ConfigHelpTest, AllFields) {
     }
     for (int i = 0; i < message->field_count(); ++i) {
       const FieldDescriptor* field = message->field(i);
+      // The obsolete fields and the ones, that aren't implemented, are
+      // hidden.
+      if (field->options().deprecated()) {
+        EXPECT_FALSE(HasField(help, String(field->name())))
+            << message->full_name() << "." << field->name();
+        continue;
+      }
       EXPECT_TRUE(HasField(help, String(field->name())))
           << message->full_name() << "." << field->name();
       if (field->message_type()) {
@@ -46,14 +54,31 @@ TEST(ConfigHelpTest, AllFields) {
       }
       if (field->enum_type()) {
         for (int j = 0; j < field->enum_type()->value_count(); ++j) {
-          const String value(field->enum_type()->value(j)->name());
-          EXPECT_NE(String::npos, help.find(value))
-              << field->full_name() << " = " << value;
+          const auto* value = field->enum_type()->value(j);
+          const String name(value->name());
+          EXPECT_EQ(!value->options().deprecated(),
+                    help.find(name) != String::npos)
+              << field->full_name() << " = " << name;
         }
       }
     }
   };
   Check(proto::Configuration::descriptor());
+
+  // The fields of the local daemon go first - the cache at the top - and the
+  // ones of the distributed compilation after them.
+  const size_t cache = help.find("\ncache {");
+  const size_t emitter = help.find("\nemitter {");
+  const size_t distributed = help.find("The distributed compilation");
+  const size_t absorber = help.find("\nabsorber {");
+  const size_t remotes = help.find("  remotes {");
+  EXPECT_LT(cache, emitter);
+  EXPECT_LT(emitter, distributed);
+  EXPECT_NE(String::npos, distributed);
+  EXPECT_LT(distributed, absorber);
+  EXPECT_LT(distributed, remotes);
+  EXPECT_NE(String::npos, absorber);
+  EXPECT_NE(String::npos, remotes);
 
   // The types, the defaults and the comments.
   EXPECT_NE(String::npos, help.find("clean_period: uint32 = 600")) << help;
