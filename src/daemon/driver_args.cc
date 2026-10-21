@@ -875,7 +875,7 @@ List<String> TokenizeResponseFile(const String& content) {
 
 bool ExpandResponseFiles(List<String>& args, const String& current_dir,
                          String* error) {
-  // Limit the depth of nested response files.
+  // Limit the number of all expansions - also against the cyclic files.
   ui32 expansions = 0;
 
   for (auto it = args.begin(); it != args.end();) {

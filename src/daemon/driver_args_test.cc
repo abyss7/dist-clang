@@ -427,29 +427,36 @@ TEST(DriverArgsTest, Language) {
 }
 
 TEST(DriverArgsTest, Unsupported) {
-  const List<List<String>> commands = {
-      {"test.cc", "-o", "test"},
-      {"-c", "a.cc", "b.cc"},
-      {"-c", "-"},
-      {"-E", "test.cc"},
-      {"-S", "test.cc"},
-      {"-c", "test.cc", "-o", "-"},
-      {"-c", "test.cc", "-save-temps"},
-      {"-c", "test.cc", "-fmodules"},
-      {"-c", "test.cc", "--coverage"},
-      {"-c", "test.cc", "--config", "my.cfg"},
-      {"-c", "test.cc", "-fprofile-use=missing.profdata"},
-      {"-c", "test.cc", "-o"},
+  // The command and a part of the reason of the refusal.
+  const List<Pair<List<String>, String>> commands = {
+      {{"test.cc", "-o", "test"}, "not a compilation"},
+      {{"-c", "a.cc", "b.cc"}, "expected exactly one input, got 2"},
+      {{"-c", "-"}, "input from stdin"},
+      {{"-E", "test.cc"}, "unsupported flag -E"},
+      {{"-S", "test.cc"}, "unsupported flag -S"},
+      {{"-c", "test.cc", "-o", "-"}, "output to stdout"},
+      {{"-c", "test.cc", "-save-temps"}, "unsupported flag -save-temps"},
+      {{"-c", "test.cc", "-fmodules"}, "unsupported flag -fmodules"},
+      {{"-c", "test.cc", "--coverage"}, "unsupported flag --coverage"},
+      {{"-c", "test.cc", "--config", "my.cfg"}, "unsupported flag --config"},
+      {{"-c", "test.cc", "-fprofile-use=missing.profdata"},
+       "can't track input file"},
+      {{"-c", "test.cc", "-o"}, "no value for -o"},
       // An unknown flag with a separate value looks like the second input.
-      {"-c", "test.cc", "-unknown-flag", "value"},
+      {{"-c", "test.cc", "-qunknown-flag", "value"},
+       "expected exactly one input, got 2"},
   };
 
-  for (const auto& command : commands) {
+  for (const auto& [command, expected_reason] : commands) {
+    String joined;
+    for (const auto& arg : command) {
+      joined += arg + " ";
+    }
     base::proto::Flags flags;
     String reason;
-    EXPECT_FALSE(Parse(command, &flags, &reason))
-        << "Command: " << base::proto::Flags().DebugString() << command.size();
-    EXPECT_FALSE(reason.empty());
+    EXPECT_FALSE(Parse(command, &flags, &reason)) << "Command: " << joined;
+    EXPECT_NE(String::npos, reason.find(expected_reason))
+        << "Command: " << joined << "\nReason: " << reason;
   }
 }
 
@@ -560,6 +567,13 @@ TEST(DriverArgsTest, ResponseFiles) {
 
   args = {"@missing.rsp"};
   EXPECT_FALSE(ExpandResponseFiles(args, temp_dir.path(), &error));
+
+  // The cyclic file stops at the limit of the expansions.
+  ASSERT_TRUE(base::File::Write(temp_dir.path() / "cycle.rsp", "@cycle.rsp"_l));
+  args = {"@cycle.rsp"};
+  error.clear();
+  EXPECT_FALSE(ExpandResponseFiles(args, temp_dir.path(), &error));
+  EXPECT_EQ("too many response files", error);
 }
 
 }  // namespace daemon
