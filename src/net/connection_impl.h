@@ -4,7 +4,6 @@
 #include <net/socket.h>
 #include <perf/log_reporter.h>
 
-#include <base/test_forward.h>
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/gzip_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
@@ -93,10 +92,6 @@ class ConnectionImpl : public Connection {
   BindedSendCallback send_callback_;
 
   perf::Counter<perf::LogReporter> counter_;
-
-  FRIEND_TEST(ConnectionTest, Sync_ReadFromClosedConnection);
-  FRIEND_TEST(ConnectionTest, Sync_ReadIncompleteMessage);
-  FRIEND_TEST(ConnectionTest, Sync_SendToClosedConnection);
 };
 
 }  // namespace net

@@ -8,17 +8,6 @@
 
 namespace dist_clang {
 
-namespace client {
-FORWARD_TEST(ClientTest, NoInputFile);
-FORWARD_TEST(ClientTest, CannotSendMessage);
-FORWARD_TEST(ClientTest, CannotReadMessage);
-FORWARD_TEST(ClientTest, ReadMessageWithoutStatus);
-FORWARD_TEST(ClientTest, ReadMessageWithBadStatus);
-FORWARD_TEST(ClientTest, SuccessfulCompilation);
-FORWARD_TEST(ClientTest, FailedCompilation);
-FORWARD_TEST(ClientTest, SendPluginPath);
-}  // namespace client
-
 namespace daemon {
 FORWARD_TEST(AbsorberTest, SuccessfulCompilationWithRewriteIncludes);
 FORWARD_TEST(AbsorberTest, StoreLocalCacheWithoutBlacklist);
@@ -142,14 +131,6 @@ class Process
   bool exited_ = false;
 
  private:
-  FRIEND_TEST(client::ClientTest, NoInputFile);
-  FRIEND_TEST(client::ClientTest, CannotSendMessage);
-  FRIEND_TEST(client::ClientTest, CannotReadMessage);
-  FRIEND_TEST(client::ClientTest, ReadMessageWithoutStatus);
-  FRIEND_TEST(client::ClientTest, ReadMessageWithBadStatus);
-  FRIEND_TEST(client::ClientTest, SuccessfulCompilation);
-  FRIEND_TEST(client::ClientTest, FailedCompilation);
-  FRIEND_TEST(client::ClientTest, SendPluginPath);
   FRIEND_TEST(daemon::AbsorberTest, SuccessfulCompilationWithRewriteIncludes);
   FRIEND_TEST(daemon::AbsorberTest, StoreLocalCacheWithoutBlacklist);
   FRIEND_TEST(daemon::AbsorberTest, DoNotStoreLocalCacheWhenDisabled);
