@@ -1,10 +1,12 @@
 // Checks which compilations from a compilation database can be cached.
 //
-// Reads commands from stdin, one per line: the working directory followed by
-// the arguments, separated by '\x1f'. Prints the unsupported commands with
-// the reasons, and the summary. See check_args.py for the convenient wrapper.
+// Reads commands from stdin: the number of the arguments, the working
+// directory and the arguments - each ended with '\0'. Prints the unsupported
+// commands with the reasons, and the summary. See check_args.py for the
+// convenient wrapper.
 
 #include <base/base.pb.h>
+#include <base/string_utils.h>
 #include <daemon/driver_args.h>
 
 #include STL(iostream)
@@ -12,39 +14,56 @@
 
 using namespace dist_clang;
 
+namespace {
+
+// The reason without the data of the command - for the summary.
+String Category(const String& reason) {
+  for (const char* prefix :
+       {"unsupported input", "can't track input file",
+        "unexpanded response file", "expected exactly one input, got"}) {
+    if (reason.starts_with(prefix)) {
+      return String(prefix) + " ...";
+    }
+  }
+  return reason;
+}
+
+}  // namespace
+
 int main() {
   ui64 total = 0, supported = 0;
   std::map<String, ui64> reasons;
 
-  String line;
-  while (std::getline(std::cin, line)) {
-    List<String> parts;
-    size_t start = 0;
-    for (size_t pos; (pos = line.find('\x1f', start)) != String::npos;
-         start = pos + 1) {
-      parts.push_back(line.substr(start, pos - start));
+  String count;
+  while (std::getline(std::cin, count, '\0')) {
+    String current_dir;
+    std::getline(std::cin, current_dir, '\0');
+    List<String> args;
+    for (ui64 i = base::StringTo<ui64>(count); i > 0; --i) {
+      args.emplace_back();
+      std::getline(std::cin, args.back(), '\0');
     }
-    parts.push_back(line.substr(start));
-    if (parts.size() < 3) {
+    if (!std::cin || args.size() < 2) {
       continue;
     }
-
-    const String current_dir = parts.front();
-    parts.pop_front();  // working directory
-    parts.pop_front();  // compiler
+    String command;
+    for (const auto& arg : args) {
+      command += (command.empty() ? "" : " ") + arg;
+    }
+    args.pop_front();  // compiler
 
     ++total;
     String reason, error;
     base::proto::Flags flags;
-    if (!daemon::ExpandResponseFiles(parts, current_dir, &error)) {
+    if (!daemon::ExpandResponseFiles(args, current_dir, &error)) {
       reason = "response file: " + error;
-    } else if (daemon::ParseDriverArgs(parts, current_dir, &flags, &reason)) {
+    } else if (daemon::ParseDriverArgs(args, current_dir, &flags, &reason)) {
       ++supported;
       continue;
     }
 
-    ++reasons[reason];
-    std::cout << "unsupported (" << reason << "): " << line.substr(0, 300)
+    ++reasons[Category(reason)];
+    std::cout << "unsupported (" << reason << "): " << command.substr(0, 300)
               << std::endl;
   }
 
