@@ -13,6 +13,11 @@ class Configuration {
 
   inline const proto::Configuration& config() const { return config_; }
 
+  // The real compiler for the symlink "clang" -> "dist-clang": from the config,
+  // or the first "clang" in PATH - but not the client itself, that would run
+  // itself forever. Empty, if it isn't found.
+  String CompilerPath() const;
+
   // For the user - the log isn't set up yet, when the config is read.
   inline const List<String>& warnings() const { return warnings_; }
 

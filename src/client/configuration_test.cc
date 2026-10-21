@@ -8,6 +8,8 @@
 
 #include <gtest/gtest.h>
 
+#include <sys/stat.h>
+
 namespace dist_clang {
 namespace client {
 
@@ -97,8 +99,25 @@ TEST(ClientConfigurationTest, DontFindItself) {
   const auto old_cwd = base::GetCurrentDir();
   ASSERT_TRUE(base::ChangeCurrentDir(temp_dir));
   Configuration configuration;
-  EXPECT_NE(temp_dir.path() / "clang", Path(configuration.config().path()));
+  EXPECT_NE(temp_dir.path() / "clang", Path(configuration.CompilerPath()));
   base::ChangeCurrentDir(old_cwd);
+  setenv("PATH", old_path.c_str(), 1);
+}
+
+TEST(ClientConfigurationTest, FindCompilerOnDemand) {
+  // The compiler is looked up in PATH only, when it's needed - not for the
+  // launcher.
+  const base::TemporaryDir temp_dir;
+  const auto clang_path = temp_dir.path() / "clang";
+  ASSERT_TRUE(base::File::Write(clang_path, "#!/bin/sh\n"_l));
+  ASSERT_EQ(0, chmod(clang_path.c_str(), 0755));
+  unsetenv("DC_CLANG_PATH");
+  const String old_path = String(base::GetEnv("PATH"_l));
+  setenv("PATH", "", 1);
+
+  Configuration configuration;
+  setenv("PATH", temp_dir.path().c_str(), 1);
+  EXPECT_EQ(clang_path, Path(configuration.CompilerPath()));
   setenv("PATH", old_path.c_str(), 1);
 }
 

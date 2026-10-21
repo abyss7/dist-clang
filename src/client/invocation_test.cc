@@ -59,6 +59,25 @@ TEST(InvocationTest, Symlink) {
       << invocation.error;
 }
 
+TEST(InvocationTest, FindCompilerOnlyForSymlink) {
+  // The launcher takes the compiler from the command line: it doesn't look
+  // for the real one in PATH.
+  ui32 lookups = 0;
+  auto Lookup = [&lookups] {
+    ++lookups;
+    return String("/usr/bin/clang-18");
+  };
+  auto invocation = ParseInvocation({"dist-clang", "clang", "-c", "a.c"},
+                                    Fn<String()>(Lookup));
+  EXPECT_EQ(Invocation::COMPILE, invocation.action);
+  EXPECT_EQ(0u, lookups);
+
+  invocation = ParseInvocation({"clang", "-c", "a.c"}, Fn<String()>(Lookup));
+  EXPECT_EQ(Invocation::COMPILE, invocation.action);
+  EXPECT_EQ("/usr/bin/clang-18", invocation.args.front());
+  EXPECT_EQ(1u, lookups);
+}
+
 TEST(InvocationTest, Commands) {
   auto invocation = ParseInvocation({"dist-clang", "--help-config"}, "");
   EXPECT_EQ(Invocation::HELP_CONFIG, invocation.action);

@@ -42,9 +42,13 @@ String TagsVariable(const String& env_tags, const List<String>& tags);
 
 // Parses |argv| of the client. The client runs as a launcher -
 // "dist-clang clang++ <args>" - or as the compiler itself, through a symlink
-// "clang++" -> "dist-clang": then the real compiler is |compiler_path|.
+// "clang++" -> "dist-clang": then the real compiler is |compiler_path()|.
 Invocation ParseInvocation(const List<String>& argv,
-                           const String& compiler_path);
+                           const Fn<String()>& compiler_path);
+inline Invocation ParseInvocation(const List<String>& argv,
+                                  const String& compiler_path) {
+  return ParseInvocation(argv, [&compiler_path] { return compiler_path; });
+}
 
 }  // namespace client
 }  // namespace dist_clang

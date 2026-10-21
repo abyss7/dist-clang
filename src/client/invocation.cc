@@ -23,7 +23,7 @@ String TagsVariable(const String& env_tags, const List<String>& tags) {
 }
 
 Invocation ParseInvocation(const List<String>& argv,
-                           const String& compiler_path) {
+                           const Fn<String()>& find_compiler) {
   Invocation invocation;
   if (argv.empty()) {
     return invocation;
@@ -31,6 +31,7 @@ Invocation ParseInvocation(const List<String>& argv,
 
   const String self_name = BaseName(argv.front());
   if (self_name != "dist-clang") {
+    const String compiler_path = find_compiler();
     if (compiler_path.empty()) {
       invocation.action = Invocation::ERROR;
       invocation.error = "provide the real compiler via " +

@@ -106,7 +106,10 @@ int main(int argc, char* argv[]) {
   const String socket_error = net::EndPoint::UnixSocketError(socket_path);
 
   const auto invocation =
-      client::ParseInvocation(List<String>(argv, argv + argc), config.path());
+      client::ParseInvocation(List<String>(argv, argv + argc),
+                              [&configuration] {
+                                return configuration.CompilerPath();
+                              });
   if (!socket_error.empty() && invocation.action != client::Invocation::USAGE &&
       invocation.action != client::Invocation::HELP_CONFIG &&
       invocation.action != client::Invocation::ERROR) {
