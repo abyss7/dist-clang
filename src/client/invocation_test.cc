@@ -65,6 +65,11 @@ TEST(InvocationTest, Commands) {
   invocation = ParseInvocation({"dist-clang", "--help-config", "x"}, "");
   EXPECT_EQ(Invocation::USAGE, invocation.action);
 
+  invocation = ParseInvocation({"dist-clang", "--stop"}, "");
+  EXPECT_EQ(Invocation::STOP, invocation.action);
+  invocation = ParseInvocation({"dist-clang", "--stop", "x"}, "");
+  EXPECT_EQ(Invocation::USAGE, invocation.action);
+
   invocation = ParseInvocation({"dist-clang", "--stats"}, "");
   EXPECT_EQ(Invocation::STATS, invocation.action);
   EXPECT_FALSE(invocation.raw);

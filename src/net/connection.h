@@ -19,6 +19,7 @@ DEFINE_WRAP(perf::proto::Report, report)
 DEFINE_WRAP(daemon::proto::Configuration, configuration)
 DEFINE_WRAP(base::proto::TagsRequest, tags_request)
 DEFINE_WRAP(base::proto::TagsReport, tags_report)
+DEFINE_WRAP(base::proto::StopRequest, stop_request)
 #undef DEFINE_WRAP
 
 class Connection : public std::enable_shared_from_this<Connection> {

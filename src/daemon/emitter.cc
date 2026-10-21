@@ -15,6 +15,7 @@
 #include <perf/stat_service.h>
 
 #include <fcntl.h>
+#include <signal.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -428,7 +429,8 @@ void PendingStores::WaitFor(const String& key) {
 
 const ui32 Emitter::max_total_shards = 1024u;
 
-Emitter::Emitter(const proto::Configuration& conf) : CompilationDaemon(conf) {
+Emitter::Emitter(const proto::Configuration& conf)
+    : CompilationDaemon(conf), stop_callback_([] { kill(getpid(), SIGTERM); }) {
   using Worker = base::WorkerPool::SimpleWorker;
 
   CHECK(conf.has_emitter());
@@ -716,6 +718,20 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
   if (message->has_tags_request()) {
     return HandleTagsRequest(
         connection, message->tags_request());
+  }
+
+  if (message->has_stop_request()) {
+    LOG(INFO) << "Stopping by the request of the client";
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    return connection->ReportStatus(
+        status, [this](net::ConnectionPtr connection,
+                       const net::proto::Status& status) {
+          const bool result =
+              net::Connection::CloseAfterSend()(connection, status);
+          stop_callback_();
+          return result;
+        });
   }
 
   if (message->has_report()) {

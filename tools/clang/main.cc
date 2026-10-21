@@ -29,6 +29,7 @@ const char kUsage[] =
     "       dist-clang --forget-tag=<tag> [--force]\n"
     "       dist-clang --forget-untagged [--force]\n"
     "       dist-clang --forget-removed\n"
+    "       dist-clang --stop\n"
     "       dist-clang --help-config\n"
     "\n"
     "  --restat      Don't touch outputs, that don't change: for build\n"
@@ -50,6 +51,8 @@ const char kUsage[] =
     "  --forget-untagged  The same for the entries without tags.\n"
     "  --forget-removed  Forget the records of the removed entries, that\n"
     "                count the losses - see \"ghosts_ttl\" in the config.\n"
+    "  --stop        Stop the daemon - e.g. to apply its configuration;\n"
+    "                the next compilation starts it again.\n"
     "  --help-config  Describe the configuration of the daemon.\n"
     "\n"
     "Or make a symlink named like the compiler, e.g. \"clang++\", to "
@@ -129,6 +132,8 @@ int main(int argc, char* argv[]) {
       return client::PrintStats(socket_path, config, invocation.raw) ? 0 : 1;
     case client::Invocation::TAG_STATS:
       return client::PrintTagStats(socket_path, config) ? 0 : 1;
+    case client::Invocation::STOP:
+      return client::StopDaemon(socket_path, config) ? 0 : 1;
     case client::Invocation::FORGET_REMOVED:
       return client::ForgetGhosts(socket_path, config) ? 0 : 1;
     case client::Invocation::FORGET_TAG:

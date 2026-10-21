@@ -3984,6 +3984,50 @@ TEST_F(EmitterTest, TagEntries) {
   emitter.reset();
 }
 
+TEST_F(EmitterTest, Stop) {
+  Mutex replies_mutex;
+  List<net::Connection::Message> replies;
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      {
+        std::lock_guard<Mutex> lock(replies_mutex);
+        replies.emplace_back();
+        replies.back().CopyFrom(message);
+      }
+      send_condition.notify_all();
+    });
+    return true;
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  Atomic<ui32> stops = {0};
+  emitter->SetStopCallback([&] { ++stops; });
+  ASSERT_TRUE(emitter->Initialize());
+
+  // The daemon replies, and then stops - like with SIGTERM.
+  net::Connection::ScopedMessage message(new net::Connection::Message);
+  message->mutable_stop_request();
+  auto connection = test_service->TriggerListen(socket_path);
+  net::proto::Status status;
+  status.set_code(net::proto::Status::OK);
+  EXPECT_TRUE(std::static_pointer_cast<net::TestConnection>(connection)
+                  ->TriggerReadAsync(std::move(message), status));
+  {
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(5),
+                                        [&] { return send_count == 1u; }));
+  }
+  {
+    std::lock_guard<Mutex> lock(replies_mutex);
+    ASSERT_EQ(1u, replies.size());
+    ASSERT_TRUE(replies.back().has_status());
+    EXPECT_EQ(net::proto::Status::OK, replies.back().status().code());
+  }
+  EXPECT_EQ(1u, stops);
+
+  emitter.reset();
+}
+
 TEST_F(EmitterTest, IsolatedTags) {
   const base::TemporaryDir temp_dir;
   const auto input_path = temp_dir.path() / "test.cc";

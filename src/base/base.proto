@@ -171,6 +171,10 @@ message TagsRequest {
   // Forget the records of the removed entries - see |ghosts_ttl|.
 }
 
+message StopRequest {
+  // Stop the daemon - e.g. to apply its new configuration.
+}
+
 message TagsReport {
   message Tag {
     required string name              = 1;

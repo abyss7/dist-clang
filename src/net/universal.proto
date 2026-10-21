@@ -41,4 +41,5 @@ message Universal {
   optional daemon.proto.Configuration configuration = 8;
   optional base.proto.TagsRequest tags_request      = 9;
   optional base.proto.TagsReport tags_report        = 10;
+  optional base.proto.StopRequest stop_request      = 11;
 }

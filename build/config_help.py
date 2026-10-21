@@ -31,8 +31,8 @@ changes only the given fields: the socket in $XDG_RUNTIME_DIR, the cache of
 mode, and the number of threads twice the number of CPUs. A broken file is
 ignored. "dist-clangd --config=<path>" reads only the given file - then the
 required fields are needed. The paths are absolute: "~" isn't expanded. The
-daemon reads the file at the start: stop it to apply the changes - the client
-starts it again.
+daemon reads the file at the start: "dist-clang --stop" applies the changes -
+the next compilation starts the daemon again.
 
 The fields below: "= value" is the default, "[repeated]" fields may be given
 several times, "{ ... }" fields are groups of other fields. The fields of the

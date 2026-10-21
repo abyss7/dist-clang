@@ -12,6 +12,8 @@
 #include STL(iomanip)
 #include STL(iostream)
 
+#include <fcntl.h>
+#include <sys/file.h>
 #include <unistd.h>
 
 #include <base/using_log.h>
@@ -594,6 +596,55 @@ bool ForgetTag(const String& socket_path, const proto::Configuration& config,
     std::cout << "Add --force to remove them" << std::endl;
   }
   return true;
+}
+
+bool StopDaemon(const String& socket_path, const proto::Configuration& config) {
+  UniquePtr<net::NetworkService> service;
+  auto connection = Connect(socket_path, config, &service);
+  if (!connection) {
+    std::cout << "Daemon isn't running on " << socket_path << std::endl;
+    return true;
+  }
+
+  net::proto::Status status;
+  net::Connection::Message reply;
+  if (!connection->SendSync(std::make_unique<base::proto::StopRequest>(),
+                            &status) ||
+      !connection->ReadSync(&reply, &status)) {
+    std::cerr << "Failed to request the stop: " << status.description()
+              << std::endl;
+    return false;
+  }
+  if (!reply.has_status() ||
+      reply.status().code() != net::proto::Status::OK) {
+    std::cerr << "The daemon refused to stop: "
+              << reply.status().description() << std::endl;
+    return false;
+  }
+  connection.reset();
+  service.reset();
+
+  // The daemon holds the lock of the socket until its exit - e.g. while it
+  // closes the cache.
+  const String lock_path = socket_path + ".lock";
+  const int lock_fd = open(lock_path.c_str(), O_RDWR | O_CLOEXEC);
+  for (int i = 0; lock_fd != -1 && i < 600; ++i) {
+    if (flock(lock_fd, LOCK_EX | LOCK_NB) == 0) {
+      flock(lock_fd, LOCK_UN);
+      close(lock_fd);
+      std::cout << "The daemon on " << socket_path
+                << " is stopped - the next compilation starts it again"
+                << std::endl;
+      return true;
+    }
+    usleep(100 * 1000);
+  }
+  if (lock_fd != -1) {
+    close(lock_fd);
+  }
+  std::cerr << "The daemon on " << socket_path
+            << " is stopping, but hasn't exited yet" << std::endl;
+  return false;
 }
 
 bool ForgetGhosts(const String& socket_path,

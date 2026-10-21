@@ -25,8 +25,10 @@ TEST(CompilationDaemonTest, ServeOnlyOwnUser) {
   forget.mutable_tags_request()->set_forget("branch");
   forget.mutable_tags_request()->set_dry_run(false);
   ghosts.mutable_tags_request()->set_forget_ghosts(true);
+  net::proto::Universal stop;
+  stop.mutable_stop_request();
   const List<const net::proto::Universal*> all = {
-      &compile, &stats, &tags, &dry_run, &forget, &ghosts};
+      &compile, &stats, &tags, &dry_run, &forget, &ghosts, &stop};
 
   String reason;
   for (const auto* message : all) {
@@ -54,6 +56,9 @@ TEST(CompilationDaemonTest, ServeOnlyOwnUser) {
   EXPECT_FALSE(CompilationDaemon::MayServe(0, 1000, forget, &reason));
   EXPECT_FALSE(CompilationDaemon::MayServe(0, 1000, ghosts, &reason));
   EXPECT_TRUE(CompilationDaemon::MayServe(0, 0, forget, &reason));
+  // And stops only for root.
+  EXPECT_FALSE(CompilationDaemon::MayServe(0, 1000, stop, &reason));
+  EXPECT_TRUE(CompilationDaemon::MayServe(0, 0, stop, &reason));
 }
 
 TEST(CompilationDaemonTest, CreateProcessFromFlags) {

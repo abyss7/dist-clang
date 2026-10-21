@@ -62,6 +62,9 @@ Invocation ParseInvocation(const List<String>& argv,
   if (args[0] == "--help-config") {
     return Command(Invocation::HELP_CONFIG, 1);
   }
+  if (args[0] == "--stop") {
+    return Command(Invocation::STOP, 1);
+  }
   if (args[0] == "--stats") {
     invocation.raw = args.size() > 1 && args[1] == "--raw";
     return Command(Invocation::STATS, invocation.raw ? 2 : 1);

@@ -85,6 +85,11 @@ bool TestConnection::SendAsyncImpl(SendCallback callback) {
   }
 
   on_send_(*message_.get());
+  if (callback) {
+    Status status;
+    status.set_code(Status::OK);
+    callback(shared_from_this(), status);
+  }
   return true;
 }
 

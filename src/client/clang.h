@@ -40,6 +40,10 @@ bool PrintTagStats(const String& socket_path,
 bool ForgetTag(const String& socket_path, const proto::Configuration& config,
                const String& tag, bool force);
 
+// Stops the daemon, and waits for its exit - the next compilation starts it
+// again. Returns |false| if the daemon doesn't stop.
+bool StopDaemon(const String& socket_path, const proto::Configuration& config);
+
 // Forgets the records of the removed entries of the cache - and the losses.
 bool ForgetGhosts(const String& socket_path,
                   const proto::Configuration& config);

@@ -15,6 +15,7 @@ struct Invocation {
     TAG_STATS,
     FORGET_TAG,
     FORGET_REMOVED,
+    STOP,
     COMPILE,
   };
 

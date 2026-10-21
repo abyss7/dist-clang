@@ -1038,6 +1038,10 @@ bool CompilationDaemon::MayServe(ui32 daemon_uid, ui32 peer_uid,
       return false;
     }
   }
+  if (message.has_stop_request()) {
+    reason->assign("Only root stops the shared daemon");
+    return false;
+  }
   return true;
 }
 

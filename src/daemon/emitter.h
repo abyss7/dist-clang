@@ -114,6 +114,12 @@ class Emitter : public CompilationDaemon {
 
   bool Initialize() override;
 
+  // What a request to stop does, after the reply - SIGTERM by default, that
+  // the main thread waits for.
+  inline void SetStopCallback(Fn<void()> callback) {
+    stop_callback_ = std::move(callback);
+  }
+
   // Sets the key root of the relocatable compilation: the one of the |roots|,
   // that contains its input.
   static void SetKeyRoot(
@@ -195,6 +201,8 @@ class Emitter : public CompilationDaemon {
   void VerifyHit(base::proto::Local message, const String& handled_hash,
                  const String& object_hash, const String& dwo_hash,
                  i64 hit_time);
+
+  Fn<void()> stop_callback_;
 
   UniquePtr<Queue> all_tasks_, cache_tasks_, failed_tasks_;
   UniquePtr<QueueAggregator> local_tasks_;
