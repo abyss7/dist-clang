@@ -6,6 +6,7 @@
 #include <base/logging.h>
 
 #include STL(algorithm)
+#include STL(string_view)
 
 #include <sys/stat.h>
 
@@ -283,11 +284,13 @@ const Option* FindExact(const T (&options)[N], const String& arg) {
 template <class T, size_t N>
 const Option* FindPrefix(const T (&options)[N], const String& arg) {
   const Option* result = nullptr;
+  size_t result_size = 0;
   for (const auto& option : options) {
-    const String name = option.name;
+    const std::string_view name = option.name;
     if (arg.size() > name.size() && arg.starts_with(name) &&
-        (!result || name.size() > strlen(result->name))) {
+        name.size() > result_size) {
       result = &option;
+      result_size = name.size();
     }
   }
   return result;
