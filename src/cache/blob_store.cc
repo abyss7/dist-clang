@@ -7,6 +7,7 @@
 #include <base/string_utils.h>
 #include <cache/compression.h>
 
+#include STL(algorithm)
 #include STL(sstream)
 #include STL(thread)
 
@@ -31,6 +32,15 @@ proto::Compression BlobCompression(proto::Compression compression) {
 
 bool HasHash(Immutable content, const String& hash) {
   return base::Hexify(content.Hash()) == hash;
+}
+
+// The hashes come from the manifests: a broken one mustn't lead outside of
+// the store.
+bool IsBlobHash(const String& hash) {
+  return hash.size() == BlobStore::kHashSize &&
+         std::all_of(hash.begin(), hash.end(), [](char c) {
+           return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
+         });
 }
 
 }  // namespace
@@ -152,6 +162,10 @@ void BlobStore::Restored(const String& hash) const {
 
 bool BlobStore::Get(const String& hash, Immutable* content, Path* path,
                     ui64* size) const {
+  if (!IsBlobHash(hash)) {
+    LOG(CACHE_WARNING) << "Wrong hash of a blob: " << hash;
+    return false;
+  }
   auto Broken = [](const Path& path, const char* reason) {
     LOG(CACHE_WARNING) << "Cache file is broken (" << reason << "): " << path;
     base::File::Delete(path);
@@ -259,6 +273,10 @@ void BlobStore::RemoveUncompressed() {
 }
 
 void BlobStore::AddRef(const String& hash, ui64 access_time) {
+  if (!IsBlobHash(hash)) {
+    LOG(CACHE_WARNING) << "Wrong hash of a blob: " << hash;
+    return;
+  }
   auto& blob = blobs_[hash];
   ++blob.refs;
   blob.access_time = std::max(blob.access_time, access_time);
@@ -296,6 +314,9 @@ void BlobStore::Delete(const String& hash) {
 }
 
 void BlobStore::Discard(const String& hash) const {
+  if (!IsBlobHash(hash)) {
+    return;
+  }
   for (const auto& path : {RawPath(hash), PackedPath(hash)}) {
     if (base::File::Exists(path)) {
       base::File::Delete(path);
@@ -317,7 +338,7 @@ ui32 BlobStore::RemoveUnreferenced(ui64 time) {
     if (hash.ends_with(kPackedExtension)) {
       hash.resize(hash.size() - strlen(kPackedExtension));
     }
-    if (hash.size() != 32 || blobs_.contains(hash)) {
+    if (!IsBlobHash(hash) || blobs_.contains(hash)) {
       return;
     }
     // The blobs, that are used right now, are marked before they're read.

@@ -1,6 +1,7 @@
 #include <cache/blob_store.h>
 
 #include <base/file/file.h>
+#include <base/file_utils.h>
 #include <base/temporary_dir.h>
 
 #include <gtest/gtest.h>
@@ -57,6 +58,29 @@ TEST(BlobStoreTest, KeepBlobOnFailedHash) {
   EXPECT_FALSE(found);
   EXPECT_TRUE(base::File::Exists(store.RawPath(hash)));
   EXPECT_TRUE(store.Get(hash, &content, &path, &size));
+}
+
+TEST(BlobStoreTest, IgnoreWrongHashes) {
+  // The hashes come from the manifests - a broken one mustn't lead outside
+  // of the store.
+  const base::TemporaryDir temp_dir;
+  const Path root = temp_dir.path() / "a" / "b" / "blobs";
+  ASSERT_TRUE(base::CreateDirectory(root));
+  BlobStore store(root, proto::ZSTD, false);
+  const Path victim = temp_dir.path() / "a" / "victim";
+  ASSERT_TRUE(base::File::Write(victim, "not a blob"_l));
+
+  Immutable content;
+  ui64 size = 0;
+  EXPECT_FALSE(store.Get("../victim", &content, nullptr, &size));
+  EXPECT_TRUE(base::File::Exists(victim));
+
+  store.Discard("../victim");
+  EXPECT_TRUE(base::File::Exists(victim));
+
+  store.AddRef("../victim", 1);
+  store.RemoveRef("../victim");
+  EXPECT_TRUE(base::File::Exists(victim));
 }
 
 TEST(BlobStoreTest, VerifyLinkedBlobOnce) {

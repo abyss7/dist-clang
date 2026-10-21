@@ -18,6 +18,9 @@ namespace cache {
 // |FileCache::blob_refs_mutex_|: by the cleaner, and by the failed stores.
 class BlobStore {
  public:
+  // The length of the hashes - in hex digits.
+  enum : size_t { kHashSize = 32 };
+
   // With |link| the files are put and got by linking, where possible, and
   // aren't compressed. Otherwise the blobs are compressed, unless the
   // |compression| is NONE.
