@@ -1976,42 +1976,6 @@ TEST(FileCacheTest, RestoreEntryWithMissingFile) {
   ASSERT_FALSE(cache.Find(hash, &entry2));
 }
 
-TEST(FileCacheTest, DISABLED_RestoreEntryWithMalfordedManifest) {
-  // TODO: implement this test.
-}
-
-TEST(FileCacheTest, DISABLED_RestoreNonExistentEntry) {
-  // TODO: implement this test.
-}
-
-TEST(FileCacheTest, DISABLED_RestoreEntryLockedForReading) {
-  // TODO: implement this test.
-}
-
-TEST(FileCacheTest, DISABLED_RestoreEntryLockedForWriting) {
-  // TODO: implement this test.
-}
-
-TEST(FileCacheTest, DISABLED_StoreEntryLockedForWriting) {
-  // TODO: implement this test.
-  // This test is usefull for the sync mode, when multiple threads may call
-  // |Store()| simultaneously.
-}
-
-TEST(FileCacheTest, DISABLED_CleanEntryLockedForReading) {
-  // TODO: implement this test.
-}
-
-TEST(FileCacheTest, DISABLED_CleanEntryLockedForWriting) {
-  // TODO: implement this test.
-}
-
-TEST(FileCacheTest, DISABLED_BadInitialCacheSize) {
-  // TODO: implement this test.
-  //  - Check that max size becomes unlimited, if we can't calculate initial
-  //    cache directory size.
-}
-
 TEST(FileCacheTest, ExceedCacheSize) {
   const base::TemporaryDir temp_dir;
   const auto cache_path = temp_dir.path() / "cache";
@@ -2993,6 +2957,49 @@ TEST(FileCacheTest, DirectEntry_ShadowedHeader) {
   EXPECT_TRUE(FindDirect());
 }
 
+TEST(FileCacheTest, DirectEntry_ShadowedHeaderWithRoot) {
+  const base::TemporaryDir temp_dir;
+  const Path root1 = temp_dir.path() / "root1";
+  const Path root2 = temp_dir.path() / "root2";
+  for (const auto& root : {root1, root2}) {
+    ASSERT_TRUE(base::CreateDirectory(root / "inc1"));
+    ASSERT_TRUE(base::CreateDirectory(root / "inc2"));
+    ASSERT_TRUE(base::File::Write(root / "inc2" / "a.h", "#define A"_l));
+    ASSERT_TRUE(base::File::Write(root / "inc2" / "b.h", "#define B"_l));
+    // Isn't used, e.g. because of "#include_next".
+    ASSERT_TRUE(base::File::Write(root / "inc1" / "b.h", "#define C"_l));
+  }
+  auto SearchDirs = [](const Path& root) {
+    return List<Path>{root / "inc1", root / "inc2"};
+  };
+
+  FileCache cache(temp_dir.path() / "cache");
+  ASSERT_TRUE(cache.Run(1));
+
+  const CommandLine cl("-c -I<ROOT>/inc1 -I<ROOT>/inc2"_l);
+  const Version version("1"_l);
+  const UnhandledSource code("#include \"a.h\""_l);
+  const auto hash = FileCache::Hash(HandledSource("1"_l), {}, cl, version);
+  cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l, Immutable()});
+  cache.Store(code, {}, cl, version, {"inc2/a.h", "inc2/b.h"}, {}, root1,
+              hash, root1.string(), SearchDirs(root1), CompilationTime());
+
+  auto FindDirect = [&](const Path& root) {
+    FileCache::Entry entry;
+    return cache.Find(code, {}, cl, version, root, &entry, root.string(),
+                      SearchDirs(root));
+  };
+  // The ignored path is relative to the root: it's ignored in the other
+  // checkout too.
+  EXPECT_TRUE(FindDirect(root1));
+  EXPECT_TRUE(FindDirect(root2));
+
+  // A new file in the other checkout shadows the header only there.
+  ASSERT_TRUE(base::File::Write(root2 / "inc1" / "a.h", "#define D"_l));
+  EXPECT_FALSE(FindDirect(root2));
+  EXPECT_TRUE(FindDirect(root1));
+}
+
 TEST(FileCacheTest, DirectEntry_ShadowedByIncluderDir) {
   // A quoted include is searched in the directory of the including file
   // first: e.g. "lib/a.h" includes "util.h", that is found in "include".
@@ -3394,6 +3401,28 @@ TEST(FileCacheTest, DirectEntry_ChangedExtraFile) {
   EXPECT_FALSE(cache.Find(orig_code,
                           ExtraFiles{{SANITIZE_BLACKLIST, new_extra_file}}, cl,
                           version, temp_dir, &entry));
+}
+
+TEST(FileCacheTest, KeepHitsOnClose) {
+  // The hits are applied to the index by the cleaner - in batches: the last
+  // ones are applied at the close.
+  const base::TemporaryDir temp_dir;
+  const auto hash = TestHash("-c");
+  FileCache cache(temp_dir, FileCache::UNLIMITED, proto::NONE, true);
+  ASSERT_TRUE(cache.Run(3600));
+  cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l});
+  cache.FlushAccesses();
+  cache.WaitForCleaner();
+  FileCache::Entry entry;
+  ASSERT_TRUE(cache.Find(hash, &entry));
+  ASSERT_TRUE(cache.Find(hash, &entry));
+  cache.Close();
+
+  // The daemon may exit right after the close.
+  SQLite index(temp_dir.path(), "index");
+  SQLite::Value value;
+  ASSERT_TRUE(index.Get(hash.str.string_copy(), &value));
+  EXPECT_EQ(2u, std::get<SQLite::HITS>(value));
 }
 
 TEST(FileCacheTest, NoStoresAfterClose) {
