@@ -133,36 +133,31 @@ class Emitter : public CompilationDaemon {
  private:
   FRIEND_TEST(daemon::EmitterTest, TasksGetReshardedOnConfigurationUpdate);
 
-  enum TaskIndex {
-    CONNECTION = 0,
-    MESSAGE = 1,
-    SOURCE = 2,
-    EXTRA_FILES = 3,
-    HANDLED_HASH = 4,
+  using Message = UniquePtr<base::proto::Local>;
+  struct Task {
+    net::ConnectionPtr connection;
+    Message message;
+    cache::string::HandledSource source;
+    cache::ExtraFiles extra_files;
+    cache::string::HandledHash handled_hash;
 
-    CHANGED_SHARD = 5,
-    // A boolean flag to indicate if task was redistributed from it's initial
-    // shard to a random one. This may happen in case of remote being down.
-    // Also task shouldn't hop more than once to prevent instant hopping
-    // between shards.
+    // If the task was redistributed from its initial shard to a random one -
+    // e.g. when the remote is down. The task hops only once - not to hop
+    // between the shards instantly.
+    bool changed_shard = false;
 
-    PREPROCESSED_DEPS = 6,
-    // The dependency file, generated along with preprocessing - for the
+    // The dependency file, generated along with the preprocessing - for the
     // remote compilation.
+    Immutable preprocessed_deps;
 
-    START_TIME = 7,
     // The file system time before the task started to read the inputs: the
     // inputs, modified after it, may not match the result.
+    i64 start_time = 0;
 
-    SPECULATION = 8,
     // The state of the compilation, that runs at the same time with the
     // preprocessing - if it does.
+    SharedPtr<Speculation> speculation;
   };
-
-  using Message = UniquePtr<base::proto::Local>;
-  using Task = Tuple<net::ConnectionPtr, Message, cache::string::HandledSource,
-                     cache::ExtraFiles, cache::string::HandledHash, bool,
-                     Immutable, i64, SharedPtr<Speculation>>;
   using Queue = base::LockedQueue<Task, true>;
   using QueueAggregator = base::QueueAggregator<Task>;
   using Optional = Queue::Optional;

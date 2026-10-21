@@ -15,14 +15,12 @@ class Absorber : public CompilationDaemon {
   bool Initialize() override;
 
  private:
-  enum TaskIndex {
-    CONNECTION = 0,
-    MESSAGE = 1,
-    HANDLED_HASH = 2,
-  };
-
   using Message = UniquePtr<proto::Remote>;
-  using Task = Tuple<net::ConnectionPtr, Message, cache::string::HandledHash>;
+  struct Task {
+    net::ConnectionPtr connection;
+    Message message;
+    cache::string::HandledHash handled_hash;
+  };
   using Queue = base::LockedQueue<Task>;
   using Optional = Queue::Optional;
 

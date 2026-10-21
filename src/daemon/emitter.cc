@@ -702,13 +702,12 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
       return connection->ReportStatus(status);
     }
 
-    auto task = std::make_tuple(connection, std::move(execute), HandledSource(),
-                                cache::ExtraFiles{}, HandledHash(), false,
-                                Immutable(), FileSystemTime(),
-                                SharedPtr<Speculation>());
+    Task task{.connection = connection,
+              .message = std::move(execute),
+              .start_time = FileSystemTime()};
     if (conf->has_cache() && !conf->cache().disabled()) {
       return cache_tasks_->Push(std::move(task));
-    } else if (!IsRemotable(std::get<MESSAGE>(task)->flags())) {
+    } else if (!IsRemotable(task.message->flags())) {
       return failed_tasks_->Push(std::move(task));
     } else {
       return all_tasks_->Push(std::move(task));
@@ -896,12 +895,12 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       break;
     }
 
-    if (std::get<CONNECTION>(*task)->IsPeerGone()) {
+    if (task->connection->IsPeerGone()) {
       STAT(TASK_CANCELED);
       continue;
     }
 
-    base::proto::Local* incoming = std::get<MESSAGE>(*task).get();
+    base::proto::Local* incoming = task->message.get();
     cache::FileCache::Entry entry;
     // The build of an isolated tag finds only its own entries.
     const String scope = IsolatedTag(*incoming);
@@ -920,7 +919,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       OutputLocks::Lock output_lock(&output_locks_, OutputLockKey(incoming));
 
       // Nobody waits for the outputs - don't write them.
-      if (std::get<CONNECTION>(*task)->IsPeerGone()) {
+      if (task->connection->IsPeerGone()) {
         STAT(TASK_CANCELED);
         return true;
       }
@@ -972,7 +971,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
         auto process =
             CreateProcess(check_flags, uid, Path(incoming->current_dir()));
         process->CancelOnDisconnect(
-            std::get<CONNECTION>(*task)->NativeHandle());
+            task->connection->NativeHandle());
         STAT(WARNINGS_RECHECKED);
         if (!process->Run(base::Process::UNLIMITED, &error)) {
           // The check itself has failed - the compilation does it instead.
@@ -986,7 +985,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
           status.set_description(process->stderr().empty()
                                      ? error
                                      : process->stderr().string_copy());
-          std::get<CONNECTION>(*task)->ReportStatus(status);
+          task->connection->ReportStatus(status);
           LOG(INFO) << "Recheck of warnings failed: " << flags.input();
           return true;
         }
@@ -1098,17 +1097,17 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       status.set_description(flags.color_diagnostics()
                                  ? diagnostics
                                  : StripColors(diagnostics));
-      std::get<CONNECTION>(*task)->ReportStatus(status);
+      task->connection->ReportStatus(status);
       LOG(VERBOSE) << "Cache hit: " << incoming->flags().input();
 
       if (direct_store &&
-          InputsUnchangedSince(incoming, deps, std::get<START_TIME>(*task))) {
-        UpdateDirectCache(incoming, std::get<HANDLED_HASH>(*task), extra_files,
-                          deps, std::get<START_TIME>(*task));
+          InputsUnchangedSince(incoming, deps, task->start_time)) {
+        UpdateDirectCache(incoming, task->handled_hash, extra_files,
+                          deps, task->start_time);
       }
       direct_store.reset();
 
-      MaybeVerifyHit(*incoming, entry, std::get<START_TIME>(*task));
+      MaybeVerifyHit(*incoming, entry, task->start_time);
 
       restored = true;
       return true;
@@ -1119,8 +1118,8 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     auto CompileWithoutPreprocessing = [&] {
       if (incoming->flags().has_deps_file() &&
           ReadExtraFiles(incoming->flags(), incoming->current_dir(),
-                         &std::get<EXTRA_FILES>(*task))) {
-        std::get<HANDLED_HASH>(*task) = GenerateUniqueHash(incoming->flags());
+                         &task->extra_files)) {
+        task->handled_hash = GenerateUniqueHash(incoming->flags());
       }
       failed_tasks_->Push(std::move(*task));
     };
@@ -1133,7 +1132,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       STAT(CACHE_LOOKUP_SKIPPED);
       net::proto::Status status;
       if (!SetupCompiler(incoming->mutable_flags(), &status)) {
-        std::get<CONNECTION>(*task)->ReportStatus(status);
+        task->connection->ReportStatus(status);
         continue;
       }
       CompileWithoutPreprocessing();
@@ -1160,7 +1159,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     // Check that we have a compiler of a requested version.
     net::proto::Status status;
     if (!SetupCompiler(incoming->mutable_flags(), &status)) {
-      std::get<CONNECTION>(*task)->ReportStatus(status);
+      task->connection->ReportStatus(status);
       continue;
     }
 
@@ -1179,10 +1178,10 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     if ((source_edited ||
          preprocessing != proto::Configuration::Emitter::ALWAYS) &&
         incoming->flags().has_deps_file()) {
-      auto& extra_files = std::get<EXTRA_FILES>(*task);
+      auto& extra_files = task->extra_files;
       if (ReadExtraFiles(incoming->flags(), incoming->current_dir(),
                          &extra_files)) {
-        std::get<HANDLED_HASH>(*task) = GenerateUniqueHash(incoming->flags());
+        task->handled_hash = GenerateUniqueHash(incoming->flags());
 
         // Preprocess at the same time only on idle CPUs: otherwise it slows
         // down the other compilations. The new sources - e.g. on the first
@@ -1198,23 +1197,22 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
         // The compilation goes on with the original task, and this thread
         // continues with its copy.
         auto speculation = std::make_shared<Speculation>();
-        std::get<SPECULATION>(*task) = speculation;
-        const auto unique_hash = std::get<HANDLED_HASH>(*task);
-        Task copy(std::get<CONNECTION>(*task),
-                  std::make_unique<base::proto::Local>(*incoming),
-                  HandledSource(), extra_files, HandledHash(), false,
-                  Immutable(), std::get<START_TIME>(*task),
-                  SharedPtr<Speculation>());
+        task->speculation = speculation;
+        const auto unique_hash = task->handled_hash;
+        Task copy{.connection = task->connection,
+                  .message = std::make_unique<base::proto::Local>(*incoming),
+                  .extra_files = extra_files,
+                  .start_time = task->start_time};
         failed_tasks_->Push(std::move(*task));
         task.emplace(std::move(copy));
-        incoming = std::get<MESSAGE>(*task).get();
+        incoming = task->message.get();
 
         STAT(PARALLEL_PREPROCESSING);
         ++running_processes_;
-        auto& source = std::get<SOURCE>(*task);
+        auto& source = task->source;
         const bool preprocessed =
-            GenerateSource(incoming, std::get<CONNECTION>(*task), &source,
-                           &std::get<PREPROCESSED_DEPS>(*task),
+            GenerateSource(incoming, task->connection, &source,
+                           &task->preprocessed_deps,
                            speculation.get());
         --running_processes_;
         if (!preprocessed) {
@@ -1224,21 +1222,21 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
         // inputs, that are saved since: then the preprocessed source doesn't
         // match the object.
         if (!InputsUnchangedSince(incoming,
-                                  std::get<PREPROCESSED_DEPS>(*task),
-                                  std::get<START_TIME>(*task))) {
+                                  task->preprocessed_deps,
+                                  task->start_time)) {
           STAT(CACHE_STORE_SKIPPED);
           continue;
         }
 
         const auto handled_hash = GenerateHash(
-            incoming->flags(), source, std::get<EXTRA_FILES>(*task));
+            incoming->flags(), source, task->extra_files);
         if (SearchSimpleCache(handled_hash, &entry, scope)) {
           if (!speculation->Cancel()) {
             // The compilation has ended already.
             continue;
           }
-          std::get<HANDLED_HASH>(*task) = handled_hash;
-          if (RestoreFromCache(source, std::get<EXTRA_FILES>(*task))) {
+          task->handled_hash = handled_hash;
+          if (RestoreFromCache(source, task->extra_files)) {
             if (restored) {
               STAT(SIMPLE_CACHE_HIT);
               STAT(TIME_SAVED_BY_SIMPLE_HITS, entry.compilation_time);
@@ -1266,10 +1264,10 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       }
     }
 
-    auto& source = std::get<SOURCE>(*task);
-    if (!GenerateSource(incoming, std::get<CONNECTION>(*task), &source,
-                        &std::get<PREPROCESSED_DEPS>(*task))) {
-      if (std::get<CONNECTION>(*task)->IsPeerGone()) {
+    auto& source = task->source;
+    if (!GenerateSource(incoming, task->connection, &source,
+                        &task->preprocessed_deps)) {
+      if (task->connection->IsPeerGone()) {
         STAT(TASK_CANCELED);
         continue;
       }
@@ -1277,14 +1275,14 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
       continue;
     }
 
-    auto& extra_files = std::get<EXTRA_FILES>(*task);
+    auto& extra_files = task->extra_files;
     if (!ReadExtraFiles(incoming->flags(), incoming->current_dir(),
                         &extra_files)) {
       failed_tasks_->Push(std::move(*task));
       continue;
     }
 
-    auto& handled_hash = std::get<HANDLED_HASH>(*task);
+    auto& handled_hash = task->handled_hash;
     handled_hash = GenerateHash(incoming->flags(), source, extra_files);
     if (SearchSimpleCache(handled_hash, &entry, scope) &&
         RestoreFromCache(source, extra_files)) {
@@ -1329,19 +1327,19 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
         }
       }
       SharedPtr<Speculation> speculation;
-    } abandon{std::get<SPECULATION>(*task)};
+    } abandon{task->speculation};
 
-    if (std::get<CONNECTION>(*task)->IsPeerGone()) {
+    if (task->connection->IsPeerGone()) {
       STAT(TASK_CANCELED);
       continue;
     }
 
-    base::proto::Local* incoming = std::get<MESSAGE>(*task).get();
+    base::proto::Local* incoming = task->message.get();
 
     // Check that we have a compiler of a requested version.
     net::proto::Status status;
     if (!SetupCompiler(incoming->mutable_flags(), &status)) {
-      std::get<CONNECTION>(*task)->ReportStatus(status);
+      task->connection->ReportStatus(status);
       continue;
     }
 
@@ -1353,13 +1351,13 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
     // Only one task works with the output at a time - until the result is
     // stored into the cache: it's linked from the output.
     OutputLocks::Lock output_lock(&output_locks_, OutputLockKey(incoming));
-    if (std::get<CONNECTION>(*task)->IsPeerGone()) {
+    if (task->connection->IsPeerGone()) {
       STAT(TASK_CANCELED);
       continue;
     }
 
     // The result is found by the preprocessed source already.
-    const auto& speculation = std::get<SPECULATION>(*task);
+    const auto& speculation = task->speculation;
     if (speculation && speculation->canceled()) {
       continue;
     }
@@ -1405,7 +1403,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
         CreateProcess(incoming->flags(), uid, Path(incoming->current_dir()));
     // If the client is gone, the compiler is killed before it writes the
     // outputs - they may be produced by another compilation already.
-    process->CancelOnDisconnect(std::get<CONNECTION>(*task)->NativeHandle());
+    process->CancelOnDisconnect(task->connection->NativeHandle());
     if (speculation && !speculation->StartCompilation(process.get())) {
       RestorePreviousOutputs();
       continue;
@@ -1460,13 +1458,13 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
         previous_dwo->RestoreIfSame();
       }
 
-      const auto& source = std::get<SOURCE>(*task);
-      const auto& extra_files = std::get<EXTRA_FILES>(*task);
+      const auto& source = task->source;
+      const auto& extra_files = task->extra_files;
 
       counter.Report();
       // The task without the preprocessed source still has the handled hash,
       // if the preprocessing was skipped.
-      if (!source.str.empty() || !std::get<HANDLED_HASH>(*task).str.empty()) {
+      if (!source.str.empty() || !task->handled_hash.str.empty()) {
         cache::FileCache::Entry entry;
         const auto& flags = incoming->flags();
         // The outputs are linked into the cache, or read, if needed. The
@@ -1488,7 +1486,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
             entry.time_trace = NormalizeTimeTrace(time_trace, flags);
             entry.time_trace_options = TimeTraceOptions(flags);
           }
-          auto& handled_hash = std::get<HANDLED_HASH>(*task);
+          auto& handled_hash = task->handled_hash;
           if (handled_hash.str.empty()) {
             handled_hash = GenerateHash(incoming->flags(), source, extra_files);
           }
@@ -1508,12 +1506,12 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
       List<String> headers;
       const bool headers_known =
           incoming->flags().has_deps_file() ||
-          PreprocessedInputs(std::get<SOURCE>(*task).str, headers);
+          PreprocessedInputs(task->source.str, headers);
       if (headers_known && InputsUnchangedSince(incoming, deps,
-                                                std::get<START_TIME>(*task),
+                                                task->start_time,
                                                 headers)) {
-        UpdateSimpleCache(std::get<HANDLED_HASH>(*task), *entry_to_store);
-        TagEntry(*incoming, std::get<HANDLED_HASH>(*task));
+        UpdateSimpleCache(task->handled_hash, *entry_to_store);
+        TagEntry(*incoming, task->handled_hash);
         stored = true;
       } else {
         STAT(CACHE_STORE_SKIPPED);
@@ -1527,12 +1525,12 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
     if (stored) {
       direct_store.emplace(&direct_stores_, DirectStoreKey(incoming));
     }
-    std::get<CONNECTION>(*task)->ReportStatus(status);
+    task->connection->ReportStatus(status);
 
     if (stored) {
-      UpdateDirectCache(incoming, std::get<HANDLED_HASH>(*task),
-                        std::get<EXTRA_FILES>(*task), deps,
-                        std::get<START_TIME>(*task));
+      UpdateDirectCache(incoming, task->handled_hash,
+                        task->extra_files, deps,
+                        task->start_time);
     }
 
     if (speculation && stored) {
@@ -1584,19 +1582,19 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
       break;
     }
 
-    if (std::get<CONNECTION>(*task)->IsPeerGone()) {
+    if (task->connection->IsPeerGone()) {
       STAT(TASK_CANCELED);
       continue;
     }
 
-    base::proto::Local* incoming = std::get<MESSAGE>(*task).get();
-    auto& source = std::get<SOURCE>(*task);
-    auto& extra_files = std::get<EXTRA_FILES>(*task);
+    base::proto::Local* incoming = task->message.get();
+    auto& source = task->source;
+    auto& extra_files = task->extra_files;
 
     // Check that we have a compiler of a requested version.
     net::proto::Status status;
     if (!SetupCompiler(incoming->mutable_flags(), &status)) {
-      std::get<CONNECTION>(*task)->ReportStatus(status);
+      task->connection->ReportStatus(status);
       continue;
     }
 
@@ -1604,9 +1602,9 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
     DCHECK(!conf->emitter().has_total_shards() || !source.str.empty());
 
     if (source.str.empty() &&
-        !GenerateSource(incoming, std::get<CONNECTION>(*task), &source,
-                        &std::get<PREPROCESSED_DEPS>(*task))) {
-      if (std::get<CONNECTION>(*task)->IsPeerGone()) {
+        !GenerateSource(incoming, task->connection, &source,
+                        &task->preprocessed_deps)) {
+      if (task->connection->IsPeerGone()) {
         STAT(TASK_CANCELED);
         continue;
       }
@@ -1623,7 +1621,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
         counter.ReportOnDestroy(false);
         LOG(WARNING) << "Failed to connect to " << end_point->Print() << ": "
                      << error;
-        bool& shard_switched = std::get<CHANGED_SHARD>(*task);
+        bool& shard_switched = task->changed_shard;
 
         // |shard_queue_limit| indicates enabled strict sharding that prevents
         // this task from completion in case the remote server has gone. That's
@@ -1654,7 +1652,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
     outgoing->mutable_flags()->CopyFrom(incoming->flags());
     outgoing->set_source(Immutable(source.str).string_copy(false));
     SetExtraFiles(extra_files, outgoing.get());
-    auto& handled_hash = std::get<HANDLED_HASH>(*task);
+    auto& handled_hash = task->handled_hash;
     if (handled_hash.str.empty()) {
       handled_hash = GenerateHash(incoming->flags(), source, extra_files);
     }
@@ -1721,7 +1719,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
       // The client is gone - don't write anything into the build directory:
       // another compilation of the same output may be running already.
       OutputLocks::Lock output_lock(&output_locks_, OutputLockKey(incoming));
-      if (std::get<CONNECTION>(*task)->IsPeerGone()) {
+      if (task->connection->IsPeerGone()) {
         STAT(TASK_CANCELED);
         continue;
       }
@@ -1729,7 +1727,7 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
       // The dependency file - from the remote end, or from preprocessing.
       const Immutable deps =
           result->has_deps() ? Immutable(String(result->deps()))
-                             : std::get<PREPROCESSED_DEPS>(*task);
+                             : task->preprocessed_deps;
       if (incoming->flags().has_deps_file() &&
           !base::File::Write(GetDepsPath(incoming), deps, &error)) {
         LOG(WARNING) << "Failed to write dependency file "
@@ -1770,14 +1768,14 @@ void Emitter::DoRemoteExecute(const base::WorkerPool& pool, ResolveFn resolver,
         compilation_time_counter.Report();
 
         if (GenerateEntry() &&
-            InputsUnchangedSince(incoming, deps, std::get<START_TIME>(*task))) {
+            InputsUnchangedSince(incoming, deps, task->start_time)) {
           UpdateSimpleCache(handled_hash, entry);
           UpdateDirectCache(incoming, handled_hash, extra_files, deps,
-                            std::get<START_TIME>(*task));
+                            task->start_time);
           TagEntry(*incoming, handled_hash);
         }
 
-        std::get<CONNECTION>(*task)->ReportStatus(status);
+        task->connection->ReportStatus(status);
         STAT(REMOTE_TASK_DONE);
         continue;
       }
@@ -1978,7 +1976,7 @@ bool Emitter::Reload(const proto::Configuration& conf) {
         if (task) {
           // Once we popped a valid task - put it to appropriate shard according
           // to new number of shards.
-          const ui32 new_shard = CalculateShard(std::get<HANDLED_HASH>(*task),
+          const ui32 new_shard = CalculateShard(task->handled_hash,
                                                 conf.emitter().total_shards());
           all_tasks_->Push(std::move(*task), new_shard);
         } else {

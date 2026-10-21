@@ -103,7 +103,7 @@ bool Absorber::HandleNewMessage(net::ConnectionPtr connection,
       // TODO(matthewtff): check several releases that handled hashes calculated
       // on emitters and on absorbers match. Then stop calculating hashes on
       // absorber and re-use hashes received from emitters to save cpu cycles.
-      Task task{connection, std::move(execute), HandledHash()};
+      Task task{.connection = connection, .message = std::move(execute)};
       if (conf->has_cache() && !conf->cache().disabled()) {
         cache_tasks_->Push(std::move(task));
       } else if (!tasks_->Push(std::move(task))) {
@@ -167,17 +167,17 @@ void Absorber::DoCheckCache(const base::WorkerPool& pool) {
       break;
     }
 
-    if (std::get<CONNECTION>(*task)->IsClosed()) {
+    if (task->connection->IsClosed()) {
       continue;
     }
 
-    proto::Remote* incoming = std::get<MESSAGE>(*task).get();
+    proto::Remote* incoming = task->message.get();
     auto source = Immutable::WrapString(incoming->source());
     auto extra_files = GetExtraFiles(incoming);
 
     AdjustFlags(incoming);
 
-    HandledHash& local_hash = std::get<HANDLED_HASH>(*task);
+    HandledHash& local_hash = task->handled_hash;
     local_hash =
         GenerateHash(incoming->flags(), HandledSource(source), extra_files);
 
@@ -198,13 +198,13 @@ void Absorber::DoCheckCache(const base::WorkerPool& pool) {
       status->set_code(net::proto::Status::OK);
       status->set_description(entry.stderr);
 
-      std::get<CONNECTION>(*task)->SendAsync(std::move(outgoing));
+      task->connection->SendAsync(std::move(outgoing));
       continue;
     } else if (!tasks_->Push(std::move(*task))) {
       net::proto::Status overload;
       overload.set_code(net::proto::Status::OVERLOAD);
       overload.set_description(kOverloadedErrorText);
-      std::get<CONNECTION>(*task)->ReportStatus(overload);
+      task->connection->ReportStatus(overload);
     }
   }
 }
@@ -218,15 +218,15 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
       break;
     }
 
-    if (std::get<CONNECTION>(*task)->IsClosed()) {
+    if (task->connection->IsClosed()) {
       continue;
     }
 
-    proto::Remote* incoming = std::get<Message>(*task).get();
+    proto::Remote* incoming = task->message.get();
     auto source = Immutable::WrapString(incoming->source());
     auto extra_files = GetExtraFiles(incoming);
     AdjustFlags(incoming);
-    HandledHash& local_hash = std::get<HANDLED_HASH>(*task);
+    HandledHash& local_hash = task->handled_hash;
     if (local_hash.str.empty()) {
       local_hash =
           GenerateHash(incoming->flags(), HandledSource(source), extra_files);
@@ -253,14 +253,14 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
     // Check that we have a compiler of a requested version.
     net::proto::Status status;
     if (!SetupCompiler(incoming->mutable_flags(), &status)) {
-      std::get<CONNECTION>(*task)->ReportStatus(status);
+      task->connection->ReportStatus(status);
       continue;
     }
 
     base::TemporaryDir temp_dir;
     if (!PrepareExtraFilesForCompiler(extra_files, temp_dir,
                                       incoming->mutable_flags(), &status)) {
-      std::get<CONNECTION>(*task)->ReportStatus(status);
+      task->connection->ReportStatus(status);
       continue;
     }
 
@@ -316,7 +316,7 @@ void Absorber::DoExecute(const base::WorkerPool& pool) {
       UpdateSimpleCache(local_hash, entry);
     }
 
-    std::get<CONNECTION>(*task)->SendAsync(std::move(outgoing));
+    task->connection->SendAsync(std::move(outgoing));
   }
 }
 
