@@ -11,6 +11,19 @@
 namespace dist_clang {
 namespace daemon {
 
+namespace {
+
+bool Logs(const base::proto::Verbosity& verbosity, ui32 level) {
+  for (const auto& range : verbosity.levels()) {
+    if (range.left() <= level && level <= range.right()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
 TEST(DaemonConfigurationTest, SocketOfAutostart) {
   // The configuration of the user is not read.
   const base::TemporaryDir temp_dir;
@@ -56,6 +69,39 @@ TEST(DaemonConfigurationTest, PartialConfigOfAutostart) {
     const Configuration configuration(2, const_cast<char**>(args));
     EXPECT_EQ(defaults.config().SerializeAsString(),
               configuration.config().SerializeAsString());
+  }
+
+  unsetenv("XDG_CONFIG_HOME");
+}
+
+TEST(DaemonConfigurationTest, DefaultVerbosity) {
+  const base::TemporaryDir temp_dir;
+  setenv("XDG_CONFIG_HOME", temp_dir.path().c_str(), 1);
+  std::filesystem::create_directory(temp_dir.path() / "dist-clang");
+  const auto config_path = temp_dir.path() / "dist-clang" / "daemon.conf";
+  const char* args[] = {"dist-clangd", "--autostart"};
+
+  // The errors and the warnings of everything are logged, but not the
+  // messages about every compilation.
+  {
+    const Configuration configuration(2, const_cast<char**>(args));
+    const auto& verbosity = configuration.config().verbosity();
+    for (ui32 level : {0u, 10u, 20u, 110u, 120u, 210u, 220u}) {
+      EXPECT_TRUE(Logs(verbosity, level)) << level;
+    }
+    for (ui32 level : {30u, 40u, 130u, 140u, 230u, 240u}) {
+      EXPECT_FALSE(Logs(verbosity, level)) << level;
+    }
+  }
+
+  // The verbosity of the user replaces the default one.
+  ASSERT_TRUE(base::File::Write(
+      config_path, "verbosity { levels { left: 0 right: 40 } }"_l));
+  {
+    const Configuration configuration(2, const_cast<char**>(args));
+    const auto& verbosity = configuration.config().verbosity();
+    EXPECT_TRUE(Logs(verbosity, 40));
+    EXPECT_FALSE(Logs(verbosity, 110));
   }
 
   unsetenv("XDG_CONFIG_HOME");

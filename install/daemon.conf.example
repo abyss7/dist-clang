@@ -26,9 +26,10 @@ cache {
   # }
 }
 
+# The errors and the warnings of the daemon, the cache and its database - the
+# default. "right: 40" logs every compilation, 140 and 240 - every access.
 verbosity {
-  levels {
-    right: 30
-    left: 0
-  }
+  levels { left: 0 right: 20 }
+  levels { left: 110 right: 120 }
+  levels { left: 210 right: 220 }
 }

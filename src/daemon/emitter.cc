@@ -1082,7 +1082,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
                                  ? diagnostics
                                  : StripColors(diagnostics));
       std::get<CONNECTION>(*task)->ReportStatus(status);
-      LOG(INFO) << "Cache hit: " << incoming->flags().input();
+      LOG(VERBOSE) << "Cache hit: " << incoming->flags().input();
 
       if (direct_store &&
           InputsUnchangedSince(incoming, deps, std::get<START_TIME>(*task))) {
@@ -1433,7 +1433,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
     } else {
       status.set_code(net::proto::Status::OK);
       status.set_description(process->stderr());
-      LOG(INFO) << "Local compilation successful:  "
+      LOG(VERBOSE) << "Local compilation successful:  "
                 << incoming->flags().input();
 
       if (previous_output.RestoreIfSame()) {

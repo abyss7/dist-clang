@@ -44,6 +44,17 @@ void SetDefaults(proto::Configuration* config) {
   cache->set_threads(threads * 2);
 }
 
+// The errors and the warnings of the daemon, of the cache and of its database -
+// but not the messages about every compilation.
+void SetDefaultVerbosity(base::proto::Verbosity* verbosity) {
+  for (const auto& [left, right] :
+       {std::pair{0u, 20u}, std::pair{110u, 120u}, std::pair{210u, 220u}}) {
+    auto* level = verbosity->add_levels();
+    level->set_left(left);
+    level->set_right(right);
+  }
+}
+
 }  // namespace
 
 Configuration::Configuration(int argc, char* argv[]) {
@@ -98,6 +109,11 @@ Configuration::Configuration(int argc, char* argv[]) {
                    : base::LoadFromFile(config_path, &config_, &error))) {
     LOG(ERROR) << "Failed to read configuration from " << config_path << ": "
                << error;
+  }
+
+  // The levels are merged, so the defaults would be impossible to narrow.
+  if (!config_.has_verbosity()) {
+    SetDefaultVerbosity(config_.mutable_verbosity());
   }
 
   // The socket, that the client has locked: another one would be served by
