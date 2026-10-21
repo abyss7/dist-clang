@@ -16,14 +16,15 @@ TEST(InvocationTest, Launcher) {
 
   // The options go before the compiler.
   invocation = ParseInvocation({"dist-clang", "--restat", "--recache",
-                                "--tag=main", "--tag=", "--tag=a\nb",
+                                "--tag=main", "--tag=", "--tag=a\nb  c",
                                 "--tag=gn/1", "clang++", "--restat"},
                                "");
   EXPECT_EQ(Invocation::COMPILE, invocation.action);
   EXPECT_TRUE(invocation.restat);
   EXPECT_TRUE(invocation.recache);
-  // E.g. "$(git branch --show-current)" may give nothing.
-  EXPECT_EQ((List<String>{"main", "gn/1"}), invocation.tags);
+  // E.g. "$(git branch --show-current)" may give nothing. Any whitespace
+  // separates the tags.
+  EXPECT_EQ((List<String>{"main", "a", "b", "c", "gn/1"}), invocation.tags);
   EXPECT_EQ((List<String>{"clang++", "--restat"}), invocation.args);
 
   for (const List<String>& argv :
@@ -31,6 +32,13 @@ TEST(InvocationTest, Launcher) {
         List<String>{"dist-clang", "--restat"}}) {
     EXPECT_EQ(Invocation::USAGE, ParseInvocation(argv, "").action);
   }
+}
+
+TEST(InvocationTest, TagsVariable) {
+  // The tags of the command line go after the ones of the environment.
+  EXPECT_EQ("a\nb\nc", TagsVariable(" a\tb ", {"c"}));
+  EXPECT_EQ("c", TagsVariable("", {"c"}));
+  EXPECT_EQ("a", TagsVariable("a", {}));
 }
 
 TEST(InvocationTest, Symlink) {

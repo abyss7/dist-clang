@@ -1,6 +1,7 @@
 #include <client/invocation.h>
 
 #include <base/constants.h>
+#include <base/string_utils.h>
 #include <client/driver_name.h>
 
 namespace dist_clang {
@@ -13,6 +14,13 @@ String BaseName(const String& path) {
 }
 
 }  // namespace
+
+String TagsVariable(const String& env_tags, const List<String>& tags) {
+  List<String> all_tags;
+  base::SplitByWhitespace(env_tags, all_tags);
+  all_tags.insert(all_tags.end(), tags.begin(), tags.end());
+  return base::JoinString<'\n'>(all_tags.begin(), all_tags.end());
+}
 
 Invocation ParseInvocation(const List<String>& argv,
                            const String& compiler_path) {
@@ -84,11 +92,9 @@ Invocation ParseInvocation(const List<String>& argv,
     } else if (arg == "--recache") {
       invocation.recache = true;
     } else if (arg.starts_with(kTag)) {
-      // E.g. "$(git branch --show-current)" may give nothing.
-      const String tag = arg.substr(kTag.size());
-      if (!tag.empty() && tag.find('\n') == String::npos) {
-        invocation.tags.push_back(tag);
-      }
+      // E.g. "$(git branch --show-current)" may give nothing. Any whitespace
+      // separates the tags.
+      base::SplitByWhitespace(arg.substr(kTag.size()), invocation.tags);
     } else {
       break;
     }

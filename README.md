@@ -54,7 +54,7 @@ The cache entries may be tagged with `--tag=<tag>` (repeatable): e.g. with the g
 
 Here the toolchain passes `cc_wrapper` to the compiler tools as `command_launcher`: GN doesn't put the launcher into `compile_commands.json` - otherwise clangd and other tools get the options of dist-clang, and the command substitution, as the arguments of the compiler. GN doesn't escape the launcher for Ninja, so `$` is written as `$$`. If the toolchain puts `cc_wrapper` into the command itself, GN escapes it, and a single `\$` is enough.
 
-The empty tags are ignored. The entries get the tags, when they are stored or found in the cache. Show the sizes of the tags and their overlaps; every output counts once. The size "in builds" is linked with build directories: it takes no space in the cache, and isn't removed with the tag. The "exclusive" size is used only by the tag, and the "freeable" one is what `--forget-tag` frees now:
+The empty tags are ignored, any whitespace separates several tags - also in one `--tag`. The entries get the tags, when they are stored or found in the cache. Show the sizes of the tags and their overlaps; every output counts once. The size "in builds" is linked with build directories: it takes no space in the cache, and isn't removed with the tag. The "exclusive" size is used only by the tag, and the "freeable" one is what `--forget-tag` frees now:
 
     dist-clang --tag-stats
 
@@ -85,6 +85,8 @@ Take a new name for such tag: the entries of an old one were stored by other bui
 - `DC_NO_AUTOSTART` - don't start the daemon automatically.
 - `DC_SOCKET_PATH` - path to the daemon's socket: `$XDG_RUNTIME_DIR/dist-clang.socket` by default.
 - `DC_CLANG_PATH` - the real compiler, when the client is called via a symlink.
+- `DC_TAGS` - the tags of the compilations, separated by whitespace - the same as `--tag`; `--tag` adds to them.
+- `DC_RESTAT=1`, `DC_RECACHE=1` - the same as `--restat` and `--recache`.
 
 # How the cache works
 

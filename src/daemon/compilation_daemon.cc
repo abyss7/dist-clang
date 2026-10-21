@@ -828,8 +828,9 @@ Vector<String> TagsOf(const base::proto::Local& message) {
   const String prefix = String(base::kEnvTags) + "=";
   for (const auto& variable : message.env()) {
     if (variable.starts_with(prefix)) {
+      // Any whitespace separates the tags - e.g. in the variable of the user.
       List<String> tags;
-      base::SplitString<'\n'>(variable.substr(prefix.size()), tags);
+      base::SplitByWhitespace(variable.substr(prefix.size()), tags);
       return Vector<String>(tags.begin(), tags.end());
     }
   }

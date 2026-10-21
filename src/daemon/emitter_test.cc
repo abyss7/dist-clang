@@ -3959,7 +3959,8 @@ TEST_F(EmitterTest, TagEntries) {
 
   // Stored on one branch, and found on another one.
   Compile("branch:a", 1);
-  Compile("branch:b\nworktree:1", 2);
+  // Any whitespace separates the tags.
+  Compile("branch:b \tworktree:1\n", 2);
 
   auto report = Request(String(), true, 3);
   ASSERT_EQ(3, report.tags_size());

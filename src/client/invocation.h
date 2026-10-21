@@ -35,6 +35,10 @@ struct Invocation {
   List<String> args;
 };
 
+// The value of DC_TAGS for the daemon: the tags of the environment - separated
+// by any whitespace - and the |tags| of the command line.
+String TagsVariable(const String& env_tags, const List<String>& tags);
+
 // Parses |argv| of the client. The client runs as a launcher -
 // "dist-clang clang++ <args>" - or as the compiler itself, through a symlink
 // "clang++" -> "dist-clang": then the real compiler is |compiler_path|.

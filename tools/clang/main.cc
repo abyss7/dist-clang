@@ -41,6 +41,8 @@ const char kUsage[] =
     "                as \"NAME value\" lines - for scripts.\n"
     "  --tag         Tag the used cache entries, e.g. with the branch of the\n"
     "                sources; may be repeated, the empty tags are ignored.\n"
+    "                The same with DC_TAGS in the environment - several\n"
+    "                tags are separated by spaces, also in --tag.\n"
     "  --tag-stats   Show the sizes of the tags in the cache.\n"
     "  --forget-tag  Remove the tag from the cache, and the entries, that\n"
     "                only it uses - with --force; otherwise only show them.\n"
@@ -130,8 +132,8 @@ int main(int argc, char* argv[]) {
     setenv("DC_RECACHE", "1", 1);
   }
   if (!invocation.tags.empty()) {
-    const String tags =
-        base::JoinString<'\n'>(invocation.tags.begin(), invocation.tags.end());
+    const String tags = client::TagsVariable(
+        String(base::GetEnv(base::kEnvTags, Literal::empty)), invocation.tags);
     setenv(String(base::kEnvTags).c_str(), tags.c_str(), 1);
   }
   const auto& args = invocation.args;

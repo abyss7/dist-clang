@@ -38,6 +38,15 @@ inline void SplitString<'\n'>(const String& input, List<String>& tokens) {
   }
 }
 
+// Splits by any whitespace - the empty tokens are skipped.
+inline void SplitByWhitespace(const String& input, List<String>& tokens) {
+  std::istringstream ss(input);
+  String token;
+  while (ss >> token) {
+    tokens.push_back(token);
+  }
+}
+
 inline void SplitString(const String& input, const String& delimiter,
                         List<String>& tokens) {
   size_t prev = 0;
