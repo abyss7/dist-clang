@@ -157,6 +157,20 @@ message Metric {
   optional uint64 value = 2;
 }
 
+// The state of the daemon - for "dist-clang --stats".
+message DaemonStatus {
+  optional string version      = 1;
+  // The file of the configuration - empty, if only the defaults are used.
+  optional string config_path  = 2;
+  // Why the file isn't used - then the defaults are.
+  optional string config_error = 3;
+  // The directory of the cache - empty, if the cache is off.
+  optional string cache_path   = 4;
+  // Why the cache is off.
+  optional string cache_error  = 5;
+}
+
 message Report {
-  repeated Metric metric = 1;
+  repeated Metric metric      = 1;
+  optional DaemonStatus daemon = 2;
 }

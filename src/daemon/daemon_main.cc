@@ -151,7 +151,10 @@ int main(int argc, char* argv[]) {
   if (configuration.config().has_absorber()) {
     daemon.reset(new daemon::Absorber(configuration.config()));
   } else if (configuration.config().has_emitter()) {
-    daemon.reset(new daemon::Emitter(configuration.config()));
+    auto* emitter = new daemon::Emitter(configuration.config());
+    emitter->SetConfigStatus(configuration.config_path(),
+                             configuration.config_error());
+    daemon.reset(emitter);
   } else {
     LOG(FATAL)
         << "Specify exactly one daemon configuration: Absorber or Emitter";

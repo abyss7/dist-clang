@@ -34,6 +34,8 @@ source_set("daemon") {
     "outputs.h",
   ]
 
+  configs += [ "//build/config:version" ]
+
   deps = [
     ":remote_proto",
     "//src/base:base",

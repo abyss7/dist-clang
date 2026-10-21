@@ -16,12 +16,17 @@ class Configuration {
   inline bool daemonize() const { return daemonize_; }
   inline bool autostart() const { return autostart_; }
   inline int lock_fd() const { return lock_fd_; }
+  // The read file - empty, if only the defaults are used.
+  inline const String& config_path() const { return config_path_; }
+  // Why the file isn't used.
+  inline const String& config_error() const { return config_error_; }
 
  private:
   proto::Configuration config_;
   bool daemonize_ = false;
   bool autostart_ = false;
   int lock_fd_ = -1;
+  String config_path_, config_error_;
 };
 
 }  // namespace daemon

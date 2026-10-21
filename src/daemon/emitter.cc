@@ -737,6 +737,7 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
   if (message->has_report()) {
     auto report = std::make_unique<perf::proto::Report>();
     base::Singleton<perf::StatService>::Get().DumpAll(report.get());
+    DaemonStatus(report->mutable_daemon());
     return connection->SendAsync(std::move(report));
   }
 

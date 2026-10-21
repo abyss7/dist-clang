@@ -210,6 +210,11 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
     return true;
   }
 
+  // The older daemons don't tell it.
+  if (report.has_daemon()) {
+    std::cout << DaemonStatusText(report.daemon()) << std::endl;
+  }
+
   HashMap<int, ui64> values;
   for (const auto& metric : report.metric()) {
     values[metric.name()] = metric.value();
@@ -596,6 +601,25 @@ bool ForgetTag(const String& socket_path, const proto::Configuration& config,
     std::cout << "Add --force to remove them" << std::endl;
   }
   return true;
+}
+
+String DaemonStatusText(const perf::proto::DaemonStatus& daemon) {
+  String text = "Daemon " + daemon.version() + "\n  Config  ";
+  if (!daemon.has_config_path()) {
+    text += "none - the defaults";
+  } else {
+    text += daemon.config_path();
+    if (daemon.has_config_error()) {
+      text += " - not used, the defaults are: " + daemon.config_error();
+    }
+  }
+  text += "\n  Cache   ";
+  if (daemon.has_cache_path()) {
+    text += daemon.cache_path();
+  } else {
+    text += "off - " + daemon.cache_error();
+  }
+  return text + "\n";
 }
 
 bool StopDaemon(const String& socket_path, const proto::Configuration& config) {

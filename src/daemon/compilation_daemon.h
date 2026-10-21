@@ -4,6 +4,7 @@
 #include <cache/file_cache.h>
 #include <cache/file_hash_cache.h>
 #include <daemon/base_daemon.h>
+#include <perf/stat.pb.h>
 
 namespace dist_clang {
 namespace daemon {
@@ -12,6 +13,12 @@ class CompilationDaemon : public BaseDaemon {
  public:
   bool Initialize() override;
   void Flush() override;
+
+  // The file of the configuration, and why it isn't used - for "--stats".
+  inline void SetConfigStatus(const String& path, const String& error) {
+    config_path_ = path;
+    config_error_ = error;
+  }
 
   static base::ProcessPtr CreateProcess(const base::proto::Flags& flags,
                                         ui32 user_id,
@@ -160,6 +167,9 @@ class CompilationDaemon : public BaseDaemon {
                          const cache::ExtraFiles& extra_files, Immutable deps,
                          i64 start_time);
 
+  // The version, the config and the cache - for "dist-clang --stats".
+  void DaemonStatus(perf::proto::DaemonStatus* status) const;
+
   bool Check(const Configuration& conf) const override;
   inline bool Reload(const Configuration& conf) override {
     return BaseDaemon::Reload(conf);
@@ -169,6 +179,9 @@ class CompilationDaemon : public BaseDaemon {
   using PluginNameMap = HashMap<String /* name */, String /* path */>;
 
   UniquePtr<cache::FileCache> cache_;
+  // Why the cache is off.
+  String cache_error_;
+  String config_path_, config_error_;
   mutable cache::FileHashCache file_hashes_;
 };
 

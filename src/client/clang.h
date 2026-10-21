@@ -1,6 +1,7 @@
 #pragma once
 
 #include <base/types.h>
+#include <perf/stat.pb.h>
 
 namespace dist_clang {
 
@@ -39,6 +40,9 @@ bool PrintTagStats(const String& socket_path,
 // |force|. The empty |tag| removes the entries without tags.
 bool ForgetTag(const String& socket_path, const proto::Configuration& config,
                const String& tag, bool force);
+
+// The version, the config and the cache of the daemon - for "--stats".
+String DaemonStatusText(const perf::proto::DaemonStatus& daemon);
 
 // Stops the daemon, and waits for its exit - the next compilation starts it
 // again. Returns |false| if the daemon doesn't stop.

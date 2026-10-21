@@ -1,3 +1,6 @@
+// The macro is undefined by the headers of the index of the cache.
+static const char kDaemonVersion[] = VERSION;
+
 #include <daemon/compilation_daemon.h>
 
 #include <base/assert.h>
@@ -284,12 +287,31 @@ bool CompilationDaemon::Initialize() {
     }
     cache_->SetIsolatedTags(isolated_tags);
     cache_->SetTagQuotas(tag_quotas);
-    if (!cache_->Run(conf->cache().clean_period())) {
+    if (!cache_->Run(conf->cache().clean_period(), &cache_error_)) {
       cache_.reset();
     }
+  } else if (conf->has_cache()) {
+    cache_error_ = "disabled in the configuration";
+  } else {
+    cache_error_ = "not configured";
   }
 
   return BaseDaemon::Initialize();
+}
+
+void CompilationDaemon::DaemonStatus(perf::proto::DaemonStatus* status) const {
+  status->set_version(kDaemonVersion);
+  if (!config_path_.empty()) {
+    status->set_config_path(config_path_);
+  }
+  if (!config_error_.empty()) {
+    status->set_config_error(config_error_);
+  }
+  if (cache_) {
+    status->set_cache_path(conf()->cache().path());
+  } else {
+    status->set_cache_error(cache_error_);
+  }
 }
 
 void CompilationDaemon::Flush() {

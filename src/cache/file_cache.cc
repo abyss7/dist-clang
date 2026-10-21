@@ -469,7 +469,7 @@ FileCache::RunningMarker::~RunningMarker() {
   }
 }
 
-bool FileCache::CheckFormat() {
+bool FileCache::CheckFormat(String* error) {
   const Path format_path = path_ / kFormatFile;
   proto::Format format;
   bool save = false;
@@ -479,8 +479,9 @@ bool FileCache::CheckFormat() {
     if (!base::LoadFromFile(format_path, &format, nullptr, true)) {
       // Can't tell anything - e.g. it's written by a newer daemon, or by
       // hand: the cache isn't removed, but isn't used either.
-      LOG(CACHE_ERROR) << "Can't read the format of the cache " << format_path
-                       << ": the cache isn't used - fix or remove the file";
+      error->assign("Can't read the format of the cache " +
+                    format_path.string() +
+                    ": the cache isn't used - fix or remove the file");
       base::Singleton<perf::StatService>::Get().Set(
           perf::proto::Metric::CACHE_INCOMPATIBLE, 1);
       return false;
@@ -497,11 +498,11 @@ bool FileCache::CheckFormat() {
   }
 
   if (format.generation() > kGeneration) {
-    LOG(CACHE_ERROR) << "The cache " << path_ << " has the generation "
-                     << format.generation() << " - written by "
-                     << format.written_by()
-                     << ", this daemon supports only the generation "
-                     << kGeneration << ": the cache isn't used";
+    error->assign("The cache " + path_.string() + " has the generation " +
+                  std::to_string(format.generation()) + " - written by " +
+                  format.written_by() +
+                  ", this daemon supports only the generation " +
+                  std::to_string(kGeneration) + ": the cache isn't used");
     base::Singleton<perf::StatService>::Get().Set(
         perf::proto::Metric::CACHE_INCOMPATIBLE, 1);
     return false;
@@ -515,9 +516,9 @@ bool FileCache::CheckFormat() {
     const Path removed_path = WithoutTrailingSeparator(path_).string() +
                               kRemovedSuffix + std::to_string(time(nullptr)) +
                               "-" + std::to_string(getpid());
-    String error;
+    String move_error;
     std::error_code ec;
-    const bool moved = base::CreateDirectory(removed_path, &error);
+    const bool moved = base::CreateDirectory(removed_path, &move_error);
     for (const auto& entry : std::filesystem::directory_iterator(path_, ec)) {
       const String name = entry.path().filename().string();
       // The lock of this daemon stays.
@@ -542,9 +543,9 @@ bool FileCache::CheckFormat() {
   }
   if (save) {
     format.set_written_by(kDaemonVersion);
-    String error;
-    if (!base::SaveToFile(format_path, format, &error)) {
-      LOG(CACHE_ERROR) << "Failed to save the format of the cache: " << error;
+    String save_error;
+    if (!base::SaveToFile(format_path, format, &save_error)) {
+      error->assign("Failed to save the format of the cache: " + save_error);
       return false;
     }
   }
@@ -675,12 +676,19 @@ void FileCache::ScanEntries(ui64 start_time) {
   }
 }
 
-bool FileCache::Run(ui64 clean_period) {
+bool FileCache::Run(ui64 clean_period, String* run_error) {
+  // The reason is also for "dist-clang --stats".
+  auto Fail = [run_error](const String& reason) {
+    LOG(CACHE_ERROR) << reason;
+    if (run_error) {
+      run_error->assign(reason);
+    }
+    return false;
+  };
+
   String error;
   if (!base::CreateDirectory(path_, &error)) {
-    LOG(CACHE_ERROR) << "Failed to create directory " << path_ << " : "
-                     << error;
-    return false;
+    return Fail("Failed to create directory " + path_.string() + ": " + error);
   }
 
   // Only one daemon works with the cache - before any changes of its files.
@@ -689,17 +697,15 @@ bool FileCache::Run(ui64 clean_period) {
       open(lock_path.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0644);
   if (lock_fd == -1) {
     base::GetLastError(&error);
-    LOG(CACHE_ERROR) << "Failed to open " << lock_path << ": " << error;
-    return false;
+    return Fail("Failed to open " + lock_path.string() + ": " + error);
   }
   if (flock(lock_fd, LOCK_EX | LOCK_NB) == -1) {
     Immutable owner;
     base::File::Read(lock_path, &owner);
-    LOG(CACHE_ERROR) << "The cache " << path_
-                     << " is used by another daemon, pid " << owner
-                     << ": it isn't used";
     close(lock_fd);
-    return false;
+    return Fail("The cache " + path_.string() +
+                " is used by another daemon, pid " + owner.string_copy() +
+                ": it isn't used");
   }
   directory_lock_.fd = lock_fd;
   const String pid = std::to_string(getpid());
@@ -708,8 +714,8 @@ bool FileCache::Run(ui64 clean_period) {
     LOG(CACHE_WARNING) << "Failed to write the pid into " << lock_path;
   }
 
-  if (!CheckFormat()) {
-    return false;
+  if (!CheckFormat(&error)) {
+    return Fail(error);
   }
   RemoveOldCaches(path_);
 
@@ -731,8 +737,7 @@ bool FileCache::Run(ui64 clean_period) {
   const bool check_files = entries_->created() || crashed;
   if (!base::File::Write(running_path, Immutable(std::to_string(getpid())),
                          &error)) {
-    LOG(CACHE_ERROR) << "Failed to write " << running_path << ": " << error;
-    return false;
+    return Fail("Failed to write " + running_path.string() + ": " + error);
   }
   running_marker_.path = running_path;
 

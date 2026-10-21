@@ -29,7 +29,8 @@ The daemon, that the client autostarts, has its own defaults, and the file
 changes only the given fields: the socket in $XDG_RUNTIME_DIR, the cache of
 20 GiB in $XDG_CACHE_HOME/dist-clang (~/.cache/dist-clang) with the direct
 mode, and the number of threads twice the number of CPUs. A broken file is
-ignored. "dist-clangd --config=<path>" reads only the given file - then the
+ignored: "dist-clang --stats" shows why, and why the cache is off.
+"dist-clangd --config=<path>" reads only the given file - then the
 required fields are needed. The paths are absolute: "~" isn't expanded. The
 daemon reads the file at the start: "dist-clang --stop" applies the changes -
 the next compilation starts the daemon again.

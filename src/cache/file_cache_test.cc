@@ -184,7 +184,12 @@ TEST(FileCacheTest, OneDaemonPerCache) {
     FileCache first(temp_dir);
     ASSERT_TRUE(first.Run(1));
     FileCache second(temp_dir);
-    EXPECT_FALSE(second.Run(1));
+    String error;
+    EXPECT_FALSE(second.Run(1, &error));
+    // For "dist-clang --stats".
+    EXPECT_NE(String::npos, error.find("is used by another daemon, pid " +
+                                       std::to_string(getpid())))
+        << error;
   }
   // The cache is free again.
   {
@@ -1616,9 +1621,11 @@ TEST(FileCacheTest, Format) {
     format.set_revision(revision);
     ASSERT_TRUE(base::SaveToFile(format_path, format));
   };
+  String error;
   auto Found = [&] {
     FileCache cache(cache_path, FileCache::UNLIMITED, proto::ZSTD, true);
-    if (!cache.Run(3600)) {
+    error.clear();
+    if (!cache.Run(3600, &error)) {
       return false;
     }
     FileCache::Entry entry;
@@ -1667,6 +1674,10 @@ TEST(FileCacheTest, Format) {
   // The newer generation isn't used - and isn't touched.
   WriteFormat(FileCache::kGeneration + 1, 0);
   EXPECT_FALSE(Found());
+  EXPECT_NE(String::npos,
+            error.find("has the generation " +
+                       std::to_string(FileCache::kGeneration + 1)))
+      << error;
   EXPECT_EQ(FileCache::kGeneration + 1, ReadFormat().generation());
   WriteFormat(FileCache::kGeneration, FileCache::kRevision);
   EXPECT_TRUE(Found());
@@ -1675,6 +1686,7 @@ TEST(FileCacheTest, Format) {
   // isn't touched.
   ASSERT_TRUE(base::File::Write(format_path, "broken {"_l));
   EXPECT_FALSE(Found());
+  EXPECT_NE(String::npos, error.find("Can't read the format")) << error;
   Immutable contents;
   ASSERT_TRUE(base::File::Read(format_path, &contents));
   EXPECT_EQ("broken {"_l, contents);

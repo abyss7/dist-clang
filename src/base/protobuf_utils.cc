@@ -3,6 +3,7 @@
 #include <base/const_string.h>
 #include <base/file/file.h>
 #include <base/logging.h>
+#include <google/protobuf/io/tokenizer.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/text_format.h>
 
@@ -20,13 +21,46 @@ Log& Log::operator<<(const google::protobuf::Message& info) {
   return *this;
 }
 
+namespace {
+
+// Keeps the first error of the parsing - with its place in the file.
+class FirstError : public google::protobuf::io::ErrorCollector {
+ public:
+  void AddError(int line, google::protobuf::io::ColumnNumber column,
+                const std::string& message) override {
+    if (error.empty()) {
+      error = "line " + std::to_string(line + 1) + ", column " +
+              std::to_string(column + 1) + ": " + message;
+    }
+  }
+
+  String error;
+};
+
+bool Parse(const String& contents, google::protobuf::Message* message,
+           bool merge, bool skip_unknown, String* error) {
+  FirstError collector;
+  google::protobuf::TextFormat::Parser parser;
+  parser.RecordErrorsTo(&collector);
+  parser.AllowUnknownField(skip_unknown);
+  if (merge ? parser.MergeFromString(contents, message)
+            : parser.ParseFromString(contents, message)) {
+    return true;
+  }
+  if (error) {
+    error->assign(collector.error.empty() ? String("Can't parse the file")
+                                          : collector.error);
+  }
+  return false;
+}
+
+}  // namespace
+
 bool LoadFromFile(const Path& path, google::protobuf::Message* message,
                   String* error, bool skip_unknown) {
   Immutable contents;
-  google::protobuf::TextFormat::Parser parser;
-  parser.AllowUnknownField(skip_unknown);
   if (!File::Read(path, &contents, error) ||
-      !parser.ParseFromString(contents, message)) {
+      !Parse(contents.string_copy(), message, false, skip_unknown, error)) {
     message->Clear();
 
     if (!contents.empty()) {
@@ -46,11 +80,7 @@ bool MergeFromFile(const Path& path, google::protobuf::Message* message,
   }
   UniquePtr<google::protobuf::Message> merged(message->New());
   merged->CopyFrom(*message);
-  if (!google::protobuf::TextFormat::MergeFromString(contents.string_copy(),
-                                                     merged.get())) {
-    if (error) {
-      error->assign("Can't parse the file");
-    }
+  if (!Parse(contents.string_copy(), merged.get(), true, false, error)) {
     return false;
   }
   message->CopyFrom(*merged);

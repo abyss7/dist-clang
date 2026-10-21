@@ -202,7 +202,7 @@ class FileCache {
   explicit FileCache(const Path& path);
   ~FileCache();
 
-  bool Run(ui64 clean_period);
+  bool Run(ui64 clean_period, String* error = nullptr);
   // |clean_period| is in seconds.
 
   // Waits for the work of the cleaner, that is queued now - e.g. for the check
@@ -545,7 +545,8 @@ class FileCache {
 
   // Checks the format of the cache on disk, and resets the cache of an older
   // generation. Returns |false| if the cache can't be used.
-  bool CheckFormat();
+  // Sets the |error|, why the cache isn't used.
+  bool CheckFormat(String* error);
 
   // The size of the files, that aren't the entries: the databases, etc.
   ui64 MetadataSize() const;

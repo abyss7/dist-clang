@@ -7,6 +7,7 @@
 #include <base/temporary_dir.h>
 #include <cache/blob_store.h>
 #include <cache/compression.h>
+#include <cache/file_cache.h>
 #include <daemon/common_daemon_test.h>
 #include <test/throw_std.h>
 #include <net/test_connection.h>
@@ -3989,6 +3990,84 @@ TEST_F(EmitterTest, TagEntries) {
   EXPECT_EQ(2, report.tags_size());
 
   emitter.reset();
+}
+
+TEST_F(EmitterTest, DaemonStatus) {
+  const base::TemporaryDir temp_dir;
+  const String cache_path = temp_dir.path() / "cache";
+  Mutex replies_mutex;
+  List<net::Connection::Message> replies;
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      {
+        std::lock_guard<Mutex> lock(replies_mutex);
+        replies.emplace_back();
+        replies.back().CopyFrom(message);
+      }
+      send_condition.notify_all();
+    });
+    return true;
+  };
+
+  // The state, that "dist-clang --stats" shows.
+  auto Status = [&](const String& config_path, const String& config_error) {
+    emitter = std::make_unique<Emitter>(conf);
+    emitter->SetConfigStatus(config_path, config_error);
+    EXPECT_TRUE(emitter->Initialize());
+    const ui32 sends = send_count;
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    message->mutable_report();
+    auto connection = test_service->TriggerListen(socket_path);
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    EXPECT_TRUE(std::static_pointer_cast<net::TestConnection>(connection)
+                    ->TriggerReadAsync(std::move(message), status));
+    {
+      UniqueLock lock(send_mutex);
+      EXPECT_TRUE(send_condition.wait_for(
+          lock, Seconds(5), [&] { return send_count == sends + 1; }));
+    }
+    emitter.reset();
+    // The next daemon has its own service.
+    test_service = nullptr;
+    std::lock_guard<Mutex> lock(replies_mutex);
+    EXPECT_TRUE(replies.back().has_report());
+    return replies.back().report().daemon();
+  };
+
+  // The broken config, and no cache.
+  auto daemon = Status("/conf/daemon.conf", "line 1: broken");
+  EXPECT_FALSE(daemon.version().empty());
+  EXPECT_EQ("/conf/daemon.conf", daemon.config_path());
+  EXPECT_EQ("line 1: broken", daemon.config_error());
+  EXPECT_TRUE(daemon.cache_path().empty());
+  EXPECT_NE(String::npos, daemon.cache_error().find("not configured"))
+      << daemon.cache_error();
+
+  conf.mutable_cache()->set_path(cache_path);
+  conf.mutable_cache()->set_disabled(true);
+  daemon = Status(String(), String());
+  EXPECT_TRUE(daemon.config_path().empty());
+  EXPECT_TRUE(daemon.config_error().empty());
+  EXPECT_TRUE(daemon.cache_path().empty());
+  EXPECT_NE(String::npos, daemon.cache_error().find("disabled"))
+      << daemon.cache_error();
+
+  // The working cache.
+  conf.mutable_cache()->set_disabled(false);
+  daemon = Status(String(), String());
+  EXPECT_EQ(cache_path, daemon.cache_path());
+  EXPECT_TRUE(daemon.cache_error().empty()) << daemon.cache_error();
+
+  // The cache of another daemon.
+  {
+    cache::FileCache other(cache_path);
+    ASSERT_TRUE(other.Run(3600));
+    daemon = Status(String(), String());
+    EXPECT_TRUE(daemon.cache_path().empty());
+    EXPECT_NE(String::npos, daemon.cache_error().find("another daemon"))
+        << daemon.cache_error();
+  }
 }
 
 TEST_F(EmitterTest, Stop) {

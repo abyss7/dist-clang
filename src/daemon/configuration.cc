@@ -103,12 +103,13 @@ Configuration::Configuration(int argc, char* argv[]) {
     }
   }
 
-  String error;
+  config_path_ = config_path;
   if (!config_path.empty() &&
-      !(autostart_ ? base::MergeFromFile(config_path, &config_, &error)
-                   : base::LoadFromFile(config_path, &config_, &error))) {
+      !(autostart_
+            ? base::MergeFromFile(config_path, &config_, &config_error_)
+            : base::LoadFromFile(config_path, &config_, &config_error_))) {
     LOG(ERROR) << "Failed to read configuration from " << config_path << ": "
-               << error;
+               << config_error_;
   }
 
   // The levels are merged, so the defaults would be impossible to narrow.

@@ -48,12 +48,17 @@ TEST(DaemonConfigurationTest, PartialConfigOfAutostart) {
   const char* args[] = {"dist-clangd", "--autostart"};
 
   const Configuration defaults(2, const_cast<char**>(args));
+  // Only the defaults - for "dist-clang --stats".
+  EXPECT_TRUE(defaults.config_path().empty());
+  EXPECT_TRUE(defaults.config_error().empty());
 
   // The config changes only the size of the cache - the rest is by default.
   ASSERT_TRUE(base::File::Write(config_path, "cache { size: 1024 }"_l));
   {
     const Configuration configuration(2, const_cast<char**>(args));
     EXPECT_EQ(1024u, configuration.config().cache().size());
+    EXPECT_EQ(config_path, configuration.config_path());
+    EXPECT_TRUE(configuration.config_error().empty());
     EXPECT_TRUE(configuration.config().cache().direct());
     EXPECT_EQ(defaults.config().cache().path(),
               configuration.config().cache().path());
@@ -69,6 +74,20 @@ TEST(DaemonConfigurationTest, PartialConfigOfAutostart) {
     const Configuration configuration(2, const_cast<char**>(args));
     EXPECT_EQ(defaults.config().SerializeAsString(),
               configuration.config().SerializeAsString());
+    EXPECT_EQ(config_path, configuration.config_path());
+    // Where the file is broken.
+    EXPECT_NE(String::npos, configuration.config_error().find("line 1"))
+        << configuration.config_error();
+  }
+
+  // The unknown field.
+  ASSERT_TRUE(base::File::Write(config_path, "cache {\n  sise: 1\n}"_l));
+  {
+    const Configuration configuration(2, const_cast<char**>(args));
+    EXPECT_NE(String::npos, configuration.config_error().find("line 2"))
+        << configuration.config_error();
+    EXPECT_NE(String::npos, configuration.config_error().find("sise"))
+        << configuration.config_error();
   }
 
   unsetenv("XDG_CONFIG_HOME");
