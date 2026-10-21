@@ -3287,6 +3287,52 @@ TEST(FileHashCacheTest, Memoized) {
   EXPECT_EQ(base::Hexify(Immutable("third"_l).Hash()), hash);
 }
 
+TEST(FileHashCacheTest, SharedChecks) {
+  const base::TemporaryDir temp_dir;
+  const auto path = temp_dir.path() / "test.h";
+  ASSERT_TRUE(base::File::Write(path, "first"_l));
+  auto HashOf = [](Literal content) {
+    return base::Hexify(Immutable(content).Hash());
+  };
+
+  // Any file is old enough.
+  FileHashCache hashes(1'000'000, -1'000'000'000'000);
+  String hash;
+  ASSERT_TRUE(hashes.Hash(path, &hash));
+  EXPECT_EQ(HashOf("first"_l), hash);
+
+  // The check before the lookup isn't shared: the file is checked again.
+  const i64 since = FileHashCache::Now();
+  ASSERT_TRUE(base::File::Write(path, "second"_l));
+  i64 modified = 0;
+  ASSERT_TRUE(hashes.Hash(path, &hash, nullptr, nullptr, &modified, since));
+  EXPECT_EQ(HashOf("second"_l), hash);
+  struct stat st;
+  ASSERT_EQ(0, stat(path.c_str(), &st));
+  const i64 second_modified =
+      std::max(base::ModificationTime(st), base::StatusChangeTime(st));
+  EXPECT_EQ(second_modified, modified);
+
+  // The check after the start of the lookup is shared: the later changes
+  // needn't be seen.
+  ASSERT_TRUE(base::File::Write(path, "third!"_l));
+  modified = 0;
+  bool time_macros = true;
+  ASSERT_TRUE(
+      hashes.Hash(path, &hash, nullptr, &time_macros, &modified, since));
+  EXPECT_EQ(HashOf("second"_l), hash);
+  EXPECT_EQ(second_modified, modified);
+  EXPECT_FALSE(time_macros);
+
+  // Without the time of the lookup, and for a new lookup, it's checked.
+  ASSERT_TRUE(hashes.Hash(path, &hash));
+  EXPECT_EQ(HashOf("third!"_l), hash);
+  ASSERT_TRUE(base::File::Write(path, "fourth"_l));
+  ASSERT_TRUE(hashes.Hash(path, &hash, nullptr, nullptr, nullptr,
+                          FileHashCache::Now()));
+  EXPECT_EQ(HashOf("fourth"_l), hash);
+}
+
 TEST(FileCacheTest, DirectEntry_ChangedPreprocessedHeaderContents) {
   const base::TemporaryDir temp_dir;
   const auto object_path = temp_dir.path() / "test.o";

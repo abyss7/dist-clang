@@ -922,6 +922,9 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
     return false;
   }
 
+  // The headers, that the other lookups check after this time, aren't
+  // checked again.
+  const i64 fresh_since = FileHashCache::Now();
   // Try all known sets of headers: the same source may include different
   // headers, e.g. on different branches.
   for (const auto& variant : DirectVariants(manifest.direct())) {
@@ -933,7 +936,9 @@ bool FileCache::Find(UnhandledSource code, const ExtraFiles& extra_files,
     for (const auto& header : variant.headers) {
       String header_hash;
       const String header_path = FromManifestPath(header, current_dir, root);
-      if (header_path.empty() || !file_hashes_.Hash(header_path, &header_hash)) {
+      if (header_path.empty() ||
+          !file_hashes_.Hash(header_path, &header_hash, nullptr, nullptr,
+                             nullptr, fresh_since)) {
         hashed = false;
         break;
       }

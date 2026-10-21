@@ -10,8 +10,31 @@
 namespace dist_clang {
 namespace cache {
 
+i64 FileHashCache::Now() {
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(
+             std::chrono::steady_clock::now().time_since_epoch())
+      .count();
+}
+
 bool FileHashCache::Hash(const String& path, String* hash, String* error,
-                         bool* time_macros, i64* modified) {
+                         bool* time_macros, i64* modified, i64 fresh_since) {
+  if (fresh_since) {
+    std::lock_guard<Mutex> lock(mutex_);
+    auto it = entries_.find(path);
+    if (it != entries_.end() && it->second.checked >= fresh_since) {
+      *hash = it->second.hash;
+      if (time_macros) {
+        *time_macros = it->second.time_macros;
+      }
+      if (modified) {
+        *modified = std::max(it->second.mtime_ns, it->second.ctime_ns);
+      }
+      return true;
+    }
+  }
+
+  // Any change before this time is seen by the check.
+  const i64 checked = Now();
   struct stat st;
   if (stat(path.c_str(), &st) == -1) {
     base::GetLastError(error);
@@ -32,6 +55,7 @@ bool FileHashCache::Hash(const String& path, String* hash, String* error,
         it->second.size == static_cast<ui64>(st.st_size) &&
         it->second.mtime_ns == base::ModificationTime(st) &&
         it->second.ctime_ns == base::StatusChangeTime(st)) {
+      it->second.checked = std::max(it->second.checked, checked);
       *hash = it->second.hash;
       if (time_macros) {
         *time_macros = it->second.time_macros;
@@ -75,7 +99,8 @@ bool FileHashCache::Hash(const String& path, String* hash, String* error,
     }
     entries_[key] = {static_cast<ui64>(st.st_ino),
                      static_cast<ui64>(st.st_size), base::ModificationTime(st),
-                     base::StatusChangeTime(st), *hash, has_time_macros};
+                     base::StatusChangeTime(st), *hash, has_time_macros,
+                     checked};
   }
 
   return true;

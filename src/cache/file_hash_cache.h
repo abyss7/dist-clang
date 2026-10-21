@@ -32,8 +32,16 @@ class FileHashCache {
   // the result of its compilation depends on the time.
   // Sets |modified|, the latest time of the modification of the file (mtime or
   // ctime) in nanoseconds.
+  // The memoized hash, that is checked after |fresh_since| - see |Now()| - is
+  // taken without a check: e.g. the lookups at the same time check the same
+  // headers once. The changes, made after the start of the lookup, needn't be
+  // seen by it.
   bool Hash(const String& path, String* hash, String* error = nullptr,
-            bool* time_macros = nullptr, i64* modified = nullptr) THREAD_SAFE;
+            bool* time_macros = nullptr, i64* modified = nullptr,
+            i64 fresh_since = 0) THREAD_SAFE;
+
+  // The time for |fresh_since| - in nanoseconds of the monotonic clock.
+  static i64 Now();
 
   // The number of the memoized hashes.
   size_t size() const THREAD_SAFE;
@@ -46,6 +54,8 @@ class FileHashCache {
     i64 mtime_ns, ctime_ns;
     String hash;
     bool time_macros;
+    // The time before the last check of the file - see |Now()|.
+    i64 checked = 0;
   };
 
   const size_t max_entries_;
