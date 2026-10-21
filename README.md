@@ -70,14 +70,14 @@ The objects, that weren't recompiled after a branch switch, keep only the tags o
 
 A tag may have its own rules - describe them in the cache configuration and pass the tag to the build with `--tag=<tag>`, with other tags too, if needed. The rules are independent of each other:
 
-- `isolated: true` - the lookups of the build with the tag find only the entries with the tag - also through the direct cache - while other builds find them too: the outputs are stored once. The outputs of such entries aren't compressed: the hits don't get slower with the time.
+- `isolated: true` - the lookups of the build with the tag find only the entries with the tag, while other builds find them too: the outputs are stored once. The direct cache is isolated too: its manifests are shared, but the lookups with the tag see only the headers and the entries, that the builds with the tag have stored. The outputs of such entries aren't compressed: the hits don't get slower with the time.
 - `quota: <bytes>` - the own size of the tag, `0` - unlimited. The entries of the tag don't count in the size of the cache, and others don't evict them. When the tag doesn't fit, its oldest entries by the uses of the tag - not by the hits of others - lose the tag, and follow the rules of their other tags then. Without it, the entries follow the common rules.
 
 E.g. a reference measurement of the incremental build needs a cache, that only this build uses and fills, of a fixed size:
 
     tags { name: "bench" isolated: true quota: 21474836480 }  # 20 GiB
 
-Take a new name for such tag: the entries of an old one were stored by other builds. A release branch may keep its entries without isolation - `tags { name: "release-1.0" quota: 0 }` - until `--forget-tag` removes them.
+Take a new name for such tag: the entries, that got the tag before it became isolated, were stored by other builds - the isolated build doesn't see them through the direct cache, but finds them after the preprocessing. A release branch may keep its entries without isolation - `tags { name: "release-1.0" quota: 0 }` - until `--forget-tag` removes them.
 
 ## Environment variables
 

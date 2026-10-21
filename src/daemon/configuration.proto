@@ -99,9 +99,14 @@ message Configuration {
       // The builds with the tag see only their own results in the cache:
       // e.g. for the reference measurements of the incremental builds. Their
       // lookups find only the entries with the tag, other builds find these
-      // entries too. The outputs of the entries aren't compressed: the hits
-      // don't get slower with the time. The entries follow the common rules
-      // of the eviction, unless the tag has its own size.
+      // entries too. The direct cache is isolated too: its manifests are
+      // shared, but the lookups with the tag see only the headers and the
+      // entries, that the builds with the tag have stored. The entries, that
+      // got the tag before it became isolated, are seen only after the
+      // preprocessing - take a new name for a strict isolation. The outputs
+      // of the entries aren't compressed: the hits don't get slower with the
+      // time. The entries follow the common rules of the eviction, unless the
+      // tag has its own size.
 
       optional uint64 quota = 3;
       // The own size of the tag in bytes, 0 - unlimited. The entries of the
