@@ -66,6 +66,9 @@ const char kUsage[] =
   }
   argv.push_back(nullptr);
 
+  // The ignored signals stay ignored after exec: the compiler gets SIGPIPE,
+  // like without the client.
+  signal(SIGPIPE, SIG_DFL);
   execvp(argv[0], const_cast<char* const*>(argv.data()));
   std::cerr << "dist-clang: failed to execute " << args.front() << ": "
             << strerror(errno) << std::endl;
