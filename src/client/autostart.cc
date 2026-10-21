@@ -50,6 +50,12 @@ bool AllowStart(int lock_fd, time_t now, bool* warn) {
   return true;
 }
 
+void ForgetStart(int lock_fd) {
+  if (ftruncate(lock_fd, 0) != 0) {
+    LOG(WARNING) << "Failed to write the lock file of the daemon";
+  }
+}
+
 void StartDaemon(const String& socket_path) {
   String self_path, error;
   if (!base::GetSelfPath(self_path, &error)) {

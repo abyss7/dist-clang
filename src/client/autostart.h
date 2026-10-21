@@ -18,5 +18,9 @@ constexpr ui32 kAutostartBackoff = 10;
 // start should be reported: once for the backoff.
 bool AllowStart(int lock_fd, time_t now, bool* warn);
 
+// Forgets the last start - e.g. after the stop of the daemon: then the next
+// compilation starts it at once.
+void ForgetStart(int lock_fd);
+
 }  // namespace client
 }  // namespace dist_clang

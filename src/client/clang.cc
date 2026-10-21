@@ -3,6 +3,7 @@
 #include <base/base.pb.h>
 #include <base/file_utils.h>
 #include <base/logging.h>
+#include <client/autostart.h>
 #include <client/configuration.pb.h>
 #include <net/connection.h>
 #include <net/end_point.h>
@@ -654,6 +655,8 @@ bool StopDaemon(const String& socket_path, const proto::Configuration& config) {
   const int lock_fd = open(lock_path.c_str(), O_RDWR | O_CLOEXEC);
   for (int i = 0; lock_fd != -1 && i < 600; ++i) {
     if (flock(lock_fd, LOCK_EX | LOCK_NB) == 0) {
+      // Not the failed start: the next compilation starts the daemon at once.
+      ForgetStart(lock_fd);
       flock(lock_fd, LOCK_UN);
       close(lock_fd);
       std::cout << "The daemon on " << socket_path

@@ -31,6 +31,11 @@ TEST(AutostartTest, BackoffAfterFailedStart) {
   // A later try.
   EXPECT_TRUE(AllowStart(fd, 1000 + kAutostartBackoff, &warn));
   EXPECT_FALSE(warn);
+
+  // The daemon, stopped by "dist-clang --stop", starts again at once.
+  ForgetStart(fd);
+  EXPECT_TRUE(AllowStart(fd, 1001 + kAutostartBackoff, &warn));
+  EXPECT_FALSE(warn);
   close(fd);
 }
 
