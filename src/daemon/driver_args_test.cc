@@ -511,6 +511,116 @@ TEST(DriverArgsTest, PrecompiledHeader) {
   EXPECT_EQ("y.pch", flags.included_files(1));
 }
 
+TEST(DriverArgsTest, PrecompiledHeaderBuild) {
+  const List<String> command = {
+      "-x",  "c++-header", "-c",      "pch.cc", "-o",
+      "pch", "-MD",        "-Xclang", "-fno-pch-timestamp"};
+  auto With = [&](const List<String>& more) {
+    List<String> result = command;
+    result.insert(result.end(), more.begin(), more.end());
+    return result;
+  };
+
+  base::proto::Flags flags;
+  String reason;
+  ASSERT_TRUE(Parse(command, &flags, &reason)) << reason;
+  EXPECT_TRUE(flags.pch());
+  EXPECT_EQ("c++-header", flags.language());
+  EXPECT_FALSE(flags.has_pch_sysroot());
+
+  for (const char* language :
+       {"c-header", "objective-c-header", "objective-c++-header"}) {
+    flags.Clear();
+    ASSERT_TRUE(Parse({"-x", language, "-c", "pch.h", "-o", "pch", "-MD",
+                       "-Xclang", "-fno-pch-timestamp"},
+                      &flags, &reason))
+        << reason;
+    EXPECT_TRUE(flags.pch());
+  }
+
+  // The frontend action of the compiler.
+  for (const char* pass : {"-Xclang", "-Xpreprocessor"}) {
+    flags.Clear();
+    ASSERT_TRUE(Parse({"-c", "pch.cc", "-o", "pch", "-MD", pass, "-emit-pch",
+                       pass, "-fno-pch-timestamp"},
+                      &flags, &reason))
+        << reason;
+    EXPECT_TRUE(flags.pch());
+  }
+
+  // The paths are relative to the last sysroot only with "-relocatable-pch".
+  flags.Clear();
+  ASSERT_TRUE(Parse(With({"-relocatable-pch", "-isysroot", "/work/tree/"}),
+                    &flags));
+  EXPECT_EQ("/work/tree/", flags.pch_sysroot());
+  flags.Clear();
+  ASSERT_TRUE(Parse(With({"-isysroot/a", "-Xclang", "-relocatable-pch",
+                          "-isysroot", "/work/tree"}),
+                    &flags));
+  EXPECT_EQ("/work/tree", flags.pch_sysroot());
+  flags.Clear();
+  ASSERT_TRUE(Parse(With({"-isysroot", "/work/tree"}), &flags));
+  EXPECT_FALSE(flags.has_pch_sysroot());
+  flags.Clear();
+  ASSERT_TRUE(Parse(With({"--relocatable-pch", "--sysroot=/work/tree"}),
+                    &flags));
+  EXPECT_FALSE(flags.has_pch_sysroot());
+
+  flags.Clear();
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-Xclang", "-emit-llvm"}, &flags));
+  EXPECT_FALSE(flags.pch());
+}
+
+TEST(DriverArgsTest, UnsupportedPrecompiledHeader) {
+  const List<String> command = {"-x", "c++-header", "-c", "pch.cc",
+                                "-o", "pch",        "-MD"};
+  auto With = [&](const List<String>& more) {
+    List<String> result = command;
+    result.insert(result.end(), more.begin(), more.end());
+    return result;
+  };
+
+  const List<Pair<List<String>, String>> commands = {
+      // The users of the header check the times of the headers.
+      {command, "-fno-pch-timestamp"},
+      // Only the known flags of the frontend.
+      {With({"-Xclang", "-fno-pch-timestamp", "-Xclang", "-isysroot",
+             "-Xclang", "/work/tree"}),
+       "-Xclang -isysroot"},
+      {With({"-Xclang", "-fno-pch-timestamp", "-Xpreprocessor",
+             "-isysroot/work/tree"}),
+       "-Xclang -isysroot/work/tree"},
+      // On top of another header.
+      {With({"-Xclang", "-fno-pch-timestamp", "-include", "a.h"}),
+       "-include"},
+      {With({"-Xclang", "-fno-pch-timestamp", "-include-pch", "a.pch"}),
+       "-include"},
+      {{"-x", "c++-header", "-c", "pch.cc", "-o", "pch", "-Xclang",
+        "-fno-pch-timestamp"},
+       "dependency file"},
+      {{"-x", "c++-header", "-c", "pch.cc", "-MD", "-Xclang",
+        "-fno-pch-timestamp"},
+       "output"},
+      // The other outputs of the frontend.
+      {{"-c", "a.cc", "-Xclang", "-emit-module-interface"},
+       "unsupported frontend action -emit-module-interface"},
+      {{"-c", "a.cc", "-Xpreprocessor", "-emit-header-unit"},
+       "unsupported frontend action -emit-header-unit"},
+  };
+
+  for (const auto& [command, expected_reason] : commands) {
+    String joined;
+    for (const auto& arg : command) {
+      joined += arg + " ";
+    }
+    base::proto::Flags flags;
+    String reason;
+    EXPECT_FALSE(Parse(command, &flags, &reason)) << "Command: " << joined;
+    EXPECT_NE(String::npos, reason.find(expected_reason))
+        << "Command: " << joined << "\nReason: " << reason;
+  }
+}
+
 TEST(DriverArgsTest, InputFiles) {
   const base::TemporaryDir temp_dir;
   ASSERT_TRUE(base::File::Write(temp_dir.path() / "list.txt", "fun:*"_l));

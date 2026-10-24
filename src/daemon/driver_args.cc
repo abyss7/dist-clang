@@ -36,6 +36,7 @@ enum class Special {
   LANGUAGE,
   INCLUDE,
   INCLUDE_PCH,
+  SYSROOT,
   DEPS_FILE,
   DEPS_TARGET,
   DEPS_QUOTED_TARGET,
@@ -76,7 +77,7 @@ const Option kJoinedOrSeparate[] = {
     {"-include", Class::NON_CACHED, Special::INCLUDE},
     {"-iprefix", Class::NON_CACHED},
     {"-iquote", Class::NON_CACHED},
-    {"-isysroot", Class::NON_CACHED},
+    {"-isysroot", Class::NON_CACHED, Special::SYSROOT},
     {"-isystem", Class::NON_CACHED},
     {"-iwithprefix", Class::NON_CACHED},
     {"-iwithprefixbefore", Class::NON_CACHED},
@@ -96,7 +97,8 @@ const Option kSeparate[] = {
     {"-Xassembler", Class::OTHER},
     {"-Xclang", Class::OTHER, Special::XCLANG},
     {"-Xlinker", Class::OTHER},
-    {"-Xpreprocessor", Class::OTHER},
+    // Both pass the flags to the frontend as is.
+    {"-Xpreprocessor", Class::OTHER, Special::XCLANG},
     {"-arch", Class::OTHER},
     {"-fdebug-compilation-dir", Class::OTHER, Special::COMPILATION_DIR},
     {"-framework", Class::OTHER},
@@ -259,11 +261,34 @@ const char* const kEnvUnsupported[] = {
 };
 
 // Languages, which compilation is supported. Languages are from "-x" flag.
+// The headers are compiled into the precompiled headers.
 const char* const kLanguages[] = {
     "c",
     "c++",
+    "c++-header",
+    "c-header",
     "objective-c",
     "objective-c++",
+    "objective-c++-header",
+    "objective-c-header",
+};
+
+// The actions of the frontend, that give an object file - the others give
+// either nothing, or the modules, which paths aren't tracked.
+const char* const kObjectActions[] = {
+    "-emit-llvm",
+    "-emit-llvm-bc",
+    "-emit-llvm-uselists",
+    "-emit-obj",
+};
+
+// The flags of the frontend, that are known for the precompiled header: the
+// others may change the paths in it - e.g. "-isysroot" after the one, that is
+// seen.
+const char* const kPchFrontendFlags[] = {
+    "-emit-pch",
+    "-fno-pch-timestamp",
+    "-relocatable-pch",
 };
 
 // Extensions of the source files, which compilation is supported.
@@ -413,6 +438,12 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
     return prefix;
   };
   bool next_xclang_is_pch = false;
+  // The flags of the frontend, that are passed as is.
+  List<String> frontend_flags;
+  // The precompiled header: its paths are relative to the last sysroot, if
+  // it's relocatable.
+  bool has_include = false, relocatable_pch = false;
+  String sysroot;
 
   auto AddArgument = [flags](Class cls, ui32 index,
                              std::initializer_list<String> values) {
@@ -465,6 +496,7 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
         // The compiler may implicitly use a precompiled header instead of the
         // included one - it doesn't matter: the preprocessed source contains
         // the original header anyway.
+        has_include = true;
         return true;
       case Special::INCLUDE_PCH:
         flags->add_included_files(value);
@@ -478,7 +510,14 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
       case Special::DEPS_QUOTED_TARGET:
         deps_targets.push_back(QuoteMakeTarget(value));
         return true;
+      case Special::SYSROOT:
+        sysroot = value;
+        return true;
       case Special::XCLANG:
+        frontend_flags.push_back(value);
+        if (value == "-relocatable-pch") {
+          relocatable_pch = true;
+        }
         if (next_xclang_is_pch) {
           next_xclang_is_pch = false;
           flags->add_included_files(value);
@@ -663,6 +702,10 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
       }
     }
 
+    if (arg == "-relocatable-pch" || arg == "--relocatable-pch") {
+      relocatable_pch = true;
+    }
+
     if (arg == "-frecord-command-line" || arg == "-frecord-gcc-switches") {
       records_command_line_section = true;
     } else if (arg == "-fno-record-command-line" ||
@@ -691,6 +734,47 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
     flags->set_language(language);
   } else if (!MatchesAny(kExtensions, Path(input).extension().string())) {
     return Unsupported("unsupported input " + input);
+  }
+
+  bool emits_pch = false, has_pch_timestamp = true;
+  for (const auto& value : frontend_flags) {
+    if (value == "-emit-pch") {
+      emits_pch = true;
+    } else if (value == "-fno-pch-timestamp") {
+      has_pch_timestamp = false;
+    } else if (value.starts_with("-emit-") &&
+               !MatchesAny(kObjectActions, value)) {
+      return Unsupported("unsupported frontend action " + value);
+    }
+  }
+  if (language.ends_with("-header") || emits_pch) {
+    for (const auto& value : frontend_flags) {
+      if (!MatchesAny(kPchFrontendFlags, value)) {
+        return Unsupported(
+            "unsupported flag of the precompiled header -Xclang " + value);
+      }
+    }
+    // The users of the header would check the times of the headers - which
+    // are another ones, when it's from the cache.
+    if (has_pch_timestamp) {
+      return Unsupported(
+          "precompiled header without -Xclang -fno-pch-timestamp");
+    }
+    if (has_include || flags->included_files_size()) {
+      return Unsupported(
+          "precompiled header with -include: it may be on top of another one");
+    }
+    // The cache of the precompiled headers is only the direct one.
+    if (!has_deps) {
+      return Unsupported("precompiled header without the dependency file");
+    }
+    if (output.empty()) {
+      return Unsupported("precompiled header without the output");
+    }
+    flags->set_pch(true);
+    if (relocatable_pch && !sysroot.empty()) {
+      flags->set_pch_sysroot(sysroot);
+    }
   }
 
   if (output.empty()) {
