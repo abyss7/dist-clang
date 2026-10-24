@@ -21,7 +21,8 @@ Pair<time_t /* unix timestamp, nanoseconds */> GetModificationTime(
     const String& path, String* error = nullptr);
 
 // The version of the file |path| - e.g. of an executable: it changes, when the
-// file is modified or replaced. Empty, if the file doesn't exist.
+// file is modified or replaced, but not when only its status changes - links,
+// permissions. Empty, if the file doesn't exist.
 String FileVersion(const String& path);
 
 // TODO: refactor on |std::filesystem|.

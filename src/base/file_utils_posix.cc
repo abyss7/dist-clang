@@ -25,10 +25,11 @@ String FileVersion(const String& path) {
   if (stat(path.c_str(), &st) == -1) {
     return String();
   }
+  // Not the ctime: it changes with the status too - e.g. with a new link to
+  // the file, that "perf" makes in its cache.
   return std::to_string(st.st_dev) + ":" + std::to_string(st.st_ino) + ":" +
          std::to_string(st.st_size) + ":" +
-         std::to_string(ModificationTime(st)) + ":" +
-         std::to_string(StatusChangeTime(st));
+         std::to_string(ModificationTime(st));
 }
 
 void WalkDirectory(

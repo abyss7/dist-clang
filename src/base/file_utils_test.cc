@@ -97,6 +97,14 @@ TEST(FileUtilsTest, FileVersion) {
   EXPECT_FALSE(old_version.empty());
   EXPECT_EQ(old_version, FileVersion(path));
 
+  // Only the status is changed - e.g. "perf" links the executable into its
+  // cache: the contents are the same.
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  const String link_path = temp_dir.path() / "link";
+  ASSERT_EQ(0, link(path.c_str(), link_path.c_str()));
+  ASSERT_EQ(0, chmod(path.c_str(), 0700));
+  EXPECT_EQ(old_version, FileVersion(path));
+
   // The new version is installed - with the same size.
   ASSERT_TRUE(File::Write(path, "new"_l));
   EXPECT_NE(old_version, FileVersion(path));
