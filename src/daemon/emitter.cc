@@ -538,6 +538,10 @@ void Emitter::MaybeVerifyHit(const base::proto::Local& message,
   if (message.flags().records_command_line()) {
     return;
   }
+  // The precompiled header from another root has this root in it.
+  if (message.flags().pch()) {
+    return;
+  }
 
   thread_local std::mt19937 generator(std::random_device{}());
   if (std::uniform_int_distribution<ui32>(0, 99)(generator) >= percent) {
@@ -1194,8 +1198,9 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     }
 
     // The preprocessing at the same time would change the times in the traces
-    // of the other compilations.
-    if (incoming->flags().time_trace()) {
+    // of the other compilations. The precompiled header has the macros, that
+    // the preprocessed source doesn't have: it isn't a key.
+    if (incoming->flags().time_trace() || incoming->flags().pch()) {
       CompileWithoutPreprocessing();
       continue;
     }

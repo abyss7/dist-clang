@@ -3126,6 +3126,116 @@ TEST_F(EmitterTest, NeverPreprocess) {
   emitter.reset();
 }
 
+// The preprocessed source doesn't have the macros, that the precompiled header
+// has, and the verification compiles it from another root.
+TEST_F(EmitterTest, PrecompiledHeaderOnlyInDirectCache) {
+  const base::TemporaryDir temp_dir;
+  const auto input_path = temp_dir.path() / "pch.h";
+  const auto header_path = temp_dir.path() / "header.h";
+  const auto output_path = temp_dir.path() / "pch.h.pch";
+  const auto deps_path = temp_dir.path() / "pch.d";
+  const String compiler_version = "fake_compiler_version";
+
+  ASSERT_TRUE(base::File::Write(input_path, "#include \"header.h\""_l));
+  ASSERT_TRUE(base::File::Write(header_path, "#define A"_l));
+
+  conf.mutable_cache()->set_path(temp_dir.path() / "cache");
+  conf.mutable_cache()->set_direct(true);
+  conf.mutable_cache()->set_clean_period(1);
+  conf.mutable_emitter()->set_preprocessing(
+      proto::Configuration::Emitter::ALWAYS);
+  conf.mutable_emitter()->set_verify_hits_percent(100);
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path("fake_compiler_path");
+
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      const auto& status = message.status();
+      EXPECT_EQ(net::proto::Status::OK, status.code()) << status.description();
+      send_condition.notify_all();
+    });
+    return true;
+  };
+
+  Mutex runs_mutex;
+  List<String> runs;
+  run_callback = [&](base::TestProcess* process) {
+    Vector<String> args;
+    for (const auto& arg : process->args()) {
+      args.push_back(arg.string_copy());
+    }
+    const bool preprocessing =
+        std::find(args.begin(), args.end(), "-E") != args.end();
+    String output;
+    for (size_t i = 0; i + 1 < args.size(); ++i) {
+      if (args[i] == "-o") {
+        output = args[i + 1];
+      }
+    }
+    {
+      std::lock_guard<Mutex> lock(runs_mutex);
+      runs.push_back(preprocessing                ? "-E"
+                     : output == String(output_path) ? "compile"
+                                                     : "verify");
+    }
+    if (!preprocessing) {
+      EXPECT_TRUE(base::File::Write(output, "pch"_l));
+      EXPECT_TRUE(base::File::Write(
+          deps_path, Immutable("pch.h.pch: "_l) + Immutable(input_path) +
+                         " "_l + Immutable(header_path)));
+    }
+  };
+  auto Runs = [&] {
+    std::lock_guard<Mutex> lock(runs_mutex);
+    auto result = runs;
+    return result;
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto Compile = [&](ui32 expected_send_count) {
+    auto connection = test_service->TriggerListen(socket_path);
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->mutable_local();
+    extension->set_current_dir(temp_dir);
+    auto* flags = extension->mutable_flags();
+    flags->set_input(input_path);
+    flags->set_output(output_path);
+    flags->set_deps_file(deps_path);
+    flags->set_deps_target("pch.h.pch");
+    flags->set_language("c++-header");
+    flags->set_pch(true);
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action("-c");
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(1), [&] {
+      return send_count == expected_send_count;
+    }));
+  };
+
+  Compile(1);
+  EXPECT_EQ((List<String>{"compile"}), Runs());
+
+  ASSERT_TRUE(base::File::Delete(output_path));
+  Compile(2);
+  EXPECT_TRUE(base::File::Exists(output_path));
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  EXPECT_EQ((List<String>{"compile"}), Runs());
+
+  ASSERT_TRUE(base::File::Write(header_path, "#define B"_l));
+  Compile(3);
+  EXPECT_EQ((List<String>{"compile", "compile"}), Runs());
+
+  emitter.reset();
+}
+
 TEST_F(EmitterTest, UpdateCacheWithoutLookup) {
   const base::TemporaryDir temp_dir;
   const auto input_path = temp_dir.path() / "test.cc";
