@@ -847,10 +847,22 @@ void Emitter::SetKeyRoot(
     while (root_path.size() > 1 && root_path.back() == '/') {
       root_path.pop_back();
     }
+    // "/dir/*": each directory in "/dir" is a root.
+    const bool each_directory = root_path.ends_with("/*");
+    if (each_directory) {
+      root_path.resize(root_path.size() - 2);
+    }
     if (input_key.starts_with(base::PathKey(root_path) + "/")) {
+      size_t root_size = root_path.size();
+      if (each_directory) {
+        root_size = input.find('/', root_size + 1);
+        if (root_size == String::npos) {
+          continue;
+        }
+      }
       // The root is replaced in the paths, that the compiler sees - in their
       // spelling.
-      const String key_root = input.substr(0, root_path.size());
+      const String key_root = input.substr(0, root_size);
       const String key_root_relative =
           Path(key_root).lexically_relative(current_dir).string();
       // Only the forms of the root, that the compiler removes from the paths

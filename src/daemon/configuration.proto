@@ -67,7 +67,8 @@ message Configuration {
 
     repeated string source_roots = 13;
     // Absolute paths of the source trees, that are checked out in several
-    // places, e.g. as worktrees. The same sources under different roots get
+    // places, e.g. as worktrees; "/dir/*" means each directory in "/dir" - e.g.
+    // all checkouts in it. The same sources under different roots get
     // the same cache key - if their compilation is relocatable: uses
     // "-fmacro-prefix-map" (or "-ffile-prefix-map"), and with the debug info
     // also "-fdebug-prefix-map" and "-fdebug-compilation-dir".

@@ -6385,6 +6385,38 @@ TEST(EmitterSourceRootsTest, SetKeyRoot) {
   }
 }
 
+TEST(EmitterSourceRootsTest, EachDirectoryIsRoot) {
+  google::protobuf::RepeatedPtrField<String> roots;
+  *roots.Add() = "/work/*/";
+
+  auto KeyRoot = [&](const String& current_dir, const String& input) {
+    base::proto::Flags flags;
+    flags.set_input(input);
+    flags.add_remapped_prefixes("..");
+    Emitter::SetKeyRoot(roots, current_dir, &flags);
+    return Pair<String>(flags.key_root(), flags.key_root_relative());
+  };
+
+  EXPECT_EQ((Pair<String>("/work/tree1", "..")),
+            KeyRoot("/work/tree1/out", "../src/a.cc"));
+  EXPECT_EQ((Pair<String>("/work/tree2", "..")),
+            KeyRoot("/work/tree2/out", "../a.cc"));
+  // Not in a directory of the root.
+  EXPECT_EQ((Pair<String>("", "")), KeyRoot("/work/out", "../a.cc"));
+  EXPECT_EQ((Pair<String>("", "")), KeyRoot("/other/tree/out", "../a.cc"));
+
+  // The sysroot of the precompiled header is the directory too.
+  base::proto::Flags flags;
+  flags.set_input("../pch.h");
+  flags.set_pch(true);
+  flags.set_relocatable(true);
+  flags.set_pch_sysroot("/work/tree1/");
+  flags.add_remapped_prefixes("/work/tree1");
+  Emitter::SetPchKey(roots, "/work/tree1/out", &flags);
+  EXPECT_EQ("/work/tree1", flags.key_root());
+  EXPECT_EQ("pch-cwd:out", flags.key_extra(0));
+}
+
 TEST(EmitterSourceRootsTest, KeyRootIsRemapped) {
   google::protobuf::RepeatedPtrField<String> roots;
   *roots.Add() = "/work/tree";
