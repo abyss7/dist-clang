@@ -35,6 +35,12 @@ bool IsDiagnosticsFormatFlag(const String& arg);
 bool ParseEnvironment(const List<String>& env, base::proto::Flags* flags,
                       String* reason);
 
+// The current directory, that the compiler sees: from PWD of its environment
+// in |flags|, if it's the same directory as |current_dir| - e.g. through a
+// symlink. The compiler writes the paths with it.
+String CompilerCurrentDir(const base::proto::Flags& flags,
+                          const String& current_dir);
+
 // Escapes |target| like the compiler does for "-MQ" flag.
 String QuoteMakeTarget(const String& target);
 

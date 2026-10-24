@@ -693,6 +693,29 @@ TEST(DriverArgsTest, ApparentCurrentDir) {
   EXPECT_EQ(List<String>{"cwd:" + real.string()}, KeyExtra(flags));
 }
 
+TEST(DriverArgsTest, CurrentDirOfCompiler) {
+  const base::TemporaryDir temp_dir;
+  const Path real = temp_dir.path() / "real";
+  const Path link = temp_dir.path() / "link";
+  ASSERT_TRUE(base::CreateDirectory(real));
+  std::filesystem::create_directory_symlink(real, link);
+
+  auto CurrentDir = [&](const List<String>& env) {
+    base::proto::Flags flags;
+    for (const auto& variable : env) {
+      flags.add_env(variable);
+    }
+    return CompilerCurrentDir(flags, real);
+  };
+
+  // The compiler takes it from PWD, if it's the same directory.
+  EXPECT_EQ(link.string(), CurrentDir({"PWD=" + link.string()}));
+  EXPECT_EQ(real.string(), CurrentDir({"PWD=" + temp_dir.path().string()}));
+  EXPECT_EQ(real.string(), CurrentDir({"PWD=link"}));
+  EXPECT_EQ(real.string(), CurrentDir({"PWDX=" + link.string()}));
+  EXPECT_EQ(real.string(), CurrentDir({}));
+}
+
 TEST(DriverArgsTest, ResponseFiles) {
   const base::TemporaryDir temp_dir;
   ASSERT_TRUE(base::File::Write(temp_dir.path() / "args.rsp",

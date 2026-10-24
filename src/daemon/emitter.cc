@@ -825,7 +825,9 @@ bool Emitter::PrepareFlags(base::proto::Local* message,
 
   // The same sources from different places should share the cache.
   if (flags->pch()) {
-    SetPchKey(conf()->cache().source_roots(), current_dir, flags);
+    // The paths in the precompiled header are in the spelling of the compiler.
+    SetPchKey(conf()->cache().source_roots(),
+              CompilerCurrentDir(*flags, current_dir), flags);
   } else if (flags->relocatable()) {
     SetKeyRoot(conf()->cache().source_roots(), current_dir, flags);
   }
@@ -1532,8 +1534,10 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
           String pch_error;
           if (flags.pch() && flags.has_key_root() &&
               (!base::File::Read(entry.object_path, &pch, &pch_error) ||
-               !CheckPchPaths(flags, incoming->current_dir(), deps, pch,
-                              &pch_error))) {
+               !CheckPchPaths(flags,
+                              CompilerCurrentDir(flags,
+                                                 incoming->current_dir()),
+                              deps, pch, &pch_error))) {
             LOG(WARNING) << "The precompiled header isn't cached: "
                          << flags.input() << ": " << pch_error;
             STAT(CACHE_STORE_SKIPPED);

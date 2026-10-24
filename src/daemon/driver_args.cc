@@ -874,13 +874,9 @@ bool ParseEnvironment(const List<String>& env, base::proto::Flags* flags,
   DCHECK(flags);
 
   List<String> key_parts;
-  String pwd;
   for (const auto& variable : env) {
     const auto pos = variable.find('=');
     const String name = variable.substr(0, pos);
-    if (name == "PWD" && pos != String::npos) {
-      pwd = variable.substr(pos + 1);
-    }
 
     if (MatchesAny(kEnvUnsupported, name)) {
       if (reason) {
@@ -901,23 +897,34 @@ bool ParseEnvironment(const List<String>& env, base::proto::Flags* flags,
     flags->add_key_extra(part);
   }
 
-  // The compiler takes the current directory for the result from PWD, if
-  // it's the same directory - e.g. through a symlink.
-  if (pwd.starts_with('/')) {
-    for (auto& part : *flags->mutable_key_extra()) {
-      if (!part.starts_with("cwd:") || part.substr(4) == pwd) {
-        continue;
-      }
-      struct stat pwd_st, cwd_st;
-      if (stat(pwd.c_str(), &pwd_st) == 0 &&
-          stat(part.substr(4).c_str(), &cwd_st) == 0 &&
-          pwd_st.st_dev == cwd_st.st_dev && pwd_st.st_ino == cwd_st.st_ino) {
-        part = "cwd:" + pwd;
-      }
+  // The compiler takes the current directory for the result from PWD.
+  for (auto& part : *flags->mutable_key_extra()) {
+    if (part.starts_with("cwd:")) {
+      part = "cwd:" + CompilerCurrentDir(*flags, part.substr(4));
     }
   }
 
   return true;
+}
+
+String CompilerCurrentDir(const base::proto::Flags& flags,
+                          const String& current_dir) {
+  String pwd;
+  for (const auto& variable : flags.env()) {
+    if (variable.starts_with("PWD=")) {
+      pwd = variable.substr(4);
+    }
+  }
+  if (!pwd.starts_with('/') || pwd == current_dir) {
+    return current_dir;
+  }
+  struct stat pwd_st, cwd_st;
+  if (stat(pwd.c_str(), &pwd_st) == 0 &&
+      stat(current_dir.c_str(), &cwd_st) == 0 &&
+      pwd_st.st_dev == cwd_st.st_dev && pwd_st.st_ino == cwd_st.st_ino) {
+    return pwd;
+  }
+  return current_dir;
 }
 
 namespace {
