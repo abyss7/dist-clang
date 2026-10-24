@@ -820,7 +820,9 @@ bool Emitter::PrepareFlags(base::proto::Local* message,
   flags->set_recheck_warnings(conf()->emitter().recheck_warnings());
 
   // The same sources from different places should share the cache.
-  if (flags->relocatable()) {
+  if (flags->pch()) {
+    SetPchKey(conf()->cache().source_roots(), current_dir, flags);
+  } else if (flags->relocatable()) {
     SetKeyRoot(conf()->cache().source_roots(), current_dir, flags);
   }
 
@@ -872,6 +874,34 @@ void Emitter::SetKeyRoot(
       return;
     }
   }
+}
+
+// static
+void Emitter::SetPchKey(
+    const google::protobuf::RepeatedPtrField<String>& roots,
+    const String& current_dir, base::proto::Flags* flags) {
+  // The compiler makes the paths relative only to the root, that is given
+  // literally, and only the paths inside it: the build directory too.
+  if (flags->relocatable() && flags->has_pch_sysroot()) {
+    SetKeyRoot(roots, current_dir, flags);
+    String sysroot = flags->pch_sysroot();
+    while (sysroot.size() > 1 && sysroot.back() == '/') {
+      sysroot.pop_back();
+    }
+    const String build_dir =
+        Path(current_dir).lexically_relative(flags->key_root()).string();
+    if (flags->has_key_root() && sysroot == flags->key_root() &&
+        !build_dir.empty() && build_dir != ".." &&
+        !build_dir.starts_with("../")) {
+      flags->add_key_extra("pch-cwd:" + build_dir);
+      return;
+    }
+    flags->clear_key_root();
+    flags->clear_key_root_relative();
+    flags->clear_key_root_remapped();
+    flags->clear_key_root_relative_remapped();
+  }
+  flags->add_key_extra("pch-cwd:" + current_dir);
 }
 
 void Emitter::SetExtraFiles(const cache::ExtraFiles& extra_files,

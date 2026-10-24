@@ -119,6 +119,14 @@ message Flags {
   // if the compiler removes the root, or its relative path, from the paths in
   // the result - only then they are replaced in the key.
 
+  optional bool pch                  = 33;
+  // if the output is a precompiled header: it has the paths of all headers -
+  // absolute, or relative to |pch_sysroot|.
+
+  optional string pch_sysroot        = 34;
+  // the root of the relative paths in the precompiled header: "-isysroot" with
+  // "-relocatable-pch".
+
   repeated string remapped_prefixes  = 28;
   // the prefixes of the paths, that the compiler replaces in all paths of the
   // result: in "__FILE__" and in the debug info, if any - without the

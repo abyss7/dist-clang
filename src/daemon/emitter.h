@@ -126,6 +126,12 @@ class Emitter : public CompilationDaemon {
       const google::protobuf::RepeatedPtrField<String>& roots,
       const String& current_dir, base::proto::Flags* flags);
 
+  // Sets the key of the precompiled header: it has the paths of all headers -
+  // relative to its root, or absolute.
+  static void SetPchKey(
+      const google::protobuf::RepeatedPtrField<String>& roots,
+      const String& current_dir, base::proto::Flags* flags);
+
  protected:
   bool Check(const Configuration& conf) const override;
   bool Reload(const Configuration& conf) override;

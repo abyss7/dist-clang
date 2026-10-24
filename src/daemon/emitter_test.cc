@@ -6221,5 +6221,65 @@ TEST(EmitterSourceRootsTest, KeyRootIsRemapped) {
   EXPECT_TRUE(flags.key_root_relative_remapped());
 }
 
+TEST(EmitterSourceRootsTest, PchKey) {
+  google::protobuf::RepeatedPtrField<String> roots;
+  *roots.Add() = "/work/tree";
+
+  auto Flags = [&](const String& current_dir, const String& input,
+                   const String& sysroot, bool relocatable = true,
+                   const List<String>& remapped = {"/work/tree", ".."}) {
+    base::proto::Flags flags;
+    flags.set_input(input);
+    flags.set_pch(true);
+    flags.set_relocatable(relocatable);
+    if (!sysroot.empty()) {
+      flags.set_pch_sysroot(sysroot);
+    }
+    for (const auto& prefix : remapped) {
+      flags.add_remapped_prefixes(prefix);
+    }
+    Emitter::SetPchKey(roots, current_dir, &flags);
+    return flags;
+  };
+  auto KeyExtra = [](const base::proto::Flags& flags) {
+    return List<String>(flags.key_extra().begin(), flags.key_extra().end());
+  };
+
+  // The paths in the header are relative to the root - also the ones of the
+  // build directory: its place in the root is a part of the key.
+  auto flags = Flags("/work/tree/out", "../a.h", "/work/tree/");
+  EXPECT_EQ("/work/tree", flags.key_root());
+  EXPECT_EQ((List<String>{"pch-cwd:out"}), KeyExtra(flags));
+
+  flags = Flags("/work/tree", "a.h", "/work/tree", true, {"/work/tree"});
+  EXPECT_EQ("/work/tree", flags.key_root());
+  EXPECT_EQ((List<String>{"pch-cwd:."}), KeyExtra(flags));
+
+  // Otherwise the paths are absolute: the root isn't replaced in the key, and
+  // the current directory is a part of it.
+  const List<base::proto::Flags> absolute = {
+      Flags("/work/tree/out", "../a.h", ""),
+      Flags("/work/tree/out", "../a.h", "/work"),
+      Flags("/work/tree/out", "../a.h", "/"),
+      Flags("/work/tree/out", "../a.h", "/work/tree/sub"),
+      Flags("/work/tree/out", "../a.h", ".."),
+      Flags("/work/tree/out", "../a.h", "/work/tree/out/.."),
+      Flags("/work/tree/out", "../a.h", "/work/tree", false),
+      Flags("/work/tree/out", "../a.h", "/work/tree", true, {}),
+      Flags("/work/tree/out", "/other/a.h", "/work/tree"),
+  };
+  for (const auto& flags : absolute) {
+    EXPECT_FALSE(flags.has_key_root()) << flags.DebugString();
+    EXPECT_EQ((List<String>{"pch-cwd:/work/tree/out"}), KeyExtra(flags))
+        << flags.DebugString();
+  }
+
+  // The build directory outside the root.
+  flags = Flags("/work/out", "../tree/a.h", "/work/tree", true,
+                {"/work/tree", "../tree"});
+  EXPECT_FALSE(flags.has_key_root());
+  EXPECT_EQ((List<String>{"pch-cwd:/work/out"}), KeyExtra(flags));
+}
+
 }  // namespace daemon
 }  // namespace dist_clang
