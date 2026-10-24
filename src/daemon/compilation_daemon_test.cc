@@ -429,6 +429,33 @@ TEST(CompilationDaemonTest, DirectKeyWithoutRootInPrefixMaps) {
             CompilationDaemon::DirectCommandLine("/build", Flags("/root2")));
 }
 
+TEST(CompilationDaemonTest, DirectKeyReplacesRootInSysroot) {
+  auto Flags = [](const String& root, bool joined) {
+    base::proto::Flags flags;
+    flags.set_input(root + "/src/a.h");
+    flags.set_key_root(root);
+    flags.set_key_root_relative("..");
+    flags.set_key_root_remapped(true);
+    auto* sysroot = flags.add_non_cached();
+    sysroot->set_index(1);
+    if (joined) {
+      sysroot->add_values("-isysroot" + root + "/");
+    } else {
+      sysroot->add_values("-isysroot");
+      sysroot->add_values(root + "/");
+    }
+    flags.add_other()->add_values("-ffile-prefix-map=" + root + "/=");
+    return flags;
+  };
+
+  // The paths of the relocatable precompiled header are relative to the
+  // sysroot.
+  EXPECT_EQ(CompilationDaemon::DirectCommandLine("/build", Flags("/r1", false)),
+            CompilationDaemon::DirectCommandLine("/build", Flags("/r2", false)));
+  EXPECT_EQ(CompilationDaemon::DirectCommandLine("/build", Flags("/r1", true)),
+            CompilationDaemon::DirectCommandLine("/build", Flags("/r2", true)));
+}
+
 TEST(CompilationDaemonTest, DirectKeyKeepsRootInOtherFlags) {
   auto Flags = [](const String& root, const String& define) {
     base::proto::Flags flags;

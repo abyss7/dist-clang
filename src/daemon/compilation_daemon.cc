@@ -126,6 +126,8 @@ bool HasRemappedPaths(const String& name) {
       "-imacros",
       "-F",
       "-iframework",
+      // The relocatable precompiled header has the paths relative to it.
+      "-isysroot",
       "-fmacro-prefix-map=",
       "-ffile-prefix-map=",
       "-fdebug-prefix-map=",
