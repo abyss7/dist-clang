@@ -579,6 +579,45 @@ TEST(CompilationDaemonTest, ModificationRightAfterStart) {
   EXPECT_EQ(0u, missed);
 }
 
+TEST(CompilationDaemonTest, CheckPchPaths) {
+  base::proto::Flags flags;
+  flags.set_pch(true);
+  flags.set_key_root("/work/tree");
+  const String current_dir = "/work/tree/out";
+  auto Check = [&](const String& deps, const String& pch) {
+    String reason;
+    const bool result = CompilationDaemon::CheckPchPaths(
+        flags, current_dir, Immutable::WrapString(deps),
+        Immutable::WrapString(pch), &reason);
+    EXPECT_EQ(result, reason.empty()) << reason;
+    return result;
+  };
+
+  // The paths relative to the root, and the absolute ones outside it, are the
+  // same from any root.
+  EXPECT_TRUE(Check("x.pch: ../a.h gen/b.h /work/tree/c.h /usr/include/d.h",
+                    "a.h out/gen/b.h c.h /usr/include/d.h"));
+
+  // The relative path outside the root leads to another place from another
+  // root.
+  EXPECT_FALSE(Check("x.pch: ../a.h ../../other/b.h", "a.h"));
+  EXPECT_FALSE(Check("x.pch: ../a.h \\\n  ../../tree2/b.h", "a.h"));
+  // Without the dependencies the paths are unknown.
+  EXPECT_FALSE(Check("", "a.h"));
+  EXPECT_FALSE(Check("x.pch", "a.h"));
+
+  // The compiler hasn't made the paths relative to the root.
+  EXPECT_FALSE(Check("x.pch: ../a.h", "/work/tree/a.h"));
+  EXPECT_FALSE(Check("x.pch: ../a.h", "work/tree/a.h"));
+
+  // The key has the current directory - all paths are the same anyway.
+  flags.clear_key_root();
+  EXPECT_TRUE(Check("x.pch: ../../other/b.h", "/work/tree/a.h"));
+  flags.set_key_root("/work/tree");
+  flags.set_pch(false);
+  EXPECT_TRUE(Check("x.o: ../../other/b.h", "/work/tree/a.h"));
+}
+
 TEST(CompilationDaemonTest, PreprocessedInputs) {
   List<String> inputs;
   EXPECT_TRUE(CompilationDaemon::PreprocessedInputs(

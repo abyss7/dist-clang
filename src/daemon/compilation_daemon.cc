@@ -514,6 +514,48 @@ bool CompilationDaemon::PreprocessedInputs(Immutable source,
 }
 
 // static
+bool CompilationDaemon::CheckPchPaths(const base::proto::Flags& flags,
+                                      const String& current_dir,
+                                      Immutable deps, Immutable pch,
+                                      String* reason) {
+  DCHECK(reason);
+  if (!flags.pch() || !flags.has_key_root()) {
+    return true;
+  }
+  const String& root = flags.key_root();
+
+  List<String> headers;
+  if (deps.empty() || !ParseDeps(deps.string_copy(), headers)) {
+    *reason = "the headers are unknown without the dependency file";
+    return false;
+  }
+  // The absolute paths are in the key as is, with the root replaced. The
+  // relative ones lead to another place from another root - if they lead out
+  // of the root.
+  for (const auto& header : headers) {
+    if (header.empty() || header[0] == '/') {
+      continue;
+    }
+    const String path = (Path(current_dir) / header).lexically_normal().string();
+    if (!path.starts_with(root + "/")) {
+      *reason = "the header is outside the root: " + header;
+      return false;
+    }
+  }
+
+  // The compiler makes the paths relative only to the root, that it's given:
+  // e.g. not to its parent. The root is looked for without the leading
+  // separator - to see it in the paths relative to "/" too.
+  const std::string_view content(pch.data(), pch.size());
+  if (content.find(std::string_view(root).substr(1)) !=
+      std::string_view::npos) {
+    *reason = "the precompiled header has the path of the root " + root;
+    return false;
+  }
+  return true;
+}
+
+// static
 bool CompilationDaemon::InputsUnchangedSince(const base::proto::Local* message,
                                              Immutable deps, i64 time,
                                              const List<String>& more_inputs) {

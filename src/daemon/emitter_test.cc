@@ -3236,6 +3236,95 @@ TEST_F(EmitterTest, PrecompiledHeaderOnlyInDirectCache) {
   emitter.reset();
 }
 
+// The precompiled header, that is shared between the roots, mustn't have the
+// paths of its own root.
+TEST_F(EmitterTest, DontStorePrecompiledHeaderWithRoot) {
+  const base::TemporaryDir temp_dir;
+  const String root = temp_dir.path();
+  const auto build_dir = temp_dir.path() / "out";
+  const auto input_path = temp_dir.path() / "pch.h";
+  const auto output_path = build_dir / "pch.h.pch";
+  const auto deps_path = build_dir / "pch.d";
+  const String compiler_version = "fake_compiler_version";
+
+  ASSERT_TRUE(base::CreateDirectory(build_dir));
+  ASSERT_TRUE(base::File::Write(input_path, "#define A"_l));
+
+  conf.mutable_cache()->set_path(temp_dir.path() / "cache");
+  conf.mutable_cache()->set_direct(true);
+  conf.mutable_cache()->set_clean_period(1);
+  conf.mutable_cache()->add_source_roots(root);
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path("fake_compiler_path");
+
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      const auto& status = message.status();
+      EXPECT_EQ(net::proto::Status::OK, status.code()) << status.description();
+      send_condition.notify_all();
+    });
+    return true;
+  };
+
+  String content = "pch of " + root;
+  ui32 runs = 0;
+  run_callback = [&](base::TestProcess* process) {
+    ++runs;
+    EXPECT_TRUE(
+        base::File::Write(output_path, Immutable::WrapString(content)));
+    EXPECT_TRUE(base::File::Write(deps_path, "pch.h.pch: ../pch.h"_l));
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+
+  auto Compile = [&](ui32 expected_send_count) {
+    auto connection = test_service->TriggerListen(socket_path);
+    SharedPtr<net::TestConnection> test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* extension = message->mutable_local();
+    extension->set_current_dir(build_dir);
+    auto* flags = extension->mutable_flags();
+    flags->set_input("../pch.h");
+    flags->set_output("pch.h.pch");
+    flags->set_deps_file("pch.d");
+    flags->set_deps_target("pch.h.pch");
+    flags->set_language("c++-header");
+    flags->set_pch(true);
+    flags->set_pch_sysroot(root + "/");
+    flags->set_relocatable(true);
+    flags->add_remapped_prefixes(root);
+    // The flags of the test aren't prepared by the emitter.
+    flags->set_key_root(root);
+    flags->set_key_root_relative("..");
+    flags->set_key_root_remapped(true);
+    flags->add_key_extra("pch-cwd:out");
+    flags->mutable_compiler()->set_version(compiler_version);
+    flags->set_action("-c");
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    EXPECT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+    UniqueLock lock(send_mutex);
+    EXPECT_TRUE(send_condition.wait_for(lock, Seconds(1), [&] {
+      return send_count == expected_send_count;
+    }));
+  };
+
+  Compile(1);
+  Compile(2);
+  EXPECT_EQ(2u, runs);
+
+  // Without the root it's stored.
+  content = "pch";
+  Compile(3);
+  Compile(4);
+  EXPECT_EQ(3u, runs);
+
+  emitter.reset();
+}
+
 TEST_F(EmitterTest, UpdateCacheWithoutLookup) {
   const base::TemporaryDir temp_dir;
   const auto input_path = temp_dir.path() / "test.cc";

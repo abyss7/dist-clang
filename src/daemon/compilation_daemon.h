@@ -54,6 +54,13 @@ class CompilationDaemon : public BaseDaemon {
                                    Immutable deps, i64 time,
                                    const List<String>& more_inputs = {});
 
+  // Checks, that the precompiled header with the root replaced in its key -
+  // see |Emitter::SetPchKey| - has the same paths from any root: relative to
+  // the root, or absolute outside it. Sets the |reason| otherwise.
+  static bool CheckPchPaths(const base::proto::Flags& flags,
+                            const String& current_dir, Immutable deps,
+                            Immutable pch, String* reason);
+
   // The daemon serves only the clients of its own user: otherwise they could
   // run any program as this user - the compiler is the client's. The daemon
   // of root serves anyone, but compiles only as the user of the client, and

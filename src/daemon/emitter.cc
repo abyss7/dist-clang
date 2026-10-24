@@ -1525,7 +1525,21 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
           if (handled_hash.str.empty()) {
             handled_hash = GenerateHash(incoming->flags(), source, extra_files);
           }
-          entry_to_store = entry;
+          // The precompiled header, that is shared between the roots, may
+          // have the paths of its own root - when the compiler doesn't
+          // relocate them.
+          Immutable pch;
+          String pch_error;
+          if (flags.pch() && flags.has_key_root() &&
+              (!base::File::Read(entry.object_path, &pch, &pch_error) ||
+               !CheckPchPaths(flags, incoming->current_dir(), deps, pch,
+                              &pch_error))) {
+            LOG(WARNING) << "The precompiled header isn't cached: "
+                         << flags.input() << ": " << pch_error;
+            STAT(CACHE_STORE_SKIPPED);
+          } else {
+            entry_to_store = entry;
+          }
         }
       }
 
