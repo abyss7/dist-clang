@@ -71,6 +71,12 @@ message Configuration {
     // the same cache key - if their compilation is relocatable: uses
     // "-fmacro-prefix-map" (or "-ffile-prefix-map"), and with the debug info
     // also "-fdebug-prefix-map" and "-fdebug-compilation-dir".
+    // The precompiled headers are cached only in the direct cache, with
+    // "-Xclang -fno-pch-timestamp" and the dependency file. They are shared
+    // between the roots with "-relocatable-pch -isysroot <root>/" - the root
+    // as here - and the build directory inside the root; the root in the
+    // prefix maps both as the absolute path and relative to the build
+    // directory. The users of the header pass the same "-isysroot".
 
     optional uint64 compress_after = 15 [ default = 3600 ];
     // In seconds. With |link_outputs| compress the outputs of the entries,
