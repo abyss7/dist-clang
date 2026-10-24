@@ -48,24 +48,52 @@ bool FileHashCache::Hash(const String& path, String* hash, String* error,
   }
 
   const String& key = path;
+  bool hashing = false;
   {
-    std::lock_guard<Mutex> lock(mutex_);
-    auto it = entries_.find(key);
-    if (it != entries_.end() && it->second.inode == st.st_ino &&
-        it->second.size == static_cast<ui64>(st.st_size) &&
-        it->second.mtime_ns == base::ModificationTime(st) &&
-        it->second.ctime_ns == base::StatusChangeTime(st)) {
-      it->second.checked = std::max(it->second.checked, checked);
-      *hash = it->second.hash;
-      if (time_macros) {
-        *time_macros = it->second.time_macros;
+    std::unique_lock<Mutex> lock(mutex_);
+    auto TakeMemoized = [&] {
+      auto it = entries_.find(key);
+      if (it != entries_.end() && it->second.inode == st.st_ino &&
+          it->second.size == static_cast<ui64>(st.st_size) &&
+          it->second.mtime_ns == base::ModificationTime(st) &&
+          it->second.ctime_ns == base::StatusChangeTime(st)) {
+        it->second.checked = std::max(it->second.checked, checked);
+        *hash = it->second.hash;
+        if (time_macros) {
+          *time_macros = it->second.time_macros;
+        }
+        return true;
       }
+      return false;
+    };
+    if (TakeMemoized()) {
       return true;
     }
+    // The same file is hashed by another lookup - e.g. a common header after
+    // the start of the daemon: its hash is taken, instead of reading the file
+    // again. A file, that isn't memoized after all, is read by each.
+    if (hashing_.contains(key)) {
+      hashed_.wait(lock, [&] { return !hashing_.contains(key); });
+      if (TakeMemoized()) {
+        return true;
+      }
+    }
+    hashing = hashing_.insert(key).second;
   }
+  // Lets the waiting lookups go on any return.
+  auto done = [this, &key](bool* hashing) {
+    if (*hashing) {
+      {
+        std::lock_guard<Mutex> lock(mutex_);
+        hashing_.erase(key);
+      }
+      hashed_.notify_all();
+    }
+  };
+  std::unique_ptr<bool, decltype(done)> done_guard(&hashing, done);
 
   Immutable content;
-  if (!base::File::Read(path, &content, error)) {
+  if (!ReadFile(path, &content, error)) {
     return false;
   }
   // The contents must match the time of the modification.
@@ -104,6 +132,11 @@ bool FileHashCache::Hash(const String& path, String* hash, String* error,
   }
 
   return true;
+}
+
+bool FileHashCache::ReadFile(const String& path, Immutable* content,
+                             String* error) const {
+  return base::File::Read(path, content, error);
 }
 
 size_t FileHashCache::size() const {

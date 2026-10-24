@@ -3,6 +3,8 @@
 #include <base/attributes.h>
 #include <base/types.h>
 
+#include STL(condition_variable)
+
 #include <base/test_forward.h>
 
 namespace dist_clang {
@@ -26,6 +28,7 @@ class FileHashCache {
   explicit FileHashCache(size_t max_entries = 1'000'000,
                          i64 racy_interval_ns = kRacyIntervalNs)
       : max_entries_(max_entries), racy_interval_ns_(racy_interval_ns) {}
+  virtual ~FileHashCache() = default;
 
   // Returns the hex-encoded hash of the contents of |path|. Sets
   // |time_macros|, if the file uses "__DATE__", "__TIME__" or "__TIMESTAMP__":
@@ -46,6 +49,11 @@ class FileHashCache {
   // The number of the memoized hashes.
   size_t size() const THREAD_SAFE;
 
+ protected:
+  // Reads the contents of the file to hash - virtual for tests.
+  virtual bool ReadFile(const String& path, Immutable* content,
+                        String* error) const;
+
  private:
   FRIEND_TEST(FileHashCacheTest, Memoized);
 
@@ -62,6 +70,9 @@ class FileHashCache {
   const i64 racy_interval_ns_;
   mutable Mutex mutex_;
   HashMap<String, Entry> entries_;
+  // The files, which are read by some lookup now.
+  HashSet<String> hashing_;
+  std::condition_variable hashed_;
 };
 
 }  // namespace cache

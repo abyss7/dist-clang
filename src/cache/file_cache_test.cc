@@ -3287,6 +3287,46 @@ TEST(FileHashCacheTest, Memoized) {
   EXPECT_EQ(base::Hexify(Immutable("third"_l).Hash()), hash);
 }
 
+TEST(FileHashCacheTest, HashedOnceAtTheSameTime) {
+  const base::TemporaryDir temp_dir;
+  const auto path = temp_dir.path() / "test.h";
+  ASSERT_TRUE(base::File::Write(path, "content"_l));
+
+  // The reading is slow: the other lookups come meanwhile - like the lookups
+  // of a build after the start of the daemon, that need the same headers.
+  class SlowHashes : public FileHashCache {
+   public:
+    using FileHashCache::FileHashCache;
+    mutable std::atomic<int> reads = 0;
+
+   protected:
+    bool ReadFile(const String& path, Immutable* content,
+                  String* error) const override {
+      ++reads;
+      std::this_thread::sleep_for(std::chrono::milliseconds(200));
+      return FileHashCache::ReadFile(path, content, error);
+    }
+  };
+
+  // Any file is old enough.
+  SlowHashes hashes(1'000'000, -1'000'000'000'000);
+  constexpr int kThreads = 8;
+  Vector<String> results(kThreads);
+  Vector<std::thread> threads;
+  for (int i = 0; i < kThreads; ++i) {
+    threads.emplace_back(
+        [&hashes, &path, &results, i] { hashes.Hash(path, &results[i]); });
+  }
+  for (auto& thread : threads) {
+    thread.join();
+  }
+
+  EXPECT_EQ(1, hashes.reads);
+  for (const auto& result : results) {
+    EXPECT_EQ(base::Hexify(Immutable("content"_l).Hash()), result);
+  }
+}
+
 TEST(FileHashCacheTest, SharedChecks) {
   const base::TemporaryDir temp_dir;
   const auto path = temp_dir.path() / "test.h";
