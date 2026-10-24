@@ -23,6 +23,23 @@ TEST(ConstStringTest, Find) {
   ConstString string("cdabcdcef"_l);
   EXPECT_EQ(4u, string.find("cdc"));
   EXPECT_EQ(String::npos, string.find("zz"));
+  EXPECT_EQ(0u, string.find(""));
+  EXPECT_EQ(0u, string.find("cdab"));
+  EXPECT_EQ(7u, string.find("ef"));
+  EXPECT_EQ(String::npos, string.find("efg"));
+  EXPECT_EQ(String::npos, ConstString().find("a"));
+
+  // The prefix shares the buffer of the whole string - the rest isn't seen.
+  ConstString prefix(string, 6);
+  EXPECT_EQ(3u, prefix.find("bcd"));
+  EXPECT_EQ(String::npos, prefix.find("dc"));
+  EXPECT_EQ(String::npos, prefix.find("ef"));
+
+  // The match may span the parts of a rope.
+  ConstString rope(ConstString::Rope{"cda"_l, "bcd"_l, "cef"_l});
+  EXPECT_EQ(4u, rope.find("cdc"));
+  EXPECT_EQ(1u, rope.find("dab"));
+  EXPECT_EQ(String::npos, rope.find("zz"));
 }
 
 TEST(ConstStringTest, Hash) {

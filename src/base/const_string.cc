@@ -193,11 +193,23 @@ bool ConstString::operator==(const ConstString& other) const {
 
 size_t ConstString::find(const char* str) const {
   const i64 str_size = strlen(str);
-  Vector<i64> t(str_size + 1, -1);
-
   if (str_size == 0) {
     return 0;
   }
+
+  // A plain string - e.g. a read file - is searched much faster as a whole,
+  // than char by char below: the daemon searches every header so.
+  auto internals = internals_;
+  if (internals->rope.empty()) {
+    if (size_ == 0) {
+      return String::npos;
+    }
+    const char* begin = internals->string.get();
+    const void* found = memmem(begin, size_, str, str_size);
+    return found ? static_cast<const char*>(found) - begin : String::npos;
+  }
+
+  Vector<i64> t(str_size + 1, -1);
 
   for (i64 i = 1; i <= str_size; ++i) {
     auto pos = t[i - 1];
@@ -209,8 +221,6 @@ size_t ConstString::find(const char* str) const {
 
   size_t sp = 0;
   i64 kp = 0;
-
-  auto internals = internals_;
 
   while (sp < size_) {
     while (kp != -1 && (kp == str_size || str[kp] != at(internals.get(), sp))) {
