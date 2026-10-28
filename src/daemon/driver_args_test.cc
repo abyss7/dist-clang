@@ -548,6 +548,16 @@ TEST(DriverArgsTest, PrecompiledHeaderBuild) {
     EXPECT_TRUE(flags.pch());
   }
 
+  // The frontend includes the header as is - never another precompiled one.
+  for (const char* pass : {"-Xclang", "-Xpreprocessor"}) {
+    flags.Clear();
+    ASSERT_TRUE(Parse(With({pass, "-include", pass, "gen/a.h"}), &flags,
+                      &reason))
+        << reason;
+    EXPECT_TRUE(flags.pch());
+    EXPECT_EQ(0, flags.included_files_size());
+  }
+
   // The paths are relative to the last sysroot only with "-relocatable-pch".
   flags.Clear();
   ASSERT_TRUE(Parse(With({"-relocatable-pch", "-isysroot", "/work/tree/"}),
@@ -590,6 +600,11 @@ TEST(DriverArgsTest, UnsupportedPrecompiledHeader) {
       {With({"-Xclang", "-fno-pch-timestamp", "-Xpreprocessor",
              "-isysroot/work/tree"}),
        "-Xclang -isysroot/work/tree"},
+      {With({"-Xclang", "-fno-pch-timestamp", "-Xclang", "-include"}),
+       "-Xclang -include"},
+      {With({"-Xclang", "-fno-pch-timestamp", "-Xclang", "-include", "-Xclang",
+             "a.h", "-Xclang", "-include-pch", "-Xclang", "b.pch"}),
+       "-include"},
       // On top of another header.
       {With({"-Xclang", "-fno-pch-timestamp", "-include", "a.h"}),
        "-include"},

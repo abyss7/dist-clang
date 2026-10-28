@@ -748,10 +748,16 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
     }
   }
   if (language.ends_with("-header") || emits_pch) {
-    for (const auto& value : frontend_flags) {
-      if (!MatchesAny(kPchFrontendFlags, value)) {
+    for (auto it = frontend_flags.begin(); it != frontend_flags.end(); ++it) {
+      // Unlike the driver, the frontend doesn't look for a precompiled header
+      // instead of the included one: the header is in the dependency file.
+      if (*it == "-include" && std::next(it) != frontend_flags.end()) {
+        ++it;
+        continue;
+      }
+      if (!MatchesAny(kPchFrontendFlags, *it)) {
         return Unsupported(
-            "unsupported flag of the precompiled header -Xclang " + value);
+            "unsupported flag of the precompiled header -Xclang " + *it);
       }
     }
     // The users of the header would check the times of the headers - which
