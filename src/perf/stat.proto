@@ -63,6 +63,10 @@ message Metric {
     CACHE_SHARED_SIZE           = 27;
     // in bytes - the cache files, that are and aren't linked with other places.
 
+    CACHE_FREE_SIZE             = 59;
+    // in bytes - the own files of the entries, that share their outputs with
+    // the build directories: they aren't counted against the limit.
+
     CACHE_ENTRIES               = 28;
 
     CACHE_MAX_SIZE              = 55;

@@ -33,6 +33,10 @@ FORWARD_TEST(FileCacheTest, RemoveEntry);
 FORWARD_TEST(FileCacheTest, TagStatsDontWaitForMaintenance);
 FORWARD_TEST(FileCacheTest, Format);
 FORWARD_TEST(FileCacheTest, TagStats);
+FORWARD_TEST(FileCacheTest, TagStatsFromSnapshot);
+FORWARD_TEST(FileCacheTest, TagStatsRefreshedAfterChange);
+FORWARD_TEST(FileCacheTest, TagStatsStaleWhileBusy);
+FORWARD_TEST(FileCacheTest, TagStatsFreeableMatchesForgetTag);
 FORWARD_TEST(FileCacheTest, ForgetTag);
 FORWARD_TEST(FileCacheTest, DeduplicateOutputs);
 FORWARD_TEST(FileCacheTest, RemoveUnreferencedBlobs);
@@ -46,6 +50,8 @@ FORWARD_TEST(FileCacheTest, RemoveEntryInBackground);
 FORWARD_TEST(FileCacheTest, RestoreEntryWithMissingFile);
 FORWARD_TEST(FileCacheTest, CheckFilesOnlyAfterCrash);
 FORWARD_TEST(FileCacheTest, ReportSizes);
+FORWARD_TEST(FileCacheTest, ReportSizesOfFreeEntries);
+FORWARD_TEST(FileCacheTest, EvictIgnoresFreeEntries);
 FORWARD_TEST(FileCacheTest, Ghosts);
 FORWARD_TEST(FileCacheTest, BinaryManifests);
 FORWARD_TEST(FileCacheTest, RemoveDirectRowsOfRemovedEntries);
@@ -210,7 +216,9 @@ class FileCache {
   void WaitForCleaner();
 
   // Gives the recent accesses to the cleaner - to apply them to the index.
-  void FlushAccesses() THREAD_SAFE;
+  // Applies the recent accesses to the index and the tags. Returns |true|, if
+  // there were any: their results appear only after the cleaner.
+  bool FlushAccesses() THREAD_SAFE;
 
   // Stops the periodic work, applies the recent accesses to the index, and
   // marks the normal stop: the files aren't checked at the next start.
@@ -351,8 +359,8 @@ class FileCache {
     ui64 shared_entries = 0, linked_entries = 0;
   };
 
-  using TagStatsCallback =
-      Fn<void(const List<TagStats>&, const List<TagOverlap>&)>;
+  using TagStatsCallback = Fn<void(const List<TagStats>&, const List<TagOverlap>&,
+                                   ui64 computed_ago_ms)>;
   // Tells, if the result is still needed - e.g. the client is still waiting.
   using NeededFn = Fn<bool()>;
 
@@ -397,6 +405,10 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, TagStatsDontWaitForMaintenance);
   FRIEND_TEST(FileCacheTest, Format);
   FRIEND_TEST(FileCacheTest, TagStats);
+  FRIEND_TEST(FileCacheTest, TagStatsFromSnapshot);
+  FRIEND_TEST(FileCacheTest, TagStatsRefreshedAfterChange);
+  FRIEND_TEST(FileCacheTest, TagStatsStaleWhileBusy);
+  FRIEND_TEST(FileCacheTest, TagStatsFreeableMatchesForgetTag);
   FRIEND_TEST(FileCacheTest, ForgetTag);
   FRIEND_TEST(FileCacheTest, DeduplicateOutputs);
   FRIEND_TEST(FileCacheTest, RemoveUnreferencedBlobs);
@@ -420,6 +432,8 @@ class FileCache {
   FRIEND_TEST(FileCacheTest, KeepEntriesOfIsolatedTags);
   FRIEND_TEST(FileCacheTest, DirectEntry_IsolatedTagsKeepVariants);
   FRIEND_TEST(FileCacheTest, ReportSizes);
+  FRIEND_TEST(FileCacheTest, ReportSizesOfFreeEntries);
+  FRIEND_TEST(FileCacheTest, EvictIgnoresFreeEntries);
   FRIEND_TEST(FileCacheTest, Ghosts);
   FRIEND_TEST(FileCacheTest, BinaryManifests);
   FRIEND_TEST(FileCacheTest, RemoveDirectRowsOfRemovedEntries);
@@ -540,6 +554,13 @@ class FileCache {
 
   // The work with the tags - in the cleaner.
   void ApplyTags(string::Hash hash, const Vector<String>& tags, ui64 time);
+  // Computes the statistics of the tags and remembers them for the requests.
+  // The cleaner updates them in background - see |Maintain()|.
+  void RefreshTagStats();
+  // The same in background, not more often than one pass at a time.
+  void RefreshTagStatsAsync();
+
+  // The same as |ForgetTag()| would free now - in one pass over the entries.
   void ComputeTagStats(List<TagStats>* stats, List<TagOverlap>* overlaps);
   ForgetResult DoForgetTag(const String& tag, bool dry_run);
 
@@ -563,6 +584,16 @@ class FileCache {
   // Updates the statistics of the size of the cache, and of the removed
   // entries - in the cleaner.
   void ReportSizes();
+
+  // Fills |own_sizes|, if it isn't null, with what the removal of each entry
+  // frees for the disk space, and returns the own size of the entries, that
+  // the cache pays for.
+  // The entries, which outputs are shared with build directories, are free:
+  // their removal doesn't free the disk space, and they are never removed.
+  // The entries of the tags with own sizes are held: they don't count in the
+  // size of the cache, and they aren't removed.
+  ui64 CountOwnSizes(const List<Pair<String, SQLite::Value>>& entries,
+                     Vector<ui64>* own_sizes);
 
   // Remembers the removed entry, that freed |size| - before the removal.
   void AddGhost(string::Hash hash, ui64 size, GhostIndex::Reason reason);
@@ -640,6 +671,12 @@ class FileCache {
   // The size of the entries without the blobs, and their number - the failed
   // stores remove the entries too.
   Atomic<ui64> cache_size_ = {0u}, entry_count_ = {0u};
+  // The own files of the free entries (their outputs are linked with the build
+  // directories) and of the held ones (of the tags with own sizes). They are
+  // a part of |cache_size_|, but they don't count against the limit.
+  Atomic<ui64> free_entries_size_ = {0u}, held_entries_size_ = {0u};
+  // The own blobs, that only the held entries refer to.
+  Atomic<ui64> held_blobs_size_ = {0u};
   Clock::time_point next_sizes_report_;
   // The accesses are applied to the index at least so often, in seconds - the
   // statistics show them.
@@ -669,11 +706,29 @@ class FileCache {
     Path path;
   } running_marker_;
 
-  base::ThreadPool cleaner_{base::ThreadPool::TaskQueue::UNLIMITED, 1};
-
-  // The requests of the statistics of the tags, that wait for it.
+  // The requests of the statistics of the tags, that wait for it. Declared
+  // before the cleaner: they must outlive its tasks.
   Mutex tag_stats_mutex_;
   List<Pair<TagStatsCallback, NeededFn>> tag_stats_requests_;
+
+  // The last computed statistics of the tags: the requests, that don't change
+  // the cache, get them without the cleaner.
+  struct TagStatsSnapshot {
+    List<TagStats> stats;
+    List<TagOverlap> overlaps;
+    Clock::time_point computed;
+    ui64 epoch = 0;
+  };
+  Mutex tag_stats_snapshot_mutex_;
+  SharedPtr<const TagStatsSnapshot> tag_stats_snapshot_;
+  // Grows with every change, that |ComputeTagStats()| depends on.
+  Atomic<ui64> tag_stats_epoch_ = {0u};
+  // The flushed accesses, that the cleaner hasn't applied yet.
+  Atomic<ui32> tag_stats_pending_ = {0u};
+  // The background pass, that updates the snapshot.
+  Atomic<bool> tag_stats_refreshing_ = {false};
+
+  base::ThreadPool cleaner_{base::ThreadPool::TaskQueue::UNLIMITED, 1};
 
   UniquePtr<base::WorkerPool> resetter_{new base::WorkerPool(true)};
   // Resets |new_entries_| periodically, and starts the maintenance.

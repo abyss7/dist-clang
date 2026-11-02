@@ -1433,6 +1433,217 @@ TEST(FileCacheTest, TagStats) {
   EXPECT_EQ(1u, new_overlaps.size());
 }
 
+TEST(FileCacheTest, TagStatsFromSnapshot) {
+  const base::TemporaryDir temp_dir;
+  FileCache cache(temp_dir, FileCache::UNLIMITED, proto::ZSTD, true);
+  ASSERT_TRUE(cache.Run(3600));
+
+  const auto hash = TestHash("-c");
+  cache.Store(hash, FileCache::Entry{"object"_l, "deps"_l});
+  cache.AddTags(hash, {"tag"});
+  cache.FlushAccesses();
+  cache.WaitForCleaner();
+
+  // The first request may get the snapshot from the start of the cache: let
+  // the background refresh see the stored entry.
+  std::promise<void> warm;
+  ASSERT_TRUE(cache.GetTagStats(
+      [&warm](const List<FileCache::TagStats>&,
+              const List<FileCache::TagOverlap>&, ui64) { warm.set_value(); }));
+  warm.get_future().get();
+  cache.WaitForCleaner();
+
+  std::promise<ui64> first;
+  ASSERT_TRUE(cache.GetTagStats(
+      [&first](const List<FileCache::TagStats>& stats,
+               const List<FileCache::TagOverlap>&, ui64) {
+        first.set_value(stats.size() ? stats.front().entries : 0);
+      }));
+  EXPECT_EQ(1u, first.get_future().get());
+
+  // The cleaner is busy: the statistics, that are computed already, don't
+  // wait for it.
+  std::promise<void> started, release;
+  cache.cleaner_.Push([&started, &release] {
+    started.set_value();
+    release.get_future().wait();
+  });
+  started.get_future().wait();
+
+  std::promise<ui64> second;
+  ASSERT_TRUE(cache.GetTagStats(
+      [&second](const List<FileCache::TagStats>& stats,
+                const List<FileCache::TagOverlap>&, ui64) {
+        second.set_value(stats.size() ? stats.front().entries : 0);
+      }));
+  auto second_future = second.get_future();
+  const auto status = second_future.wait_for(std::chrono::milliseconds(500));
+  release.set_value();
+  cache.WaitForCleaner();
+  EXPECT_EQ(std::future_status::ready, status);
+  EXPECT_EQ(1u, second_future.get());
+}
+
+TEST(FileCacheTest, TagStatsRefreshedAfterChange) {
+  const base::TemporaryDir temp_dir;
+  FileCache cache(temp_dir, FileCache::UNLIMITED, proto::ZSTD, true);
+  ASSERT_TRUE(cache.Run(3600));
+
+  const auto hash1 = TestHash("-c"), hash2 = TestHash("-c -O1");
+  cache.Store(hash1, FileCache::Entry{"object 1"_l, "deps"_l});
+  cache.AddTags(hash1, {"a"});
+  cache.FlushAccesses();
+  cache.WaitForCleaner();
+
+  // Let the snapshot include the first entry.
+  std::promise<void> warm;
+  ASSERT_TRUE(cache.GetTagStats(
+      [&warm](const List<FileCache::TagStats>&,
+              const List<FileCache::TagOverlap>&, ui64) { warm.set_value(); }));
+  warm.get_future().get();
+  cache.WaitForCleaner();
+
+  std::promise<size_t> first;
+  ASSERT_TRUE(
+      cache.GetTagStats([&first](const List<FileCache::TagStats>& stats,
+                                 const List<FileCache::TagOverlap>&, ui64) {
+        first.set_value(stats.size());
+      }));
+  EXPECT_EQ(1u, first.get_future().get());
+
+  // A new tag since the previous snapshot: the request gets the old statistics
+  // at once, and the background refresh picks the new tag up.
+  cache.Store(hash2, FileCache::Entry{"object 2"_l, "deps"_l});
+  cache.AddTags(hash2, {"b"});
+  cache.FlushAccesses();
+  cache.WaitForCleaner();
+  std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+
+  std::promise<size_t> stale;
+  ASSERT_TRUE(
+      cache.GetTagStats([&stale](const List<FileCache::TagStats>& stats,
+                                 const List<FileCache::TagOverlap>&, ui64) {
+        stale.set_value(stats.size());
+      }));
+  EXPECT_EQ(1u, stale.get_future().get());
+  cache.WaitForCleaner();
+
+  std::promise<size_t> fresh;
+  ASSERT_TRUE(
+      cache.GetTagStats([&fresh](const List<FileCache::TagStats>& stats,
+                                 const List<FileCache::TagOverlap>&, ui64) {
+        fresh.set_value(stats.size());
+      }));
+  EXPECT_EQ(2u, fresh.get_future().get());
+}
+
+TEST(FileCacheTest, TagStatsStaleWhileBusy) {
+  const base::TemporaryDir temp_dir;
+  FileCache cache(temp_dir, FileCache::UNLIMITED, proto::ZSTD, true);
+  ASSERT_TRUE(cache.Run(3600));
+
+  const auto hash1 = TestHash("-c"), hash2 = TestHash("-c -O1");
+  cache.Store(hash1, FileCache::Entry{"object 1"_l, "deps"_l});
+  cache.AddTags(hash1, {"a"});
+  cache.FlushAccesses();
+  cache.WaitForCleaner();
+
+  // Let the snapshot include the first entry.
+  std::promise<void> warm;
+  ASSERT_TRUE(cache.GetTagStats(
+      [&warm](const List<FileCache::TagStats>&,
+              const List<FileCache::TagOverlap>&, ui64) { warm.set_value(); }));
+  warm.get_future().get();
+  cache.WaitForCleaner();
+
+  cache.Store(hash2, FileCache::Entry{"object 2"_l, "deps"_l});
+  cache.AddTags(hash2, {"b"});
+  cache.FlushAccesses();
+  cache.WaitForCleaner();
+  std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+
+  // The cleaner is busy: the stale statistics still come at once.
+  std::promise<void> started, release;
+  cache.cleaner_.Push([&started, &release] {
+    started.set_value();
+    release.get_future().wait();
+  });
+  started.get_future().wait();
+
+  std::promise<Pair<size_t, ui64>> stale;
+  ASSERT_TRUE(cache.GetTagStats(
+      [&stale](const List<FileCache::TagStats>& stats,
+               const List<FileCache::TagOverlap>&, ui64 computed_ago_ms) {
+        stale.set_value({stats.size(), computed_ago_ms});
+      }));
+  auto stale_future = stale.get_future();
+  const auto status = stale_future.wait_for(std::chrono::milliseconds(500));
+  release.set_value();
+  cache.WaitForCleaner();
+  EXPECT_EQ(std::future_status::ready, status);
+  const auto [stale_tags, stale_ago_ms] = stale_future.get();
+  EXPECT_EQ(1u, stale_tags);
+  EXPECT_GE(stale_ago_ms, 1000u);
+
+  // The background refresh has seen the second tag already.
+  std::promise<Pair<size_t, ui64>> fresh;
+  ASSERT_TRUE(cache.GetTagStats(
+      [&fresh](const List<FileCache::TagStats>& stats,
+               const List<FileCache::TagOverlap>&, ui64 computed_ago_ms) {
+        fresh.set_value({stats.size(), computed_ago_ms});
+      }));
+  const auto [fresh_tags, fresh_ago_ms] = fresh.get_future().get();
+  EXPECT_EQ(2u, fresh_tags);
+  EXPECT_EQ(0u, fresh_ago_ms);
+}
+
+TEST(FileCacheTest, TagStatsFreeableMatchesForgetTag) {
+  const base::TemporaryDir temp_dir;
+  FileCache cache(temp_dir.path() / "cache", FileCache::UNLIMITED, proto::NONE,
+                  true, true);
+  ASSERT_TRUE(cache.Run(3600));
+
+  // Single-tag, multi-tag, and untagged entries - the same object for two
+  // entries, so its blob is shared.
+  const auto hash1 = TestHash("-c"), hash2 = TestHash("-c -O1"),
+             hash3 = TestHash("-c -O2"), hash4 = TestHash("-c -O3");
+  cache.Store(hash1, FileCache::Entry{"object 1"_l, "deps"_l});
+  cache.AddTags(hash1, {"a"});
+  cache.Store(hash2, FileCache::Entry{"object 2"_l, "deps"_l});
+  cache.AddTags(hash2, {"a"});
+  cache.AddTags(hash2, {"b"});
+  cache.Store(hash3, FileCache::Entry{"object 2"_l, "deps"_l});
+  cache.AddTags(hash3, {"b"});
+  cache.Store(hash4, FileCache::Entry{"object 4"_l, "deps"_l});
+  cache.FlushAccesses();
+  cache.WaitForCleaner();
+
+  // The blob of the first entry is linked with a build output: it isn't
+  // freed with the tag.
+  const auto blob_path =
+      cache.blobs_.RawPath(base::Hexify(Immutable("object 1"_l).Hash()));
+  ASSERT_TRUE(base::File::Exists(blob_path));
+  const auto linked_path = temp_dir.path() / "linked.o";
+  ASSERT_EQ(0, link(blob_path.c_str(), linked_path.c_str()));
+
+  List<FileCache::TagStats> stats;
+  List<FileCache::TagOverlap> overlaps;
+  cache.ComputeTagStats(&stats, &overlaps);
+  ASSERT_FALSE(stats.empty());
+  for (const auto& stat : stats) {
+    std::promise<FileCache::ForgetResult> result;
+    ASSERT_TRUE(cache.ForgetTag(
+        stat.tag, true,
+        [&result](const FileCache::ForgetResult& forget) {
+          result.set_value(forget);
+        }));
+    EXPECT_EQ(result.get_future().get().freed_size, stat.freeable_size)
+        << stat.tag;
+  }
+
+  base::File::Delete(linked_path);
+}
+
 TEST(FileCacheTest, FindDoesntKeepOldFields) {
   const base::TemporaryDir temp_dir;
   FileCache cache(temp_dir, FileCache::UNLIMITED, proto::ZSTD, false);
@@ -1771,17 +1982,25 @@ TEST(FileCacheTest, TagStatsDontWaitForMaintenance) {
   cache.SetCompressAfter(1);
   std::this_thread::sleep_for(std::chrono::milliseconds(1100));
 
+  // Let the snapshot include the stored entry.
+  std::promise<void> warm;
+  ASSERT_TRUE(cache.GetTagStats(
+      [&warm](const List<FileCache::TagStats>&,
+              const List<FileCache::TagOverlap>&, ui64) { warm.set_value(); }));
+  warm.get_future().get();
+  cache.WaitForCleaner();
+
   // The statistics only apply the accesses - the requests, that wait at the
   // same time, get the same ones.
   std::promise<ui64> first, second;
   ASSERT_TRUE(cache.GetTagStats(
       [&](const List<FileCache::TagStats>& stats,
-          const List<FileCache::TagOverlap>&) {
+          const List<FileCache::TagOverlap>&, ui64) {
         first.set_value(stats.size() ? stats.front().entries : 0);
       }));
   ASSERT_TRUE(cache.GetTagStats(
       [&](const List<FileCache::TagStats>& stats,
-          const List<FileCache::TagOverlap>&) {
+          const List<FileCache::TagOverlap>&, ui64) {
         second.set_value(stats.size() ? stats.front().entries : 0);
       }));
   EXPECT_EQ(1u, first.get_future().get());
@@ -2304,6 +2523,104 @@ TEST(FileCacheTest, KeepEntriesLinkedWithBuildDirs) {
   FileCache::Entry entry2, entry3;
   EXPECT_FALSE(cache.Find(Hash(0), &entry2));
   EXPECT_FALSE(cache.Find(Hash(2), &entry3));
+}
+
+TEST(FileCacheTest, EvictIgnoresFreeEntries) {
+  // The entries, that share the outputs with the build directories, don't
+  // count against the limit: they're never removed, so the cache would never
+  // fit otherwise.
+  const base::TemporaryDir temp_dir;
+  const auto cache_path = temp_dir.path() / "cache";
+  const auto linked_path = temp_dir.path() / "linked.o";
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  auto Hash = [&](const char* code) {
+    return FileCache::Hash(HandledSource(Immutable(String(code))), {}, cl,
+                           version);
+  };
+  const auto linked_hash = Hash("int main() { return 0; }");
+  const auto paid_hash = Hash("int main() { return 1; }");
+
+  FileCache cache(cache_path, FileCache::UNLIMITED, proto::NONE, false, true);
+  ASSERT_TRUE(cache.Run(3600));
+
+  // The output is linked with the build directory - the entry is free.
+  ASSERT_TRUE(base::File::Write(linked_path, Immutable(String(100000, 'l'))));
+  FileCache::Entry linked;
+  linked.object_path = linked_path;
+  linked.deps = String(100000, 'd');
+  cache.Store(linked_hash, linked);
+  struct stat st;
+  ASSERT_EQ(0, stat(linked_path.c_str(), &st));
+  if (st.st_nlink < 2) {
+    // The filesystem doesn't support hard links - nothing to check.
+    return;
+  }
+
+  cache.Store(paid_hash, FileCache::Entry{String(100000, 'p'), String(),
+                                          String()});
+  cache.FlushAccesses();
+  cache.WaitForCleaner();
+
+  // The paid entry fits alone, and doesn't fit with the free one.
+  cache.max_size_ = 150000;
+  cache.Maintain();
+
+  FileCache::Entry entry;
+  EXPECT_TRUE(cache.Find(linked_hash, &entry));
+  EXPECT_TRUE(cache.Find(paid_hash, &entry));
+}
+
+TEST(FileCacheTest, ReportSizesOfFreeEntries) {
+  using M = perf::proto::Metric;
+  const base::TemporaryDir temp_dir;
+  const auto cache_path = temp_dir.path() / "cache";
+  const auto linked_path = temp_dir.path() / "linked.o";
+  const CommandLine cl("-c"_l);
+  const Version version("3.5 (revision 100000)"_l);
+  auto Hash = [&](const char* code) {
+    return FileCache::Hash(HandledSource(Immutable(String(code))), {}, cl,
+                           version);
+  };
+  const auto linked_hash = Hash("int main() { return 0; }");
+  const auto paid_hash = Hash("int main() { return 1; }");
+  const auto held_hash = Hash("int main() { return 2; }");
+
+  FileCache cache(cache_path, FileCache::UNLIMITED, proto::NONE, false, true);
+  cache.SetTagQuotas({{"held", 0}});
+  ASSERT_TRUE(cache.Run(3600));
+
+  ASSERT_TRUE(base::File::Write(linked_path, Immutable(String(100000, 'l'))));
+  FileCache::Entry linked;
+  linked.object_path = linked_path;
+  linked.deps = String(100000, 'd');
+  cache.Store(linked_hash, linked);
+  struct stat st;
+  ASSERT_EQ(0, stat(linked_path.c_str(), &st));
+  if (st.st_nlink < 2) {
+    // The filesystem doesn't support hard links - nothing to check.
+    return;
+  }
+
+  cache.Store(paid_hash, FileCache::Entry{String(100000, 'p'), String(),
+                                          String()});
+  cache.Store(held_hash, FileCache::Entry{String(100000, 'h'), String(),
+                                          String()});
+  cache.AddTags(held_hash, {"held"});
+  cache.FlushAccesses();
+  cache.WaitForCleaner();
+  cache.cleaner_.Push([&cache] { cache.Maintain(); });
+  cache.WaitForCleaner();
+
+  auto EntrySize = [&cache](const string::Hash& hash) {
+    SQLite::Value value;
+    EXPECT_TRUE(cache.entries_->Get(hash.str.string_copy(), &value));
+    return std::get<SQLite::SIZE>(value);
+  };
+
+  // The free entry is reported apart, the held one isn't counted at all.
+  EXPECT_EQ(EntrySize(linked_hash), GetStat(M::CACHE_FREE_SIZE));
+  EXPECT_EQ(EntrySize(paid_hash) + 100000, GetStat(M::CACHE_OWN_SIZE));
 }
 
 TEST(FileCacheTest, KeepDirectEntriesOfLinkedOnes) {

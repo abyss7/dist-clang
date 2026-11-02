@@ -1047,8 +1047,10 @@ bool CompilationDaemon::HandleTagsRequest(
 
   return cache_->GetTagStats(
       [connection](const List<cache::FileCache::TagStats>& stats,
-                   const List<cache::FileCache::TagOverlap>& overlaps) {
+                   const List<cache::FileCache::TagOverlap>& overlaps,
+                   ui64 computed_ago_ms) {
         auto report = std::make_unique<base::proto::TagsReport>();
+        report->set_computed_ago_ms(computed_ago_ms);
         for (const auto& stat : stats) {
           auto* tag = report->add_tags();
           tag->set_name(stat.tag);

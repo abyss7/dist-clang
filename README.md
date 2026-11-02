@@ -107,7 +107,7 @@ The object and split DWARF files are stored uncompressed, and are put into and o
 
 The object and split DWARF files are stored by the hashes of their contents: the same output of several entries - e.g. compiled with other warnings, or with a definition, that doesn't affect the source - takes the space once.
 
-The size limit of the cache applies only to the files, that aren't linked with build directories: the cache doesn't take any additional space for the outputs of the current builds. Such entries are never removed. Other entries are removed, when the cache exceeds the limit, or when the disk has less than `min_free_percent` (5% by default) of free space: the entries, that were never taken from the cache - e.g. the results of one-off edits - go first, then the least recently used ones.
+The size limit of the cache applies only to the files, that aren't linked with build directories: the cache doesn't take any additional space for the outputs of the current builds. Such entries are never removed, and they don't count in the size of the cache at all - their own files, like the dependencies and the manifests, are shown as the free entries in `--stats`. Other entries are removed, when the cache exceeds the limit, or when the disk has less than `min_free_percent` (5% by default) of free space: the entries, that were never taken from the cache - e.g. the results of one-off edits - go first, then the least recently used ones.
 
 ## Format of the cache
 

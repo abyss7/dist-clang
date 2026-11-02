@@ -230,11 +230,14 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
       values[M::UNSUPPORTED_COMMAND] + values[M::CACHE_LOOKUP_SKIPPED];
   const String cache_title = "Cache (" + FormatCount(compilations) +
                              " compilations since the start of the daemon)";
-  // The own size counts against the limit.
+  // The own size counts against the limit, the free entries - don't.
   const String cache_size_title =
       "Cache size (" + HumanSize(values[M::CACHE_OWN_SIZE]) + " of " +
       (values[M::CACHE_MAX_SIZE] ? HumanSize(values[M::CACHE_MAX_SIZE])
                                  : String("unlimited")) +
+      (values[M::CACHE_FREE_SIZE]
+           ? " + " + HumanSize(values[M::CACHE_FREE_SIZE]) + " of free entries"
+           : String()) +
       ")";
   const StatGroup groups[] = {
       {"Saved (times summed over parallel tasks)",
@@ -321,6 +324,8 @@ bool PrintStats(const String& socket_path, const proto::Configuration& config,
            {M::CACHE_OWN_SIZE, "Own size", Unit::BYTES},
            {M::CACHE_SHARED_SIZE, "Linked with build directories (free)",
             Unit::BYTES},
+           {M::CACHE_FREE_SIZE, "Free entries (not counted in the size)",
+            Unit::BYTES, true},
            {M::CACHE_TIME_TRACES_SIZE, "Time traces (of the own size)",
             Unit::BYTES, true},
            // The outputs of several entries - e.g. after the changes of the
@@ -516,6 +521,11 @@ bool PrintTagStats(const String& socket_path,
   if (!RequestTags(socket_path, config,
                    std::make_unique<base::proto::TagsRequest>(), &report)) {
     return false;
+  }
+
+  if (report.computed_ago_ms() >= 1000) {
+    std::cout << "The statistics are " << FormatTime(report.computed_ago_ms())
+              << " old: the cache has changed since" << std::endl;
   }
 
   size_t width = 8;

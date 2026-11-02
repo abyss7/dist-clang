@@ -226,6 +226,10 @@ message TagsReport {
 
   // The result of |TagsRequest::forget_ghosts|.
   optional uint64 removed_ghosts  = 7;
+
+  // How old the statistics are: the cache has changed since they were
+  // computed. Omitted or 0 - they are up-to-date.
+  optional uint64 computed_ago_ms = 8;
 }
 
 message Verbosity {

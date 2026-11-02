@@ -57,6 +57,9 @@ class LockedList {
     return std::move(old_node->obj);
   }
 
+  // Only when no other thread can append: after the last owner is known.
+  bool Empty() const THREAD_UNSAFE { return head_.next == nullptr; }
+
  private:
   struct Node {
     Node(const T& obj, Node* next) : obj(obj), next(next) {}

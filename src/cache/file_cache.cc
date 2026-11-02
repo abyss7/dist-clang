@@ -408,6 +408,9 @@ const char kRemovedSuffix[] = ".removed-";
 // The sizes check all blobs - the cleaner spends on it not more than 1% of the
 // time.
 const ui32 kSizesReportCost = 100;
+// The statistics, that are older than this, are served at once - the cache
+// changes too often to wait for the fresh ones on every request.
+const ui64 kTagStatsStaleMs = 1000;
 
 // The files and the directories in the root of the cache.
 bool IsCacheFile(const String& name) {
@@ -779,6 +782,7 @@ bool FileCache::Run(ui64 clean_period, String* run_error) {
     }
     const Transaction transaction(entries_.get(), tag_index_.get());
     RemoveUnreachableDirectEntries();
+    RefreshTagStats();
   });
   cleaner_.Run();
 
@@ -1115,14 +1119,20 @@ void FileCache::Store(UnhandledSource code, const ExtraFiles& extra_files,
           start_time, scope);
 }
 
-void FileCache::FlushAccesses() {
+bool FileCache::FlushAccesses() {
   SharedPtr<EntryList> old_entries;
+  bool had_accesses = false;
   {
     std::lock_guard<Mutex> lock(new_entries_mutex_);
     old_entries = std::move(new_entries_);
+    had_accesses = old_entries && !old_entries->Empty();
+    if (had_accesses) {
+      ++tag_stats_pending_;
+    }
     new_entries_.reset(new EntryList, new_entries_deleter_);
   }
   // The last owner gives the old list to the cleaner - outside of the lock.
+  return had_accesses;
 }
 
 SharedPtr<FileCache::EntryList> FileCache::NewEntries() const {
@@ -1257,6 +1267,43 @@ void FileCache::ApplyTags(string::Hash hash, const Vector<String>& tags,
 }
 
 bool FileCache::GetTagStats(TagStatsCallback callback, NeededFn needed) {
+  // The recent accesses go first: their results appear only after the cleaner.
+  const bool flushed = FlushAccesses();
+  SharedPtr<const TagStatsSnapshot> snapshot;
+  bool stale = false;
+  ui64 computed_ago_ms = 0;
+  {
+    std::lock_guard<Mutex> lock(tag_stats_snapshot_mutex_);
+    if (tag_stats_snapshot_) {
+      snapshot = tag_stats_snapshot_;
+      stale = flushed || tag_stats_pending_.load() != 0 ||
+              snapshot->epoch != tag_stats_epoch_.load();
+      if (stale) {
+        const auto now = Clock::now();
+        if (now > snapshot->computed) {
+          computed_ago_ms =
+              std::chrono::duration_cast<std::chrono::milliseconds>(
+                  now - snapshot->computed)
+                  .count();
+        }
+      }
+    }
+  }
+  if (snapshot && stale && computed_ago_ms < kTagStatsStaleMs) {
+    // The statistics are almost fresh: it's cheaper to compute them than to
+    // give the caller the outdated numbers.
+    snapshot.reset();
+  }
+  if (snapshot) {
+    if (stale) {
+      // The caller doesn't wait for the new statistics: the cleaner computes
+      // them in background.
+      RefreshTagStatsAsync();
+    }
+    callback(snapshot->stats, snapshot->overlaps, computed_ago_ms);
+    return true;
+  }
+
   {
     // Join the waiting request.
     std::lock_guard<Mutex> lock(tag_stats_mutex_);
@@ -1267,8 +1314,6 @@ bool FileCache::GetTagStats(TagStatsCallback callback, NeededFn needed) {
     }
   }
 
-  // The recent accesses go first.
-  FlushAccesses();
   return bool(cleaner_.Push([this] {
     List<Pair<TagStatsCallback, NeededFn>> requests;
     {
@@ -1280,13 +1325,49 @@ bool FileCache::GetTagStats(TagStatsCallback callback, NeededFn needed) {
       return;
     }
 
+    const ui64 epoch = tag_stats_epoch_.load();
     List<TagStats> stats;
     List<TagOverlap> overlaps;
     ComputeTagStats(&stats, &overlaps);
+    {
+      auto snapshot = std::make_shared<TagStatsSnapshot>();
+      snapshot->epoch = epoch;
+      snapshot->stats = stats;
+      snapshot->overlaps = overlaps;
+      snapshot->computed = Clock::now();
+      std::lock_guard<Mutex> lock(tag_stats_snapshot_mutex_);
+      tag_stats_snapshot_ = std::move(snapshot);
+    }
     for (const auto& request : requests) {
-      request.first(stats, overlaps);
+      request.first(stats, overlaps, 0);
     }
   }));
+}
+
+void FileCache::RefreshTagStats() {
+  // The accesses, that wait for the cleaner, change the result.
+  if (tag_stats_pending_.load()) {
+    return;
+  }
+  const ui64 epoch = tag_stats_epoch_.load();
+  auto snapshot = std::make_shared<TagStatsSnapshot>();
+  snapshot->epoch = epoch;
+  ComputeTagStats(&snapshot->stats, &snapshot->overlaps);
+  snapshot->computed = Clock::now();
+  std::lock_guard<Mutex> lock(tag_stats_snapshot_mutex_);
+  tag_stats_snapshot_ = std::move(snapshot);
+}
+
+void FileCache::RefreshTagStatsAsync() {
+  if (tag_stats_refreshing_.exchange(true)) {
+    return;
+  }
+  if (!cleaner_.Push([this] {
+        RefreshTagStats();
+        tag_stats_refreshing_ = false;
+      })) {
+    tag_stats_refreshing_ = false;
+  }
 }
 
 bool FileCache::ForgetTag(const String& tag, bool dry_run,
@@ -1316,13 +1397,25 @@ void FileCache::ComputeTagStats(List<TagStats>* stats,
   // The tags of every blob, and the sizes of the blobs.
   HashMap<String, std::set<String>> blob_tags;
   HashMap<String, ui64> blob_sizes;
+  HashMap<String, bool> blob_shared;
+  HashMap<String, ui64> entry_sizes;
   std::map<String, TagStats> tag_stats;
   std::map<Pair<String, String>, ui64> overlap_sizes;
 
+  // The freeable part, by tag: computed in the same pass - see below.
+  HashMap<String, ui64> freeable_sizes;
+  HashMap<String, String> single_tag;
+  std::map<Pair<String, String>, ui32> freeable_refs;
+
   // The direct entries count for the tags of the entries, that they lead to.
   HashSet<String> indexed;
+  // The same, as |DoForgetTag()| uses for the direct entries.
+  HashSet<String> indexed_by_db;
   const auto entries = entries_->GetInEvictionOrder();
   for (const auto& [hash, value] : entries) {
+    if (!std::get<SQLite::DIRECT>(value)) {
+      indexed_by_db.insert(hash);
+    }
     if (!direct_entries_.contains(hash)) {
       indexed.insert(hash);
     }
@@ -1359,6 +1452,7 @@ void FileCache::ComputeTagStats(List<TagStats>* stats,
             ? kNoTags
             : tags_it->second;
     const ui64 size = std::get<SQLite::SIZE>(value);
+    entry_sizes.emplace(hash, size);
     for (const auto& tag : tags) {
       auto& stat = tag_stats[tag];
       stat.tag = tag;
@@ -1394,6 +1488,7 @@ void FileCache::ComputeTagStats(List<TagStats>* stats,
   for (const auto& [blob, tags] : blob_tags) {
     const ui64 size = blob_sizes[blob];
     const bool linked = blobs_.IsShared(blob);
+    blob_shared.emplace(blob, linked);
     for (const auto& tag : tags) {
       tag_stats[tag].size += size;
       if (linked) {
@@ -1406,6 +1501,86 @@ void FileCache::ComputeTagStats(List<TagStats>* stats,
     for (auto first = tags.begin(); first != tags.end(); ++first) {
       for (auto second = std::next(first); second != tags.end(); ++second) {
         overlap_sizes[{*first, *second}] += size;
+      }
+    }
+  }
+
+  // The same, as |ForgetTag()| would free now for every tag: the entries with
+  // the only one tag, that aren't linked with build directories, and the blobs
+  // used only by them - plus the direct entries, that lead only to them.
+  auto IsBlobShared = [&](const String& blob) {
+    auto it = blob_shared.find(blob);
+    if (it != blob_shared.end()) {
+      return it->second;
+    }
+    const bool shared = blobs_.IsShared(blob);
+    blob_shared.emplace(blob, shared);
+    return shared;
+  };
+  auto AddFreeableEntry = [&](const String& entry, const String& tag) {
+    auto blobs_it = entry_blobs_.find(entry);
+    if (blobs_it != entry_blobs_.end()) {
+      for (const auto& blob : blobs_it->second) {
+        if (IsBlobShared(blob)) {
+          return;
+        }
+      }
+    }
+    single_tag.emplace(entry, tag);
+    auto size_it = entry_sizes.find(entry);
+    if (size_it != entry_sizes.end()) {
+      freeable_sizes[tag] += size_it->second;
+    }
+    if (blobs_it != entry_blobs_.end()) {
+      for (const auto& blob : blobs_it->second) {
+        ++freeable_refs[{tag, blob}];
+      }
+    }
+  };
+  for (const auto& [entry, tags] : entry_tags_) {
+    if (tags.size() == 1) {
+      AddFreeableEntry(entry, tags.front());
+    }
+  }
+  for (const auto& [entry, value] : entries) {
+    if (direct_entries_.contains(entry)) {
+      continue;
+    }
+    auto tags_it = entry_tags_.find(entry);
+    if (tags_it != entry_tags_.end() && !tags_it->second.empty()) {
+      continue;
+    }
+    AddFreeableEntry(entry, String());
+  }
+  for (const auto& [key, refs] : freeable_refs) {
+    if (blobs_.Refs(key.second) == refs) {
+      auto size_it = blob_sizes.find(key.second);
+      freeable_sizes[key.first] +=
+          size_it != blob_sizes.end() ? size_it->second
+                                      : blobs_.Size(key.second);
+    }
+  }
+  for (const auto& [direct, targets] : direct_entries_) {
+    bool has_removed = false, consistent = true;
+    String tag;
+    for (const auto& target : targets) {
+      auto tag_it = single_tag.find(target);
+      if (tag_it != single_tag.end()) {
+        if (has_removed && tag_it->second != tag) {
+          consistent = false;
+          break;
+        }
+        tag = tag_it->second;
+        has_removed = true;
+      } else if (indexed_by_db.contains(target)) {
+        consistent = false;
+        break;
+      }
+    }
+    if (has_removed && consistent) {
+      auto size_it = entry_sizes.find(direct);
+      if (size_it != entry_sizes.end()) {
+        freeable_sizes[tag] += size_it->second;
       }
     }
   }
@@ -1430,7 +1605,10 @@ void FileCache::ComputeTagStats(List<TagStats>* stats,
     if (auto it = tag_quotas_.find(tag); it != tag_quotas_.end()) {
       stat.quota = it->second;
     }
-    stat.freeable_size = DoForgetTag(tag, true).freed_size;
+    auto freeable_it = freeable_sizes.find(tag);
+    stat.freeable_size = freeable_it != freeable_sizes.end()
+                             ? freeable_it->second
+                             : 0u;
     stats->push_back(std::move(stat));
   }
   for (const auto& [tags, size] : overlap_sizes) {
@@ -1583,6 +1761,7 @@ FileCache::ForgetResult FileCache::DoForgetTag(const String& tag,
   // The linked entries keep the tag.
   UpdateScope(tag, false);
 
+  ++tag_stats_epoch_;
   return result;
 }
 
@@ -1834,6 +2013,7 @@ bool FileCache::RemoveEntry(string::Hash hash) {
     cache_size_ -= entry_size;
     --entry_count_;
     STAT(CACHE_SIZE_CLEANED, entry_size);
+    ++tag_stats_epoch_;
   }
 
   return result;
@@ -2073,10 +2253,12 @@ void FileCache::DoStore(UnhandledHash orig_hash, const List<String>& headers,
 }
 
 void FileCache::Clean(UniquePtr<EntryList> list) {
+  bool applied = false;
   {
     const Transaction transaction(entries_.get(), tag_index_.get(),
                                   ghosts_.get());
     while (auto access = list->Pop()) {
+      applied = true;
       const auto& hash = access->hash;
       if (!access->tags.empty()) {
         ApplyTags(hash, access->tags, access->time);
@@ -2133,6 +2315,13 @@ void FileCache::Clean(UniquePtr<EntryList> list) {
     }
   }
 
+  if (applied) {
+    if (tag_stats_pending_.load()) {
+      --tag_stats_pending_;
+    }
+    ++tag_stats_epoch_;
+  }
+
   {
     std::lock_guard<Mutex> lock(blob_refs_mutex_);
     blobs_.RemoveUncompressed();
@@ -2178,6 +2367,7 @@ void FileCache::Maintain() {
                                          : now + 1);
   }
   ReportSizes();
+  RefreshTagStats();
 }
 
 void FileCache::AddGhost(string::Hash hash, ui64 size,
@@ -2211,6 +2401,9 @@ bool FileCache::ForgetGhosts(Fn<void(ui64)> callback, NeededFn needed) {
       return;
     }
     const ui64 count = ghosts_->Clear();
+    if (count) {
+      ++tag_stats_epoch_;
+    }
     ReportSizes();
     callback(count);
   }));
@@ -2231,6 +2424,16 @@ void FileCache::ReportSizes() {
   stats.Set(M::CACHE_SHARED_SIZE, sizes.shared);
   stats.Set(M::CACHE_ENTRIES, entry_count_);
   stats.Set(M::CACHE_MAX_SIZE, max_size_);
+  // The free entries (their outputs are linked with the build directories) and
+  // the held ones (of the tags with own sizes) don't count against the limit.
+  const ui64 free_and_held =
+      std::min(cache_size_.load(),
+               free_entries_size_.load() + held_entries_size_.load());
+  const ui64 held_blobs =
+      std::min(sizes.own, held_blobs_size_.load());
+  stats.Set(M::CACHE_OWN_SIZE,
+            cache_size_ - free_and_held + sizes.own - held_blobs);
+  stats.Set(M::CACHE_FREE_SIZE, free_entries_size_);
   stats.Set(M::DISK_SAVED_BY_DEDUPLICATION, sizes.deduplicated);
   stats.Set(M::DISK_SAVED_BY_LINKS, sizes.linked);
 
@@ -2380,7 +2583,8 @@ void FileCache::RemoveBlobRefs(string::Hash hash) {
 
 void FileCache::CountBlobRefs(ui64 start_time) {
   // The index keeps the blobs of the entries - the manifests aren't read.
-  for (const auto& [hash, entry] : entries_->GetInEvictionOrder()) {
+  const auto entries = entries_->GetInEvictionOrder();
+  for (const auto& [hash, entry] : entries) {
     EntryInfo info;
     info.direct = std::get<SQLite::DIRECT>(entry);
     info.blobs = SplitBlobs(std::get<SQLite::BLOBS>(entry), &info.time_trace,
@@ -2390,6 +2594,10 @@ void FileCache::CountBlobRefs(ui64 start_time) {
     cache_size_ += std::get<SQLite::SIZE>(entry);
     ++entry_count_;
   }
+
+  // The report needs the sizes of the free and the held entries even before
+  // the first maintenance.
+  CountOwnSizes(entries, nullptr);
 
   // The tags of the removed entries may stay after a crash. The tags of the
   // older revisions - or of the older daemons - have no times: they get the
@@ -2670,49 +2878,71 @@ void FileCache::TrimQuotas() {
   }
 }
 
+ui64 FileCache::CountOwnSizes(const List<Pair<String, SQLite::Value>>& entries,
+                              Vector<ui64>* own_sizes) {
+  const HashSet<String> held = HeldEntries();
+  ui64 paid = 0, free = 0, held_size = 0;
+  if (own_sizes) {
+    own_sizes->clear();
+    own_sizes->reserve(entries.size());
+  }
+  for (const auto& [hash_str, entry] : entries) {
+    const ui64 size = std::get<SQLite::SIZE>(entry);
+    ui64 own = 0;
+    if (held.contains(hash_str)) {
+      held_size += size;
+    } else if (HasSharedBlobs(string::Hash{Immutable(hash_str)})) {
+      free += size;
+    } else {
+      own = size;
+      paid += size;
+    }
+    if (own_sizes) {
+      own_sizes->push_back(own);
+    }
+  }
+
+  // The own blobs, that only the held entries refer to, don't count too.
+  ui64 held_blobs_size = 0;
+  if (!held.empty()) {
+    std::lock_guard<Mutex> lock(blob_refs_mutex_);
+    HashSet<String> blobs;
+    for (const auto& entry : held) {
+      auto it = entry_blobs_.find(entry);
+      if (it != entry_blobs_.end()) {
+        blobs.insert(it->second.begin(), it->second.end());
+      }
+    }
+    for (const auto& blob : blobs) {
+      if (!blobs_.IsShared(blob)) {
+        held_blobs_size += blobs_.Size(blob);
+      }
+    }
+  }
+
+  free_entries_size_ = free;
+  held_entries_size_ = held_size;
+  held_blobs_size_ = held_blobs_size;
+  return paid;
+}
+
 void FileCache::Evict() {
+  auto entries = entries_->GetInEvictionOrder();
+  Vector<ui64> own_sizes;
+  // The free entries don't count against the limit: their removal doesn't
+  // free the disk space, so they are never removed.
+  ui64 own_size = CountOwnSizes(entries, &own_sizes);
   if (max_size_ == UNLIMITED && !min_free_percent_) {
     return;
   }
 
-  // The entries, which outputs are shared with build directories, are free:
-  // their removal doesn't free the disk space. They are likely to be used
-  // soon, so they are never removed.
-  // The entries of the tags with own sizes are held: they don't count in the
-  // size of the cache, and they aren't removed.
-  auto entries = entries_->GetInEvictionOrder();
-  const HashSet<String> held = HeldEntries();
-  ui64 own_size = 0;
-  Vector<ui64> own_sizes;
-  own_sizes.reserve(entries.size());
-  for (const auto& [hash_str, entry] : entries) {
-    const string::Hash hash{Immutable(hash_str)};
-    const ui64 size = std::get<SQLite::SIZE>(entry);
-    if (held.contains(hash_str)) {
-      own_sizes.push_back(0);
-      continue;
-    }
-    own_sizes.push_back(HasSharedBlobs(hash) ? 0 : size);
-    own_size += size;
-  }
   {
     // Every blob counts once.
     std::lock_guard<Mutex> lock(blob_refs_mutex_);
     BlobStore::Sizes sizes;
     blobs_.GetSizes(&sizes);
-    HashSet<String> held_blobs;
-    for (const auto& entry : held) {
-      auto it = entry_blobs_.find(entry);
-      if (it != entry_blobs_.end()) {
-        held_blobs.insert(it->second.begin(), it->second.end());
-      }
-    }
-    for (const auto& blob : held_blobs) {
-      if (!blobs_.IsShared(blob)) {
-        sizes.own -= std::min(sizes.own, blobs_.Size(blob));
-      }
-    }
-    own_size += sizes.own;
+    // The own blobs of the held entries don't count either.
+    own_size += sizes.own - std::min(sizes.own, held_blobs_size_.load());
   }
 
   // Clean a bit more than necessary - to clean less often.
