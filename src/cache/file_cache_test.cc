@@ -697,8 +697,16 @@ TEST(FileCacheTest, RemoveEntryInBackground) {
     found = cache.Find(hash, &found_entry);
   }
   EXPECT_FALSE(found);
-  EXPECT_FALSE(base::File::Exists(
-      AppendExtension(cache.CommonPath(hash), base::kExtManifest)));
+  // The entry leaves the index first, and the files are removed a bit later.
+  bool manifest_exists = true;
+  for (int i = 0; i < 100 && manifest_exists; ++i) {
+    manifest_exists = base::File::Exists(
+        AppendExtension(cache.CommonPath(hash), base::kExtManifest));
+    if (manifest_exists) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+  }
+  EXPECT_FALSE(manifest_exists);
 
   // The blob without references is removed too - by the cleaner.
   const String blob = base::Hexify(entry.object.Hash());
