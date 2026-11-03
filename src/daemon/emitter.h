@@ -120,6 +120,9 @@ class Emitter : public CompilationDaemon {
     stop_callback_ = std::move(callback);
   }
 
+  // The daemon is managed by systemd: a request to stop is refused.
+  inline void SetManaged(bool managed) { managed_ = managed; }
+
   // Sets the key root of the relocatable compilation: the one of the |roots|,
   // that contains its input.
   static void SetKeyRoot(
@@ -204,6 +207,7 @@ class Emitter : public CompilationDaemon {
                  i64 hit_time);
 
   Fn<void()> stop_callback_;
+  bool managed_ = false;
 
   UniquePtr<Queue> all_tasks_, cache_tasks_, failed_tasks_;
   UniquePtr<QueueAggregator> local_tasks_;

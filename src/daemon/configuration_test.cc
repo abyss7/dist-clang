@@ -40,6 +40,21 @@ TEST(DaemonConfigurationTest, SocketOfAutostart) {
   unsetenv("XDG_CONFIG_HOME");
 }
 
+TEST(DaemonConfigurationTest, Managed) {
+  const base::TemporaryDir temp_dir;
+  setenv("XDG_CONFIG_HOME", temp_dir.path().c_str(), 1);
+  const char* args[] = {"dist-clangd", "--managed"};
+
+  Configuration configuration(2, const_cast<char**>(args));
+  EXPECT_TRUE(configuration.managed());
+  EXPECT_FALSE(configuration.autostart());
+  EXPECT_FALSE(configuration.daemonize());
+  // The defaults are set, like for the autostarted daemon.
+  EXPECT_TRUE(configuration.config().has_emitter());
+
+  unsetenv("XDG_CONFIG_HOME");
+}
+
 TEST(DaemonConfigurationTest, PartialConfigOfAutostart) {
   const base::TemporaryDir temp_dir;
   setenv("XDG_CONFIG_HOME", temp_dir.path().c_str(), 1);

@@ -154,6 +154,7 @@ int main(int argc, char* argv[]) {
     auto* emitter = new daemon::Emitter(configuration.config());
     emitter->SetConfigStatus(configuration.config_path(),
                              configuration.config_error());
+    emitter->SetManaged(configuration.managed());
     daemon.reset(emitter);
   } else {
     LOG(FATAL)

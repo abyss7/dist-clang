@@ -15,6 +15,7 @@ class Configuration {
   inline const proto::Configuration& config() const { return config_; }
   inline bool daemonize() const { return daemonize_; }
   inline bool autostart() const { return autostart_; }
+  inline bool managed() const { return managed_; }
   inline int lock_fd() const { return lock_fd_; }
   // The read file - empty, if only the defaults are used.
   inline const String& config_path() const { return config_path_; }
@@ -25,6 +26,7 @@ class Configuration {
   proto::Configuration config_;
   bool daemonize_ = false;
   bool autostart_ = false;
+  bool managed_ = false;
   int lock_fd_ = -1;
   String config_path_, config_error_;
 };

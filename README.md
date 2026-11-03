@@ -123,7 +123,9 @@ The cache key includes the paths from the flags and from the preprocessed source
 
 # How to configure the daemon
 
-Without a configuration the daemon uses the defaults: the cache in `~/.cache/dist-clang` of 20 GiB. To change them, copy `install/daemon.conf.example` to `~/.config/dist-clang/daemon.conf`: the fields of the file replace only the same defaults. The format is the text protobuf: `dist-clang --help-config` describes all fields. The daemon reads the file at the start: `dist-clang --stop` stops it to apply the changes, and the next compilation starts it again. The daemon of root, that serves other users, is stopped only by root. A broken file is ignored - the builds go on with the defaults: the first lines of `dist-clang --stats` show the file, that the daemon has read, why it isn't used, and why the cache is off.
+Without a configuration the daemon uses the defaults: the cache in `~/.cache/dist-clang` of 20 GiB. To change them, copy `install/daemon.conf.example` to `~/.config/dist-clang/daemon.conf`: the fields of the file replace only the same defaults. The format is the text protobuf: `dist-clang --help-config` describes all fields. The daemon reads the file at the start: without a systemd service, `dist-clang --stop` stops it to apply the changes, and the next compilation starts it again. The daemon of root, that serves other users, is stopped only by root. A broken file is ignored - the builds go on with the defaults: the first lines of `dist-clang --stats` show the file, that the daemon has read, why it isn't used, and why the cache is off.
+
+Instead of the autostart by the client, the daemon can run as a systemd user service - e.g. from `install/dist-clangd.service`. Then systemd starts it at nice 0, independently of the niced build, and `dist-clang --stop` is refused: use `systemctl --user stop dist-clangd` or `systemctl --user restart dist-clangd` to apply a new configuration. Without the service, `--stop` keeps its usual meaning.
 
 # Benchmarks
 

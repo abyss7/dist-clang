@@ -16,11 +16,13 @@ namespace daemon {
 namespace {
 
 const char kUsage[] =
-    "Usage: dist-clangd [--config=<path>] [--daemon]\n"
+    "Usage: dist-clangd [--config=<path>] [--daemon] [--managed]\n"
     "       dist-clangd --autostart [--socket=<path>]\n"
     "\n"
     "  --config=<path>  Path to the configuration file\n"
     "  --daemon         Daemonize after start\n"
+    "  --managed        The daemon is managed by systemd: it doesn't stop on\n"
+    "                   the request of a client, use systemctl instead\n"
     "  --autostart      Run the local emitter in background - with defaults,\n"
     "                   changed by the config from the default path\n"
     "  --socket=<path>  The socket of the emitter instead of the configured\n"
@@ -72,6 +74,8 @@ Configuration::Configuration(int argc, char* argv[]) {
       config_path = arg.substr(arg.find('=') + 1);
     } else if (arg == "--daemon" || arg == "-daemon") {
       daemonize_ = true;
+    } else if (arg == "--managed" || arg == "-managed") {
+      managed_ = true;
     } else if (arg == "--autostart") {
       autostart_ = true;
       daemonize_ = true;
@@ -92,8 +96,10 @@ Configuration::Configuration(int argc, char* argv[]) {
 
   // The config of the autostarted daemon changes only some of the defaults:
   // e.g. the size of the cache. If the config is broken, the defaults stay -
-  // the builds go on.
-  if (autostart_) {
+  // the builds go on. The same for the daemon, that systemd manages - it
+  // runs in foreground, unlike the autostarted one.
+  const bool with_defaults = autostart_ || managed_;
+  if (with_defaults) {
     SetDefaults(&config_);
     if (config_path.empty()) {
       config_path = base::DefaultDaemonConfigPath();
@@ -105,7 +111,7 @@ Configuration::Configuration(int argc, char* argv[]) {
 
   config_path_ = config_path;
   if (!config_path.empty() &&
-      !(autostart_
+      !(with_defaults
             ? base::MergeFromFile(config_path, &config_, &config_error_)
             : base::LoadFromFile(config_path, &config_, &config_error_))) {
     LOG(ERROR) << "Failed to read configuration from " << config_path << ": "

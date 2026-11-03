@@ -735,6 +735,15 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
   }
 
   if (message->has_stop_request()) {
+    if (managed_) {
+      net::proto::Status status;
+      status.set_code(net::proto::Status::UNSUPPORTED);
+      status.set_description(
+          "The daemon is managed by systemd: use \"systemctl --user "
+          "stop|restart dist-clangd.service\"");
+      LOG(INFO) << "Stop request refused: the daemon is managed by systemd";
+      return connection->ReportStatus(status);
+    }
     LOG(INFO) << "Stopping by the request of the client";
     net::proto::Status status;
     status.set_code(net::proto::Status::OK);
