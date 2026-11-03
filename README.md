@@ -30,6 +30,8 @@ The first invocation starts the daemon in background. It exits within seconds af
 - GN: use the client as a prefix of the compiler in the toolchain, e.g. `cxx = "dist-clang clang++"`.
 - CMake: `-DCMAKE_C_COMPILER_LAUNCHER=dist-clang -DCMAKE_CXX_COMPILER_LAUNCHER=dist-clang`.
 
+The local compilations run with the same nice value as the client - e.g. `nice -n 10 ninja` nices them too. The daemon can't give a compiler a higher priority than it has itself, so a daemon, started by a niced client, keeps the inherited priority as the limit for the later compilations.
+
 Alternatively make symlinks `clang` and `clang++` to `dist-clang`, and provide the real compiler via `DC_CLANG_PATH` environment variable, or via `.distclang` file in any parent directory:
 
     path: "/usr/bin/clang-18"

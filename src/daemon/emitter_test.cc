@@ -1838,6 +1838,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
   const String compiler_version = "fake_compiler_version";
   const String compiler_path = "fake_compiler_path";
   const auto object_code = "fake_object_code"_l;
+  const int client_nice = 7;
   // The preprocessed source has the line markers - of the files to check.
   const auto source = "# 1 \"test1.cc\"\nfake_source"_l;
   const auto language = "fake_language"_l;
@@ -1877,6 +1878,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
   };
 
   run_callback = [&](base::TestProcess* process) {
+    EXPECT_EQ(client_nice, process->nice_);
     if (run_count == 1) {
       EXPECT_EQ((Immutable::Rope{"-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path1}), WithoutDepsFile(process));
       process->stdout_ = source;
@@ -1900,6 +1902,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
+    extension->set_nice(client_nice);
 
     extension->mutable_flags()->set_input(input_path1);
     extension->mutable_flags()->set_output(output_path1);
@@ -1925,6 +1928,7 @@ TEST_F(EmitterTest, StoreSimpleCacheForLocalResult) {
     net::Connection::ScopedMessage message(new net::Connection::Message);
     auto* extension = message->mutable_local();
     extension->set_current_dir(temp_dir);
+    extension->set_nice(client_nice);
 
     extension->mutable_flags()->set_input(input_path2);
     extension->mutable_flags()->set_output(output_path2);

@@ -165,6 +165,9 @@ message Local {
 
   repeated string env          = 5;
   // environment of the client: "NAME=value".
+
+  optional int32 nice          = 6;
+  // nice value of the client: the compilations on this host run with it.
 }
 
 // Sent from client to emitter: the statistics of the tags of the cache, or

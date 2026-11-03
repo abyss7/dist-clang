@@ -82,6 +82,16 @@ inline bool RequestsRestat(const base::proto::Local* WEAK_PTR message) {
                    "DC_RESTAT=1") != message->env().end();
 }
 
+// The compilation runs with the nice value of the client, if it has one.
+inline void ApplyClientNice(const base::proto::Local* WEAK_PTR message,
+                            base::Process* process) {
+  DCHECK(message);
+  DCHECK(process);
+  if (message->has_nice()) {
+    process->SetNice(message->nice());
+  }
+}
+
 // Checks if the trace of the time is given with the result - from the cache
 // too.
 inline bool RestoresTimeTrace(const base::proto::Local* WEAK_PTR message,
@@ -274,6 +284,7 @@ inline bool GenerateSource(const base::proto::Local* WEAK_PTR message,
     process = daemon::CompilationDaemon::CreateProcess(
         pp_flags, Path(message->current_dir()));
   }
+  ApplyClientNice(message, process.get());
   if (!speculation) {
     process->CancelOnDisconnect(connection->NativeHandle());
   } else if (!speculation->StartPreprocessing(process.get())) {
@@ -1020,6 +1031,7 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
             CreateProcess(check_flags, uid, Path(incoming->current_dir()));
         process->CancelOnDisconnect(
             task->connection->NativeHandle());
+        ApplyClientNice(incoming, process.get());
         STAT(WARNINGS_RECHECKED);
         if (!process->Run(base::Process::UNLIMITED, &error)) {
           // The check itself has failed - the compilation does it instead.
@@ -1450,6 +1462,7 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
     Counter<> counter(Metric::LOCAL_COMPILATION_TIME);
     base::ProcessPtr process =
         CreateProcess(incoming->flags(), uid, Path(incoming->current_dir()));
+    ApplyClientNice(incoming, process.get());
     // If the client is gone, the compiler is killed before it writes the
     // outputs - they may be produced by another compilation already.
     process->CancelOnDisconnect(task->connection->NativeHandle());

@@ -335,13 +335,15 @@ TEST_F(ProcessTest, Nice) {
   errno = 0;
   const int base_nice = getpriority(PRIO_PROCESS, 0);
   ASSERT_EQ(0, errno);
+  // The process may only get a lower priority than this one has: the
+  // requested absolute value isn't less than |base_nice|.
+  const int target_nice = std::min(19, base_nice + 5);
 
   ProcessPtr process = Process::Create(sh, String(), Process::SAME_UID);
   process->AppendArg("-c"_l).AppendArg("ps -o nice= -p $$"_l);
-  process->SetNice(5);
+  process->SetNice(target_nice);
   ASSERT_TRUE(process->Run(5));
-  EXPECT_EQ(std::min(base_nice + 5, 19),
-            std::stoi(process->stdout().string_copy()));
+  EXPECT_EQ(target_nice, std::stoi(process->stdout().string_copy()));
 }
 
 TEST_F(ProcessTest, CancelBeforeRun) {

@@ -7,6 +7,7 @@
 #include STL(thread)
 
 #include <signal.h>
+#include <sys/resource.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -85,12 +86,10 @@ bool ProcessImpl::RunChild(Pipe& out, Pipe& err, Pipe* in) {
   sigemptyset(&no_signals);
   sigprocmask(SIG_SETMASK, &no_signals, nullptr);
 
-  if (nice_) {
-    errno = 0;
-    if (nice(nice_) == -1 && errno) {
-      std::cerr << "Can't change the priority" << std::endl;
-      exit(1);
-    }
+  if (has_nice_) {
+    // The daemon may be niced more than the client: the child can't get a
+    // higher priority, and keeps the inherited one.
+    (void)setpriority(PRIO_PROCESS, 0, nice_);
   }
 
   // Don't let the compiler outlive the daemon: otherwise it may write the

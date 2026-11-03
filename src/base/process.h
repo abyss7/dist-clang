@@ -91,8 +91,13 @@ class Process
   // client, that waits for the process, is gone. Then |Run()| fails, and
   // |canceled()| is |true|. The socket isn't read.
   inline void CancelOnDisconnect(int fd) { cancel_fd_ = fd; }
-  // Runs the process with the lower priority - see "nice(2)".
-  inline void SetNice(int nice) { nice_ = nice; }
+  // Runs the process with the |nice| value - see "setpriority(2)". If the
+  // process can't get a higher priority than the daemon has, it keeps the
+  // inherited one.
+  inline void SetNice(int nice) {
+    nice_ = nice;
+    has_nice_ = true;
+  }
   inline const List<Immutable>& args() const { return args_; }
   inline bool canceled() const { return canceled_; }
   // The process has run and exited by itself - with any code: its failure is
@@ -125,6 +130,7 @@ class Process
   const ui32 uid_;
   int cancel_fd_ = -1;
   int nice_ = 0;
+  bool has_nice_ = false;
   bool only_added_env_ = false;
   Atomic<bool> cancel_requested_ = false;
   bool canceled_ = false;

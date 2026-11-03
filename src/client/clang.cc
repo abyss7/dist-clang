@@ -15,6 +15,7 @@
 
 #include <fcntl.h>
 #include <sys/file.h>
+#include <sys/resource.h>
 #include <unistd.h>
 
 #include <base/using_log.h>
@@ -84,6 +85,13 @@ Result DoMain(const List<String>& args, const String& socket_path,
   UniquePtr<base::proto::Local> message(new base::proto::Local);
   message->set_user_id(getuid());
   message->set_current_dir(current_dir);
+  // The compiler runs with the same nice as the client, if the daemon can set
+  // it - see |base::Process::SetNice()|.
+  errno = 0;
+  const int nice = getpriority(PRIO_PROCESS, 0);
+  if (errno == 0) {
+    message->set_nice(nice);
+  }
   for (const auto& arg : args) {
     message->add_args(arg);
   }
