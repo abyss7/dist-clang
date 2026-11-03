@@ -55,6 +55,33 @@ TEST(DaemonConfigurationTest, Managed) {
   unsetenv("XDG_CONFIG_HOME");
 }
 
+TEST(DaemonConfigurationTest, ExitOnUpdateOnlyWhenSupervised) {
+  const base::TemporaryDir temp_dir;
+  setenv("XDG_CONFIG_HOME", temp_dir.path().c_str(), 1);
+
+  // The autostarted daemon is restarted by the next client.
+  {
+    const char* args[] = {"dist-clangd", "--autostart"};
+    const Configuration configuration(2, const_cast<char**>(args));
+    EXPECT_TRUE(configuration.exit_on_update());
+  }
+
+  // The daemon of systemd is restarted by systemd.
+  {
+    const char* args[] = {"dist-clangd", "--managed"};
+    const Configuration configuration(2, const_cast<char**>(args));
+    EXPECT_TRUE(configuration.exit_on_update());
+  }
+
+  // Nobody would restart a daemon, that the user has started manually.
+  {
+    const Configuration configuration{proto::Configuration()};
+    EXPECT_FALSE(configuration.exit_on_update());
+  }
+
+  unsetenv("XDG_CONFIG_HOME");
+}
+
 TEST(DaemonConfigurationTest, PartialConfigOfAutostart) {
   const base::TemporaryDir temp_dir;
   setenv("XDG_CONFIG_HOME", temp_dir.path().c_str(), 1);

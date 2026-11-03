@@ -47,17 +47,24 @@ bool LockSocket(const daemon::Configuration& configuration) {
   return flock(fd, LOCK_EX | LOCK_NB) == 0;
 }
 
+// The daemon of systemd exits with this code, when its executable is updated:
+// "Restart=on-failure" starts it again, unlike after a stop by systemd or by
+// the client. The autostarted daemon exits normally - the next client starts
+// the new version.
+constexpr int kExitOnUpdateCode = 75;
+
 // The autostarted daemon exits, when its executable is replaced - e.g. by a
 // new version: the next client starts the new one. Otherwise the old version
-// would work until the user stops it.
-void ExitOnUpdate() {
+// would work until the user stops it. The daemon of systemd is restarted by
+// systemd instead.
+void ExitOnUpdate(Atomic<bool>* updated) {
   String path, error;
   if (!base::GetSelfExecutable(path, &error)) {
     LOG(WARNING) << "Can't watch the executable for updates: " << error;
     return;
   }
   const String version = base::FileVersion(path);
-  std::thread([path, version] {
+  std::thread([path, version, updated] {
     base::SetCurrentThreadName("Update Watcher"_l);
     while (true) {
       std::this_thread::sleep_for(std::chrono::seconds(10));
@@ -65,6 +72,7 @@ void ExitOnUpdate() {
       const String current = base::FileVersion(path);
       if (!current.empty() && current != version) {
         LOG(INFO) << "The executable " << path << " is updated - exiting";
+        updated->store(true);
         kill(getpid(), SIGTERM);
         return;
       }
@@ -98,6 +106,8 @@ int main(int argc, char* argv[]) {
 
   daemon::Configuration configuration(argc, argv);
   UniquePtr<daemon::BaseDaemon> daemon, collector, coordinator;
+  // Set by the watcher of the executable - see |ExitOnUpdate()|.
+  Atomic<bool> updated = {false};
 
   if (configuration.config().has_emitter() && !LockSocket(configuration)) {
     if (configuration.autostart()) {
@@ -165,8 +175,8 @@ int main(int argc, char* argv[]) {
     LOG(FATAL) << "Daemon failed to initialize.";
   }
 
-  if (configuration.autostart()) {
-    ExitOnUpdate();
+  if (configuration.exit_on_update()) {
+    ExitOnUpdate(&updated);
   }
 
   int sig;
@@ -176,5 +186,5 @@ int main(int argc, char* argv[]) {
   // Don't wait for the running compilations: they are killed with the
   // daemon, and the clients compile without it.
   daemon->Flush();
-  _exit(0);
+  _exit(updated.load() ? kExitOnUpdateCode : 0);
 }

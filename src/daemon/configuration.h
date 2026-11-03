@@ -16,6 +16,9 @@ class Configuration {
   inline bool daemonize() const { return daemonize_; }
   inline bool autostart() const { return autostart_; }
   inline bool managed() const { return managed_; }
+  // Who restarts the daemon, when its executable is replaced: the next client
+  // or systemd.
+  inline bool exit_on_update() const { return autostart_ || managed_; }
   inline int lock_fd() const { return lock_fd_; }
   // The read file - empty, if only the defaults are used.
   inline const String& config_path() const { return config_path_; }

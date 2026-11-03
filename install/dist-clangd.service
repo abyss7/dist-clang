@@ -5,6 +5,8 @@
 # The daemon doesn't stop on "dist-clang --stop": use
 #   systemctl --user stop dist-clangd
 # or "systemctl --user restart dist-clangd" to apply a new configuration.
+# A replaced executable makes the daemon exit with code 75, and systemd
+# restarts it with the new version.
 
 [Unit]
 Description=dist-clang local compilation daemon
@@ -12,6 +14,7 @@ Description=dist-clang local compilation daemon
 [Service]
 ExecStart=%h/.local/bin/dist-clangd --config=%h/.config/dist-clang/daemon.conf --managed
 Nice=0
+Restart=on-failure
 
 [Install]
 WantedBy=default.target
