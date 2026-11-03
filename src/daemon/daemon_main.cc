@@ -109,7 +109,8 @@ int main(int argc, char* argv[]) {
   // Set by the watcher of the executable - see |ExitOnUpdate()|.
   Atomic<bool> updated = {false};
 
-  if (configuration.config().has_emitter() && !LockSocket(configuration)) {
+  if (configuration.config().has_emitter() &&
+      configuration.socket_fd() == -1 && !LockSocket(configuration)) {
     if (configuration.autostart()) {
       return 0;
     }
@@ -165,6 +166,7 @@ int main(int argc, char* argv[]) {
     emitter->SetConfigStatus(configuration.config_path(),
                              configuration.config_error());
     emitter->SetManaged(configuration.managed());
+    emitter->SetSocketFd(configuration.socket_fd());
     daemon.reset(emitter);
   } else {
     LOG(FATAL)

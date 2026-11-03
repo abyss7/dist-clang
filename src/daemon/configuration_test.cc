@@ -49,8 +49,21 @@ TEST(DaemonConfigurationTest, Managed) {
   EXPECT_TRUE(configuration.managed());
   EXPECT_FALSE(configuration.autostart());
   EXPECT_FALSE(configuration.daemonize());
+  EXPECT_EQ(-1, configuration.socket_fd());
   // The defaults are set, like for the autostarted daemon.
   EXPECT_TRUE(configuration.config().has_emitter());
+
+  unsetenv("XDG_CONFIG_HOME");
+}
+
+TEST(DaemonConfigurationTest, SocketFd) {
+  const base::TemporaryDir temp_dir;
+  setenv("XDG_CONFIG_HOME", temp_dir.path().c_str(), 1);
+  const char* args[] = {"dist-clangd", "--managed", "--socket-fd=3"};
+
+  const Configuration configuration(3, const_cast<char**>(args));
+  EXPECT_EQ(3, configuration.socket_fd());
+  EXPECT_TRUE(configuration.managed());
 
   unsetenv("XDG_CONFIG_HOME");
 }

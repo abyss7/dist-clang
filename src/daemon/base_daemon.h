@@ -93,6 +93,13 @@ class BaseDaemon {
         error);
   }
 
+  // The socket is prepared by a supervisor - e.g. systemd.
+  inline bool Listen(int fd, String* error = nullptr) {
+    using namespace std::placeholders;
+    return network_service_->Listen(
+        fd, std::bind(&BaseDaemon::HandleNewConnection, this, _1), error);
+  }
+
   inline auto Connect(net::EndPointPtr end_point, String* error = nullptr) {
     return network_service_->Connect(end_point, error);
   }

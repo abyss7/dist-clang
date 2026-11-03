@@ -26,6 +26,12 @@ class NetworkService
                       ListenCallback callback,
                       String* error = nullptr) THREAD_UNSAFE = 0;
 
+  // Listens on the socket, that a supervisor has prepared and passed to the
+  // daemon - e.g. systemd. The daemon must not create or remove the socket
+  // then.
+  virtual bool Listen(int fd, ListenCallback callback,
+                      String* error = nullptr) THREAD_UNSAFE = 0;
+
   virtual ConnectionPtr Connect(EndPointPtr end_point,
                                 String* error = nullptr) THREAD_SAFE = 0;
 };

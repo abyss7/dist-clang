@@ -16,6 +16,9 @@ class Socket;
 class Passive final : public base::Handle {
  public:
   explicit Passive(Socket&& fd, ui32 backlog = SOMAXCONN);
+  // Wraps the listening socket, that a supervisor has prepared - e.g.
+  // systemd or launchd.
+  explicit Passive(NativeType fd, ui32 backlog = SOMAXCONN);
 
   Socket Accept();
 

@@ -36,6 +36,16 @@ bool TestNetworkService::Listen(const String& host, ui16 port, bool,
   return on_listen_(host, port, error);
 }
 
+bool TestNetworkService::Listen(int fd, ListenCallback, String*) {
+  if (listen_attempts_) {
+    (*listen_attempts_)++;
+  }
+
+  listened_fd_ = fd;
+
+  return true;
+}
+
 ConnectionPtr TestNetworkService::Connect(EndPointPtr end_point,
                                           String* error) {
   if (connect_attempts_) {

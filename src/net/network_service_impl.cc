@@ -10,6 +10,7 @@
 
 #include STL(thread)
 
+#include <fcntl.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -71,6 +72,32 @@ bool NetworkServiceImpl::Listen(const String& path, ListenCallback callback,
   }
 
   unix_sockets_.push_back(path);
+  return true;
+}
+
+bool NetworkServiceImpl::Listen(int fd, ListenCallback callback,
+                                String* error) {
+  if (fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK) == -1 ||
+      fcntl(fd, F_SETFD, FD_CLOEXEC) == -1) {
+    base::GetLastError(error);
+    return false;
+  }
+
+  Passive passive(fd);
+  if (!passive.IsValid()) {
+    passive.GetCreationError(error);
+    return false;
+  }
+
+  if (!listen_callbacks_.emplace(passive.native(), callback).second) {
+    return false;
+  }
+
+  if (!event_loop_->HandlePassive(std::move(passive))) {
+    return false;
+  }
+
+  // The socket belongs to the supervisor: it stays after the daemon exits.
   return true;
 }
 

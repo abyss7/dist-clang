@@ -1,20 +1,21 @@
-# systemd user unit - an alternative to the autostart by the client:
-#   cp dist-clangd.service ~/.config/systemd/user/
-#   systemctl --user enable --now dist-clangd
+# systemd user units - an alternative to the autostart by the client:
+#   cp dist-clangd.socket dist-clangd.service ~/.config/systemd/user/
+#   systemctl --user enable --now dist-clangd.socket
 #
-# The daemon doesn't stop on "dist-clang --stop": use
-#   systemctl --user stop dist-clangd
-# or "systemctl --user restart dist-clangd" to apply a new configuration.
-# A replaced executable makes the daemon exit with code 75, and systemd
-# restarts it with the new version.
+# systemd owns the socket and starts the daemon on the first connection: the
+# clients never start their own daemon while the socket is active. To stop the
+# daemon or to apply a new configuration use
+#   systemctl --user stop dist-clangd.socket
+#   systemctl --user restart dist-clangd.service
+# The daemon doesn't stop on "dist-clang --stop".
+# A replaced executable makes the daemon exit with code 75, and
+# "Restart=on-failure" starts the new version - the socket stays open.
 
 [Unit]
 Description=dist-clang local compilation daemon
 
 [Service]
-ExecStart=%h/.local/bin/dist-clangd --config=%h/.config/dist-clang/daemon.conf --managed
+ExecStart=%h/.local/bin/dist-clangd --config=%h/.config/dist-clang/daemon.conf --managed --socket-fd=3
+Sockets=dist-clangd.socket
 Nice=0
 Restart=on-failure
-
-[Install]
-WantedBy=default.target

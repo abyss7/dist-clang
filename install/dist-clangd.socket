@@ -1,0 +1,16 @@
+# The socket of the local compilation daemon, that systemd owns:
+#   cp dist-clangd.socket dist-clangd.service ~/.config/systemd/user/
+#   systemctl --user enable --now dist-clangd.socket
+#
+# The daemon starts on the first connection, and the clients never start their
+# own daemon while this socket is active. Disable the unit to return to the
+# autostart by the client.
+
+[Unit]
+Description=dist-clang local compilation daemon socket
+
+[Socket]
+ListenStream=%t/dist-clang.socket
+
+[Install]
+WantedBy=sockets.target

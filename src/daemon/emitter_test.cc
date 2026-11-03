@@ -157,7 +157,6 @@ TEST_F(EmitterTest, IdleConnection) {
   ASSERT_TRUE(emitter->Initialize());
 
   net::ConnectionWeakPtr connection = test_service->TriggerListen(socket_path);
-
   EXPECT_EQ(0u, run_count);
   EXPECT_EQ(1u, listen_count);
   EXPECT_EQ(1u, connect_count);
@@ -165,6 +164,16 @@ TEST_F(EmitterTest, IdleConnection) {
   EXPECT_EQ(1u, read_count) << "Daemon must try to read a sole message";
   EXPECT_EQ(0u, send_count);
   EXPECT_TRUE(connection.expired()) << "Daemon must not store references to the connection";
+}
+
+TEST_F(EmitterTest, ListenOnInheritedSocket) {
+  emitter = std::make_unique<Emitter>(conf);
+  emitter->SetSocketFd(42);
+  ASSERT_TRUE(emitter->Initialize());
+
+  // The socket is passed by a supervisor, e.g. systemd: the daemon doesn't
+  // create its own.
+  EXPECT_EQ(42, test_service->listened_fd());
 }
 
 /*

@@ -19,6 +19,9 @@ class Configuration {
   // Who restarts the daemon, when its executable is replaced: the next client
   // or systemd.
   inline bool exit_on_update() const { return autostart_ || managed_; }
+  // The socket, that a supervisor has prepared - e.g. systemd. |[-1]| if the
+  // daemon creates its own.
+  inline int socket_fd() const { return socket_fd_; }
   inline int lock_fd() const { return lock_fd_; }
   // The read file - empty, if only the defaults are used.
   inline const String& config_path() const { return config_path_; }
@@ -30,6 +33,7 @@ class Configuration {
   bool daemonize_ = false;
   bool autostart_ = false;
   bool managed_ = false;
+  int socket_fd_ = -1;
   int lock_fd_ = -1;
   String config_path_, config_error_;
 };

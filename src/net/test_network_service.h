@@ -58,9 +58,13 @@ class TestNetworkService : public NetworkService {
   bool Listen(const String& host, ui16 port, bool ipv6, ListenCallback callback,
               String* error) override;
 
+  bool Listen(int fd, ListenCallback callback, String* error) override;
+
   virtual ConnectionPtr Connect(EndPointPtr end_point, String* error) override;
 
   ConnectionPtr TriggerListen(const String& host, ui16 port = 0);
+
+  inline int listened_fd() const { return listened_fd_; }
 
   inline void CallOnConnect(OnConnectCallback callback) {
     on_connect_ = callback;
@@ -81,6 +85,7 @@ class TestNetworkService : public NetworkService {
   Atomic<ui32>* connect_attempts_ = nullptr;
   Atomic<ui32>* listen_attempts_ = nullptr;
   HashMap<HostPortPair, ListenCallback> listen_callbacks_;
+  int listened_fd_ = -1;
 };
 
 }  // namespace net

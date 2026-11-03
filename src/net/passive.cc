@@ -25,6 +25,12 @@ Passive::Passive(Socket&& fd, ui32 backlog)
   }
 }
 
+Passive::Passive(NativeType fd, ui32 backlog) : Handle(fd) {
+  if (listen(native(), backlog) == -1) {
+    base::GetLastError(&error_);
+  }
+}
+
 Socket Passive::Accept() {
   auto fd = AcceptNative();
 

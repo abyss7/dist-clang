@@ -123,6 +123,10 @@ class Emitter : public CompilationDaemon {
   // The daemon is managed by systemd: a request to stop is refused.
   inline void SetManaged(bool managed) { managed_ = managed; }
 
+  // The socket is prepared by a supervisor - e.g. systemd: the daemon uses it
+  // instead of creating its own.
+  inline void SetSocketFd(int fd) { socket_fd_ = fd; }
+
   // Sets the key root of the relocatable compilation: the one of the |roots|,
   // that contains its input.
   static void SetKeyRoot(
@@ -208,6 +212,7 @@ class Emitter : public CompilationDaemon {
 
   Fn<void()> stop_callback_;
   bool managed_ = false;
+  int socket_fd_ = -1;
 
   UniquePtr<Queue> all_tasks_, cache_tasks_, failed_tasks_;
   UniquePtr<QueueAggregator> local_tasks_;

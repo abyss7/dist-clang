@@ -19,6 +19,8 @@ class NetworkServiceImpl : public NetworkService {
               String* error) THREAD_UNSAFE override;
   bool Listen(const String& host, ui16 port, bool ipv6, ListenCallback callback,
               String* error) THREAD_UNSAFE override;
+  bool Listen(int fd, ListenCallback callback,
+              String* error) THREAD_UNSAFE override;
 
   virtual ConnectionPtr Connect(EndPointPtr end_point,
                                 String* error) THREAD_SAFE override;

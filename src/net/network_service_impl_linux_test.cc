@@ -69,5 +69,33 @@ TEST(NetworkServiceImplTest, ConnectToBusySocket) {
   close(server);
 }
 
+TEST(NetworkServiceImplTest, AdoptListeningSocket) {
+  const base::TemporaryDir temp_dir;
+  const String path = (temp_dir.path() / "socket").string();
+
+  // The socket belongs to a supervisor, e.g. systemd.
+  const int server = socket(AF_UNIX, SOCK_STREAM, 0);
+  ASSERT_NE(-1, server);
+  struct sockaddr_un address = {};
+  address.sun_family = AF_UNIX;
+  strncpy(address.sun_path, path.c_str(), sizeof(address.sun_path) - 1);
+  ASSERT_EQ(0, bind(server, reinterpret_cast<sockaddr*>(&address),
+                    sizeof(address)));
+  ASSERT_EQ(0, listen(server, SOMAXCONN));
+
+  NetworkService::SetFactory<NetworkService::DefaultFactory>();
+  auto service = NetworkService::Create(5, 5, 5, 1);
+  String error;
+  ASSERT_TRUE(service->Listen(server, [](ConnectionPtr) {}, &error)) << error;
+
+  // The clients reach the daemon through the inherited socket.
+  EXPECT_TRUE(service->Connect(EndPoint::UnixSocket(path), &error)) << error;
+
+  // The socket isn't the daemon's: it stays after the exit.
+  service.reset();
+  EXPECT_EQ(0, access(path.c_str(), F_OK));
+  unlink(path.c_str());
+}
+
 }  // namespace net
 }  // namespace dist_clang

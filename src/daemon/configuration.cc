@@ -23,6 +23,8 @@ const char kUsage[] =
     "  --daemon         Daemonize after start\n"
     "  --managed        The daemon is managed by systemd: it doesn't stop on\n"
     "                   the request of a client, use systemctl instead\n"
+    "  --socket-fd=<n>  Listen on the descriptor <n> of the socket, that a\n"
+    "                   supervisor has prepared - e.g. systemd\n"
     "  --autostart      Run the local emitter in background - with defaults,\n"
     "                   changed by the config from the default path\n"
     "  --socket=<path>  The socket of the emitter instead of the configured\n"
@@ -81,6 +83,11 @@ Configuration::Configuration(int argc, char* argv[]) {
       daemonize_ = true;
     } else if (arg.starts_with("--lock-fd=")) {
       lock_fd_ = std::stoi(arg.substr(strlen("--lock-fd=")));
+    } else if (arg.starts_with("--socket-fd=")) {
+      socket_fd_ = std::stoi(arg.substr(strlen("--socket-fd=")));
+      if (socket_fd_ < 3) {
+        LOG(FATAL) << "Invalid socket descriptor: " << socket_fd_;
+      }
     } else if (arg.starts_with("--socket=")) {
       socket_path = arg.substr(strlen("--socket="));
     } else if (arg == "--version") {

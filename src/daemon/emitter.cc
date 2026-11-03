@@ -517,7 +517,14 @@ bool Emitter::Initialize() {
   auto conf = this->conf();
 
   String error;
-  if (!Listen(conf->emitter().socket_path(), &error)) {
+  if (socket_fd_ != -1) {
+    // The socket belongs to a supervisor: it stays after the daemon exits.
+    if (!Listen(socket_fd_, &error)) {
+      LOG(ERROR) << "Emitter failed to listen on the socket " << socket_fd_
+                 << " : " << error;
+      return false;
+    }
+  } else if (!Listen(conf->emitter().socket_path(), &error)) {
     LOG(ERROR) << "Emitter failed to listen on "
                << conf->emitter().socket_path() << " : " << error;
     return false;
