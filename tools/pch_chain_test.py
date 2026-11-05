@@ -4,6 +4,11 @@
 Example:
   python3 tools/pch_chain_test.py --suite basic --compiler clang++-18
 
+Suites: basic checks the three parent-argument spellings; invalidation checks
+dependencies and restoration; relocation checks independent source roots; ydb
+uses the compiler, flags and cwd of a PCH entry in --ydb-commands. The YDB suite
+only builds temporary sources including real headers, not the YDB targets.
+
 Artifacts and complete compiler commands are retained in the printed directory.
 Use --work-dir with a short path if TMPDIR exceeds the Unix socket path limit.
 """
@@ -275,21 +280,176 @@ def invalidation(harness, compiler, index):
     harness.record(fixture.name, status="PASS")
 
 
+def relocation(harness, compiler, index):
+    first = Fixture(harness, compiler, f"clang{index}-relocation-a", relocatable=True)
+    all_hit = dict.fromkeys((*LAYERS, "main"), True)
+    first.pipeline("cold", dict.fromkeys(all_hit, False))
+    saved = {layer: (first.path / f"{layer}.pch").read_bytes() for layer in LAYERS}
+    second = Fixture(harness, compiler, f"clang{index}-relocation-b", relocatable=True)
+    hidden = first.path.with_name(first.path.name + "-hidden")
+    first.path.rename(hidden)
+    try:
+        # The new root has only the sources. Restore each ancestor in order;
+        # no compiler can accidentally read an artifact from the old root.
+        second.pipeline("cross-root", all_hit)
+        assert all((second.path / f"{layer}.pch").read_bytes() == saved[layer]
+                   for layer in LAYERS)
+        cached_object = (second.path / "main.o").read_bytes()
+        harness.run(second.consumer_command(), second.path)
+        assert (second.path / "main.o").read_bytes() == cached_object
+        harness.record(second.name, status="PASS")
+    finally:
+        hidden.rename(first.path)
+
+    absolute = Fixture(harness, compiler, f"clang{index}-absolute", relocatable=True)
+    harness.cached(f"{absolute.name}/base", absolute.pch_command("base"),
+                   absolute.path, hit=True)
+    for layer in ("group", "leaf"):
+        command = absolute.pch_command(layer)
+        operand = command.index("-include-pch") + 1
+        command[operand] = str(absolute.path / command[operand])
+        for attempt in range(2):
+            delta = harness.cached(f"{absolute.name}/{layer}/{attempt}",
+                                   command, absolute.path, hit=False)
+            # An absolute parent reference binds the child to this root. The
+            # existing path guard must reject storing it as a shared artifact.
+            assert delta["CACHE_STORE_SKIPPED"] == 1, (layer, delta)
+    harness.record(absolute.name, status="PASS")
+
+
+def ydb_command(database):
+    """Keep a real PCH command's flags/cwd, replacing only its inputs/outputs."""
+    for entry in json.loads(Path(database).read_text()):
+        command = entry.get("arguments") or shlex.split(entry.get("command", ""))
+        if not any(command[i:i + 2] == ["-x", "c++-header"]
+                   for i in range(len(command) - 1)):
+            continue
+        cwd = Path(entry["directory"])
+        source = (cwd / entry["file"]).resolve()
+        compiler = shutil.which(command[0])
+        if not compiler:
+            raise ValueError(f"Compiler not found: {command[0]}")
+        flags = []
+        index = 1
+        inputs = 0
+        while index < len(command):
+            flag = command[index]
+            if flag in ("-o", "-MF", "-MT", "-MQ", "-x"):
+                index += 2
+                continue
+            if flag in ("-c", "-MD", "-MMD", "-MP") or flag.startswith("-ftime-trace"):
+                index += 1
+                continue
+            if not flag.startswith("-") and (cwd / flag).resolve() == source:
+                inputs += 1
+            else:
+                flags.append(flag)
+            index += 1
+        if inputs != 1 or "-fno-pch-timestamp" not in flags:
+            raise ValueError("Expected one PCH input with -fno-pch-timestamp")
+        return compiler, flags, cwd, source
+    raise ValueError("No -x c++-header command in the compilation database")
+
+
+def ydb(harness, args):
+    if not args.ydb_commands:
+        raise ValueError("--suite ydb requires --ydb-commands")
+    compiler, flags, cwd, source = ydb_command(args.ydb_commands)
+    harness.record("ydb-command", compiler=compiler, cwd=str(cwd), source=str(source), flags=flags)
+    path = harness.work / "ydb"
+    path.mkdir()
+    headers = {
+        "base.h": '#pragma once\n#include <util/generic/vector.h>\n'
+                  '#include <util/generic/string.h>\n#define DC_CHAIN_BASE 11\n',
+        "group.h": '#pragma once\n#include "base.h"\n'
+                   '#include <util/generic/hash.h>\n#define DC_CHAIN_GROUP 7\n',
+        "leaf.h": '#pragma once\n#include "group.h"\n'
+                  '#include <util/generic/algorithm.h>\n#define DC_CHAIN_LEAF 3\n',
+        "main.cc": '#include <cstdio>\nint main() { std::printf("%zu\\n", '
+                   'sizeof(TVector<int>) + sizeof(TString) + sizeof(THashMap<int, int>) '
+                   '+ DC_CHAIN_BASE + DC_CHAIN_GROUP + DC_CHAIN_LEAF); }\n',
+    }
+    for name, contents in headers.items():
+        (path / name).write_text(contents)
+    for layer in LAYERS:
+        (path / f"{layer}.cc").write_text(f'#include "{layer}.h"\n')
+
+    def command(layer, textual=False):
+        result = [compiler, *flags]
+        if layer in LAYERS:
+            result += ["-x", "c++-header"]
+        result += ["-c", str(path / f"{layer}.cc")]
+        output = path / ("reference.o" if textual else f"{layer}.o" if layer == "main" else f"{layer}.pch")
+        result += ["-o", str(output), "-MD", "-MF", str(output.with_suffix(".d"))]
+        if layer in LAYERS:
+            index = LAYERS.index(layer)
+            if index:
+                result += ["-include-pch", os.path.relpath(path / f"{LAYERS[index - 1]}.pch", cwd)]
+        elif textual:
+            result += ["-include", str(path / "leaf.h")]
+        else:
+            result += ["-include-pch", os.path.relpath(path / "leaf.pch", cwd)]
+        return result
+
+    def pipeline(stage, hit):
+        for layer in (*LAYERS, "main"):
+            harness.cached(f"ydb/{stage}/{layer}", command(layer), cwd, hit=hit)
+
+    linker = shutil.which(args.linker)
+    if not linker:
+        raise ValueError(f"Linker driver not found: {args.linker}")
+    lld = Path(compiler).with_name("ld.lld")
+    if not lld.is_file():
+        raise ValueError(f"Expected the YDB toolchain's linker at {lld}")
+
+    def output(object_name, executable):
+        # sizeof exercises real container layouts without needing YDB's built
+        # libraries. Link the tiny object against the host runtime only.
+        # Use the matching lld: the host's older GNU ld may not understand
+        # the real command's -gz=zstd debug sections.
+        harness.run([linker, "-fuse-ld=" + str(lld), path / object_name,
+                     "-Wl,--gc-sections", "-o", path / executable])
+        return harness.run([path / executable]).stdout
+
+    pipeline("cold", False)
+    harness.run(command("main", textual=True), cwd)
+    expected = output("reference.o", "reference")
+    assert output("main.o", "cached") == expected
+    saved = {filename.name: filename.read_bytes() for filename in path.iterdir()
+             if filename.suffix in (".pch", ".o", ".dwo") and not filename.name.startswith("reference.")}
+    pipeline("warm", True)
+    for name in saved:
+        (path / name).unlink()
+    for filename in path.glob("*.d"):
+        filename.unlink()
+    pipeline("restore-all", True)
+    assert all((path / name).read_bytes() == contents for name, contents in saved.items())
+    assert output("main.o", "restored") == expected
+    harness.record("ydb", status="PASS", reference_output=expected.strip(),
+                   restored_artifacts=sorted(saved))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--suite", choices=("basic", "invalidation"), required=True)
+    parser.add_argument("--suite", choices=("basic", "invalidation", "relocation", "ydb"), required=True)
     parser.add_argument("--compiler", action="append", default=[])
     parser.add_argument("--bin-dir", default="out/Test")
     parser.add_argument("--work-dir")
+    parser.add_argument("--ydb-commands", help="YDB compile_commands.json with a PCH command")
+    parser.add_argument("--linker", default="clang++-18", help="host compiler driver for the YDB smoke program")
     args = parser.parse_args()
     compilers = args.compiler or ["clang++-18"]
     with Harness(args) as harness:
-        for index, compiler in enumerate(compilers):
-            compiler = shutil.which(compiler)
-            if not compiler:
-                raise RuntimeError("Requested compiler not found")
-            harness.record(f"compiler{index}", version=harness.run([compiler, "--version"]).stdout.splitlines()[0])
-            {"basic": basic, "invalidation": invalidation}[args.suite](harness, compiler, index)
+        if args.suite == "ydb":
+            ydb(harness, args)
+        else:
+            for index, compiler in enumerate(compilers):
+                compiler = shutil.which(compiler)
+                if not compiler:
+                    raise RuntimeError("Requested compiler not found")
+                harness.record(f"compiler{index}", version=harness.run([compiler, "--version"]).stdout.splitlines()[0])
+                {"basic": basic, "invalidation": invalidation,
+                 "relocation": relocation}[args.suite](harness, compiler, index)
         harness.record("complete", suite=args.suite, status="PASS")
 
 
