@@ -96,7 +96,7 @@ TEST(FileCacheTest, KeysOfGeneration) {
             FileCache::Hash(UnhandledSource("int main() {}"_l), {},
                             CommandLine("-c"_l), Version("1"_l))
                 .str.string_copy());
-  EXPECT_EQ(3u, FileCache::kGeneration);
+  EXPECT_EQ(4u, FileCache::kGeneration);
 }
 
 TEST(FileCacheTest, HashCompliesWithRegex) {

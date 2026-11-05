@@ -3249,6 +3249,81 @@ TEST_F(EmitterTest, PrecompiledHeaderOnlyInDirectCache) {
   emitter.reset();
 }
 
+TEST_F(EmitterTest, PrecompiledHeaderConsumersWithoutPreprocessing) {
+  const base::TemporaryDir temp_dir;
+  const auto input_path = temp_dir.path() / "test.cc";
+  const auto output_path = temp_dir.path() / "test.o";
+  const String compiler_version = "fake_compiler_version";
+  ASSERT_TRUE(base::File::Write(input_path, "int value;"_l));
+
+  conf.mutable_cache()->set_path(temp_dir.path() / "cache");
+  conf.mutable_cache()->set_direct(true);
+  conf.mutable_emitter()->set_preprocessing(
+      proto::Configuration::Emitter::ALWAYS);
+  auto* version = conf.add_versions();
+  version->set_version(compiler_version);
+  version->set_path("fake_compiler_path");
+
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_EQ(net::proto::Status::OK, message.status().code());
+      send_condition.notify_all();
+    });
+    return true;
+  };
+
+  Atomic<ui32> compilations = {0};
+  run_callback = [&](base::TestProcess* process) {
+    bool preprocessing = false;
+    for (const auto& arg : process->args()) {
+      preprocessing |= arg.string_copy() == "-E";
+    }
+    // Even without a depfile, the text after -E isn't a safe PCH input key:
+    // it can omit macro state inherited from an ancestor of the leaf.
+    EXPECT_FALSE(preprocessing);
+    if (!preprocessing) {
+      ++compilations;
+      EXPECT_TRUE(base::File::Write(output_path, "object"_l));
+    }
+  };
+
+  emitter = std::make_unique<Emitter>(conf);
+  ASSERT_TRUE(emitter->Initialize());
+  for (ui32 i = 0; i < 4; ++i) {
+    auto connection = test_service->TriggerListen(socket_path);
+    auto test_connection =
+        std::static_pointer_cast<net::TestConnection>(connection);
+    net::Connection::ScopedMessage message(new net::Connection::Message);
+    auto* local = message->mutable_local();
+    local->set_current_dir(temp_dir);
+    auto* flags = local->mutable_flags();
+    flags->set_input(input_path);
+    flags->set_output(output_path);
+    flags->set_language("c++");
+    flags->set_action("-c");
+    flags->mutable_compiler()->set_version(compiler_version);
+    if (i < 2) {
+      flags->add_included_files("leaf.pch");
+      auto* arg = flags->add_other();
+      arg->add_values("-include-pch");
+      arg->add_values("leaf.pch");
+    } else {
+      auto* arg = flags->add_non_cached();
+      arg->add_values("-include");
+      arg->add_values("leaf.h");
+    }
+    net::proto::Status status;
+    status.set_code(net::proto::Status::OK);
+    ASSERT_TRUE(test_connection->TriggerReadAsync(std::move(message), status));
+    UniqueLock lock(send_mutex);
+    ASSERT_TRUE(send_condition.wait_for(lock, Seconds(1), [&] {
+      return send_count == i + 1;
+    }));
+    EXPECT_EQ(i + 1, compilations.load());
+  }
+  emitter.reset();
+}
+
 // The precompiled header, that is shared between the roots, mustn't have the
 // paths of its own root.
 TEST_F(EmitterTest, DontStorePrecompiledHeaderWithRoot) {
@@ -5420,10 +5495,15 @@ TEST_F(EmitterTest, StoreDirectCacheForLocalResultWithAndWithoutIncludedHeaders)
           << process->PrintArgs();
       EXPECT_TRUE(base::File::Write(process->cwd_path_ / output_path, object_code));
     } else if (run_count == 3) {
-      EXPECT_EQ((Immutable::Rope{"-include-pth"_l, preprocessed_header_path, "-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path}),
-                WithoutDepsFile(process))
+      // A PCH consumer must compile, rather than reuse the plain source's
+      // object through an identical preprocessed string.
+      EXPECT_EQ((Immutable::Rope{"-include-pth"_l, preprocessed_header_path,
+                                 action, "-Xclang"_l, "-load"_l, "-Xclang"_l,
+                                 plugin_path, "-x"_l, language, "-o"_l,
+                                 output_path, input_path}),
+                process->args_)
           << process->PrintArgs();
-      process->stdout_ = preprocessed_source;
+      EXPECT_TRUE(base::File::Write(process->cwd_path_ / output_path, object_code));
       EXPECT_TRUE(base::File::Write(process->cwd_path_ / deps_path, preprocessed_deps_contents));
       WriteDepsFile(process, preprocessed_deps_contents);
     }
@@ -6072,7 +6152,6 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
   // Prepare callbacks.
   const auto deps_path = "test.d"_l;
   const auto language = "fake_language"_l;
-  const auto preprocessed_source = "fake_source"_l;
   const auto action = "fake_action"_l;
   const auto output_path = "test.o"_l;
   const auto object_code = "fake_object_code"_l;
@@ -6093,13 +6172,6 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
 
   run_callback = [&](base::TestProcess* process) {
     if (run_count == 1) {
-      EXPECT_EQ((Immutable::Rope{"-include-pth"_l, preprocessed_header_path, "-E"_l, "-x"_l, language, "-o"_l, "-"_l, input_path}),
-                WithoutDepsFile(process))
-          << process->PrintArgs();
-      process->stdout_ = preprocessed_source;
-      EXPECT_TRUE(base::File::Write(process->cwd_path_ / deps_path, deps_contents));
-      WriteDepsFile(process, deps_contents);
-    } else if (run_count == 2) {
       EXPECT_EQ((Immutable::Rope{"-include-pth"_l, preprocessed_header_path, action, "-Xclang"_l, "-load"_l, "-Xclang"_l, plugin_path,
                                  "-x"_l, language,
                                  Immutable("-fsanitize-blacklist="_l) + sanitize_blacklist_path, "-o"_l, output_path,
@@ -6107,6 +6179,7 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
                 process->args_)
           << process->PrintArgs();
       EXPECT_TRUE(base::File::Write(process->cwd_path_ / output_path, object_code));
+      EXPECT_TRUE(base::File::Write(process->cwd_path_ / deps_path, deps_contents));
     }
   };
 
@@ -6206,7 +6279,7 @@ TEST_F(EmitterTest, HitDirectCacheFromTwoLocations) {
   EXPECT_TRUE(base::File::Read(deps2_path, &cache_deps));
   EXPECT_EQ(deps_contents, cache_deps);
 
-  EXPECT_EQ(2u, run_count);
+  EXPECT_EQ(1u, run_count);
   EXPECT_EQ(1u, listen_count);
   EXPECT_EQ(2u, connect_count);
   EXPECT_EQ(2u, connections_created);

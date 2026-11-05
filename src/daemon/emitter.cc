@@ -220,6 +220,19 @@ inline bool IsRemotable(const base::proto::Flags& flags) {
   return !flags.has_dwo_file() && !flags.key_files_size();
 }
 
+inline bool MayUsePrecompiledHeader(const base::proto::Flags& flags) {
+  if (flags.included_files_size()) {
+    return true;
+  }
+  // The driver may load a .gch instead of the forced textual include.
+  for (const auto& arg : flags.non_cached()) {
+    if (arg.values_size() && arg.values(0) == "-include") {
+      return true;
+    }
+  }
+  return false;
+}
+
 // Makes the compilation write the dependency file into |path|.
 void RedirectDepsFile(base::proto::Flags* flags, const Path& path) {
   auto* args = flags->mutable_non_direct();
@@ -1240,9 +1253,10 @@ void Emitter::DoCheckCache(const base::WorkerPool& pool) {
     }
 
     // The preprocessing at the same time would change the times in the traces
-    // of the other compilations. The precompiled header has the macros, that
-    // the preprocessed source doesn't have: it isn't a key.
-    if (incoming->flags().time_trace() || incoming->flags().pch()) {
+    // of the other compilations. A PCH and its consumers can inherit macro
+    // state that isn't in the preprocessed source: it isn't a safe key.
+    if (incoming->flags().time_trace() || incoming->flags().pch() ||
+        MayUsePrecompiledHeader(incoming->flags())) {
       CompileWithoutPreprocessing();
       continue;
     }

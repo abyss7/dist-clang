@@ -160,7 +160,10 @@ class FileCache {
   //               |SetIsolatedTags()|.
   //   Revision 4: the times of the last use of the entries by every tag: the
   //               older tags get the times of the entries.
-  enum : ui32 { kGeneration = 3, kRevision = 4 };
+  // Generation 4: the direct manifests include all PCH ancestors, also for
+  //               implicitly included PCH files. Older manifests may give
+  //               stale objects when only an ancestor's contents change.
+  enum : ui32 { kGeneration = 4, kRevision = 0 };
 
   // Maximal number of the header sets per one source in the direct cache, and
   // of the entries, that they lead to - e.g. after the changes of the headers.

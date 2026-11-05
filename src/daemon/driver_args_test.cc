@@ -1,4 +1,5 @@
 #include <daemon/driver_args.h>
+#include <daemon/compilation_daemon.h>
 
 #include <base/base.pb.h>
 #include <base/const_string.h>
@@ -7,6 +8,8 @@
 #include <base/temporary_dir.h>
 
 #include <gtest/gtest.h>
+
+#include <algorithm>
 
 namespace dist_clang {
 namespace daemon {
@@ -494,8 +497,8 @@ TEST(DriverArgsTest, PrecompiledHeader) {
   const base::TemporaryDir temp_dir;
   ASSERT_TRUE(base::File::Write(temp_dir.path() / "pch.h.gch", "pch"_l));
 
-  // The source of the implicit precompiled header is visible in the
-  // preprocessed source - no need to track the PCH itself.
+  // Implicit PCH files are discovered through compiler dependencies, rather
+  // than added to the explicitly included files by the argument parser.
   base::proto::Flags flags;
   ASSERT_TRUE(Parse({"-c", "test.cc", "-include", "pch.h", "-include", "a.h"},
                     &flags, nullptr, temp_dir.path()));
@@ -509,6 +512,49 @@ TEST(DriverArgsTest, PrecompiledHeader) {
   ASSERT_EQ(2, flags.included_files_size());
   EXPECT_EQ("x.pch", flags.included_files(0));
   EXPECT_EQ("y.pch", flags.included_files(1));
+}
+
+TEST(DriverArgsTest, PrecompiledHeaderDependencies) {
+  const List<List<String>> includes = {
+      {"-include-pch", "leaf.pch"},
+      {"-Xclang", "-include-pch", "-Xclang", "leaf.pch"},
+      {"-Xpreprocessor", "-include-pch", "-Xpreprocessor", "leaf.pch"},
+      // The driver may load leaf.h.gch, which can import other PCH files.
+      {"-include", "leaf.h"},
+  };
+  for (const auto& include : includes) {
+    for (const auto* deps : {"-MD", "-MMD", ""}) {
+      List<String> command = {"-c", "test.cc"};
+      command.insert(command.end(), include.begin(), include.end());
+      if (*deps) {
+        command.push_back(deps);
+      }
+      base::proto::Flags flags;
+      ASSERT_TRUE(Parse(command, &flags));
+
+      // A TU's depfile otherwise omits all PCH files. The explicit leaf's
+      // bytes can stay unchanged when an ancestor's macro state changes.
+      const auto deps_flags = Values(flags.non_direct());
+      EXPECT_NE(deps_flags.end(),
+                std::find(deps_flags.begin(), deps_flags.end(),
+                          "-module-file-deps"));
+
+      // The cache generation invalidates old incomplete manifests. Collecting
+      // the dependencies doesn't change the compilation's key.
+      EXPECT_EQ(String::npos,
+                CompilationDaemon::DirectCommandLine("/tmp", flags)
+                    .find("-module-file-deps"));
+    }
+  }
+}
+
+TEST(DriverArgsTest, ExplicitPrecompiledHeaderDependencies) {
+  base::proto::Flags flags;
+  ASSERT_TRUE(Parse({"-c", "test.cc", "-include-pch", "leaf.pch", "-MD",
+                     "-Xclang", "-module-file-deps"},
+                    &flags));
+  const auto other = Values(flags.other());
+  EXPECT_EQ(1, std::count(other.begin(), other.end(), "-module-file-deps"));
 }
 
 TEST(DriverArgsTest, PrecompiledHeaderBuild) {

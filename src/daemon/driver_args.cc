@@ -783,6 +783,16 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
     }
   }
 
+  // A TU's dependencies normally omit the PCH files. The explicitly included
+  // leaf isn't enough: its bytes can stay unchanged when an ancestor's macro
+  // state changes. The driver may load a PCH through "-include" too.
+  if ((has_include || flags->included_files_size()) &&
+      std::find(frontend_flags.begin(), frontend_flags.end(),
+                "-module-file-deps") == frontend_flags.end()) {
+    AddArgument(Class::NON_DIRECT, args.size(),
+                {"-Xclang", "-module-file-deps"});
+  }
+
   if (output.empty()) {
     output = Path(input).filename().replace_extension(".o").string();
   } else if (output == "-") {
