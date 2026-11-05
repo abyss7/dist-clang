@@ -140,6 +140,8 @@ class Harness:
         assert delta["SIMPLE_CACHE_HIT"] == 0, (name, delta)
         if hit is not None:
             assert delta["DIRECT_CACHE_HIT"] == int(hit), (name, delta)
+            if not hit:
+                assert delta["DIRECT_CACHE_MISS"] == 1, (name, delta)
             if success and not hit:
                 # A parser rejection would silently run outside the daemon.
                 assert delta["LOCAL_TASK_DONE"] == 1, (name, delta)
@@ -208,9 +210,74 @@ def basic(harness, compiler, index):
         harness.record(fixture.name, status="PASS")
 
 
+def invalidation(harness, compiler, index):
+    fixture = Fixture(harness, compiler, f"clang{index}-invalidation")
+    path = fixture.path
+    all_hit = dict.fromkeys((*LAYERS, "main"), True)
+    fixture.pipeline("cold", dict.fromkeys(all_hit, False))
+
+    # Every result, including a PCH producer, depends on ALL its ancestors.
+    for index, layer in enumerate((*LAYERS, "main")):
+        deps = shlex.split((path / f"{layer}.d").read_text().replace("\\\n", ""))[1:]
+        pch_deps = {Path(name).name for name in deps if name.endswith(".pch")}
+        assert pch_deps == {name + ".pch" for name in LAYERS[:index]}, (layer, deps)
+    original = {layer: (path / f"{layer}.pch").read_bytes() for layer in LAYERS}
+    for suffix in ("*.pch", "*.o", "*.d"):
+        for filename in path.glob(suffix):
+            filename.unlink()
+    fixture.pipeline("restore-all", all_hit)
+    assert all((path / f"{layer}.pch").read_bytes() == original[layer] for layer in LAYERS)
+
+    # Replacing an identical parent must not invalidate the cached children.
+    (path / "base.h").write_text(SOURCES["base.h"])
+    harness.run(fixture.pch_command("base"), path)
+    assert (path / "base.pch").read_bytes() == original["base"]
+    fixture.pipeline("identical-base", all_hit)
+
+    def reset_headers():
+        for layer in LAYERS:
+            (path / f"{layer}.h").write_text(SOURCES[f"{layer}.h"])
+
+    for index, layer in enumerate(LAYERS):
+        reset_headers()
+        fixture.pipeline(f"reset-before-{layer}", all_hit)
+        old, new = {"base": ("11", "12"), "group": ("7", "8"), "leaf": ("3", "4")}[layer]
+        (path / f"{layer}.h").write_text(SOURCES[f"{layer}.h"].replace(old, new))
+        hits = {name: i < index for i, name in enumerate(LAYERS)}
+        hits["main"] = False
+        fixture.pipeline(f"edit-{layer}", hits)
+        fixture.pipeline(f"warm-{layer}", all_hit)
+
+    reset_headers()
+    fixture.pipeline("original-headers", all_hit)
+    # The old false-hit case: macro configuration changes only in the base;
+    # the source headers and both children remain byte-for-byte identical.
+    for macro in (32, 33):
+        fixture.macro = macro
+        fixture.pipeline(f"base-macro-{macro}", dict.fromkeys(all_hit, False))
+        assert all((path / f"{layer}.pch").read_bytes() == original[layer]
+                   for layer in ("group", "leaf"))
+        fixture.pipeline(f"warm-macro-{macro}", all_hit)
+
+    for index, missing in enumerate(LAYERS):
+        filename = path / f"{missing}.pch"
+        contents = filename.read_bytes()
+        filename.unlink()
+        try:
+            harness.cached(f"{fixture.name}/missing-{missing}/main",
+                           fixture.consumer_command(), path, hit=False, success=False)
+            for child in LAYERS[index + 1:]:
+                harness.cached(f"{fixture.name}/missing-{missing}/{child}",
+                               fixture.pch_command(child), path, hit=False, success=False)
+        finally:
+            filename.write_bytes(contents)
+        fixture.pipeline(f"restored-{missing}", all_hit)
+    harness.record(fixture.name, status="PASS")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--suite", choices=("basic",), required=True)
+    parser.add_argument("--suite", choices=("basic", "invalidation"), required=True)
     parser.add_argument("--compiler", action="append", default=[])
     parser.add_argument("--bin-dir", default="out/Test")
     parser.add_argument("--work-dir")
@@ -222,7 +289,7 @@ def main():
             if not compiler:
                 raise RuntimeError("Requested compiler not found")
             harness.record(f"compiler{index}", version=harness.run([compiler, "--version"]).stdout.splitlines()[0])
-            basic(harness, compiler, index)
+            {"basic": basic, "invalidation": invalidation}[args.suite](harness, compiler, index)
         harness.record("complete", suite=args.suite, status="PASS")
 
 
