@@ -2631,6 +2631,61 @@ TEST(FileCacheTest, ReportSizesOfFreeEntries) {
   EXPECT_EQ(EntrySize(paid_hash) + 100000, GetStat(M::CACHE_OWN_SIZE));
 }
 
+TEST(FileCacheTest, ReportSizesAfterRestartWithQuota) {
+  using M = perf::proto::Metric;
+  const base::TemporaryDir temp_dir;
+  const auto cache_path = temp_dir.path() / "cache";
+  const CommandLine cl("-c"_l);
+  const Version version("1"_l);
+  const UnhandledSource code("int main() {}"_l);
+  const auto paid_hash = FileCache::Hash(HandledSource("paid"_l), {}, cl,
+                                        version);
+  const auto held_hash = FileCache::Hash(HandledSource("held"_l), {}, cl,
+                                        version);
+
+  {
+    FileCache cache(cache_path, FileCache::UNLIMITED, proto::NONE, true);
+    ASSERT_TRUE(cache.Run(3600));
+    cache.WaitForCleaner();
+    cache.Store(paid_hash, FileCache::Entry{String(100000, 'p'), String(),
+                                            String()});
+    cache.FlushAccesses();
+    cache.WaitForCleaner();
+  }
+
+  ui64 paid_size = 0;
+  {
+    FileCache cache(cache_path, FileCache::UNLIMITED, proto::NONE, true);
+    cache.SetTagQuotas({{"held", 1000000}});
+    ASSERT_TRUE(cache.Run(3600));
+    cache.WaitForCleaner();
+    // The paid entry alone gives the baseline, including its manifest.
+    paid_size = GetStat(M::CACHE_OWN_SIZE);
+    ASSERT_GT(paid_size, 100000u);
+
+    cache.Store(held_hash, FileCache::Entry{String(100000, 'h'),
+                                            String(100000, 'd'), String()});
+    cache.AddTags(held_hash, {"held"});
+    cache.Store(code, {}, cl, version, {}, {}, temp_dir, held_hash);
+    cache.FlushAccesses();
+    cache.WaitForCleaner();
+  }
+
+  FileCache cache(cache_path, FileCache::UNLIMITED, proto::NONE, true);
+  cache.SetTagQuotas({{"held", 1000000}});
+  ASSERT_TRUE(cache.Run(3600));
+  cache.WaitForCleaner();
+
+  // Before the first maintenance, the restored quota must already exclude
+  // the held object's blob, metadata and direct entry from the global size.
+  EXPECT_EQ(3u, GetStat(M::CACHE_ENTRIES));
+  EXPECT_EQ(paid_size, GetStat(M::CACHE_OWN_SIZE));
+  EXPECT_EQ(0u, GetStat(M::CACHE_FREE_SIZE));
+  FileCache::Entry entry;
+  EXPECT_TRUE(cache.Find(paid_hash, &entry));
+  EXPECT_TRUE(cache.Find(code, {}, cl, version, temp_dir, &entry));
+}
+
 TEST(FileCacheTest, KeepDirectEntriesOfLinkedOnes) {
   // The direct entries of the protected ones aren't removed for the free
   // space of the disk: they're small, and the protected ones are found by

@@ -2595,10 +2595,6 @@ void FileCache::CountBlobRefs(ui64 start_time) {
     ++entry_count_;
   }
 
-  // The report needs the sizes of the free and the held entries even before
-  // the first maintenance.
-  CountOwnSizes(entries, nullptr);
-
   // The tags of the removed entries may stay after a crash. The tags of the
   // older revisions - or of the older daemons - have no times: they get the
   // times of the entries.
@@ -2644,6 +2640,9 @@ void FileCache::CountBlobRefs(ui64 start_time) {
     blobs_.RemoveUnreferenced(start_time);
   }
 
+  // Count the held entries after their tags are restored: the report needs
+  // their sizes even before the first maintenance.
+  CountOwnSizes(entries, nullptr);
   ReportSizes();
 }
 
