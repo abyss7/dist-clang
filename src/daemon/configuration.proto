@@ -174,7 +174,7 @@ message Configuration {
       NEVER     = 2;
       // Compile at once: only the direct cache is used.
     }
-    optional Preprocessing preprocessing = 13 [ default = WHEN_IDLE ];
+    optional Preprocessing preprocessing = 13 [ default = NEVER ];
     // What to do on a miss of the direct cache. The edited sources are never
     // preprocessed, the compilations without the dependency files are always
     // preprocessed - the direct cache doesn't work for them - and so are all
