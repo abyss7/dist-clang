@@ -627,6 +627,51 @@ TEST(DriverArgsTest, PrecompiledHeaderBuild) {
   EXPECT_FALSE(flags.pch());
 }
 
+TEST(DriverArgsTest, ChainedPrecompiledHeader) {
+  for (const auto* pass : {"", "-Xclang", "-Xpreprocessor"}) {
+    for (bool explicit_deps : {false, true}) {
+      List<String> command = {"-x", "c++-header", "-c", "group.cc", "-o",
+                              "group.pch", "-MD", "-Xclang",
+                              "-fno-pch-timestamp"};
+      if (*pass) {
+        // Textual frontend includes can accompany the explicit PCH import.
+        command.insert(command.end(), {pass, "-include", pass, "extra.h",
+                                        pass, "-include-pch", pass, "base.pch"});
+      } else {
+        command.insert(command.end(), {"-include-pch", "base.pch"});
+      }
+      if (explicit_deps) {
+        command.insert(command.end(), {"-Xclang", "-module-file-deps"});
+      }
+      base::proto::Flags flags;
+      String reason;
+      ASSERT_TRUE(Parse(command, &flags, &reason)) << pass << ": " << reason;
+      EXPECT_TRUE(flags.pch());
+      EXPECT_EQ("group.pch", flags.output());
+      EXPECT_EQ("group.d", flags.deps_file());
+      ASSERT_EQ(1, flags.included_files_size());
+      EXPECT_EQ("base.pch", flags.included_files(0));
+      const auto other = Values(flags.other());
+      const auto deps = Values(flags.non_direct());
+      EXPECT_EQ(1, std::count(other.begin(), other.end(), "-module-file-deps") +
+                       std::count(deps.begin(), deps.end(), "-module-file-deps"));
+    }
+  }
+}
+
+TEST(DriverArgsTest, PrecompiledHeaderModuleDependencies) {
+  for (const auto* pass : {"-Xclang", "-Xpreprocessor"}) {
+    base::proto::Flags flags;
+    String reason;
+    ASSERT_TRUE(Parse({"-x", "c++-header", "-c", "base.h", "-o", "base.pch",
+                       "-MD", "-Xclang", "-fno-pch-timestamp", pass,
+                       "-module-file-deps"},
+                      &flags, &reason))
+        << reason;
+    EXPECT_TRUE(flags.pch());
+  }
+}
+
 TEST(DriverArgsTest, UnsupportedPrecompiledHeader) {
   const List<String> command = {"-x", "c++-header", "-c", "pch.cc",
                                 "-o", "pch",        "-MD"};
@@ -648,13 +693,16 @@ TEST(DriverArgsTest, UnsupportedPrecompiledHeader) {
        "-Xclang -isysroot/work/tree"},
       {With({"-Xclang", "-fno-pch-timestamp", "-Xclang", "-include"}),
        "-Xclang -include"},
-      {With({"-Xclang", "-fno-pch-timestamp", "-Xclang", "-include", "-Xclang",
-             "a.h", "-Xclang", "-include-pch", "-Xclang", "b.pch"}),
-       "-include"},
-      // On top of another header.
+      // Missing frontend PCH operand.
+      {With({"-Xclang", "-fno-pch-timestamp", "-Xclang", "-include-pch"}),
+       "-include-pch"},
+      {With({"-Xclang", "-fno-pch-timestamp", "-include-pch"}),
+       "-include-pch"},
+      // Implicit driver includes can hide another PCH.
       {With({"-Xclang", "-fno-pch-timestamp", "-include", "a.h"}),
        "-include"},
-      {With({"-Xclang", "-fno-pch-timestamp", "-include-pch", "a.pch"}),
+      {With({"-Xclang", "-fno-pch-timestamp", "-include", "a.h",
+             "-include-pch", "base.pch"}),
        "-include"},
       {{"-x", "c++-header", "-c", "pch.cc", "-o", "pch", "-Xclang",
         "-fno-pch-timestamp"},

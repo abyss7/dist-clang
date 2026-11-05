@@ -288,6 +288,7 @@ const char* const kObjectActions[] = {
 const char* const kPchFrontendFlags[] = {
     "-emit-pch",
     "-fno-pch-timestamp",
+    "-module-file-deps",
     "-relocatable-pch",
 };
 
@@ -751,7 +752,8 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
     for (auto it = frontend_flags.begin(); it != frontend_flags.end(); ++it) {
       // Unlike the driver, the frontend doesn't look for a precompiled header
       // instead of the included one: the header is in the dependency file.
-      if (*it == "-include" && std::next(it) != frontend_flags.end()) {
+      if ((*it == "-include" || *it == "-include-pch") &&
+          std::next(it) != frontend_flags.end()) {
         ++it;
         continue;
       }
@@ -766,7 +768,7 @@ bool ParseDriverArgs(const List<String>& arg_list, const String& current_dir,
       return Unsupported(
           "precompiled header without -Xclang -fno-pch-timestamp");
     }
-    if (has_include || flags->included_files_size()) {
+    if (has_include) {
       return Unsupported(
           "precompiled header with -include: it may be on top of another one");
     }
