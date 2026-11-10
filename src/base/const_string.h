@@ -12,7 +12,7 @@ namespace base {
 class Literal;
 }
 
-inline base::Literal operator"" _l(const char* str, size_t);
+inline base::Literal operator""_l(const char* str, size_t);
 
 namespace base {
 
@@ -34,7 +34,7 @@ class Literal {
   static const Literal empty;
 
  private:
-  friend Literal dist_clang::operator"" _l(const char*, size_t);
+  friend Literal dist_clang::operator""_l(const char*, size_t);
   friend class ConstString;
   friend Literal GetEnv(Literal, Literal);
 
@@ -142,7 +142,7 @@ inline Log& Log::operator<<(const ConstString& info) {
 
 }  // namespace base
 
-base::Literal operator"" _l(const char* str, size_t) {
+base::Literal operator""_l(const char* str, size_t) {
   return base::Literal(str);
 }
 

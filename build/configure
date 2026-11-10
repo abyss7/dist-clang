@@ -6,6 +6,23 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-gn gen --check --args="config_for_debug=true $*" out/Debug
-gn gen --check --args="$*" out/Release
-gn gen --check --args="config_for_tests=true $*" out/Test
+# GN runs the build scripts with "python" by default, which is missing on many
+# systems that ship only "python3". Find an interpreter once and pass it to
+# every "gn gen": the switch also sets the interpreter of the build actions.
+python=
+for candidate in python3 python; do
+  if command -v "$candidate" >/dev/null 2>&1; then
+    python=$(command -v "$candidate")
+    break
+  fi
+done
+
+if [ -z "$python" ]; then
+  echo "build/configure: Python 3 is required: GN runs build/version.py and" >&2
+  echo "the build actions with it, and neither python3 nor python is in PATH." >&2
+  exit 1
+fi
+
+gn gen --check --script-executable="$python" --args="config_for_debug=true $*" out/Debug
+gn gen --check --script-executable="$python" --args="$*" out/Release
+gn gen --check --script-executable="$python" --args="config_for_tests=true $*" out/Test
