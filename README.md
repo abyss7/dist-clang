@@ -44,6 +44,16 @@ To measure a build as without the cache, but still fill it, run it with `DC_RECA
 
 With `store_time_traces: true` in the cache configuration the traces are stored with the results, and the hits restore them - e.g. to look for the expensive headers and templates with every incremental build, without the full one: the trace next to the object is always of the compilation, that produced it - also after a branch switch. Such hits need the entries with the traces of the same options (`-ftime-trace-granularity`, `-ftime-trace-verbose`): the others are compiled again, and get the traces. The times in the traces are the ones of those compilations - measure the build itself with `DC_RECACHE=1`. The traces take a part of the cache, see "Time traces" in `--stats`; without the option they're removed after the start of the daemon, and the entries stay.
 
+For commands executed by the daemon, the trace also ends with a top-level `distclang` object, with `version: 1` and these measurements in microseconds:
+
+| Field | Meaning |
+| --- | --- |
+| `execution_wall_us` | Monotonic elapsed time from immediately before `fork()` to reaping the command with `wait4()`, excluding the daemon's queue and trace/cache processing afterward. This includes process setup and waiting for its output pipes to close. |
+| `cpu_user_us`, `cpu_system_us` | CPU time reported by `wait4()` for all threads of the command, including descendants whose usage was collected by their parents. Excludes the daemon's own CPU time. |
+| `queue_wait_us` | Monotonic time from accepting the command in the daemon to `fork()`, including queue/output-lock waits, cache lookup and launch preparation. |
+
+The compiler's trace events are preserved. Metadata is added before caching, even with `store_time_traces` off; cache hits retain the measurements of the original compilation, not the current lookup. Traces cached by older versions may lack this object.
+
 Show the statistics of the daemon - grouped, or with `--raw` as `NAME value` lines for scripts:
 
     dist-clang --stats [--raw]

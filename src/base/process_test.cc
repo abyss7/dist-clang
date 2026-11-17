@@ -60,6 +60,57 @@ TEST_F(ProcessTest, ExitedByItself) {
   EXPECT_FALSE(process->exited());
 }
 
+TEST_F(ProcessTest, ResourceUsage) {
+  auto process = Process::Create(sh, Path(), Process::SAME_UID);
+  process->AppendArg("-c"_l).AppendArg(
+      "(i=0; while [ \"$i\" -lt 20000 ]; do i=$((i+1)); done); "
+      "/bin/sleep 0.05"_l);
+  EXPECT_FALSE(process->usage());
+  const auto before = Clock::now();
+  ASSERT_TRUE(process->Run(5));
+  ASSERT_TRUE(process->usage());
+  const auto& usage = *process->usage();
+  EXPECT_GE(usage.started_at, before);
+  EXPECT_GE(usage.execution_wall_us, 50000u);
+  EXPECT_GT(usage.cpu_user_us + usage.cpu_system_us, 0u);
+  EXPECT_LE(usage.execution_wall_us,
+            static_cast<ui64>(
+                std::chrono::duration_cast<std::chrono::microseconds>(
+                    Clock::now() - before).count()));
+
+  // A later command must not inherit this child's usage.
+  auto sleeper = Process::Create(sh, Path(), Process::SAME_UID);
+  sleeper->AppendArg("-c"_l).AppendArg("/bin/sleep 0.05"_l);
+  ASSERT_TRUE(sleeper->Run(5));
+  ASSERT_TRUE(sleeper->usage());
+  EXPECT_LT(sleeper->usage()->cpu_user_us + sleeper->usage()->cpu_system_us,
+            usage.cpu_user_us + usage.cpu_system_us);
+
+  // A run canceled before fork has no measurements, including on reuse.
+  process->Cancel();
+  EXPECT_FALSE(process->Run(5));
+  EXPECT_FALSE(process->usage());
+}
+
+TEST_F(ProcessTest, ResourceUsageWithInputAndFailure) {
+  auto process = Process::Create(sh, Path(), Process::SAME_UID);
+  process->AppendArg("-c"_l).AppendArg("/bin/cat; exit 7"_l);
+  const Immutable input(String(1024 * 1024, 'x'));
+  ASSERT_FALSE(process->Run(5, input));
+  EXPECT_TRUE(process->exited());
+  EXPECT_EQ(input, process->stdout());
+  ASSERT_TRUE(process->usage());
+  EXPECT_GT(process->usage()->execution_wall_us, 0u);
+  EXPECT_GT(process->usage()->cpu_user_us + process->usage()->cpu_system_us, 0u);
+
+  process = Process::Create(sh, Path(), Process::SAME_UID);
+  process->AppendArg("-c"_l).AppendArg("kill -9 $$"_l);
+  ASSERT_FALSE(process->Run(5));
+  EXPECT_FALSE(process->exited());
+  ASSERT_TRUE(process->usage());
+  EXPECT_GT(process->usage()->execution_wall_us, 0u);
+}
+
 TEST_F(ProcessTest, WatchedSocketNotInherited) {
   // The descriptors of a process - but of "ls" itself.
   auto CountDescriptors = [] {

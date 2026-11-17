@@ -56,6 +56,7 @@ void ProcessImpl::DieWithParent(pid_t) {
 }
 
 bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
+  usage_.reset();
   if (!CheckLimits(error)) {
     return false;
   }
@@ -79,6 +80,7 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
   }
 
   int child_pid;
+  started_at_ = Clock::now();
   if ((child_pid = fork()) == 0) {  // Child process.
     return RunChild(out, err, nullptr);
   } else if (child_pid != -1) {  // Main process.
@@ -210,6 +212,7 @@ bool ProcessImpl::Run(ui16 sec_timeout, String* error) {
 }
 
 bool ProcessImpl::Run(ui16 sec_timeout, Immutable input, String* error) {
+  usage_.reset();
   if (!CheckLimits(error)) {
     return false;
   }
@@ -229,6 +232,7 @@ bool ProcessImpl::Run(ui16 sec_timeout, Immutable input, String* error) {
   }
 
   int child_pid;
+  started_at_ = Clock::now();
   if ((child_pid = fork()) == 0) {  // Child process.
     return RunChild(out, err, &in);
   } else if (child_pid != -1) {  // Main process.

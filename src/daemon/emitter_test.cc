@@ -14,6 +14,7 @@
 #include <perf/stat_service.h>
 
 #include STL(fstream)
+#include STL(regex)
 #include STL(thread)
 
 #include <sys/socket.h>
@@ -3659,6 +3660,162 @@ TEST_F(EmitterTest, StoreTimeTraces) {
   EXPECT_EQ("trace 3", Trace());
 
   emitter.reset();
+}
+
+TEST_F(EmitterTest, TimeTraceMetrics) {
+  base::Process::SetFactory<base::Process::DefaultFactory>();
+  const base::TemporaryDir temp_dir;
+  const auto input_path = temp_dir.path() / "test.cc";
+  const auto trace_path = temp_dir.path() / "test.json";
+  ASSERT_TRUE(base::File::Write(input_path, "int value;"_l));
+  WaitAfterEdit();
+
+  // Keep the compiler's bytes, including nested braces and escaped quotes.
+  const String original =
+      R"({"traceEvents":[{"args":{"detail":"brace } and \"quote\""}}],"other":42})";
+  const std::regex metrics(
+      R"(,"distclang":\{"version":1,"execution_wall_us":([0-9]+),)"
+      R"("cpu_user_us":([0-9]+),"cpu_system_us":([0-9]+),)"
+      R"("queue_wait_us":([0-9]+)\}\}\s*)");
+  auto Trace = [&] {
+    Immutable trace;
+    EXPECT_TRUE(base::File::Read(trace_path, &trace));
+    return trace.string_copy();
+  };
+  connect_callback = [&](net::TestConnection* connection, net::EndPointPtr) {
+    connection->CallOnSend([&](const net::Connection::Message& message) {
+      EXPECT_EQ(expected_code, message.status().code())
+          << message.status().description();
+      send_condition.notify_all();
+    });
+    return true;
+  };
+
+  for (int mode : {0, 1, 2}) {
+    SCOPED_TRACE(mode);
+    const bool store = mode == 2;
+    conf.mutable_cache()->set_path(temp_dir.path() / "cache");
+    conf.mutable_cache()->set_disabled(mode == 0);
+    conf.mutable_cache()->set_direct(true);
+    conf.mutable_cache()->set_store_time_traces(store);
+    conf.mutable_emitter()->set_threads(1);
+    conf.clear_versions();
+    auto* version = conf.add_versions();
+    version->set_version("trace-test");
+    version->set_path("/bin/sh");
+    emitter = std::make_unique<Emitter>(conf);
+    ASSERT_TRUE(emitter->Initialize());
+
+    ui32 expected_count = send_count;
+    auto Compile = [&](const String& body, bool wait = true) {
+      auto connection = std::static_pointer_cast<net::TestConnection>(
+          test_service->TriggerListen(socket_path));
+      net::Connection::ScopedMessage message(new net::Connection::Message);
+      auto* incoming = message->mutable_local();
+      incoming->set_current_dir(temp_dir);
+      auto* flags = incoming->mutable_flags();
+      flags->mutable_compiler()->set_version("trace-test");
+      flags->set_input(input_path);
+      flags->set_output("test.o");
+      flags->set_deps_file("test.d");
+      flags->set_deps_target("test.o");
+      flags->set_action("trace-test");
+      flags->set_time_trace(true);
+      flags->set_time_trace_file("test.json");
+      auto* args = flags->add_other();
+      args->add_values("-c");
+      args->add_values(body);
+      const auto expected = ++expected_count;
+      net::proto::Status status;
+      status.set_code(net::proto::Status::OK);
+      EXPECT_TRUE(connection->TriggerReadAsync(std::move(message), status));
+      if (wait) {
+        UniqueLock lock(send_mutex);
+        EXPECT_TRUE(send_condition.wait_for(lock, Seconds(5), [&] {
+          return send_count == expected;
+        }));
+      }
+      return connection;
+    };
+    const String outputs =
+        "printf object > test.o; printf 'test.o: " + input_path.string() +
+        "\\n' > test.d; ";
+    const String command =
+        outputs + "printf x >> runs; "
+        "(i=0; while [ \"$i\" -lt 20000 ]; do i=$((i+1)); done); "
+        "/bin/sleep 0.03; printf '%s\\n' '" + original + "' > test.json";
+    base::File::Delete(temp_dir.path() / "runs");
+    Compile(command);
+    const auto first = Trace();
+    const auto suffix = original.size() - 1;
+    ASSERT_GE(first.size(), suffix);
+    EXPECT_EQ(original.substr(0, suffix), first.substr(0, suffix));
+    std::smatch match;
+    const auto tail = first.substr(suffix);
+    ASSERT_TRUE(std::regex_match(tail, match, metrics)) << first;
+    EXPECT_GE(std::stoull(match[1]), 30000u);
+    EXPECT_GT(std::stoull(match[2]) + std::stoull(match[3]), 0u);
+
+    ASSERT_TRUE(base::File::Delete(trace_path));
+    Compile(command);
+    const auto second = Trace();
+    if (store) {
+      EXPECT_EQ(first, second);
+    } else {
+      ASSERT_TRUE(std::regex_match(second.substr(suffix), metrics));
+    }
+    Immutable runs;
+    ASSERT_TRUE(base::File::Read(temp_dir.path() / "runs", &runs));
+    EXPECT_EQ(store ? "x" : "xx", runs.string_copy());
+
+    // One local worker: the second command waits while the first is running.
+    // Synchronize with files so the delay is certainly in the daemon's queue.
+    base::File::Delete(temp_dir.path() / "started");
+    base::File::Delete(temp_dir.path() / "release");
+    auto blocker = Compile(
+        "printf started > started; "
+        "while [ ! -f release ]; do /bin/sleep 0.005; done", false);
+    for (int i = 0; i < 400 &&
+                    !base::File::Exists(temp_dir.path() / "started"); ++i) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    EXPECT_TRUE(base::File::Exists(temp_dir.path() / "started"));
+    auto queued = Compile(command + "; :", false);
+    std::this_thread::sleep_for(std::chrono::milliseconds(60));
+    EXPECT_TRUE(base::File::Write(temp_dir.path() / "release", ""_l));
+    {
+      UniqueLock lock(send_mutex);
+      EXPECT_TRUE(send_condition.wait_for(lock, Seconds(5), [&] {
+        return send_count == expected_count;
+      }));
+    }
+    const auto queued_tail = Trace().substr(suffix);
+    ASSERT_TRUE(std::regex_match(queued_tail, match, metrics));
+    EXPECT_GE(std::stoull(match[4]), 50000u);
+
+    // A missing or incomplete new trace must not reuse the old metrics.
+    Compile(outputs);
+    EXPECT_FALSE(base::File::Exists(trace_path));
+    Compile(outputs + "printf '{\"traceEvents\":[' > test.json");
+    EXPECT_EQ("{\"traceEvents\":[", Trace());
+    Compile(outputs + "printf '%s' '{\"traceEvents\":[{}' > test.json");
+    EXPECT_EQ("{\"traceEvents\":[{}", Trace());
+
+    expected_code = net::proto::Status::EXECUTION;
+    Compile(command + "; exit 7");
+    expected_code = net::proto::Status::OK;
+    EXPECT_TRUE(std::regex_match(Trace().substr(suffix), metrics));
+
+    // Empty objects and whitespace at either end are valid too.
+    Compile(outputs + "printf ' \\n { } \\n' > test.json");
+    const auto empty = Trace();
+    const auto comma = empty.find(",\"distclang\"");
+    EXPECT_EQ(String::npos, comma);
+    EXPECT_NE(String::npos, empty.find("\"distclang\":{\"version\":1"));
+
+    emitter.reset();
+    test_service = nullptr;
+  }
 }
 
 TEST_F(EmitterTest, PreprocessWhenIdle) {

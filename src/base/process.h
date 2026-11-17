@@ -70,6 +70,15 @@ class Process
   enum : ui16 { UNLIMITED = 0 };
   enum : ui32 { SAME_UID = 0 };
 
+  struct Usage {
+    Clock::time_point started_at;
+    // From immediately before fork() until the child is reaped by wait4().
+    ui64 execution_wall_us;
+    // All threads and the descendants reaped by the child; not daemon CPU.
+    ui64 cpu_user_us;
+    ui64 cpu_system_us;
+  };
+
   explicit Process(const Path& exec_path, const Path& cwd_path = Path(),
                    ui32 uid = SAME_UID);
   virtual ~Process() {}
@@ -103,6 +112,8 @@ class Process
   // The process has run and exited by itself - with any code: its failure is
   // not of the start, of a signal or of the timeout.
   inline bool exited() const { return exited_; }
+  // Available after the child is reaped, including failed/signaled commands.
+  inline const std::optional<Usage>& usage() const { return usage_; }
 
   // Kills the running process from another thread, or makes |Run()| fail at
   // once, if it doesn't run yet. Then |canceled()| is |true|.
@@ -135,6 +146,8 @@ class Process
   Atomic<bool> cancel_requested_ = false;
   bool canceled_ = false;
   bool exited_ = false;
+  Clock::time_point started_at_;
+  std::optional<Usage> usage_;
 
  private:
   FRIEND_TEST(daemon::AbsorberTest, SuccessfulCompilationWithRewriteIncludes);

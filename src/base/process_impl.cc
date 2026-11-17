@@ -131,11 +131,19 @@ bool ProcessImpl::WaitPid(int pid, ui64 sec_timeout, String* error) {
   // TODO: implement killing child on timeout.
 
   int status;
+  struct rusage usage = {};
+  auto Wait = [&](int options) {
+    int result;
+    do {
+      result = wait4(pid, &status, options, &usage);
+    } while (result == -1 && errno == EINTR);
+    return result;
+  };
   int result = 0;
   if (terminated_) {
     // The terminated process has a second to exit.
     const auto deadline = Clock::now() + std::chrono::seconds(1);
-    while ((result = waitpid(pid, &status, WNOHANG)) == 0 &&
+    while ((result = Wait(WNOHANG)) == 0 &&
            Clock::now() < deadline) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
@@ -145,7 +153,7 @@ bool ProcessImpl::WaitPid(int pid, ui64 sec_timeout, String* error) {
     }
   }
   if (result == 0) {
-    result = waitpid(pid, &status, 0);
+    result = Wait(0);
   }
   if (result == -1) {
     GetLastError(error);
@@ -153,6 +161,16 @@ bool ProcessImpl::WaitPid(int pid, ui64 sec_timeout, String* error) {
   }
 
   CHECK(result == pid);
+
+  usage_ = Usage{
+      .started_at = started_at_,
+      .execution_wall_us = static_cast<ui64>(
+          std::chrono::duration_cast<std::chrono::microseconds>(
+              Clock::now() - started_at_).count()),
+      .cpu_user_us = static_cast<ui64>(usage.ru_utime.tv_sec) * 1000000 +
+                     usage.ru_utime.tv_usec,
+      .cpu_system_us = static_cast<ui64>(usage.ru_stime.tv_sec) * 1000000 +
+                       usage.ru_stime.tv_usec};
 
   if (WIFEXITED(status)) {
     exited_ = !killed_ && !terminated_;

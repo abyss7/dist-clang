@@ -117,6 +117,71 @@ inline String GetTimeTracePath(const base::proto::Local* WEAK_PTR message) {
   }
 }
 
+// Keep the compiler's JSON bytes: only insert another top-level member.
+// In particular, don't deserialize trace timestamps through floating point.
+void AddTimeTraceUsage(const Path& path, const base::Process::Usage& usage,
+                       Clock::time_point queued_at) {
+  Immutable trace;
+  if (!base::File::Read(path, &trace)) {
+    return;  // Some commands don't produce a trace, including failed ones.
+  }
+  String content = trace.string_copy();
+  const auto first = content.find_first_not_of(" \t\r\n");
+  const auto last = content.find_last_not_of(" \t\r\n");
+  if (first == String::npos || content[first] != '{' ||
+      content[last] != '}' || first == last) {
+    return;
+  }
+
+  // A truncated trace can end with the brace of a nested event. Only append
+  // to a closed outer object, respecting strings and escaped quotes.
+  String brackets;
+  bool quoted = false, escaped = false;
+  for (size_t i = first; i <= last; ++i) {
+    const char c = content[i];
+    if (quoted) {
+      if (escaped) {
+        escaped = false;
+      } else if (c == '\\') {
+        escaped = true;
+      } else if (c == '"') {
+        quoted = false;
+      }
+    } else if (c == '"') {
+      quoted = true;
+    } else if (c == '{' || c == '[') {
+      brackets += c;
+    } else if (c == '}' || c == ']') {
+      if (brackets.empty() ||
+          brackets.back() != (c == '}' ? '{' : '[')) {
+        return;
+      }
+      brackets.pop_back();
+      if (brackets.empty() && i != last) {
+        return;
+      }
+    }
+  }
+  if (quoted || !brackets.empty()) {
+    return;
+  }
+  const auto queue_wait_us =
+      std::chrono::duration_cast<std::chrono::microseconds>(
+          usage.started_at - queued_at).count();
+  const bool empty = content.find_first_not_of(" \t\r\n", first + 1) == last;
+  const String metadata =
+      String(empty ? "" : ",") + "\"distclang\":{\"version\":1" +
+      ",\"execution_wall_us\":" + std::to_string(usage.execution_wall_us) +
+      ",\"cpu_user_us\":" + std::to_string(usage.cpu_user_us) +
+      ",\"cpu_system_us\":" + std::to_string(usage.cpu_system_us) +
+      ",\"queue_wait_us\":" + std::to_string(queue_wait_us) + "}";
+  content.insert(last, metadata);
+  String error;
+  if (!base::File::Write(path, Immutable(std::move(content)), &error)) {
+    LOG(WARNING) << "Failed to add resource usage to " << path << ": " << error;
+  }
+}
+
 // The number of the links of the cache file outside of the cache, except the
 // |path|, if it's one of them.
 ui64 OtherLinks(const Path& cache_file, const Path& path) {
@@ -217,7 +282,7 @@ inline bool HasExplicitDepsTarget(const base::proto::Flags& flags) {
 // Some compilations can't be done remotely: they depend on local files, which
 // aren't sent, or produce more than one output file.
 inline bool IsRemotable(const base::proto::Flags& flags) {
-  return !flags.has_dwo_file() && !flags.key_files_size();
+  return !flags.time_trace() && !flags.has_dwo_file() && !flags.key_files_size();
 }
 
 inline bool MayUsePrecompiledHeader(const base::proto::Flags& flags) {
@@ -729,6 +794,7 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
   }
 
   if (message->has_local()) {
+    const auto queued_at = Clock::now();
     Message execute(message->release_local());
 
     net::proto::Status status;
@@ -739,7 +805,8 @@ bool Emitter::HandleNewMessage(net::ConnectionPtr connection, Universal message,
 
     Task task{.connection = connection,
               .message = std::move(execute),
-              .start_time = FileSystemTime()};
+              .start_time = FileSystemTime(),
+              .queued_at = queued_at};
     if (conf->has_cache() && !conf->cache().disabled()) {
       return cache_tasks_->Push(std::move(task));
     } else if (!IsRemotable(task.message->flags())) {
@@ -1485,7 +1552,9 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
     }
 
     // The stale trace isn't stored, if the compiler doesn't write it.
-    if (RestoresTimeTrace(incoming, *conf)) {
+    const bool time_trace = incoming->flags().time_trace() &&
+                            !incoming->flags().time_trace_file().empty();
+    if (time_trace) {
       base::File::Delete(GetTimeTracePath(incoming));
     }
 
@@ -1513,6 +1582,10 @@ void Emitter::DoLocalExecute(const base::WorkerPool& pool) {
       counter.ReportOnDestroy(false);
       RestorePreviousOutputs();
       continue;
+    }
+    if (time_trace && process->usage() && !process->canceled()) {
+      AddTimeTraceUsage(GetTimeTracePath(incoming), *process->usage(),
+                        task->queued_at);
     }
     std::optional<cache::FileCache::Entry> entry_to_store;
     Immutable deps;

@@ -167,6 +167,10 @@ class Emitter : public CompilationDaemon {
     // inputs, modified after it, may not match the result.
     i64 start_time = 0;
 
+    // Admission to the daemon, preserved across its queues. Time until fork
+    // includes cache lookup, output-lock waits and launch preparation.
+    Clock::time_point queued_at = Clock::now();
+
     // The state of the compilation, that runs at the same time with the
     // preprocessing - if it does.
     SharedPtr<Speculation> speculation;
